@@ -9,6 +9,7 @@ import type { Shortcut } from "./keys.js";
 import { alignTable, deleteColumn, deleteRow, insertColumn, insertRow } from "./editor/tables.js";
 import { toggleTask } from "./editor/tasks.js";
 import { insertLink, toggleFormat } from "./editor/format.js";
+import { copyText, cutText, pasteText } from "./editor/clipboard.js";
 
 export interface TextActionSpec {
   readonly id: string;
@@ -61,6 +62,49 @@ export const linkAction: Action = {
   },
 };
 
+/** Said when the browser or main refused a cut, a copy or a paste. */
+const NO_CLIPBOARD = "The clipboard cannot be used here";
+
+/**
+ * "Cut", "Copy" and "Paste" (SR-195 AK3): what Ctrl/Cmd+X, C and V do in the field with the cursor, the text
+ * or a Markdown box, which the window leaves to the field (`systemKey`). Copy changes nothing, so the lock
+ * note of a read-only element does not stop it.
+ */
+export const CLIPBOARD_ACTIONS: readonly Action[] = [
+  {
+    id: "cut",
+    title: "Cut",
+    systemKey: { mod: true, shift: false, key: "x" },
+    available: hasText,
+    run: (context: ActionContext): void => {
+      context.element?.text?.(cutText, NO_CLIPBOARD);
+    },
+  },
+  {
+    id: "copy",
+    title: "Copy",
+    systemKey: { mod: true, shift: false, key: "c" },
+    available: hasText,
+    run: (context: ActionContext): void => {
+      context.element?.text?.(copyText, NO_CLIPBOARD, { read: true });
+    },
+  },
+  {
+    id: "paste",
+    title: "Paste",
+    systemKey: { mod: true, shift: false, key: "v" },
+    available: hasText,
+    run: (context: ActionContext): void => {
+      const { paste } = context;
+      if (paste === undefined) {
+        context.echo(NO_CLIPBOARD);
+        return;
+      }
+      context.element?.text?.(pasteText(paste), NO_CLIPBOARD);
+    },
+  },
+];
+
 /** The text actions, in the order the command prompt lists equal matches. */
 export const TEXT_ACTIONS: readonly Action[] = [
   // SR-185 AK3.
@@ -103,4 +147,6 @@ export const TEXT_ACTIONS: readonly Action[] = [
   }),
   textAction({ id: "format-code", title: "Inline code", command: toggleFormat("code"), none: NO_FORMAT }),
   linkAction,
+  // SR-195 AK3.
+  ...CLIPBOARD_ACTIONS,
 ];

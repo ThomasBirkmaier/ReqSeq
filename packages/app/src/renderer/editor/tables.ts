@@ -134,6 +134,30 @@ const cellSelection = (state: EditorState, row: Row, index: number): { anchor: n
   return { anchor: caret, head: caret };
 };
 
+/** Whether `pos` is on a line of a table: the table actions apply there (the context menu, SR-195 AK5). */
+export const inTable = (state: EditorState, pos: number): boolean => tableAt(state, pos) !== null;
+
+/**
+ * Where the caret goes for a press on cell `column` of row `row` of the drawn table that starts at `from`
+ * (row 0 is the header, row 1 the first body row; the drawing has no delimiter row): the start of the
+ * cell's content, or the caret place of an empty cell. A row with fewer cells gives its last one; undefined
+ * when there is no such table or row (SR-195 AK5: the right-click in a cell puts the caret in that cell).
+ */
+export const cellCaret = (
+  state: EditorState,
+  from: number,
+  row: number,
+  column: number,
+): number | undefined => {
+  const table = tableAt(state, from);
+  const line = table?.rows[row === 0 ? 0 : row + 1];
+  if (line === undefined) {
+    return undefined;
+  }
+  const index = Math.max(0, Math.min(column, cellCount(line) - 1));
+  return cellSelection(state, line, index).anchor;
+};
+
 /** The transaction of `changes` as a table change: its own undo step. */
 const tableTransaction = (
   changes: readonly ChangeSpec[],

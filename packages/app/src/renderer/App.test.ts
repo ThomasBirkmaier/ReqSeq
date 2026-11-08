@@ -48,6 +48,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     );
   });
   const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
+  const pasteText = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
   const recentWorkspaces = vi.fn<ReqSeqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
   const openWorkspace = vi.fn<ReqSeqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
   // The window's saver, which main calls before a switch (SR-131 AK3) or before the window closes
@@ -81,6 +82,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       return () => listeners.delete(changed);
     },
     copyText,
+    pasteText,
     recentWorkspaces,
     openWorkspace,
     onSave,
@@ -110,6 +112,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     listeners,
     handlers,
     copyText,
+    pasteText,
     recentWorkspaces,
     openWorkspace,
     savers,
@@ -328,6 +331,7 @@ describe("App", () => {
       commands: () => Promise.resolve([]),
       on: () => () => undefined,
       copyText: () => Promise.resolve(true),
+      pasteText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),

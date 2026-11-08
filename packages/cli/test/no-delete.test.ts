@@ -253,8 +253,9 @@ describe("the app offers no delete (SR-099)", () => {
   it("[SR-099/AK1] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
     const app = connect(new Workspace(fixture.root));
     try {
-      // Besides the catalog: the clipboard (SR-128), the recent workspaces of the window and saving
-      // before a switch (SR-131), and the folder listing of "Open workspace" (SR-143).
+      // Besides the catalog: the clipboard (SR-128), the paste into the focused field (SR-195), the recent
+      // workspaces of the window and saving before a switch (SR-131), and the folder listing of "Open
+      // workspace" (SR-143). None deletes anything.
       expect(Object.keys(app.bridge).sort()).toEqual([
         "commands",
         "copyText",
@@ -263,6 +264,7 @@ describe("the app offers no delete (SR-099)", () => {
         "on",
         "onSave",
         "openWorkspace",
+        "pasteText",
         "recentWorkspaces",
       ]);
       const listed = (await app.bridge.commands()).map((c) => c.name);

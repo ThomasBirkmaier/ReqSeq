@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActionContext, ElementControls } from "./actions.js";
 import { ACTIONS } from "./actions.js";
-import { NOT_IN_TABLE, TEXT_ACTIONS, hasText, linkAction, textAction } from "./text-actions.js";
+import {
+  CLIPBOARD_ACTIONS,
+  NOT_IN_TABLE,
+  TEXT_ACTIONS,
+  hasText,
+  linkAction,
+  textAction,
+} from "./text-actions.js";
+import { commandPrompt } from "./actions.js";
+import { copyText, cutText } from "./editor/clipboard.js";
 import { alignTable, deleteColumn, deleteRow, insertColumn, insertRow } from "./editor/tables.js";
 import { toggleTask } from "./editor/tasks.js";
 
@@ -44,6 +53,55 @@ describe("text actions", () => {
       [deleteRow, "The cursor is not in a table row below the header"],
       [deleteColumn, "The cursor is not in a table with more than one column"],
     ]);
+  });
+
+  it("[SR-195/AK3] Cut, Copy and Paste are in the command prompt with the system's keys, which the window leaves to the field", () => {
+    const named = (title: string) => CLIPBOARD_ACTIONS.find((entry) => entry.title === title);
+    for (const [title, key] of [
+      ["Cut", "x"],
+      ["Copy", "c"],
+      ["Paste", "v"],
+    ] as const) {
+      expect(named(title)?.systemKey).toEqual({ mod: true, shift: false, key });
+      expect(named(title)?.shortcut).toBeUndefined();
+    }
+    const context = { ...contextOf("element", vi.fn()), mac: false } as ActionContext;
+    const items = commandPrompt(context).items;
+    expect(items.filter((item) => ["cut", "copy", "paste"].includes(item.id))).toMatchObject([
+      { name: "Cut", hint: "Ctrl+X" },
+      { name: "Copy", hint: "Ctrl+C" },
+      { name: "Paste", hint: "Ctrl+V" },
+    ]);
+    const mac = commandPrompt({ ...context, mac: true }).items;
+    expect(mac.find((item) => item.id === "paste")?.hint).toBe("⌘V");
+  });
+
+  it("[SR-195/AK3] Cut and Copy run the browser's cut and copy on the field, Copy also where it takes no input", () => {
+    const text = vi.fn();
+    for (const title of ["Cut", "Copy"]) {
+      CLIPBOARD_ACTIONS.find((entry) => entry.title === title)?.run(contextOf("element", text));
+    }
+    expect(text.mock.calls).toEqual([
+      [cutText, "The clipboard cannot be used here"],
+      [copyText, "The clipboard cannot be used here", { read: true }],
+    ]);
+  });
+
+  it("[SR-195/AK3] Paste has main paste into the field, and says so where the window cannot", () => {
+    const text = vi.fn();
+    const paste = vi.fn();
+    const echo = vi.fn();
+    const action = CLIPBOARD_ACTIONS.find((entry) => entry.title === "Paste");
+    action?.run({ ...contextOf("element", text), paste, echo });
+    expect(text).toHaveBeenCalledOnce();
+    const [command, none] = text.mock.calls[0] as [(view: unknown) => boolean, string];
+    expect(none).toBe("The clipboard cannot be used here");
+    const focus = vi.fn();
+    expect(command({ state: { readOnly: false }, focus })).toBe(true);
+    expect(focus).toHaveBeenCalledBefore(paste);
+    action?.run({ ...contextOf("element", text), echo });
+    expect(echo).toHaveBeenCalledExactlyOnceWith("The clipboard cannot be used here");
+    expect(text).toHaveBeenCalledOnce();
   });
 
   it("carries a shortcut when it has one", () => {

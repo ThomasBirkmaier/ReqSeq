@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  EDIT_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
@@ -273,6 +274,20 @@ describe("createBridge", () => {
     expect(await bridge.copyText("x")).toBe(false);
   });
 
+  it("[SR-195/AK3] pasteText asks the main process over the edit channel for a paste, and gets no content back", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    expect(await bridge.pasteText()).toBe(true);
+    expect(ipc.invoked).toEqual([{ channel: EDIT_CHANNEL, args: ["paste"] }]);
+    // Only the main process's `true` is a paste; a refusal, anything else and a failure never reject.
+    ipc.answer = false;
+    expect(await bridge.pasteText()).toBe(false);
+    ipc.answer = "text";
+    expect(await bridge.pasteText()).toBe(false);
+    ipc.answer = new Error("No handler registered");
+    expect(await bridge.pasteText()).toBe(false);
+  });
+
   it("recentWorkspaces and openWorkspace go to main, never reject, and drop answers of the wrong shape", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -449,6 +464,7 @@ describe("what the renderer can reach", () => {
       "on",
       "onSave",
       "openWorkspace",
+      "pasteText",
       "recentWorkspaces",
     ]);
     expect(ipc.channels.sort()).toEqual([SAVE_CHANNEL, WORKSPACE_CHANNEL].sort());

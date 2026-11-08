@@ -8,6 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MenuHit } from "./context-menu.js";
 import { isMacCtrlPress, menuKey, menuSelection, opensMenu, placeAt } from "./context-menu.js";
+import { pressedPosition } from "./text-menu.js";
 
 /** The open menu: where it was asked for, the selected entry (-1: none) and the buffer shown then. */
 export interface MenuState {
@@ -56,7 +57,7 @@ export const focusPressed = (target: Element, point: { readonly x: number; reado
   const editor = target.closest(".cm-editor");
   const view = editor instanceof HTMLElement ? EditorView.findFromDOM(editor) : null;
   if (view !== null) {
-    const at = view.posAtCoords(point);
+    const at = pressedPosition(view, target, point);
     const inside =
       at !== null &&
       view.state.selection.ranges.some((range) => !range.empty && range.from <= at && at <= range.to);

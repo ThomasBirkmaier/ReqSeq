@@ -10,7 +10,7 @@ export const WORKSPACE_CHANNEL = "reqseq:workspace";
 
 /**
  * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`
- * when the text was copied, else `false`. One of the five channels from the renderer to the main
+ * when the text was copied, else `false`. One of the six channels from the renderer to the main
  * process, each with the sender check of `main/sender.ts`.
  */
 export const COPY_CHANNEL = "reqseq:copy";
@@ -33,6 +33,17 @@ export const OPEN_WORKSPACE_CHANNEL = "reqseq:open-workspace";
  * with `FolderListing`. Main lists them, because without an open workspace there is no core process.
  */
 export const LIST_FOLDER_CHANNEL = "reqseq:list-folder";
+
+/**
+ * Renderer to main: an edit of the focused field that the renderer cannot do itself (SR-195 AK3); the one
+ * edit is `paste`, which main does as the Edit menu's Paste does (`webContents.paste()`), so the clipboard
+ * reaches the field as a trusted paste event and never the renderer's script directly. Answered `true` when
+ * main pasted, else `false` (`main/edit.ts`).
+ */
+export const EDIT_CHANNEL = "reqseq:edit";
+
+/** The edits EDIT_CHANNEL takes. */
+export type EditRequest = "paste";
 
 /**
  * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
@@ -253,6 +264,12 @@ export interface ReqSeqBridge {
    * with `element get`).
    */
   copyText(text: string): Promise<boolean>;
+  /**
+   * Pastes the system clipboard into the focused field, as Ctrl/Cmd+V does (SR-195 AK3): main does it, right
+   * after a click or Enter or Space, and the field gets the paste event of the system key. Resolves `false`
+   * when main refused or could not, never rejects; the renderer gets no clipboard content from it.
+   */
+  pasteText(): Promise<boolean>;
   /**
    * The workspaces opened last, the most recent first, each `open`, `found` or `missing` (SR-131); an
    * empty list when there are none or they cannot be read, never rejects. From the main process, since

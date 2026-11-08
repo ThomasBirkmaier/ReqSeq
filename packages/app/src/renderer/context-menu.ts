@@ -5,6 +5,7 @@
 import type { Choice } from "./actions.js";
 import type { KeyRow } from "./keys.js";
 import { press } from "./keys.js";
+import { TEXT_MENU } from "./text-menu.js";
 
 /**
  * The places that have a menu of their own. A view marks a place with `data-menu="<place>"`; a press on
@@ -53,7 +54,26 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   text: [
-    // SR-195
+    // SR-195 AK4: first on a reference to an element.
+    { id: "follow-reference", when: TEXT_MENU.reference },
+    // SR-195 AK1: Cut and Copy only with text selected.
+    { id: "cut", when: TEXT_MENU.selected },
+    { id: "copy", when: TEXT_MENU.selected },
+    { id: "paste" },
+    { id: "format-bold" },
+    { id: "format-italic" },
+    { id: "format-code" },
+    { id: "format-link" },
+    { id: "insert-image" },
+    // SR-195 AK5: in a table.
+    { id: "insert-table-row", when: TEXT_MENU.table },
+    { id: "delete-table-row", when: TEXT_MENU.table },
+    { id: "insert-table-column", when: TEXT_MENU.table },
+    { id: "delete-table-column", when: TEXT_MENU.table },
+    { id: "align-table", when: TEXT_MENU.table },
+    // SR-195 AK6: on a heading with a section.
+    { id: "fold-section", when: TEXT_MENU.fold },
+    { id: "unfold-section", when: TEXT_MENU.unfold },
   ],
 
   field: [

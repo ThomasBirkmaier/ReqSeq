@@ -391,7 +391,12 @@ describe("the command prompt", () => {
     for (const context of everyContext()) {
       const items = commandPrompt(context).items;
       for (const action of ACTIONS.filter((candidate) => candidate.available(context))) {
-        if (action.shortcut === undefined && action.hint === undefined && !bound.has(action.id)) {
+        if (
+          action.shortcut === undefined &&
+          action.systemKey === undefined &&
+          action.hint === undefined &&
+          !bound.has(action.id)
+        ) {
           expect(items.find((item) => item.id === action.id)).not.toHaveProperty("hint");
           plain.add(action.id);
         }

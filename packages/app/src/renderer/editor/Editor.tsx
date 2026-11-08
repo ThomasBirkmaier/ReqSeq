@@ -86,6 +86,8 @@ export interface EditorProps {
   /** The accessible name of the text; the element's text is "Text", a property box has its key. */
   readonly label?: string;
   readonly handle?: (handle: EditorHandle | undefined) => void;
+  /** The place of the context menu the editor is (`data-menu`, SR-194): the element's text is `text`. */
+  readonly menu?: string;
 }
 
 const NO_PLUGINS: EditorPlugins = {};
@@ -312,6 +314,7 @@ export const Editor = ({
   rules = BUILT_IN_RULES,
   label = "Text",
   handle,
+  menu,
 }: EditorProps): React.JSX.Element => {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [view, setView] = useState<EditorView | undefined>(undefined);
@@ -433,5 +436,5 @@ export const Editor = ({
     lastText.current = text;
   }, [view, text]);
 
-  return <div className="editor" ref={setHost} />;
+  return <div className="editor" ref={setHost} {...(menu === undefined ? {} : { "data-menu": menu })} />;
 };

@@ -2,7 +2,8 @@
 // the window's workspace on WORKSPACE_CHANNEL, with a port to the core process when one is open; every
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
-// facilities of the window ask the main process: `copyText` writes the clipboard (SR-128),
+// facilities of the window ask the main process: `copyText` writes the clipboard (SR-128), `pasteText`
+// has main paste it into the focused field (SR-195 AK3),
 // `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
 // workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders of a path typed
 // there (SR-143 AK1), and `onSave` sets what saves the window's unsaved
@@ -10,6 +11,7 @@
 // a failure is the error object of every access, an empty list or a refusal.
 import type {
   CommandListing,
+  EditRequest,
   InvokeResult,
   ReqSeqBridge,
   PortEvent,
@@ -19,6 +21,7 @@ import type {
 } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  EDIT_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
@@ -183,6 +186,15 @@ export const createBridge = (ipc: IpcRendererLike): ReqSeqBridge => {
     copyText: async (text) => {
       try {
         return (await ipc.invoke(COPY_CHANNEL, text)) === true;
+      } catch {
+        return false;
+      }
+    },
+    // Main answers `true` when it pasted; the content goes to the focused field, never back over the channel.
+    pasteText: async () => {
+      try {
+        const request: EditRequest = "paste";
+        return (await ipc.invoke(EDIT_CHANNEL, request)) === true;
       } catch {
         return false;
       }

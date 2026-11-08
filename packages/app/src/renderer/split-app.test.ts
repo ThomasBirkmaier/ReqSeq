@@ -152,6 +152,7 @@ const bridge: ReqSeqBridge = {
     return () => listeners.delete(changed);
   },
   copyText: () => Promise.resolve(true),
+  pasteText: () => Promise.resolve(true),
   recentWorkspaces: () => Promise.resolve([]),
   openWorkspace: () => Promise.resolve({ ok: true }),
   listFolder: () => Promise.resolve({ name: "", entries: [] }),

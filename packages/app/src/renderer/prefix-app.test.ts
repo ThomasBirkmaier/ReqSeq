@@ -96,6 +96,7 @@ const bridge = (workspace = true): ReqSeqBridge => ({
   commands: () => Promise.resolve(CATALOG),
   on: () => () => undefined,
   copyText: () => Promise.resolve(true),
+  pasteText: () => Promise.resolve(true),
   recentWorkspaces: () => Promise.resolve([]),
   openWorkspace: () => Promise.resolve({ ok: true }),
   listFolder: () => Promise.resolve({ name: "", entries: [] }),
