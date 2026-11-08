@@ -9,7 +9,7 @@ pnpm --filter @reqseq/app build:electron     # electron-vite: out/main, out/prel
 pnpm --filter @reqseq/app start -- --workspace ../../fixtures/SR-004/one-repository
 pnpm --filter @reqseq/app start -- --workspace ../../spec   # the specification of ReqSeq itself
 pnpm --filter @reqseq/app test:electron      # install, build and the Playwright tests (Linux: under xvfb-run)
-pnpm --filter @reqseq/app test:perf          # the same for the app's performance suite (test/perf/, 50,000 elements)
+pnpm --filter @reqseq/app test:perf          # the same for the app's performance suite (test/perf/: 50,000 elements, and path completion in 10,000 entries)
 ```
 
 The details are in the parts under [`docs/`](docs/), one file per topic. Read only the part you work on.

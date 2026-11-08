@@ -178,7 +178,8 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     await window.keyboard.type("Insert image");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Insert image");
     await window.keyboard.press("Enter");
-    const prompt = window.getByLabel("Insert image");
+    const prompt = window.locator("#prompt-input");
+    await expect(window.locator("label.prompt-label")).toHaveText("Insert image");
     await expect(prompt).toBeFocused();
     const image = path.join(top, "Wind Skizze.png");
     await window.keyboard.insertText(image);

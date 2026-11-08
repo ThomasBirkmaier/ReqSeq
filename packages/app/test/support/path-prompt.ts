@@ -103,7 +103,12 @@ export const typeThroughTenThousand = async (window: Page, dir: string): Promise
     }, expected);
     await window.keyboard.press(key);
     await expect(names(window).nth(1)).toHaveText(expected);
-    return window.evaluate(() => (window as unknown as { took?: number }).took ?? Infinity);
+    const took = await window.evaluate(() => (window as unknown as { took?: number }).took);
+    // A time the page did not take would be recorded as null and break the performance record (report.mjs).
+    if (took === undefined) {
+      throw new Error(`no time was taken for the key ${key} until "${expected}" was shown`);
+    }
+    return took;
   };
   const separator = sep === "\\" ? "Backslash" : "Slash";
   await exportPrompt(window);
