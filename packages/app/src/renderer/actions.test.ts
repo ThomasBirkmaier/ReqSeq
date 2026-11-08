@@ -1445,12 +1445,12 @@ describe("save element and edit text", () => {
     expect(controls.copy).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-161/AK3] Copy result puts the whole shown output on the clipboard as one block", () => {
+  it("Copy result puts the whole shown output on the clipboard as one block", () => {
     const copy = vi.fn();
     const info = resultBuffer(
       "tool.info",
       {},
-      "Show tool info",
+      "About ReqSeq",
       { versions: { app: "1.0.0", cli: "1.0.0" } },
       0,
     );

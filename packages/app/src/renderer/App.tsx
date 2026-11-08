@@ -79,6 +79,8 @@ import { ContextMenuLayer } from "./ContextMenu.js";
 import { openEntries } from "./context-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useCopyNotice } from "./use-copy-notice.js";
+import type { AboutInfo } from "./about.js";
+import { AboutLayer } from "./AboutWindow.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
@@ -189,6 +191,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
   const { notice, copy, notify } = useCopyNotice(bridge);
+  // The window "About ReqSeq" (SR-161): the output of `tool.info` while it is open.
+  const [about, setAbout] = useState<AboutInfo | undefined>(undefined);
+  const aboutOpen = useRef(false);
+  aboutOpen.current = about !== undefined;
   // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
   const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
   const { buffers, layout } = windowState;
@@ -457,6 +463,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           memories.current.clear();
           openPrompt.current = undefined;
           setPrompt(undefined);
+          // "About ReqSeq" named the workspace that is gone.
+          setAbout(undefined);
           dispatch({ type: "reset" });
           leaveSwitching();
         }
@@ -605,6 +613,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     ask,
     echo: setEcho,
+    about: setAbout,
     copy,
     notify,
     recent: () =>
@@ -859,7 +868,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   chooseNow.current = chooseEntry;
   const contextMenu = useContextMenu({
     mac: context.mac,
-    blocked: () => switchingNow.current,
+    // Not over the window "About ReqSeq" (SR-161), which takes every input while it is open.
+    blocked: () => switchingNow.current || aboutOpen.current,
     shown: current?.key,
     prompting: prompt !== undefined,
     onOpen: () => {
@@ -947,10 +957,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // without scrolling it; a press in the area then puts the focus where it pressed.
   useEffect(() => {
     const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
-    if (prompt === undefined && area?.contains(document.activeElement) !== true) {
+    // Not while "About ReqSeq" is open: it keeps the focus (SR-161), and gives it back when it closes.
+    if (prompt === undefined && about === undefined && area?.contains(document.activeElement) !== true) {
       area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
-  }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
+  }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
@@ -1121,6 +1132,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         allCommandsKey={commandPromptKey(context.mac)}
         onSelect={contextMenu.select}
         onChoose={chooseEntry}
+      />
+      <AboutLayer
+        info={about}
+        mac={context.mac}
+        onCopy={copy}
+        onClose={() => {
+          setAbout(undefined);
+        }}
       />
     </div>
   );
