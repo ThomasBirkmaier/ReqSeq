@@ -10,6 +10,7 @@ export {
   sortNewestFirst,
 } from "./by-element.js";
 export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
+export { bearingRecords } from "./bearing.js";
 export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { EnrichOptions, EnrichResult, RefResolution, UnknownRef, VersionLookup } from "./enrich.js";

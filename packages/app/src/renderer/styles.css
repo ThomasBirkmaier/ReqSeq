@@ -456,6 +456,28 @@ mark {
   padding-left: 1rem;
 }
 
+/* A folded section (FoldSection, SR-032 AK3, SR-201): its head muted like the lines it folds, the triangle
+   of the editor's fold toggle before the label, the focus as on a line that opens its reason. */
+.fold-head {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+}
+.fold-head:focus-visible {
+  outline: none;
+  background: var(--select);
+}
+.fold-mark {
+  display: inline-block;
+  width: 1rem;
+}
+.element .evidence-lines .fold-head {
+  padding-left: 1rem;
+}
+
 /* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
    comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
 .element h1 .editor {
