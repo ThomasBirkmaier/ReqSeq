@@ -1,8 +1,8 @@
 // Sections under headings (SR-191): a heading of the text and everything up to the next heading of the same or a
 // higher level fold to a quiet hint, and unfold again with a click on it, a command, or the cursor moving in. The
-// toggle left of a heading shows only while the pointer is over it. Folding is display state of the editor: the
-// document, and so the file, stays as it is (D-061). "Go to heading" reads `headings`. Editor-only, no catalog
-// command, like the slash menu (ADR-0010).
+// toggle left of a heading shows only while the pointer is over the heading or the toggle itself. Folding is display
+// state of the editor: the document, and so the file, stays as it is (D-061). "Go to heading" reads `headings`.
+// Editor-only, no catalog command, like the slash menu (ADR-0010).
 //
 // Sections are the headings at the top level of the text: a `#` line in a list or a quote starts none, as in
 // CommonMark, where it is a heading inside that block.
@@ -159,7 +159,7 @@ export const goToHeading =
     return true;
   };
 
-/** The toggle left of a heading with a section: seen only while the pointer is over the heading (CSS). */
+/** The toggle left of a heading with a section: seen only while the pointer is over the heading or the toggle (CSS). */
 class FoldToggle extends WidgetType {
   readonly from: number;
   readonly folded: boolean;
@@ -252,17 +252,27 @@ const placeholder = (onclick: (event: Event) => void, lines: number): HTMLElemen
 
 // Colour only for meaning: the toggle and the hint are muted (D-062).
 const theme = EditorView.theme({
+  // The toggle covers the left margin of its line from top to bottom (the line's top padding too), touching the
+  // line, and stays under the pointer while unseen (opacity, not visibility, which would take it out of the
+  // pointer's reach): the pointer on its way from the heading to the toggle, or on the toggle itself, keeps the
+  // line hovered, and so the toggle seen (#1130).
+  ".cm-line:has(> .cm-lr-fold-toggle)": { position: "relative" },
   ".cm-lr-fold-toggle": {
     position: "absolute",
-    width: "1em",
-    marginLeft: "-1.25em",
+    top: "0",
+    bottom: "0",
+    left: "-1.25em",
+    boxSizing: "border-box",
+    width: "1.25em",
+    paddingTop: "inherit",
+    paddingRight: "0.25em",
     textAlign: "center",
     color: "var(--muted)",
     cursor: "pointer",
     userSelect: "none",
-    visibility: "hidden",
+    opacity: "0",
   },
-  ".cm-line:hover > .cm-lr-fold-toggle": { visibility: "visible" },
+  ".cm-line:hover .cm-lr-fold-toggle": { opacity: "1" },
   ".cm-lr-fold-hint": {
     marginLeft: "0.5em",
     color: "var(--muted)",
