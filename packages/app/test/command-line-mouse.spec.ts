@@ -2,6 +2,7 @@
 // with an empty input and the commands, as Ctrl/Cmd+Shift+P does (AK1); the wheel scrolls its card to every
 // command it holds (AK2); a click on a hit acts as Enter on it (AK3). Clicks and the wheel go through
 // Chromium's input (Playwright's mouse), as a person's do.
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -123,6 +124,7 @@ test.describe("the command line by mouse", () => {
     const { window } = running;
     await listAll(window);
     const modeline = window.getByLabel("Modeline");
+    const unfiltered = await window.locator(".row").count();
     // A command that asks an argument: by Enter, then by a click, the same question.
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
     await window.keyboard.type("Filter list by status");
@@ -146,6 +148,10 @@ test.describe("the command line by mouse", () => {
       .first()
       .click();
     await expect(input(window)).toHaveCount(0);
+    // The status narrows the list, so the snapshot is of the filtered list.
+    await expect(modeline).toContainText(`status: ${statuses[0] ?? ""}`);
+    await expect.poll(() => window.locator(".row").count()).toBeLessThan(unfiltered);
+    await expect.poll(() => window.locator(".row").count()).toBeGreaterThan(0);
     const clicked = {
       modeline: (await modeline.textContent()) ?? "",
       rows: await window.locator(".row").allTextContents(),
@@ -166,7 +172,8 @@ test.describe("the command line by mouse", () => {
       .filter({ hasText: /^Show workspace status/ })
       .click();
     await expect(input(window)).toHaveCount(0);
-    await expect(window.locator(".result")).toBeVisible();
+    await expect(modeline).toContainText("Show workspace status");
+    await expect(window.locator(".result .line").first()).not.toBeEmpty();
     const result = (await window.locator(".result").textContent()) ?? "";
     const ranModeline = (await modeline.textContent()) ?? "";
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
@@ -176,5 +183,38 @@ test.describe("the command line by mouse", () => {
     await expect(input(window)).toHaveCount(0);
     await expect(window.locator(".result")).toHaveText(result);
     await expect(modeline).toHaveText(ranModeline);
+  });
+
+  test("a press on a hit of the card released over the line opens no command line again", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await listAll(window);
+    await window.keyboard.press(`${await modifier(window)}+Shift+P`);
+    await window.keyboard.type("Show workspace status");
+    const hit = options(window).first();
+    await expect(hit.locator(".name")).toHaveText("Show workspace status");
+    const row = await boxOf(hit);
+    await window.mouse.move(row.x + row.width / 2, row.y + row.height / 2);
+    // The press takes the hit, as Enter does; the release over the idle line is no click on it.
+    await window.mouse.down();
+    await expect(input(window)).toHaveCount(0);
+    const line = await boxOf(minibuffer(window));
+    await window.mouse.move(line.x + line.width / 2, line.y + line.height / 2, { steps: 5 });
+    await window.mouse.up();
+    await expect(window.getByLabel("Modeline")).toContainText("Show workspace status");
+    await expect(input(window)).toHaveCount(0);
+  });
+
+  test("the command line opened by a click, in light, as a screenshot", async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    const { window } = running;
+    await listAll(window);
+    const line = await boxOf(minibuffer(window));
+    await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
+    await expect(options(window).first()).toBeVisible();
+    await window.mouse.move(line.width / 2, line.y - 80);
+    await window.mouse.wheel(0, 200);
+    const folder = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
+    await window.screenshot({ path: path.join(folder, "command-line-mouse-light.png") });
   });
 });

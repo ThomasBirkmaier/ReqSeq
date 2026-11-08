@@ -620,29 +620,35 @@ export const Minibuffer = ({
   onCommand,
   onClose,
   nextKeys,
-}: MinibufferProps): React.JSX.Element => (
-  <div
-    className="minibuffer"
-    aria-label="Minibuffer"
-    aria-live="polite"
-    // A click anywhere on the idle line, also where it has no message, opens the commands (SR-202 AK1).
-    {...(prompt === undefined
-      ? {
-          onClick: (event: React.MouseEvent) => {
-            if (!onCard(event.target)) {
-              onCommand();
-            }
-          },
+}: MinibufferProps): React.JSX.Element => {
+  // Whether the last press began on the idle line itself: a press that took a hit of the card and is
+  // released over the line is no click on it.
+  const pressed = useRef(false);
+  return (
+    <div
+      className="minibuffer"
+      aria-label="Minibuffer"
+      aria-live="polite"
+      onMouseDown={(event) => {
+        pressed.current = prompt === undefined && !onCard(event.target);
+      }}
+      // A click anywhere on the idle line, also where it has no message, opens the commands (SR-202 AK1).
+      onClick={(event) => {
+        const own = pressed.current;
+        pressed.current = false;
+        if (own && prompt === undefined && !onCard(event.target)) {
+          onCommand();
         }
-      : {})}
-  >
-    {prompt === undefined ? (
-      <>
-        {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
-        <div className="echo">{echo}</div>
-      </>
-    ) : (
-      <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
-    )}
-  </div>
-);
+      }}
+    >
+      {prompt === undefined ? (
+        <>
+          {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
+          <div className="echo">{echo}</div>
+        </>
+      ) : (
+        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
+      )}
+    </div>
+  );
+};
