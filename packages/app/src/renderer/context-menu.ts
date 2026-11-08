@@ -5,6 +5,7 @@
 import type { Choice } from "./actions.js";
 import type { KeyRow } from "./keys.js";
 import { press } from "./keys.js";
+import { ENTRY_MENU } from "./entry-menu.js";
 import { FIELD_MENU } from "./field-menu.js";
 import { TEXT_MENU } from "./text-menu.js";
 
@@ -103,7 +104,8 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   "element-entry": [
-    // SR-197
+    // SR-197 AK1: the same entries wherever an element is an entry (`entry-menu.ts`).
+    ...ENTRY_MENU,
   ],
 
   list: [
@@ -123,6 +125,8 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   "matrix-target": [
+    // SR-197 AK1: a connected element in a cell of the matrix is an entry too.
+    ...ENTRY_MENU,
     // SR-199
   ],
 };

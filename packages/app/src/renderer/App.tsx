@@ -80,6 +80,7 @@ import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import { openEntries } from "./context-menu.js";
+import { menuContext, promptEntry } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
@@ -650,6 +651,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     ...(elementControls === undefined ? {} : { element: elementControls }),
     ...(row === undefined ? {} : { row }),
     ...(marked === undefined ? {} : { marked }),
+    // The element of an entry in the command prompt (SR-197): the marked one where the buffer has none of its own.
+    ...promptEntry(current, marked),
     modified: current !== undefined && drafts.current.has(current.key),
     closeArmed: (key) => armed.current === key,
     armClose: (key) => {
@@ -914,6 +917,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       chooseNow.current(index);
     },
   });
+  // The menu of an entry acts on the element of the entry (SR-197): while it is open, the commands are built
+  // from the context with that element, so its entries and the one clicked act on it.
+  latest.current = menuContext(context, contextMenu.menu);
   const shownEntries = openEntries(contextMenu.menu, () => commands().items);
   menuEntriesNow.current = shownEntries.map((entry) => entry.id);
   useEffect(() => {

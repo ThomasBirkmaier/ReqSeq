@@ -47,6 +47,7 @@ import {
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
+import { ENTRY_ACTIONS } from "./entry-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
@@ -291,6 +292,13 @@ export interface ActionContext {
    * none is.
    */
   readonly marked?: ElementBuffer;
+  /**
+   * The element of the entry the commands act on (SR-197, `promptEntry`, `menuContext`): the marked element while the
+   * context menu of an entry is open, and in a buffer without an element of its own (a list, a search, the
+   * overview, the matrix). The entry actions act on it, and an element argument offers it first. Absent: the
+   * commands act on the shown element.
+   */
+  readonly entry?: ElementBuffer;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -1276,6 +1284,9 @@ export const ACTIONS: readonly Action[] = [
       context.follow?.stop();
     },
   },
+  // The actions on the element of an entry (SR-197, `entry-menu.ts`): last, so a catalog command with the
+  // same title is covered by the action on the shown element, whose key it shows (`coveringAction`).
+  ...ENTRY_ACTIONS,
 ];
 
 /** Runs an action. Any action but "Close buffer" ends a question that closing asked. */

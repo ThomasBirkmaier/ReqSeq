@@ -906,7 +906,8 @@ const askAgain = (context: CatalogContext, answered: Entry, at: number): void =>
 };
 
 /**
- * The element an element argument offers first: the element shown, else the selected row of the shown
+ * The element an element argument offers first: the element of the entry (SR-197: the entry the context
+ * menu is open on, or the marked one of a list), else the element shown, else the selected row of the shown
  * list. An element shown read-only (SR-044 AK2) is not offered to a write command, so that buffer stays
  * one a write never starts from by Enter alone; the write can still name it.
  */
@@ -914,6 +915,9 @@ const firstOffered = (
   context: CatalogContext,
   entry: Entry,
 ): ElementBuffer | NeighbourhoodBuffer | undefined => {
+  if (context.entry !== undefined) {
+    return context.entry;
+  }
   const shown = context.buffers[0];
   if (shown?.kind === "element" && shown.readOnly === true && isWrite(entry.command)) {
     return undefined;
