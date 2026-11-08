@@ -12,6 +12,7 @@ import {
   applyEntry,
   asks,
   entriesFor,
+  isoDate,
   opensMenu,
   referenceMarkdown,
   slashRange,
@@ -43,7 +44,7 @@ const taken = (text: string, id: string): string => {
 };
 
 describe("the entries of the slash menu", () => {
-  it("[SR-129/AK1] lists the elements of the criterion in its order, then bold and italic", () => {
+  it("[SR-129/AK1] lists the elements of the criterion in its order, then bold and italic, then the dates (SR-200)", () => {
     expect(SLASH_ENTRIES.map((candidate) => candidate.name)).toEqual([
       "Heading 1",
       "Heading 2",
@@ -65,6 +66,8 @@ describe("the entries of the slash menu", () => {
       "Diagram",
       "Bold",
       "Italic",
+      "Today",
+      "Date",
     ]);
     expect(new Set(SLASH_ENTRIES.map((candidate) => candidate.id)).size).toBe(SLASH_ENTRIES.length);
   });
@@ -74,13 +77,15 @@ describe("the entries of the slash menu", () => {
     expect(SLASH_ENTRIES.find((candidate) => candidate.id === "text")?.detail).toBe("");
   });
 
-  it("[SR-129/AK1] offers only the inline entries, the reference and the image inside a table row", () => {
+  it("[SR-129/AK1] offers only the inline entries, the reference, the image and the dates inside a table row", () => {
     expect(entriesFor(true).map((candidate) => candidate.name)).toEqual([
       "Link",
       "Reference to element",
       "Image",
       "Bold",
       "Italic",
+      "Today",
+      "Date",
     ]);
     expect(entriesFor(false)).toBe(SLASH_ENTRIES);
   });
@@ -221,7 +226,7 @@ describe("taking an entry", () => {
 
   it("[SR-129/AK4] replaces the / and its query in every entry", () => {
     for (const candidate of SLASH_ENTRIES.filter(
-      (each) => each.kind !== "reference" && each.kind !== "image",
+      (each) => each.kind !== "reference" && each.kind !== "image" && each.kind !== "date",
     )) {
       expect(taken("a\n\n/zzz\n\nb", candidate.id), candidate.id).not.toContain("/zzz");
     }
@@ -294,5 +299,19 @@ describe("the reference", () => {
         allowDangerousProtocol: true,
       }),
     ).toBe(`<p><a href="reqseq:${target.id}">a [b] \`c\`</a></p>`);
+  });
+});
+
+describe("the dates of the slash menu (SR-200)", () => {
+  it("[SR-200/AK1] Today writes the computer's day as YYYY-MM-DD in place of the / and its query", () => {
+    const state = stateOf("Due /tod here");
+    const next = state.update(applyEntry(state, 4, 8, entry("today"), new Date(2026, 10, 8, 23, 59))).state;
+    expect(next.doc.toString()).toBe("Due 2026-11-08 here");
+    expect(next.selection.main.head).toBe(14);
+  });
+
+  it("writes the local day, padded, in any year", () => {
+    expect(isoDate(new Date(2026, 0, 5, 0, 1))).toBe("2026-01-05");
+    expect(isoDate(new Date(999, 11, 31))).toBe("0999-12-31");
   });
 });

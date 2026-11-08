@@ -138,9 +138,11 @@ describe("the slash menu opens", () => {
       "Diagram",
       "Bold",
       "Italic",
+      "Today",
+      "Date",
     ]);
     expect(selected(view)).toBe("Heading 1");
-    expect(container.querySelectorAll(".cm-tooltip-autocomplete li")).toHaveLength(20);
+    expect(container.querySelectorAll(".cm-tooltip-autocomplete li")).toHaveLength(22);
     expect(container.querySelector(".cm-tooltip-autocomplete")?.classList.contains("cm-lr-slash")).toBe(true);
   });
 
@@ -174,7 +176,15 @@ describe("the slash menu opens", () => {
   it("[SR-129/AK1] shows only the inline entries and the reference in a table row", async () => {
     const view = await show("| a | b |\n| --- | --- |\n| x | ");
     await type(view, "/");
-    expect(labels(view)).toEqual(["Link", "Reference to element", "Image", "Bold", "Italic"]);
+    expect(labels(view)).toEqual([
+      "Link",
+      "Reference to element",
+      "Image",
+      "Bold",
+      "Italic",
+      "Today",
+      "Date",
+    ]);
   });
 
   it("[SR-129/AK1] does not open for a pasted /x when typing goes on", async () => {
@@ -706,7 +716,122 @@ describe("accessibility", () => {
     expect(content?.getAttribute("aria-activedescendant")).toBe(
       container.querySelector("li[aria-selected]")?.id,
     );
-    expect(container.querySelectorAll('li[role="option"]')).toHaveLength(20);
+    expect(container.querySelectorAll('li[role="option"]')).toHaveLength(22);
     expect(container.querySelector('li[aria-selected="true"]')?.textContent).toContain("Heading 1");
+  });
+});
+
+describe("the dates of the slash menu (SR-200)", () => {
+  /** The editor with the clock at 2026-11-08, 09:30 local time. */
+  const dated = (text: string): Promise<EditorView> =>
+    show(text, { plugins: mergePlugins(slashMenu({ ...options, now: () => new Date(2026, 10, 8, 9, 30) })) });
+  const calendarOf = (): HTMLElement | null => container.querySelector(".cm-lr-calendar");
+  const chosen = (): string | undefined =>
+    calendarOf()?.querySelector<HTMLElement>('[aria-selected="true"]')?.dataset["day"];
+  const key = (view: EditorView, name: string): boolean => press(view, { key: name }).handled;
+
+  it("[SR-200/AK1] Today writes today's date of the computer in place of the / and its query", async () => {
+    const view = await dated("Due ");
+    await type(view, "/tod");
+    expect(selected(view)).toBe("Today");
+    key(view, "Enter");
+    expect(doc(view)).toBe("Due 2026-11-08");
+    expect(view.state.selection.main.head).toBe(14);
+  });
+
+  it("[SR-200/AK2] Date opens a month calendar at the caret with today chosen; the arrows move by a day and a week, across months", async () => {
+    const view = await dated("");
+    await type(view, "/date");
+    expect(selected(view)).toBe("Date");
+    key(view, "Enter");
+    await tick();
+    expect(doc(view)).toBe("/date");
+    expect(completionStatus(view.state)).toBeNull();
+    expect(calendarOf()?.querySelector(".cm-lr-calendar-title")?.textContent).toBe("November 2026");
+    expect(calendarOf()?.querySelector('[aria-current="date"]')?.getAttribute("data-day")).toBe("2026-11-08");
+    expect(chosen()).toBe("2026-11-08");
+    expect(key(view, "ArrowRight")).toBe(true);
+    await tick();
+    expect(chosen()).toBe("2026-11-09");
+    key(view, "ArrowDown");
+    await tick();
+    expect(chosen()).toBe("2026-11-16");
+    for (let step = 0; step < 3; step += 1) {
+      key(view, "ArrowUp");
+    }
+    await tick();
+    expect(chosen()).toBe("2026-10-26");
+    expect(calendarOf()?.querySelector(".cm-lr-calendar-title")?.textContent).toBe("October 2026");
+    key(view, "ArrowLeft");
+    await tick();
+    expect(chosen()).toBe("2026-10-25");
+    // The text waits for the day, and autosave with it.
+    expect(awaitingReference(view.state)).toBe(true);
+    expect(doc(view)).toBe("/date");
+  });
+
+  it("[SR-200/AK3] Enter writes the chosen day as YYYY-MM-DD in place of the / and its query, in one undo step", async () => {
+    const view = await dated("Due ");
+    await type(view, "/da");
+    key(view, "Enter");
+    await tick();
+    key(view, "ArrowRight");
+    key(view, "Enter");
+    await tick();
+    expect(doc(view)).toBe("Due 2026-11-09");
+    expect(calendarOf()).toBeNull();
+    expect(awaitingReference(view.state)).toBe(false);
+    act(() => {
+      undo(view);
+    });
+    expect(doc(view)).toBe("Due /da");
+  });
+
+  it("[SR-200/AK3] a click on a day writes that day", async () => {
+    const view = await dated("");
+    await type(view, "/date");
+    key(view, "Enter");
+    await tick();
+    const cell = calendarOf()?.querySelector<HTMLElement>('[data-day="2026-11-20"]');
+    act(() => {
+      cell?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    });
+    expect(doc(view)).toBe("2026-11-20");
+    expect(calendarOf()).toBeNull();
+  });
+
+  it("[SR-200/AK3] Escape closes the calendar and leaves the / and its query as typed", async () => {
+    const view = await dated("");
+    await type(view, "/date");
+    key(view, "Enter");
+    await tick();
+    expect(key(view, "Escape")).toBe(true);
+    await tick();
+    expect(calendarOf()).toBeNull();
+    expect(doc(view)).toBe("/date");
+    expect(awaitingReference(view.state)).toBe(false);
+  });
+
+  it("typing or leaving the editor closes the calendar as Escape does", async () => {
+    const view = await dated("");
+    await type(view, "/date");
+    key(view, "Enter");
+    await tick();
+    await type(view, "x");
+    expect(calendarOf()).toBeNull();
+    expect(doc(view)).toBe("/datex");
+    expect(awaitingReference(view.state)).toBe(false);
+    view.dispatch({ selection: { anchor: 0 } });
+    await type(view, "/date");
+    expect(selected(view)).toBe("Date");
+    key(view, "Enter");
+    await tick();
+    expect(calendarOf()).not.toBeNull();
+    act(() => {
+      view.contentDOM.dispatchEvent(new FocusEvent("blur"));
+    });
+    await tick();
+    expect(calendarOf()).toBeNull();
+    expect(awaitingReference(view.state)).toBe(false);
   });
 });

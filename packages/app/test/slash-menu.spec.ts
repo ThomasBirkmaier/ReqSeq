@@ -42,6 +42,8 @@ const ENTRIES = [
   "Diagram",
   "Bold",
   "Italic",
+  "Today",
+  "Date",
 ];
 
 const OUT =

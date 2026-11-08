@@ -24,7 +24,8 @@ import { SLASH_NEXT, SLASH_PREVIOUS } from "./editor-keys.js";
 import type { EditorPlugins } from "./plugins.js";
 import { askImage, askReference, pendingField, setPending } from "./reference-pick.js";
 import type { ImageRequest, PickOptions } from "./reference-pick.js";
-import { applyEntry, asks, entriesFor, opensMenu, slashRange } from "./slash-entries.js";
+import { askDate, calendar } from "./calendar.js";
+import { applyEntry, asks, entriesFor, isoDate, opensMenu, slashRange } from "./slash-entries.js";
 import type { AskingEntry, SlashEntry, SlashRange } from "./slash-entries.js";
 import { SLASH_CLASS, slashMotion } from "./slash-motion.js";
 
@@ -35,11 +36,13 @@ export { awaitingReference } from "./reference-pick.js";
 
 /**
  * "Reference to element" asks the app for an element, "Image" for an image file (SR-097), both through
- * `reference-pick.ts`.
+ * `reference-pick.ts`; "Date" opens the calendar at the caret (SR-200, `calendar.ts`).
  */
 export type SlashMenuOptions = PickOptions & {
   /** Asks the app for an image file (the prompt "Insert image"). */
   readonly pickImage: (request: ImageRequest) => void;
+  /** The computer's clock, for "Today" and the calendar of "Date" (SR-200); a test sets it. */
+  readonly now?: () => Date;
 };
 
 /** The `/` that was typed (R3): where it stands, and whether Escape closed its menu. */
@@ -105,9 +108,15 @@ const rangeOf = (state: EditorState, head: number): SlashRange | undefined => {
 };
 
 /** Takes the entry for the `/` and its query: one transaction and one undo step, even when typing follows at once (R5). */
-const take = (view: EditorView, entry: Exclude<SlashEntry, AskingEntry>, from: number, to: number): void => {
+const take = (
+  view: EditorView,
+  entry: Exclude<SlashEntry, AskingEntry>,
+  from: number,
+  to: number,
+  now: Date,
+): void => {
   view.dispatch({
-    ...applyEntry(view.state, from, to, entry),
+    ...applyEntry(view.state, from, to, entry, now),
     effects: dismissEffect.of(null),
     userEvent: "input.complete",
     annotations: isolateHistory.of("full"),
@@ -136,11 +145,13 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
       closeCompletion(view);
       if (item.kind === "reference") {
         askReference(view, options);
-      } else {
+      } else if (item.kind === "image") {
         askImage(view, options.pickImage);
+      } else {
+        askDate(view, isoDate(options.now?.() ?? new Date()));
       }
     } else {
-      take(view, item, from, to);
+      take(view, item, from, to, options.now?.() ?? new Date());
     }
   };
 
@@ -219,6 +230,8 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
   const extensions: Extension[] = [
     armedField,
     pendingField,
+    // Before the menu's keys: while the calendar is open, the arrows, Enter and Escape are its own.
+    calendar,
     autocompletion({
       override: [(context: CompletionContext) => resultAt(context.state, context.pos)],
       defaultKeymap: false,

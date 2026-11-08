@@ -45,7 +45,7 @@ export const BOX_KEYS: readonly KeyRow[] = [
 export const EDITOR_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("/") }],
-    does: "In the text, at the start of a line or after a space: the slash menu with the Markdown elements at the caret",
+    does: "In the text, at the start of a line or after a space: the slash menu with the Markdown elements and the dates at the caret",
   },
   {
     keys: [{ press: press("[[") }],
@@ -57,6 +57,22 @@ export const EDITOR_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("Escape") }],
     does: "In the slash menu: close it and leave the `/` as typed",
+  },
+  {
+    keys: [{ press: press("ArrowLeft") }, { press: press("ArrowRight") }],
+    does: "In the calendar of “Date”: the day before or after",
+  },
+  {
+    keys: [{ press: press("ArrowUp") }, { press: press("ArrowDown") }],
+    does: "In the calendar of “Date”: the same weekday a week before or after",
+  },
+  {
+    keys: [{ press: press("Enter") }],
+    does: "In the calendar of “Date”: write the chosen day as YYYY-MM-DD",
+  },
+  {
+    keys: [{ press: press("Escape") }],
+    does: "In the calendar of “Date”: close it and leave the `/` as typed",
   },
 ];
 
