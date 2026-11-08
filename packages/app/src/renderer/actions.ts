@@ -269,6 +269,11 @@ export interface ActionContext {
   readonly about?: (info: AboutInfo) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
   readonly copy?: (label: string, text: string) => void;
+  /**
+   * Has main paste the clipboard into the focused field, as Ctrl/Cmd+V does (SR-195 AK3); the renderer
+   * never reads the clipboard. Absent: "Paste" says it cannot.
+   */
+  readonly paste?: () => void;
   /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
   readonly notify?: (text: string) => void;
   /**
@@ -338,6 +343,11 @@ export interface Action {
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
+  /**
+   * The key of the system that does the same in the field itself (Ctrl/Cmd+X, C, V, SR-195 AK3): shown as
+   * the hint, but the window binds nothing to it, since the field takes the key first.
+   */
+  readonly systemKey?: Shortcut;
   /** Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85). */
   readonly covers?: readonly string[];
   readonly available: (context: ActionContext) => boolean;
@@ -1281,10 +1291,9 @@ export const runAction = (action: Action, context: ActionContext): void => {
  * AK3), else the key that works in the buffer.
  */
 const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
+  const shown = action.shortcut ?? action.systemKey;
   const hint =
-    action.shortcut === undefined
-      ? (bindingLabel(action.id, mac) ?? action.hint)
-      : shortcutLabel(action.shortcut, mac);
+    shown === undefined ? (bindingLabel(action.id, mac) ?? action.hint) : shortcutLabel(shown, mac);
   return hint === undefined ? {} : { hint };
 };
 

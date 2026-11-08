@@ -17,7 +17,9 @@ SR-194 AK6: "Go to element or buffer", "Search elements", "Close buffer", "Split
 
 ## text
 
-SR-195.
+SR-195 (`text-menu.ts`), marked on the editor of the element's text (`Editor` with `menu="text"`), not on the boxes of properties: "Follow reference" first on a reference to an element (AK4); "Cut" and "Copy" with text selected, then always "Paste", "Bold", "Italic", "Inline code", "Link" and "Insert image" (AK1); in a table "Insert row", "Delete row", "Insert column", "Delete column" and "Align table" (AK5); on a heading with a section "Fold section", or "Unfold section" when it is folded (AK6). Each test reads the editor's state at its caret, which the right press has put at the pointer or kept in the selection it landed in (AK2, `focusPressed`); a press on a cell of a drawn table puts the caret in that cell (`pressedPosition`), since the drawing is one widget. "Follow reference" is shown on `reqseq:` references only: the app follows no other link (assumption, spec question #1176).
+
+"Cut", "Copy" and "Paste" are actions of the command prompt too (`text-actions.ts`, `editor/clipboard.ts`), with the system's keys as their hint (`systemKey`: the window binds nothing to them, the field takes the key). They act on the field with the cursor, the text or a Markdown box, as the other text actions do. Cut and Copy ask the browser for its own cut or copy (`document.execCommand`) in the focused editor, within the click's or the Enter's activation, so CodeMirror gets the clipboard event of the key; Copy also works where the element takes no input. Paste gives the editor the focus and asks main (`pasteText`, `reqseq:edit`), which pastes as the Edit menu does: the editor gets the paste event of Ctrl/Cmd+V, an image is copied as in SR-190 (`paste.ts`). The renderer never reads the clipboard.
 
 ## field, field-property, field-status, field-short-id
 

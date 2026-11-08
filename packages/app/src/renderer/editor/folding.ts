@@ -152,6 +152,20 @@ const toggleFold = (view: EditorView, heading: Heading): boolean => {
   return true;
 };
 
+/**
+ * What can be done with the section of the heading whose lines hold `pos`: "fold" an open one, "unfold" a
+ * folded one; undefined off a heading or on one with nothing under it (the context menu, SR-195 AK6).
+ */
+export const headingFoldAt = (state: EditorState, pos: number): "fold" | "unfold" | undefined => {
+  const heading = headings(state).find(
+    (each) => foldOf(each) !== undefined && each.from <= pos && pos <= each.end,
+  );
+  if (heading === undefined) {
+    return undefined;
+  }
+  return isFolded(state, heading) ? "unfold" : "fold";
+};
+
 /** "Fold section" (SR-191 AK1): folds the section the cursor is in; false when it is in none or the section is empty. */
 export const foldSection: Command = (view) => {
   const heading = sectionAt(view.state, view.state.selection.main.head);

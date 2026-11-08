@@ -625,6 +625,15 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     echo: setEcho,
     about: setAbout,
     copy,
+    // "Paste" (SR-195 AK3): main pastes into the field that has the focus now; it refuses without a click
+    // or Enter just before (`main/edit.ts`).
+    paste: () => {
+      void bridge.pasteText().then((pasted) => {
+        if (!pasted) {
+          setEcho("The clipboard cannot be used here");
+        }
+      });
+    },
     notify,
     recent: () =>
       recentRef.current.flatMap((entry) => {

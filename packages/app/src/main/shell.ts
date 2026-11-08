@@ -4,6 +4,7 @@
 import path from "node:path";
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
+import { handleEdit } from "./edit.js";
 import { guardClose } from "./close.js";
 import { reloadWhenGone } from "./renderer-gone.js";
 import { handleListFolder } from "./list-folder.js";
@@ -74,8 +75,10 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
   });
   // The renderer asks for a copy to the clipboard (SR-128), for the workspaces opened last and to open
   // one of them in this window, and answers whether its input is saved before a switch (SR-131), and
-  // for the folders of a path typed in "Open workspace" (SR-143): the five channels it has to main.
+  // for the folders of a path typed in "Open workspace" (SR-143), and for a paste of the clipboard into
+  // the focused field (SR-195 AK3): the six channels it has to main.
   handleCopy(electron, window.webContents);
+  handleEdit(electron, window.webContents);
   handleListFolder(electron, window.webContents, { log: options.log });
   const workspaces = handleWorkspaces(electron, window.webContents, {
     core,

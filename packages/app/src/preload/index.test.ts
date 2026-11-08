@@ -19,6 +19,7 @@ describe("preload entry", () => {
       "on",
       "onSave",
       "openWorkspace",
+      "pasteText",
       "recentWorkspaces",
     ]);
     expect(on.mock.calls.map((call) => call[0] as unknown)).toEqual([WORKSPACE_CHANNEL, SAVE_CHANNEL]);

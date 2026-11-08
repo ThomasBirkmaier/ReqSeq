@@ -38,7 +38,7 @@ export const ElementText = ({
     {titleDisk}
     {belowTitle}
     <FieldBox label={TEXT_FIELD} onCopy={onCopy} marked={marked}>
-      <Editor {...text} />
+      <Editor {...text} menu="text" />
     </FieldBox>
     {textDisk}
   </>
