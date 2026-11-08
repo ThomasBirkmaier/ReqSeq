@@ -445,6 +445,17 @@ describe("catalog commands in the command prompt", () => {
     expect((await last(shownToo.asked)).items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
   });
 
+  it("puts the element of an entry first, before the shown element (SR-197)", async () => {
+    const entry = elementBuffer("uuid-8", "spec", "SR-8 Title 8");
+    const { context, asked, call } = setup([shown], { "trace.affected": () => ({ elements: [], total: 0 }) });
+    start({ ...context, entry }, "trace.affected");
+    const ref = await last(asked);
+    expect(ref.items.map((i) => i.name)).toEqual(["SR-8 Title 8"]);
+    ref.items[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("trace.affected", { ref: "uuid-8" });
+  });
+
   it("opens the prompt of an argument at once with its label and fills its candidates when they arrive", async () => {
     const { context, asked } = setup([shown], { "relation.options": () => OPTIONS });
     start(context, "relation.options");

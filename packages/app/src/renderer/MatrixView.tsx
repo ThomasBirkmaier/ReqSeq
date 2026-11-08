@@ -92,7 +92,8 @@ const Link = ({
     <span
       role="link"
       className={current ? "target current" : "target"}
-      data-menu="element-entry"
+      // A connected element: the entries of an element (SR-197), and what SR-199 adds for its relation.
+      data-menu="matrix-target"
       onClick={onChoose}
       onContextMenu={onSelect}
     >

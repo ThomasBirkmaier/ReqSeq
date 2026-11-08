@@ -27,6 +27,7 @@ import {
   onlyOverview,
   overviewBuffer,
   searchBuffer,
+  showBuffer,
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
@@ -47,6 +48,7 @@ import {
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
+import { ENTRY_ACTIONS } from "./entry-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
@@ -291,6 +293,13 @@ export interface ActionContext {
    * none is.
    */
   readonly marked?: ElementBuffer;
+  /**
+   * The element of the entry the commands act on (SR-197, `promptEntry`, `menuContext`): the marked element while the
+   * context menu of an entry is open, and in a buffer without an element of its own (a list, a search, the
+   * overview, the matrix). The entry actions act on it, and an element argument offers it first. Absent: the
+   * commands act on the shown element.
+   */
+  readonly entry?: ElementBuffer;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -459,7 +468,6 @@ const shownResult = (context: ActionContext): ResultBuffer | undefined => {
 };
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
-/** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
 /** The shown buffer when it is the metamodel in `mode`. */
 const metamodelIn = (context: ActionContext, mode: MetamodelBuffer["mode"]): MetamodelBuffer | undefined => {
   const shown = context.buffers[0];
@@ -475,14 +483,6 @@ const switchMetamodel =
       context.dispatch({ type: "open", buffer: { ...shown, mode: to } });
     }
   };
-
-const showBuffer = (context: ActionContext, buffer: Buffer): void => {
-  context.dispatch(
-    context.buffers.some((open) => open.key === buffer.key)
-      ? { type: "switch", key: buffer.key }
-      : { type: "open", buffer },
-  );
-};
 
 /**
  * An action on the shown graph that asks with `label` for one of the entries `choices` gives: taking one
@@ -1276,6 +1276,9 @@ export const ACTIONS: readonly Action[] = [
       context.follow?.stop();
     },
   },
+  // The actions on the element of an entry (SR-197, `entry-menu.ts`): last, so a catalog command with the
+  // same title is covered by the action on the shown element, whose key it shows (`coveringAction`).
+  ...ENTRY_ACTIONS,
 ];
 
 /** Runs an action. Any action but "Close buffer" ends a question that closing asked. */
