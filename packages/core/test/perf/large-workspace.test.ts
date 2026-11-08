@@ -35,6 +35,7 @@ import { REQIF_LIMITS } from "../../src/reqif/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import { NORMAL_FORM } from "../../src/version/version.js";
 import { standardModel, versionOf } from "./core-version.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
@@ -151,7 +152,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     const loaded = loadedVersionsOf(versions.store);
     expect(loaded.size).toBe(ELEMENTS);
     expect(
-      versions.store.elements.filter((e) => loaded.get(e)?.byForm["n1"] !== generated.get(e.id)),
+      versions.store.elements.filter((e) => loaded.get(e)?.byForm[NORMAL_FORM] !== generated.get(e.id)),
     ).toEqual([]);
     const { result: again } = await measure(
       "current versions on a later use (embedded images checked; the generator embeds none)",
