@@ -611,7 +611,8 @@ const NextKeys = ({
   );
 
 /** Whether `target` is on the card above the line (the next keys), which is no part of the line. */
-const onCard = (target: EventTarget): boolean => target instanceof Element && target.closest(".card") !== null;
+const onCard = (target: EventTarget): boolean =>
+  target instanceof Element && target.closest(".card") !== null;
 
 export const Minibuffer = ({
   echo,

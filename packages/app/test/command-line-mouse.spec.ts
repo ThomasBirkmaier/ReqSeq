@@ -134,12 +134,17 @@ test.describe("the command line by mouse", () => {
     await expect(input(window)).toHaveCount(0);
     const line = await boxOf(minibuffer(window));
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
-    await options(window).filter({ hasText: /^Filter list by status/ }).click();
+    await options(window)
+      .filter({ hasText: /^Filter list by status/ })
+      .click();
     await expect(label(window)).toHaveText("Status");
     await expect(options(window).locator(".name")).toHaveText(statuses);
     await expect(input(window)).toBeFocused();
     // A hit of that question taken by a click: the list is filtered as Enter on it filters it.
-    await options(window).filter({ hasText: statuses[0] ?? "" }).first().click();
+    await options(window)
+      .filter({ hasText: statuses[0] ?? "" })
+      .first()
+      .click();
     await expect(input(window)).toHaveCount(0);
     const clicked = {
       modeline: (await modeline.textContent()) ?? "",
@@ -157,7 +162,9 @@ test.describe("the command line by mouse", () => {
     await expect(window.locator(".row")).toHaveText(clicked.rows);
     // A command that runs at once: its result buffer by a click is the one Enter gives.
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
-    await options(window).filter({ hasText: /^Show workspace status/ }).click();
+    await options(window)
+      .filter({ hasText: /^Show workspace status/ })
+      .click();
     await expect(input(window)).toHaveCount(0);
     await expect(window.locator(".result")).toBeVisible();
     const result = (await window.locator(".result").textContent()) ?? "";
