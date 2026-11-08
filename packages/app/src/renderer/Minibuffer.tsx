@@ -17,7 +17,7 @@ export interface MinibufferProps {
   readonly echo: string;
   /** The question being asked; `serial` is new for every question, so a new one starts empty. */
   readonly prompt: { readonly serial: number; readonly prompt: Prompt } | undefined;
-  /** A click on the idle line: ask for a command. */
+  /** A click on the idle line, anywhere but on the card of the next keys: ask for a command. */
   readonly onCommand: () => void;
   /** The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. */
   readonly onClose: (cancelled: boolean) => void;
@@ -610,23 +610,45 @@ const NextKeys = ({
     </Card>
   );
 
+/** Whether `target` is on the card above the line (the next keys), which is no part of the line. */
+const onCard = (target: EventTarget): boolean =>
+  target instanceof Element && target.closest(".card") !== null;
+
 export const Minibuffer = ({
   echo,
   prompt,
   onCommand,
   onClose,
   nextKeys,
-}: MinibufferProps): React.JSX.Element => (
-  <div className="minibuffer" aria-label="Minibuffer" aria-live="polite">
-    {prompt === undefined ? (
-      <>
-        {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
-        <div className="echo" onClick={onCommand}>
-          {echo}
-        </div>
-      </>
-    ) : (
-      <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
-    )}
-  </div>
-);
+}: MinibufferProps): React.JSX.Element => {
+  // Whether the last press began on the idle line itself: a press that took a hit of the card and is
+  // released over the line is no click on it.
+  const pressed = useRef(false);
+  return (
+    <div
+      className="minibuffer"
+      aria-label="Minibuffer"
+      aria-live="polite"
+      onMouseDown={(event) => {
+        pressed.current = prompt === undefined && !onCard(event.target);
+      }}
+      // A click anywhere on the idle line, also where it has no message, opens the commands (SR-202 AK1).
+      onClick={(event) => {
+        const own = pressed.current;
+        pressed.current = false;
+        if (own && prompt === undefined && !onCard(event.target)) {
+          onCommand();
+        }
+      }}
+    >
+      {prompt === undefined ? (
+        <>
+          {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
+          <div className="echo">{echo}</div>
+        </>
+      ) : (
+        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
+      )}
+    </div>
+  );
+};

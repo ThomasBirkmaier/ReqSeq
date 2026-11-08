@@ -276,6 +276,16 @@ const click = async (target: Element): Promise<void> => {
   await flush();
 };
 
+/** A click on the idle command line as a person's: the press begins on it (SR-202 AK1). */
+const clickLine = async (): Promise<void> => {
+  const line = query(".echo");
+  await act(async () => {
+    line.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    await Promise.resolve();
+  });
+  await click(line);
+};
+
 /** Opens the command prompt, types `name` and runs the first candidate. */
 /** The modifier of the shortcuts on the platform of the test: Cmd under macOS, else Ctrl. */
 const mod = (): { readonly ctrlKey: true } | { readonly metaKey: true } =>
@@ -409,8 +419,11 @@ describe("App", () => {
     expect(query("label").textContent).toBe("Command");
     expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
     await keyDown(query("input"), "Escape");
-    // A click on the idle line asks for a command too.
+    // A click whose press did not begin on the idle line (a hit taken by its press) asks nothing.
     await click(query(".echo"));
+    expect(document.querySelector("input")).toBeNull();
+    // A click on the idle line asks for a command too.
+    await clickLine();
     expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Workspace");
@@ -506,7 +519,7 @@ describe("App", () => {
     vi.spyOn(Date, "now").mockImplementation(() => (clock += 60_000));
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
-    await click(query(".echo"));
+    await clickLine();
     const status = [...container.querySelectorAll('[role="option"]')].find(
       (option) => option.textContent === "Filter list by status",
     );
@@ -516,7 +529,7 @@ describe("App", () => {
     });
     expect(query("label").textContent).toBe("Status");
     await keyDown(query("input"), "Escape");
-    await click(query(".echo"));
+    await clickLine();
     // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
     expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
       "Filter list by status",
@@ -527,7 +540,7 @@ describe("App", () => {
   it("opens the command prompt with a click on the idle minibuffer", async () => {
     const { bridge } = fakeBridge(workspace());
     await render(bridge);
-    await click(query(".echo"));
+    await clickLine();
     expect(query("label").textContent).toBe("Command");
   });
 
@@ -1807,7 +1820,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe("Opening another workspace…");
     // No command, no prompt, no other key while it is busy.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    await click(query(".echo"));
+    await clickLine();
     expect(container.querySelector('[role="option"]')).toBeNull();
     expect(text("Minibuffer")).toBe("Opening another workspace…");
     written({ ok: true, output: { element: row(1, { text: "Hello!" }), files: [], affected: 0 } });

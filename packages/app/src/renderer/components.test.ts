@@ -199,16 +199,27 @@ describe("Minibuffer", () => {
     const { command } = await mount(undefined, vi.fn(), vi.fn(), "Searching is not ready");
     expect(query('[aria-label="Minibuffer"]').textContent).toBe("Searching is not ready");
     expect(container.querySelector("input")).toBeNull();
+    // A click whose press began elsewhere (a hit taken by its press, released here) asks nothing.
     await click(query(".echo"));
-    expect(command).toHaveBeenCalledTimes(1);
+    expect(command).not.toHaveBeenCalled();
+    // A press and click anywhere on the line, also beside the message, asks for a command (SR-202 AK1).
+    for (const target of [query(".echo"), query('[aria-label="Minibuffer"]')]) {
+      await act(async () => {
+        target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        await Promise.resolve();
+      });
+      await click(target);
+    }
+    expect(command).toHaveBeenCalledTimes(2);
   });
 
   it("shows the next keys as rows of key and command, without an input", async () => {
+    const onCommand = vi.fn();
     await render(
       createElement(Minibuffer, {
         echo: "Ctrl+K-",
         prompt: undefined,
-        onCommand: vi.fn(),
+        onCommand,
         onClose: vi.fn(),
         nextKeys: [
           { key: "L", name: "List all elements" },
@@ -224,6 +235,14 @@ describe("Minibuffer", () => {
       ["B", "Close buffer"],
     ]);
     expect(query('[aria-label="Next keys"]').getAttribute("role")).toBe("list");
+    // The card of the next keys is no part of the line: a click on it asks for no command.
+    const key = query('[aria-label="Next keys"] li');
+    await act(async () => {
+      key.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await click(key);
+    expect(onCommand).not.toHaveBeenCalled();
     expect(query(".echo").textContent).toBe("Ctrl+K-");
     expect(container.querySelector("input")).toBeNull();
     // No rows: nothing above the line.
