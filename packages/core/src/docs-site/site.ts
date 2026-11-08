@@ -42,10 +42,13 @@ export const DOCS_MEDIA_TYPES: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".avif": "image/avif",
   ".gif": "image/gif",
   ".webp": "image/webp",
   ".ico": "image/x-icon",
   ".woff2": "font/woff2",
+  ".woff": "font/woff",
   ".wasm": "application/wasm",
   // Pagefind's index, fragments and compressed wasm, which its script fetches and decodes itself.
   ".pagefind": "application/octet-stream",
@@ -56,8 +59,8 @@ export const DOCS_MEDIA_TYPES: Readonly<Record<string, string>> = {
 };
 
 /**
- * The Content-Security-Policy of a response. Scripts come only from the site, and an inline script runs only
- * when it is one of the page's own (`inlineScripts`, by hash), so a script put into the page later does not;
+ * The Content-Security-Policy of a response. Scripts come only from the site. Every inline script in the
+ * page's file on disk is allowed by its hash (`inlineScripts`); only scripts inserted at runtime are blocked.
  * `'wasm-unsafe-eval'` lets Pagefind compile its wasm. Starlight sets CSS variables in `style` attributes,
  * hence `style-src-attr`; its CSS uses `data:` images.
  */
@@ -76,8 +79,9 @@ export const docsContentSecurityPolicy = (inlineScripts: readonly string[] = [])
     "base-uri 'none'",
   ].join("; ");
 
+/** The CSP hash of an inline script, over its text with line breaks as the browser's parser gives them (LF). */
 const scriptHash = (text: string): string =>
-  `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
+  `'sha256-${createHash("sha256").update(text.replace(/\r\n?/g, "\n"), "utf8").digest("base64")}'`;
 
 /** The text of every `<script>` without `src` in an HTML page. */
 export const inlineScripts = (html: string): string[] =>
@@ -157,16 +161,16 @@ export async function openDocsSite(folder: string): Promise<DocsSite | undefined
   const read = async (file: string): Promise<Buffer | undefined> => {
     try {
       const real = await fs.realpath(file);
+      // The lexical check stays as a second guard should siteSegments ever let a path through that leaves
+      // the root; the check after realpath refuses a link out of the site.
       if (!inside(root, file) || !inside(root, real)) {
         return undefined;
       }
-      const handle = await fs.open(real, "r");
-      try {
-        const stat = await handle.stat();
-        return stat.isFile() && stat.size <= MAX_DOCS_FILE_BYTES ? await handle.readFile() : undefined;
-      } finally {
-        await handle.close();
-      }
+      // Stat before reading: opening a FIFO or a device would wait for a writer and hold a thread of the
+      // pool. A file swapped between the stat and the read is not guarded against: whoever can do that can
+      // change the site's files anyway.
+      const stat = await fs.stat(real);
+      return stat.isFile() && stat.size <= MAX_DOCS_FILE_BYTES ? await fs.readFile(real) : undefined;
     } catch {
       return undefined;
     }

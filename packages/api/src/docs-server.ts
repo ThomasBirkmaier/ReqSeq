@@ -68,10 +68,12 @@ export async function startDocsServer(options: DocsServerOptions): Promise<DocsS
     return site.respond(String(request.url));
   };
   const handler = (request: IncomingMessage, response: ServerResponse): void => {
-    void answer(request).then(({ status, headers, body }) => {
-      response.writeHead(status, headers);
-      response.end(request.method === "HEAD" ? undefined : body);
-    });
+    void answer(request)
+      .catch(() => refusal(500, "Internal error of the documentation server"))
+      .then(({ status, headers, body }) => {
+        response.writeHead(status, headers);
+        response.end(request.method === "HEAD" ? undefined : body);
+      });
   };
   const { servers, port } = await listenOnAll([DOCS_HOST], requested, handler);
   return {

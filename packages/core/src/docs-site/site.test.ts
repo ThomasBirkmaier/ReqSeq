@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -151,6 +152,21 @@ describe("openDocsSite", () => {
     expect((await text("/out/secret.html")).status).toBe(404);
   });
 
+  it("answers a FIFO with 404 at once instead of waiting for a writer", async () => {
+    let fifo = false;
+    try {
+      // Where mkfifo exists (not on Windows): opening the FIFO would block until a writer comes.
+      execFileSync("mkfifo", [fixture.path("site/fifo.html")], { stdio: "ignore" });
+      fifo = true;
+    } catch {
+      // No FIFOs here; the folder below takes the same path, the stat before the read.
+    }
+    await fs.mkdir(fixture.path("site/folder.html"));
+    for (const target of fifo ? ["/fifo.html", "/folder.html"] : ["/folder.html"]) {
+      expect((await text(target)).status).toBe(404);
+    }
+  });
+
   it("serves no file larger than MAX_DOCS_FILE_BYTES", async () => {
     await fs.writeFile(fixture.path("site/large.png"), "");
     await fs.truncate(fixture.path("site/large.png"), MAX_DOCS_FILE_BYTES + 1);
@@ -174,6 +190,13 @@ describe("openDocsSite", () => {
   it("resolves the root's own links", async () => {
     await fs.symlink(fixture.path("site"), fixture.path("linked"), "junction");
     expect((await openDocsSite(fixture.path("linked")))?.root).toBe(path.join(fixture.root, "site"));
+  });
+});
+
+describe("docsContentSecurityPolicy", () => {
+  it("hashes an inline script with its line breaks as LF, as the browser's parser gives them", () => {
+    const hash = createHash("sha256").update("a();\nb();\nc();").digest("base64");
+    expect(docsContentSecurityPolicy(["a();\r\nb();\rc();"])).toContain(`'sha256-${hash}'`);
   });
 });
 
