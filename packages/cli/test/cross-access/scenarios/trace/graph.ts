@@ -62,6 +62,39 @@ scenariosOf("trace.graph", [
     },
   },
   {
+    name: "the status of each requirement and the degree of a need, whatever is followed (SR-136)",
+    fixture: { fixture: "SR-136/graph", git: true },
+    input: { ref: "37373737-3737-4737-8737-00000000a001", maxDepth: 1, kinds: ["packages"] },
+    tag: "[SR-136/AK3]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { nodes: { degree?: unknown; verification?: unknown }[] } }
+      ).output;
+      expect(output.nodes[0]?.degree).toEqual({
+        share: 0.6,
+        total: 10,
+        counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+      });
+    },
+  },
+  {
+    name: "the status and the count of criteria of a requirement (SR-136)",
+    fixture: { fixture: "SR-136/graph", git: true },
+    input: { ref: "37373737-3737-4737-8737-00000000b011", maxDepth: 0 },
+    tag: "[SR-136/AK1]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { nodes: { verification?: unknown; criteria?: unknown }[] } }
+      ).output;
+      expect([output.nodes[0]?.verification, output.nodes[0]?.criteria]).toEqual([
+        [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        { verified: 2, total: 3, notVerified: [3] },
+      ]);
+    },
+  },
+  {
     name: "maxDepth and allLevels together",
     fixture: GRAPH,
     input: { ref: `${GR}0b0000000001`, maxDepth: 1, allLevels: true },

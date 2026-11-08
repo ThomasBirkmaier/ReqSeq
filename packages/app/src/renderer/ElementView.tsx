@@ -59,6 +59,7 @@ import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import type { ImageElement } from "./editor/image-preview.js";
 import { imagePreview } from "./editor/image-preview.js";
 import type { EditorPlugins } from "./editor/plugins.js";
+import { formatKeys } from "./editor/format.js";
 import { pasteAsMarkdown } from "./editor/paste.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { tableEditing } from "./editor/tables.js";
@@ -893,6 +894,7 @@ export const ElementView = ({
         formulasAndDiagrams,
         images,
         tableEditing,
+        formatKeys(true),
         paste,
         {
           // After the slash menu, which takes Down while it is open.

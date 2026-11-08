@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActionContext, ElementControls } from "./actions.js";
 import { ACTIONS } from "./actions.js";
-import { NOT_IN_TABLE, TEXT_ACTIONS, hasText, textAction } from "./text-actions.js";
+import { NOT_IN_TABLE, TEXT_ACTIONS, hasText, linkAction, textAction } from "./text-actions.js";
 import { alignTable, deleteColumn, deleteRow, insertColumn, insertRow } from "./editor/tables.js";
 import { toggleTask } from "./editor/tasks.js";
 
@@ -51,5 +51,34 @@ describe("text actions", () => {
     const shortcut = { mod: true, shift: false, key: "b" } as const;
     expect(textAction({ id: "x", title: "X", command, none: "n", shortcut }).shortcut).toEqual(shortcut);
     expect(textAction({ id: "x", title: "X", command, none: "n" }).shortcut).toBeUndefined();
+  });
+
+  it("[SR-186/AK1] Bold, Italic and Inline code run their format on the text", () => {
+    const text = vi.fn();
+    const named = (title: string) => TEXT_ACTIONS.find((entry) => entry.title === title);
+    for (const title of ["Bold", "Italic", "Inline code"]) {
+      named(title)?.run(contextOf("element", text));
+    }
+    expect(text).toHaveBeenCalledTimes(3);
+  });
+
+  it("[SR-186/AK2] Bold and Italic have Ctrl/Cmd+B and Ctrl/Cmd+I outside an editor, Inline code no key", () => {
+    const named = (title: string) => TEXT_ACTIONS.find((entry) => entry.title === title);
+    expect(named("Bold")?.shortcut).toEqual({ mod: true, shift: false, key: "b" });
+    expect(named("Italic")?.shortcut).toEqual({ mod: true, shift: false, key: "i" });
+    expect(named("Inline code")?.shortcut).toBeUndefined();
+  });
+
+  it("[SR-186/AK5] Link asks for the address and writes the link with it; an empty address writes nothing", () => {
+    const text = vi.fn();
+    const ask = vi.fn();
+    linkAction.run({ ...contextOf("element", text), ask });
+    const prompt = ask.mock.calls[0]?.[0] as { label: string; text: (address: string) => void };
+    expect(prompt.label).toBe("Link address");
+    prompt.text("  ");
+    expect(text).not.toHaveBeenCalled();
+    prompt.text("https://example.org");
+    expect(text).toHaveBeenCalledTimes(1);
+    expect(linkAction.available(contextOf("element", text))).toBe(true);
   });
 });

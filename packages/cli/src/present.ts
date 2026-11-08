@@ -306,6 +306,17 @@ const validationText = (element: Rec): string => {
   return validation === "" ? "" : `[validation: ${validation}${reason === "" ? "" : ` — ${reason}`}]`;
 };
 
+/**
+ * The verification degree of the requirements derived from a need in a graph (SR-136 AK3):
+ * `[degree: 60 % of 10]`; nothing when none counts (AK6) or the element has none.
+ */
+const degreeText = (element: Rec): string => {
+  const degree = element["degree"];
+  return isRecord(degree) && typeof degree["share"] === "number"
+    ? `[degree: ${degreePercent(degree["share"])} of ${String(degree["total"])}]`
+    : "";
+};
+
 /** `[emergent]` for an element marked emergent (SR-035), next to the `open` it explains; else nothing. */
 const emergentText = (element: Rec): string => (element["emergent"] === true ? "[emergent]" : "");
 
@@ -317,6 +328,7 @@ const marksOf = (element: Rec, name: Namer, view: ViewNamer): string[] => [
   viaText(element, name),
   emergentText(element),
   verificationText(element, view),
+  degreeText(element),
   validationText(element),
 ];
 

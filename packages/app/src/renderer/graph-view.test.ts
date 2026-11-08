@@ -150,16 +150,16 @@ describe("GraphView", () => {
       ["N1 · need", "Title N1", []],
       ["D1 · Decision", "Title D1", []],
       ["PKG-1 · package", "Title PKG", []],
-      ["O1 · System Requirement", "Title O1", ["superseded:superseded", "gap:no evidence"]],
+      ["O1 · System Requirement", "Title O1", ["superseded:superseded"]],
       ["D2 · Decision", "Title D2", []],
       ["C1 · System Requirement", "Title C1", []],
-      ["C2 · System Requirement", "Title C2", ["outdated:outdated", "gap:no evidence"]],
-      ["C3 · System Requirement", "Title C3", ["gap:no evidence"]],
+      ["C2 · System Requirement", "Title C2", ["outdated:outdated"]],
+      ["C3 · System Requirement", "Title C3", []],
       ["E · Decision", "Title E", []],
     ]);
     expect(query(`[data-node="${key("O1")}"]`).className).toBe("graph-node superseded");
     expect(query(`[data-node="${key("O1")}"]`).getAttribute("aria-label")).toBe(
-      "O1 System Requirement Title O1 superseded no evidence",
+      "O1 System Requirement Title O1 superseded",
     );
     // The element of the selected node, the graph's own while none is chosen, is the marked one (SR-150).
     expect(data.at(-1)).toEqual([

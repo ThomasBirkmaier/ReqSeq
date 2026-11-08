@@ -57,7 +57,6 @@ interface GraphOutput {
 const WORDS: Readonly<Record<string, string>> = {
   outdated: "outdated",
   superseded: "superseded",
-  "no-evidence": "no evidence",
 };
 
 /** What the CLI gives for `trace graph`. */
@@ -402,7 +401,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
         fits: node.scrollHeight <= node.clientHeight,
       })),
     );
-    // No mark is cut, also on nodes with two (C2: outdated and no evidence), and no ID: the fixture's short
+    // No mark is cut, and no ID: the fixture's short
     // IDs (14 characters) with "Component Requirement" are wider than any of spec/ (the next test), and
     // there only the end of the type gives way.
     expect((await cutLines(window)).filter((line) => !line.includes(" · "))).toEqual([]);
@@ -509,21 +508,17 @@ test.describe("the graph on the specification workspace", () => {
   };
 
   test("[SR-111/AK4] never cuts an ID, a type or a mark, on the long IDs and types of spec/", async () => {
-    // Without the evidence of spec/ (evidence.yml, #946), so that its requirements keep the mark "no evidence".
-    const running = await launchApp({ folder: SPEC, exclude: ["evidence"] });
+    const running = await launchApp({ folder: SPEC });
     const { window } = running;
     try {
       await expect(window.getByLabel("Modeline")).toContainText("elements");
-      // The package Editor: its members, nearly every one a System Requirement with "no evidence".
+      // The package Editor: its members, nearly every one a System Requirement.
       await openById(window, "Editor", "Element bearbeiten");
       const members = await traced(running, { ref: "Editor", maxDepth: 1 });
       await showGraph(window, members.nodes.length);
       expect(await cutLines(window)).toEqual([]);
-      const marked = await window
-        .locator(".graph-node", { has: window.locator(".graph-marks > span") })
-        .locator(".graph-id")
-        .allTextContents();
-      expect(marked.some((head) => head.endsWith(" · System Requirement"))).toBe(true);
+      const heads = await window.locator(".graph-id").allTextContents();
+      expect(heads.some((head) => head.endsWith(" · System Requirement"))).toBe(true);
       // SR-111 over the whole chain: needs, decisions, packages and requirements of every length.
       await openById(window, "SR-111", "Graph des aktuellen Elements zeigen");
       await showGraph(window, (await traced(running, { ref: "SR-111", maxDepth: 1 })).nodes.length);
