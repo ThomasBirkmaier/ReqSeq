@@ -53,6 +53,7 @@ import {
   readOnlyNow,
   markToken,
   markedElement,
+  matrixSpot,
   selectedRow,
   shownElement,
   windowTitle,
@@ -651,6 +652,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     ...(elementControls === undefined ? {} : { element: elementControls }),
     ...(row === undefined ? {} : { row }),
     ...(marked === undefined ? {} : { marked }),
+    ...matrixSpot(current, loaded),
     // The element of an entry in the command prompt (SR-197): the marked one where the buffer has none of its own.
     ...promptEntry(current, marked),
     modified: current !== undefined && drafts.current.has(current.key),
@@ -921,7 +923,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   });
   // The menu of an entry acts on the element of the entry (SR-197): while it is open, the commands are built
   // from the context with that element, so its entries and the one clicked act on it.
-  latest.current = menuContext(context, contextMenu.menu);
+  latest.current = menuContext(context, contextMenu.menu, kindNames);
   const shownEntries = openEntries(contextMenu.menu, () => commands().items);
   menuEntriesNow.current = shownEntries.map((entry) => entry.id);
   useEffect(() => {

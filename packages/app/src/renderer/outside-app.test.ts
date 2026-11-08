@@ -120,6 +120,8 @@ const fake = () => {
       element.sha = `${element.sha}+saved`;
       return { element: view(element), fileSha256: element.sha, files: [element.file], affected: 0 };
     },
+    // The cells ask what a row's type may have (SR-199): nothing here.
+    "relation.options": () => ({ kinds: [] }),
     "trace.matrix": () => ({
       columns: [],
       rows: listed().map((element) => ({ ...view(element), cells: [] })),
