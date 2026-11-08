@@ -79,6 +79,7 @@ import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./f
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
+import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext, promptEntry } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
@@ -891,9 +892,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   };
   const cancelPromptNow = useRef(cancelPrompt);
   cancelPromptNow.current = cancelPrompt;
-  // The context menu (D-075, SR-194): its entries are those of the command prompt now, so they are worked
-  // out again on every render while it is open, and the entry clicked runs from the latest context.
+  // The context menu (D-075, SR-194): which entries it shows is worked out when it opens (`openEntries`);
+  // they are taken from the command prompt's entries on every render, so the entry clicked runs from the
+  // latest context.
   const menuEntriesNow = useRef<readonly string[]>([]);
+  const openedMenu = useRef<OpenedMenu | undefined>(undefined);
   const chooseEntry = (index: number): void => {
     const id = menuEntriesNow.current[index];
     contextMenu.close();
@@ -928,7 +931,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The menu of an entry acts on the element of the entry (SR-197): while it is open, the commands are built
   // from the context with that element, so its entries and the one clicked act on it.
   latest.current = menuContext(context, contextMenu.menu, kindNames);
-  const shownEntries = openEntries(contextMenu.menu, () => commands().items);
+  const menuNow = openEntries(contextMenu.menu, () => commands().items, openedMenu.current);
+  openedMenu.current = menuNow.opened;
+  const shownEntries = menuNow.entries;
   menuEntriesNow.current = shownEntries.map((entry) => entry.id);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {

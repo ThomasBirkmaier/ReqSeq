@@ -179,11 +179,38 @@ export const menuEntries = (hit: MenuHit, items: readonly Choice[]): Choice[] =>
     return item === undefined || entry.when?.(hit) === false ? [] : [item];
   });
 
-/** The entries of the open menu; none while it is closed, when the prompt's `items` are not built. */
+/** Which entries the menu opened at `hit` shows: worked out once, when it opens. */
+export interface OpenedMenu {
+  readonly hit: MenuHit;
+  readonly ids: readonly string[];
+}
+
+/**
+ * The entries of the open menu; none while it is closed, when the prompt's `items` are not built. Which
+ * entries it shows is worked out when it opens (`opened` is of another hit) and kept while it is open, so
+ * it never changes under the pointer: a `when` reads the place pressed, which can be gone by then (a drawn
+ * table is shown as its source once the editor has the focus, SR-195 AK5). Each render takes the entries
+ * from the prompt's `items` now, so the one clicked runs from the latest context.
+ */
 export const openEntries = (
   open: { readonly hit: MenuHit } | undefined,
   items: () => readonly Choice[],
-): Choice[] => (open === undefined ? [] : menuEntries(open.hit, items()));
+  opened: OpenedMenu | undefined,
+): { readonly opened: OpenedMenu | undefined; readonly entries: Choice[] } => {
+  if (open === undefined) {
+    return { opened: undefined, entries: [] };
+  }
+  const now = items();
+  if (opened?.hit !== open.hit) {
+    const entries = menuEntries(open.hit, now);
+    return { opened: { hit: open.hit, ids: entries.map((entry) => entry.id) }, entries };
+  }
+  const entries = opened.ids.flatMap((id) => {
+    const item = now.find((candidate) => candidate.id === id);
+    return item === undefined ? [] : [item];
+  });
+  return { opened, entries };
+};
 
 /** The name of the last entry, which opens the command prompt (SR-194 AK3). */
 export const ALL_COMMANDS = "All commands…";

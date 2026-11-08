@@ -8,7 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Choice } from "./actions.js";
 import type { MenuHit } from "./context-menu.js";
-import { MENU_PLACES, menuEntries } from "./context-menu.js";
+import { MENU_PLACES, menuEntries, openEntries } from "./context-menu.js";
 import { copyText, cutText, hasSelection, pasteText } from "./editor/clipboard.js";
 import { markdownSupport } from "./editor/markdown.js";
 import { TEXT_MENU, pressedPosition } from "./text-menu.js";
@@ -93,6 +93,28 @@ describe("the place text of the context menu", () => {
   it("[SR-195/AK5] adds the table actions in a cell of a table", () => {
     expect(shown(textAt(pos("25")))).toEqual([...AK1, ...TABLE]);
     expect(shown(textAt(pos("Größe")))).toEqual([...AK1, ...TABLE]);
+  });
+
+  it("keeps the table actions while the menu is open, when the cell pressed is gone", () => {
+    const view = textAt(pos("25"));
+    // The cell of the drawing, which the preview replaces by the table's source once the editor has the focus.
+    const cell = document.createElement("td");
+    view.dom.append(cell);
+    const open = { hit: hitIn(view, cell) };
+    const first = openEntries(open, () => ALL_ITEMS, undefined);
+    expect(first.entries.map((item) => item.id)).toEqual([...AK1, ...TABLE]);
+    cell.remove();
+    expect(shown(view, cell)).toEqual(AK1);
+    const later = ALL_ITEMS.map((item) => ({ ...item, name: `${item.name} now` }));
+    const again = openEntries(open, () => later, first.opened);
+    expect(again.opened).toBe(first.opened);
+    expect(again.entries.map((item) => item.name)).toEqual([...AK1, ...TABLE].map((id) => `${id} now`));
+    // An entry that can no longer run goes; a menu opened again works its entries out again.
+    const withoutPaste = later.filter((item) => item.id !== "paste");
+    expect(openEntries(open, () => withoutPaste, first.opened).entries).toHaveLength(
+      AK1.length - 1 + TABLE.length,
+    );
+    expect(openEntries({ hit: { ...open.hit } }, () => later, first.opened).entries).toHaveLength(AK1.length);
   });
 
   it("[SR-195/AK6] adds Fold section on a heading with a section, Unfold section when it is folded", () => {
