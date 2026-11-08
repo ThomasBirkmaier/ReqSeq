@@ -62,8 +62,8 @@ export type BufferData =
       readonly kind: "list" | "search";
       readonly total: number;
       readonly incomplete: boolean;
-      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85). */
-      readonly rows?: readonly ElementBuffer[];
+      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85); undefined at a row that is no element, the row of a folded section (SR-201). */
+      readonly rows?: readonly (ElementBuffer | undefined)[];
       /** The matrix (SR-125): the element of the selected target or cell (SR-194 AK5), in place of a row. */
       readonly marked?: ElementBuffer;
     }

@@ -273,6 +273,19 @@ body,
   grid-template-columns: 9rem minmax(0, 1fr) auto auto;
 }
 
+/* The row of the folded section at the end of a list (SR-201): one line across the row, muted like the
+   heading of a group, with its mark and count; the rows under it are rows like the others. */
+.row.fold-row {
+  display: block;
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row.fold-row .count {
+  font-variant-numeric: tabular-nums;
+}
+
 .row .verification .graph-verification {
   margin-left: 0;
 }

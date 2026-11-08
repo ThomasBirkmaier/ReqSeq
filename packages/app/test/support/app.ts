@@ -570,3 +570,26 @@ export const snapshot = async (root: string): Promise<Record<string, string>> =>
   await walk(root);
   return result;
 };
+
+/**
+ * The one status the fixture `SR-069/filter` flags invalid: its elements fold to the end of every list that
+ * is no tree, under a collapsed section row (SR-201).
+ */
+export const FOLDED_STATUS = "obsolete";
+
+/** `elements` in the order a list shows them with its folded section open: the folded ones last. */
+export const inShownOrder = <T extends { readonly status: string }>(elements: readonly T[]): T[] => [
+  ...elements.filter((element) => element.status !== FOLDED_STATUS),
+  ...elements.filter((element) => element.status === FOLDED_STATUS),
+];
+
+/** Opens the folded section of the shown list when `elements` hold a folded one (SR-201). */
+export const showFolded = async (
+  window: Page,
+  elements: readonly { readonly status: string }[],
+): Promise<void> => {
+  if (elements.some((element) => element.status === FOLDED_STATUS)) {
+    await window.locator('.row.fold-row[aria-expanded="false"]').click();
+    await window.locator('.row.fold-row[aria-expanded="true"]').waitFor();
+  }
+};

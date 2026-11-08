@@ -6,13 +6,13 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded } from "./support/app.js";
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
 
 interface Listed {
-  readonly elements: readonly { readonly title: string; readonly shortId: string }[];
+  readonly elements: readonly { readonly title: string; readonly shortId: string; readonly status: string }[];
   readonly total: number;
   readonly tree?: readonly { readonly depth: number }[];
 }
@@ -126,7 +126,8 @@ test.describe("the main view on a fixture workspace", () => {
       "--input",
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
-    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    await showFolded(running.window, listed.elements);
+    expect(await rowTitles(running.window)).toEqual(inShownOrder(listed.elements).map((e) => e.title));
     await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements");
     // The default says nothing in the modeline, and it is not the order of the store.
@@ -142,7 +143,10 @@ test.describe("the main view on a fixture workspace", () => {
     await running.window.keyboard.press("Enter");
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
     const stored = await cliJson<Listed>(running, ["element", "list"]);
-    await expect(running.window.locator(".row .title")).toHaveText(stored.elements.map((e) => e.title));
+    await showFolded(running.window, stored.elements);
+    await expect(running.window.locator(".row .title")).toHaveText(
+      inShownOrder(stored.elements).map((e) => e.title),
+    );
     // And back: "Type and ID" is the default again, which says nothing.
     await runCommand(running.window, "sort list");
     await running.window.keyboard.type("type and id");
@@ -154,7 +158,10 @@ test.describe("the main view on a fixture workspace", () => {
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
     await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
-    await expect(running.window.locator(".row .title")).toHaveText(listed.elements.map((e) => e.title));
+    await showFolded(running.window, listed.elements);
+    await expect(running.window.locator(".row .title")).toHaveText(
+      inShownOrder(listed.elements).map((e) => e.title),
+    );
   });
 
   test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {

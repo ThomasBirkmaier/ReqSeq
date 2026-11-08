@@ -21,7 +21,7 @@ export interface PackageMembersProps {
   readonly members: MemberCount | undefined;
   readonly onMembers: (count: MemberCount | undefined) => void;
   /** The elements of the loaded rows, in their order: the selected one is marked (SR-194 AK5). */
-  readonly onEntries: (entries: readonly ElementBuffer[] | undefined) => void;
+  readonly onEntries: (entries: readonly (ElementBuffer | undefined)[] | undefined) => void;
   /** The list of the elements took the focus (true) or lost it (false): only then is its row selected. */
   readonly onListFocus: (focused: boolean) => void;
   readonly onEcho: (message: string) => void;

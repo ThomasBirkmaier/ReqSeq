@@ -60,10 +60,12 @@ test.describe("a grouped list", () => {
     const ids = shownBuffer(window).locator(".row .id");
     const plain = await ids.allTextContents();
     await groupBy(window, "Status");
-    await expect(headings).toHaveText(["Draft 6", "Approved 7", "Obsolete 1"]);
+    // The obsolete element stands in the folded section at the end, collapsed (SR-201).
+    await expect(headings).toHaveText(["Draft 6", "Approved 7"]);
+    await expect(shownBuffer(window).locator(".row.fold-row")).toHaveText("▸ Folded statuses (1)");
     // Inside each group the rows keep the order of the list: the same sort.
     const groups = shownBuffer(window).locator(".group");
-    for (const at of [0, 1, 2]) {
+    for (const at of [0, 1]) {
       const inGroup = await groups.nth(at).locator(".row .id").allTextContents();
       expect(inGroup).toEqual(plain.filter((id) => inGroup.includes(id)));
     }
