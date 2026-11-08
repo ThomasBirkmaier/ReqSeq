@@ -105,7 +105,7 @@ export interface MemberCount {
  * the page set by itself (a filter starts at the first row) marks nothing until the reader enters the list.
  */
 export const memberAt = (
-  entries: readonly ElementBuffer[] | undefined,
+  entries: readonly (ElementBuffer | undefined)[] | undefined,
   cursor: number | undefined,
   focused: boolean,
 ): ElementBuffer | undefined =>

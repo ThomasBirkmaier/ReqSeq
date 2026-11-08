@@ -547,7 +547,7 @@ export const ElementView = ({
   // again after every render.
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
   // Their elements as loaded: the selected one is the marked element of the page (SR-194 AK5, SR-150).
-  const [entries, setEntries] = useState<readonly ElementBuffer[] | undefined>(undefined);
+  const [entries, setEntries] = useState<readonly (ElementBuffer | undefined)[] | undefined>(undefined);
   const [membersFocused, setMembersFocused] = useState(false);
   const markedEntry = memberAt(entries, buffer.memberCursor, membersFocused);
   // With the filter steps of the page (SR-112 AK2); the steps keep their identity while they stay.

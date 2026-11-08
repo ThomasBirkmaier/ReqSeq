@@ -17,6 +17,7 @@ The user documentation lists these keys on its generated page "Keyboard shortcut
 | Ctrl/Cmd+J | On an element: its neighbourhood (SR-107); on the neighbourhood: back to the element |
 | Ctrl/Cmd+T | On a list: show it as a traceability matrix (SR-125); on the matrix: back to the list; on a package page: its members as a matrix; on the metamodel: graph and text (SR-130), the selected type kept. On macOS only Cmd+T; the physical Ctrl+T stays CodeMirror's "transpose" in the text editor |
 | Right, Left (matrix) | Step through the row element and the relations of the selected row; Enter or a click opens the element there |
+| Enter, Tab, Right, Left (folded section row) | Open or close the folded statuses at the end of a list (SR-201): Enter and Tab toggle, Right opens, Left closes |
 | Right, Left | In the neighbourhood: open the tree row (shows its children), close it or go to the parent row |
 | Up, Down, Page Up, Page Down, Home, End | Select a row (on a package page, Down on the page enters its elements). A fresh list has no row selected: the first Down selects the first row, and Enter opens the first row |
 | Enter | Open the selected row (in a prompt: run the candidate; on an entry of a path, put the path up to it in the input and keep the prompt open, SR-143 AK1; on the first row "Use <path>" or "Open <path>", take the typed path) |

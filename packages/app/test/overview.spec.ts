@@ -7,7 +7,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded } from "./support/app.js";
 
 /** 14 elements: 6 types, 5 of them system requirements (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -17,7 +17,12 @@ interface Facets {
   readonly types: readonly { readonly key: string; readonly name: string; readonly count: number }[];
 }
 interface Listed {
-  readonly elements: readonly { readonly title: string; readonly shortId: string; readonly id: string }[];
+  readonly elements: readonly {
+    readonly title: string;
+    readonly shortId: string;
+    readonly id: string;
+    readonly status: string;
+  }[];
   readonly total: number;
 }
 
@@ -146,8 +151,9 @@ test.describe("the overview of a fixture workspace", () => {
       }),
     ]);
     expect(listed.total).toBe(requirements?.count);
+    await showFolded(window, listed.elements);
     expect(await window.locator(".row .title").allTextContents()).toEqual(
-      listed.elements.map((element) => element.title),
+      inShownOrder(listed.elements).map((element) => element.title),
     );
     // The same with the keys: Down to the line, Enter.
     await runCommand(window, "show overview");
@@ -184,8 +190,9 @@ test.describe("the overview of a fixture workspace", () => {
       "--input",
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
+    await showFolded(window, listed.elements);
     expect(await window.locator(".row .title").allTextContents()).toEqual(
-      listed.elements.map((element) => element.title),
+      inShownOrder(listed.elements).map((element) => element.title),
     );
     // Closing the list shows the overview again.
     await runCommand(window, "close buffer");

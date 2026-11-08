@@ -6,6 +6,7 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.
+import type { AboutInfo } from "./about.js";
 import type { Command } from "@codemirror/view";
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
@@ -57,6 +58,8 @@ import type { PromptUse } from "./usage.js";
 import type { ShownView } from "./views.js";
 import { viewName, viewsOf } from "./views.js";
 import type { WorkspaceControls } from "./workspaces.js";
+import type { FoldChoice } from "./fold-statuses.js";
+import { foldPrompt } from "./fold-actions.js";
 import { workspacePrompt } from "./workspaces.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
@@ -262,6 +265,8 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /** Shows the window "About ReqSeq" with the output of `tool.info` (SR-161). Absent: a result buffer shows it. */
+  readonly about?: (info: AboutInfo) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
   readonly copy?: (label: string, text: string) => void;
   /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
@@ -309,6 +314,15 @@ export interface ActionContext {
   readonly layout?: LayoutControls;
   /** The view the window shows and "Choose view" (SR-043 AK1), where the window offers them. */
   readonly views?: ViewControls;
+  /** Which statuses fold to the end of lists (SR-201, `fold-statuses.ts`), where the window offers it. */
+  readonly folds?: FoldControls;
+}
+
+/** The statuses folded in lists (SR-201): display state of the app, kept for this user (AK4). */
+export interface FoldControls {
+  /** The chosen statuses; undefined while none are chosen and the invalid ones fold. */
+  readonly choice: FoldChoice;
+  readonly choose: (next: FoldChoice) => void;
 }
 
 /** The view of the workspace the window shows (`views.ts`): display state, like the areas. */
@@ -989,7 +1003,7 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   {
-    // SR-161 AK3: the whole output of the shown result buffer as one block, whichever command gave it.
+    // The whole output of the shown result buffer as one block, whichever command gave it.
     id: "copy-result",
     title: "Copy result",
     available: (context: ActionContext): boolean => shownResult(context) !== undefined,
@@ -1211,6 +1225,27 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       context.theme.follow();
       context.echo("Light or dark as the system says");
+    },
+  },
+  {
+    id: "fold-status",
+    title: "Fold status in lists",
+    available: (context: ActionContext): boolean => context.workspace && context.folds !== undefined,
+    run: (context: ActionContext): void => {
+      const { folds } = context;
+      if (folds !== undefined) {
+        context.ask(foldPrompt(context, folds));
+      }
+    },
+  },
+  {
+    // Offered only after a choice, as "Follow system light or dark mode".
+    id: "fold-invalid-statuses",
+    title: "Fold invalid statuses in lists",
+    available: (context: ActionContext): boolean => context.workspace && context.folds?.choice !== undefined,
+    run: (context: ActionContext): void => {
+      context.folds?.choose(undefined);
+      context.echo("Invalid statuses fold in lists");
     },
   },
   {

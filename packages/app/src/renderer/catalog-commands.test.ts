@@ -377,6 +377,20 @@ describe("catalog commands in the command prompt", () => {
     expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "element.facets", input: {} } });
   });
 
+  it("[SR-161/AK1] About ReqSeq shows the output of tool.info in its own window, not in a result buffer", async () => {
+    const info = { versions: { app: "1.0.0" } };
+    const shownAbout = vi.fn();
+    const { context, dispatched } = setup([shown], { "tool.info": () => info });
+    start({ ...context, about: shownAbout }, "tool.info");
+    await flush();
+    expect(shownAbout).toHaveBeenCalledWith(info);
+    expect(dispatched).toEqual([]);
+    // Without the window (a context that has none), a result buffer shows it.
+    start(context, "tool.info");
+    await flush();
+    expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "tool.info", name: "About ReqSeq" } });
+  });
+
   it("asks an element with the shown element first, then the kinds relation.options allows from it", async () => {
     const { context, asked, dispatched, call } = setup([shown], {
       "relation.options": () => OPTIONS,

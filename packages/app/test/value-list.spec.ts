@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, goTo, launchApp, modifier } from "./support/app.js";
+import { DEFAULT_SORT, goTo, inShownOrder, launchApp, modifier, showFolded } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const PACKAGE_D1 = `  - { id: ${P}d1, version: n1:1111111111111111 }\n`;
@@ -38,7 +38,7 @@ const OUT =
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 interface Listed {
-  readonly elements: readonly { readonly title: string }[];
+  readonly elements: readonly { readonly title: string; readonly status: string }[];
   readonly total: number;
 }
 
@@ -103,7 +103,8 @@ const expectList = async (running: RunningApp, label: string, where: unknown): P
   await expect(modeline).toContainText(label);
   await expect(modeline).toContainText(`${String(listed.total)} element`);
   await expect(running.window.locator(".row").first()).toBeVisible();
-  expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+  await showFolded(running.window, listed.elements);
+  expect(await rowTitles(running.window)).toEqual(inShownOrder(listed.elements).map((e) => e.title));
   return listed;
 };
 

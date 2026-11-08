@@ -74,11 +74,15 @@ import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
+import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
+import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import { openEntries } from "./context-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useCopyNotice } from "./use-copy-notice.js";
+import type { AboutInfo } from "./about.js";
+import { AboutLayer } from "./AboutWindow.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
@@ -189,6 +193,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
   const { notice, copy, notify } = useCopyNotice(bridge);
+  // The window "About ReqSeq" (SR-161): the output of `tool.info` while it is open.
+  const [about, setAbout] = useState<AboutInfo | undefined>(undefined);
+  const aboutOpen = useRef(false);
+  aboutOpen.current = about !== undefined;
   // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
   const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
   const { buffers, layout } = windowState;
@@ -276,6 +284,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
   // after another workspace opens. The views of the buffers read in it; saves and single elements do not.
   const [shownView, setShownView] = useState<ShownView | undefined>(undefined);
+  // The statuses that fold to the end of lists (SR-201): the user's choice, the same for every workspace
+  // and kept for the next start (AK4).
+  const [foldChoice, setFoldChoice] = useState<FoldChoice>(() => loadFoldChoice(appStorage));
+  // The statuses of the metamodel, which say what folds; none until it is read, so nothing folds then.
+  const [statuses, setStatuses] = useState<readonly FoldStatus[]>([]);
+  const folded = useMemo(() => foldCondition(foldChoice, statuses), [foldChoice, statuses]);
   const viewCall = useMemo(() => inView(call, shownView), [call, shownView]);
   // The titles of reference targets in other repositories (D-058), for the workspace that is open.
   const titles = useMemo(() => referenceTitles(call), [call]);
@@ -295,6 +309,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         setVariantTypes(new Set(metamodel.ok ? variantTypesOf(metamodel.output) : []));
         setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
         setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
+        setStatuses(metamodel.ok ? metamodel.output.statuses : []);
       }
     };
     // The buffers of a workspace that has loaded: none of the one before, no drafts, no undo histories.
@@ -411,6 +426,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         void loadTypeNames();
       } else if (!result.ok) {
         setTypeNames(new Map());
+        setStatuses([]);
         setPackages(undefined);
         setVariantTypes(new Set());
         setProperties(new Map());
@@ -457,6 +473,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           memories.current.clear();
           openPrompt.current = undefined;
           setPrompt(undefined);
+          // "About ReqSeq" named the workspace that is gone.
+          setAbout(undefined);
           dispatch({ type: "reset" });
           leaveSwitching();
         }
@@ -605,6 +623,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     ask,
     echo: setEcho,
+    about: setAbout,
     copy,
     notify,
     recent: () =>
@@ -657,6 +676,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       choose: (next) => {
         setShownView(next);
         setRevision((count) => count + 1);
+      },
+    },
+    // "Fold status in lists" (SR-201): the lists read again with the new choice.
+    folds: {
+      choice: foldChoice,
+      choose: (next) => {
+        setFoldChoice(next);
+        saveFoldChoice(() => window.localStorage, next);
       },
     },
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
@@ -859,7 +886,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   chooseNow.current = chooseEntry;
   const contextMenu = useContextMenu({
     mac: context.mac,
-    blocked: () => switchingNow.current,
+    // Not over the window "About ReqSeq" (SR-161), which takes every input while it is open.
+    blocked: () => switchingNow.current || aboutOpen.current,
     shown: current?.key,
     prompting: prompt !== undefined,
     onOpen: () => {
@@ -947,10 +975,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // without scrolling it; a press in the area then puts the focus where it pressed.
   useEffect(() => {
     const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
-    if (prompt === undefined && area?.contains(document.activeElement) !== true) {
+    // Not while "About ReqSeq" is open: it keeps the focus (SR-161), and gives it back when it closes.
+    if (prompt === undefined && about === undefined && area?.contains(document.activeElement) !== true) {
       area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
-  }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
+  }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
@@ -1078,17 +1107,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     <div className="shell">
       <TitleBar shown={context.mac} title={windowTitle(view)} />
       <main className="sheet" aria-label="Sheet" ref={sheet} inert={switching}>
-        {shownAreas.map((area) => (
-          <BufferArea
-            key={area.side}
-            area={area}
-            split={split}
-            views={views}
-            onActivate={() => {
-              activate(area.buffer.key);
-            }}
-          />
-        ))}
+        <FoldStatuses.Provider value={folded}>
+          {shownAreas.map((area) => (
+            <BufferArea
+              key={area.side}
+              area={area}
+              split={split}
+              views={views}
+              onActivate={() => {
+                activate(area.buffer.key);
+              }}
+            />
+          ))}
+        </FoldStatuses.Provider>
       </main>
       <ModelineBar
         parts={parts}
@@ -1121,6 +1152,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         allCommandsKey={commandPromptKey(context.mac)}
         onSelect={contextMenu.select}
         onChoose={chooseEntry}
+      />
+      <AboutLayer
+        info={about}
+        mac={context.mac}
+        onCopy={copy}
+        onClose={() => {
+          setAbout(undefined);
+        }}
       />
     </div>
   );
