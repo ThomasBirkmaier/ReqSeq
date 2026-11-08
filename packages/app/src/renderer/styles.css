@@ -231,7 +231,7 @@ body,
 
 .row {
   display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) auto;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
   gap: 0 1rem;
   align-items: baseline;
   padding: 0.1rem 0.75rem;
@@ -874,7 +874,7 @@ mark {
    when the row is hovered or has the focus. */
 .about-row {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: start;
   padding: 0.1rem 0.4rem;

@@ -457,6 +457,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           memories.current.clear();
           openPrompt.current = undefined;
           setPrompt(undefined);
+          // "About ReqSeq" named the workspace that is gone.
+          setAbout(undefined);
           dispatch({ type: "reset" });
           leaveSwitching();
         }
@@ -892,10 +894,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // without scrolling it; a press in the area then puts the focus where it pressed.
   useEffect(() => {
     const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
-    if (prompt === undefined && area?.contains(document.activeElement) !== true) {
+    // Not while "About ReqSeq" is open: it keeps the focus (SR-161), and gives it back when it closes.
+    if (prompt === undefined && about === undefined && area?.contains(document.activeElement) !== true) {
       area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
-  }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
+  }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.

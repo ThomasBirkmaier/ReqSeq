@@ -17,11 +17,14 @@ export interface AboutWindowProps {
 }
 
 /** Some text of the window is selected: Ctrl/Cmd+C copies it as anywhere else. */
-const selected = (): boolean => document.getSelection()?.isCollapsed === false;
+const selectedIn = (root: HTMLElement | null): boolean => {
+  const selection = document.getSelection();
+  return selection?.isCollapsed === false && root?.contains(selection.anchorNode) === true;
+};
 
-/** Enter, or Ctrl/Cmd+C without a selection, copies the row with the focus. */
-const copiesRow = (key: string, mod: boolean): boolean =>
-  key === "Enter" || (mod && key.toLowerCase() === "c" && !selected());
+/** Enter, or Ctrl/Cmd+C without a selection in the window, copies the row with the focus. */
+const copiesRow = (key: string, mod: boolean, root: HTMLElement | null): boolean =>
+  key === "Enter" || (mod && key.toLowerCase() === "c" && !selectedIn(root));
 
 /** What the focus walks with Tab, Up and Down: the rows, then Copy all. */
 const stopsOf = (root: HTMLElement | null): HTMLElement[] => [
@@ -36,10 +39,12 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
     // The window takes the keys, scrolled to its top.
     card.current?.focus({ preventScroll: true });
     return () => {
-      // Back where the focus was, when that is still there (else the window's default).
-      if (before instanceof HTMLElement && before.isConnected) {
-        before.focus();
-      }
+      // Back where the focus was, when that is still there; else to the shown buffer, so its keys work.
+      const back =
+        before instanceof HTMLElement && before.isConnected
+          ? before
+          : document.querySelector<HTMLElement>("[data-area][data-active] [data-buffer], [data-buffer]");
+      back?.focus({ preventScroll: true });
     };
   }, []);
   const copyAll = (): void => {
@@ -54,7 +59,8 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
   const move = (by: number, wrap: boolean): void => {
     const stops = stopsOf(card.current);
     const at = stops.indexOf(document.activeElement as HTMLElement);
-    const from = at === -1 && by < 0 ? stops.length : at;
+    // From the card itself (the focus at the start), Up and Down go to the first row, Shift+Tab to the last stop.
+    const from = at === -1 && by < 0 ? (wrap ? stops.length : 0) : at;
     const next = wrap
       ? (from + by + stops.length) % stops.length
       : Math.min(stops.length - 1, Math.max(0, from + by));
@@ -70,7 +76,7 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
       onClose();
     } else if (mod && event.shiftKey && key === "c") {
       copyAll();
-    } else if (line !== undefined && copiesRow(event.key, mod)) {
+    } else if (line !== undefined && copiesRow(event.key, mod, card.current)) {
       onCopy(line.label, line.value);
     } else if (event.key === "Tab") {
       move(event.shiftKey ? -1 : 1, true);
@@ -90,8 +96,8 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
         event.stopPropagation();
       }}
       onMouseDown={(event) => {
-        // A click beside the card closes it.
-        if (event.target === event.currentTarget) {
+        // A click of the main button beside the card closes it; Back and Forward do nothing here (SR-163).
+        if (event.target === event.currentTarget && event.button === 0) {
           event.preventDefault();
           onClose();
         }

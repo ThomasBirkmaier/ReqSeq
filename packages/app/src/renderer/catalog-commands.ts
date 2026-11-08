@@ -754,8 +754,7 @@ const show = (
 };
 
 /**
- * Runs the command with the given values: the output opens a result buffer (of a write command, one that
- * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
+ * Runs the command with the given values and shows its output (`show`); a refused input asks again. A write
  * command first saves the input of every open buffer, and does not run when one cannot be saved.
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {

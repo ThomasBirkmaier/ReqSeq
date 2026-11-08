@@ -121,7 +121,11 @@ test.describe("About ReqSeq", () => {
     }
     const backdrop = running.window.locator(".about-backdrop");
     expect(await backdrop.evaluate((node) => getComputedStyle(node).backdropFilter)).toMatch(/blur\(\d+px\)/);
-    // Escape closes it, and no shortcut acted behind it meanwhile.
+    // No shortcut of the app acts behind it: the command prompt does not open.
+    await running.window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(running.window.locator(".candidates")).toHaveCount(0);
+    await expect(card).toBeVisible();
+    // Escape closes it.
     await running.window.keyboard.press("Escape");
     await expect(card).toHaveCount(0);
 
