@@ -344,6 +344,18 @@ describe("saving before a switch", () => {
       message: "its type has no property colour",
     });
     expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+    // Nor does input for a property the file holds but the type does not know (#189): it is only removed.
+    files.set("1", { text: "Old", properties: { colour: "blue" } });
+    const stored = setup(
+      [one],
+      new Map([[one.key, { ...draft, boxes: new Map([["colour", { doc: "red", base: "blue" }]]) }]]),
+      files,
+    );
+    expect(await stored.run()).toEqual({
+      ok: false,
+      name: "SR-1 Title 1",
+      message: "its type has no property colour",
+    });
     // Neither does an element of a type the metamodel does not know.
     files.set("1", { text: "Old", properties: {}, type: "risk" });
     const other = setup([one], new Map([[one.key, draft]]), files);

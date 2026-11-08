@@ -160,6 +160,7 @@ import {
   hintKeys,
   isLocked,
   isNumberedList,
+  isValueBox,
   isValueKind,
   lockNote,
   relationDoc,
@@ -1516,10 +1517,10 @@ export const ElementView = ({
     } else if (note !== undefined) {
       echo(note);
     } else if (box === undefined) {
-      echo(`${label} is not a property of this type: edit it in the file`);
+      echo(`${label} cannot be edited here: edit it in the file`);
     } else if (isLocked(box)) {
       echo(lockNote(label, box));
-    } else if (isValueKind(box.info.kind)) {
+    } else if (isValueBox(box)) {
       setValue(label, "");
       fieldOf(label)?.focus();
     } else {
@@ -1610,7 +1611,7 @@ export const ElementView = ({
   const valueHistoryKey = (event: React.KeyboardEvent<HTMLElement>, label: string | undefined): boolean => {
     const value = label === undefined ? undefined : now.current.boxes.get(label);
     const step = historyStep(event, isMac(navigator.platform));
-    if (step === undefined || value === undefined || !isValueKind(value.info.kind)) {
+    if (step === undefined || value === undefined || !isValueBox(value)) {
       return false;
     }
     event.preventDefault();
@@ -2053,7 +2054,7 @@ export const ElementView = ({
               const value = onFile.current.values.get(box.key);
               // A box of a text kind is edited in its editor; a choice or relation is set in the minibuffer.
               const textBox: TextBoxProps | undefined =
-                editable !== undefined && !isValueKind(editable.info.kind)
+                editable !== undefined && !isValueBox(editable)
                   ? {
                       label: box.key,
                       text: editable.doc,
