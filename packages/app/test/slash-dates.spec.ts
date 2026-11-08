@@ -9,6 +9,7 @@ import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
+import { expectNextToLine } from "./support/tooltip-place.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
 
@@ -41,19 +42,6 @@ const day = (window: Page, days = 0): Promise<string> =>
 const calendar = (window: Page): Locator => window.locator(".cm-lr-calendar");
 const chosen = (window: Page): Locator => calendar(window).locator('[aria-selected="true"]');
 const lastLine = (window: Page): Locator => window.locator(".cm-line").last();
-
-/** The calendar is right under the line of the `/` (above it when there is no room below), at its start. */
-const expectAtCaret = async (window: Page): Promise<void> => {
-  const line = await lastLine(window).boundingBox();
-  const box = await calendar(window).boundingBox();
-  if (line === null || box === null) {
-    throw new Error("no line or no calendar on the screen");
-  }
-  const below = Math.abs(box.y - (line.y + line.height));
-  const above = Math.abs(box.y + box.height - line.y);
-  expect(Math.min(below, above)).toBeLessThanOrEqual(line.height);
-  expect(Math.abs(box.x - line.x)).toBeLessThan(40);
-};
 
 /** Types `/date`, takes "Date" and waits for the calendar. */
 const openCalendar = async (window: Page): Promise<void> => {
@@ -92,7 +80,8 @@ test.describe("the dates of the slash menu", () => {
       "data-day",
       await day(window),
     );
-    await expectAtCaret(window);
+    // The calendar is right under the line of the `/` (above it when there is no room below), at its start.
+    await expectNextToLine(calendar(window), lastLine(window));
     await window.screenshot({ path: path.join(OUT, "sr-200-calendar-light.png") });
     await window.keyboard.press("ArrowRight");
     await expect(chosen(window)).toHaveAttribute("data-day", await day(window, 1));
