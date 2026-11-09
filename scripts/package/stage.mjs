@@ -16,7 +16,6 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { builtSiteProblems, pnpmPackageReader, siteLicenses } from "../licenses/site.mjs";
 import {
   buildInfoOf,
   hardLinkEntries,
@@ -115,6 +114,9 @@ async function readDocsSite() {
  * then be the offline build of this version.
  */
 async function docsSiteStage() {
+  // Loaded here only: site.mjs needs `yaml`, and the release job runs `--check-tag` and `--release-notes` without an
+  // install (stage.test.mjs keeps the module graph of stage.mjs free of packages).
+  const { builtSiteProblems, pnpmPackageReader, siteLicenses } = await import("../licenses/site.mjs");
   const sitePackage = path.join(root, "packages", "docs", "site");
   const dist = path.join(sitePackage, "dist");
   const licenses = siteLicenses({
