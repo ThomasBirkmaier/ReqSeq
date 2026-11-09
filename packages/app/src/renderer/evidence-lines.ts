@@ -109,10 +109,17 @@ export interface DisplayLines {
   readonly older: readonly FoldRow<EvidenceRow>[];
 }
 
-/** "2026-11-09 08:48 UTC" for a date in UTC as CI writes it, else the date as written. */
+/**
+ * "2026-11-09 08:48 UTC" for a date in UTC as CI writes it, with its seconds when they are not 0
+ * ("2026-11-09 08:48:05 UTC"), else the date as written.
+ */
 export const shortDate = (date: string): string => {
-  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?Z$/.exec(date);
-  return match === null ? date : `${String(match[1])} ${String(match[2])} UTC`;
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2})(?:\.\d+)?)?Z$/.exec(date);
+  if (match === null) {
+    return date;
+  }
+  const seconds = match[3] === undefined || match[3] === "00" ? "" : `:${match[3]}`;
+  return `${String(match[1])} ${String(match[2])}${seconds} UTC`;
 };
 
 /** "1 test", "7 tests", "no tests". */
@@ -123,7 +130,12 @@ const tests = (count: number): string =>
 const viewTitle = (view: string, byId: ReadonlyMap<string, ElementName>): string =>
   view === "core" ? "core" : (byId.get(view)?.title ?? view);
 
-/** A row's head: "AK2 · passed · 7 tests", "AK2 · failed in Windows · 4 tests" (views named when there are several). */
+/**
+ * A row's head (AK4): "AK2 · passed · 7 tests", "AK2 · failed in Windows · 4 tests", "AK1 · passed · outdated · 1 test".
+ * A verification row gives the worst result of its records, its first case's (core sorts the cases worst first),
+ * or "open" without cases; a failed or outdated row names the views where it is so when there are several. A
+ * validation row gives its status.
+ */
 const rowHead = (row: DisplayRow, byId: ReadonlyMap<string, ElementName>): string => {
   const label =
     row.criterion !== undefined
@@ -133,13 +145,20 @@ const rowHead = (row: DisplayRow, byId: ReadonlyMap<string, ElementName>): strin
         : "Verification";
   const views = row.views ?? [];
   const named =
-    (row.status === "failed" || row.status === "outdated") && views.length > 1
+    views.length > 1
       ? ` in ${views
           .filter((view) => view.status === row.status)
           .map((view) => viewTitle(view.view, byId))
           .join(", ")}`
       : "";
-  return `${label} · ${row.status}${named} · ${tests(row.cases.length)}`;
+  const result = row.kind === "validation" ? row.status : (row.cases[0]?.result ?? "open");
+  const state =
+    row.status === "failed"
+      ? `failed${named}`
+      : row.status === "outdated"
+        ? `${result} · outdated${named}`
+        : result;
+  return `${label} · ${state} · ${tests(row.cases.length)}`;
 };
 
 /** A case's head: its name (or the method and item of a record without test case), result and views. */

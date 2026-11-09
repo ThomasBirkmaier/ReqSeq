@@ -74,10 +74,10 @@ test.describe("the evidence records of a requirement", () => {
 
   /** Opens every fold, so every record shows: the verification, its test case, the older runs and their run. */
   const openAll = async (window: Page): Promise<void> => {
-    await unfold(head(window, /^▸ Verification/));
-    await unfold(head(window, /^▸ test_shows_wind_speed/));
+    await unfold(head(window, /^Verification/));
+    await unfold(head(window, /^test_shows_wind_speed/));
     await unfold(older(window));
-    await unfold(head(window, /^▸ 2026-10-20 14:00 UTC/));
+    await unfold(head(window, /^2026-10-20 14:00 UTC/));
   };
 
   test("[SR-032/AK1] the element view shows version, item, date, result and evidence of each record", async () => {
@@ -113,12 +113,12 @@ test.describe("the evidence records of a requirement", () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     // The test of the 21st bears the status; the inspection of the 20th is an older run.
-    await expect(head(window, /^▸ Verification/)).toHaveText("▸ Verification · verified · 1 test");
+    await expect(head(window, /^Verification/)).toHaveText("▸ Verification · passed · 1 test");
     await expect(older(window)).toHaveText("▸ Older runs (1)");
     await expect(older(window)).toHaveAttribute("aria-expanded", "false");
     await older(window).click();
     await expect(older(window)).toHaveText("▾ Older runs (1)");
-    const run = head(window, /^▸ 2026-10-20/);
+    const run = head(window, /^2026-10-20/);
     await expect(run).toHaveText(`▸ 2026-10-20 14:00 UTC · version ${VERSION} · 1 record`);
     await run.click();
     await expect(records(window)).toHaveText([/inspection · passed · Display sample B2/]);
@@ -137,10 +137,10 @@ test.describe("the evidence records of a requirement", () => {
   test("[SR-032/AK4] one line per criterion with result and test count opens to its test cases, and those to their records", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
-    const row = head(window, /^▸ Verification/);
+    const row = head(window, /^Verification/);
     await row.focus();
     await window.keyboard.press("Enter");
-    await expect(row).toHaveText("▾ Verification · verified · 1 test");
+    await expect(row).toHaveText("▾ Verification · passed · 1 test");
     const test = head(window, /test_shows_wind_speed/);
     await expect(test).toHaveText("▸ test_shows_wind_speed[SR-e88fb3] · passed");
     await test.click();

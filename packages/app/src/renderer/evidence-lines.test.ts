@@ -152,7 +152,14 @@ describe("the lines of an element's evidence records", () => {
               criterion: 3,
               status: "outdated",
               views: [{ view: "core", status: "outdated" }],
-              cases: [],
+              cases: [{ testCase: "old", result: "passed", views: ["core"], records: [1] }],
+            },
+            {
+              kind: "verification",
+              criterion: 4,
+              status: "open",
+              views: [{ view: "core", status: "open" }],
+              cases: [{ testCase: "unsure", result: "inconclusive", views: ["core"], records: [1] }],
             },
             { kind: "validation", status: "validated", cases: [] },
           ],
@@ -162,9 +169,10 @@ describe("the lines of an element's evidence records", () => {
       [COAST],
     );
     expect(lines.rows.map((row) => [row.head, row.status])).toEqual([
-      ["AK1 · verified · 2 tests", undefined],
+      ["AK1 · passed · 2 tests", undefined],
       ["AK2 · failed in Coast, uuid-w · 1 test", "failed"],
-      ["AK3 · outdated · no tests", "outdated"],
+      ["AK3 · passed · outdated · 1 test", "outdated"],
+      ["AK4 · inconclusive · 1 test", undefined],
       ["Validation · validated · no tests", undefined],
     ]);
     expect(lines.rows[0]?.children.map((test) => [test.head, test.children.length])).toEqual([
@@ -200,9 +208,10 @@ describe("the lines of an element's evidence records", () => {
         baselines: ["Stufe 5", "Stufe 6"],
       }),
     ).toBe(
-      "2026-11-09 08:48 UTC · main@c915641 (macos-26) · version n2:30df7b1ac271d53b · baselines Stufe 5, Stufe 6",
+      "2026-11-09 08:48:23 UTC · main@c915641 (macos-26) · version n2:30df7b1ac271d53b · baselines Stufe 5, Stufe 6",
     );
-    expect(shared({ date: "2026-11-09T08:48:23.120Z", baselines: [] })).toBe("2026-11-09 08:48 UTC");
+    expect(shared({ date: "2026-11-09T08:48:23.120Z", baselines: [] })).toBe("2026-11-09 08:48:23 UTC");
+    expect(shared({ date: "2026-11-09T08:48:00Z" })).toBe("2026-11-09 08:48 UTC");
     expect(shared({})).toBe(undefined);
   });
 
