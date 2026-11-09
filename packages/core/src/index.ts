@@ -34,7 +34,12 @@ export { recordOpenedWorkspace } from "./model/recent-record.js";
 export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks, jsonLines } from "./files/index.js";
 export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
 export { degreePercent, degreeShareOf, minimumHeadText, packageSummaryText } from "./evidence/degree-text.js";
-export type { SummaryDegree, SummaryLevel } from "./evidence/degree-text.js";
+export type {
+  SummaryDegree,
+  SummaryDegreeOutput,
+  SummaryLevel,
+  SummaryName,
+} from "./evidence/degree-text.js";
 export * from "./version/version.js";
 export { versionIn } from "./model/version-input.js";
 export { watchWorkspace } from "./model/watch.js";

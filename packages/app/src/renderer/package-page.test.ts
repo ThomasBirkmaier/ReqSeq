@@ -128,7 +128,7 @@ describe("package page", () => {
     const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
     expect(await askPackageSummary(call as unknown as Call, "uuid-p")).toEqual({
       ok: true,
-      line: "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
+      line: "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
       coverage: answers["evidence.coverage"],
     });
     expect(call.mock.calls).toEqual([
@@ -207,6 +207,29 @@ describe("the line of a list (product owner decision, 2026-11-06)", () => {
       command: "evidence.coverage",
       input: { selection },
       name: "Show evidence coverage type: system-requirement",
+    });
+  });
+
+  it("[SR-112/AK3] names the variant of the view the degree is for, as core names it", async () => {
+    const answers: Record<string, unknown> = {
+      "evidence.coverage": {
+        levels: [{ type: "system-requirement", total: 2, withChildren: 0, withEvidence: 1 }],
+      },
+      "evidence.degree": {
+        degree: {
+          share: 0.5,
+          total: 2,
+          counts: { verified: 1, indirect: 0, failed: 0, outdated: 0, open: 1 },
+        },
+        view: "uuid-v1",
+        names: [{ id: "uuid-v1", repository: "spec", shortId: "VAR-0000c1", title: "Coastal station" }],
+      },
+    };
+    const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
+    const summary = await askSummary(call as unknown as Call, { package: "uuid-p", view: "uuid-v1" });
+    expect(summary).toMatchObject({
+      ok: true,
+      line: "Coverage 1 of 2 with evidence · Degree (Coastal station) 50 % (1 verified, 1 open)",
     });
   });
 });

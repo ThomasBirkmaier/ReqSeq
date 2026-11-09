@@ -48,18 +48,49 @@ export interface SummaryDegree {
   readonly counts: Readonly<Record<"verified" | "indirect" | "failed" | "outdated" | "open", number>>;
 }
 
+/** A variant as `names` of `evidence.degree` gives it (`common.schema.json#/$defs/elementName`). */
+export interface SummaryName {
+  readonly id: string;
+  readonly shortId: string;
+  readonly title: string;
+}
+
+/** What the line takes of `evidence.degree`: the degree, the view it is for, and the name of a variant view. */
+export interface SummaryDegreeOutput {
+  readonly degree: SummaryDegree;
+  readonly view: string;
+  readonly names?: readonly SummaryName[];
+}
+
+/**
+ * How the line names the view of the degree (SR-112 AK3): `core` as `evidence.degree` gives it, a variant by
+ * its title as the modeline names the view shown (`view: Coastal station`), by its short ID when it has no
+ * title, and by the ID in `view` when `names` does not name it.
+ */
+export const summaryViewText = (view: string, names: readonly SummaryName[] | undefined): string => {
+  if (view === "core") {
+    return view;
+  }
+  const name = names?.find((entry) => entry.id === view || entry.shortId === view);
+  if (name === undefined) {
+    return view;
+  }
+  return name.title === "" ? name.shortId : name.title;
+};
+
 /** The order the statuses are named in the line: those that count for the degree first. */
 const SUMMARY_STATUSES = ["verified", "indirect", "failed", "outdated", "open"] as const;
 
 /**
  * The line of a package page (SR-112 AK3, AK4): the coverage summed over the requirement levels (those with
- * `withEvidence`; needs are not in it), then the degree with the count of each status that occurs, e.g.
- * "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)". Undefined
+ * `withEvidence`; needs are not in it), then the degree with the view it is for (`summaryViewText`) and the
+ * count of each status that occurs, e.g.
+ * "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)". Undefined
  * when the selection has no counted requirement: such a package has no line (AK4).
  */
 export const packageSummaryText = (
   levels: readonly SummaryLevel[],
-  degree: SummaryDegree,
+  output: SummaryDegreeOutput,
 ): string | undefined => {
   let total = 0;
   let withEvidence = 0;
@@ -72,8 +103,10 @@ export const packageSummaryText = (
   if (total === 0) {
     return undefined;
   }
+  const { degree } = output;
   const counts = SUMMARY_STATUSES.filter((status) => degree.counts[status] > 0).map(
     (status) => `${String(degree.counts[status])} ${status}`,
   );
-  return `Coverage ${String(withEvidence)} of ${String(total)} with evidence · Degree ${degreePercent(degree.share ?? 0)} (${counts.join(", ")})`;
+  const view = summaryViewText(output.view, output.names);
+  return `Coverage ${String(withEvidence)} of ${String(total)} with evidence · Degree (${view}) ${degreePercent(degree.share ?? 0)} (${counts.join(", ")})`;
 };
