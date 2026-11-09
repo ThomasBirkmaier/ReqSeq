@@ -545,9 +545,9 @@ mark {
 /* The verification status as badges (SR-157): one pill per view with round ends, the name on the left in
    greys (the muted tone under the sheet's colour), the status on the right on the selection tone, coloured
    only when failed or outdated (AK3, D-062). Each half reads at 4.5:1 in both schemes (AK4, styles.test.ts).
-   A long name ends in "…" (its ID and title are the link's title) and takes at most half the pill; a long
-   status wraps inside its half, and the ends stay round: the radius is half a line, and the halves keep
-   their text out of the corners. */
+   The name keeps its width and the status wraps inside its half when the line is too narrow (#1283); only a
+   name longer than half the pill ends in "…" (its ID and title are the link's title). The ends stay round:
+   the radius is half a line, and the halves keep their text out of the corners. */
 .element .variant-line.badges {
   display: flex;
   flex-wrap: wrap;
@@ -574,7 +574,7 @@ mark {
   padding: 0 0.625rem;
 }
 .element .badge-name {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   max-width: 50%;
   overflow: hidden;
   text-overflow: ellipsis;

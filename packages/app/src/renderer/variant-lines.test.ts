@@ -82,7 +82,7 @@ describe("the lines of a requirement's variants", () => {
     expect(lines.use).toBeUndefined();
   });
 
-  it("[SR-034/AK2] names the children missing for an indirect verification, each a link by ID and title", () => {
+  it("[SR-034/AK2] names the children missing for an indirect verification, each a link by its ID with ID and title on hover", () => {
     const one = name("uuid-1", "SR-00b121", "Log wind", "SR-121");
     const lines = variantLines(
       output(
@@ -95,12 +95,9 @@ describe("the lines of a requirement's variants", () => {
         [one, COAST],
       ),
     );
-    expect(halves(lines.verification)).toEqual([
-      "Core | open (missing SR-121 Log wind, uuid-2)",
-      "Coast | indirect",
-    ]);
-    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-121 Log wind")).toEqual({
-      text: "SR-121 Log wind",
+    expect(halves(lines.verification)).toEqual(["Core | open (missing SR-121, uuid-2)", "Coast | indirect"]);
+    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-121")).toEqual({
+      text: "SR-121",
       id: "uuid-1",
       open: elementBuffer("uuid-1", "system", "SR-121 Log wind"),
     });

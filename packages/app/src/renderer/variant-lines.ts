@@ -4,7 +4,7 @@
 // status (SR-047 AK3) is one badge per entry of `verification` in core's order (SR-157 AK1; core gives no
 // entry for a variant that excludes or replaces the requirement): the name of the core or the variant, and
 // its status with the details that belong to it. An `open` one without own record names the children that
-// are missing for an indirect verification (SR-034 AK2): "open (missing SR-1 Title, SR-2 Title)"; one from
+// are missing for an indirect verification (SR-034 AK2): "open (missing SR-1, SR-2)"; one from
 // own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
 // AK3 not verified)". The validation status (SR-038
 // AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line
@@ -116,21 +116,22 @@ const named = (
 
 const titleOf = (name: ElementName): string => name.title;
 const idTitleOf = (name: ElementName): string => idTitle(name.identifier ?? name.shortId, name.title);
+const idOf = (name: ElementName): string => name.identifier ?? name.shortId;
 
 /** `groups` joined by " · ". */
 export const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
   groups.flatMap((group, at) => (at === 0 ? group : [SEPARATOR, ...group]));
 
-/** " (missing <child>, <child>)", each child a link by ID and title; nothing without missing children. */
+/**
+ * " (missing <child>, <child>)", each child a link by its ID with ID and title as its title (shown on hover);
+ * nothing without missing children. Only the ID, so that a badge stays compact (#1283).
+ */
 const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly string[]): LinePart[] =>
   children.length === 0
     ? []
     : [
         { text: " (missing " },
-        ...children.flatMap((child, at) => [
-          ...(at === 0 ? [] : [{ text: ", " }]),
-          named(byId, child, idTitleOf),
-        ]),
+        ...children.flatMap((child, at) => [...(at === 0 ? [] : [{ text: ", " }]), named(byId, child, idOf)]),
         { text: ")" },
       ];
 
