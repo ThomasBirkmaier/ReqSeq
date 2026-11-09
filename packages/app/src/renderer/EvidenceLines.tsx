@@ -6,15 +6,17 @@
 // those that answered, before core's `written` comes) writes no record, and autosave saves every second. A
 // failed read keeps the lines it had; the CLI says why. `evidence.list` names the element by its UUID and
 // repository, so an element whose UUID a file in another repository shares (SR-088) shows its records too.
-// Open stand only the records that bear the status (AK3, core's `bearing`); the others are in a folded
-// section "Older records (<count>)" under them (`FoldSection`), closed whenever the page shows anew.
+// The section is laid out from core's `display` (AK3 to AK5, `displayLines`): a line with the values the
+// open records share, one fold line per acceptance criterion (`FoldLine`), opening to its test cases and
+// those to their record lines, and a folded section "Older runs (<count>)" with one fold line per run.
+// Every fold is closed whenever the page shows anew.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementGetOutput, EvidenceListOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { EvidenceRow } from "./evidence-lines.js";
-import { evidenceNotes, evidenceParts } from "./evidence-lines.js";
-import { FoldSection } from "./FoldSection.js";
+import { displayLines, evidenceNotes } from "./evidence-lines.js";
+import { FoldLine, FoldSection } from "./FoldSection.js";
 import { hasStatus } from "./variant-lines.js";
 import { CutLine } from "./VariantLines.js";
 
@@ -36,7 +38,7 @@ export interface EvidenceLinesProps {
   readonly onOpenRelation: (target: ElementBuffer) => void;
 }
 
-type Listed = Pick<EvidenceListOutput, "records" | "bearing" | "problems" | "incomplete">;
+type Listed = Pick<EvidenceListOutput, "records" | "display" | "problems" | "incomplete">;
 
 /**
  * Counts up when the records are to be asked for again: a change from outside, or more changes of the
@@ -83,12 +85,12 @@ export const EvidenceLines = ({
       current = false;
     };
   }, [call, buffer.id, buffer.repository, asks, asked]);
-  const parts = useMemo(
-    () => (listed === undefined ? { open: [], folded: [] } : evidenceParts(listed, names)),
+  const lines = useMemo(
+    () => (listed === undefined ? undefined : displayLines(listed, names)),
     [listed, names],
   );
   const notes = useMemo(() => (listed === undefined ? [] : evidenceNotes(listed)), [listed]);
-  if (parts.open.length === 0 && parts.folded.length === 0 && notes.length === 0) {
+  if (lines === undefined || (lines.rows.length === 0 && lines.older.length === 0 && notes.length === 0)) {
     return null;
   }
   const line = (row: EvidenceRow): React.JSX.Element => (
@@ -104,10 +106,25 @@ export const EvidenceLines = ({
   return (
     <div className="evidence-lines" role="group" aria-label="Evidence">
       <p className="variant-line">Evidence</p>
-      {parts.open.map(line)}
-      {parts.folded.length === 0 ? null : (
-        <FoldSection className="evidence-older" label="Older records" count={parts.folded.length}>
-          {parts.folded.map(line)}
+      {lines.shared === undefined ? null : (
+        <p className="variant-line evidence-record evidence-shared">{lines.shared}</p>
+      )}
+      {lines.rows.map((row) => (
+        <FoldLine key={row.key} className="evidence-row" head={row.head} status={row.status}>
+          {row.children.map((test) => (
+            <FoldLine key={test.key} className="evidence-row" head={test.head} status={test.status}>
+              {test.children.map(line)}
+            </FoldLine>
+          ))}
+        </FoldLine>
+      ))}
+      {lines.older.length === 0 ? null : (
+        <FoldSection className="evidence-older" label="Older runs" count={lines.older.length}>
+          {lines.older.map((run) => (
+            <FoldLine key={run.key} className="evidence-row" head={run.head}>
+              {run.children.map(line)}
+            </FoldLine>
+          ))}
         </FoldSection>
       )}
       {notes.map((note, at) => (
