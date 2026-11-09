@@ -11,6 +11,7 @@ import {
   checkImage,
   differingShare,
   guideImagesReport,
+  updatedImages,
 } from "./guide-images.js";
 
 const image = (name: string): Promise<Buffer> =>
@@ -103,16 +104,31 @@ describe("checkGuideImages", () => {
       { name: "b.png", share: undefined, problem: "is new" },
     ]);
   });
+
+  it("reports no image that differs from main when the pull request updated its copy", async () => {
+    await writeFile(join(root, MAIN_SHOTS_DIR, "a.png"), element);
+    expect(await checkGuideImages(root, new Set(["a.png", "c.png"]))).toEqual([
+      { name: "a.png", share: expect.any(Number) as number, problem: undefined, updated: true },
+      { name: "b.png", share: undefined, problem: "is new" },
+    ]);
+  });
 });
 
 describe("guideImagesReport", () => {
+  it("reads the image names of a diff, with either separator", () => {
+    expect(updatedImages("docs/guide/images/a.png\r\ndocs\\guide\\images\\b.png\n\n")).toEqual(
+      new Set(["a.png", "b.png"]),
+    );
+    expect(updatedImages("")).toEqual(new Set());
+  });
+
   it("says so when this run made no screenshots or has none of main", () => {
     expect(guideImagesReport("no-shots")).toEqual({
       log: `guide images: none in ${SHOTS_DIR} (another shard or system makes them)\n`,
       summary: "",
     });
     expect(guideImagesReport("no-main")).toEqual({
-      log: `guide images: no screenshots of main's nightly run in ${MAIN_SHOTS_DIR}, nothing compared\n`,
+      log: `guide images: no screenshots of a run on main in ${MAIN_SHOTS_DIR}, nothing compared\n`,
       summary: "",
     });
   });
@@ -122,29 +138,32 @@ describe("guideImagesReport", () => {
       { name: "a.png", share: 0, problem: undefined },
       { name: "b.png", share: 0.0123, problem: "differs from main in 1.23 % of its pixels" },
       { name: "c.png", share: undefined, problem: "is new" },
+      { name: "d.png", share: 0.02, problem: undefined, updated: true },
     ]);
     expect(log.split("\n")).toEqual([
       "::warning file=docs/guide/images/b.png,title=Guide screenshot changed::b.png differs from main in 1.23 %25 of its pixels: if the app's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
       "::warning file=docs/guide/images/c.png,title=Guide screenshot changed::c.png is new: if the app's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
-      "guide images: 3 compared with main, 2 changed",
+      "guide images: 4 compared with main, 2 changed",
       "",
     ]);
     expect(summary).toContain(
-      "2 of 3 screenshots differ from main's nightly run: if the app's look changed, run `pnpm docs:screenshots` and commit them.",
+      "2 of 4 screenshots differ from main: if the app's look changed, run `pnpm docs:screenshots` and commit them.",
     );
     expect(summary).toContain("| Image | Differing pixels | State (limit 0.05 %) |");
     expect(summary).toContain("| a.png | 0.00 % | as on main |");
     expect(summary).toContain("| b.png | 1.23 % | changed: differs from main in 1.23 % of its pixels |");
     expect(summary).toContain("| c.png | - | changed: is new |");
+    expect(summary).toContain("| d.png | 2.00 % | changed, copy updated |");
+    expect(summary).toContain("Screenshots of main: the last run on main.");
   });
 
   it("escapes line breaks in a message and says when none changed", () => {
     const { log } = guideImagesReport([{ name: "a.png", share: undefined, problem: "x\r\ny" }]);
     expect(log).toContain("a.png x%0D%0Ay: if");
-    expect(guideImagesReport([{ name: "a.png", share: 0, problem: undefined }])).toEqual({
+    expect(guideImagesReport([{ name: "a.png", share: 0, problem: undefined }], "")).toEqual({
       log: "guide images: 1 compared with main, 0 changed\n",
       summary: expect.stringContaining(
-        "The 1 screenshots of the app show what main's nightly run showed.",
+        "None of the 1 screenshots of the app differs from main without an updated copy.",
       ) as string,
     });
   });

@@ -1,5 +1,5 @@
 // Whether a pull request changes what the guide's screenshots show (#1258). The Linux Electron run of CI writes them to
-// test-results/electron/guide-images/ (packages/app/test/guide-screenshots.spec.ts). The nightly run on main keeps its
+// test-results/electron/guide-images/ (packages/app/test/guide-screenshots.spec.ts). The nightly (or a manual) run on main keeps its
 // screenshots in the Actions cache, and a pull request's run restores them to build/guide-images-main/; this compares
 // the two and reports each screenshot that differs beyond a threshold, as a warning annotation and in the step summary,
 // so the author runs `pnpm docs:screenshots` and commits docs/guide/images/. Both sides come from the same runner image:
@@ -12,7 +12,7 @@ import type { Pixels } from "./png.js";
 
 /** Where the Electron run writes the screenshots, relative to the root. */
 export const SHOTS_DIR = "test-results/electron/guide-images";
-/** Where a pull request's run restores the screenshots of main's last nightly run, relative to the root. */
+/** Where a pull request's run restores the screenshots of main's last nightly or manual run, relative to the root. */
 export const MAIN_SHOTS_DIR = "build/guide-images-main";
 /** The committed copies the author regenerates. */
 export const GUIDE_IMAGES_DIR = "docs/guide/images";
@@ -27,8 +27,10 @@ export const DIFF_LIMIT = 0.0005;
 export interface ImageCheck {
   readonly name: string;
   readonly share: number | undefined;
-  /** Why it is reported, undefined when it shows what main shows. */
+  /** Why it is reported, undefined when it shows what main shows or the pull request updated its copy. */
   readonly problem: string | undefined;
+  /** Set when it differs from main and the pull request changed its copy in docs/guide/images/. */
+  readonly updated?: true;
 }
 
 /** The share of pixels of two images of the same size that differ in a colour channel by more than the tolerance. */
@@ -85,8 +87,15 @@ export function checkImage(name: string, shot: Uint8Array, main: Uint8Array | un
 /** Why nothing was compared: the run made no screenshots, or no screenshots of main were restored. */
 export type NoComparison = "no-shots" | "no-main";
 
-/** Compares every screenshot in `<root>/SHOTS_DIR` with main's in `<root>/MAIN_SHOTS_DIR`. */
-export async function checkGuideImages(root: string): Promise<ImageCheck[] | NoComparison> {
+/**
+ * Compares every screenshot in `<root>/SHOTS_DIR` with main's in `<root>/MAIN_SHOTS_DIR`. One that differs is not
+ * reported when its name is in `updated`, the images whose copy in docs/guide/images/ the pull request changed: the
+ * author did what the warning asks.
+ */
+export async function checkGuideImages(
+  root: string,
+  updated: ReadonlySet<string> = new Set(),
+): Promise<ImageCheck[] | NoComparison> {
   const names = await readdir(join(root, SHOTS_DIR)).catch(() => undefined);
   if (names === undefined) {
     return "no-shots";
@@ -95,7 +104,7 @@ export async function checkGuideImages(root: string): Promise<ImageCheck[] | NoC
     return "no-main";
   }
   const pngs = names.filter((name) => name.endsWith(".png")).sort();
-  return Promise.all(
+  const checks = await Promise.all(
     pngs.map(async (name) =>
       checkImage(
         name,
@@ -104,14 +113,31 @@ export async function checkGuideImages(root: string): Promise<ImageCheck[] | NoC
       ),
     ),
   );
+  return checks.map((check) =>
+    check.problem !== undefined && updated.has(check.name)
+      ? { name: check.name, share: check.share, problem: undefined, updated: true }
+      : check,
+  );
 }
+
+/** The names of the images in the text of `git diff --name-only` (one path per line, `/` or `\\`). */
+export const updatedImages = (diff: string): ReadonlySet<string> =>
+  new Set(
+    diff
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^.*[\\/]/, ""))
+      .filter((name) => name !== ""),
+  );
 
 /** Escapes the message of a GitHub workflow command, which reads `%`, CR and LF as its own. */
 const escapeData = (text: string): string =>
   text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 
 /** The log lines (warning annotations for the changed images) and the Markdown of the step summary. */
-export function guideImagesReport(checks: readonly ImageCheck[] | NoComparison): {
+export function guideImagesReport(
+  checks: readonly ImageCheck[] | NoComparison,
+  reference?: string,
+): {
   log: string;
   summary: string;
 } {
@@ -120,7 +146,7 @@ export function guideImagesReport(checks: readonly ImageCheck[] | NoComparison):
   }
   if (checks === "no-main") {
     return {
-      log: `guide images: no screenshots of main's nightly run in ${MAIN_SHOTS_DIR}, nothing compared\n`,
+      log: `guide images: no screenshots of a run on main in ${MAIN_SHOTS_DIR}, nothing compared\n`,
       summary: "",
     };
   }
@@ -133,16 +159,20 @@ export function guideImagesReport(checks: readonly ImageCheck[] | NoComparison):
         )}\n`,
     )
     .join("");
+  const state = ({ problem, updated }: ImageCheck): string =>
+    problem !== undefined ? `changed: ${problem}` : updated ? "changed, copy updated" : "as on main";
   const rows = checks.map(
-    ({ name, share, problem }) =>
-      `| ${name} | ${share === undefined ? "-" : percent(share)} | ${problem === undefined ? "as on main" : `changed: ${problem}`} |`,
+    (check) =>
+      `| ${check.name} | ${check.share === undefined ? "-" : percent(check.share)} | ${state(check)} |`,
   );
   const summary = [
     "### Guide screenshots",
     "",
     stale.length === 0
-      ? `The ${String(checks.length)} screenshots of the app show what main's nightly run showed.`
-      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from main's nightly run: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
+      ? `None of the ${String(checks.length)} screenshots of the app differs from main without an updated copy.`
+      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from main: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
+    "",
+    `Screenshots of main: ${reference === undefined || reference === "" ? "the last run on main" : `cache \`${reference}\``}. A pull request merged after that run shows as a difference until the next nightly run.`,
     "",
     `| Image | Differing pixels | State (limit ${percent(DIFF_LIMIT)}) |`,
     "| --- | --- | --- |",

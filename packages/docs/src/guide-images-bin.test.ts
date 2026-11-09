@@ -26,16 +26,22 @@ describe("guide-images-bin", () => {
   it("compares in the repository root, logs and appends the step summary", async () => {
     const summary = join(dir, "summary.md");
     vi.stubEnv("GITHUB_STEP_SUMMARY", summary);
+    vi.stubEnv("GUIDE_IMAGES_UPDATED", "docs/guide/images/b.png\n");
+    vi.stubEnv("GUIDE_IMAGES_MAIN_KEY", "guide-images-main-7-1");
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     await import("./guide-images-bin.js");
-    expect(checkGuideImages).toHaveBeenCalledWith(fileURLToPath(new URL("../../../", import.meta.url)));
+    expect(checkGuideImages).toHaveBeenCalledWith(
+      fileURLToPath(new URL("../../../", import.meta.url)),
+      new Set(["b.png"]),
+    );
     expect(write).toHaveBeenCalledWith("guide images: 1 compared with main, 0 changed\n");
     write.mockRestore();
-    expect(await readFile(summary, "utf8")).toContain("### Guide screenshots");
+    expect(await readFile(summary, "utf8")).toContain("Screenshots of main: cache `guide-images-main-7-1`.");
   });
 
   it("writes no summary outside CI or when the run made no screenshots", async () => {
     vi.stubEnv("GITHUB_STEP_SUMMARY", undefined);
+    vi.stubEnv("GUIDE_IMAGES_UPDATED", undefined);
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     await import("./guide-images-bin.js");
     vi.resetModules();
