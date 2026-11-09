@@ -10,6 +10,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import {
   criteriaTargets,
+  distinctFindings,
   evidenceProblemsState,
   olderCriterionProblems,
   recordElementProblems,
@@ -260,6 +261,45 @@ describe("SR-028 findings of the evidence records", () => {
           10,
           `The verification record names acceptance criterion 2 of element ${A}, whose version n1:de6d3ed288b0f3de has 1; it counts for no criterion`,
         ],
+      ]);
+    });
+
+    it("gives the findings of a JUnit test case for several views once (SR-093 AK5)", async () => {
+      const junit =
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="s">\n<testcase classname="c" name="t">\n<properties>\n' +
+        `<property name="reqseq:element" value="${A}"/>\n<property name="reqseq:element" value="${UNKNOWN}"/>\n` +
+        '<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n' +
+        '<property name="reqseq:item" value="b"/>\n<property name="reqseq:date" value="2026-10-23T10:00:00Z"/>\n' +
+        `<property name="reqseq:criterion" value="${A}:2"/>\n` +
+        '<property name="reqseq:variant" value="core"/>\n<property name="reqseq:variant" value="3c3c3c3c-3333-4333-8333-0d00000000c1"/>\n' +
+        "</properties>\n</testcase>\n</testsuite>\n";
+      const workspace = await open({ "ci-results/evidence/run.xml": junit });
+      const records = await workspace.get(evidenceRecordsState);
+      expect(records.filter((r) => r.file === "evidence/run.xml")).toHaveLength(4);
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.file === "evidence/run.xml")
+          .map((p) => [p.code, p.file, p.line, p.targetId]),
+      ).toEqual([
+        ["evidence.unknown-element", "evidence/run.xml", 3, UNKNOWN],
+        ["evidence.unknown-criterion", "evidence/run.xml", 11, A],
+      ]);
+    });
+
+    it("distinctFindings keeps the first of each code, place and target, in order", () => {
+      const at = (line: number, targetId?: string): Problem => ({
+        code: "evidence.unknown-element",
+        severity: "warning",
+        message: `line ${String(line)}`,
+        file: "run.xml",
+        line,
+        ...(targetId === undefined ? {} : { targetId }),
+      });
+      expect(distinctFindings([at(3, A), at(3, A), at(4, A), at(3, UNKNOWN), at(3), at(3)])).toEqual([
+        at(3, A),
+        at(4, A),
+        at(3, UNKNOWN),
+        at(3),
       ]);
     });
 

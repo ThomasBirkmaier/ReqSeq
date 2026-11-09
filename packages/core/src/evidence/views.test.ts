@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
-import { chainEvidenceOf, recordHoldsIn, testCasesIn } from "./views.js";
+import { withoutShadowedCore } from "./holds.js";
+import { chainEvidenceOf, listedRecords, recordHoldsIn, testCasesIn } from "./views.js";
 
 const P = "5e535a7d-2b4f-4c61-9d08-0";
 const A = `${P}a0000000001`;
@@ -94,6 +95,45 @@ describe("testCasesIn", () => {
 
   it("gives none for an element no test case names", () => {
     expect(testCasesIn(evidenceIndex([run("2026-01-01T10:00:00Z")]), B, CORE, false)).toEqual([]);
+  });
+});
+
+describe("one execution for the core and a variant (SR-093 AK5)", () => {
+  const DATE = "2026-01-02T10:00:00Z";
+  const at = (line: number, more: Partial<EvidenceRecord> = {}): EvidenceRecord =>
+    run(DATE, { repository: "ci", file: "results.xml", line, ...more });
+  // One test case at line 4 for the core and Coast; one at line 9 for the core only.
+  const core = at(4);
+  const coast = at(4, { variant: COAST });
+  const coreOnly = at(9);
+  const index = evidenceIndex([coreOnly, coast, core]);
+
+  it("lists each execution once in a variant of a marked repository, both records without a view", () => {
+    const none = (): readonly string[] => [];
+    expect(listedRecords([core, coast, coreOnly], COAST_VIEW, true, none)).toEqual(
+      [coast, coreOnly].map((r) => ({ ...r, baselines: [] })),
+    );
+    expect(listedRecords([core, coast, coreOnly], undefined, true, none)).toHaveLength(3);
+    expect(listedRecords([core, coast, coreOnly], COAST_VIEW, false, none)).toEqual([
+      { ...coast, baselines: [] },
+    ]);
+    expect(testCasesIn(index, A, COAST_VIEW, true).map((t) => t.executions)).toEqual([[coast, coreOnly]]);
+    expect(testCasesIn(index, A, CORE, true).map((t) => t.executions)).toEqual([[core, coreOnly]]);
+    // The index order puts the record without variant first on a tie (`newestFirst`).
+    expect(testCasesIn(index, A, undefined, true).map((t) => t.executions)).toEqual([
+      [core, coast, coreOnly],
+    ]);
+  });
+
+  it("withoutShadowedCore gives the same array when no record is left out", () => {
+    const records = [core, coreOnly];
+    expect(withoutShadowedCore(records, COAST)).toBe(records);
+    const other = [at(5, { variant: COAST }), core];
+    expect(withoutShadowedCore(other, COAST)).toBe(other);
+    // Another run at the same place (another date) is another execution.
+    const rerun = [at(4, { variant: COAST, date: "2026-01-03T10:00:00Z" }), core];
+    expect(withoutShadowedCore(rerun, COAST)).toBe(rerun);
+    expect(withoutShadowedCore([core, coast], COAST)).toEqual([coast]);
   });
 });
 

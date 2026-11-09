@@ -7,6 +7,8 @@ sidebar:
 
 A test result without variant counts only for the core. For the test run of a variant build, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names another variant than the one given, or a requirement that does not count in its variant (excluded, replaced or not valid there).
 
+One test run can count for the core and for a variant at once, for example a run on the operating system a variant stands for. An enriched test case may carry several `reqseq:variant` properties, each with a variant's UUID or `core`; it then counts for exactly the views it names. Without the property it counts for the core only. Enrich still writes one variant per test case, so add the further `reqseq:variant` properties after enriching.
+
 Some repositories do not know your variants, for example one a supplier keeps for its component. Mark such a repository in `reqseq-workspace.yaml` with `variant-independent: true`; then a result without variant for one of its requirements counts for the core and for every variant the requirement applies in. A result with a variant still counts only there, and together with the results without variant the newest decides. `reqseq workspace status` shows the mark.
 
 ```yaml

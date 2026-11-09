@@ -1,0 +1,18 @@
+# Requirements with validity and three variants, one per operating system (SR-093 AK5).
+reqseq-metamodel: 1
+types:
+  - {
+      key: system-requirement,
+      name: System Requirement,
+      prefix: SR,
+      meaning: requirement,
+      properties: [title, validity],
+    }
+  - { key: variant, name: Variant, prefix: VAR, meaning: variant, properties: [title] }
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: validity, name: Validity, kind: relation, many: true, target-types: [variant], meaning: validity }
+relations:
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+statuses:
+  - { key: draft, name: Draft, initial: true }

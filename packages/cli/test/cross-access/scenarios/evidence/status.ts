@@ -11,6 +11,9 @@ const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 /** A repository marked variant-independent next to an unmarked one, with records with and without variant (SR-173). */
 const INDEPENDENT: FixtureOptions = { fixture: "SR-173/independent", git: true };
 
+/** One JUnit test case for two variants and the core, in a repository with and one without the mark of SR-173 (SR-093 AK5). */
+const VIEWS: FixtureOptions = { fixture: "SR-093/views", git: true };
+
 /** Needs, requirements and a use case with validation and verification records (SR-038). */
 const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
@@ -44,6 +47,35 @@ scenariosOf("evidence.status", [
     input: { selection: { ids: ["SR-0000a4"] } },
     tag: "[SR-173/AK2]",
     expect: "output",
+  },
+  {
+    name: "a JUnit test case for the variants A and B and the core counts in each of them only, its core record of a variant-independent repository in every view (SR-093 AK5)",
+    fixture: VIEWS,
+    input: {},
+    tag: "[SR-093/AK5]",
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+      ).output;
+      const views: Readonly<Record<string, string>> = {
+        core: "core",
+        "09300093-0000-4000-8000-0000000000c1": "linux",
+        "09300093-0000-4000-8000-0000000000c2": "macos",
+        "09300093-0000-4000-8000-0000000000c3": "windows",
+      };
+      expect(
+        elements.flatMap((e) => {
+          const rows = e["verification"] as readonly { view: string; status: string }[] | undefined;
+          return rows === undefined
+            ? []
+            : [[e["shortId"], rows.map((v) => `${String(views[v.view])} ${v.status}`)]];
+        }),
+      ).toEqual([
+        ["SR-0000a1", ["core verified", "linux verified", "macos verified", "windows open"]],
+        ["SR-0000b1", ["core verified", "linux verified", "macos verified", "windows verified"]],
+      ]);
+    },
   },
   {
     name: "the verification status of a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535, SR-031)",

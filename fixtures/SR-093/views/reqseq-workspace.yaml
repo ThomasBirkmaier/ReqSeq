@@ -1,0 +1,8 @@
+reqseq-workspace: 1
+name: Results reader
+repositories:
+  - { name: system, url: "git@git.example.com:rr/system.git", main: true }
+  - { name: supplier, url: "git@git.example.com:rr/supplier.git", path: supplier, variant-independent: true }
+metamodel: { repository: system, path: metamodel }
+evidence:
+  - { repository: system, path: evidence }

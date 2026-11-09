@@ -33,6 +33,9 @@
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
 //   tested against (D-026, spec question ThomasBirkmaier/ReqSeq-archive#529 Q5, assumption "keep"). A kept version that is no longer
 //   current gives `evidence.outdated` (warning); one the reader rejects `evidence.invalid-record`.
+//   It may name several views (`reqseq:variant` with variants and `core`, SR-093 AK5); with a given
+//   variant (or the core) it fits only when that is its one view, and each of its variants must hold
+//   its elements (AK8, AK9). Enrich itself writes one view per test case until #1315.
 // - The bytes are spliced at the offsets of the JUnit model, so every other byte stays (BOM, CRLF,
 //   comments, CDATA, layout). The result is read back with the reader's checks before it is written
 //   (ADR-0007 pattern): a difference is `internal`, and nothing is written.
@@ -44,7 +47,7 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
-import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
+import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput, ViewId } from "../generated/types.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
 import {
@@ -210,8 +213,8 @@ type Plan =
       readonly kind: "kept";
       readonly testCase: JunitTestCase;
       readonly pairs: ReadonlyMap<string, string>;
-      /** Its `reqseq:variant` (a UUID), if any. */
-      readonly variant: string | undefined;
+      /** The views of its `reqseq:variant` properties as the reader reads them (`core` without one). */
+      readonly views: readonly ViewId[];
     }
   | { readonly kind: "invalid"; readonly testCase: JunitTestCase; readonly reason: string }
   | {
@@ -279,26 +282,28 @@ const outOfViewText = (
 };
 
 /**
- * Why a kept test case does not fit its variant (AK8, AK9), or undefined: it is enriched for another
- * variant (or the core) than the given one, or names an element that does not count in its variant (or
- * the given core). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either way.
+ * Why a kept test case does not fit its views (AK8, AK9), or undefined: it is enriched for other views
+ * than the given variant (or the core) alone, or names an element that does not count in one of its
+ * variants (or the given core). `ids`: the elements of its UUIDs that the workspace has. It stays
+ * unchanged either way. Until enrich writes several views (#1315), its own core is checked only when
+ * the core is given.
  */
 const keptVariantProblem = (
   plan: Extract<Plan, { kind: "kept" }>,
   ids: readonly string[],
   options: EnrichOptions,
 ): string | undefined => {
-  const mine = plan.variant;
   const given = options.variant;
-  if (given !== undefined && mine !== given.id) {
-    const what = mine === undefined ? "the core" : `the variant ${mine}`;
+  if (given !== undefined && (plan.views.length !== 1 || plan.views[0] !== (given.id ?? CORE))) {
+    const what = plan.views.map((view) => (view === CORE ? "the core" : `the variant ${view}`)).join(" and ");
     return `it is enriched already for ${what}, not for the given ${given.name}; an enriched test case is never changed (D-026)`;
   }
-  if (mine !== undefined && options.resolveVariant(mine).kind === "invalid") {
+  const out = plan.views.flatMap((view) => {
     // A variant the workspace does not have: nothing to check against, as for an unknown element.
-    return undefined;
-  }
-  return outOfViewText(ids, mine ?? (given === undefined ? undefined : CORE), options);
+    const checked = view === CORE ? given !== undefined : options.resolveVariant(view).kind !== "invalid";
+    return (checked ? outOfViewText(ids, view, options) : undefined) ?? [];
+  });
+  return out.length === 0 ? undefined : out.join("; ");
 };
 
 /**
@@ -307,7 +312,8 @@ const keptVariantProblem = (
  * says which UUID to write.
  */
 const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions): string => {
-  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v));
+  // `core` is no variant, and the reader reads it.
+  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v) && v.toLowerCase() !== CORE);
   const lookup = value === undefined ? undefined : options.resolveVariant(value);
   return lookup?.kind === "variant"
     ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026)`
@@ -542,7 +548,7 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
     const criteria = criteriaOf(testCase, new Set(enrichment.pairs.keys()));
     return "error" in criteria
       ? { kind: "invalid", testCase, reason: criteria.error }
-      : { kind: "kept", testCase, pairs: enrichment.pairs, variant: enrichment.variant };
+      : { kind: "kept", testCase, pairs: enrichment.pairs, views: enrichment.views };
   }
   const reported: Reported[] = [];
   const named: { property: JunitProperty; id: string }[] = [];
@@ -827,7 +833,7 @@ const criteriaReadBack = (
 /**
  * Whether `testCase`, the bytes of one enriched `<testcase>` element of the result, reads back as
  * `wanted` says: one test case with the same name, class name and outcome that gives exactly the
- * intended pairs, item and date by the reader's checks (`enrichmentOf`).
+ * intended pairs, item, date and view by the reader's checks (`enrichmentOf`).
  */
 export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => {
   const read = junitTestCases(Buffer.concat([SUITE_START, testCase, SUITE_END]));
@@ -847,7 +853,9 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
     criteriaReadBack(a, got.pairs, wanted.criteria) &&
     got.item === wanted.item.trim() &&
     got.date === wanted.date &&
-    got.variant === wanted.variant &&
+    // Exactly the one view enrich writes (until #1315: one variant, or the core without the property).
+    got.views.length === 1 &&
+    got.views[0] === (wanted.variant ?? CORE) &&
     got.pairs.size === wanted.pairs.size &&
     [...wanted.pairs].every(([id, version]) => got.pairs.get(id) === version)
   );
@@ -1319,7 +1327,11 @@ const lookupVariant = (
   try {
     const view = resolveView(views, ref, COMMAND, VARIANT, false);
     if (view.kind === "core") {
-      return { kind: "invalid", reason: "core is no variant; leave the property out for the core" };
+      return {
+        kind: "invalid",
+        reason:
+          "core is no variant: enrich takes only variants here; leave the property out for the core alone",
+      };
     }
     variants.set(view.variant.id, view.variant);
     return { kind: "variant", id: view.variant.id };
