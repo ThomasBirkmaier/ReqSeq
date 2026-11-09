@@ -25,6 +25,7 @@ describe("keyboard shortcuts page", () => {
         schemas: runtime.contracts.schemas,
         examples: await readExamples(repoRoot),
         standardModel: await readStandardModel(repoRoot),
+        commandExamples: new Map(),
       },
       "/ReqSeq",
     );

@@ -3,6 +3,7 @@ import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type * as Assemble from "./assemble.js";
 import type * as Codes from "./codes.js";
+import type * as CommandExamples from "./command-examples.js";
 import type * as Examples from "./examples.js";
 import type * as Formats from "./formats.js";
 import type * as Reference from "./reference.js";
@@ -20,6 +21,17 @@ const codes = { problems: {}, errors: {} };
 const readProblemCodes = vi.fn(() => Promise.resolve(codes));
 const examples = { workspace: [] };
 const readExamples = vi.fn(() => Promise.resolve(examples));
+const inputs = new Map([["tool.info", {}]]);
+const readExampleInputs = vi.fn(() => Promise.resolve(inputs));
+const commandExamplesMap = new Map([
+  ["tool.info", { input: {}, cli: "reqseq tool info --json", output: "{}" }],
+]);
+const commandExamples = vi.fn(() => Promise.resolve(commandExamplesMap));
+vi.mock("./command-examples.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof CommandExamples>()),
+  readExampleInputs,
+  commandExamples,
+}));
 const standardModel = { types: [], properties: [], relations: [], statuses: [] };
 const readStandardModel = vi.fn(() => Promise.resolve(standardModel));
 vi.mock("./standard-model.js", async (importOriginal) => ({
@@ -66,6 +78,12 @@ describe("bin", () => {
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
     expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
     expect(readStandardModel).toHaveBeenCalledWith(paths.repoRoot);
+    expect(readExampleInputs).toHaveBeenCalledWith(paths.repoRoot);
+    expect(commandExamples).toHaveBeenCalledWith(
+      getCommandRuntime().contracts.commands,
+      inputs,
+      getCommandRuntime(),
+    );
     expect(referencePages).toHaveBeenCalledWith(
       {
         runtime: getCommandRuntime(),
@@ -74,6 +92,7 @@ describe("bin", () => {
         generated,
         codes,
         standardModel,
+        commandExamples: commandExamplesMap,
       },
       "/base",
     );
@@ -82,7 +101,9 @@ describe("bin", () => {
       [{ path: "reference/commands/index.md", text: "" }],
       "/base",
     );
-    expect(write).toHaveBeenCalledWith("docs: 7 example commands passed, 1 files in the content folder\n");
+    expect(write).toHaveBeenCalledWith(
+      "docs: 7 example commands and 1 command examples passed, 1 files in the content folder\n",
+    );
     vi.unstubAllEnvs();
     vi.resetModules();
     await import("./bin.js");

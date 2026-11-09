@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Checks that every schema compiles, the command catalog is valid and every example file
-// in schemas/examples/<format>/ matches its schema (SR-009 AK2, AK3).
+// Checks that every schema compiles, the command catalog is valid, every example file
+// in schemas/examples/<format>/ matches its schema (SR-009 AK2, AK3) and every example input in
+// schemas/examples/commands/ the input schema of its command.
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -188,12 +189,43 @@ function checkVersionVectors(dir) {
   return n;
 }
 
+// The example input of a command page (#1250): schemas/examples/commands/<command>.json matches the input schema
+// of that command; `pnpm docs:generate` runs it (packages/docs/src/command-examples.ts).
+function checkCommandExamples(dir) {
+  let n = 0;
+  for (const f of fs.readdirSync(dir)) {
+    const cmd = catalog.commands.find((c) => `${c.name}.json` === f);
+    if (!cmd) {
+      errors.push(`examples/commands/${f}: no catalog command ${f.replace(/\.json$/, "")}`);
+      continue;
+    }
+    let data;
+    try {
+      data = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+    } catch (e) {
+      errors.push(`examples/commands/${f}: ${e.message}`);
+      continue;
+    }
+    n++;
+    const schema = commandSchema(cmd, "input");
+    const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
+    if (!validate(data)) {
+      errors.push(`examples/commands/${f}: ${ajv.errorsText(validate.errors)}`);
+    }
+  }
+  return n;
+}
+
 // Examples: schemas/examples/<schema base name>/<file>.yaml|.md
 const examplesDir = path.join(schemasDir, "examples");
 let count = 0;
 for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
   if (dir.name === "version") {
     count += checkVersionVectors(path.join(examplesDir, dir.name));
+    continue;
+  }
+  if (dir.name === "commands") {
+    count += checkCommandExamples(path.join(examplesDir, dir.name));
     continue;
   }
   const validate = ajv.getSchema(`${BASE}${dir.name}.schema.json`);
