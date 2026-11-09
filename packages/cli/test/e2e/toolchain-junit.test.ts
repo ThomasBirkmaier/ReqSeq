@@ -1,5 +1,6 @@
-// SR-063 end to end: the guide `toolchain/junit/README.md` and its examples (D-054). The tests read the
-// guide and run its marked command blocks (`<!-- tested: <name> -->` before a fenced block): every line
+// SR-063 end to end: the guide (the how-to `docs/guide/how-to/record-test-results-in-ci.md` with its CI
+// snippets, #1255) and the examples of `toolchain/junit/` with their README (D-054). The tests read both
+// and run their marked command blocks (`<!-- tested: <name> -->` before a fenced block): every line
 // that starts with `reqseq ` runs as written through the built binary, `export` lines set variables, and
 // every other line must be one of the few lines this file knows (`STEPS`), done here with Node's own
 // means, so a changed line of the guide fails the test. Vitest runs for real, from a copy of the example
@@ -21,7 +22,11 @@ import { blockNetwork, reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const exampleDir = path.join(repoRoot, "toolchain", "junit");
-const guidePath = path.join(exampleDir, "README.md");
+/** The example's README, with the blocks to try. */
+const readmePath = path.join(exampleDir, "README.md");
+/** The how-to page with the pipeline step in its text and the CI snippets. */
+const ciPagePath = path.join(repoRoot, "docs", "guide", "how-to", "record-test-results-in-ci.md");
+const guidePaths = [readmePath, ciPagePath];
 const vitestBin = path.join(repoRoot, "node_modules", "vitest", "vitest.mjs");
 
 /** Vitest and a dozen CLI processes per test; slow CI machines need time. */
@@ -56,7 +61,14 @@ const exampleWorkspace = async (): Promise<FixtureWorkspace> => {
 
 /** The lines of the fenced block right after `<!-- tested: <name> -->` in the guide; throws without the mark. */
 const guideBlock = async (name: string): Promise<string[]> => {
-  const lines = (await fs.readFile(guidePath, "utf8")).split(/\r?\n/);
+  const files = await Promise.all(
+    guidePaths.map(async (file) => (await fs.readFile(file, "utf8")).split(/\r?\n/)),
+  );
+  const marked = files.filter((candidate) => candidate.includes(`<!-- tested: ${name} -->`));
+  if (marked.length > 1) {
+    throw new Error(`the block "tested: ${name}" is marked in more than one file of the guide`);
+  }
+  const lines = marked[0] ?? [];
   const mark = lines.indexOf(`<!-- tested: ${name} -->`);
   if (mark < 0 || lines[mark + 1]?.startsWith("```") !== true) {
     throw new Error(`the guide has no block marked "tested: ${name}"`);
@@ -219,9 +231,13 @@ const runBlock = async (name: string, shell: Shell): Promise<void> => {
   }
 };
 
-/** The one line of the block `pipeline-step`. */
+/**
+ * The pipeline step: the one `reqseq evidence enrich-junit` line the CI page gives as inline code in its text.
+ * The CI snippets and the blocks to try are checked against it.
+ */
 const pipelineStep = async (): Promise<string> => {
-  const lines = commandLines(await guideBlock("pipeline-step"));
+  const text = await fs.readFile(ciPagePath, "utf8");
+  const lines = [...text.matchAll(/`(reqseq evidence enrich-junit [^`]+)`/g)].map((match) => match[1] ?? "");
   expect(lines).toHaveLength(1);
   return lines[0] ?? "";
 };
@@ -282,7 +298,7 @@ const valuesOf = (node: unknown, key: string): unknown[] => {
   );
 };
 
-describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)", () => {
+describe("connecting a test tool by the guide record-test-results-in-ci and toolchain/junit (SR-063)", () => {
   it(
     "[SR-063/AK1] a real Vitest run is connected by the one reqseq call of the guide, and its requirements get a status",
     async () => {
@@ -433,7 +449,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
   it(
     "two JUnit files of one build, each with its own output name as the guide says, both count",
     async () => {
-      const guide = await fs.readFile(guidePath, "utf8");
+      const guide = await fs.readFile(ciPagePath, "utf8");
       const ws = await exampleWorkspace();
       const step = await pipelineStep();
       const vars = { BUILD: "build-4", REQSEQ_WORKSPACE: ws.root };
