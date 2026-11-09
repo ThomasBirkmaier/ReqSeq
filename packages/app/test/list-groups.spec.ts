@@ -63,6 +63,12 @@ test.describe("a grouped list", () => {
     // The obsolete element stands in the folded section at the end, collapsed (SR-201).
     await expect(headings).toHaveText(["Draft 6", "Approved 7"]);
     await expect(shownBuffer(window).locator(".row.fold-row")).toHaveText("▸ Folded statuses (1)");
+    // The rows of all groups share one grid: their statuses stand in one line (#1275).
+    const lefts = await shownBuffer(window)
+      .locator(".group .row > .status")
+      .evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().left)));
+    expect(lefts.length).toBe(13);
+    expect(new Set(lefts).size).toBe(1);
     // Inside each group the rows keep the order of the list: the same sort.
     const groups = shownBuffer(window).locator(".group");
     for (const at of [0, 1]) {

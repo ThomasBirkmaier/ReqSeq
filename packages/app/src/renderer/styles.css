@@ -279,8 +279,19 @@ body,
    their text is (#1275). */
 .list .rows {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) auto auto auto;
+  /* The first track holds the row's padding too: in a subgrid it is a margin of the edge cells. */
+  grid-template-columns: calc(9rem + 0.75rem) minmax(0, 1fr) auto auto auto;
   column-gap: 1rem;
+}
+
+/* A grid does not collapse margins: the first group's heading and a note keep the distance to the h1
+   they had when their margins collapsed with its 1rem. */
+.buffer.list .rows > .group:first-child > h2 {
+  margin-top: 0.5rem;
+}
+
+.buffer.list .rows > .quiet:first-child {
+  margin-top: 0;
 }
 
 .list .rows > *,
