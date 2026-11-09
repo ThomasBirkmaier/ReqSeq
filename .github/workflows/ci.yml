@@ -216,7 +216,7 @@ jobs:
 
       # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
       # Linux only. The site (Astro, Starlight) has its own lockfile outside the workspace; only these steps and
-      # docs-pages.yml install it. The build runs without network, so Pagefind and Astro must not download anything,
+      # docs-pages.yml install it. The build runs without network, so Astro and the search index must not download anything,
       # and the links validator fails it on a dead internal link.
       - name: Docs - generate the content
         id: docs-generate
@@ -230,6 +230,10 @@ jobs:
       - name: Docs - audit the site's dependencies
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
         run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+      # The licences of what the site ships with a delivery (ADR-0015, SR-141), so a pull request sees a change.
+      - name: Docs - check the licences the site ships
+        if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
+        run: node scripts/licenses/site.mjs
       - name: Docs - build the site without network (unshare -rn)
         if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
         run: |
@@ -237,6 +241,18 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
           unshare -rn node packages/docs/site/run.mjs build
+      # The variant a delivery ships (release job `docs-site`): its maps must name only the packages the licence step
+      # above checks, and its files must match the allow-list (`stage.mjs --docs-site`), so a new client package fails
+      # here and not only in the release. A few seconds; it replaces the Pages build in dist/.
+      - name: Docs - check the offline site a delivery ships
+        if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
+        env:
+          REQSEQ_DOCS_OFFLINE: "1"
+          REQSEQ_DOCS_SITE: ${{ runner.temp }}/docs-site
+        run: |
+          pnpm docs:generate
+          unshare -rn node packages/docs/site/run.mjs build
+          node scripts/package/stage.mjs --docs-site
 
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)

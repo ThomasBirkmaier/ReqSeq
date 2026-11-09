@@ -52,28 +52,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
-      # The app's screenshots on the pages are made anew for every build from the tagged app (ADR-0017), so the site
-      # never shows a picture older than its release; the copies in docs/guide/images/ are replaced in the checkout.
-      - name: Display server, libraries for Electron, ffmpeg and ImageMagick for the README animation
-        run: |
-          packages="ffmpeg imagemagick xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
-          if ! dpkg -s $packages >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
-          fi
-          # Chromium's sandbox needs unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
-          if ! unshare -r true 2>/dev/null; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Screenshots of the app
-        run: |
-          pnpm --filter @reqseq/app electron:install
-          xvfb-run -a pnpm docs:screenshots
-      - name: Build the documentation
-        run: |
-          pnpm docs:install
-          pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
-          pnpm docs:build
+      # Screenshots, content, install, audit and the build without network, as the release job docs-site does for
+      # the offline build (.github/actions/docs-site). A tag from before the action cannot be rebuilt here.
+      - uses: ./.github/actions/docs-site
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: packages/docs/site/dist

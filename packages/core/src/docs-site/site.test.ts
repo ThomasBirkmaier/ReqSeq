@@ -28,7 +28,7 @@ beforeEach(async () => {
       "site/404.html": "<title>Not here</title>",
       "site/start/get-started/index.html": "<title>Get started</title>",
       "site/_astro/page.js": "export {};",
-      "site/pagefind/pagefind-entry.json": "{}",
+      "site/search-index.json": "{}",
       "site/pagefind/wasm.en.pagefind": "wasm",
       "site/odd.exe": "MZ",
       "site/.hidden.html": "hidden",
@@ -107,9 +107,7 @@ describe("openDocsSite", () => {
       "referrer-policy": "no-referrer",
       "cache-control": "no-cache",
     });
-    expect(response.headers["content-security-policy"]).toContain(
-      `script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash}'; `,
-    );
+    expect(response.headers["content-security-policy"]).toContain(`script-src 'self' 'sha256-${hash}'; `);
   });
 
   it("gives other files the CSP without hashes", async () => {
@@ -119,17 +117,13 @@ describe("openDocsSite", () => {
     expect(response.headers["x-content-type-options"]).toBe("nosniff");
   });
 
-  it("serves folders without a trailing slash and Pagefind's files", async () => {
+  it("serves folders without a trailing slash and the search index, and no file of another type", async () => {
     expect(await text("/start/get-started")).toMatchObject({
       status: 200,
       body: "<title>Get started</title>",
     });
-    expect(await text("/pagefind/wasm.en.pagefind")).toEqual({
-      status: 200,
-      type: "application/octet-stream",
-      body: "wasm",
-    });
-    expect((await text("/pagefind/pagefind-entry.json")).type).toBe("application/json; charset=utf-8");
+    expect((await text("/search-index.json")).type).toBe("application/json; charset=utf-8");
+    expect((await text("/pagefind/wasm.en.pagefind")).status).toBe(404);
   });
 
   it.each([

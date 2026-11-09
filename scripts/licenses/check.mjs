@@ -6,20 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import YAML from "yaml";
+import { ALLOWED, licenseAllowed } from "./policy.mjs";
 
-export const ALLOWED = new Set([
-  "MIT",
-  "ISC",
-  "BSD-2-Clause",
-  "BSD-3-Clause",
-  "Apache-2.0",
-  "0BSD",
-  "BlueOak-1.0.0",
-  "CC0-1.0",
-  "Unlicense",
-  "Python-2.0",
-  "MPL-2.0",
-]);
+export { ALLOWED };
 
 /**
  * Packages whose `package.json` names no license, so pnpm reports "Unknown", while the license file they
@@ -148,9 +137,8 @@ export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
   const problems = [];
   const used = new Set();
   for (const [license, pkgs] of Object.entries(byLicense)) {
-    // SPDX expressions like "(MIT OR Apache-2.0)": ok when one alternative is allowed.
-    const options = license.replace(/[()]/g, "").split(/\s+OR\s+/);
-    if (options.some((l) => ALLOWED.has(l.trim()))) {
+    // SPDX expressions like "(MIT OR Apache-2.0)", evaluated by the shared rule (policy.mjs, fails closed).
+    if (licenseAllowed(license)) {
       continue;
     }
     for (const p of pkgs) {

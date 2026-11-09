@@ -16,12 +16,16 @@ Builds the portable delivery of ADR-0014 with electron-builder. Only the workflo
 ```sh
 pnpm install --frozen-lockfile && pnpm build && pnpm --filter @reqseq/app build:electron
 pnpm install --dir toolchain/packaging --frozen-lockfile --ignore-scripts
+REQSEQ_DOCS_OFFLINE=1 pnpm docs:build             # the documentation site a delivery ships (SR-141)
+node scripts/package/stage.mjs --docs-site         # checks it and its licences, into build/docs-site/
 eval "$(node scripts/package/stage.mjs)"          # stages build/package/, prints the environment
 toolchain/packaging/node_modules/.bin/electron-builder --projectDir build/package/app \
   --config "$PWD/toolchain/packaging/electron-builder.config.mjs" --linux --publish never   # or --mac
 node scripts/package/stage.mjs --pack              # the CLI tarball
 scripts/package/delivery-tests.sh                  # the delivery tests (Linux: as a normal user with sudo)
 ```
+
+The release job `docs-site` runs the same two steps, and CI runs them on every pull request (step "Docs - check the offline site a delivery ships").
 
 The artifacts land in `delivery/`. electron-builder downloads the Electron zip for the target at build time
 (checksum-verified); the delivery itself downloads nothing (SR-078).

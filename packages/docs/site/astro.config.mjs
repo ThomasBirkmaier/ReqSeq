@@ -1,9 +1,11 @@
 // The user documentation site (ADR-0017). Nothing here loads from the network: no web fonts, no CDN, no analytics.
-import { existsSync } from "node:fs";
-import { URL } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
+import { URL, fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
+// Built by `pnpm docs:generate` (the @reqseq/docs package), which every site build runs first.
+import { writeSearchIndex } from "../dist/search-index.js";
 
 // The sections of the hand-written pages (D-067), each a folder of docs/guide/. packages/docs/src/assemble.ts
 // (GUIDE_SECTIONS) refuses a page outside them and index.md, so no page is left out of the sidebar.
@@ -13,24 +15,41 @@ const GUIDE_SECTIONS = [
   ["concepts", "Concepts"],
 ];
 
-// `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
-const base = process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq";
+// REQSEQ_DOCS_OFFLINE=1: the build that ships with a delivery (SR-141, ADR-0017), with base `/` and no link to the
+// repository. Otherwise `/ReqSeq` for GitHub Pages, or REQSEQ_DOCS_BASE. packages/docs/src/bin.ts has the same rule.
+const offline = process.env.REQSEQ_DOCS_OFFLINE === "1";
+const base = offline ? "/" : (process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq");
+// Every page title names the product and the version the site documents (SR-141 AK1), online too; the staging
+// checks the title by the same two values (scripts/package/lib.mjs, offlineSiteProblems).
+const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
+const { version } = readJson("../../../package.json");
+const { productName } = readJson("../../../toolchain/packaging/names.json");
 /** A path of public/ under the base. */
 const publicPath = (name) => `${base.replace(/\/$/, "")}/${name}`;
 
 export default defineConfig({
-  site: "https://thomasbirkmaier.github.io",
+  // The address of the Pages site, for its canonical links and sitemap. Left out offline: a delivery's site has no
+  // address of its own, so it names none (no canonical link, no sitemap).
+  ...(offline ? {} : { site: "https://thomasbirkmaier.github.io" }),
   base,
+  // Offline, the scripts get source maps that no page names, so that `stage.mjs --docs-site` can tell each script's
+  // packages from them (ADR-0015); it deletes them before the site is staged.
+  vite: { build: { sourcemap: offline ? "hidden" : false } },
   // The screenshots of docs/guide/images/ are served as they are: Astro's default service needs Sharp, a native
   // package that the site's install (--ignore-scripts) does not build. A missing image still fails the build.
   image: { service: passthroughImageService() },
   integrations: [
     starlight({
-      title: "ReqSeq",
+      title: `${productName} ${version}`,
       description: "User documentation of ReqSeq.",
-      // A link only; the site loads nothing from it.
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
+      // A link only; the site loads nothing from it. Left out offline, where it leads nowhere.
+      social: offline
+        ? []
+        : [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
+      // The search (SR-141 AK1): MiniSearch over search-index.json instead of Pagefind, online and offline.
+      pagefind: false,
+      components: { Search: "./src/components/Search.astro" },
       // The icons of the app (#410), from toolchain/packaging/icon/icon.svg (scripts/icon/generate.mjs).
       favicon: "/favicon.svg",
       head: [
@@ -54,5 +73,14 @@ export default defineConfig({
       // A dead internal link fails the build.
       plugins: [starlightLinksValidator()],
     }),
+    {
+      name: "reqseq-search-index",
+      hooks: {
+        "astro:build:done": async ({ dir, logger }) => {
+          const pages = await writeSearchIndex(fileURLToPath(dir), base);
+          logger.info(`search index of ${String(pages)} pages`);
+        },
+      },
+    },
   ],
 });

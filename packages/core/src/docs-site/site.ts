@@ -49,25 +49,18 @@ export const DOCS_MEDIA_TYPES: Readonly<Record<string, string>> = {
   ".ico": "image/x-icon",
   ".woff2": "font/woff2",
   ".woff": "font/woff",
-  ".wasm": "application/wasm",
-  // Pagefind's index, fragments and compressed wasm, which its script fetches and decodes itself.
-  ".pagefind": "application/octet-stream",
-  ".pf_meta": "application/octet-stream",
-  ".pf_index": "application/octet-stream",
-  ".pf_fragment": "application/octet-stream",
-  ".pf_filter": "application/octet-stream",
 };
 
 /**
  * The Content-Security-Policy of a response. Scripts come only from the site. Every inline script in the
  * page's file on disk is allowed by its hash (`inlineScripts`); only scripts inserted at runtime are blocked.
- * `'wasm-unsafe-eval'` lets Pagefind compile its wasm. Starlight sets CSS variables in `style` attributes,
+ * The search (MiniSearch over `search-index.json`) needs only `connect-src 'self'`. Starlight sets CSS variables in `style` attributes,
  * hence `style-src-attr`; its CSS uses `data:` images.
  */
 export const docsContentSecurityPolicy = (inlineScripts: readonly string[] = []): string =>
   [
     "default-src 'self'",
-    `script-src ${["'self'", "'wasm-unsafe-eval'", ...new Set(inlineScripts.map(scriptHash))].join(" ")}`,
+    `script-src ${["'self'", ...new Set(inlineScripts.map(scriptHash))].join(" ")}`,
     "style-src 'self'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",

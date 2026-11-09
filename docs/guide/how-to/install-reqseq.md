@@ -18,7 +18,7 @@ Each GitHub release has these files; `<version>` is the version of the release.
 | Windows 11 x64 | `ReqSeq-<version>-win-x64.zip` |
 | Pipelines with Node 22 | `reqseq-cli-<version>.tgz`, the command line and the MCP server only |
 
-Each archive holds the app, the command line `reqseq` and the MCP server, which need no Node, as well as the guide for connecting a test tool (`resources/docs/junit/`) and the licences of the libraries inside. Check a download against `SHA256SUMS.txt` of the release: `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on macOS, `sha256sum` with the same options on Linux, `Get-FileHash <file>` in PowerShell.
+Each archive holds the app, the command line `reqseq` and the MCP server, which need no Node, as well as this documentation for its version (`resources/cli/docs/`), the guide for connecting a test tool (`resources/docs/junit/`) and the licences of the libraries inside (`resources/THIRD_PARTY_NOTICES.txt`). Check a download against `SHA256SUMS.txt` of the release: `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on macOS, `sha256sum` with the same options on Linux, `Get-FileHash <file>` in PowerShell.
 
 ReqSeq reads Git through the `git` program on the path, which is not in the delivery: Git for Windows, the Command Line Tools on macOS (`xcode-select --install`), or the `git` package of your Linux distribution.
 
@@ -62,6 +62,8 @@ reqseq --version
 ```
 
 In a pipeline with Node 22, install the tarball instead; it needs no network: `npm install -g --offline ./reqseq-cli-<version>.tgz`.
+
+To read this documentation without network, in the version you installed, run `reqseq serve docs` and open the address it prints in a browser. It serves the `docs` folder of the delivery (`resources/cli/docs/`, in the tarball `docs/`) on `127.0.0.1` only, with its search, until you stop it with Ctrl-C; `--port <n>` picks the port.
 
 ## API
 

@@ -322,6 +322,9 @@ importers:
       '@reqseq/testkit':
         specifier: workspace:*
         version: link:../testkit
+      minisearch:
+        specifier: 7.2.0
+        version: 7.2.0
 
   packages/core:
     dependencies:
@@ -383,6 +386,9 @@ importers:
       '@reqseq/mcp':
         specifier: workspace:*
         version: link:../mcp
+      minisearch:
+        specifier: 7.2.0
+        version: 7.2.0
       yaml:
         specifier: 2.9.1
         version: 2.9.1

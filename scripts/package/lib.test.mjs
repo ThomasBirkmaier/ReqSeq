@@ -7,6 +7,7 @@ import {
   hardLinkEntries,
   isBuildLeftover,
   noticesText,
+  offlineSiteProblems,
   packageFolders,
   releaseNotes,
   removeBuildLeftovers,
@@ -235,6 +236,79 @@ describe("packageFolders and noticesText", () => {
     await expect(
       noticesText({ nodeModules: [nm], scope: "@w/", required: ["@dagrejs/dagre", "a"], title: "T" }),
     ).rejects.toThrow("third-party notices: @dagrejs/dagre not found");
+  });
+});
+
+describe("notices of the documentation site and its offline build (SR-141)", () => {
+  it("adds the site's entries to the notices, once per name and version", async () => {
+    const nm = path.join(await tempFolder(), "node_modules");
+    await writePackage(path.join(nm, "svelte"), { name: "svelte", version: "4.2.20", license: "MIT" });
+    const text = await noticesText({
+      nodeModules: [nm],
+      scope: "@w/",
+      required: ["svelte", "minicbor"],
+      title: "T",
+      extra: [
+        { name: "minicbor", version: "2.2.1", license: "BlueOak-1.0.0", texts: ["Blue Oak\n"] },
+        { name: "svelte", version: "4.2.20", license: "MIT", texts: ["MIT text of svelte"] },
+      ],
+    });
+    expect(text).toBe(
+      [
+        "T\n\nminicbor 2.2.1\nLicense: BlueOak-1.0.0\n\nBlue Oak",
+        "svelte 4.2.20\nLicense: MIT\n\nMIT text of svelte",
+      ].join(`\n\n${"-".repeat(72)}\n\n`) + "\n",
+    );
+  });
+
+  it("accepts the offline build of the version and refuses the Pages build, another version and no site", async () => {
+    const site = await tempFolder();
+    const index = path.join(site, "index.html");
+    const page = (title, href, social = "") =>
+      `<html><head><title>${title}</title><link href="${href}">` +
+      `<script type="module" src="${href.replace("a.css", "Search.a1.js")}"></script></head>` +
+      `<body><div class="sl-flex social-icons astro-1">${social}</div></body></html>`;
+    const searchIndex = path.join(site, "search-index.json");
+    const options = { product: "Tool", version: "1.2.3" };
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no index.html in ${site}: build the site with REQSEQ_DOCS_OFFLINE=1`,
+    ]);
+    await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no search index with pages in ${searchIndex}`,
+      `${index} loads no script with MiniSearch: the search is missing`,
+    ]);
+    await fs.writeFile(searchIndex, JSON.stringify({ index: { documentCount: 0 } }));
+    await fs.mkdir(path.join(site, "_astro"));
+    await fs.writeFile(path.join(site, "_astro", "Search.a1.js"), "export {};");
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no search index with pages in ${searchIndex}`,
+      `${index} loads no script with MiniSearch: the search is missing`,
+    ]);
+    await fs.writeFile(searchIndex, JSON.stringify({ index: { documentCount: 2 } }));
+    await fs.writeFile(
+      path.join(site, "_astro", "Search.a1.js"),
+      'throw new Error("MiniSearch: duplicate ID");',
+    );
+    expect(await offlineSiteProblems(site, options)).toEqual([]);
+    await fs.writeFile(
+      index,
+      page("Tool | Tool 1.2.2", "/Tool/_astro/a.css", '<a href="https://example.org/repo">GitHub</a>'),
+    );
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `the title of ${index} does not end with "| Tool 1.2.3"`,
+      `${index} loads no asset from base /: not the offline build`,
+      `${index} links to a social account: not the offline build`,
+      `${index} loads no script with MiniSearch: the search is missing`,
+    ]);
+    await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    await fs.writeFile(path.join(site, "a.js.map"), "{}");
+    // A junction on Windows, which needs no privilege; a plain link elsewhere.
+    await fs.symlink(os.tmpdir(), path.join(site, "out"), "junction");
+    expect((await offlineSiteProblems(site, options)).sort()).toEqual([
+      `build leftover in the site: ${path.join(site, "a.js.map")}`,
+      `symbolic link in the site: ${path.join(site, "out")}`,
+    ]);
   });
 });
 

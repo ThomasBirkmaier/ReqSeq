@@ -10,7 +10,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { commandPagePath } from "@reqseq/core/docs-site";
 import { LineTransport } from "@reqseq/mcp";
+import MiniSearch from "minisearch";
 import type { DeliveryNames, DeliverySystem, FixtureWorkspace } from "@reqseq/testkit";
 import {
   DELIVERY_SYSTEMS,
@@ -125,6 +127,92 @@ const runCommandLineAndMcp = async (launcher: string): Promise<void> => {
   await client.close();
 };
 
+/** Stops a launched server: a `.cmd` launcher runs through a shell on Windows, so its whole tree is ended. */
+const stop = async (child: ChildProcessWithoutNullStreams): Promise<void> => {
+  if (child.exitCode === null) {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)]);
+    } else {
+      child.kill();
+    }
+  }
+  await exited(child);
+};
+
+/** The address `serve docs` prints once it listens. */
+const docsAddress = (child: ChildProcessWithoutNullStreams): Promise<string> =>
+  new Promise((resolve, reject) => {
+    let stdout = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString("utf8");
+      const match = /documentation on (http:\/\/127\.0\.0\.1:\d+\/)/.exec(stdout);
+      if (match?.[1] !== undefined) {
+        resolve(match[1]);
+      }
+    });
+    child.on("exit", (code) => {
+      reject(new Error(`serve docs exited with ${String(code)}: ${stdout}`));
+    });
+  });
+
+/** The search index of the site, as packages/docs/src/search-index.ts writes it. */
+interface SearchIndexFile {
+  readonly fields: string[];
+  readonly storeFields: string[];
+  readonly searchOptions: { prefix: boolean; fuzzy: number; boost: Record<string, number> };
+  readonly index: unknown;
+}
+
+/** The `<title>` of an HTML page. */
+const titleOf = (html: string): string | undefined => /<title>([^<]*)<\/title>/.exec(html)?.[1];
+
+/**
+ * The documentation of an installed delivery (SR-141 AK1): `serve docs` of its launcher serves the start page and a
+ * command page with the version of `tool info` in their titles, with the CSP and nosniff, and its search index,
+ * searched with MiniSearch as the site's search box does, finds pages that the server then serves.
+ */
+const serveDocsAndSearch = async (launcher: string, docs: string): Promise<void> => {
+  const info = await toolInfo(launcher);
+  const title = `${names.productName} ${String(info["versions"]?.["cli"])}`;
+  expect(info["versions"]?.["cli"]).toBe(version);
+  const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+  fixtures.push(ws);
+  const server = launch(launcher, ["serve", "docs"], ws);
+  try {
+    const url = await docsAddress(server);
+    for (const page of ["", commandPagePath("element.get")]) {
+      const response = await fetch(new URL(page, url));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
+      expect(titleOf(await response.text())?.endsWith(`| ${title}`)).toBe(true);
+    }
+    // The search box's own steps (site/src/components/Search.astro): fetch the index from the site, load it with
+    // MiniSearch and its options from the file, search.
+    const index = await fetch(new URL("search-index.json", url));
+    expect(index.status).toBe(200);
+    expect(index.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    // The served index is the delivered file.
+    const file = (await index.json()) as SearchIndexFile;
+    expect(file).toEqual(JSON.parse(readFileSync(path.join(docs, "search-index.json"), "utf8")));
+    const search = MiniSearch.loadJS(file.index as Parameters<typeof MiniSearch.loadJS>[0], {
+      fields: file.fields,
+      storeFields: file.storeFields,
+    });
+    const results = search.search("baseline", file.searchOptions);
+    expect(results.length).toBeGreaterThan(0);
+    const hit = new URL(String(results[0]?.["url"]), url).href;
+    expect(hit.startsWith(url)).toBe(true);
+    const page = await fetch(hit);
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    expect(titleOf(text)).toContain(title);
+    expect(text.toLowerCase()).toContain("baseline");
+  } finally {
+    await stop(server);
+  }
+};
+
 /** `tool info --json` of an installed delivery: the info of this delivery (SR-161 AK4). */
 const toolInfo = async (launcher: string): Promise<Record<string, Record<string, unknown>>> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
@@ -200,21 +288,25 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     const fresh = await installDelivery(artifact, await tempFolder(), names);
     await runCommandLineAndMcp(path.join(fresh, layout.launcher));
   });
+
+  it(`[SR-141/AK1] the ${system} delivery serves its documentation without network: pages and search hits of its version`, async (ctx) => {
+    if (!runnable) {
+      ctx.skip(notRunnable);
+    }
+    // Linux checks the namespace with loopback only; macOS and Windows have none and run it as it is.
+    if (process.platform === "linux") {
+      await assertOffline();
+    }
+    await serveDocsAndSearch(path.join(installed, layout.launcher), path.join(installed, layout.docs));
+  });
 });
 
 describe("the CLI tarball", () => {
   const tarball = path.join(deliveryDir, cliTarballName(names, version));
 
-  it("[SR-078/AK2] the CLI tarball installs without network and runs on Node", async (ctx) => {
-    if (!existsSync(tarball)) {
-      ctx.skip(`not built: ${path.basename(tarball)}`);
-    }
-    if (process.platform !== "linux") {
-      ctx.skip(NO_NAMESPACE);
-    }
-    await assertOffline();
+  /** Installs the tarball without network into a new prefix (npm never asks the registry); gives the prefix. */
+  const installTarball = async (): Promise<string> => {
     const prefix = await tempFolder();
-    // --offline: npm never asks the registry; the dependencies are inside the tarball.
     await promisify(execFile)("npm", [
       "install",
       "--global",
@@ -227,6 +319,32 @@ describe("the CLI tarball", () => {
       prefix,
       tarball,
     ]);
+    return prefix;
+  };
+
+  it("[SR-078/AK2] the CLI tarball installs without network and runs on Node", async (ctx) => {
+    if (!existsSync(tarball)) {
+      ctx.skip(`not built: ${path.basename(tarball)}`);
+    }
+    if (process.platform !== "linux") {
+      ctx.skip(NO_NAMESPACE);
+    }
+    await assertOffline();
+    // The dependencies are inside the tarball.
+    const prefix = await installTarball();
     await runCommandLineAndMcp(path.join(prefix, "bin", names.launcher));
+  });
+
+  it("[SR-141/AK1] the CLI tarball serves its documentation without network: pages and search hits of its version", async (ctx) => {
+    if (!existsSync(tarball)) {
+      ctx.skip(`not built: ${path.basename(tarball)}`);
+    }
+    if (process.platform !== "linux") {
+      ctx.skip(NO_NAMESPACE);
+    }
+    await assertOffline();
+    const prefix = await installTarball();
+    const docs = path.join(prefix, "lib", "node_modules", ...`${names.packageScope}cli`.split("/"), "docs");
+    await serveDocsAndSearch(path.join(prefix, "bin", names.launcher), docs);
   });
 });

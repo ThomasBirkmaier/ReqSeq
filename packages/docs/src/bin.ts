@@ -12,9 +12,10 @@ import { readStandardModel } from "./standard-model.js";
 // access with names that exist (SR-140 AK3), warns on pages above the word budget, and
 // fills packages/docs/site/src/content/docs/ before the site is built (ADR-0017). A failing example rejects, so
 // the process ends with a non-zero exit code and the build stops. The base path must be the one the site is
-// built with (packages/docs/site/astro.config.mjs, same variable and default).
+// built with (packages/docs/site/astro.config.mjs, same variables and default): `/` for the offline build.
 const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
-const base = process.env["REQSEQ_DOCS_BASE"] ?? "/ReqSeq";
+const base =
+  process.env["REQSEQ_DOCS_OFFLINE"] === "1" ? "/" : (process.env["REQSEQ_DOCS_BASE"] ?? "/ReqSeq");
 const guide = await readGuidePages(paths.guideDir);
 for (const warning of wordWarnings(guide)) {
   process.stderr.write(`docs: warning: ${warning}\n`);

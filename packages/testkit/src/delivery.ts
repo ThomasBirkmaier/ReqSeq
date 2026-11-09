@@ -62,6 +62,8 @@ export interface DeliveryLayout {
   readonly fuseBinary: string;
   readonly launcher: string;
   readonly resources: string;
+  /** The documentation site of this version (SR-141): `docs/` of the CLI, which `reqseq serve docs` serves. */
+  readonly docs: string;
   /** Files that must keep their executable bit in the archive. */
   readonly executables: readonly string[];
 }
@@ -77,6 +79,7 @@ export function deliveryLayout(names: DeliveryNames, system: DeliverySystem): De
       fuseBinary: path.join(contents, "Frameworks", "Electron Framework.framework", "Electron Framework"),
       launcher,
       resources: path.join(contents, "Resources"),
+      docs: path.join(contents, "Resources", "cli", "docs"),
       executables: [app, launcher],
     };
   }
@@ -87,6 +90,7 @@ export function deliveryLayout(names: DeliveryNames, system: DeliverySystem): De
       fuseBinary: app,
       launcher: path.join("bin", `${names.launcher}.cmd`),
       resources: "resources",
+      docs: path.join("resources", "cli", "docs"),
       executables: [],
     };
   }
@@ -96,6 +100,7 @@ export function deliveryLayout(names: DeliveryNames, system: DeliverySystem): De
     fuseBinary: product,
     launcher,
     resources: "resources",
+    docs: path.join("resources", "cli", "docs"),
     executables: [product, launcher, "chrome-sandbox"],
   };
 }
@@ -250,6 +255,8 @@ async function fileFindings(
     scoped("core", "dist", "code-fingerprint.json"),
     scoped("core", "dist", "model", "read-worker.js"),
     path.join(layout.resources, "docs", "junit", "README.md"),
+    path.join(layout.docs, "index.html"),
+    path.join(layout.docs, "search-index.json"),
     path.join(layout.resources, "THIRD_PARTY_NOTICES.txt"),
     path.join(layout.resources, "app.asar"),
   ];
@@ -329,7 +336,8 @@ async function fuseFindings(root: string, fuseBinary: string): Promise<string[]>
 
 /**
  * What is missing or wrong in the installed delivery at `root` (empty: none): app, launcher, CLI and MCP
- * server (SR-076 AK2), the fingerprint and read worker of core, the guide for test tools, the third-party
+ * server (SR-076 AK2), the fingerprint and read worker of core, the guide for test tools, the documentation site with
+ * its search (SR-141), the third-party
  * notices naming `requiredNotices` (ADR-0015), no update configuration (SR-078), no build leftovers, the
  * fuses and the executable bits (ADR-0014; not checked on a Windows `host`).
  */
