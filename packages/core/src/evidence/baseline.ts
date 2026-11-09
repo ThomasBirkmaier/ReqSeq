@@ -29,12 +29,15 @@
 // - Variant-independent repositories (SR-173): for an entry whose repository the workspace file of
 //   now marks `variant-independent` (`StatusSource.independent`; spec question #817 Q9, assumption),
 //   a variant's row also counts the records without variant, and its `later` holds both groups,
-//   merged in index order (newest first), as `holdsIn` gives them; only the `later` of a row with
-//   records of both groups costs one more pass over the entry's records (the status needs no order).
+//   merged in index order (newest first), as `holdsIn` gives them, without a record without variant
+//   of the same execution and element as one for the variant (`withoutShadowedCore`, SR-093 AK5), so
+//   one execution is named once; only the `later` of a row with records of both groups costs one more
+//   pass over the entry's records (the status needs no order, and is the same with both).
 import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
 import { sameVersion, storedForms } from "../model/index.js";
 import { withEvidenceSource } from "./evidence-source.js";
+import { withoutShadowedCore } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
 import type { OwnVerification } from "./status.js";
 import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
@@ -72,7 +75,8 @@ type Groups = ReadonlyMap<ViewKey, readonly EvidenceRecord[]>;
 /**
  * The records of `groups` that hold in the view `key` (`holdsIn`): its own group and, for a variant
  * of an `independent` element, the core's too; with `order`, in the order of `records` (newest
- * first), which both groups keep. Undefined when none does.
+ * first), which both groups keep, and each execution once (`withoutShadowedCore`). Undefined when
+ * none does.
  */
 const heldIn = (
   groups: Groups,
@@ -81,7 +85,10 @@ const heldIn = (
   order?: readonly EvidenceRecord[],
 ): readonly EvidenceRecord[] | undefined => {
   const own = groups.get(key);
-  const core = key === undefined || !independent ? undefined : groups.get(undefined);
+  if (key === undefined || !independent) {
+    return own;
+  }
+  const core = groups.get(undefined);
   if (core === undefined || own === undefined) {
     return own ?? core;
   }
@@ -89,7 +96,10 @@ const heldIn = (
     return [...own, ...core];
   }
   const both = new Set([...own, ...core]);
-  return order.filter((record) => both.has(record));
+  return withoutShadowedCore(
+    order.filter((record) => both.has(record)),
+    key,
+  );
 };
 
 /** `validation` and `validationReason` of an entry from the counting validation records, or nothing. */

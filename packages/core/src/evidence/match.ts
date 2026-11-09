@@ -37,6 +37,9 @@
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in
 //   their order. Only the kind and criterion checks need the metamodel; the other findings show while
 //   it is not valid.
+// - A JUnit test case for several views gives one record per view (SR-093 AK5) with the same place
+//   and element, so the findings of the records are given once per code, place, target and message
+//   (`distinctFindings`).
 import type { Problem } from "../catalog.js";
 import { zip } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -71,6 +74,21 @@ export interface RepositoriesAvailable {
 /** Where a problem lies, to find the same problem twice. */
 const placeOf = (problem: Problem): string =>
   JSON.stringify([problem.code, problem.repository, problem.file, problem.line]);
+
+/**
+ * `problems` without a repetition of an earlier one of the same code, repository, file, line, target
+ * and message (the records of one test case for several views, SR-093 AK5), in their order. The
+ * message keeps findings of two test cases on one line apart (pytest writes a whole file on line 1).
+ */
+export const distinctFindings = (problems: readonly Problem[]): Problem[] => {
+  const seen = new Set<string>();
+  return problems.filter((problem) => {
+    const key = JSON.stringify([placeOf(problem), problem.targetId, problem.message]);
+    const first = !seen.has(key);
+    seen.add(key);
+    return first;
+  });
+};
 
 /** Where a record lies, for its problems (records injected without a place have none). */
 const recordPlace = (record: EvidenceRecord): Pick<Problem, "repository" | "file" | "line"> => ({
@@ -266,9 +284,11 @@ export const olderCriterionProblems = async (workspace: Workspace): Promise<Prob
       version: record.version,
     })),
   );
-  return criterionProblems(
-    zip(older, values).flatMap(([target, at]): [CriteriaTarget, number][] =>
-      at === null ? [] : [[target, criteriaCount(at, found.key)]],
+  return distinctFindings(
+    criterionProblems(
+      zip(older, values).flatMap(([target, at]): [CriteriaTarget, number][] =>
+        at === null ? [] : [[target, criteriaCount(at, found.key)]],
+      ),
     ),
   );
 };
@@ -286,13 +306,15 @@ export const evidenceProblemsState = defineWorkspaceState(
     const criteria = await criteriaOfWorkspace(workspace, metamodel, records);
     return [
       ...read.problems.filter((p) => !known.has(placeOf(p))),
-      ...recordElementProblems(records, store, layout),
-      ...recordKindProblems(records, store, metamodel),
-      ...(criteria === undefined
-        ? []
-        : criterionProblems(
-            criteria.targets.current.map((t) => [t, criteriaCount(t.element.data, criteria.key)] as const),
-          )),
+      ...distinctFindings([
+        ...recordElementProblems(records, store, layout),
+        ...recordKindProblems(records, store, metamodel),
+        ...(criteria === undefined
+          ? []
+          : criterionProblems(
+              criteria.targets.current.map((t) => [t, criteriaCount(t.element.data, criteria.key)] as const),
+            )),
+      ]),
     ];
   },
   {

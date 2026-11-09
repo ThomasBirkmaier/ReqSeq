@@ -756,6 +756,47 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
+  it("keeps a test case enriched for several views, checks each of its variants, and reports it for a given variant (SR-093 AK5)", async () => {
+    const kept = (name: string, id: keyof typeof V, views: readonly string[]): string =>
+      `<testcase name="${name}"><properties>${four(id, V[id])}${views.map((v) => prop("reqseq:variant", v)).join("")}</properties></testcase>`;
+    const xml = suite(
+      kept("both", LOGIN, [COAST, "core", MOUNTAIN]) +
+        kept("excluded", REPORT, [MOUNTAIN, COAST]) +
+        kept("core only here", LOG, ["Core", MOUNTAIN]) +
+        kept("unknown variant", REPORT, ["29000000-0000-4000-8000-0000000fffff", "core"]),
+    );
+    const own = await enrich(xml);
+    // AK9 per variant; its own core is not checked without a given one (until #1315).
+    expect(own.problems.map((p) => p.message)).toEqual([
+      'Test case "excluded" (line 1) does not fit: SR-0b0036 is excluded in VAR-0aaaaa',
+    ]);
+    expect(own).toMatchObject({ changed: false, testCases: 3 });
+    const given = await enrich(suite(kept("both", LOGIN, [COAST, "core"]) + kept("one", LOGIN, ["core"])), {
+      variant: { id: COAST, name: "VAR-0aaaaa" },
+    });
+    expect(given.problems.map((p) => p.message)).toEqual([
+      `Test case "both" (line 1) does not fit: it is enriched already for the variant ${COAST} and the core, not for the given VAR-0aaaaa; an enriched test case is never changed (D-026)`,
+      'Test case "one" (line 1) does not fit: it is enriched already for the core, not for the given VAR-0aaaaa; an enriched test case is never changed (D-026)',
+    ]);
+    // A given core fits a kept test case for the core named by property, and checks it (AK9).
+    const core = await enrich(suite(kept("log", LOG, ["core"]) + kept("login", LOGIN, ["CORE"])), {
+      variant: { id: undefined, name: "core" },
+    });
+    expect(core.problems.map((p) => p.message)).toEqual([
+      'Test case "log" (line 1) does not fit: SR-0c0037 does not apply in core',
+    ]);
+    expect(core.testCases).toBe(1);
+  });
+
+  it("gives no UUID hint for core next to a variant given by short ID", async () => {
+    const xml = suite(
+      `<testcase name="a"><properties>${four(LOGIN, V[LOGIN])}${prop("reqseq:variant", "core")}${prop("reqseq:variant", "VAR-0aaaaa")}</properties></testcase>`,
+    );
+    expect((await enrich(xml)).problems.map((p) => p.message)).toEqual([
+      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026)`,
+    ]);
+  });
+
   it("says which UUID to write when a kept test case gives its variant by short ID, and leaves it unchanged", async () => {
     const xml = suite(
       `<testcase name="a"><properties>${four(LOGIN, V[LOGIN])}${prop("reqseq:variant", "VAR-0aaaaa")}</properties></testcase>` +
@@ -763,8 +804,8 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => p.message)).toEqual([
-      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026)`,
-      'Test case "b" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID',
+      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026)`,
+      'Test case "b" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID or core',
     ]);
     expect(result.changed).toBe(false);
   });
@@ -915,10 +956,21 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:element", REPORT) + prop("reqseq:version", V[REPORT])),
       testCase(prop("reqseq:element", LOGIN) + prop("reqseq:item", "build-1") + prop("reqseq:date", DATE)),
       testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", COAST)),
+      // Several views (SR-093 AK5): enrich writes one until #1315.
+      testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", COAST) + prop("reqseq:variant", "core")),
     ];
     for (const bytes of refused) {
       expect(readsBackAs(bytes, wanted)).toBe(false);
     }
+    expect(readsBackAs(testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", "core")), wanted)).toBe(true);
+    const coast = { ...wanted, variant: COAST };
+    expect(readsBackAs(testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", COAST)), coast)).toBe(true);
+    expect(
+      readsBackAs(
+        testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", COAST) + prop("reqseq:variant", MOUNTAIN)),
+        coast,
+      ),
+    ).toBe(false);
   });
 
   it("reads an enriched test case back only when every element has its intended version", () => {

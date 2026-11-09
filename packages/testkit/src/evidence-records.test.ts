@@ -223,6 +223,29 @@ describe("withEvidenceRecords", () => {
     );
   });
 
+  it("with coreAndVariant names the core and one variant in every test case, two records per element (SR-093 AK5)", () => {
+    const generated = small();
+    const plain = withEvidenceRecords(generated, { testCasesPerFile: 100 });
+    const evidence = withEvidenceRecords(generated, { testCasesPerFile: 100, coreAndVariant: true });
+    const all = evidenceFiles(evidence, "ci/")
+      .map(([, text]) => text)
+      .join("");
+    const named = [...all.matchAll(/<testcase [^]*?<\/testcase>/g)].map((m) => m[0]);
+    const variants = new Set(generated.elements.filter((e) => e.type === "variant").map((e) => e.id));
+    for (const test of named) {
+      const views = [...test.matchAll(/reqseq:variant" value="([^"]+)"/g)].map((m) => m[1] ?? "");
+      expect(views).toHaveLength(2);
+      expect(variants.has(views[0] ?? "")).toBe(true);
+      expect(views[1]).toBe("core");
+    }
+    const records = named
+      .filter((t) => !t.includes("<skipped/>"))
+      .reduce((sum, t) => sum + 2 * count(t, /reqseq:element/g), 0);
+    expect(records).toBe(evidence.counts.junitRecords);
+    // The same test cases as without the option (the extra draws change outcomes and versions).
+    expect(evidence.counts.testCases).toBe(plain.counts.testCases);
+  });
+
   it("refuses runs or a file size that are no whole number from 1", () => {
     const generated = small();
     expect(() => withEvidenceRecords(generated, { runs: 0 })).toThrow("whole numbers from 1");

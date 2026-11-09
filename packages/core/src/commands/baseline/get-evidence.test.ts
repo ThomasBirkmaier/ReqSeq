@@ -121,6 +121,61 @@ describe("baseline.get withEvidence in a repository marked variant-independent (
   });
 });
 
+describe("baseline.get withEvidence of a JUnit test case for the core and a variant (SR-093 AK5)", () => {
+  it("names one execution once in the later records of a variant row of a variant-independent repository", async () => {
+    const { fixture, workspace } = await opened();
+    const file = await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+    await fixture.write(
+      "reqseq-workspace.yaml",
+      file.replace("main: true", "main: true, variant-independent: true"),
+    );
+    const run = (date: string, line: number, variant?: string): EvidenceRecord => ({
+      element: `${P}b1`,
+      version: V.b1,
+      kind: "verification",
+      method: "test",
+      item: "build-45",
+      result: "passed",
+      date,
+      testCase: "t",
+      source: "junit",
+      repository: "system",
+      file: "evidence/run.xml",
+      line,
+      ...(variant === undefined ? {} : { variant }),
+    });
+    await recordsAre(workspace, [
+      run("2026-11-02T17:00:00Z", 4),
+      run("2026-11-02T17:00:00Z", 4, ALPINE),
+      run("2026-11-02T15:00:00Z", 9),
+    ]);
+    const rows = entry(await get(workspace, "Release 1"), "b1").verification ?? [];
+    expect(rows.map((r) => [VIEW_NAMES[r.view], r.later?.map((l) => [l.line, l.variant])])).toEqual([
+      [
+        "core",
+        [
+          [4, undefined],
+          [9, undefined],
+        ],
+      ],
+      [
+        "alpine",
+        [
+          [4, ALPINE],
+          [9, undefined],
+        ],
+      ],
+      [
+        "coastal",
+        [
+          [4, undefined],
+          [9, undefined],
+        ],
+      ],
+    ]);
+  });
+});
+
 describe("baseline.get withEvidence", () => {
   it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
     const { fixture, workspace } = await opened();

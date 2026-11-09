@@ -10,6 +10,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import {
   criteriaTargets,
+  distinctFindings,
   evidenceProblemsState,
   olderCriterionProblems,
   recordElementProblems,
@@ -260,6 +261,65 @@ describe("SR-028 findings of the evidence records", () => {
           10,
           `The verification record names acceptance criterion 2 of element ${A}, whose version n1:de6d3ed288b0f3de has 1; it counts for no criterion`,
         ],
+      ]);
+    });
+
+    it("gives the findings of a JUnit test case for several views once (SR-093 AK5)", async () => {
+      const junit =
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="s">\n<testcase classname="c" name="t">\n<properties>\n' +
+        `<property name="reqseq:element" value="${A}"/>\n<property name="reqseq:element" value="${UNKNOWN}"/>\n` +
+        '<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n' +
+        '<property name="reqseq:item" value="b"/>\n<property name="reqseq:date" value="2026-10-23T10:00:00Z"/>\n' +
+        `<property name="reqseq:criterion" value="${A}:2"/>\n` +
+        '<property name="reqseq:variant" value="core"/>\n<property name="reqseq:variant" value="3c3c3c3c-3333-4333-8333-0d00000000c1"/>\n' +
+        "</properties>\n</testcase>\n</testsuite>\n";
+      const workspace = await open({ "ci-results/evidence/run.xml": junit });
+      const records = await workspace.get(evidenceRecordsState);
+      expect(records.filter((r) => r.file === "evidence/run.xml")).toHaveLength(4);
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.file === "evidence/run.xml")
+          .map((p) => [p.code, p.file, p.line, p.targetId]),
+      ).toEqual([
+        ["evidence.unknown-element", "evidence/run.xml", 3, UNKNOWN],
+        ["evidence.unknown-criterion", "evidence/run.xml", 11, A],
+      ]);
+    });
+
+    it("gives the findings of two test cases on one line each (pytest writes a whole file on line 1)", async () => {
+      const testCase = (name: string, criterion: number): string =>
+        `<testcase classname="c" name="${name}"><properties>` +
+        `<property name="reqseq:element" value="${A}"/><property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>` +
+        '<property name="reqseq:item" value="b"/><property name="reqseq:date" value="2026-10-23T10:00:00Z"/>' +
+        `<property name="reqseq:criterion" value="${A}:${String(criterion)}"/></properties></testcase>`;
+      const junit = `<testsuite name="s">${testCase("test_a", 7)}${testCase("test_b", 8)}</testsuite>`;
+      const workspace = await open({ "ci-results/evidence/run.xml": junit });
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.file === "evidence/run.xml")
+          .map((p) => [p.code, p.line, p.message.slice(0, 50)]),
+      ).toEqual([
+        ["evidence.unknown-criterion", 1, "The verification record names acceptance criterion"],
+        ["evidence.unknown-criterion", 1, "The verification record names acceptance criterion"],
+      ]);
+    });
+
+    it("distinctFindings keeps the first of each code, place, target and message, in order", () => {
+      const at = (line: number, targetId?: string): Problem => ({
+        code: "evidence.unknown-element",
+        severity: "warning",
+        message: `line ${String(line)}`,
+        file: "run.xml",
+        line,
+        ...(targetId === undefined ? {} : { targetId }),
+      });
+      const other = { ...at(3, A), message: "another test case on line 3" };
+      expect(distinctFindings([at(3, A), at(3, A), at(4, A), at(3, UNKNOWN), at(3), at(3), other])).toEqual([
+        at(3, A),
+        at(4, A),
+        at(3, UNKNOWN),
+        at(3),
+        other,
       ]);
     });
 

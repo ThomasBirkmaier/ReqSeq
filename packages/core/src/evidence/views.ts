@@ -8,11 +8,13 @@
 //   (`chainEvidenceOf`, `trace.chain` `evidence`).
 // Each takes `independent`, whether the element's repository is marked `variant-independent`
 // (SR-173): then its records without variant hold in every variant too. It is per element, not per
-// UUID, since twins in two repositories may differ (SR-088).
+// UUID, since twins in two repositories may differ (SR-088). In such a variant a record without
+// variant that a record for the variant shadows (one JUnit execution for both views, SR-093 AK5,
+// `withoutShadowedCore`) is left out, so the view lists each execution once.
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import type { EvidenceRecord, TestCase } from "./record.js";
-import { holdsIn } from "./holds.js";
+import { holdsIn, withoutShadowedCore } from "./holds.js";
 
 /**
  * Whether `record` holds for `view`: in the core a record without a variant, in a variant a record
@@ -26,9 +28,27 @@ export const recordHoldsIn = (
   independent: boolean,
 ): boolean => view === undefined || holdsIn(record, view, independent && record.kind === "verification");
 
+/** The variant whose list may hold shadowed records without variant: a variant view of an `independent` element. */
+const pooledVariant = (view: View | undefined, independent: boolean): string | undefined =>
+  independent && view?.kind === "variant" ? view.variant.id : undefined;
+
 /**
- * `records` (newest first, as the index keeps them) that hold for `view`, each with the names of the
- * baselines that contain its version (`containing`, SR-032 AK2): an empty list when none does.
+ * `records` that hold for `view` (`keep`), in the variant `pooled` without the shadowed records
+ * without variant (`withoutShadowedCore`); the same array when none is left out.
+ */
+const heldIn = (
+  records: readonly EvidenceRecord[],
+  keep: (record: EvidenceRecord) => boolean,
+  pooled: string | undefined,
+): readonly EvidenceRecord[] => {
+  const held = records.every(keep) ? records : records.filter(keep);
+  return pooled === undefined ? held : withoutShadowedCore(held, pooled);
+};
+
+/**
+ * `records` (newest first, as the index keeps them) that hold for `view` (`heldIn`), each with the
+ * names of the baselines that contain its version (`containing`, SR-032 AK2): an empty list when none
+ * does.
  */
 export const listedRecords = (
   records: readonly EvidenceRecord[],
@@ -36,20 +56,24 @@ export const listedRecords = (
   independent: boolean,
   containing: (id: string, version: string) => readonly string[],
 ): EvidenceRecord[] =>
-  records
-    .filter((record) => recordHoldsIn(record, view, independent))
-    .map((record) => ({ ...record, baselines: [...containing(record.element, record.version)] }));
+  heldIn(records, (record) => recordHoldsIn(record, view, independent), pooledVariant(view, independent)).map(
+    (record) => ({
+      ...record,
+      baselines: [...containing(record.element, record.version)],
+    }),
+  );
 
 /** The kind of a record: verification (Nachweis) or validation (D-007). */
 export type RecordKind = EvidenceRecord["kind"];
 
 /**
  * The test cases that name the element `id` (`index.testCasesOf`, class name then name), each with
- * only the executions that hold for `view` (`recordHoldsIn`) and, when `kinds` is given, are of one
- * of those kinds; `last` is the newest of them. A test case that had executions and has none left
- * is left out; one that was only skipped (`executed` false, SR-033 AK3) stays in every view, since a
- * skipped JUnit test case carries no variant. When nothing is filtered out (the usual case: JUnit
- * records are always verification) the index's own array is returned, without a copy.
+ * only the executions that hold for `view` (`heldIn`, so one execution for the core and the variant
+ * shows once) and, when `kinds` is given, are of one of those kinds; `last` is the newest of them. A
+ * test case that had executions and has none left is left out; one that was only skipped (`executed`
+ * false, SR-033 AK3) stays in every view, since a skipped JUnit test case is one entry whatever views
+ * it names. When nothing is filtered out (the usual case: JUnit records are always verification) the
+ * index's own array is returned, without a copy.
  */
 export const testCasesIn = (
   index: EvidenceIndex,
@@ -61,12 +85,20 @@ export const testCasesIn = (
   const cases = index.testCasesOf(id);
   const keep = (record: EvidenceRecord): boolean =>
     recordHoldsIn(record, view, independent) && (kinds === undefined || kinds.includes(record.kind));
-  if (cases.every((test) => test.executions.every(keep))) {
+  const pooled = pooledVariant(view, independent);
+  // The usual case: nothing is filtered and, outside a pooled variant, nothing is asked further.
+  if (
+    cases.every(
+      (test) =>
+        test.executions.every(keep) &&
+        (pooled === undefined || withoutShadowedCore(test.executions, pooled) === test.executions),
+    )
+  ) {
     return cases;
   }
   const kept: TestCase[] = [];
   for (const test of cases) {
-    const executions = test.executions.filter(keep);
+    const executions = heldIn(test.executions, keep, pooled);
     const [last] = executions;
     if (last !== undefined) {
       kept.push({ ...test, executions, last });

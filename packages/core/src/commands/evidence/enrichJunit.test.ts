@@ -745,7 +745,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000a3] a" (line 1) is not enriched: reqseq:variant "VAR-ffffff" names no variant: No element has the short ID or identifier "VAR-ffffff"',
       'Test case "[SR-0000a3] b" (line 1) is not enriched: reqseq:variant "SR-0000a4" names no variant: SR-0000a4 is no variant: reqseq:variant takes a variant, an element whose type has the meaning variant',
-      'Test case "[SR-0000a3] c" (line 1) is not enriched: reqseq:variant "core" names no variant: core is no variant; leave the property out for the core',
+      'Test case "[SR-0000a3] c" (line 1) is not enriched: reqseq:variant "core" names no variant: core is no variant: enrich takes only variants here; leave the property out for the core alone',
     ]);
     const error = await failure(workspace, { file: "results/run.xml", variant: "SR-0000a4" });
     expect([error.code, error.message]).toEqual([
