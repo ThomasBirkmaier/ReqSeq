@@ -1,0 +1,12 @@
+{
+  "name": "Display requirements",
+  "description": "Everything the screen shows.",
+  "where": {
+    "package": "PKG-899714"
+  },
+  "sort": [
+    {
+      "by": "title"
+    }
+  ]
+}

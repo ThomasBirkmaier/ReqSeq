@@ -2,7 +2,8 @@ import { contractsBundle, getCommandRuntime } from "@reqseq/core";
 import type { CatalogEntry } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { CommandAccess } from "./access.js";
-import { commandPage } from "./command-page.js";
+import type { CommandExample } from "./command-examples.js";
+import { FOLDED_OUTPUT_LINES, commandPage } from "./command-page.js";
 
 const entry = (name: string): CatalogEntry => {
   const found = getCommandRuntime().contracts.entry(name);
@@ -24,8 +25,15 @@ const access: CommandAccess = {
   mcpTool: "x_y",
 };
 
-const page = (command: CatalogEntry, commandAccess: CommandAccess = access): string =>
-  commandPage(command, commandAccess, { schemas: contractsBundle.schemas }, 1);
+const page = (
+  command: CatalogEntry,
+  commandAccess: CommandAccess = access,
+  example?: CommandExample | string,
+): string => commandPage(command, commandAccess, { schemas: contractsBundle.schemas }, 1, example);
+
+/** The text below `## heading` up to the next heading. */
+const section = (text: string, heading: string): string =>
+  (text.split(`\n## ${heading}\n`)[1] ?? "").split("\n## ")[0]?.trim() ?? "";
 
 describe("commandPage", () => {
   it("says how a write command behaves while the workspace is read-only", () => {
@@ -58,5 +66,51 @@ describe("commandPage", () => {
     const text = page({ ...entry("element.get"), input: empty, output: empty });
     expect(text).toContain("## Input\n\nNo input.");
     expect(text).toContain("## Output\n\nNo output fields.");
+  });
+
+  it("shows the example input as JSON, the same call on the command line and the output", () => {
+    const example = {
+      input: { ref: "SR-c67baa" },
+      cli: "reqseq element get SR-c67baa --json",
+      output: '{\n  "a": 1\n}',
+    };
+    expect(section(page(entry("element.get"), access, example), "Example")).toBe(
+      [
+        "Run in the folder of the weather station, a small example workspace, when this page was built. The input:",
+        "",
+        "```json",
+        "{",
+        '  "ref": "SR-c67baa"',
+        "}",
+        "```",
+        "",
+        "The same call on the command line:",
+        "",
+        "```sh",
+        "reqseq element get SR-c67baa --json",
+        "```",
+        "",
+        "The output:",
+        "",
+        "```json",
+        "{",
+        '  "a": 1',
+        "}",
+        "```",
+        "",
+        "The folder of the workspace, the time of the run and new UUIDs are shown as fixed values.",
+      ].join("\n"),
+    );
+  });
+
+  it("folds a long output, and says why a command has no example", () => {
+    const output = Array.from({ length: FOLDED_OUTPUT_LINES + 1 }, (_, n) => String(n)).join("\n");
+    expect(page(entry("tool.info"), access, { input: {}, cli: "reqseq tool info --json", output })).toContain(
+      `<details>\n<summary>The output (${String(FOLDED_OUTPUT_LINES + 1)} lines)</summary>\n\n\`\`\`json\n0\n`,
+    );
+    expect(section(page(entry("tool.info"), access, "It needs <a> server."), "Example")).toBe(
+      "No example: It needs \\<a\\> server.",
+    );
+    expect(section(page(entry("tool.info")), "Example")).toBe("No example.");
   });
 });

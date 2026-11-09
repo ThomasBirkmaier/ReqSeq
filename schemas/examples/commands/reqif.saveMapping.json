@@ -1,0 +1,24 @@
+{
+  "mapping": {
+    "reqseq-reqif-mapping": 1,
+    "source": {
+      "name": "Harbour office"
+    },
+    "types": [
+      {
+        "source": "Requirement",
+        "type": "system-requirement"
+      }
+    ],
+    "attributes": [
+      {
+        "source": "ReqIF.Name",
+        "property": "title"
+      },
+      {
+        "source": "ReqIF.Text",
+        "property": "text"
+      }
+    ]
+  }
+}

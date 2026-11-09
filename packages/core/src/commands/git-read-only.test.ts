@@ -169,8 +169,9 @@ describe("Git only read (SR-083, D-036)", () => {
     const importers: string[] = [];
     for (const name of fs.readdirSync(packages)) {
       const src = path.join(packages, name, "src");
-      // The testkit is test tooling: it makes the fixtures' commits.
-      if (name === "testkit" || !fs.existsSync(src)) {
+      // The testkit is test tooling: it makes the fixtures' commits. The docs package builds the documentation site and
+      // is never shipped with the product (ADR-0017); it makes the commits of the command examples' workspace.
+      if (name === "testkit" || name === "docs" || !fs.existsSync(src)) {
         continue;
       }
       for (const entry of fs.readdirSync(src, { recursive: true, withFileTypes: true })) {

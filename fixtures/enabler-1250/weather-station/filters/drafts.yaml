@@ -1,0 +1,8 @@
+reqseq-filter: 1
+name: Draft requirements
+description: System requirements still in draft.
+where:
+  all:
+    - { type: [system-requirement] }
+    - { status: [draft] }
+sort: [{ by: title }]
