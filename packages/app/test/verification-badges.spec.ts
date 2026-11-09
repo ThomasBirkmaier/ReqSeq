@@ -2,7 +2,8 @@
 // which has no variants (one badge for the core) and a requirement for each status: S11 verified, P1
 // indirect, C22 open, C21 failed, C23 outdated, P2 open with three missing children; and on
 // fixtures/SR-030/record with a requirement of two acceptance criteria, one recorded with the CLI. The
-// colours and the contrast of both halves are measured on the page in light and dark, and saved as
+// colours and the contrast of both halves, the space to the property table and the size of the text are
+// measured on the page in light and dark, and saved as
 // screenshots to `test-results/electron/screenshots/` (or REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the
 // same tests run on Linux and macOS.
 import path from "node:path";
@@ -176,18 +177,21 @@ test.describe("the verification badges", () => {
       const layout = await group.evaluate((row) => {
         const above = row.previousElementSibling;
         const badge = row.querySelector(".badge");
-        if (above === null || badge === null) {
-          throw new Error("no box above the badges, or no badge");
+        if (above === null || !above.matches(".field") || badge === null) {
+          throw new Error("no property box right above the badges, or no badge");
         }
         return {
           gap: row.getBoundingClientRect().top - above.getBoundingClientRect().bottom,
           badge: parseFloat(getComputedStyle(badge).fontSize),
           line: parseFloat(getComputedStyle(row).fontSize),
+          key: parseFloat(getComputedStyle(above.querySelector(".key") ?? above).fontSize),
         };
       });
       expect(layout.gap).toBeGreaterThanOrEqual(8);
-      expect(layout.badge).toBeLessThan(layout.line);
+      // Smaller than the status lines and than the keys of the property table.
+      expect(layout.badge).toBeLessThan(Math.min(layout.line, layout.key));
       const box = await group.boundingBox();
+      expect(box).not.toBeNull();
       if (box !== null) {
         await running.window.screenshot({
           path: path.join(OUT, `sr-157-spacing-${scheme}.png`),

@@ -476,7 +476,11 @@ mark {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
-  /* Apart from the property table above, so the row does not touch its last box (#1273). */
+}
+/* The first line under the property table keeps apart from its last box (#1273): the badges, or the
+   line "Replaced or excluded" above them. */
+.element .field + .variant-line,
+.element .on-disk + .variant-line {
   margin-top: 0.75rem;
 }
 /* A size under the text around it, so the badges do not outweigh it (#1273). */
