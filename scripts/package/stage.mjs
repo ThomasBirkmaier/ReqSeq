@@ -11,8 +11,10 @@
 //                                                 notices into $REQSEQ_DOCS_SITE (default build/docs-site/)
 //   node scripts/package/stage.mjs --pack        npm pack the staged CLI into delivery/ (the CLI tarball)
 //   node scripts/package/stage.mjs --check-tag T exit 0 when tag T releases the root version, else 1
-//   node scripts/package/stage.mjs --release-notes R  print the release notes of ref R (a tag or HEAD): the
-//                                                 first-parent commits since the previous release tag (#346)
+//   node scripts/package/stage.mjs --release-body R F  print the GitHub release text of ref R (a release tag, or
+//                                                 a commit of the root version): the summary docs/releases/<version>.md,
+//                                                 the delivery part of the text in file F and the first-parent
+//                                                 commits since the previous release tag (#346), folded
 //   node scripts/package/stage.mjs --whats-new F  write the page "What's new" of the documentation site to F
 //                                                 (#1259): the release notes of every release before HEAD
 import { execFileSync } from "node:child_process";
@@ -24,11 +26,13 @@ import {
   noticesText,
   offlineSiteProblems,
   packageFolders,
+  releaseBody,
   releaseNotes,
   removeBuildLeftovers,
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  versionOfTag,
   whatsNewPage,
   writeBuildInfo,
 } from "./lib.mjs";
@@ -117,7 +121,7 @@ async function readDocsSite() {
  * then be the offline build of this version.
  */
 async function docsSiteStage() {
-  // Loaded here only: site.mjs needs `yaml`, and the release job runs `--check-tag` and `--release-notes` without an
+  // Loaded here only: site.mjs needs `yaml`, and the release job runs `--check-tag` and `--release-body` without an
   // install (stage.test.mjs keeps the module graph of stage.mjs free of packages).
   const { builtSiteProblems, pnpmPackageReader, siteLicenses } = await import("../licenses/site.mjs");
   const sitePackage = path.join(root, "packages", "docs", "site");
@@ -258,12 +262,44 @@ function notes(ref) {
 }
 
 /**
+ * The summary for the user of the release of `version` (`docs/releases/<version>.md`), written with the version PR;
+ * undefined when there is none.
+ */
+async function summaryOf(version) {
+  try {
+    return await fs.readFile(path.join(root, "docs", "releases", `${version}.md`), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/**
+ * `--release-body`: the text of the GitHub release of `ref` (`releaseBody`), with the delivery part of the text in
+ * `file`. A release tag names its version; any other ref is a commit of the root version (a manual run). Throws
+ * without the summary of that version, so that a manual run before the tag shows it missing.
+ */
+async function releaseBodyOf(ref, file) {
+  const released = versionOfTag(ref) ?? version;
+  const summary = await summaryOf(released);
+  if (summary === undefined) {
+    throw new Error(
+      `no summary of version ${released}: write docs/releases/${released}.md (the merge skill says how)`,
+    );
+  }
+  return releaseBody({ summary, body: await fs.readFile(file, "utf8"), notes: notes(ref) });
+}
+
+/**
  * The releases for the page "What's new" (#1259), newest first by version: each release tag reachable from HEAD
- * with the first-parent commits since the tag before, and the commits since the last one when HEAD is no release.
+ * with the first-parent commits since the tag before and its summary (`summaryOf`), and the commits since the last one
+ * when HEAD is no release.
  * A shallow clone lacks tags or history: the page then names no release or too few commits, which
  * `REQSEQ_DOCS_RELEASES=1` (the builds that are published, `.github/actions/docs-site`) refuses.
  */
-function releasesForWhatsNew() {
+async function releasesForWhatsNew() {
   const git = (...args) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).trim();
   const lines = (text) => text.split("\n").filter((line) => line !== "");
@@ -278,11 +314,14 @@ function releasesForWhatsNew() {
   ) {
     throw new Error("no release tag or a shallow history: check out the whole history with its tags");
   }
-  const releases = tags.map((tag, index) => ({
-    version: tag.slice(1),
-    date: git("for-each-ref", "--format=%(creatordate:short)", `refs/tags/${tag}`),
-    subjects: subjects(index + 1 < tags.length ? `${tags[index + 1]}..${tag}` : tag),
-  }));
+  const releases = await Promise.all(
+    tags.map(async (tag, index) => ({
+      version: tag.slice(1),
+      date: git("for-each-ref", "--format=%(creatordate:short)", `refs/tags/${tag}`),
+      subjects: subjects(index + 1 < tags.length ? `${tags[index + 1]}..${tag}` : tag),
+      summary: await summaryOf(versionOfTag(tag)),
+    })),
+  );
   const head = git("rev-parse", "HEAD");
   if (tags.length > 0 && git("rev-parse", `${tags[0]}^{commit}`) !== head) {
     releases.unshift({ version: undefined, date: undefined, subjects: subjects(`${tags[0]}..HEAD`) });
@@ -301,13 +340,13 @@ if (mode === undefined) {
   const ok = tagReleasesVersion(argument, version);
   console.log(ok ? `${argument} releases ${version}` : `${argument} does not release version ${version}`);
   process.exitCode = ok ? 0 : 1;
-} else if (mode === "--release-notes" && argument !== undefined) {
-  process.stdout.write(notes(argument));
+} else if (mode === "--release-body" && argument !== undefined && process.argv[4] !== undefined) {
+  process.stdout.write(await releaseBodyOf(argument, process.argv[4]));
 } else if (mode === "--whats-new" && argument !== undefined) {
-  await fs.writeFile(argument, whatsNewPage(releasesForWhatsNew()));
+  await fs.writeFile(argument, whatsNewPage(await releasesForWhatsNew()));
 } else {
   console.error(
-    "usage: node scripts/package/stage.mjs [--docs-site | --pack | --check-tag <tag> | --release-notes <ref> | --whats-new <file>]",
+    "usage: node scripts/package/stage.mjs [--docs-site | --pack | --check-tag <tag> | --release-body <ref> <file> | --whats-new <file>]",
   );
   process.exitCode = 2;
 }
