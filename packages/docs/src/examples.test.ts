@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { CliRun, GuidePage } from "./examples.js";
 import {
@@ -337,9 +338,15 @@ describe("word budget", () => {
     expect(proseWords("---\ntitle: A b c\n---\nOne two, three.\n\n```sh\nreqseq a b c\n```\n- four\n")).toBe(
       4,
     );
+    expect(proseWords("One:\n\n   ```sh\n   reqseq a b c\n   ```\n")).toBe(1);
     const long = `---\ntitle: T\n---\n${"word ".repeat(WORD_BUDGET + 1)}`;
     expect(wordProblems([page("Short.", "a.md"), page(long, "b.md")])).toEqual([
       `b.md has ${String(WORD_BUDGET + 1)} words, above the budget of ${String(WORD_BUDGET)}`,
     ]);
+  });
+
+  it("keeps every guide page of the repository within the budget", async () => {
+    const guideDir = fileURLToPath(new URL("../../../docs/guide", import.meta.url));
+    expect(wordProblems(await readGuidePages(guideDir))).toEqual([]);
   });
 });

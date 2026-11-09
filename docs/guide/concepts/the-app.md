@@ -15,9 +15,9 @@ On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key
 
 Ctrl+Shift+P, or a click on the bottom line, opens the command prompt. It lists the actions and commands, those for the shown buffer and those you use most first. The search is fuzzy (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape closes the prompt.
 
-An entry shows its key, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait to see the letters that may follow.
+An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait to see the letters that may follow.
 
-The prompt's commands are those of the CLI, the API and MCP, with the same result ([command reference](/reference/commands/)); F1 on one opens its reference page.
+The prompt's ReqSeq commands are those of the CLI, the API and MCP, with the same result ([command reference](/reference/commands/)); F1 on one opens its reference page.
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
@@ -51,6 +51,6 @@ The app follows your system; **Toggle dark mode** switches until it quits, **Fol
 
 ## Following an agent
 
-While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that its next step replaces (never one you typed in), in a split window on the inactive side. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
+While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that its next step replaces (never one you typed in); in a split window, on the inactive side. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
 
 All keys: [keyboard shortcuts](/reference/keyboard-shortcuts/).

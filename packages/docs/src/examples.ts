@@ -387,7 +387,9 @@ export const runReqseq: CliRun = async (argv, cwd, signal) => {
 
 /** Words of the prose of a page: frontmatter and code blocks left out. */
 export function proseWords(text: string): number {
-  const body = text.replace(/^---\r?\n[^]*?\r?\n---\r?\n/, "").replace(/^(`{3,}|~{3,})[^]*?^\1\s*$/gm, "");
+  const body = text
+    .replace(/^---\r?\n[^]*?\r?\n---\r?\n/, "")
+    .replace(/^[ \t]*(`{3,}|~{3,})[^]*?^[ \t]*\1\s*$/gm, "");
   return body.split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
 }
 

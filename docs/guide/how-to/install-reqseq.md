@@ -9,7 +9,7 @@ ReqSeq comes as one portable archive per system: unpacking it is installing it. 
 
 ## Download and check
 
-Each GitHub release has these files:
+Each GitHub release has these files; `<version>` is the version of the release.
 
 | System | Download |
 |---|---|
@@ -63,7 +63,7 @@ reqseq --version
 
 In a pipeline with Node 22, install the tarball instead, without network: `npm install -g --offline ./reqseq-cli-<version>.tgz`.
 
-To read this documentation without network, in the version you installed, run `reqseq serve docs` and open the address it prints. It serves the documentation of the delivery on `127.0.0.1` only, with its search, until Ctrl-C; `--port <n>` picks the port.
+To read this documentation without network, in the version you installed, run `reqseq serve docs` and open the address it prints in a browser. It serves the documentation of the delivery on `127.0.0.1` only, with its search, until Ctrl-C; `--port <n>` picks the port.
 
 ## API
 
@@ -85,6 +85,6 @@ On Linux it is the absolute path of `~/ReqSeq/bin/reqseq`. On Windows, clients t
 
 ## Update or remove
 
-A new version is a new download: replace the old folder or `ReqSeq.app`. The recent workspaces, the path line and the MCP configuration stay. Repeat the Ubuntu step and the first start on macOS and Windows.
+A new version is a new download: replace the old folder or `ReqSeq.app`. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the Ubuntu step and the first start on macOS and Windows.
 
 To remove ReqSeq, delete its folder, the folder `reqseq` in your system's cache folder (`~/Library/Caches`, `~/.cache`, `%LOCALAPPDATA%`) and the data folder (`~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq`).
