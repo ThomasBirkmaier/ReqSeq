@@ -104,7 +104,7 @@ const writeDelivery = async (root: string, system: DeliverySystem): Promise<void
   await write(path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js"), "");
   await write(path.join(layout.resources, "docs", "junit", "README.md"), "");
   await write(path.join(layout.docs, "index.html"), "");
-  await write(path.join(layout.docs, "pagefind", "pagefind.js"), "");
+  await write(path.join(layout.docs, "search-index.json"), "{}");
   await write(
     path.join(layout.resources, "THIRD_PARTY_NOTICES.txt"),
     "@dagrejs/dagre 3.1.1\n\n@dagrejs/graphlib 4.0.5\n",
@@ -232,7 +232,7 @@ describe("inspectDelivery", () => {
       `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js")}`,
       `missing: ${path.join("resources", "docs", "junit", "README.md")}`,
       `missing: ${path.join(cli, "docs", "index.html")}`,
-      `missing: ${path.join(cli, "docs", "pagefind", "pagefind.js")}`,
+      `missing: ${path.join(cli, "docs", "search-index.json")}`,
       `missing: ${path.join("resources", "THIRD_PARTY_NOTICES.txt")}`,
       `missing: ${path.join("resources", "app.asar")}`,
     ]);

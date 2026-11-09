@@ -265,13 +265,31 @@ describe("notices of the documentation site and its offline build (SR-141)", () 
     const site = await tempFolder();
     const index = path.join(site, "index.html");
     const page = (title, href, social = "") =>
-      `<html><head><title>${title}</title><link href="${href}"></head>` +
+      `<html><head><title>${title}</title><link href="${href}">` +
+      `<script type="module" src="${href.replace("a.css", "Search.a1.js")}"></script></head>` +
       `<body><div class="sl-flex social-icons astro-1">${social}</div></body></html>`;
+    const searchIndex = path.join(site, "search-index.json");
     const options = { product: "Tool", version: "1.2.3" };
     expect(await offlineSiteProblems(site, options)).toEqual([
       `no index.html in ${site}: build the site with REQSEQ_DOCS_OFFLINE=1`,
     ]);
     await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no search index with pages in ${searchIndex}`,
+      `${index} loads no script with MiniSearch: the search is missing`,
+    ]);
+    await fs.writeFile(searchIndex, JSON.stringify({ index: { documentCount: 0 } }));
+    await fs.mkdir(path.join(site, "_astro"));
+    await fs.writeFile(path.join(site, "_astro", "Search.a1.js"), "export {};");
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no search index with pages in ${searchIndex}`,
+      `${index} loads no script with MiniSearch: the search is missing`,
+    ]);
+    await fs.writeFile(searchIndex, JSON.stringify({ index: { documentCount: 2 } }));
+    await fs.writeFile(
+      path.join(site, "_astro", "Search.a1.js"),
+      'throw new Error("MiniSearch: duplicate ID");',
+    );
     expect(await offlineSiteProblems(site, options)).toEqual([]);
     await fs.writeFile(
       index,
@@ -281,6 +299,7 @@ describe("notices of the documentation site and its offline build (SR-141)", () 
       `the title of ${index} does not end with "| Tool 1.2.3"`,
       `${index} loads no asset from base /: not the offline build`,
       `${index} links to a social account: not the offline build`,
+      `${index} loads no script with MiniSearch: the search is missing`,
     ]);
     await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
     await fs.writeFile(path.join(site, "a.js.map"), "{}");

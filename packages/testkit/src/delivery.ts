@@ -256,7 +256,7 @@ async function fileFindings(
     scoped("core", "dist", "model", "read-worker.js"),
     path.join(layout.resources, "docs", "junit", "README.md"),
     path.join(layout.docs, "index.html"),
-    path.join(layout.docs, "pagefind", "pagefind.js"),
+    path.join(layout.docs, "search-index.json"),
     path.join(layout.resources, "THIRD_PARTY_NOTICES.txt"),
     path.join(layout.resources, "app.asar"),
   ];

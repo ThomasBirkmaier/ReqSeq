@@ -1,9 +1,11 @@
 // The user documentation site (ADR-0017). Nothing here loads from the network: no web fonts, no CDN, no analytics.
 import { existsSync, readFileSync } from "node:fs";
-import { URL } from "node:url";
+import { URL, fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
+// Built by `pnpm docs:generate` (the @reqseq/docs package), which every site build runs first.
+import { writeSearchIndex } from "../dist/search-index.js";
 
 // The sections of the hand-written pages (D-067), each a folder of docs/guide/. packages/docs/src/assemble.ts
 // (GUIDE_SECTIONS) refuses a page outside them and index.md, so no page is left out of the sidebar.
@@ -45,6 +47,9 @@ export default defineConfig({
         ? []
         : [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
+      // The search (SR-141 AK1): MiniSearch over search-index.json instead of Pagefind, online and offline.
+      pagefind: false,
+      components: { Search: "./src/components/Search.astro" },
       // The icons of the app (#410), from toolchain/packaging/icon/icon.svg (scripts/icon/generate.mjs).
       favicon: "/favicon.svg",
       head: [
@@ -68,5 +73,14 @@ export default defineConfig({
       // A dead internal link fails the build.
       plugins: [starlightLinksValidator()],
     }),
+    {
+      name: "reqseq-search-index",
+      hooks: {
+        "astro:build:done": async ({ dir, logger }) => {
+          const pages = await writeSearchIndex(fileURLToPath(dir), base);
+          logger.info(`search index of ${String(pages)} pages`);
+        },
+      },
+    },
   ],
 });

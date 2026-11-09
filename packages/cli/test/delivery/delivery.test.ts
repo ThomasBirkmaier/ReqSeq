@@ -8,10 +8,11 @@ import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { commandPagePath } from "@reqseq/core/docs-site";
 import { LineTransport } from "@reqseq/mcp";
+import MiniSearch from "minisearch";
 import type { DeliveryNames, DeliverySystem, FixtureWorkspace } from "@reqseq/testkit";
 import {
   DELIVERY_SYSTEMS,
@@ -154,19 +155,21 @@ const docsAddress = (child: ChildProcessWithoutNullStreams): Promise<string> =>
     });
   });
 
+/** The search index of the site, as packages/docs/src/search-index.ts writes it. */
+interface SearchIndexFile {
+  readonly fields: string[];
+  readonly storeFields: string[];
+  readonly searchOptions: { prefix: boolean; fuzzy: number; boost: Record<string, number> };
+  readonly index: unknown;
+}
+
 /** The `<title>` of an HTML page. */
 const titleOf = (html: string): string | undefined => /<title>([^<]*)<\/title>/.exec(html)?.[1];
 
-/** The search of Pagefind as its module exports it (`pagefind.js`). */
-interface Pagefind {
-  options(options: { basePath: string }): Promise<void>;
-  search(term: string): Promise<{ results: { data(): Promise<{ url: string }> }[] }>;
-}
-
 /**
  * The documentation of an installed delivery (SR-141 AK1): `serve docs` of its launcher serves the start page and a
- * command page with the version of `tool info` in their titles, with the CSP and nosniff, and the search of the
- * delivered `docs` folder (Pagefind's own module, loaded from disk) finds pages that the server then serves.
+ * command page with the version of `tool info` in their titles, with the CSP and nosniff, and its search index,
+ * searched with MiniSearch as the site's search box does, finds pages that the server then serves.
  */
 const serveDocsAndSearch = async (launcher: string, docs: string): Promise<void> => {
   const info = await toolInfo(launcher);
@@ -184,15 +187,23 @@ const serveDocsAndSearch = async (launcher: string, docs: string): Promise<void>
       expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
       expect(titleOf(await response.text())?.endsWith(`| ${title}`)).toBe(true);
     }
-    const pagefind = (await import(
-      pathToFileURL(path.join(docs, "pagefind", "pagefind.js")).href
-    )) as Pagefind;
-    await pagefind.options({ basePath: new URL("pagefind/", url).href });
-    const { results } = await pagefind.search("baseline");
+    // The search box's own steps (site/src/components/Search.astro): fetch the index from the site, load it with
+    // MiniSearch and its options from the file, search.
+    const index = await fetch(new URL("search-index.json", url));
+    expect(index.status).toBe(200);
+    expect(index.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    // The served index is the delivered file.
+    const file = (await index.json()) as SearchIndexFile;
+    expect(file).toEqual(JSON.parse(readFileSync(path.join(docs, "search-index.json"), "utf8")));
+    const search = MiniSearch.loadJS(file.index as Parameters<typeof MiniSearch.loadJS>[0], {
+      fields: file.fields,
+      storeFields: file.storeFields,
+    });
+    const results = search.search("baseline", file.searchOptions);
     expect(results.length).toBeGreaterThan(0);
-    const hit = await results[0]?.data();
-    expect(hit?.url.startsWith(url)).toBe(true);
-    const page = await fetch(hit?.url ?? url);
+    const hit = new URL(String(results[0]?.["url"]), url).href;
+    expect(hit.startsWith(url)).toBe(true);
+    const page = await fetch(hit);
     expect(page.status).toBe(200);
     const text = await page.text();
     expect(titleOf(text)).toContain(title);

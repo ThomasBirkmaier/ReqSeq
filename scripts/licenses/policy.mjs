@@ -91,7 +91,7 @@ export const LICENSE_FILE = /^(?:licen[cs]e|copying|notice)(?:[.-].*)?$/i;
 
 /**
  * The licence texts of the package in `folder`: its files whose names LICENSE_FILE matches, in name order, and the
- * files of such a folder (pagefind 1.5.2 ships a folder `LICENSE` with its own licence and one it took over).
+ * files of such a folder (some packages ship a folder `LICENSE`).
  * Links and other entries are left out.
  */
 export function licenseTexts(folder) {

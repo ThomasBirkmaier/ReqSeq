@@ -1,0 +1,216 @@
+---
+// The search of the site (SR-141 AK1, ADR-0017), in place of Starlight's Pagefind search (`components.Search`).
+// It fetches search-index.json, which packages/docs/src/search-index.ts writes after the build, from the site
+// itself and searches it with MiniSearch in the browser: no network, and no script outside the site's own files.
+import { Icon } from "@astrojs/starlight/components";
+---
+
+<reqseq-search data-index={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/search-index.json`}>
+  <button type="button" data-open aria-label="Search" aria-keyshortcuts="Control+K">
+    <Icon name="magnifier" />
+    <span class="sl-hidden md:sl-block" aria-hidden="true">Search</span>
+    <kbd class="sl-hidden md:sl-flex">Ctrl K</kbd>
+  </button>
+  <dialog aria-label="Search">
+    <form method="dialog" class="frame">
+      <input type="search" placeholder="Search the documentation" aria-label="Search the documentation" autocomplete="off" />
+      <p class="status" role="status"></p>
+      <ul class="hits"></ul>
+      <button type="submit" class="close">Close</button>
+    </form>
+  </dialog>
+</reqseq-search>
+
+<script>
+  import MiniSearch from "minisearch";
+
+  interface IndexFile {
+    fields: string[];
+    storeFields: string[];
+    searchOptions: { prefix: boolean; fuzzy: number; boost: Record<string, number> };
+    index: unknown;
+  }
+
+  const MAX_HITS = 20;
+
+  class ReqseqSearch extends HTMLElement {
+    #search: Promise<(term: string) => { url: string; title: string; excerpt: string }[]> | undefined;
+
+    connectedCallback(): void {
+      const open = this.querySelector<HTMLButtonElement>("button[data-open]");
+      const dialog = this.querySelector("dialog");
+      const input = this.querySelector("input");
+      const hits = this.querySelector("ul");
+      const status = this.querySelector(".status");
+      if (!open || !dialog || !input || !hits || !status) {
+        return;
+      }
+      const show = (): void => {
+        dialog.showModal();
+        input.focus();
+        input.select();
+      };
+      open.addEventListener("click", show);
+      window.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          if (dialog.open) {
+            dialog.close();
+          } else {
+            show();
+          }
+        }
+      });
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+      input.addEventListener("input", () => {
+        void this.#render(input.value, hits, status);
+      });
+      // Down from the box goes to the first hit, Up and Down move between hits, Up from the first goes back.
+      dialog.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+          return;
+        }
+        const links = [...hits.querySelectorAll("a")];
+        const at = links.indexOf(document.activeElement as HTMLAnchorElement);
+        const next = event.key === "ArrowDown" ? at + 1 : at - 1;
+        if (next >= 0 && next < links.length) {
+          links[next]?.focus();
+        } else if (next < 0) {
+          input.focus();
+        }
+        event.preventDefault();
+      });
+    }
+
+    #load(): Promise<(term: string) => { url: string; title: string; excerpt: string }[]> {
+      this.#search ??= fetch(this.dataset["index"] ?? "")
+        .then((response) => response.json() as Promise<IndexFile>)
+        .then((file) => {
+          const search = MiniSearch.loadJS(file.index as Parameters<typeof MiniSearch.loadJS>[0], {
+            fields: file.fields,
+            storeFields: file.storeFields,
+          });
+          return (term: string) =>
+            search.search(term, file.searchOptions).map((hit) => ({
+              url: String(hit["url"]),
+              title: String(hit["title"]),
+              excerpt: String(hit["excerpt"]),
+            }));
+        });
+      return this.#search;
+    }
+
+    async #render(term: string, hits: HTMLUListElement, status: Element): Promise<void> {
+      const found = term.trim() === "" ? [] : (await this.#load())(term);
+      // Text only: nothing of the index is read as markup.
+      hits.replaceChildren(
+        ...found.slice(0, MAX_HITS).map((hit) => {
+          const item = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = hit.url;
+          const title = document.createElement("strong");
+          title.textContent = hit.title;
+          const excerpt = document.createElement("span");
+          excerpt.textContent = hit.excerpt;
+          link.append(title, excerpt);
+          item.append(link);
+          return item;
+        }),
+      );
+      status.textContent =
+        term.trim() === "" ? "" : found.length === 0 ? "No pages found" : `${String(found.length)} pages found`;
+    }
+  }
+
+  customElements.define("reqseq-search", ReqseqSearch);
+</script>
+
+<style>
+  reqseq-search {
+    display: contents;
+  }
+  button[data-open] {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding-inline: 0.75rem 0.5rem;
+    height: 2.5rem;
+    width: 100%;
+    max-width: 22rem;
+    background-color: var(--sl-color-black);
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    cursor: pointer;
+  }
+  button[data-open]:hover {
+    border-color: var(--sl-color-gray-2);
+    color: var(--sl-color-white);
+  }
+  button[data-open] kbd {
+    margin-inline-start: auto;
+    font-size: var(--sl-text-xs);
+  }
+  dialog {
+    margin: 4rem auto auto;
+    padding: 0;
+    width: min(40rem, calc(100% - 2rem));
+    max-height: calc(100% - 8rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+  }
+  dialog::backdrop {
+    background-color: var(--sl-color-backdrop-overlay);
+  }
+  .frame {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.25rem;
+    background-color: var(--sl-color-black);
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-base);
+  }
+  .status {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+  .hits {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+  }
+  .hits :global(a) {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    color: var(--sl-color-white);
+    text-decoration: none;
+  }
+  .hits :global(a:hover),
+  .hits :global(a:focus) {
+    background-color: var(--sl-color-gray-5);
+  }
+  .hits :global(span) {
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+  }
+  .close {
+    align-self: flex-end;
+  }
+</style>

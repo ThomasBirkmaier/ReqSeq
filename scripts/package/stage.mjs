@@ -16,7 +16,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { builtSiteProblems, pnpmPackageReader, siteLicenses, textReader } from "../licenses/site.mjs";
+import { builtSiteProblems, pnpmPackageReader, siteLicenses } from "../licenses/site.mjs";
 import {
   buildInfoOf,
   hardLinkEntries,
@@ -120,7 +120,6 @@ async function docsSiteStage() {
   const licenses = siteLicenses({
     lockText: await fs.readFile(path.join(sitePackage, "pnpm-lock.yaml"), "utf8"),
     readPackage: pnpmPackageReader(path.join(sitePackage, "node_modules")),
-    readText: textReader(path.join(root, "scripts", "licenses", "site-texts")),
   });
   const problems = [...builtSiteProblems(dist), ...licenses.problems];
   if (problems.length > 0) {

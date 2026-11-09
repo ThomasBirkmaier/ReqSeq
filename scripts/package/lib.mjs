@@ -231,8 +231,9 @@ export async function writeBuildInfo(staged, info) {
 /**
  * Why the built site in `folder` is not the offline build that a delivery of `product` `version` ships (SR-141,
  * ADR-0017; empty: it is). Its `index.html` must have the title the site config gives every page
- * (`<page> | <product> <version>`), load its assets from base `/` (`/_astro/`), and link to no social account
- * (the offline build leaves the repository link out); the site must hold no symbolic link and no source map.
+ * (`<page> | <product> <version>`), load its assets from base `/` (`/_astro/`), link to no social account (the
+ * offline build leaves the repository link out) and have its search; the site must hold no symbolic link and no
+ * source map.
  */
 export async function offlineSiteProblems(folder, { product, version }) {
   const file = path.join(folder, "index.html");
@@ -258,5 +259,34 @@ export async function offlineSiteProblems(folder, { product, version }) {
     ...(/class="[^"]*\bsocial-icons\b[^"]*"><a\b/.test(index)
       ? [`${file} links to a social account: not the offline build`]
       : []),
+    ...(await searchProblems(folder, index)),
   ];
+}
+
+/**
+ * Why the search of the site in `folder` cannot work offline (empty: it can): it needs `search-index.json` with at
+ * least one page (packages/docs/src/search-index.ts) and a script of `_astro/` loaded by the start page `index`
+ * that holds MiniSearch (site/src/components/Search.astro).
+ */
+async function searchProblems(folder, index) {
+  const problems = [];
+  const data = await fs
+    .readFile(path.join(folder, "search-index.json"), "utf8")
+    .then((text) => JSON.parse(text))
+    .catch(() => undefined);
+  if (!(data?.index?.documentCount > 0)) {
+    problems.push(`no search index with pages in ${path.join(folder, "search-index.json")}`);
+  }
+  const scripts = [...index.matchAll(/<script type="module" src="\/(_astro\/[\w.-]+\.js)">/g)].map(
+    (m) => m[1],
+  );
+  const texts = await Promise.all(
+    scripts.map((script) => fs.readFile(path.join(folder, ...script.split("/")), "utf8").catch(() => "")),
+  );
+  if (!texts.some((text) => text.includes("MiniSearch: "))) {
+    problems.push(
+      `${path.join(folder, "index.html")} loads no script with MiniSearch: the search is missing`,
+    );
+  }
+  return problems;
 }

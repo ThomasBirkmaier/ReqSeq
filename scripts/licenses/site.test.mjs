@@ -4,16 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  SITE_BUNDLED,
+  OWN_SOURCE,
   SITE_PACKAGES,
   builtSiteProblems,
   lockVersions,
   pnpmPackageReader,
   siteLicenses,
   sourcePackage,
-  textReader,
 } from "./site.mjs";
-import { licenseAllowed } from "./policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const siteLock = fs.readFileSync(
@@ -48,74 +46,34 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     );
   });
 
-  it("finds in the real site lockfile every shipped package once and every pinned host of bundled code, and refuses the GPL-3.0 and Unicode-3.0 crates of Pagefind's WebAssembly (#1220)", () => {
-    const { entries, problems } = siteLicenses({
-      lockText: siteLock,
-      readPackage: installed,
-      readText: textReader(path.join(here, "site-texts")),
-    });
-    expect(problems).toEqual([
-      "license not allowed (ADR-0015): pagefind_microjson@0.1.4: GPL-3.0-only (shipped in the documentation site)",
-      "license not allowed (ADR-0015): unicode-ident@1.0.24: (MIT OR Apache-2.0) AND Unicode-3.0 (shipped in the documentation site)",
-    ]);
-    expect(entries).toHaveLength(SITE_PACKAGES.length + SITE_BUNDLED.length);
+  it("finds every shipped package once in the real site lockfile, MiniSearch among them", () => {
+    const { entries, problems } = siteLicenses({ lockText: siteLock, readPackage: installed });
+    expect(problems).toEqual([]);
+    expect(entries.map((e) => e.name)).toEqual(SITE_PACKAGES.map((p) => p.name));
+    expect(entries.find((e) => e.name === "minisearch")?.version).toBe("7.2.0");
   });
 
-  it("reports a shipped package missing or twice in the lockfile, not installed, without licence text, or a stale host", () => {
+  it("reports a shipped package missing or twice in the lockfile, not installed, not allowed or without licence text", () => {
     const { entries, problems } = siteLicenses({
-      lockText: lockOf("one@1.0.0", "two@1.0.0", "two@2.0.0", "absent@1.0.0", "bare@1.0.0", "host@2.0.0"),
+      lockText: lockOf("one@1.0.0", "two@1.0.0", "two@2.0.0", "absent@1.0.0", "bare@1.0.0", "gpl@1.0.0"),
       readPackage: (name) =>
-        name === "absent" ? undefined : name === "bare" ? { license: "MIT", texts: [] } : installed(),
-      readText: (file) => (file === "inner@1.0.0.txt" ? "text" : undefined),
-      packages: [
-        { name: "one" },
-        { name: "none" },
-        { name: "two" },
-        { name: "absent" },
-        { name: "bare" },
-        { name: "lent", textOf: "one" },
-      ],
-      bundled: [
-        { name: "inner", version: "1.0.0", license: "MIT", inside: ["host@1.0.0"] },
-        { name: "gpl", version: "1.0.0", license: "GPL-3.0-only", inside: ["host@2.0.0"] },
-      ],
+        name === "absent"
+          ? undefined
+          : name === "bare"
+            ? { license: "MIT", texts: [] }
+            : name === "gpl"
+              ? { license: "GPL-3.0-only", texts: ["GPL"] }
+              : installed(),
+      packages: ["one", "none", "two", "absent", "bare", "gpl"].map((name) => ({ name })),
     });
     expect(problems).toEqual([
       "shipped package none has 0 versions in the site lockfile",
       "shipped package two has 2 versions in the site lockfile",
       "shipped package absent@1.0.0 is not installed: run pnpm docs:install",
-      "shipped package lent has 0 versions in the site lockfile",
-      "bundled inner@1.0.0 was read for host@1.0.0, which the site lockfile no longer has: read the bundled code again",
       "no licence text for bare@1.0.0 (shipped in the documentation site)",
       "license not allowed (ADR-0015): gpl@1.0.0: GPL-3.0-only (shipped in the documentation site)",
     ]);
-    expect(entries.map((e) => `${e.name}@${e.version}`)).toEqual([
-      "one@1.0.0",
-      "bare@1.0.0",
-      "inner@1.0.0",
-      "gpl@1.0.0",
-    ]);
-  });
-
-  it("takes the licence text of another shipped package for one that ships none", () => {
-    const { entries, problems } = siteLicenses({
-      lockText: lockOf("pagefind@1.5.2", "@pagefind/default-ui@1.5.2", "x@1.0.0"),
-      readPackage: (name) => ({ license: "MIT", texts: name === "pagefind" ? ["Pagefind MIT"] : [] }),
-      readText: () => undefined,
-      packages: [
-        { name: "pagefind" },
-        { name: "@pagefind/default-ui", textOf: "pagefind" },
-        { name: "x", textOf: "gone" },
-      ],
-      bundled: [],
-    });
-    expect(entries[1]).toEqual({
-      name: "@pagefind/default-ui",
-      version: "1.5.2",
-      license: "MIT",
-      texts: ["Pagefind MIT"],
-    });
-    expect(problems).toEqual(["no licence text for x@1.0.0 (shipped in the documentation site)"]);
+    expect(entries).toEqual([{ name: "one", version: "1.0.0", license: "MIT", texts: ["MIT text"] }]);
   });
 
   it("reads a package of a pnpm install with its licence files", () => {
@@ -137,15 +95,6 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     expect(pnpmPackageReader(path.join(nm, "none"))("@p/a", "1.0.0")).toBeUndefined();
   });
 
-  it("has a licence text for every allowed bundled component, and no text that no entry names", () => {
-    const read = textReader(path.join(here, "site-texts"));
-    for (const entry of SITE_BUNDLED.filter((e) => licenseAllowed(e.license))) {
-      expect(read(`${entry.name}@${entry.version}.txt`), entry.name).toBeDefined();
-    }
-    const named = new Set(SITE_BUNDLED.map((e) => `${e.name}@${e.version}.txt`));
-    expect(fs.readdirSync(path.join(here, "site-texts")).filter((f) => !named.has(f))).toEqual([]);
-  });
-
   it("names the package of a source of a source map", () => {
     expect(sourcePackage("../../node_modules/.pnpm/astro@7.3.8_x/node_modules/astro/dist/a.js")).toBe(
       "astro",
@@ -154,7 +103,10 @@ describe("site licenses (SR-141, ADR-0015)", () => {
       "@a/b",
     );
     expect(sourcePackage("../../../../../astro:scripts/page.js")).toBe("astro");
-    expect(sourcePackage("../src/own.js")).toBeUndefined();
+    expect(sourcePackage("../../src/components/Search.astro?astro&type=script&index=0&lang.ts")).toBe(
+      OWN_SOURCE,
+    );
+    expect(sourcePackage("../../../elsewhere/x.js")).toBeUndefined();
   });
 
   it("accepts a built site of the shipped files whose scripts come from listed packages only", () => {
@@ -174,22 +126,23 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     write("_astro/ec.c3.js");
     write("_astro/common.d4.css");
     write("_astro/app.e5.png");
-    write("pagefind/wasm.en.pagefind");
-    write("pagefind/index/en_1.pf_index");
+    write("search-index.json", "{}");
     expect(builtSiteProblems(site, ["astro"])).toEqual([]);
 
     write("sitemap-index.xml");
+    write("pagefind/pagefind.js");
     write("_astro/extra.f6.js", "var a=1;");
     write("_astro/ui.g7.js");
     write(
       "_astro/ui.g7.js.map",
-      map("../node_modules/.pnpm/x@1/node_modules/@other/pkg/i.js", "../src/own.js"),
+      map("../node_modules/.pnpm/x@1/node_modules/@other/pkg/i.js", "../../../elsewhere/x.js"),
     );
     expect(builtSiteProblems(site, ["astro"])).toEqual([
+      "file outside the shipped files of the site: pagefind/pagefind.js",
       "file outside the shipped files of the site: sitemap-index.xml",
       "script without its source map (build with REQSEQ_DOCS_OFFLINE=1): _astro/extra.f6.js",
       "_astro/ui.g7.js.map ships code of @other/pkg, which SITE_PACKAGES does not list",
-      "_astro/ui.g7.js.map ships code of an unknown source ../src/own.js, which SITE_PACKAGES does not list",
+      "_astro/ui.g7.js.map ships code of an unknown source ../../../elsewhere/x.js, which SITE_PACKAGES does not list",
     ]);
   });
 });

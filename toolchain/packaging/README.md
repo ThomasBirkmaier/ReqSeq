@@ -25,8 +25,7 @@ node scripts/package/stage.mjs --pack              # the CLI tarball
 scripts/package/delivery-tests.sh                  # the delivery tests (Linux: as a normal user with sudo)
 ```
 
-`--docs-site` fails for now: Pagefind's WebAssembly holds crates outside the licence allowlist of ADR-0015 (#1220),
-so no delivery can be staged until that is decided. The release job `docs-site` runs the same steps.
+The release job `docs-site` runs the same two steps.
 
 The artifacts land in `delivery/`. electron-builder downloads the Electron zip for the target at build time
 (checksum-verified); the delivery itself downloads nothing (SR-078).

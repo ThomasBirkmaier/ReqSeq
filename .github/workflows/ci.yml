@@ -216,7 +216,7 @@ jobs:
 
       # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
       # Linux only. The site (Astro, Starlight) has its own lockfile outside the workspace; only these steps and
-      # docs-pages.yml install it. The build runs without network, so Pagefind and Astro must not download anything,
+      # docs-pages.yml install it. The build runs without network, so Astro and the search index must not download anything,
       # and the links validator fails it on a dead internal link.
       - name: Docs - generate the content
         id: docs-generate
@@ -230,6 +230,10 @@ jobs:
       - name: Docs - audit the site's dependencies
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
         run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+      # The licences of what the site ships with a delivery (ADR-0015, SR-141), so a pull request sees a change.
+      - name: Docs - check the licences the site ships
+        if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
+        run: node scripts/licenses/site.mjs
       - name: Docs - build the site without network (unshare -rn)
         if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
         run: |
