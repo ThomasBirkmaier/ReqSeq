@@ -12,7 +12,7 @@ import {
   readGuidePages,
   runReqseq,
   runSteps,
-  wordWarnings,
+  wordProblems,
 } from "./examples.js";
 
 const page = (text: string, path = "page.md"): GuidePage => ({ path, text });
@@ -338,7 +338,7 @@ describe("word budget", () => {
       4,
     );
     const long = `---\ntitle: T\n---\n${"word ".repeat(WORD_BUDGET + 1)}`;
-    expect(wordWarnings([page("Short.", "a.md"), page(long, "b.md")])).toEqual([
+    expect(wordProblems([page("Short.", "a.md"), page(long, "b.md")])).toEqual([
       `b.md has ${String(WORD_BUDGET + 1)} words, above the budget of ${String(WORD_BUDGET)}`,
     ]);
   });

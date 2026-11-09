@@ -391,11 +391,11 @@ export function proseWords(text: string): number {
   return body.split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
 }
 
-/** The word budget of a hand-written page (ADR-0017): above it, `docs:generate` warns. */
+/** The word budget of a hand-written page (ADR-0017): above it, `docs:generate` fails (#1254). */
 export const WORD_BUDGET = 600;
 
-/** A warning for each page above the word budget. */
-export const wordWarnings = (pages: readonly GuidePage[]): string[] =>
+/** A problem for each page above the word budget. */
+export const wordProblems = (pages: readonly GuidePage[]): string[] =>
   pages
     .map((page) => ({ page, words: proseWords(page.text) }))
     .filter(({ words }) => words > WORD_BUDGET)
