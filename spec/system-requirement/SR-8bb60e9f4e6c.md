@@ -15,7 +15,7 @@ packages:
 derives-from:
   - { id: 6ad3a129-d7b1-4b17-a9d7-6caf73d38315, version: n1:9b945f99f310e930, title: "Requirement, Baseline und Nachweis" }
 based-on:
-  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:066c16db6a4c7f66, title: Baseline als Datei }
+  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:9f5afea8292bf01a, title: Baseline als Datei }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-08: Die Nachweis-Ansicht zeigte jeden Datensatz, den es je gab, und wirkte unübersichtlich. Alle Datensätze bleiben sichtbar, wie AK1 verlangt, aber offen steht nur, was den Status trägt; die Historie ist eingeklappt wie ein Abschnitt im Editor."
 ---
 
