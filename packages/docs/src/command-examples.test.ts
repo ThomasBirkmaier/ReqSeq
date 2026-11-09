@@ -1,9 +1,11 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { argvFor } from "@reqseq/cli";
 import type { CatalogEntry } from "@reqseq/core";
 import { getCommandRuntime } from "@reqseq/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BASELINE_TIME,
   SHOWN_ROOT,
@@ -13,6 +15,7 @@ import {
   commandExamples,
   readExampleInputs,
   shellWord,
+  shownFolders,
   stable,
 } from "./command-examples.js";
 import { commandWords } from "./examples.js";
@@ -47,6 +50,7 @@ describe("command examples", () => {
       ]);
       expect(() => JSON.parse(example.output) as unknown, command.name).not.toThrow();
       expect(example.output, command.name).not.toContain(tmpdir());
+      expect(example.output, command.name).not.toContain(JSON.stringify(tmpdir()).slice(1, -1));
     }
     expect(first.get("element.get")?.output).toContain('"title": "Show the wind speed"');
     expect(first.get("element.create")?.output).toContain('"shortId": "SR-000001"');
@@ -57,6 +61,32 @@ describe("command examples", () => {
     const second = await commandExamples(entries, inputs, runtime);
     expect([...second]).toEqual([...first]);
   }, 120_000);
+
+  it("commits the same files whatever the user's global Git ignore file says", async () => {
+    const entries = [entry("workspace.status")];
+    const inputs = new Map([["workspace.status", {}]]);
+    const plain = await commandExamples(entries, inputs, runtime);
+    const home = await mkdtemp(join(tmpdir(), "reqseq-git-home-"));
+    try {
+      await mkdir(join(home, "git"));
+      await writeFile(join(home, "git", "ignore"), "*.png\n*.md\n");
+      vi.stubEnv("HOME", home);
+      vi.stubEnv("XDG_CONFIG_HOME", home);
+      expect(await commandExamples(entries, inputs, runtime)).toEqual(plain);
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("names the copy's folder in every form an output can give it", () => {
+    expect(shownFolders(["/a/b", "/a/b"])).toEqual([["/a/b", SHOWN_ROOT]]);
+    const [real, made] = [join("C:", "private", "ws"), join("C:", "ws")];
+    const forms = shownFolders([real, made]).map(([folder]) => folder);
+    expect(forms[0]).toBe(JSON.stringify(real).slice(1, -1));
+    expect(forms).toContain(made.split(sep).join("/"));
+    expect(forms).toContain(JSON.stringify(made).slice(1, -1));
+  });
 
   it("fails with every command whose example fails, and passes over a command without one", async () => {
     await expect(

@@ -7,7 +7,7 @@
 import { execFile } from "node:child_process";
 import { cp, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -139,6 +139,15 @@ export function stable(output: string, { folders, known, from, to }: Volatile): 
   return text.replace(DATE, (day) => (days.has(day) ? SHOWN_TIME.slice(0, 10) : day));
 }
 
+/**
+ * The forms in which an output can name the copy's folder, each with SHOWN_ROOT: its real path first, then the path
+ * it was made with (macOS `/private/var` and `/var`), each as JSON escapes it and with `/` (Windows); once each.
+ */
+export const shownFolders = (roots: readonly string[]): (readonly [string, string])[] =>
+  [...new Set(roots.flatMap((root) => [JSON.stringify(root).slice(1, -1), root.split(sep).join("/")]))].map(
+    (folder) => [folder, SHOWN_ROOT] as const,
+  );
+
 /** Runs `reqseq <argv>` in `cwd` with `runtime`; the exit code and what it printed. */
 async function runIn(
   argv: readonly string[],
@@ -161,15 +170,20 @@ async function runIn(
 const execFileAsync = promisify(execFile);
 
 /**
- * `git <args>` in `cwd` as of `date`: no system, user or inherited configuration, and fixed names and dates, so a
- * commit gets the same ID on every build and machine.
+ * `git <args>` in `cwd` as of `date`: no system, user or inherited configuration, no global ignore or attributes file
+ * (home and config folders are the folder of `config`, an empty file), and fixed names and dates, so a commit gets the
+ * same ID on every build and machine.
  */
 async function git(args: readonly string[], cwd: string, config: string, date: string): Promise<void> {
+  const home = dirname(config);
   const inherited = Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("GIT_"));
   const env = {
     ...Object.fromEntries(inherited),
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: config,
+    HOME: home,
+    USERPROFILE: home,
+    XDG_CONFIG_HOME: home,
     GIT_AUTHOR_NAME: "ReqSeq docs",
     GIT_AUTHOR_EMAIL: "docs@example.com",
     GIT_COMMITTER_NAME: "ReqSeq docs",
@@ -177,7 +191,8 @@ async function git(args: readonly string[], cwd: string, config: string, date: s
     GIT_AUTHOR_DATE: date,
     GIT_COMMITTER_DATE: date,
   };
-  await execFileAsync("git", ["-c", "core.autocrlf=false", ...args], { cwd, env });
+  const settings = ["core.autocrlf=false", `core.excludesFile=${config}`, `core.attributesFile=${config}`];
+  await execFileAsync("git", [...settings.flatMap((setting) => ["-c", setting]), ...args], { cwd, env });
 }
 
 /**
@@ -282,7 +297,8 @@ export async function commandExamples(
   without: Readonly<Record<string, string>> = WITHOUT_EXAMPLE,
 ): Promise<Map<string, CommandExample>> {
   checkExampleInputs(entries, inputs, without);
-  const top = await realpath(await mkdtemp(join(tmpdir(), "reqseq-command-examples-")));
+  const made = await mkdtemp(join(tmpdir(), "reqseq-command-examples-"));
+  const top = await realpath(made);
   try {
     const template = await templateIn(top, runtime);
     const known = await uuidsIn(template);
@@ -306,7 +322,7 @@ export async function commandExamples(
           failures.push(`${entry.name}: \`${cli}\`: exit code ${String(result.exitCode)}\n${result.stderr}`);
           continue;
         }
-        const folders = [[JSON.stringify(root).slice(1, -1), SHOWN_ROOT] as const];
+        const folders = shownFolders([root, join(made, String(index), "weather-station")]);
         examples.set(entry.name, {
           input,
           cli,

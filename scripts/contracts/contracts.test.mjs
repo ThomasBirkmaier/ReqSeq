@@ -1,14 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { checkCommandExamples } from "./command-examples.mjs";
 import { loadContracts, BASE } from "./load.mjs";
 
-const { ajv } = loadContracts();
+const { ajv, catalog } = loadContracts();
 const validate = (schema, data) => ajv.getSchema(BASE + schema)(data);
 const id = "102ee39b-773f-4cd0-b414-825b7146fb54";
 
 describe("contracts", () => {
   it("all schemas, the catalog and the examples are valid", () => {
     expect(() => execFileSync("node", ["scripts/contracts/validate-schemas.mjs"])).not.toThrow();
+  });
+
+  it("command examples: rejects an input of the wrong type, invalid JSON and a file of no command (#1250)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-command-examples-"));
+    try {
+      fs.writeFileSync(path.join(dir, "tool.info.json"), "{}");
+      fs.writeFileSync(path.join(dir, "element.get.json"), '{ "ref": 7 }');
+      fs.writeFileSync(path.join(dir, "element.list.json"), "{ nope");
+      fs.writeFileSync(path.join(dir, "no.such.json"), "{}");
+      const { count, errors } = checkCommandExamples(dir, catalog, ajv);
+      expect(count).toBe(2);
+      expect(errors).toHaveLength(3);
+      expect(errors.find((e) => e.startsWith("examples/commands/element.get.json: "))).toMatch(/ref/);
+      expect(errors.find((e) => e.startsWith("examples/commands/element.list.json: "))).toMatch(/JSON/);
+      expect(errors).toContain("examples/commands/no.such.json: no catalog command no.such");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("generated OpenAPI, MCP tool list, contracts bundle and TypeScript types are up to date", () => {

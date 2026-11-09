@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE, CATALOG_HEADER } from "./load.mjs";
 import { checkCatalog } from "./catalog-checks.mjs";
+import { checkCommandExamples } from "./command-examples.mjs";
 import { PROBLEM_CODES_FILE, checkProblemCodes } from "./problem-codes.mjs";
 
 const errors = [];
@@ -189,33 +190,6 @@ function checkVersionVectors(dir) {
   return n;
 }
 
-// The example input of a command page (#1250): schemas/examples/commands/<command>.json matches the input schema
-// of that command; `pnpm docs:generate` runs it (packages/docs/src/command-examples.ts).
-function checkCommandExamples(dir) {
-  let n = 0;
-  for (const f of fs.readdirSync(dir)) {
-    const cmd = catalog.commands.find((c) => `${c.name}.json` === f);
-    if (!cmd) {
-      errors.push(`examples/commands/${f}: no catalog command ${f.replace(/\.json$/, "")}`);
-      continue;
-    }
-    let data;
-    try {
-      data = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-    } catch (e) {
-      errors.push(`examples/commands/${f}: ${e.message}`);
-      continue;
-    }
-    n++;
-    const schema = commandSchema(cmd, "input");
-    const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
-    if (!validate(data)) {
-      errors.push(`examples/commands/${f}: ${ajv.errorsText(validate.errors)}`);
-    }
-  }
-  return n;
-}
-
 // Examples: schemas/examples/<schema base name>/<file>.yaml|.md
 const examplesDir = path.join(schemasDir, "examples");
 let count = 0;
@@ -225,7 +199,9 @@ for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d
     continue;
   }
   if (dir.name === "commands") {
-    count += checkCommandExamples(path.join(examplesDir, dir.name));
+    const found = checkCommandExamples(path.join(examplesDir, dir.name), catalog, ajv);
+    count += found.count;
+    errors.push(...found.errors);
     continue;
   }
   const validate = ajv.getSchema(`${BASE}${dir.name}.schema.json`);
