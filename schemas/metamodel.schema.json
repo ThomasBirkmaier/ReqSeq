@@ -116,7 +116,7 @@
       "unevaluatedProperties": false
     },
     "typeMeaning": {
-      "description": "Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).",
+      "description": "Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (always has a validation status, open without records, SR-038), `variant` (D-020), `package` (D-040).",
       "enum": ["requirement", "need", "variant", "package"]
     },
     "effectiveType": {

@@ -10,7 +10,7 @@ A test shows a requirement once it names it, in one of two ways that give the sa
 - **In the test name**, in square brackets: `[SR-b2c0de]`, or with the number of an acceptance criterion, `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
 - **As the property `reqseq:element`** of the test case, with the ID as its value. To name one acceptance criterion this way, add the property `reqseq:criterion` with the ID, a colon and the number (`SR-b2c0de:2`).
 
-The ID is the short ID that `reqseq element list` prints, which never changes, the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
+The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
 **Vitest** (the example in the delivery, `resources/docs/junit/vitest/`):
 
@@ -37,7 +37,7 @@ def test_locks_the_account(passwords):
 
 pytest's own parameter lists such as `test_add[1-2]` are passed over. In a parameter ID right after the test name (`test_x[…]`), an unknown short ID with a type prefix of the workspace is reported as a typo; any other text there is passed over, since pytest also writes data as parameter IDs.
 
-**Any other tool**: its JUnit file must hold the ID in brackets in the `name` of the `<testcase>`, or `<property name="reqseq:element" value="SR-b2c0de"/>` in its `<properties>`. For JUnit output, Jest needs `jest-junit`, CTest `--output-junit`, Go `go-junit-report`; Maven and Gradle write it by default. Write one test, run it, and look for the ID in the file.
+**Any other tool**: its JUnit file must hold the ID in brackets in the `name` of the `<testcase>`, or `<property name="reqseq:element" value="SR-b2c0de"/>` in its `<properties>`. For JUnit output, Jest needs `jest-junit`, CTest `--output-junit`, Go `go-junit-report`; Maven and Gradle write it by default.
 
 ## Names without brackets
 

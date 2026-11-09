@@ -53,7 +53,7 @@ export interface ApiEndpointFile {
 }
 
 /**
- * A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.
+ * A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (SR-050 AK6, D-036, D-039). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
@@ -91,7 +91,7 @@ export type BaselineName = string;
 export interface BaselineStoredSelection {
   /** A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018). */
   readonly ids?: readonly (ElementRef | BaselineElsewhere)[];
-  /** Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written. */
+  /** Name of a saved filter, as an older or hand-written file may hold; read with the filter as it is now. Not written. */
   readonly filter?: string;
   readonly where?: FilterCondition;
   readonly package?: BaselineStoredRef;
@@ -630,7 +630,7 @@ export interface DataExportElement {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -682,7 +682,7 @@ export interface DataExportElementPart {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file?: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -734,7 +734,7 @@ export interface DataExportLine {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -792,7 +792,7 @@ export interface DataExportElementFields {
   readonly repository?: string;
   /** Path relative to the repository. */
   readonly file?: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -1255,7 +1255,7 @@ export interface MetamodelType {
 }
 
 /**
- * Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).
+ * Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (always has a validation status, open without records, SR-038), `variant` (D-020), `package` (D-040).
  * Schema: `schemas/metamodel.schema.json#/$defs/typeMeaning`.
  */
 export type MetamodelTypeMeaning = "requirement" | "need" | "variant" | "package";
@@ -1591,7 +1591,7 @@ export interface ReqifMappingFileWithDefaults {
 }
 
 /**
- * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.
+ * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.
  * Schema: `schemas/workspace-local.schema.json#`.
  */
 export interface WorkspaceLocalFile {
@@ -1785,7 +1785,7 @@ export interface WorkspaceStatusOutput {
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
     readonly variantIndependent?: true;
-    /** ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
+    /** ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only. Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
     readonly readOnly?: boolean;
   }[];
   /** Where the metamodel comes from. */

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/baseline.schema.json",
   "title": "Baseline file",
-  "description": "A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.",
+  "description": "A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (SR-050 AK6, D-036, D-039). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.",
   "type": "object",
   "required": ["reqseq-baseline", "name", "date", "repositories", "elements"],
   "properties": {
@@ -66,7 +66,7 @@
         },
         "filter": {
           "type": "string",
-          "description": "Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written."
+          "description": "Name of a saved filter, as an older or hand-written file may hold; read with the filter as it is now. Not written."
         },
         "where": { "$ref": "filter.schema.json#/$defs/condition" },
         "package": { "$ref": "#/$defs/storedRef" },

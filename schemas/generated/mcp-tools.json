@@ -240,7 +240,7 @@
             },
             "filter": {
               "type": "string",
-              "description": "Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written."
+              "description": "Name of a saved filter, as an older or hand-written file may hold; read with the filter as it is now. Not written."
             },
             "where": {
               "$ref": "#/$defs/filter/$defs/condition"
@@ -2532,7 +2532,7 @@
           "unevaluatedProperties": false
         },
         "typeMeaning": {
-          "description": "Built-in meaning of the type: `requirement` (target of verification), `need` (may be validated), `variant`, `package`.",
+          "description": "Built-in meaning of the type: `requirement` (target of verification), `need` (always has a validation status, open without records), `variant`, `package`.",
           "enum": [
             "requirement",
             "need",
