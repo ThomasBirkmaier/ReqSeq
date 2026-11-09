@@ -14,6 +14,7 @@ import type { StandardModel } from "./standard-model.js";
 import type { Schema, SchemaContext } from "./schema-fields.js";
 import { undescribedFields } from "./schema-fields.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
+import { SERVERS_PAGE, serversPage } from "./servers.js";
 import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
 import {
   COMMON_TYPES_PAGE,
@@ -109,9 +110,10 @@ function formatPages(
 }
 
 /**
- * The command index and pages (catalog order), the codes page, the format pages, the standard model page and the
- * page of the app's keyboard shortcuts. Throws naming every page and field without a description, by its table
- * (`input.`, `output.`, `fields.` or the definition), the way a failing example stops the build.
+ * The command index and pages (catalog order), the page of the server commands after them, the codes page, the format
+ * pages, the standard model page and the page of the app's keyboard shortcuts. Throws naming every page and field
+ * without a description, by its table (`input.`, `output.`, `fields.` or the definition), the way a failing example
+ * stops the build.
  */
 export async function referencePages(
   { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
@@ -143,5 +145,6 @@ export async function referencePages(
   if (failures.length > 0) {
     throw new Error(`docs: reference pages\n${failures.join("\n")}`);
   }
+  pages.push({ path: SERVERS_PAGE, text: await serversPage(runtime, base, entries.length + 1) });
   return pages;
 }

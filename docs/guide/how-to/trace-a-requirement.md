@@ -16,7 +16,7 @@ A system requirement traces to the need it meets through a relation stored in it
 
 ![A requirement open in the app, with the need it derives from below its properties.](../images/app-element.png)
 
-![The neighbourhood of a need: the requirements derived from it.](../images/app-neighbourhood.png)
+![The neighbourhood of a need: the requirement derived from it.](../images/app-neighbourhood.png)
 
 ![The traceability matrix of the system requirements: each with the need it derives from.](../images/app-trace-matrix.png)
 
