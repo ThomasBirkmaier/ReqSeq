@@ -166,17 +166,23 @@ const NOTE_SECTIONS = [
  */
 const noteText = (subject) => subject.replaceAll(/(^|\s)(@[\w./-]+)/g, "$1`$2`").replaceAll("<", "&lt;");
 
+/** The non-empty subjects by section of the release notes, in the order of NOTE_SECTIONS, then "Other changes". */
+function noteGroups(subjects) {
+  const groups = new Map([...NOTE_SECTIONS.map((s) => [s.title, []]), ["Other changes", []]]);
+  for (const subject of subjects.map((s) => s.trim()).filter((s) => s !== "")) {
+    const section = NOTE_SECTIONS.find((s) => s.test.test(subject));
+    groups.get(section?.title ?? "Other changes").push(`- ${noteText(subject)}`);
+  }
+  return groups;
+}
+
 /**
  * The release notes of a tag (#346): the Conventional Commit subjects since the previous release tag (`previous`,
  * undefined for the first release), grouped into new functions, fixes and specification; all other subjects
  * (enabler, test, ci, docs, ...) are folded into "Other changes". `compareUrl` links the full difference.
  */
 export function releaseNotes(subjects, { previous, compareUrl }) {
-  const groups = new Map([...NOTE_SECTIONS.map((s) => [s.title, []]), ["Other changes", []]]);
-  for (const subject of subjects.map((s) => s.trim()).filter((s) => s !== "")) {
-    const section = NOTE_SECTIONS.find((s) => s.test.test(subject));
-    groups.get(section?.title ?? "Other changes").push(`- ${noteText(subject)}`);
-  }
+  const groups = noteGroups(subjects);
   const lines = [previous === undefined ? "## Changes" : `## Changes since ${previous}`, ""];
   for (const [title, items] of groups) {
     if (items.length === 0) {
@@ -194,6 +200,45 @@ export function releaseNotes(subjects, { previous, compareUrl }) {
   }
   if (previous !== undefined) {
     lines.push(`Full list: ${compareUrl}`, "");
+  }
+  return lines.join("\n");
+}
+
+/**
+ * The page "What's new" of the documentation site (#1259): the release notes of each version, newest first, from
+ * the same commit subjects and sections as `releaseNotes`, so that an offline installation has them too. `releases`
+ * are `{ version, date, subjects }`, newest first; a `version` of undefined is the work since the last release. Only
+ * new functions, fixes and the specification are listed: the other changes concern the development of ReqSeq. The
+ * page names no web address, since an offline site cannot reach one.
+ */
+export function whatsNewPage(releases) {
+  const lines = [
+    "---",
+    "title: What's new",
+    "description: The new functions, fixes and changes to the specification of each version of ReqSeq, newest first.",
+    "---",
+    "",
+    "The changes of each version, newest first, from the history of ReqSeq: new functions, fixes and changes to " +
+      "the specification. Changes to tests, the build and the documentation are left out.",
+    "",
+  ];
+  if (releases.length === 0) {
+    lines.push("The history this documentation was built from holds no release.", "");
+  }
+  for (const { version, date, subjects } of releases) {
+    lines.push(version === undefined ? "## Not released yet" : `## ${version}`, "");
+    if (date !== undefined) {
+      lines.push(`Released ${date}.`, "");
+    }
+    const groups = [...noteGroups(subjects)].filter(
+      ([title, items]) => title !== "Other changes" && items.length > 0,
+    );
+    for (const [title, items] of groups) {
+      lines.push(`### ${title}`, "", ...items, "");
+    }
+    if (groups.length === 0) {
+      lines.push("No new functions, fixes or changes to the specification.", "");
+    }
   }
   return lines.join("\n");
 }

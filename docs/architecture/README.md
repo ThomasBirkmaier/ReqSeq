@@ -1,6 +1,6 @@
 # ReqSeq architecture (arc42, short)
 
-Status: written before the first implementation stage; §5 updated to the code on 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since ThomasBirkmaier/ReqSeq-archive#326); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
+Status: written before the first implementation; §5 updated to the code on 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since ThomasBirkmaier/ReqSeq-archive#326); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
 
 ## 1. Goals
 
@@ -157,22 +157,22 @@ Every block may also import the root modules `catalog.ts`, `product.ts` and `bui
 
 With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 
-| Block | Responsibility | Stage |
-|---|---|---|
-| `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) | 1 onward |
-| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082), agent instructions for MCP. State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors | 1 onward |
-| `workspace` | Read `reqseq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces | 1 |
-| `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) | 1 |
-| `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) | 1 |
-| `version` | Normal form and hash (SR-021) | 1 |
-| `model` | Element store, indexes, cache, watcher (SR-003, SR-007, SR-081, SR-082). Sub-areas in the one folder: the store and its cold load (`store`, `contribution`, `discover`, `read-pool`, `model-cache`), writes (`write`, `relation-write`, `targets`, `status`, `supersede`, `bulk-update`), the Markdown scanner (`markdown-links`, `references`), file findings (`duplicates`, `missing-targets`, `required`, `values`, …), the Git-facing modules (`version-date`, `changed`, `uncommitted`, `repository-commit`), the watcher (`watch`, `watch-tree`, `watch-change`) and agent activity (`activity`, SR-117) | 1 onward |
-| `git` | Commits, dirty state, history, old contents, read-only (SR-083) | 1 |
-| `docs-site` | The offline documentation site of a delivery: which file a request names, media types, the CSP, command page paths; only `node:*`, reads only (SR-141, ADR-0017) ([block file](../../packages/core/docs/docs-site.md)) | after 6 |
-| `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) | 2 |
-| `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) | 3 |
-| `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) | 4 |
-| `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1); the read-only reader of baseline files first (SR-032 AK2, stage 4) | 1, 4, 5 |
-| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013); so far the model and the parser on the XML scanner of `files`, and the mapping files (`mapping`: where they are written, reading and checking them against the metamodel, SR-054) ([block file](../../packages/core/docs/reqif.md)) | 6 |
+| Block | Responsibility |
+|---|---|
+| `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) |
+| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082), agent instructions for MCP. State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors |
+| `workspace` | Read `reqseq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces |
+| `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) |
+| `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) |
+| `version` | Normal form and hash (SR-021) |
+| `model` | Element store, indexes, cache, watcher (SR-003, SR-007, SR-081, SR-082). Sub-areas in the one folder: the store and its cold load (`store`, `contribution`, `discover`, `read-pool`, `model-cache`), writes (`write`, `relation-write`, `targets`, `status`, `supersede`, `bulk-update`), the Markdown scanner (`markdown-links`, `references`), file findings (`duplicates`, `missing-targets`, `required`, `values`, …), the Git-facing modules (`version-date`, `changed`, `uncommitted`, `repository-commit`), the watcher (`watch`, `watch-tree`, `watch-change`) and agent activity (`activity`, SR-117) |
+| `git` | Commits, dirty state, history, old contents, read-only (SR-083) |
+| `docs-site` | The offline documentation site of a delivery: which file a request names, media types, the CSP, command page paths; only `node:*`, reads only (SR-141, ADR-0017) ([block file](../../packages/core/docs/docs-site.md)) |
+| `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) |
+| `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) |
+| `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) |
+| `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |
+| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013); so far the model and the parser on the XML scanner of `files`, and the mapping files (`mapping`: where they are written, reading and checking them against the metamodel, SR-054) ([block file](../../packages/core/docs/reqif.md)) |
 
 Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `pasted-markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
@@ -236,7 +236,7 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 - **Never lose user data.** Write only what a command is about; atomic writes; refuse when the file changed on disk; never write a file that failed to parse.
 - **Status is human.** Only `element.setStatus` and `element.supersede` change a status.
 - **Missing access is normal.** A missing repository or target is shown with its short ID and marks results `incomplete`; nothing blocks (SR-006).
-- **Performance budget.** Every command touching many elements has a perf test at 50,000 elements before its stage is accepted.
+- **Performance budget.** Every command touching many elements gets a perf test at 50,000 elements (N-036).
 - **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist. CI tooling downloads test inputs before the tests (the ReqIF XSDs), never the product.
 - **Language.** All UI, CLI messages, errors and docs in English (SR-074). Content is shown unchanged (SR-074 AK2).
 - **Logging.** Local only, to the cache folder, rotated; never content of elements at info level.
@@ -259,10 +259,9 @@ See [docs/adr](../adr/README.md).
 
 | Risk or open point | Handling |
 |---|---|
-| Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
+| Electron performance with large lists | Virtualised lists in the app, with perf tests (`packages/app/test/perf/`). |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
-| The spec lies in a subfolder of the code repository | ReqSeq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (ThomasBirkmaier/ReqSeq-archive#377). |
 
 ## 11. Glossary
 

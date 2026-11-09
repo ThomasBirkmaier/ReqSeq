@@ -1,6 +1,6 @@
 # Evidence block: views and export (`src/evidence/`, `src/data/`)
 
-Part of the [`@reqseq/core` README](../README.md). Lane C of stage 4 fills this file; the records, folders and index are in [evidence-records.md](evidence-records.md).
+Part of the [`@reqseq/core` README](../README.md). It covers coverage, the evidence list, the test cases in the chain and matrix, the requirements without passed test, and data export; the records, folders and index are in [evidence-records.md](evidence-records.md).
 
 "Has evidence" is `hasVerificationRecord` of the index for every view below (ThomasBirkmaier/ReqSeq-archive#535); SR-120 asks something narrower, a passed test (`isPassedTest`, below).
 
@@ -16,7 +16,7 @@ SR-036 (ThomasBirkmaier/ReqSeq-archive#48), `evidence.coverage` (`commands/evide
   - Evidence: `hasVerificationRecord` in the first view (as the filter condition `verification`); any version and result (spec question ThomasBirkmaier/ReqSeq-archive#527).
 - `coverageOf(elements, rules)`: one `CoverageLevel` per level type with a counted element, with the counts and the UUIDs behind each number in selection order (AK2). The command adds `incomplete`: a repository of the workspace file is not on this machine (the selection's `incomplete`, AK3), or the evidence state is incomplete; and `names` (ThomasBirkmaier/ReqSeq-archive#588): every element the levels list, once, in selection order, by short ID, identifier and title (`namesOfRecords`, model block), so the readable CLI names them without a lookup; `--json` keeps the UUID lists unchanged.
 - Cost: one pass over the selection and each element's incoming relations once (N-036); `names` one more pass over the selection, from the store's frontmatter and the built short IDs (nothing read), and about 150 bytes of JSON per counted element. `names` is not bounded by a page: on `spec` (210 counted elements) the compact JSON grows from 13.7 KB to 45.7 KB (`names` 31.9 KB, about 2.3 times `levels`), so about 7.6 MB of `names` next to about 2 MB of UUID lists at 50,000 requirements, and MCP sends the output twice (`structuredContent` and text, ADR-0009). E4 (ThomasBirkmaier/ReqSeq-archive#583) measures the coverage JSON size with `names` at N-036; if it is too large for MCP, the remedy is an opt-in input or a page on coverage, decided there, never trimming in the presenter.
-- The assumptions of spec question ThomasBirkmaier/ReqSeq-archive#527 (level = type, needs count for children only, evidence = any verification record in the view) are not decided yet. SR-042 (exclusion for a variant, stage 5) narrows the view's selection there.
+- The assumptions of spec question ThomasBirkmaier/ReqSeq-archive#527 (level = type, needs count for children only, evidence = any verification record in the view) are still open there. SR-042 (exclusion for a variant) narrows the view's selection there.
 
 ## Evidence list and baselines
 
