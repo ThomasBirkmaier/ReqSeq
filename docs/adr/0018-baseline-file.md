@@ -75,7 +75,7 @@ elements:
 | `element get` of A with 5,000 since-baseline hints, running server | ≤ 200 ms (SR-082 AK3) |
 | `baseline create` | ≤ 3 s |
 
-The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
+The `baseline create` bound is a design target the nightly record compares against, not a gate (product owner decision, 2026-11-05: typical workspaces hold 100 to 1,000 elements; #1244). The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
 
 ## Consequences
 
