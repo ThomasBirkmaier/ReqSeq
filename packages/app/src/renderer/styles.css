@@ -477,18 +477,25 @@ mark {
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
 }
+/* The first line under the property table keeps apart from its last box (#1273): the badges, or the
+   line "Replaced or excluded" above them. */
+.element .field + .variant-line,
+.element .on-disk + .variant-line {
+  margin-top: 0.75rem;
+}
+/* A size under the text around it, so the badges do not outweigh it (#1273). */
 .element .badge {
   position: relative;
   display: inline-flex;
   max-width: 100%;
   overflow: hidden;
-  border-radius: 0.75rem;
-  font-size: 12px;
-  line-height: 1.5rem;
+  border-radius: 0.625rem;
+  font-size: 11px;
+  line-height: 1.25rem;
 }
 .element .badge-name,
 .element .badge-status {
-  padding: 0 0.75rem;
+  padding: 0 0.625rem;
 }
 .element .badge-name {
   flex: 0 1 auto;
