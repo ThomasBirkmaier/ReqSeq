@@ -24,6 +24,7 @@ interface Problem {
 interface Output {
   readonly testCases: number;
   readonly withoutReference: number;
+  readonly notInView: number;
   readonly unknown: readonly { readonly testCase: string; readonly line: number; readonly ref: string }[];
   readonly files: readonly string[];
   readonly problems: readonly Problem[];
@@ -85,6 +86,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(JSON.parse(run.stdout)).toEqual({
       testCases: 3,
       withoutReference: 5,
+      notInView: 0,
       unknown: [],
       files: ["results/pytest.xml"],
       problems: [],
@@ -209,9 +211,45 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const run = await enrich(ws, ["results/run.xml", "build-631", "--date", DATE, "--variant", "VAR-0000c1"]);
     expect(run.code).toBe(1);
     expect(run.stdout + run.stderr).toContain(
-      'reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+      'reqseq:variant "VAR-0000c2" names a view that is not among the given ones (VAR-0000c1)',
     );
     expect(run.stdout + run.stderr).toContain("SR-0000a2 is excluded in VAR-0000c1");
+  });
+
+  it("[SR-029/AK6] [SR-029/AK11] reqseq evidence enrich-junit takes --variant repeated with core, and with --skip-not-in-view leaves out a requirement of another variant and exits with 0", async () => {
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-043/example",
+      files: {
+        "results/run.xml":
+          '<testsuites><testsuite name="s"><testcase name="[SR-0000a3] [SR-0000b2] rain and storm"/>' +
+          '<testcase name="[SR-0000b2] storm"/></testsuite></testsuites>',
+      },
+    });
+    fixtures.push(ws);
+    const args = [
+      "results/run.xml",
+      "build-1315",
+      "--date",
+      DATE,
+      "--variant",
+      "core",
+      "--variant",
+      "VAR-0000c2",
+    ];
+    const before = await fs.readFile(ws.path("results/run.xml"));
+    const strict = await enrich(ws, args);
+    expect(strict.code).toBe(1);
+    expect(strict.stdout + strict.stderr).toContain("SR-0000b2 does not apply in core");
+    await fs.writeFile(ws.path("results/run.xml"), before);
+    const run = await enrich(ws, [...args, "--skip-not-in-view", "--json"]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    expect(JSON.parse(run.stdout) as Output).toMatchObject({ testCases: 1, notInView: 2, problems: [] });
+    const written = await fs.readFile(ws.path("results/run.xml"), "utf8");
+    expect(written.match(/reqseq:(element|variant)" value="[^"]*"/g)).toEqual([
+      'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
+      'reqseq:variant" value="core"',
+      'reqseq:variant" value="43043043-0000-4000-8000-0000000000c2"',
+    ]);
   });
 
   it("[SR-029/AK4] reqseq evidence enrich-junit prints the number of test cases that name no requirement", async () => {
@@ -238,6 +276,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(JSON.parse(run.stdout)).toEqual({
       testCases: 2,
       withoutReference: 2,
+      notInView: 0,
       unknown: [],
       files: ["results/nextest.xml"],
       problems: [],
