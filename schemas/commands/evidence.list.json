@@ -71,13 +71,15 @@
                 "$ref": "../common.schema.json#/$defs/dateTime"
               },
               "item": {
-                "type": "string"
+                "type": "string",
+                "description": "The item (Prüfling) every shown record names."
               },
               "version": {
                 "$ref": "../common.schema.json#/$defs/version"
               },
               "baselines": {
                 "type": "array",
+                "description": "The baselines every shown record names, in the same order.",
                 "items": {
                   "type": "string"
                 }
@@ -93,7 +95,8 @@
               "description": "One line of the Evidence section (SR-032 AK4): an acceptance criterion, the whole requirement without criteria, or the validation.",
               "properties": {
                 "kind": {
-                  "enum": ["verification", "validation"]
+                  "enum": ["verification", "validation"],
+                  "description": "Whether the row shows verification or validation records."
                 },
                 "criterion": {
                   "type": "integer",

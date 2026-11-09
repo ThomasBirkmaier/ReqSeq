@@ -3220,12 +3220,15 @@ export interface EvidenceListOutput {
     /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
     readonly shared: {
       readonly date?: IsoDateTime;
+      /** The item (Prüfling) every shown record names. */
       readonly item?: string;
       readonly version?: Version;
+      /** The baselines every shown record names, in the same order. */
       readonly baselines?: readonly string[];
     };
     /** AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them. */
     readonly rows: readonly {
+      /** Whether the row shows verification or validation records. */
       readonly kind: "verification" | "validation";
       /** The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row. */
       readonly criterion?: number;
