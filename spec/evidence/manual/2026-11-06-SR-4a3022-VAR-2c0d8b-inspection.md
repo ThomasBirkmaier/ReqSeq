@@ -1,0 +1,12 @@
+---
+reqseq-record: 1
+kind: verification
+element: 6adc6acd-d986-44dc-b2e9-c84afd4a3022
+version: n2:d3ebf01bbc06bcf1
+method: inspection
+variant: eb05fd98-7ec2-4f49-9374-2397642c0d8b
+item: main@dff954b8307070ff0daa06f7331b270644dc9a99
+result: passed
+date: 2026-11-06T05:54:35Z
+evidence: ../../../verification/SR-010.md
+---
