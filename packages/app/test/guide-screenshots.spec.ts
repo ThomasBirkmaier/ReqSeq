@@ -3,7 +3,8 @@
 // element" (the slash menu) are made on `fixtures/SR-140/get-started`: exactly the need and the requirement the steps
 // of Get started create, with the same IDs (#1253). The traceability matrix and the graph of the standard model are
 // made on `fixtures/enabler-344/weather-station`, which has more elements; the graph in a window of 1600×1000, cut
-// to its boxes. They go to `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set
+// to its boxes. The verification marks of "Record test evidence" and the graph of "Trace a requirement" (#1248) are made on `fixtures/SR-136/graph`, whose
+// need has ten requirements with every status. They go to `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set
 // (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's copy, committed after a run; a normal run
 // leaves tracked files alone. They are made on Linux only, because fonts differ between systems, and nothing
 // compares pixels.
@@ -18,6 +19,7 @@ import { expectNextToLine } from "./support/tooltip-place.js";
 
 const GET_STARTED = { fixture: "SR-140/get-started" };
 const WEATHER_STATION = { fixture: "enabler-344/weather-station" };
+const VERIFICATION = { fixture: "SR-136/graph" };
 const folder = (relative: string): string => fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
 const FOLDERS = [
   folder("test-results/electron/guide-images"),
@@ -167,6 +169,30 @@ test("screenshots of the traceability matrix and the standard model", async () =
       width: Math.min(wide, Math.max(...boxes.map((box) => box.x + box.width)) + right) - x,
       height: bottom - y,
     });
+  } finally {
+    await running.close();
+  }
+});
+
+test("screenshots of the verification status: the marks on a requirement and the graph of a need", async () => {
+  const running = await launchApp(VERIFICATION, { colorScheme: "light" });
+  const { window } = running;
+  try {
+    await resize(running, 1024, 576);
+    const shot = shooter(window);
+    await expect(window.getByLabel("Modeline")).toContainText("Weather station");
+
+    // A requirement whose test failed: its badge in the accent colour.
+    await open(window, "Show reading 7");
+    await expect(window.locator("article")).toContainText("failed");
+    await shot("verification-badges");
+
+    // The need: each requirement with its status and ring, the need with its degree.
+    await open(window, "See the weather");
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", /^[1-9]/);
+    await expect(window.locator(".graph-ring").first()).toBeVisible();
+    await shot("verification-graph");
   } finally {
     await running.close();
   }
