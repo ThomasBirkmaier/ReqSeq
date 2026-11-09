@@ -225,7 +225,7 @@ export type RelationRefs = Readonly<Record<string, ElementRef | readonly Element
 export interface RelationTargetInput {
   readonly id: ElementRef;
   readonly version?: Version;
-  /** Ignored: the tool writes the current title itself. */
+  /** Ignored; the tool writes it. */
   readonly title?: string;
   /** Workspace name of the target's repository; absent for the source's own repository. A short ID or identifier is resolved in it. */
   readonly repository?: string;
@@ -2261,9 +2261,9 @@ export interface ElementUpdateInput {
   readonly title?: string;
   /** New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing. */
   readonly text?: string;
-  /** Properties to set, by key, each to its new value. */
+  /** New values by key. */
   readonly set?: Readonly<Record<string, ElementInputValue>>;
-  /** Keys of properties to remove from the element. */
+  /** Keys to remove. */
   readonly unset?: readonly Key[];
   /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256. */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;

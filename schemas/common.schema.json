@@ -153,7 +153,7 @@
           "$ref": "#/$defs/version"
         },
         "title": {
-          "description": "Ignored: the tool writes the current title itself.",
+          "description": "Ignored; the tool writes it.",
           "type": "string"
         },
         "repository": {

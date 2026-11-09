@@ -3328,7 +3328,7 @@
                     "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break. Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
                   },
                   "set": {
-                    "description": "Properties to set, by key, each to its new value.",
+                    "description": "New values by key.",
                     "type": "object",
                     "additionalProperties": {
                       "$ref": "#/components/schemas/element/$defs/inputValue"
@@ -3344,7 +3344,7 @@
                     }
                   },
                   "unset": {
-                    "description": "Keys of properties to remove from the element.",
+                    "description": "Keys to remove.",
                     "type": "array",
                     "items": {
                       "allOf": [
@@ -12845,7 +12845,7 @@
                 "$ref": "#/components/schemas/common/$defs/version"
               },
               "title": {
-                "description": "Ignored: the tool writes the current title itself.",
+                "description": "Ignored; the tool writes it.",
                 "type": "string"
               },
               "repository": {
