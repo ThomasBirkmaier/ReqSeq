@@ -2,7 +2,8 @@
 // title and text the elements that name it. This module only builds the input of `element.list`
 // (`where.package`) and tells which types are packages; core selects and sorts (ADR-0002). The rule
 // "which types are packages" is the one of core: the effective `meaning` of the type in `metamodel.get`.
-// The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`).
+// The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`), which
+// also names the view the degree is for.
 import type {
   ElementSelection,
   EvidenceCoverageInput,
@@ -151,7 +152,7 @@ export const askSummary = async (call: Call, selection: SummarySelection): Promi
   if (!degree.ok) {
     return { ok: false, message: degree.message };
   }
-  const text = packageSummaryText(coverage.output.levels, degree.output.degree);
+  const text = packageSummaryText(coverage.output.levels, degree.output);
   const incomplete = coverage.output.incomplete === true || degree.output.incomplete === true;
   return {
     ok: true,

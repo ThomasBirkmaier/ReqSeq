@@ -5,7 +5,13 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { degreePercent, degreeShareOf, minimumHeadText, packageSummaryText } from "./degree-text.js";
+import {
+  degreePercent,
+  degreeShareOf,
+  minimumHeadText,
+  packageSummaryText,
+  summaryViewText,
+} from "./degree-text.js";
 
 describe("minimumHeadText (SR-153)", () => {
   it("names the rows that meet the minima, of those they apply to, and their share rounded down", () => {
@@ -86,12 +92,12 @@ describe("packageSummaryText (SR-112)", () => {
       { total: 6, withChildren: 0, withEvidence: 5 },
       { total: 4, withChildren: 0, withEvidence: 3 },
     ];
-    expect(packageSummaryText(levels, { share: 0.6, counts: counts(6, 0, 1, 1, 2) })).toBe(
-      "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
-    );
-    expect(packageSummaryText(levels, { share: 0.7, counts: counts(5, 2, 0, 0, 3) })).toBe(
-      "Coverage 8 of 10 with evidence · Degree 70 % (5 verified, 2 indirect, 3 open)",
-    );
+    expect(
+      packageSummaryText(levels, { degree: { share: 0.6, counts: counts(6, 0, 1, 1, 2) }, view: "core" }),
+    ).toBe("Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)");
+    expect(
+      packageSummaryText(levels, { degree: { share: 0.7, counts: counts(5, 2, 0, 0, 3) }, view: "core" }),
+    ).toBe("Coverage 8 of 10 with evidence · Degree (core) 70 % (5 verified, 2 indirect, 3 open)");
   });
 
   it("[SR-112/AK3] gives for package P3 of fixtures/SR-037/degree the numbers of evidence.coverage and evidence.degree", async () => {
@@ -108,23 +114,68 @@ describe("packageSummaryText (SR-112)", () => {
     })) as CommandOutput<"evidence.degree">;
     // P3 holds a need and two obsolete requirements: neither is in the line.
     expect(coverage.levels.map((level) => level.type)).toEqual(["need", "system-requirement"]);
-    expect(packageSummaryText(coverage.levels, degree.degree)).toBe(
-      "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+    expect(packageSummaryText(coverage.levels, degree)).toBe(
+      "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
     );
   });
 
   it("[SR-112/AK4] gives zeros for requirements without records, and no line without requirements", () => {
     expect(
-      packageSummaryText([{ total: 10, withEvidence: 0 }], { share: 0, counts: counts(0, 0, 0, 0, 10) }),
-    ).toBe("Coverage 0 of 10 with evidence · Degree 0 % (10 open)");
-    expect(packageSummaryText([{ total: 2 }], { counts: counts(0, 0, 0, 0, 0) })).toBe(undefined);
-    expect(packageSummaryText([], { counts: counts(0, 0, 0, 0, 0) })).toBe(undefined);
+      packageSummaryText([{ total: 10, withEvidence: 0 }], {
+        degree: { share: 0, counts: counts(0, 0, 0, 0, 10) },
+        view: "core",
+      }),
+    ).toBe("Coverage 0 of 10 with evidence · Degree (core) 0 % (10 open)");
+    expect(
+      packageSummaryText([{ total: 2 }], { degree: { counts: counts(0, 0, 0, 0, 0) }, view: "core" }),
+    ).toBe(undefined);
+    expect(packageSummaryText([], { degree: { counts: counts(0, 0, 0, 0, 0) }, view: "core" })).toBe(
+      undefined,
+    );
+  });
+
+  it("[SR-112/AK3] names a variant view by its title, as the modeline does, else by its short ID or ID", () => {
+    const coastal = { id: "uuid-v1", repository: "spec", shortId: "VAR-0000c1", title: "Coastal station" };
+    const untitled = { id: "uuid-v2", repository: "spec", shortId: "VAR-0000c2", title: "" };
+    expect(
+      packageSummaryText([{ total: 10, withEvidence: 8 }], {
+        degree: { share: 0.6, counts: counts(6, 0, 1, 1, 2) },
+        view: "uuid-v1",
+        names: [coastal],
+      }),
+    ).toBe(
+      "Coverage 8 of 10 with evidence · Degree (Coastal station) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+    );
+    expect(summaryViewText("uuid-v2", [coastal, untitled])).toBe("VAR-0000c2");
+    expect(summaryViewText("uuid-v3", [coastal])).toBe("uuid-v3");
+    expect(summaryViewText("uuid-v3", undefined)).toBe("uuid-v3");
+    expect(summaryViewText("core", [coastal])).toBe("core");
+  });
+
+  it("[SR-112/AK3] names the variant of the selection's view as evidence.degree gives it (fixtures/SR-069/filter)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const input = { selection: { package: "PKG-0000000000d1", view: "VAR-0000000000c1" } };
+    const coverage = (await invoke("evidence.coverage", input, {
+      workspace,
+    })) as CommandOutput<"evidence.coverage">;
+    const degree = (await invoke("evidence.degree", input, {
+      workspace,
+    })) as CommandOutput<"evidence.degree">;
+    expect(packageSummaryText(coverage.levels, degree)).toBe(
+      "Coverage 0 of 2 with evidence · Degree (Coastal) 0 % (2 open)",
+    );
   });
 
   it("shows a degree without share as 0 %", () => {
-    expect(packageSummaryText([{ total: 1, withEvidence: 0 }], { counts: counts(0, 0, 0, 0, 1) })).toBe(
-      "Coverage 0 of 1 with evidence · Degree 0 % (1 open)",
-    );
+    expect(
+      packageSummaryText([{ total: 1, withEvidence: 0 }], {
+        degree: { counts: counts(0, 0, 0, 0, 1) },
+        view: "core",
+      }),
+    ).toBe("Coverage 0 of 1 with evidence · Degree (core) 0 % (1 open)");
   });
 });
 
