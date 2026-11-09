@@ -1,7 +1,8 @@
 {
   "name": "evidence.record",
   "title": "Record evidence",
-  "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...",
+  "summary": "Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.",
+  "details": "The record is Markdown (evidence-record.schema.json). A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",

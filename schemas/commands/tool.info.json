@@ -1,7 +1,8 @@
 {
   "name": "tool.info",
   "title": "About ReqSeq",
-  "summary": "Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.",
+  "summary": "Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.",
+  "details": "The versions of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), and the licence notice of ReqSeq and of its third-party components.",
   "effect": "read",
   "stage": 6,
   "implements": ["SR-161"],

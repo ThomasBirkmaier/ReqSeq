@@ -1,7 +1,8 @@
 {
   "name": "trace.graph",
   "title": "Show graph",
-  "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
+  "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.",
+  "details": "Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
   "effect": "read",
   "stage": 3,
   "implements": ["SR-111", "SR-136"],

@@ -16,7 +16,7 @@ const readGeneratedContracts = vi.fn(() => Promise.resolve(generated));
 const guide = [{ path: "index.md", text: "Index." }];
 const readGuidePages = vi.fn(() => Promise.resolve(guide));
 const checkExamples = vi.fn(() => Promise.resolve(7));
-const wordWarnings = vi.fn(() => ["index.md has 601 words, above the budget of 600"]);
+const wordProblems = vi.fn((): string[] => []);
 const codes = { problems: {}, errors: {} };
 const readProblemCodes = vi.fn(() => Promise.resolve(codes));
 const examples = { workspace: [] };
@@ -51,7 +51,7 @@ vi.mock("./examples.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Examples>()),
   readGuidePages,
   checkExamples,
-  wordWarnings,
+  wordProblems,
 }));
 vi.mock("./formats.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Formats>()),
@@ -63,17 +63,15 @@ vi.mock("./codes.js", async (importOriginal) => ({
 }));
 
 describe("bin", () => {
-  it("warns on long pages, runs the examples, and writes the guide and the reference into this package's site", async () => {
+  it("checks the word budget, runs the examples, and writes the guide and the reference into this package's site", async () => {
     vi.stubEnv("REQSEQ_DOCS_BASE", "/base");
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
-    const warn = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     await import("./bin.js");
     const { contentPaths } = await import("./assemble.js");
     const { runReqseq } = await import("./examples.js");
     const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
     expect(readGuidePages).toHaveBeenCalledWith(paths.guideDir);
-    expect(wordWarnings).toHaveBeenCalledWith(guide);
-    expect(warn).toHaveBeenCalledWith("docs: warning: index.md has 601 words, above the budget of 600\n");
+    expect(wordProblems).toHaveBeenCalledWith(guide);
     expect(checkExamples).toHaveBeenCalledWith(guide, runReqseq);
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
     expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
@@ -116,6 +114,15 @@ describe("bin", () => {
     expect(referencePages).toHaveBeenLastCalledWith(expect.anything(), "/");
     vi.unstubAllEnvs();
     write.mockRestore();
-    warn.mockRestore();
+  });
+
+  it("fails on a page above the word budget before it runs anything else (#1254)", async () => {
+    wordProblems.mockReturnValueOnce(["index.md has 601 words, above the budget of 600"]);
+    checkExamples.mockClear();
+    vi.resetModules();
+    await expect(import("./bin.js")).rejects.toThrow(
+      "docs: split or shorten the pages above the word budget:\nindex.md has 601 words, above the budget of 600",
+    );
+    expect(checkExamples).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,8 @@
 {
   "name": "evidence.status",
   "title": "Show evidence status",
-  "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
+  "summary": "Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.",
+  "details": "The verification status comes from the evidence records (SR-031) and, without own record, from the children, with the children that are missing (SR-034); the validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
   "effect": "read",
   "stage": 4,
   "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047", "SR-093", "SR-173"],
