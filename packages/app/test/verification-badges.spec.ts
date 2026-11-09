@@ -169,6 +169,40 @@ test.describe("the verification badges", () => {
   });
 
   for (const scheme of ["light", "dark"] as const) {
+    test(`the badge row keeps apart from the property table, its text smaller than the lines around it (#1273, ${scheme})`, async () => {
+      running = await launchApp({ fixture: "SR-034/indirect" }, { colorScheme: scheme });
+      await openElement(running.window, "Warn of gusts");
+      const group = verification(running.window);
+      const layout = await group.evaluate((row) => {
+        const above = row.previousElementSibling;
+        const badge = row.querySelector(".badge");
+        if (above === null || badge === null) {
+          throw new Error("no box above the badges, or no badge");
+        }
+        return {
+          gap: row.getBoundingClientRect().top - above.getBoundingClientRect().bottom,
+          badge: parseFloat(getComputedStyle(badge).fontSize),
+          line: parseFloat(getComputedStyle(row).fontSize),
+        };
+      });
+      expect(layout.gap).toBeGreaterThanOrEqual(8);
+      expect(layout.badge).toBeLessThan(layout.line);
+      const box = await group.boundingBox();
+      if (box !== null) {
+        await running.window.screenshot({
+          path: path.join(OUT, `sr-157-spacing-${scheme}.png`),
+          clip: {
+            x: 0,
+            y: Math.max(0, box.y - 160),
+            width: box.x + box.width + 400,
+            height: box.height + 260,
+          },
+        });
+      }
+    });
+  }
+
+  for (const scheme of ["light", "dark"] as const) {
     test(`[SR-157/AK4] the text and the background of each half have a contrast of at least 4.5:1 (${scheme})`, async () => {
       running = await launchApp({ fixture: "SR-034/indirect" }, { colorScheme: scheme });
       for (const page of PAGES) {

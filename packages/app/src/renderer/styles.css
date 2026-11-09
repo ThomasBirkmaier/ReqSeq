@@ -476,19 +476,22 @@ mark {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
+  /* Apart from the property table above, so the row does not touch its last box (#1273). */
+  margin-top: 0.75rem;
 }
+/* A size under the text around it, so the badges do not outweigh it (#1273). */
 .element .badge {
   position: relative;
   display: inline-flex;
   max-width: 100%;
   overflow: hidden;
-  border-radius: 0.75rem;
-  font-size: 12px;
-  line-height: 1.5rem;
+  border-radius: 0.625rem;
+  font-size: 11px;
+  line-height: 1.25rem;
 }
 .element .badge-name,
 .element .badge-status {
-  padding: 0 0.75rem;
+  padding: 0 0.625rem;
 }
 .element .badge-name {
   flex: 0 1 auto;
