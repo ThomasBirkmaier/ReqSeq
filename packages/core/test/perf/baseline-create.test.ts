@@ -1,6 +1,7 @@
 // Performance suite (ADR-0011): `baseline.create` (SR-050) of the whole generated workspace of N-036
 // (50,000 elements, Git repositories, store warmed). ADR-0018 bounds it by 3 s; SR-050 names no time,
-// so the bound is recorded (`thresholdMs`), not asserted.
+// so the bound is recorded (`thresholdMs`) for comparison only and opens no issue: typical workspaces
+// hold 100 to 1,000 elements (product owner decision, 2026-11-05; #1244).
 import fs from "node:fs";
 import path from "node:path";
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
@@ -49,7 +50,10 @@ describe("baseline.create with 50,000 elements (SR-050, N-036, ADR-0018)", () =>
           { name: "Everything", selection: {} },
           { workspace: opened },
         )) as CommandOutput<"baseline.create">,
-      { basis: "N-036, ADR-0018 (no SR threshold)", thresholdMs: 3000 },
+      {
+        basis: "N-036, ADR-0018 (no SR threshold; untagged; threshold for comparison only, #1244)",
+        thresholdMs: 3000,
+      },
     );
     expect(result.baseline.elements).toBe(ELEMENTS);
     const text = fs.readFileSync(

@@ -62,12 +62,14 @@
         "description": "Also give what each row shows of its element's verification (SR-137), in `rowVerification`."
       },
       "limit": {
+        "description": "The most elements on one page.",
         "type": "integer",
         "minimum": 1,
         "maximum": 5000,
         "default": 200
       },
       "offset": {
+        "description": "Elements skipped before the page.",
         "type": "integer",
         "minimum": 0,
         "default": 0
@@ -123,6 +125,7 @@
                   "$ref": "../common.schema.json#/$defs/uuid"
                 },
                 "repository": {
+                  "description": "Workspace name of the repository of the parent.",
                   "type": "string"
                 }
               },

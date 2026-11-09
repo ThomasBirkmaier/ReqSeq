@@ -6,8 +6,13 @@
   "type": "object",
   "required": ["reqseq-api", "port", "token", "urls", "pid"],
   "properties": {
-    "reqseq-api": { "const": 1 },
-    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "reqseq-api": { "description": "Version of this file format.", "const": 1 },
+    "port": {
+      "description": "The port the API listens on.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
     "token": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_-]{43}$",

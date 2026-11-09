@@ -194,7 +194,8 @@ jobs:
   # Publishes the release of a stage tag: a draft first, every asset uploaded, then published. A re-run finds the
   # release of the tag and replaces assets of the same name. A tag that is not a release tag (`v<major>.<minor>`
   # or `v<major>.<minor>.<patch>`, e.g. a throwaway `v0.0.0-rc.1` to try the workflow) publishes nothing. A manual
-  # run publishes nothing either and only shows the release notes of its commit in the job summary (#346).
+  # run publishes nothing either and only shows the release text of its commit in the job summary (#346): the
+  # summary of the version in docs/releases/ must be there, or the run fails.
   release:
     name: release
     needs: build
@@ -233,13 +234,24 @@ jobs:
           node scripts/package/stage.mjs --check-tag "$TAG"
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$TAG is not on main"; exit 1; }
           echo "publish=true" >> "$GITHUB_OUTPUT"
-      # The Conventional Commit subjects since the previous release tag, grouped (#346).
-      - name: Release notes
+      # The release text: the summary of docs/releases/<version>.md, the delivery part and the Conventional Commit
+      # subjects since the previous release tag, folded (#346). The asset list goes in when the assets are there.
+      - name: Release text
+        env:
+          INSTALL: https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/
         run: |
           ref="$GITHUB_SHA"
           if [ "$GITHUB_EVENT_NAME" = push ]; then ref="$GITHUB_REF_NAME"; fi
-          node scripts/package/stage.mjs --release-notes "$ref" > release-notes.md
-          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
+          product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
+          {
+            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Install ${product}]($INSTALL))."
+            echo
+            echo "<!-- files -->"
+            echo
+            echo "The builds are not signed by a vendor certificate: see [the first start of the app]($INSTALL#app)."
+          } > delivery.md
+          node scripts/package/stage.mjs --release-body "$ref" delivery.md > release-body.md
+          cat release-body.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: steps.tag.outputs.publish == 'true'
         with:
@@ -262,17 +274,9 @@ jobs:
               -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"
           }
           product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
-          # The install guide on the documentation site, which the job `docs` below deploys for this tag.
-          install="https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/"
-          body="$(
-            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Install ${product}]($install))."
-            echo
-            for file in release-assets/*; do echo "- \`$(basename "$file")\`"; done
-            echo
-            echo "The builds are not signed by a vendor certificate: see [the first start of the app]($install#app)."
-            echo
-            cat release-notes.md
-          )"
+          # The release text with the list of the assets in place of its placeholder.
+          files="$(for file in release-assets/*; do echo "- \`$(basename "$file")\`"; done)"
+          body="$(FILES="$files" node -e 'const fs = require("node:fs"); process.stdout.write(fs.readFileSync("release-body.md", "utf8").replace("<!-- files -->", () => process.env.FILES))')"
           # A draft is not found by its tag, so the list is searched (a re-run of this job).
           release="$(call "$api/releases?per_page=100" | jq --arg tag "$TAG" '[.[] | select(.tag_name == $tag)][0] // empty')"
           if [ -z "$release" ]; then

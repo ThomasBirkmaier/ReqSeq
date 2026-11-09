@@ -28,7 +28,7 @@ afterEach(async () => {
   }
 });
 
-// The release job runs `--check-tag` and `--release-notes` before any install (release.yml, job `release`).
+// The release job runs `--check-tag` and `--release-body` before any install (release.yml, job `release`).
 describe("stage.mjs without installed packages", () => {
   it("imports only node: modules and local files statically", async () => {
     const graph = await staticImports(path.join(root, "scripts", "package", "stage.mjs"));
@@ -197,5 +197,57 @@ describe("stage.mjs --whats-new", () => {
         env: { ...process.env, REQSEQ_DOCS_RELEASES: "1" },
       }),
     ).toThrow(/a shallow history/);
+  });
+
+  it("shows the summary of a release from docs/releases", async () => {
+    await repository([{ subject: "feat: first function (#1)", tag: "v1.0" }]);
+    await fs.mkdir(path.join(temporary, "docs", "releases"), { recursive: true });
+    await fs.writeFile(path.join(temporary, "docs", "releases", "1.0.0.md"), "**First.**\n\n- It works.\n");
+    run();
+    const page = await fs.readFile(path.join(temporary, "page.md"), "utf8");
+    expect(page.slice(page.indexOf("## "))).toBe(
+      "## 1.0\n\nReleased 2026-11-09.\n\n**First.**\n\n- It works.\n",
+    );
+  });
+
+  it("writes the release text of a tag and of a commit, and refuses one without its summary", async () => {
+    await repository([
+      { subject: "feat: first function (#1)", tag: "v1.0" },
+      { subject: "fix(core): a fix (#2)", tag: "v1.0.1" },
+      { subject: "feat: next (#3)" },
+    ]);
+    await fs.mkdir(path.join(temporary, "docs", "releases"), { recursive: true });
+    await fs.writeFile(path.join(temporary, "docs", "releases", "1.0.1.md"), "**Fixed.**\n");
+    await fs.writeFile(path.join(temporary, "delivery.md"), "Download it.\n");
+    const body = (ref) =>
+      execFileSync(process.execPath, ["scripts/package/stage.mjs", "--release-body", ref, "delivery.md"], {
+        cwd: temporary,
+        encoding: "utf8",
+        env: { ...process.env, GITHUB_SERVER_URL: "https://example.test", GITHUB_REPOSITORY: "o/r" },
+      });
+    expect(body("v1.0.1")).toBe(
+      [
+        "**Fixed.**",
+        "",
+        "<!-- delivery -->",
+        "Download it.",
+        "<!-- /delivery -->",
+        "",
+        "<details><summary>Technical changes since v1.0</summary>",
+        "",
+        "### Fixes",
+        "",
+        "- fix(core): a fix (#2)",
+        "",
+        "Full list: https://example.test/o/r/compare/v1.0...v1.0.1",
+        "",
+        "</details>",
+        "",
+      ].join("\n"),
+    );
+    // Any other ref is a commit of the root version, 1.1.0, which has no summary yet.
+    expect(() => body("HEAD")).toThrow(/no summary of version 1\.1\.0: write docs\/releases\/1\.1\.0\.md/);
+    await fs.writeFile(path.join(temporary, "docs", "releases", "1.1.0.md"), "**Next.**\n");
+    expect(body("HEAD")).toMatch(/^\*\*Next\.\*\*\n[\s\S]*- feat: next \(#3\)/);
   });
 });

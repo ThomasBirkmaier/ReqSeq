@@ -272,10 +272,60 @@ body,
   }
 }
 
-/* A row of a list has a fourth column right of the status (SR-137): the verification status and ring of
-   the element's node in the graph, in the same greys; empty for an element without them. */
-.list .row {
-  grid-template-columns: 9rem minmax(0, 1fr) auto auto;
+/* A row of a list has two more columns right of the status (SR-137): the verification status and the ring
+   of the element's node in the graph, in the same greys; empty for an element without them. The rows of a
+   list share one grid: each group, the folded section and each row is a subgrid of `.rows` across all its
+   columns, so the ID, status, verification status and ring stand in one line in every row, however wide
+   their text is (#1275). */
+.list .rows {
+  display: grid;
+  /* The first track holds the row's padding too: in a subgrid it is a margin of the edge cells. */
+  grid-template-columns: calc(9rem + 0.75rem) minmax(0, 1fr) auto auto auto;
+  column-gap: 1rem;
+}
+
+/* A grid does not collapse margins: the first group's heading and a note keep the distance to the h1
+   they had when their margins collapsed with its 1rem. */
+.buffer.list .rows > .group:first-child > h2 {
+  margin-top: 0.5rem;
+}
+
+.buffer.list .rows > .quiet:first-child {
+  margin-top: 0;
+}
+
+.list .rows > *,
+.list .rows .group > *,
+.list .rows .folded > * {
+  grid-column: 1 / -1;
+}
+
+.list .rows .group,
+.list .rows .folded,
+.list .rows .row:not(.fold-row) {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+/* The verification spans the last two columns: its status word in the first, its ring in the second, so
+   the rings line up also where a row has no status word. */
+.list .rows .row .verification {
+  display: grid;
+  grid-column: 4 / span 2;
+  grid-template-columns: subgrid;
+  column-gap: 0.5rem;
+}
+
+.list .rows .row .verification .graph-verification {
+  display: contents;
+}
+
+.list .rows .row .verification .status {
+  grid-column: 1;
+}
+
+.list .rows .row .verification .graph-ring {
+  grid-column: 2;
 }
 
 /* The row of the folded section at the end of a list (SR-201): one line across the row, muted like the
@@ -477,18 +527,25 @@ mark {
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
 }
+/* The first line under the property table keeps apart from its last box (#1273): the badges, or the
+   line "Replaced or excluded" above them. */
+.element .field + .variant-line,
+.element .on-disk + .variant-line {
+  margin-top: 0.75rem;
+}
+/* A size under the text around it, so the badges do not outweigh it (#1273). */
 .element .badge {
   position: relative;
   display: inline-flex;
   max-width: 100%;
   overflow: hidden;
-  border-radius: 0.75rem;
-  font-size: 12px;
-  line-height: 1.5rem;
+  border-radius: 0.625rem;
+  font-size: 11px;
+  line-height: 1.25rem;
 }
 .element .badge-name,
 .element .badge-status {
-  padding: 0 0.75rem;
+  padding: 0 0.625rem;
 }
 .element .badge-name {
   flex: 0 1 auto;

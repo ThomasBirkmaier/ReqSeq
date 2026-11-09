@@ -1,7 +1,8 @@
 {
   "name": "evidence.enrichJunit",
   "title": "Enrich JUnit file",
-  "summary": "Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.",
+  "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.",
+  "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; the variant's UUID is added when there is one. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed. The output counts the test cases that name no element.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
@@ -69,9 +70,11 @@
           "type": "object",
           "properties": {
             "testCase": {
+              "description": "The `name` of the test case.",
               "type": "string"
             },
             "className": {
+              "description": "The `classname` of the test case.",
               "type": "string"
             },
             "line": {
@@ -80,6 +83,7 @@
               "description": "The line of the `<testcase>` in the file as read."
             },
             "ref": {
+              "description": "The reference as the test case gives it.",
               "type": "string"
             }
           },

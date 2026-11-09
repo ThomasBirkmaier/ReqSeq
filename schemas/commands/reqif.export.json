@@ -25,6 +25,7 @@
         "$ref": "../common.schema.json#/$defs/selection"
       },
       "profile": {
+        "description": "Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`.",
         "type": "string"
       },
       "mapping": {
@@ -38,6 +39,7 @@
         }
       },
       "statements": {
+        "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
         "type": "boolean"
       }
     },
@@ -48,13 +50,16 @@
     "type": "object",
     "properties": {
       "file": {
+        "description": "The written ReqIF file, relative to the workspace root when it lies inside, else absolute.",
         "type": "string"
       },
       "elements": {
+        "description": "Exported elements.",
         "type": "integer",
         "minimum": 0
       },
       "relations": {
+        "description": "Exported relations.",
         "type": "integer",
         "minimum": 0
       },

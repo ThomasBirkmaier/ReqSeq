@@ -2,7 +2,8 @@
 // which has no variants (one badge for the core) and a requirement for each status: S11 verified, P1
 // indirect, C22 open, C21 failed, C23 outdated, P2 open with three missing children; and on
 // fixtures/SR-030/record with a requirement of two acceptance criteria, one recorded with the CLI. The
-// colours and the contrast of both halves are measured on the page in light and dark, and saved as
+// colours and the contrast of both halves, the space to the property table and the size of the text are
+// measured on the page in light and dark, and saved as
 // screenshots to `test-results/electron/screenshots/` (or REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the
 // same tests run on Linux and macOS.
 import path from "node:path";
@@ -167,6 +168,43 @@ test.describe("the verification badges", () => {
     expect(grounds.get("indirect")).toEqual(grounds.get("open"));
     expect(grounds.get("failed")).not.toEqual(grounds.get("outdated"));
   });
+
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the badge row keeps apart from the property table, its text smaller than the lines around it (#1273, ${scheme})`, async () => {
+      running = await launchApp({ fixture: "SR-034/indirect" }, { colorScheme: scheme });
+      await openElement(running.window, "Warn of gusts");
+      const group = verification(running.window);
+      const layout = await group.evaluate((row) => {
+        const above = row.previousElementSibling;
+        const badge = row.querySelector(".badge");
+        if (above === null || !above.matches(".field") || badge === null) {
+          throw new Error("no property box right above the badges, or no badge");
+        }
+        return {
+          gap: row.getBoundingClientRect().top - above.getBoundingClientRect().bottom,
+          badge: parseFloat(getComputedStyle(badge).fontSize),
+          line: parseFloat(getComputedStyle(row).fontSize),
+          key: parseFloat(getComputedStyle(above.querySelector(".key") ?? above).fontSize),
+        };
+      });
+      expect(layout.gap).toBeGreaterThanOrEqual(8);
+      // Smaller than the status lines and than the keys of the property table.
+      expect(layout.badge).toBeLessThan(Math.min(layout.line, layout.key));
+      const box = await group.boundingBox();
+      expect(box).not.toBeNull();
+      if (box !== null) {
+        await running.window.screenshot({
+          path: path.join(OUT, `sr-157-spacing-${scheme}.png`),
+          clip: {
+            x: 0,
+            y: Math.max(0, box.y - 160),
+            width: box.x + box.width + 400,
+            height: box.height + 260,
+          },
+        });
+      }
+    });
+  }
 
   for (const scheme of ["light", "dark"] as const) {
     test(`[SR-157/AK4] the text and the background of each half have a contrast of at least 4.5:1 (${scheme})`, async () => {

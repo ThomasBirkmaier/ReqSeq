@@ -1,7 +1,8 @@
 {
   "name": "hint.confirm",
   "title": "Confirm hints",
-  "summary": "Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
+  "summary": "Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.",
+  "details": "With all, `expected` is the total of hint.list with that kind. It writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042). An ID no open hint has gives a warning, for example one confirmed already.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
@@ -58,12 +59,14 @@
     "type": "object",
     "properties": {
       "confirmed": {
+        "description": "The IDs of the confirmed hints, each once.",
         "type": "array",
         "items": {
           "type": "string"
         }
       },
       "files": {
+        "description": "Written files, relative to the workspace root.",
         "type": "array",
         "items": {
           "type": "string"

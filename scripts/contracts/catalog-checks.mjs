@@ -1,6 +1,6 @@
-// Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the argument
-// sources of the command prompt (SR-108) and the JSON Lines form (`jsonLines`, #319). Returns the
-// error lines; `validate-schemas.mjs` prints them.
+// Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the length of
+// summaries (#1252), the argument sources of the command prompt (SR-108) and the JSON Lines form
+// (`jsonLines`, #319). Returns the error lines; `validate-schemas.mjs` prints them.
 
 /** Sources that give elements: what `of` of an element source names. */
 const ELEMENTS = ["element", "relationTarget"];
@@ -24,6 +24,19 @@ const WITHOUT_CONTEXT = new Set(["status", "invalidStatus", "relationKind", "hin
 
 /** The inline schema of a field, or of the items of an array field. */
 const itemOf = (property) => (property.type === "array" ? (property.items ?? {}) : property);
+
+/** The most words a summary has; the rest of the text goes to `details` (#1252). */
+export const SUMMARY_WORDS = 50;
+
+/** Summaries: one or two sentences, counted as the source text split at white space. */
+function checkSummary(cmd) {
+  const words = typeof cmd.summary === "string" ? cmd.summary.split(/\s+/).filter((w) => w !== "").length : 0;
+  return words > SUMMARY_WORDS
+    ? [
+        `summary has ${words} words, more than ${SUMMARY_WORDS}: keep one or two sentences, move the rest to details`,
+      ]
+    : [];
+}
 
 /** Titles: unique, and D-045: no access offers deleting an element. */
 function checkTitle(cmd, titles) {
@@ -280,8 +293,11 @@ function checkJsonLines(cmd, schemas) {
 export function checkCatalog(catalog, schemas = {}) {
   const titles = new Map();
   return catalog.commands.flatMap((cmd) =>
-    [...checkTitle(cmd, titles), ...checkArguments(cmd), ...checkJsonLines(cmd, schemas)].map(
-      (e) => `schemas/commands/${cmd.name}.json: ${e}`,
-    ),
+    [
+      ...checkTitle(cmd, titles),
+      ...checkSummary(cmd),
+      ...checkArguments(cmd),
+      ...checkJsonLines(cmd, schemas),
+    ].map((e) => `schemas/commands/${cmd.name}.json: ${e}`),
   );
 }

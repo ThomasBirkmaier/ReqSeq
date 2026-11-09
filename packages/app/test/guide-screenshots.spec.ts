@@ -5,9 +5,11 @@
 // made on `fixtures/enabler-344/weather-station`, which has more elements; the graph in a window of 1600×1000, cut
 // to its boxes. The verification marks of "Record test evidence" and the graph of "Trace a requirement" (#1248)
 // are made on `fixtures/SR-136/graph`, whose need has ten requirements with every status. They go to
-// `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's
-// copy, committed after a run; a normal run leaves tracked files alone. They are made on Linux only, because fonts
-// differ between systems, and nothing compares pixels.
+// `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set
+// (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's copy, committed after a run; a normal run
+// leaves tracked files alone. They are made on Linux only, because fonts differ between systems. On a pull request
+// CI compares them with those of main's last nightly run and only warns when one changed (packages/docs/src/guide-images.ts,
+// #1258).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

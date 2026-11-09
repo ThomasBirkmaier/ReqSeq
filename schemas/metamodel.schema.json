@@ -58,6 +58,7 @@
           "description": "Display name. English in the standard model (D-019)."
         },
         "description": {
+          "description": "What it means, for people.",
           "type": "string"
         }
       }
@@ -127,10 +128,12 @@
           "$ref": "#/$defs/key"
         },
         "name": {
+          "description": "Display name of the type.",
           "type": "string",
           "minLength": 1
         },
         "description": {
+          "description": "What the type means, for people.",
           "type": "string"
         },
         "prefix": {

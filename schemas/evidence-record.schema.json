@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["reqseq-record", "kind", "element", "version", "result", "date"],
   "properties": {
-    "reqseq-record": { "const": 1 },
+    "reqseq-record": { "description": "Version of this file format.", "const": 1 },
     "kind": {
       "enum": ["verification", "validation"],
       "description": "Verification or validation (D-007). Validation counts only for the validation status (SR-030 AK3)."

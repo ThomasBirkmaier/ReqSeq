@@ -40,7 +40,9 @@ export interface ActivityAccess {
  * Schema: `schemas/api-endpoint.schema.json#`.
  */
 export interface ApiEndpointFile {
+  /** Version of this file format. */
   readonly "reqseq-api": 1;
+  /** The port the API listens on. */
   readonly port: number;
   /** 256 random bits, base64url without padding; new at every start. */
   readonly token: string;
@@ -55,6 +57,7 @@ export interface ApiEndpointFile {
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
+  /** Version of this file format. */
   readonly "reqseq-baseline": 1;
   readonly name: BaselineName;
   /** When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2). */
@@ -62,6 +65,7 @@ export interface BaselineFile {
   readonly selection?: BaselineStoredSelection;
   /** The repositories of the selected elements, the main repository and the metamodel's, each once with its HEAD commit (SR-050 AK4). */
   readonly repositories: readonly {
+    /** Workspace name of the repository. */
     readonly name: string;
     readonly commit: Commit;
   }[];
@@ -113,6 +117,7 @@ export type BaselineStoredRef =
  */
 export interface BaselineElsewhere {
   readonly id: Uuid;
+  /** Workspace name of the repository of the element. */
   readonly repository: string;
 }
 
@@ -164,7 +169,9 @@ export interface ElementName {
   /** Workspace name of the repository of its file. */
   readonly repository: string;
   readonly shortId: ShortId;
+  /** Its identifier, when it has one. */
   readonly identifier?: string;
+  /** Its title; empty without one. */
   readonly title: string;
 }
 
@@ -199,6 +206,7 @@ export type KeyOrName = string;
 export interface RelationTarget {
   readonly id: Uuid;
   readonly version: Version;
+  /** Title of the target as stored; only within the same repository. */
   readonly title?: string;
   /** Workspace name of the target's repository; required across repositories (D-058), absent within one. */
   readonly repository?: string;
@@ -217,6 +225,7 @@ export type RelationRefs = Readonly<Record<string, ElementRef | readonly Element
 export interface RelationTargetInput {
   readonly id: ElementRef;
   readonly version?: Version;
+  /** Ignored; the tool writes it. */
   readonly title?: string;
   /** Workspace name of the target's repository; absent for the source's own repository. A short ID or identifier is resolved in it. */
   readonly repository?: string;
@@ -264,11 +273,15 @@ export type LocalPath = string;
  */
 export interface Problem {
   readonly code: ProblemCode;
+  /** `error`, `warning` or `info`. */
   readonly severity: "error" | "warning" | "info";
+  /** What is wrong, for people. */
   readonly message: string;
+  /** The file the problem is about; relative to `repository` when that is given. */
   readonly file?: string;
   /** Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository. */
   readonly repository?: string;
+  /** The line in `file`, counted from 1. */
   readonly line?: number;
   readonly elementId?: Uuid;
   /** Workspace name of the repository of the element the problem is about, when `repository` and `file` name another file (the evidence record of `evidence.outdated`, SR-025 AK4). With `elementFile` it names one copy of a UUID several files share (SR-088). */
@@ -288,7 +301,9 @@ export interface Problem {
   readonly targetIdentifier?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
+  /** Date of the stored version; null when unknown. */
   readonly storedDate?: string | null;
+  /** Date of the current version; null when unknown. */
   readonly currentDate?: string | null;
   /** Object name of the commit that started the stored version (ADR-0005 "Version date", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013). */
   readonly storedCommit?: string | null;
@@ -395,6 +410,7 @@ export type ProblemCode =
  * Schema: `schemas/common.schema.json#/$defs/error`.
  */
 export interface CommandErrorObject {
+  /** Stable code of the error. */
   readonly code:
     | "input.invalid"
     | "ref.unknown"
@@ -420,7 +436,9 @@ export interface CommandErrorObject {
     | "file.folder-missing"
     | "command.not-implemented"
     | "internal";
+  /** What went wrong, for people. */
   readonly message: string;
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
@@ -501,6 +519,7 @@ export type ValidationStatus = "open" | "validated" | "failed" | "outdated" | "i
  * Schema: `schemas/common.schema.json#/$defs/reqifObject`.
  */
 export interface ReqifObject {
+  /** The IDENTIFIER of the object in the ReqIF file. */
   readonly identifier: string;
   readonly id?: Uuid;
 }
@@ -512,8 +531,10 @@ export interface ReqifObject {
 export interface ReqifLoss {
   /** IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION. */
   readonly identifier: string;
+  /** Which kind of object is affected. */
   readonly kind: "spec-object" | "spec-relation" | "specification";
   readonly id?: Uuid;
+  /** Stable code of the loss. */
   readonly code:
     | "omitted-type"
     | "omitted-attribute"
@@ -532,6 +553,7 @@ export interface ReqifLoss {
     | "xhtml-element"
     | "image-missing"
     | "image-outside";
+  /** What is lost, for people. */
   readonly reason: string;
 }
 
@@ -540,9 +562,13 @@ export interface ReqifLoss {
  * Schema: `schemas/common.schema.json#/$defs/reqifUnmapped`.
  */
 export interface ReqifUnmapped {
+  /** What is not mapped: a type, an attribute, a relation type or an enumeration value. */
   readonly kind: "type" | "attribute" | "relation" | "value";
+  /** Its LONG-NAME or IDENTIFIER in the source. */
   readonly source: string;
+  /** The SPEC-OBJECT-TYPE of an attribute or value. */
   readonly sourceType?: string;
+  /** The attribute of a value. */
   readonly attribute?: string;
 }
 
@@ -557,13 +583,17 @@ export interface DataExportFile {
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
   readonly dirty: boolean;
+  /** Name of the workspace. */
   readonly workspace: string;
   /** Time of the export, UTC, in seconds. */
   readonly generated: IsoDateTime;
   /** The selection as given; left out when none was given (every element). */
   readonly selection?: ElementSelection;
+  /** The repositories of the workspace file, in its order. */
   readonly repositories: readonly {
+    /** Workspace name of the repository. */
     readonly name: string;
+    /** The repository is on this machine. */
     readonly available: boolean;
     /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
     readonly commit?: Commit;
@@ -588,6 +618,7 @@ export interface DataExportElement {
   readonly type: Key;
   /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
+  /** Title of the element; empty without one. */
   readonly title: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
@@ -595,6 +626,7 @@ export interface DataExportElement {
   readonly version?: Version;
   /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
   readonly versionDate?: string | null;
+  /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
@@ -638,6 +670,7 @@ export interface DataExportElementPart {
   readonly type?: Key;
   /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
+  /** Title of the element; empty without one. */
   readonly title?: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
@@ -645,6 +678,7 @@ export interface DataExportElementPart {
   readonly version?: Version;
   /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
   readonly versionDate?: string | null;
+  /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file?: string;
@@ -688,6 +722,7 @@ export interface DataExportLine {
   readonly type: Key;
   /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
+  /** Title of the element; empty without one. */
   readonly title: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
@@ -695,6 +730,7 @@ export interface DataExportLine {
   readonly version?: Version;
   /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
   readonly versionDate?: string | null;
+  /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
@@ -724,6 +760,7 @@ export interface DataExportLine {
   /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
   readonly validationReason?: string;
   readonly problems?: readonly Problem[];
+  /** Version of this file format. */
   readonly "reqseq-data": 3;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
@@ -743,6 +780,7 @@ export interface DataExportElementFields {
   readonly type?: Key;
   /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
+  /** Title of the element; empty without one. */
   readonly title?: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
@@ -750,6 +788,7 @@ export interface DataExportElementFields {
   readonly version?: Version;
   /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
   readonly versionDate?: string | null;
+  /** Workspace name of the repository of its file. */
   readonly repository?: string;
   /** Path relative to the repository. */
   readonly file?: string;
@@ -790,6 +829,7 @@ export interface DataExportRelation {
   readonly property?: true;
   /** `reference` = inline link in the text (SR-066). */
   readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference" | null;
+  /** `out`: the element stores the relation. `in`: another element stores it and points at this one. */
   readonly direction: "out" | "in";
   readonly id: Uuid;
   /** Workspace name of the repository of the other end (ThomasBirkmaier/ReqSeq-archive#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
@@ -806,6 +846,7 @@ export interface DataExportRelation {
   readonly targetState: "available" | "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
+  /** The stored version of the other end differs from its current version. */
   readonly outdated?: boolean;
 }
 
@@ -817,6 +858,7 @@ export interface DataExportEvidenceRecord {
   /** Verification: a requirement. Validation: a need or a requirement (D-012). */
   readonly element: Uuid;
   readonly version: Version;
+  /** Verification or validation. */
   readonly kind: "verification" | "validation";
   /** Required for verification (D-026). */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
@@ -901,6 +943,7 @@ export interface DataExportVerificationEntry {
  * Schema: `schemas/data-export.schema.json#/$defs/criteriaCount`.
  */
 export interface DataExportCriteriaCount {
+  /** The number of verified acceptance criteria. */
   readonly verified: number;
   /** The number of acceptance criteria. */
   readonly total: number;
@@ -919,10 +962,15 @@ export interface DataExportVerificationDegree {
   readonly total: number;
   /** How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total. */
   readonly counts: {
+    /** Requirements with the verification status open. */
     readonly open: number;
+    /** Requirements with the verification status verified. */
     readonly verified: number;
+    /** Requirements verified indirectly, through their children. */
     readonly indirect: number;
+    /** Requirements with the verification status failed. */
     readonly failed: number;
+    /** Requirements with the verification status outdated. */
     readonly outdated: number;
   };
 }
@@ -972,6 +1020,7 @@ export type ElementValue =
  * Schema: `schemas/evidence-record.schema.json#`.
  */
 export interface EvidenceRecordFile {
+  /** Version of this file format. */
   readonly "reqseq-record": 1;
   /** Verification or validation (D-007). Validation counts only for the validation status (SR-030 AK3). */
   readonly kind: "verification" | "validation";
@@ -1002,8 +1051,10 @@ export interface EvidenceRecordFile {
  * Schema: `schemas/filter.schema.json#`.
  */
 export interface FilterFile {
+  /** Version of this file format. */
   readonly "reqseq-filter": 1;
   readonly name: FilterName;
+  /** What the filter is for, for people. */
   readonly description?: string;
   /** Elements that apply in this view; also the view of its `verification` conditions without `variant`. */
   readonly view?: View;
@@ -1087,6 +1138,7 @@ export type FilterKeys = readonly Key[];
  */
 export interface FilterPropertyCondition {
   readonly property: Key;
+  /** The comparison, as the condition describes it. */
   readonly op:
     | "eq"
     | "ne"
@@ -1099,6 +1151,7 @@ export interface FilterPropertyCondition {
     | "exists"
     | "missing"
     | "matches";
+  /** The value to compare with; a list for `in`; none for `exists` and `missing`. */
   readonly value?: unknown;
 }
 
@@ -1107,6 +1160,7 @@ export interface FilterPropertyCondition {
  * Schema: `schemas/filter.schema.json#/$defs/relationCondition`.
  */
 export interface FilterRelationCondition {
+  /** Which relations count. */
   readonly relation: {
     /** A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it. */
     readonly kind?: Key;
@@ -1117,6 +1171,7 @@ export interface FilterRelationCondition {
     /** Condition the other end must meet. */
     readonly to?: FilterCondition;
   };
+  /** `true`: the element has such a relation. `false`: it has none. */
   readonly exists: boolean;
 }
 
@@ -1127,6 +1182,7 @@ export interface FilterRelationCondition {
 export interface FilterSortKey {
   /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
+  /** Ascending or descending. */
   readonly order?: "asc" | "desc";
 }
 
@@ -1137,6 +1193,7 @@ export interface FilterSortKey {
 export interface FilterSortKeyWithDefaults {
   /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
+  /** Ascending or descending. */
   readonly order: "asc" | "desc";
 }
 
@@ -1167,6 +1224,7 @@ export interface MetamodelNamed {
   readonly key: MetamodelKey;
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
+  /** What it means, for people. */
   readonly description?: string;
   readonly [key: string]: unknown;
 }
@@ -1179,6 +1237,7 @@ export interface MetamodelType {
   readonly key: MetamodelKey;
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
+  /** What it means, for people. */
   readonly description?: string;
   /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (ThomasBirkmaier/ReqSeq-archive#154). */
   readonly prefix: MetamodelPrefix;
@@ -1207,7 +1266,9 @@ export type MetamodelTypeMeaning = "requirement" | "need" | "variant" | "package
  */
 export interface MetamodelEffectiveType {
   readonly key: MetamodelKey;
+  /** Display name of the type. */
   readonly name: string;
+  /** What the type means, for people. */
   readonly description?: string;
   readonly prefix: MetamodelPrefix;
   readonly extends?: MetamodelKey;
@@ -1233,6 +1294,7 @@ export interface MetamodelProperty {
   readonly key: MetamodelKey;
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
+  /** What it means, for people. */
   readonly description?: string;
   /** Value kind. */
   readonly kind: "text" | "number" | "date" | "choice" | "relation";
@@ -1278,6 +1340,7 @@ export interface MetamodelRelationKind {
   readonly key: MetamodelKey;
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
+  /** What it means, for people. */
   readonly description?: string;
   /** Name shown at the target, e.g. Derived by. */
   readonly "inverse-name"?: string;
@@ -1325,6 +1388,7 @@ export interface MetamodelStatus {
   readonly key: MetamodelKey;
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
+  /** What it means, for people. */
   readonly description?: string;
   /** Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains (D-044). */
   readonly invalid?: boolean;
@@ -1359,7 +1423,9 @@ export interface RecentWorkspacesWorkspace {
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
+  /** Version of this file format. */
   readonly "reqseq-reqif-mapping": 1;
+  /** The ReqIF source this mapping is for. */
   readonly source: {
     /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
     readonly name: string;
@@ -1368,10 +1434,12 @@ export interface ReqifMappingFile {
   };
   /** Folder where imported elements are written. */
   readonly target?: WorkspaceLocation;
+  /** Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted. */
   readonly types?: readonly ({
     /** LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE. */
     readonly source: string;
     readonly type?: Key;
+    /** Objects of this type are not imported; each is listed as a loss. */
     readonly omit?: true;
   } & (
     | {
@@ -1380,16 +1448,19 @@ export interface ReqifMappingFile {
     | {
       readonly omit: unknown;
     }))[];
+  /** Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted. */
   readonly attributes?: readonly ({
     /** Restricts the entry to one SPEC-OBJECT-TYPE. */
     readonly "source-type"?: string;
     /** LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION. */
     readonly source: string;
+    /** Where the value goes: `title`, `text` or the key of a property. */
     readonly property?: Key;
     /** Enumeration value -> choice key. */
     readonly values?: Readonly<Record<string, Key>>;
     /** Enumeration values left out on import, each listed as a loss (SR-055 AK2). */
     readonly "omit-values"?: readonly string[];
+    /** The attribute is not imported, which is listed as a loss. */
     readonly omit?: true;
   } & (
     | {
@@ -1398,10 +1469,12 @@ export interface ReqifMappingFile {
     | {
       readonly omit: unknown;
     }))[];
+  /** Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted. */
   readonly relations?: readonly ({
     /** LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE. */
     readonly source: string;
     readonly kind?: Key;
+    /** Relations of this type are not imported. */
     readonly omit?: true;
   } & (
     | {
@@ -1421,7 +1494,9 @@ export interface ReqifMappingFile {
   };
   /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
   readonly "omit-properties"?: readonly Key[];
+  /** Saved exports to this source, each a selection under a name. */
   readonly "export-profiles"?: readonly {
+    /** Name of the profile. */
     readonly name: string;
     readonly selection: ElementSelection;
     /** Properties left out of every export with this profile (SR-059 AK1). */
@@ -1434,7 +1509,9 @@ export interface ReqifMappingFile {
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFileWithDefaults {
+  /** Version of this file format. */
   readonly "reqseq-reqif-mapping": 1;
+  /** The ReqIF source this mapping is for. */
   readonly source: {
     /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
     readonly name: string;
@@ -1443,10 +1520,12 @@ export interface ReqifMappingFileWithDefaults {
   };
   /** Folder where imported elements are written. */
   readonly target?: WorkspaceLocation;
+  /** Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted. */
   readonly types?: readonly ({
     /** LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE. */
     readonly source: string;
     readonly type?: Key;
+    /** Objects of this type are not imported; each is listed as a loss. */
     readonly omit?: true;
   } & (
     | {
@@ -1455,16 +1534,19 @@ export interface ReqifMappingFileWithDefaults {
     | {
       readonly omit: unknown;
     }))[];
+  /** Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted. */
   readonly attributes?: readonly ({
     /** Restricts the entry to one SPEC-OBJECT-TYPE. */
     readonly "source-type"?: string;
     /** LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION. */
     readonly source: string;
+    /** Where the value goes: `title`, `text` or the key of a property. */
     readonly property?: Key;
     /** Enumeration value -> choice key. */
     readonly values?: Readonly<Record<string, Key>>;
     /** Enumeration values left out on import, each listed as a loss (SR-055 AK2). */
     readonly "omit-values"?: readonly string[];
+    /** The attribute is not imported, which is listed as a loss. */
     readonly omit?: true;
   } & (
     | {
@@ -1473,10 +1555,12 @@ export interface ReqifMappingFileWithDefaults {
     | {
       readonly omit: unknown;
     }))[];
+  /** Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted. */
   readonly relations?: readonly ({
     /** LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE. */
     readonly source: string;
     readonly kind?: Key;
+    /** Relations of this type are not imported. */
     readonly omit?: true;
   } & (
     | {
@@ -1496,7 +1580,9 @@ export interface ReqifMappingFileWithDefaults {
   };
   /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
   readonly "omit-properties"?: readonly Key[];
+  /** Saved exports to this source, each a selection under a name. */
   readonly "export-profiles"?: readonly {
+    /** Name of the profile. */
     readonly name: string;
     readonly selection: ElementSelection;
     /** Properties left out of every export with this profile (SR-059 AK1). */
@@ -1509,6 +1595,7 @@ export interface ReqifMappingFileWithDefaults {
  * Schema: `schemas/workspace-local.schema.json#`.
  */
 export interface WorkspaceLocalFile {
+  /** Version of this file format. */
   readonly "reqseq-local": 1;
   /** Per repository name of the workspace file: where it lies on this machine. */
   readonly repositories?: Readonly<Record<string, {
@@ -1522,7 +1609,9 @@ export interface WorkspaceLocalFile {
  * Schema: `schemas/workspace.schema.json#`.
  */
 export interface WorkspaceFile {
+  /** Version of this file format. */
   readonly "reqseq-workspace": 1;
+  /** Name of the workspace. */
   readonly name: string;
   /** The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by ReqSeq; JSON Schema cannot express it). */
   readonly repositories: readonly WorkspaceRepository[];
@@ -1542,11 +1631,13 @@ export interface WorkspaceFile {
 
 /** Schema: `schemas/workspace.schema.json#/$defs/repository`. */
 export interface WorkspaceRepository {
+  /** Name of the repository in the workspace: lower case letters, digits, `.`, `_` and `-`. */
   readonly name: string;
   /** Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036). */
   readonly url: string;
   /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about; an absolute path is ignored, and so is one that leaves the folder holding the main repository or passes a link out of a repository (it can lead to a network share); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`. */
   readonly path?: string;
+  /** The repository that holds this file. */
   readonly main?: boolean;
   /** The repository does not know the variants of the workspace (SR-173): an evidence record without `variant` for one of its elements counts in the core and in every variant the element applies in (the view rule, SR-047 AK3). Without the mark such a record counts only in the core (D-026). Shared: `.reqseq/local.yaml` cannot change it. An older ReqSeq rejects a workspace file with it (`file.faulty`). */
   readonly "variant-independent"?: boolean;
@@ -1554,12 +1645,14 @@ export interface WorkspaceRepository {
 
 /** Schema: `schemas/workspace.schema.json#/$defs/mainRepository`. */
 export interface WorkspaceMainRepository {
+  /** The repository that holds this file. */
   readonly main: true;
   readonly [key: string]: unknown;
 }
 
 /** Schema: `schemas/workspace.schema.json#/$defs/location`. */
 export interface WorkspaceLocation {
+  /** Workspace name of the repository. */
   readonly repository: string;
   readonly path: RelativePath;
 }
@@ -1577,7 +1670,10 @@ export interface CommandCatalog {
     readonly name: string;
     /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045). */
     readonly title: string;
+    /** What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252). */
     readonly summary: string;
+    /** What a user needs to know beyond the summary: rules, cases and limits of the command. Shown on the command's reference page below the summary, not in the index, `--help` or the MCP tool list (#1252). Implementation notes belong in the block files of `packages/core/docs/`. */
+    readonly details?: string;
     /** No command writes to Git (D-036). No command deletes elements (D-045). */
     readonly effect: "read" | "write-files";
     /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, ThomasBirkmaier/ReqSeq-archive#142). */
@@ -1645,9 +1741,13 @@ export interface CommandCatalog {
 export interface WorkspaceInitInput {
   /** Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file. */
   readonly path: LocalPath;
+  /** Name of the workspace, written to reqseq-workspace.yaml. */
   readonly name: string;
+  /** Where the metamodel lies. Default: the folder `metamodel` in the main repository, where the standard model is written. */
   readonly metamodel?: {
+    /** Workspace name of the repository of the metamodel. Default: the main repository. */
     readonly repository?: string;
+    /** Folder of the metamodel, relative to that repository. Default: `metamodel`. */
     readonly path?: string;
   };
 }
@@ -1672,10 +1772,15 @@ export type WorkspaceStatusInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
+  /** Name of the workspace, from reqseq-workspace.yaml. */
   readonly name: string;
+  /** The repositories of the workspace file, in its order. */
   readonly repositories: readonly {
+    /** Workspace name of the repository. */
     readonly name: string;
+    /** The repository is on this machine. */
     readonly available: boolean;
+    /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
     readonly path?: string;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
@@ -1683,24 +1788,30 @@ export interface WorkspaceStatusOutput {
     /** ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
     readonly readOnly?: boolean;
   }[];
+  /** Where the metamodel comes from. */
   readonly metamodel: {
+    /** Workspace name of the repository of the metamodel. */
     readonly repository: string;
+    /** Folder of the metamodel, relative to that repository. */
     readonly path: string;
+    /** The metamodel was read without errors. */
     readonly valid: boolean;
   };
   /** The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key. */
   readonly evidence: readonly {
+    /** Workspace name of the repository of the evidence location. */
     readonly repository: string;
     readonly path: RelativePath;
     /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
   }[];
+  /** The workspace opens read-only because its metamodel is missing or faulty: nothing can be written. */
   readonly readOnly: boolean;
   readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1715,7 +1826,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1726,7 +1837,9 @@ export interface WorkspaceCheckOutput {
   readonly hidden?: {
     /** The severity given: the findings counted are below it. */
     readonly below: "error" | "warning";
+    /** Warnings left out. */
     readonly warning: number;
+    /** Infos left out. */
     readonly info: number;
   };
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
@@ -1773,7 +1886,7 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path, for completing a path while it is typed.
  * Schema: `schemas/commands/workspace.listFolder.json input`.
  */
 export interface WorkspaceListFolderInput {
@@ -1786,7 +1899,7 @@ export interface WorkspaceListFolderInput {
 }
 
 /**
- * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path, for completing a path while it is typed.
  * Schema: `schemas/commands/workspace.listFolder.json output`.
  */
 export interface WorkspaceListFolderOutput {
@@ -1808,22 +1921,26 @@ export interface WorkspaceListFolderOutput {
 }
 
 /**
- * Input of `tool.info` as `run` gets it: validated, properties with a `default` filled in. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Input of `tool.info` as `run` gets it: validated, properties with a `default` filled in. Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.
  * Schema: `schemas/commands/tool.info.json input`.
  */
 export type ToolInfoInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `tool.info`. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Output of `tool.info`. Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.
  * Schema: `schemas/commands/tool.info.json output`.
  */
 export interface ToolInfoOutput {
   /** The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery. */
   readonly versions: {
+    /** Version of the app. */
     readonly app: string;
+    /** Version of the command line. */
     readonly cli: string;
+    /** Version of the MCP server. */
     readonly mcp: string;
   };
+  /** The build of ReqSeq that runs. */
   readonly build: {
     /** The commit the delivery was built from. Left out in a build from a checkout. */
     readonly commit?: Commit;
@@ -1840,25 +1957,30 @@ export interface ToolInfoOutput {
   readonly runtime: {
     /** Left out when ReqSeq does not run on Electron (a command line on its own Node). */
     readonly electron?: string;
+    /** Version of Node. */
     readonly node: string;
     /** The Chromium of the Electron ReqSeq runs on. Left out without Electron. */
     readonly chromium?: string;
   };
+  /** The open workspace. */
   readonly workspace: {
     /** The absolute path of the workspace root, the folder with reqseq-workspace.yaml. */
     readonly path: string;
+    /** Name of the workspace, from reqseq-workspace.yaml. */
     readonly name: string;
     /** The workspace names of its repositories, in the order of the workspace file. */
     readonly repositories: readonly string[];
     /** The number of elements in the available repositories, in no view. */
     readonly elements: number;
   };
+  /** The licence notice of ReqSeq and where its third-party licences are. */
   readonly license: {
     /** The licence notice of ReqSeq, one item per line. */
     readonly notice: readonly string[];
     /** The file of the delivery that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout. */
     readonly thirdParty?: string;
   };
+  /** Where the documentation and the releases are. */
   readonly documentation: {
     /** The folder of the delivery with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout. */
     readonly bundled?: string;
@@ -1896,30 +2018,34 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json input`.
  */
 export interface ElementCreateInput {
   readonly type: Key;
+  /** Title of the new element. */
   readonly title: string;
   /** Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing. */
   readonly text?: string;
+  /** Values of the properties of the type, by key. */
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
   /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073", "N-030"], "based-on": "D-062"}; on the CLI --relations derives-from='["N-073","N-030"]' --relations based-on=D-062. */
   readonly relations?: RelationRefs;
+  /** Workspace name of the repository to write the element to. Default: the main repository. */
   readonly repository?: string;
   /** Folder relative to the repository; default from the type. */
   readonly folder?: string;
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Output of `element.create`. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
+  /** Written files, relative to the workspace root. */
   readonly files: readonly string[];
   readonly problems?: readonly Problem[];
 }
@@ -2014,7 +2140,9 @@ export interface ElementListInput {
   readonly withText?: boolean;
   /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
   readonly withVerification?: boolean;
+  /** The most elements on one page. */
   readonly limit: number;
+  /** Elements skipped before the page. */
   readonly offset: number;
 }
 
@@ -2039,6 +2167,7 @@ export type ElementListOutput = {
     /** The element it is shown below, a parent of it by a derivation; left out for a root. It may lie on an earlier page. */
     readonly parent?: {
       readonly id: Uuid;
+      /** Workspace name of the repository of the parent. */
       readonly repository: string;
     };
   }[];
@@ -2079,19 +2208,26 @@ export interface ElementFacetsOutput {
   readonly total: number;
   /** The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118). */
   readonly types: readonly {
+    /** Key of the type as written in the files. */
     readonly key: string;
+    /** Display name of the type; the key for a type the metamodel does not define. */
     readonly name: string;
+    /** Selected elements of exactly this type. */
     readonly count: number;
   }[];
   /** The statuses of the selected elements as written in the files, with the number of elements: statuses of the metamodel in metamodel order, then other values in store order. Elements without status are not counted. */
   readonly statuses: readonly {
+    /** Key of the status as written in the files. */
     readonly key: string;
+    /** Selected elements with this status. */
     readonly count: number;
   }[];
   /** Every property that a type of a selected element has, in the order of the property definitions of the metamodel. Keys no type has (SR-016) are not listed. The counts and values are those of all selected elements, as the filter conditions read them (any type, SR-069): an element whose type lacks the property counts by the value its file holds (usually none). */
   readonly properties: readonly {
     readonly key: Key;
+    /** Display name of the property. */
     readonly name: string;
+    /** Value kind of the property. */
     readonly kind: "text" | "number" | "date" | "choice" | "relation";
     /** Selected elements that have some value. */
     readonly count: number;
@@ -2103,6 +2239,7 @@ export interface ElementFacetsOutput {
     readonly distinctCapped?: true;
     /** Left out for free text (see maxValues). Choices: in metamodel order, then other values as written. Relation targets: by title ignoring case, then short ID. Others: numbers ascending, then texts ignoring case, then booleans. Each value is what a property condition takes with op eq and selects exactly the elements counted: for a relation target its short ID; a choice stored under a name the condition would map to another key, or one that names several choices, is not given. Targets that are not available are left out (a condition cannot name them). */
     readonly values?: readonly {
+      /** The value, as `{ property, op: "eq", value }` selects it. */
       readonly value: string | number | boolean;
       /** Selected elements that have this value. */
       readonly count: number;
@@ -2123,10 +2260,13 @@ export interface ElementFacetsOutput {
  */
 export interface ElementUpdateInput {
   readonly ref: ElementRef;
+  /** New title. */
   readonly title?: string;
   /** New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing. */
   readonly text?: string;
+  /** New values by key. */
   readonly set?: Readonly<Record<string, ElementInputValue>>;
+  /** Keys to remove. */
   readonly unset?: readonly Key[];
   /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256. */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
@@ -2150,6 +2290,7 @@ export interface ElementUpdateOutput {
   readonly names?: readonly ElementName[];
   /** Of the file as written, or as read when nothing changed (SR-106). */
   readonly fileSha256: FileSha256;
+  /** Written files, relative to the workspace root. */
   readonly files: readonly string[];
   /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276). */
   readonly affected: number;
@@ -2157,7 +2298,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
@@ -2167,7 +2308,7 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
@@ -2198,7 +2339,7 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection; without confirm it only previews what changes. Never id, type or status.
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
@@ -2218,7 +2359,7 @@ export interface ElementBulkUpdateInput {
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection; without confirm it only previews what changes. Never id, type or status.
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
@@ -2237,7 +2378,9 @@ export interface ElementBulkUpdateOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** `not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read. */
     readonly reason: "not-a-property" | "unknown-type";
+    /** Why the element was left out, for people. */
     readonly message: string;
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
@@ -2319,6 +2462,7 @@ export interface RelationAddInput {
  * Schema: `schemas/commands/relation.add.json output`.
  */
 export interface RelationAddOutput {
+  /** Written files, relative to the workspace root. */
   readonly files: readonly string[];
   readonly problems?: readonly Problem[];
 }
@@ -2350,8 +2494,10 @@ export interface RelationRemoveOutput {
  */
 export interface TraceChainInput {
   readonly ref: ElementRef;
+  /** `up` to the parents, `down` to the children and evidence, `both` for both. */
   readonly direction: "up" | "down" | "both";
   readonly view?: View;
+  /** The deepest level in each direction; without it the chain is followed to its ends. */
   readonly maxDepth?: number;
   /** Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage ThomasBirkmaier/ReqSeq-archive#290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead. */
   readonly limit: number;
@@ -2375,9 +2521,13 @@ export interface TraceChainOutput {
     readonly shortId: ShortId;
     /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
+    /** Key of its type. */
     readonly type: string;
+    /** Its title; empty without one. */
     readonly title: string;
+    /** Its status key as written; left out when it has none. */
     readonly status?: string;
+    /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: string;
@@ -2400,6 +2550,7 @@ export interface TraceChainOutput {
     readonly targetRepository: string;
     /** Key of the relation kind with the meaning `derivation` (SR-013). */
     readonly kind: Key;
+    /** The walk it belongs to: `up` to the parents, `down` to the children. */
     readonly direction: "up" | "down";
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
@@ -2409,6 +2560,7 @@ export interface TraceChainOutput {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
+    /** The kind of the gap, as `gaps` describes it. */
     readonly kind: "no-child" | "no-evidence" | "no-parent" | "not-in-view";
     /** Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants. */
     readonly views?: readonly ViewId[];
@@ -2430,6 +2582,7 @@ export interface TraceChainOutput {
   readonly validationRecords: readonly DataExportEvidenceRecord[];
   /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. Only those of the nodes of the page (`from`). */
   readonly unresolved: readonly {
+    /** `up` for a parent that could not be followed, `down` for a child. */
     readonly direction: "up" | "down";
     /** The element of the chain whose parents or children were looked at. */
     readonly from: Uuid;
@@ -2441,6 +2594,7 @@ export interface TraceChainOutput {
     readonly shortId?: ShortId;
     /** Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), when it is available and has one. */
     readonly identifier?: string;
+    /** Title of the other end, when it is available. */
     readonly title?: string;
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
@@ -2458,8 +2612,11 @@ export interface TraceChainOutput {
  * Schema: `schemas/commands/trace.related.json input`.
  */
 export interface TraceRelatedInput {
+  /** The elements to start from: the parents for `children`, the requirements for `parents`. */
   readonly refs: readonly ElementRef[];
+  /** `children`: every element derived from them. `parents`: every element they derive from. */
   readonly direction: "children" | "parents";
+  /** The most derivation steps from the start elements; without it every step. */
   readonly maxDepth?: number;
   readonly view?: View;
   /** Elements of the page; total counts all. */
@@ -2474,6 +2631,7 @@ export interface TraceRelatedInput {
  */
 export interface TraceRelatedOutput {
   readonly elements: readonly DataExportElement[];
+  /** The number of all related elements; `elements` holds the page. */
   readonly total: number;
   readonly incomplete?: Incomplete;
 }
@@ -2484,7 +2642,9 @@ export interface TraceRelatedOutput {
  */
 export interface TraceAffectedInput {
   readonly ref: ElementRef;
+  /** The most elements on one page. */
   readonly limit: number;
+  /** Elements skipped before the page. */
   readonly offset: number;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -2503,8 +2663,11 @@ export interface TraceAffectedOutput {
     readonly shortId: ShortId;
     /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
+    /** Key of its type. */
     readonly type: string;
+    /** Its title; empty without one. */
     readonly title: string;
+    /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: string;
@@ -2513,10 +2676,12 @@ export interface TraceAffectedOutput {
     /** The way: the element asked for first, this element last, each element in between that points at the one before it; each named by UUID and repository (D-058). */
     readonly path: readonly {
       readonly id: Uuid;
+      /** Workspace name of the repository of this element of the path. */
       readonly repository: string;
     }[];
     /** How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`. */
     readonly via: {
+      /** `relation`: a relation or relation property stored under `key`. `reference`: an inline reference. */
       readonly kind: "relation" | "reference";
       readonly key?: Key;
     };
@@ -2566,9 +2731,13 @@ export interface TraceNeighbourhoodOutput {
     readonly shortId: ShortId;
     /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
+    /** Key of its type. */
     readonly type: string;
+    /** Its title; empty without one. */
     readonly title: string;
+    /** Its status key as written; left out when it has none. */
     readonly status?: string;
+    /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: string;
@@ -2612,7 +2781,7 @@ export interface TraceNeighbourhoodOutput {
 }
 
 /**
- * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
  * Schema: `schemas/commands/trace.matrix.json input`.
  */
 export interface TraceMatrixInput {
@@ -2629,7 +2798,7 @@ export interface TraceMatrixInput {
 }
 
 /**
- * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
  * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
@@ -2664,8 +2833,11 @@ export interface TraceMatrixOutput {
     readonly shortId: ShortId;
     /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
+    /** Key of its type. */
     readonly type: string;
+    /** Its status key as written; left out when it has none. */
     readonly status?: string;
+    /** Its title; empty without one. */
     readonly title: string;
     /** Path relative to the repository. */
     readonly file: string;
@@ -2718,7 +2890,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -2741,7 +2913,7 @@ export interface TraceGraphInput {
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
@@ -2752,9 +2924,13 @@ export interface TraceGraphOutput {
     readonly shortId: ShortId;
     /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
+    /** Key of its type. */
     readonly type: string;
+    /** Its title; empty without one. */
     readonly title: string;
+    /** Its status key as written; left out when it has none. */
     readonly status?: string;
+    /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: string;
@@ -2806,9 +2982,13 @@ export interface TraceGraphOutput {
     readonly records: number;
     /** The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out. */
     readonly results: {
+      /** Test cases and records whose newest result passed. */
       readonly passed?: number;
+      /** Test cases and records whose newest result failed. */
       readonly failed?: number;
+      /** Test cases and records whose newest result is inconclusive. */
       readonly inconclusive?: number;
+      /** Test cases that were only skipped. */
       readonly skipped?: number;
     };
   }[];
@@ -2854,7 +3034,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -2873,11 +3053,13 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
+  /** The IDs of the confirmed hints, each once. */
   readonly confirmed: readonly string[];
+  /** Written files, relative to the workspace root. */
   readonly files: readonly string[];
   readonly problems?: readonly Problem[];
 }
@@ -2897,7 +3079,9 @@ export interface ElementSearchInput {
   readonly group?: GroupKey;
   /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
   readonly withVerification?: boolean;
+  /** The most hits on one page. */
   readonly limit: number;
+  /** Hits skipped before the page. */
   readonly offset: number;
 }
 
@@ -2973,6 +3157,7 @@ export interface FilterListOutput {
     readonly name: FilterName;
     /** The filter file, relative to the workspace root. */
     readonly file: string;
+    /** What the filter is for, as saved. */
     readonly description?: string;
     readonly view?: View;
     readonly where: FilterCondition;
@@ -2989,6 +3174,7 @@ export interface FilterListOutput {
  */
 export interface FilterSaveInput {
   readonly name: FilterName;
+  /** What the filter is for, for people. */
   readonly description?: string;
   readonly view?: View;
   /** Checked as in a selection; element references are written as UUIDs. */
@@ -3038,7 +3224,7 @@ export interface EvidenceListOutput {
 }
 
 /**
- * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.
  * Schema: `schemas/commands/evidence.record.json input`.
  */
 export interface EvidenceRecordInput {
@@ -3069,7 +3255,7 @@ export interface EvidenceRecordInput {
 }
 
 /**
- * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Output of `evidence.record`. Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.
  * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
@@ -3080,7 +3266,7 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
@@ -3099,7 +3285,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -3109,10 +3295,13 @@ export interface EvidenceEnrichJunitOutput {
   readonly withoutReference: number;
   /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
   readonly unknown: readonly {
+    /** The `name` of the test case. */
     readonly testCase: string;
+    /** The `classname` of the test case. */
     readonly className?: string;
     /** The line of the `<testcase>` in the file as read. */
     readonly line: number;
+    /** The reference as the test case gives it. */
     readonly ref: string;
   }[];
   /** The written file, relative to the workspace root (the folder of the main repository) with `/` when it lies below it or in another repository of the workspace, else its absolute path. None when nothing is written: nothing to change in place, or `output` holds these bytes already; a given `output` is otherwise written even when nothing changes. */
@@ -3121,17 +3310,19 @@ export interface EvidenceEnrichJunitOutput {
 }
 
 /**
- * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
+ * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
   readonly selection?: ElementSelection;
+  /** The most elements on one page. */
   readonly limit: number;
+  /** Elements skipped before the page. */
   readonly offset: number;
 }
 
 /**
- * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
+ * Output of `evidence.status`. Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
@@ -3210,7 +3401,9 @@ export interface EvidenceDegreeOutput {
 export interface EvidenceWithoutPassedTestInput {
   /** Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent` (SR-173); only requirements its view holds (SR-047, SR-043). */
   readonly view?: View;
+  /** The most requirements on one page. */
   readonly limit: number;
+  /** Requirements skipped before the page. */
   readonly offset: number;
 }
 
@@ -3232,7 +3425,7 @@ export interface EvidenceWithoutPassedTestOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.
  * Schema: `schemas/commands/data.export.json input`.
  */
 export interface DataExportInput {
@@ -3240,13 +3433,13 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.
  * Schema: `schemas/commands/data.export.json output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
- * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.
  * Schema: `schemas/commands/data.store.json input`.
  */
 export interface DataStoreInput {
@@ -3256,7 +3449,7 @@ export interface DataStoreInput {
 }
 
 /**
- * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Output of `data.store`. Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.
  * Schema: `schemas/commands/data.store.json output`.
  */
 export interface DataStoreOutput {
@@ -3333,7 +3526,9 @@ export interface BaselineCreateInput {
  */
 export interface BaselineCreateOutput {
   readonly files: readonly string[];
+  /** The written baseline. */
   readonly baseline: {
+    /** Name of the baseline. */
     readonly name: string;
     /** The file, relative to the workspace root, / as separator. */
     readonly file: string;
@@ -3361,6 +3556,7 @@ export type BaselineListInput = Readonly<Record<string, never>>;
 export interface BaselineListOutput {
   /** The valid baselines, in file order (code units of the file name). */
   readonly baselines: readonly {
+    /** Name of the baseline. */
     readonly name: string;
     /** Relative to the workspace root, / as separator. */
     readonly file: string;
@@ -3381,7 +3577,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -3391,14 +3587,16 @@ export interface BaselineGetInput {
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
+  /** Elements skipped before the page. */
   readonly offset: number;
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
+ * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
+  /** Name of the baseline. */
   readonly name: string;
   /** Relative to the workspace root, / as separator. */
   readonly file: string;
@@ -3409,7 +3607,9 @@ export interface BaselineGetOutput {
   readonly view?: ViewId;
   /** The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3). */
   readonly selectionKnown: boolean;
+  /** The repositories the baseline names, each with its commit then. */
   readonly repositories: readonly {
+    /** Workspace name of the repository. */
     readonly name: string;
     readonly commit: Commit;
   }[];
@@ -3452,12 +3652,19 @@ export interface BaselineGetOutput {
   }[];
   /** Elements per state over all pages. */
   readonly counts: {
+    /** Elements unchanged since the baseline. */
     readonly unchanged: number;
+    /** Elements changed since the baseline. */
     readonly changed: number;
+    /** Elements superseded since the baseline. */
     readonly superseded: number;
+    /** Elements that left the selection since the baseline. */
     readonly removed: number;
+    /** Elements that joined the selection since the baseline. */
     readonly added: number;
+    /** Elements of the baseline that are not found. */
     readonly missing: number;
+    /** Elements of the baseline in a repository that is not on this machine. */
     readonly inaccessible: number;
   };
   /** Entries of the file plus added elements. */
@@ -3483,6 +3690,7 @@ export interface BaselineCompareInput {
  * Schema: `schemas/commands/baseline.compare.json output`.
  */
 export interface BaselineCompareOutput {
+  /** Workspace name of the repository of the element. */
   readonly repository: string;
   readonly from: Commit;
   /** The commit to compare with; null for the working copy. */
@@ -3526,11 +3734,12 @@ export interface ReqifAnalyzeOutput {
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.
  * Schema: `schemas/commands/reqif.import.json input`.
  */
 export interface ReqifImportInput {
   readonly file: LocalPath;
+  /** Name of the delivery, written to the origin of each element it imports or updates. */
   readonly delivery: string;
   /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. */
   readonly mapping?: LocalPath;
@@ -3543,7 +3752,7 @@ export interface ReqifImportInput {
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
+ * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.
  * Schema: `schemas/commands/reqif.import.json output`.
  */
 export interface ReqifImportOutput {
@@ -3586,10 +3795,12 @@ export interface ReqifSaveMappingOutput {
 export interface ReqifExportInput {
   readonly output: LocalPath;
   readonly selection?: ElementSelection;
+  /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;
   readonly mapping?: LocalPath;
   /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
+  /** Export the elements of the mapping's source with their statements, back to that source; needs `mapping`. */
   readonly statements?: boolean;
 }
 
@@ -3598,8 +3809,11 @@ export interface ReqifExportInput {
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {
+  /** The written ReqIF file, relative to the workspace root when it lies inside, else absolute. */
   readonly file: string;
+  /** Exported elements. */
   readonly elements: number;
+  /** Exported relations. */
   readonly relations: number;
   /** With statements: exported elements without a statement. */
   readonly withoutStatement?: number;

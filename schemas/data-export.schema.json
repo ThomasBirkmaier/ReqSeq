@@ -19,6 +19,7 @@
       "description": "`false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file."
     },
     "workspace": {
+      "description": "Name of the workspace.",
       "type": "string"
     },
     "generated": {
@@ -30,15 +31,18 @@
       "description": "The selection as given; left out when none was given (every element)."
     },
     "repositories": {
+      "description": "The repositories of the workspace file, in its order.",
       "type": "array",
       "items": {
         "type": "object",
         "required": ["name", "available"],
         "properties": {
           "name": {
+            "description": "Workspace name of the repository.",
             "type": "string"
           },
           "available": {
+            "description": "The repository is on this machine.",
             "type": "boolean"
           },
           "commit": {
@@ -97,7 +101,7 @@
         "relations"
       ],
       "properties": {
-        "reqseq-data": { "const": 3 },
+        "reqseq-data": { "description": "Version of this file format.", "const": 3 },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
           "description": "As `commit` of the JSON form."
@@ -129,6 +133,7 @@
           "description": "The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306)."
         },
         "title": {
+          "description": "Title of the element; empty without one.",
           "type": "string"
         },
         "text": {
@@ -145,6 +150,7 @@
           "description": "Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out."
         },
         "repository": {
+          "description": "Workspace name of the repository of its file.",
           "type": "string"
         },
         "file": {
@@ -243,6 +249,7 @@
           "description": "`reference` = inline link in the text (SR-066)."
         },
         "direction": {
+          "description": "`out`: the element stores the relation. `in`: another element stores it and points at this one.",
           "enum": ["out", "in"]
         },
         "id": {
@@ -279,6 +286,7 @@
           "$ref": "common.schema.json#/$defs/version"
         },
         "outdated": {
+          "description": "The stored version of the other end differs from its current version.",
           "type": "boolean"
         }
       },
@@ -295,6 +303,7 @@
         },
         "version": { "$ref": "common.schema.json#/$defs/version" },
         "kind": {
+          "description": "Verification or validation.",
           "enum": ["verification", "validation"]
         },
         "method": {
@@ -475,7 +484,11 @@
       "description": "How many acceptance criteria of a requirement are verified (SR-031 AK5, D-072): a criterion is verified when the newest record for it of the current version passed (a record that names no criterion counts for every one, AK6).",
       "required": ["verified", "total"],
       "properties": {
-        "verified": { "type": "integer", "minimum": 0 },
+        "verified": {
+          "description": "The number of verified acceptance criteria.",
+          "type": "integer",
+          "minimum": 0
+        },
         "total": { "type": "integer", "minimum": 1, "description": "The number of acceptance criteria." },
         "notVerified": {
           "type": "array",
@@ -504,11 +517,31 @@
           "description": "How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total.",
           "required": ["open", "verified", "indirect", "failed", "outdated"],
           "properties": {
-            "open": { "type": "integer", "minimum": 0 },
-            "verified": { "type": "integer", "minimum": 0 },
-            "indirect": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "integer", "minimum": 0 },
-            "outdated": { "type": "integer", "minimum": 0 }
+            "open": {
+              "description": "Requirements with the verification status open.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "verified": {
+              "description": "Requirements with the verification status verified.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "indirect": {
+              "description": "Requirements verified indirectly, through their children.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "description": "Requirements with the verification status failed.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "outdated": {
+              "description": "Requirements with the verification status outdated.",
+              "type": "integer",
+              "minimum": 0
+            }
           },
           "additionalProperties": false
         }

@@ -1,8 +1,10 @@
 // One page per catalog command and an index of all of them (SR-139 AK1, AK4). Every text comes from the catalog
-// and the adapters; internal references in it (SR, D, ADR, #nnn) are the tool's own text and stay as they are.
+// and the adapters, as users read it there: without internal references (`scripts/contracts/user-text.mjs`).
+// The page shows the summary and below it the details (#1252); the index and the page description the summary only.
 import type { CatalogEntry } from "@reqseq/core";
 import { commandPagePath } from "@reqseq/core/docs-site";
 import type { CommandAccess } from "./access.js";
+import type { CommandExample } from "./command-examples.js";
 import { codeBlock, inline } from "./markdown.js";
 import type { SchemaContext } from "./schema-fields.js";
 import { fieldTable } from "./schema-fields.js";
@@ -31,12 +33,40 @@ const appSection = (access: CommandAccess): string => {
   return `${prompt}: ${what} **${inline(access.app.name)}**.${withKey(access.app.key, access.appMac.key)}`;
 };
 
+/** Outputs longer than this many lines are folded, so the call sections stay close. */
+export const FOLDED_OUTPUT_LINES = 40;
+
+/** The example: its input, the same call on the command line and its output, or why the command has none. */
+const exampleSection = (example: CommandExample | string | undefined): string => {
+  if (typeof example !== "object") {
+    return example === undefined ? "No example." : `No example: ${inline(example)}`;
+  }
+  const lines = example.output.split("\n").length;
+  const output = codeBlock(example.output, "json");
+  return [
+    "Run in the folder of the weather station, a small example workspace, when this page was built. The input:",
+    "",
+    codeBlock(JSON.stringify(example.input, null, 2), "json"),
+    "",
+    "The same call on the command line:",
+    "",
+    codeBlock(example.cli, "sh"),
+    "",
+    lines > FOLDED_OUTPUT_LINES
+      ? `<details>\n<summary>The output (${String(lines)} lines)</summary>\n\n${output}\n\n</details>`
+      : `The output:\n\n${output}`,
+    "",
+    "The folder of the workspace, the time of the run and new UUIDs are shown as fixed values.",
+  ].join("\n");
+};
+
 /** The Markdown page of one command; `order` places it in the sidebar. */
 export function commandPage(
   entry: CatalogEntry,
   access: CommandAccess,
   context: SchemaContext,
   order: number,
+  example?: CommandExample | string,
 ): string {
   const notYet = access.implemented ? [] : ["This version does not implement the command yet.", ""];
   return [
@@ -49,6 +79,7 @@ export function commandPage(
     "",
     inline(entry.summary),
     "",
+    ...(entry.details === undefined ? [] : [inline(entry.details), ""]),
     `Command \`${entry.name}\`. ${behaviour(entry)}`,
     "",
     ...notYet,
@@ -59,6 +90,10 @@ export function commandPage(
     "## Output",
     "",
     fieldTable(entry.output, context, "No output fields."),
+    "",
+    "## Example",
+    "",
+    exampleSection(example),
     "",
     "## App",
     "",

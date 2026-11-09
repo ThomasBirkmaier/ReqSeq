@@ -885,8 +885,10 @@ export const ListView = ({
       </FoldedSection>
     );
 
+  // The rows share one grid (`.rows`, its rows a subgrid of it), so the status and the verification stand
+  // in one line in every row, however wide their text is (#1275).
   const rowsAndNotes = (
-    <>
+    <div className="rows">
       {listed(scope, groups, rows, (row, at) =>
         rowAt(row, at, verificationAt(verified, row, at), groups === undefined),
       )}
@@ -895,7 +897,7 @@ export const ListView = ({
         <p className="quiet">{buffer.kind === "list" ? "No elements" : `No hits for ${buffer.query}`}</p>
       ) : null}
       {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
-    </>
+    </div>
   );
 
   return (
