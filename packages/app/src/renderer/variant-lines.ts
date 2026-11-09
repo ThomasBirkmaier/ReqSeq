@@ -4,7 +4,7 @@
 // status (SR-047 AK3) is one badge per entry of `verification` in core's order (SR-157 AK1; core gives no
 // entry for a variant that excludes or replaces the requirement): the name of the core or the variant, and
 // its status with the details that belong to it. An `open` one without own record names the children that
-// are missing for an indirect verification (SR-034 AK2): "open (missing SR-1 Title, SR-2 Title)"; one from
+// are missing for an indirect verification (SR-034 AK2): "open (missing SR-1, SR-2)"; one from
 // own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
 // AK3 not verified)". The validation status (SR-038
 // AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line

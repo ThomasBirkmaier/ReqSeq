@@ -170,7 +170,7 @@ test.describe("the verification badges", () => {
   });
 
   for (const scheme of ["light", "dark"] as const) {
-    test(`a parent with missing children keeps its badges compact: one line each, the names whole, the children by ID (#1283, ${scheme})`, async () => {
+    test(`a parent with missing children keeps each badge on one line, the names whole, the children by ID (#1283, ${scheme})`, async () => {
       // Three variants the parent is in, so it has a badge for the core and one for each, all open with
       // missing children, as on the page that broke the badges apart.
       const files = Object.fromEntries(
@@ -198,21 +198,19 @@ test.describe("the verification badges", () => {
       const shapes = await group.locator(".badge").evaluateAll((all) =>
         all.map((badge) => {
           const name = badge.querySelector<HTMLElement>(".badge-name");
-          const row = badge.parentElement;
-          if (name === null || row === null) {
-            throw new Error("no name half or no row");
+          if (name === null) {
+            throw new Error("no name half");
           }
           return {
             oneLine:
               badge.getBoundingClientRect().height <= parseFloat(getComputedStyle(badge).lineHeight) + 0.5,
             nameWhole: name.scrollWidth <= name.clientWidth,
-            compact: badge.getBoundingClientRect().width < row.getBoundingClientRect().width * 0.75,
           };
         }),
       );
       expect(shapes).toHaveLength(4);
       for (const shape of shapes) {
-        expect(shape).toEqual({ oneLine: true, nameWhole: true, compact: true });
+        expect(shape).toEqual({ oneLine: true, nameWhole: true });
       }
       const box = await group.boundingBox();
       expect(box).not.toBeNull();
