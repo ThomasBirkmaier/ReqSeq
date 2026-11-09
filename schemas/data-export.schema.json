@@ -159,7 +159,7 @@
         },
         "readOnly": {
           "type": "boolean",
-          "description": "Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2)."
+          "description": "Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3)."
         },
         "validity": {
           "type": "array",

@@ -630,7 +630,7 @@ export interface DataExportElement {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -682,7 +682,7 @@ export interface DataExportElementPart {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file?: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -734,7 +734,7 @@ export interface DataExportLine {
   readonly repository: string;
   /** Path relative to the repository. */
   readonly file: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
@@ -792,7 +792,7 @@ export interface DataExportElementFields {
   readonly repository?: string;
   /** Path relative to the repository. */
   readonly file?: string;
-  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
