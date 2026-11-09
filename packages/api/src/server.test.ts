@@ -264,14 +264,14 @@ describe("listening", () => {
     expect(LOOPBACK_HOSTS).toEqual(["127.0.0.1", "::1"]);
     // The only place that listens takes the constant; nothing reads the environment for an address.
     const sources = await Promise.all(
-      ["server.ts", "handler.ts", "index.ts"].map((f) =>
+      ["server.ts", "listen.ts", "handler.ts", "index.ts"].map((f) =>
         fs.readFile(path.join(import.meta.dirname, f), "utf8"),
       ),
     );
     const code = sources.join("\n");
     expect(code.match(/listenOn(?:All|ce)\(\w+/g)).toEqual([
-      "listenOnce(hosts",
       "listenOnAll(LOOPBACK_HOSTS",
+      "listenOnce(hosts",
     ]);
     expect(code.match(/\.listen\([^)]*\)/g)).toEqual([".listen({ host, port, exclusive: true }, ()"]);
     expect(code).not.toMatch(/process\.env|0\.0\.0\.0|"::"/);

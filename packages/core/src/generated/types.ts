@@ -1918,6 +1918,8 @@ export interface ElementCreateInput {
  */
 export interface ElementCreateOutput {
   readonly element: DataExportElement;
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
+  readonly names?: readonly ElementName[];
   readonly files: readonly string[];
   readonly problems?: readonly Problem[];
 }
@@ -2144,6 +2146,8 @@ export interface ElementUpdateInput {
  */
 export interface ElementUpdateOutput {
   readonly element: DataExportElement;
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
+  readonly names?: readonly ElementName[];
   /** Of the file as written, or as read when nothing changed (SR-106). */
   readonly fileSha256: FileSha256;
   readonly files: readonly string[];

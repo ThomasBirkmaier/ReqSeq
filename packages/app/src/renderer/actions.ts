@@ -126,6 +126,11 @@ export interface Prompt {
   readonly step?: (text: string, back: boolean) => void;
   /** The text the input starts with (the search of the last "Find in element" for "Replace"). */
   readonly initial?: string;
+  /**
+   * F1 (`HELP_KEY`): open the documentation of the chosen entry, or with none the start page, in the browser; the
+   * prompt stays open (the command prompt, SR-141 AK3).
+   */
+  readonly help?: (choice: Choice | undefined) => void;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
   /** Backspace in an empty input: one argument back (catalog commands). */
@@ -278,6 +283,11 @@ export interface ActionContext {
    * never reads the clipboard. Absent: "Paste" says it cannot.
    */
   readonly paste?: () => void;
+  /**
+   * Opens the bundled documentation in the browser (SR-141): the start page, or the page of `topic`, a catalog
+   * command name or an action ID; says in the minibuffer whether it could. Absent: the app cannot.
+   */
+  readonly docs?: (topic?: string) => void;
   /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
   readonly notify?: (text: string) => void;
   /**
@@ -1235,6 +1245,15 @@ export const ACTIONS: readonly Action[] = [
       if (workspaces !== undefined) {
         context.ask(workspacePrompt({ workspaces, echo: context.echo }));
       }
+    },
+  },
+  {
+    // Also without a workspace: the documentation helps most before one is open (SR-141).
+    id: "open-documentation",
+    title: "Open documentation",
+    available: (context: ActionContext): boolean => context.docs !== undefined,
+    run: (context: ActionContext): void => {
+      context.docs?.();
     },
   },
   {

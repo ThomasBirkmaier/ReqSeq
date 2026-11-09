@@ -21,6 +21,8 @@ describe("main process entry", () => {
       preload: path.join(here, "..", "preload", "index.cjs"),
       renderer: path.join(here, "..", "renderer"),
       core: path.join(here, "core.js"),
+      // Unpackaged: the docs folder of the CLI package next to the app package.
+      docs: path.join(here, "..", "..", "..", "cli", "docs"),
     });
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     options.log("Blocked a request to https://example.com");

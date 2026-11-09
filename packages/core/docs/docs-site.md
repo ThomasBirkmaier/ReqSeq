@@ -1,6 +1,6 @@
 # Docs-site block (`src/docs-site/`)
 
-The offline documentation site that ships with a delivery (SR-141, ADR-0017 "Offline build"). Exported as `@reqseq/core/docs-site`, imports only `node:*` and reads only, so every way in (`reqseq serve docs` through `startDocsServer` of `@reqseq/api`, later the app) serves the same bytes by the same rule. It is no catalog command: it serves fixed delivery files, not values of a workspace (ADR-0017).
+The offline documentation site that ships with a delivery (SR-141, ADR-0017 "Offline build"). Exported as `@reqseq/core/docs-site`, imports only `node:*` and reads only, so every way in (`reqseq serve docs` and the app's Help, both through `startDocsServer` of `@reqseq/api`) serves the same bytes by the same rule. It is no catalog command: it serves fixed delivery files, not values of a workspace (ADR-0017).
 
 - `openDocsSite(folder)`: the site in `folder` (symbolic links of the folder resolved), or `undefined` when it has no `index.html`. `respond(target)` answers a raw request target and never rejects.
 - `siteSegments(target)`: the request target without query and fragment, decoded once, split at `/`. Refused (no file): a target not starting with `/`, a bad escape, an empty segment, `.`, `..`, a segment starting with `.`, and one with `\`, `:` or a control character (NUL too). A trailing `/`, or a last segment without extension, means its `index.html`.

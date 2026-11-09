@@ -7,7 +7,7 @@ import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches } from "./keys.js";
-import { MORE_SHORTCUT } from "./prompt-keys.js";
+import { HELP_KEY, MORE_SHORTCUT } from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
@@ -494,6 +494,13 @@ const PromptLine = ({
       return;
     }
     if (argumentKey(event)) {
+      return;
+    }
+    // F1: the documentation of the chosen entry in the browser (SR-141 AK3); the prompt stays open.
+    if (event.key === HELP_KEY && prompt.help !== undefined) {
+      event.preventDefault();
+      event.stopPropagation();
+      prompt.help(current?.item.inert === true ? undefined : current?.item);
       return;
     }
     switch (event.key) {

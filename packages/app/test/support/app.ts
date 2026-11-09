@@ -260,6 +260,8 @@ export interface LaunchOptions {
    * builds). Default true; the performance suite starts the app without it, as a user's app runs (#147).
    */
   readonly validateOutput?: boolean;
+  /** The documentation site the app opens (`--docs-folder`, unpackaged builds only, SR-141): a fixture site. */
+  readonly docsFolder?: string;
 }
 
 /**
@@ -371,6 +373,7 @@ export const launchApp = async (
       ...(workspace === undefined || options.withoutWorkspace === true
         ? []
         : ["--workspace", workspace.root]),
+      ...(options.docsFolder === undefined ? [] : [`--docs-folder=${options.docsFolder}`]),
     ],
     env,
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),
@@ -562,6 +565,23 @@ export const listAll = async (window: Page): Promise<void> => {
   await window.keyboard.press("Enter");
   await window.locator(".row").first().waitFor();
 };
+
+/**
+ * The card above the command line stands in its place: its rise (SR-182) has ended. A box read while it
+ * rises is up to its rise lower than the card later is, so a press of the mouse there misses (#1222).
+ */
+export const cardSettled = (window: Page): Promise<void> =>
+  expect
+    .poll(() =>
+      window.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((one) => ["card-rise", "card-show"].includes((one as CSSAnimation).animationName))
+            .filter((one) => one.playState === "running").length,
+      ),
+    )
+    .toBe(0);
 
 /**
  * The sort the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418), as the CLI takes it: a test that compares a list with

@@ -78,7 +78,9 @@ import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
+import { docsEcho, withHelp } from "./docs-help.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
+import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext, promptEntry } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
@@ -648,6 +650,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       });
     },
     notify,
+    // The bundled documentation in the browser (SR-141): main serves it on loopback and opens the page.
+    docs: (topic) => {
+      void bridge.openDocs(topic).then((result) => {
+        setEcho(docsEcho(result));
+      });
+    },
     recent: () =>
       recentRef.current.flatMap((entry) => {
         const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);
@@ -725,6 +733,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   latest.current = context;
   const propertiesNow = useRef(properties);
   propertiesNow.current = properties;
+  // Help > ReqSeq Documentation (SR-141 AK2): as the action "Open documentation".
+  useEffect(() => bridge.onHelp(() => latest.current.docs?.()), [bridge]);
   // Before another workspace opens in this window (also from File > Open Workspace), main asks to save
   // the unsaved input; it switches only when all is saved (SR-131 AK3, `switch.ts`). From then on the
   // window is switching: the sheet takes no input and the minibuffer says so, until the other workspace
@@ -866,7 +876,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       catalog.current,
       ACTIONS,
     );
-    return commandPrompt(now, promptUse(appStorage), items);
+    return withHelp(commandPrompt(now, promptUse(appStorage), items), now, catalog.current);
   }, [ask]);
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
@@ -891,9 +901,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   };
   const cancelPromptNow = useRef(cancelPrompt);
   cancelPromptNow.current = cancelPrompt;
-  // The context menu (D-075, SR-194): its entries are those of the command prompt now, so they are worked
-  // out again on every render while it is open, and the entry clicked runs from the latest context.
+  // The context menu (D-075, SR-194): which entries it shows is worked out when it opens (`openEntries`);
+  // they are taken from the command prompt's entries on every render, so the entry clicked runs from the
+  // latest context.
   const menuEntriesNow = useRef<readonly string[]>([]);
+  const openedMenu = useRef<OpenedMenu | undefined>(undefined);
   const chooseEntry = (index: number): void => {
     const id = menuEntriesNow.current[index];
     contextMenu.close();
@@ -928,7 +940,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The menu of an entry acts on the element of the entry (SR-197): while it is open, the commands are built
   // from the context with that element, so its entries and the one clicked act on it.
   latest.current = menuContext(context, contextMenu.menu, kindNames);
-  const shownEntries = openEntries(contextMenu.menu, () => commands().items);
+  const menuNow = openEntries(contextMenu.menu, () => commands().items, openedMenu.current);
+  openedMenu.current = menuNow.opened;
+  const shownEntries = menuNow.entries;
   menuEntriesNow.current = shownEntries.map((entry) => entry.id);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {

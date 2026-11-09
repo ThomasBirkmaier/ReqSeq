@@ -6,7 +6,7 @@ import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { writtenWithStatus } from "../../data/index.js";
+import { writtenWithNames } from "../../data/index.js";
 import { editElementFile, parseFileBytes } from "../../files/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import type { ElementRecord, ElementStore } from "../../model/index.js";
@@ -1164,7 +1164,37 @@ describe("the status in the answer of a write (#214)", () => {
       { ...created, id: "no-such-uuid" },
       { ...created, file: "needs/elsewhere.md" },
     ]) {
-      expect(await writtenWithStatus(opened.workspace, other)).toBe(other);
+      expect(await writtenWithNames(opened.workspace, other)).toEqual({ element: other });
     }
+  });
+
+  it("element.update and element.create name the variants and views by short ID as element.get does (#1216)", async () => {
+    const P = "43043043-0000-4000-8000-0000000000";
+    // fixtures/SR-043/example: A1 applies in A (Coast) and replaces K1 there.
+    const opened = await open({ fixture: "SR-043/example" });
+    const names = (output: { readonly names?: readonly { readonly shortId: string }[] }): string[] =>
+      (output.names ?? []).map((n) => n.shortId);
+    const shown = (await invoke(
+      "element.get",
+      { ref: "SR-0000b1" },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"element.get">;
+    const updated = await update(opened, { ref: "SR-0000b1", title: "Response time at most 15 ms" });
+    expect(updated.element.verification?.map((v) => v.view)).toEqual([`${P}c1`]);
+    expect(names(updated)).toEqual(["VAR-0000c1"]);
+    expect(names(updated)).toEqual(names(shown));
+    // A new core requirement is in the core and in every variant that does not leave it out.
+    const created = (await invoke(
+      "element.create",
+      { type: "system-requirement", title: "Show the wind speed" },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"element.create">;
+    const again = (await invoke(
+      "element.get",
+      { ref: created.element.id },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"element.get">;
+    expect(names(created)).toContain("VAR-0000c1");
+    expect(created.names).toEqual(again.names);
   });
 });

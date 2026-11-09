@@ -3,7 +3,8 @@
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
 // facilities of the window ask the main process: `copyText` writes the clipboard (SR-128), `pasteText`
-// has main paste it into the focused field (SR-195 AK3),
+// has main paste it into the focused field (SR-195 AK3), `openDocs` opens the bundled documentation in the
+// browser and `onHelp` hears Help > ReqSeq Documentation (SR-141),
 // `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
 // workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders of a path typed
 // there (SR-143 AK1), and `onSave` sets what saves the window's unsaved
@@ -21,7 +22,10 @@ import type {
 } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  DOCS_CHANNEL,
+  DOCS_FAILED,
   EDIT_CHANNEL,
+  HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
@@ -31,6 +35,7 @@ import {
   WORKSPACE_CHANNEL,
   folderListing,
   isBridgeEvent,
+  openDocsResult,
   openWorkspaceResult,
   portMessage,
   recentWorkspaceEntries,
@@ -145,6 +150,14 @@ export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platfor
     });
   });
 
+  // Help > ReqSeq Documentation (SR-141 AK2): the message carries nothing, so nothing of it is read.
+  const helpListeners = new Set<() => void>();
+  ipc.on(HELP_CHANNEL, () => {
+    for (const listener of helpListeners) {
+      listener();
+    }
+  });
+
   // What saves the window's unsaved input when main asks (SR-131 AK3); without one nothing is unsaved.
   let saver: ((request: SaveReason) => Promise<boolean>) | undefined;
   ipc.on(SAVE_CHANNEL, (_event, value) => {
@@ -200,6 +213,24 @@ export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platfor
       } catch {
         return false;
       }
+    },
+    // Only a topic of the right type goes to main, which checks it again; its answer is checked like the port's.
+    openDocs: async (topic) => {
+      try {
+        return openDocsResult(await ipc.invoke(DOCS_CHANNEL, ...(typeof topic === "string" ? [topic] : [])));
+      } catch {
+        return DOCS_FAILED;
+      }
+    },
+    onHelp: (listener) => {
+      // Each subscription is its own, even when the same function subscribes twice.
+      const own = (): void => {
+        listener();
+      };
+      helpListeners.add(own);
+      return () => {
+        helpListeners.delete(own);
+      };
     },
     // Main's answers are checked like the port's: anything of another shape is an empty list or a refusal.
     recentWorkspaces: async () => {

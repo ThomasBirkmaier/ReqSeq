@@ -2,11 +2,11 @@
 // 127.0.0.1 only. It needs no workspace and no token and writes nothing; which file a request gets, its
 // headers and the CSP are the rule of `@reqseq/core/docs-site`, so the app serves the same bytes.
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { CommandError } from "@reqseq/core";
+import { CommandError } from "@reqseq/core/command-error";
 import type { DocsResponse } from "@reqseq/core/docs-site";
 import { TEXT_TYPE, docsHeaders, openDocsSite } from "@reqseq/core/docs-site";
 import { loopbackHost } from "./loopback.js";
-import { checkPort, closeServer, listenOnAll } from "./server.js";
+import { checkPort, closeServer, listenOnAll } from "./listen.js";
 
 /** The only address the docs server listens on; there is no option for another one. */
 export const DOCS_HOST = "127.0.0.1";

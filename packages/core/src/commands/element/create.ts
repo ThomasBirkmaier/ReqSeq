@@ -2,12 +2,12 @@
 // named from the type prefix and the last 12 digits of a new random UUID v4 (D-017, D-056). The
 // element gets the initial status of the metamodel (ADR-0002 rule 6). See model/write.ts. A variant
 // is not written with validity entries (SR-039 AK2, variants/nested.ts). The element has its verification
-// and validation status as element.get gives it (#214).
+// and validation status as element.get gives it (#214), with `names` for its variants and views (#1216).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
-import { writtenWithStatus } from "../../data/index.js";
+import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
 
 export default defineCommand({
@@ -20,7 +20,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.create"),
     );
     const { files, problems } = written;
-    const element = await writtenWithStatus(ctx.workspace, written.element);
-    return { element, files: [...files], problems: [...problems] };
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
+    return { element, ...names, files: [...files], problems: [...problems] };
   },
 });

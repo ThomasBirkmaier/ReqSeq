@@ -549,11 +549,12 @@ describe("element.create", () => {
 
   it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
     const opened = await standard();
-    // One text where the metamodel wants a list of texts; a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309).
+    // A number where the metamodel wants a text in a list of texts (one text where it wants the list is
+    // stored as a list of one, #1209); a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309).
     const out = await create(opened, {
       type: "system-requirement",
       title: "Wrong",
-      properties: { "requirement-type": "functional", "acceptance-criteria": "Shows it" },
+      properties: { "requirement-type": "functional", "acceptance-criteria": [3] },
     });
     expect(out.problems).toEqual([
       expect.objectContaining({
@@ -561,7 +562,7 @@ describe("element.create", () => {
         severity: "warning",
         repository: "system",
         file: out.element.file,
-        line: 7,
+        line: 8,
         elementId: out.element.id,
       }),
       noParent(out),

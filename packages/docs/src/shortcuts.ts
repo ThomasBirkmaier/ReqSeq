@@ -10,6 +10,13 @@ export const SHORTCUTS_PAGE = "reference/keyboard-shortcuts.md";
 const keyCell = (keys: readonly string[]): string =>
   keys.length === 0 ? "—" : keys.map((key) => `\`${key}\``).join(", ");
 
+/**
+ * The anchors of a row, `action-<id>` per action whose key it is: F1 on the action in the app's command prompt opens
+ * the page there (SR-141 AK3). Action IDs are lower-case words with hyphens, so they need no escaping.
+ */
+const anchors = (actions: readonly string[] = []): string =>
+  actions.map((id) => `<span id="action-${id}"></span>`).join("");
+
 /** The Markdown page of every key of the app, a section each. */
 export function shortcutsPage(sections: readonly ShortcutSection[]): string {
   return [
@@ -27,7 +34,11 @@ export function shortcutsPage(sections: readonly ShortcutSection[]): string {
       "",
       table(
         ["Windows and Linux", "macOS", "What it does"],
-        section.rows.map((row) => [keyCell(row.keys), keyCell(row.mac), cell(row.does)]),
+        section.rows.map((row) => [
+          `${anchors(row.actions)}${keyCell(row.keys)}`,
+          keyCell(row.mac),
+          cell(row.does),
+        ]),
       ),
       "",
     ]),

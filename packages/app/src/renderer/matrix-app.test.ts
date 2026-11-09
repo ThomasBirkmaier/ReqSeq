@@ -179,6 +179,8 @@ const bridge = () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
+      openDocs: () => Promise.resolve({ ok: true as const }),
+      onHelp: () => () => undefined,
       on: () => () => undefined,
     } satisfies ReqSeqBridge,
   };

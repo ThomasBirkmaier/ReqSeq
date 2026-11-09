@@ -97,6 +97,8 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
     openWorkspace: () => Promise.resolve({ ok: true }),
     listFolder: () => Promise.resolve({ name: "", entries: [] }),
     onSave: () => () => undefined,
+    openDocs: () => Promise.resolve({ ok: true as const }),
+    onHelp: () => () => undefined,
   };
   const emit = async (event: keyof typeof listeners, data: unknown): Promise<void> => {
     await act(async () => {

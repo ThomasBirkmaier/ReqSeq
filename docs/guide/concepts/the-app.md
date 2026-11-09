@@ -17,7 +17,7 @@ Ctrl+Shift+P opens the command prompt. It lists the actions and commands, those 
 
 An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait to see the letters that may follow.
 
-The prompt's ReqSeq commands are those of the CLI, the API and MCP, with the same result: see the [command reference](/reference/commands/).
+The prompt's ReqSeq commands are those of the CLI, the API and MCP, with the same result: see the [command reference](/reference/commands/). F1 on a command in the prompt opens its reference page in your browser.
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
@@ -40,6 +40,10 @@ A workspace opens on the overview: the number of elements per type and the eleme
 ## Context menus
 
 A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens a menu of the commands for that place, named and keyed as in the command prompt. Its last entry, **All commands…**, opens the prompt.
+
+## Help
+
+**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens this documentation in your default browser. It comes with the app, in the version of the app, and needs no network.
 
 ## Light and dark
 
