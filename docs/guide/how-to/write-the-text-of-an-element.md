@@ -2,15 +2,15 @@
 title: Write the text of an element
 description: Write an element's text in the app - the slash menu, references to other elements, images, lists, tasks, tables and folded sections - and what each does to the file and the version.
 sidebar:
-  order: 3
+  order: 13
 ---
 
-The text of an element is Markdown (CommonMark with the GitHub extensions) in its file, below the properties. The app shows it formatted and shows the source of the line the cursor is in. It writes nothing but plain Markdown, so the file reads the same in any text editor and on the Git server. The text counts to the version of the element: a relation to it is marked outdated when the text changes. The keys are in [In the text editor](/reference/keyboard-shortcuts/#in-the-text-editor); on macOS, read ⌘ for Ctrl and ⌥ for Alt.
+The text of an element is Markdown (CommonMark with the GitHub extensions) in its file, below the properties. The app shows it formatted, with the source of the cursor's line. It writes nothing but plain Markdown, so the file reads the same in any text editor and on the Git server. The text counts to the version of the element: a relation to it is marked outdated when the text changes. The keys are in [In the text editor](/reference/keyboard-shortcuts/#in-the-text-editor); on macOS, read ⌘ for Ctrl and ⌥ for Alt.
 
 ## App
 
 1. Open the element with Ctrl+P and press Enter to put the cursor into its text. Ctrl+S saves, Escape leaves the text.
-2. Type `/` at the start of a line or after a space for the slash menu: headings, lists, a task list, a quote, a code block, a table, a link, a reference, an image, bold and italic text, today's date and a calendar. Typing narrows the list, Enter takes the entry.
+2. Type `/` at the start of a line or after a space for the slash menu: headings, normal text, lists, a task list, a quote, a code block, a math block, a diagram, a table, a link, a reference to an element, an image, bold and italic text, today's date and a calendar. Typing narrows the list, Enter takes the entry.
 3. Type `[[` for a reference to another element and pick it in the prompt that opens. The reference keeps the version of its target, so it is marked outdated when the target changes. A click on it opens the target.
 4. Paste or drop an image file, or take “Image” in the slash menu. ReqSeq copies the file into a folder next to the element file, named like that file without its extension, and links it relatively. The image counts to the version too. An image from the network is never loaded.
 5. Paste formatted text from a browser or a word processor: it arrives as Markdown, never as HTML.
@@ -56,7 +56,7 @@ SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
 
-`reqseq:N-7fe707` without the Markdown link is no reference, and `workspace check` warns about it (`relation.not-a-link`).
+`reqseq:N-7fe707` without the Markdown link is no reference, nor is a reference-style link (`[the need][n]` with `[n]: reqseq:N-7fe707`); `workspace check` warns about both (`relation.not-a-link`, `relation.reference-style`).
 
 For an image, `reqseq element add-attachment SR-c67baa --source-path layout.png` copies the file next to the element and prints the Markdown to put into the text.
 

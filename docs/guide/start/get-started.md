@@ -87,7 +87,7 @@ No problems.
 
 The relation keeps the version of the need. When the need changes, ReqSeq marks the relation as outdated, so you know to review the requirement.
 
-In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property. Later, Down moves to a property's box on the element and Enter edits it. Then run **Create relation** (Ctrl+K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
+In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property; **Add property** fills a skipped one later. Then run **Create relation** (Ctrl+K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
 
 ![The requirement "Show the wind speed" open in the app: its text, its requirement type and acceptance criteria, and below them the need it derives from.](../images/app-element.png)
 

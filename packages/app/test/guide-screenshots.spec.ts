@@ -14,6 +14,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
+import { expectNextToLine } from "./support/tooltip-place.js";
 
 const GET_STARTED = { fixture: "SR-140/get-started" };
 const WEATHER_STATION = { fixture: "enabler-344/weather-station" };
@@ -102,6 +103,8 @@ test("screenshots of Get started and of the text editor, on the workspace the st
     const menu = window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
     await expect(menu.locator("li").first()).toBeVisible();
     await expect(window.locator(".cm-lr-slash-leaving")).toHaveCount(0);
+    // In place next to the line, not where CodeMirror first measures it (#1126).
+    await expectNextToLine(menu, window.locator('[data-field="Text"] .cm-line').last());
     await shot("slash-menu");
   } finally {
     await running.close();
