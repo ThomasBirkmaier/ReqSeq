@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/workspace-local.schema.json",
   "title": "Local workspace overrides",
-  "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
+  "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.",
   "type": "object",
   "required": ["reqseq-local"],
   "properties": {

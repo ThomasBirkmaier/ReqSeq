@@ -10,8 +10,8 @@ A system requirement traces to the need it meets through a relation stored in it
 ## App
 
 1. Create the need and the requirements with **Create element** (Ctrl+K E, ⌘K E on macOS).
-2. In the element buffer of a requirement, run **Create relation** (Ctrl+K R) and choose the kind `derives-from` and the need.
-3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J) shows the children of the open element in place.
+2. In the element buffer of a requirement, run **Create relation** (Ctrl+K R) and choose the kind Derives from and the need.
+3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J) shows the parents, children and incoming links of the open element in place.
 4. In a list of elements, **Show traceability matrix** (Ctrl+T, ⌘T) shows the list as a matrix, one column per relation kind and direction.
 5. **Show graph** (Ctrl+Shift+G, ⌘⇧G) draws the element with its neighbours. Each requirement shows its verification status and verified criteria, a need the share of its requirements that are verified.
 
