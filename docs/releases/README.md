@@ -2,6 +2,8 @@
 
 One file per version, `<version>.md` (`0.8.5.md`, also for the tag `v0.6`: `0.6.0.md`), written in the version PR of a release. It stands at the top of the GitHub release and on the page "What's new" of the documentation site, above the folded list of commits (`scripts/package/stage.mjs --release-body`, `--whats-new`).
 
+The agent that prepares the release writes it from the commits since the previous release tag (the folded list under it, `git log --first-parent --format=%s <previous tag>..main`): it picks what a user notices, groups related changes into one point, and leaves out small fixes and changes of tests, build, documentation workflow and spec process. The product owner reads it in the version PR before setting the tag.
+
 It tells a user what changed for them:
 
 - One bold line that names the theme of the release.
