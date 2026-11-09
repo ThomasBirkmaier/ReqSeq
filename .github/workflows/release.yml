@@ -61,6 +61,31 @@ jobs:
           pnpm audit --dir toolchain/packaging --audit-level high
       - name: Stage the app and the command line
         run: node scripts/package/stage.mjs
+      # What electron-builder downloads (the Electron zip, its tools such as 7-Zip and rcedit) is cached per system,
+      # electron-builder and Electron version, so a run normally fetches nothing (#1234). The zip goes to
+      # @electron/get's default cache, which electron-builder gives no setting for: env-paths("electron").cache.
+      - name: Download cache folders
+        id: download-cache
+        run: |
+          case "$RUNNER_OS" in
+            macOS) electron="$HOME/Library/Caches/electron" ;;
+            Windows) electron="$LOCALAPPDATA/electron/Cache" ;;
+            *) electron="${XDG_CACHE_HOME:-$HOME/.cache}/electron" ;;
+          esac
+          {
+            echo "electron=$electron"
+            builder="$(node -p 'require("./toolchain/packaging/package.json").devDependencies["electron-builder"]')"
+            version="$(node -p 'require("./packages/app/package.json").devDependencies.electron')"
+            echo "key=electron-builder-$RUNNER_OS-$RUNNER_ARCH-$builder-electron-$version"
+          } >> "$GITHUB_OUTPUT"
+          echo "ELECTRON_BUILDER_CACHE=$RUNNER_TEMP/electron-builder-cache" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: download-cache-restore
+        with:
+          path: |
+            ${{ steps.download-cache.outputs.electron }}
+            ${{ runner.temp }}/electron-builder-cache
+          key: ${{ steps.download-cache.outputs.key }}
       # Called directly, not through pnpm, so electron-builder does not take the folders for a pnpm workspace.
       # No certificate is ever used: ad-hoc signature on macOS (ADR-0014).
       - name: Package
@@ -71,6 +96,14 @@ jobs:
         run: >-
           toolchain/packaging/node_modules/.bin/electron-builder --projectDir build/package/app
           --config "$PWD/toolchain/packaging/electron-builder.config.mjs" "$TARGET" --publish never
+      # Saved right after packaging, so that a red delivery test still fills the cache.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.download-cache-restore.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ${{ steps.download-cache.outputs.electron }}
+            ${{ runner.temp }}/electron-builder-cache
+          key: ${{ steps.download-cache-restore.outputs.cache-primary-key }}
       - name: Pack the command line (CLI tarball)
         if: runner.os == 'Linux'
         run: node scripts/package/stage.mjs --pack

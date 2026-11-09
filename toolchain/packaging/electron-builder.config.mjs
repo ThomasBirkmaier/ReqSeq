@@ -16,13 +16,30 @@ const staged = (name) => {
 };
 
 const launchers = staged("REQSEQ_STAGED_LAUNCHERS");
+const electronVersion = staged("REQSEQ_ELECTRON_VERSION");
+
+// The SHA-256 sums of the Electron zips, from the electron package the workspace lockfile pins (#1234). Without
+// them, @electron/get fetches SHASUMS256.txt from the Electron release on every build, even with the zip cached,
+// and a 504 there fails the build. The zip is still checked against these sums.
+const electronPackage = join(import.meta.dirname, "..", "..", "packages", "app", "node_modules", "electron");
+const electronPackageVersion = JSON.parse(
+  readFileSync(join(electronPackage, "package.json"), "utf8"),
+).version;
+if (electronPackageVersion !== electronVersion) {
+  throw new Error(
+    `electron ${electronPackageVersion} is installed, but ${electronVersion} is packaged: run pnpm install`,
+  );
+}
+const electronChecksums = JSON.parse(readFileSync(join(electronPackage, "checksums.json"), "utf8"));
+
 // The app icon (#410), generated from icon/icon.svg by scripts/icon/generate.mjs.
 const icon = (name) => join(import.meta.dirname, "icon", name);
 
 export default {
   appId: names.appId,
   productName: names.productName,
-  electronVersion: staged("REQSEQ_ELECTRON_VERSION"),
+  electronVersion,
+  electronDownload: { checksums: electronChecksums },
   directories: { output: staged("REQSEQ_DELIVERY_DIR") },
   files: ["package.json", "out/**", "node_modules/**", "!**/*.map", "!**/*.d.ts", "!**/*.tsbuildinfo"],
   asar: true,
