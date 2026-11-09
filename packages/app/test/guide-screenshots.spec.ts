@@ -3,11 +3,11 @@
 // element" (the slash menu) are made on `fixtures/SR-140/get-started`: exactly the need and the requirement the steps
 // of Get started create, with the same IDs (#1253). The traceability matrix and the graph of the standard model are
 // made on `fixtures/enabler-344/weather-station`, which has more elements; the graph in a window of 1600×1000, cut
-// to its boxes. The verification marks of "Record test evidence" and the graph of "Trace a requirement" (#1248) are made on `fixtures/SR-136/graph`, whose
-// need has ten requirements with every status. They go to `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set
-// (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's copy, committed after a run; a normal run
-// leaves tracked files alone. They are made on Linux only, because fonts differ between systems, and nothing
-// compares pixels.
+// to its boxes. The verification marks of "Record test evidence" and the graph of "Trace a requirement" (#1248)
+// are made on `fixtures/SR-136/graph`, whose need has ten requirements with every status. They go to
+// `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's
+// copy, committed after a run; a normal run leaves tracked files alone. They are made on Linux only, because fonts
+// differ between systems, and nothing compares pixels.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -184,14 +184,14 @@ test("screenshots of the verification status: the marks on a requirement and the
 
     // A requirement whose test failed: its badge in the accent colour.
     await open(window, "Show reading 7");
-    await expect(window.locator("article")).toContainText("failed");
+    await expect(window.locator('article .badge[data-status="failed"]')).toBeVisible();
     await shot("verification-badges");
 
     // The need: each requirement with its status and ring, the need with its degree.
+    // The need in the middle of the window, with the requirements next to it below.
     await open(window, "See the weather");
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", /^[1-9]/);
-    await expect(window.locator(".graph-ring").first()).toBeVisible();
+    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", "12");
     await shot("verification-graph");
   } finally {
     await running.close();
