@@ -1,6 +1,6 @@
 import { contractsBundle } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { fieldRows, fieldTable, refName, resolveRef, typeText } from "./schema-fields.js";
+import { fieldRows, fieldTable, refName, resolveRef, typeText, undescribedFields } from "./schema-fields.js";
 
 const context = { schemas: contractsBundle.schemas };
 
@@ -103,20 +103,37 @@ describe("schema fields", () => {
     ]);
   });
 
-  it("fails on a field without a text, a default alone included, naming each such field", () => {
+  it("names each field without a text by its table, a default alone or white space included", () => {
     const schema = {
       properties: {
         named: { type: "string", description: "Named." },
         limit: { type: "integer", default: 10 },
+        blank: { type: "string", description: " " },
         list: { type: "object", properties: { deep: { type: "string" } } },
       },
     };
-    expect(() => fieldTable(schema, context, "none")).toThrow(
-      "fields without a description: limit, list, list.deep",
-    );
+    expect(undescribedFields(schema, context, "input")).toEqual([
+      "input.limit",
+      "input.blank",
+      "input.list",
+      "input.list.deep",
+    ]);
     expect(
       fieldTable({ properties: { named: { type: "string", description: "Named." } } }, context, ""),
     ).toContain("| `named` | `string` | no | Named. |");
     expect(fieldTable({ type: "object" }, context, "none")).toBe("none");
+  });
+
+  it("finds no text in a cycle of $refs without one", () => {
+    const schemas = [
+      {
+        $id: "https://reqseq.dev/schemas/c.schema.json",
+        $defs: { a: { $ref: "#/$defs/b" }, b: { $ref: "#/$defs/a" } },
+      },
+    ];
+    const context = { schemas, base: "https://reqseq.dev/schemas/c.schema.json" };
+    expect(undescribedFields({ properties: { loop: { $ref: "#/$defs/a" } } }, context, "fields")).toEqual([
+      "fields.loop",
+    ]);
   });
 });

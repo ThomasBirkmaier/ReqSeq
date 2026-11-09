@@ -102,17 +102,22 @@ export function typeText(schema: Schema, context?: SchemaContext): string {
   return code(typeof type === "string" ? type : "any");
 }
 
-/** The text of a schema: its own, else that of the definition its `$ref` names, followed over further `$ref`s. */
-const ownText = (schema: Schema, context: SchemaContext): string => {
+/**
+ * The text of a schema: its own, else that of the definition its `$ref` names, followed over further `$ref`s; none
+ * for a cycle of `$ref`s without a text.
+ */
+const ownText = (schema: Schema, context: SchemaContext, seen: ReadonlySet<string> = new Set()): string => {
   const own = schema["description"];
+  if (typeof own === "string") {
+    return own;
+  }
   const ref = schema["$ref"];
-  const target = typeof own !== "string" && typeof ref === "string" ? resolveRef(ref, context) : undefined;
-  return typeof own === "string"
-    ? own
-    : target === undefined
-      ? ""
-      : // A `$ref` of the definition resolves against the file that holds it.
-        ownText(target, { ...context, base: new URL(String(ref), context.base ?? CATALOG_BASE).href });
+  // A `$ref` of the definition resolves against the file that holds it.
+  const url = typeof ref === "string" ? new URL(ref, context.base ?? CATALOG_BASE).href : undefined;
+  const target = url === undefined || seen.has(url) ? undefined : resolveRef(String(ref), context);
+  return target === undefined || url === undefined
+    ? ""
+    : ownText(target, { ...context, base: url }, new Set([...seen, url]));
 };
 
 /** The text of a field: its own or its definition's, else that of its items, so a list reads like its entries. */
@@ -147,6 +152,7 @@ const objectParts = (
     ),
   ) as Schema;
   const merged = Object.assign({}, ...parts.map(propertiesOf)) as Schema;
+  // A property taken from a `$ref` part keeps the caller's base, so this holds for `$ref`s within one file only.
   return {
     properties: Object.fromEntries(
       Object.entries(merged).map(([name, value]) => [
@@ -173,7 +179,7 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
       type: typeText(field, context),
       required: required.has(name),
       description: describe(field, context),
-      described: fieldText(field, context) !== "",
+      described: fieldText(field, context).trim() !== "",
     };
     const items = isSchema(field["items"]) ? field["items"] : undefined;
     const nested =
@@ -189,15 +195,17 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
 }
 
 /**
- * The field table of an object schema, or `none` when it has no fields. Throws when a field has no text of its own,
- * of its definition or of its items (a default alone is no text), so no field ships without one (#1249).
+ * The fields of an object schema without a text of their own, of their definition or of their items (a default alone,
+ * or white space, is no text), each as `<table>.<field>`, so no field ships without one (#1249).
  */
+export const undescribedFields = (schema: Schema, context: SchemaContext, table: string): string[] =>
+  fieldRows(schema, context)
+    .filter((row) => !row.described)
+    .map((row) => `${table}.${row.field}`);
+
+/** The field table of an object schema, or `none` when it has no fields. */
 export function fieldTable(schema: Schema, context: SchemaContext, none: string): string {
   const rows = fieldRows(schema, context);
-  const missing = rows.filter((row) => !row.described);
-  if (missing.length > 0) {
-    throw new Error(`fields without a description: ${missing.map((row) => row.field).join(", ")}`);
-  }
   return rows.length === 0
     ? none
     : table(

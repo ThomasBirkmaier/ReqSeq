@@ -962,15 +962,15 @@ export interface DataExportVerificationDegree {
   readonly total: number;
   /** How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total. */
   readonly counts: {
-    /** Requirements with the status open. */
+    /** Requirements with the verification status open. */
     readonly open: number;
-    /** Requirements with the status verified. */
+    /** Requirements with the verification status verified. */
     readonly verified: number;
     /** Requirements verified indirectly, through their children. */
     readonly indirect: number;
-    /** Requirements with the status failed. */
+    /** Requirements with the verification status failed. */
     readonly failed: number;
-    /** Requirements with the status outdated. */
+    /** Requirements with the verification status outdated. */
     readonly outdated: number;
   };
 }

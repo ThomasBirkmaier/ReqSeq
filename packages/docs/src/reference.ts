@@ -11,6 +11,8 @@ import { CODES_PAGE, codesPage } from "./codes.js";
 import { commandIndex, commandPage } from "./command-page.js";
 import type { Example } from "./formats.js";
 import type { StandardModel } from "./standard-model.js";
+import type { Schema, SchemaContext } from "./schema-fields.js";
+import { undescribedFields } from "./schema-fields.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
 import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
 import {
@@ -54,15 +56,18 @@ export interface ReferenceSources {
   readonly standardModel: StandardModel;
 }
 
-/** The page `render` writes at `path`; none when it throws, with the error noted in `failures` under the page. */
-function rendered(path: string, render: () => string, failures: string[]): Page[] {
-  try {
-    return [{ path, text: render() }];
-  } catch (error) {
-    failures.push(`${path}: ${(error as Error).message}`);
-    return [];
+/** Notes in `failures` the fields of the page at `path` without a description (`undescribedFields`), if any. */
+function noteUndescribed(path: string, fields: readonly string[], failures: string[]): void {
+  if (fields.length > 0) {
+    failures.push(`${path}: fields without a description: ${fields.join(", ")}`);
   }
 }
+
+/** The fields without a description of each `$defs` entry of a schema, as `<definition>.<field>`. */
+const undescribedDefinitions = (schema: JsonSchema, context: SchemaContext): string[] =>
+  Object.entries((schema["$defs"] ?? {}) as Readonly<Record<string, Schema>>).flatMap(([name, definition]) =>
+    undescribedFields(definition, context, name),
+  );
 
 /** The format pages, their index and the page of the common types. */
 function formatPages(
@@ -83,25 +88,30 @@ function formatPages(
   const named = (name: string): JsonSchema[] => schemas.filter((schema) => schemaName(schema) === name);
   return [
     { path: `${FORMATS_FOLDER}/index.md`, text: formatsIndex(schemas, base) },
-    ...named("common").flatMap((common) =>
-      rendered(`${COMMON_TYPES_PAGE}.md`, () => commonTypesPage(common, contextOf(common)), failures),
-    ),
+    ...named("common").map((common) => {
+      const path = `${COMMON_TYPES_PAGE}.md`;
+      noteUndescribed(path, undescribedDefinitions(common, contextOf(common)), failures);
+      return { path, text: commonTypesPage(common, contextOf(common)) };
+    }),
     ...FORMATS.flatMap((name, index) =>
-      named(name).flatMap((schema) =>
-        rendered(
-          `${FORMATS_FOLDER}/${name}.md`,
-          () => formatPage(schema, examples[name] ?? [], contextOf(schema), index + 1),
+      named(name).map((schema) => {
+        const path = `${FORMATS_FOLDER}/${name}.md`;
+        const context = contextOf(schema);
+        noteUndescribed(
+          path,
+          [...undescribedFields(schema, context, "fields"), ...undescribedDefinitions(schema, context)],
           failures,
-        ),
-      ),
+        );
+        return { path, text: formatPage(schema, examples[name] ?? [], context, index + 1) };
+      }),
     ),
   ];
 }
 
 /**
  * The command index and pages (catalog order), the codes page, the format pages, the standard model page and the
- * page of the app's keyboard shortcuts. Throws with every page that cannot be rendered, such as one with a field
- * without a description.
+ * page of the app's keyboard shortcuts. Throws naming every page and field without a description, by its table
+ * (`input.`, `output.`, `fields.` or the definition), the way a failing example stops the build.
  */
 export async function referencePages(
   { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
@@ -119,13 +129,16 @@ export async function referencePages(
   ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);
-    pages.push(
-      ...rendered(
-        `${COMMANDS_FOLDER}/${commandSlug(entry.name)}.md`,
-        () => commandPage(entry, access, context, index + 1),
-        failures,
-      ),
+    const path = `${COMMANDS_FOLDER}/${commandSlug(entry.name)}.md`;
+    noteUndescribed(
+      path,
+      [
+        ...undescribedFields(entry.input, context, "input"),
+        ...undescribedFields(entry.output, context, "output"),
+      ],
+      failures,
     );
+    pages.push({ path, text: commandPage(entry, access, context, index + 1) });
   }
   if (failures.length > 0) {
     throw new Error(`docs: reference pages\n${failures.join("\n")}`);

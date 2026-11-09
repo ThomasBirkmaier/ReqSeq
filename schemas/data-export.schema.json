@@ -517,9 +517,13 @@
           "description": "How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total.",
           "required": ["open", "verified", "indirect", "failed", "outdated"],
           "properties": {
-            "open": { "description": "Requirements with the status open.", "type": "integer", "minimum": 0 },
+            "open": {
+              "description": "Requirements with the verification status open.",
+              "type": "integer",
+              "minimum": 0
+            },
             "verified": {
-              "description": "Requirements with the status verified.",
+              "description": "Requirements with the verification status verified.",
               "type": "integer",
               "minimum": 0
             },
@@ -529,12 +533,12 @@
               "minimum": 0
             },
             "failed": {
-              "description": "Requirements with the status failed.",
+              "description": "Requirements with the verification status failed.",
               "type": "integer",
               "minimum": 0
             },
             "outdated": {
-              "description": "Requirements with the status outdated.",
+              "description": "Requirements with the verification status outdated.",
               "type": "integer",
               "minimum": 0
             }
