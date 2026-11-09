@@ -3,11 +3,9 @@
 // counted requirement is verified or indirect (ADR-0012 "Status rules", bullet "Verification degree";
 // assumption of spec question ThomasBirkmaier/ReqSeq-archive#592 Q3). One rule on every access: the CLI's readable output imports it
 // from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
-// imports nothing but types, so the renderer bundle loads no other part of core with it. The line of a package page
+// imports nothing, so the renderer bundle loads no other part of core with it. The line of a package page
 // (SR-112 AK3) and the head of a matrix column with minima (SR-153 AK1) are built here too, so the app,
 // the CLI and every test that compares with them use one rule.
-
-import type { EvidenceDegreeOutput } from "../generated/types.js";
 
 /**
  * `share` (0 to 1) as a percentage rounded down to one decimal, with a space before `%`. The `1e-9`
@@ -50,13 +48,21 @@ export interface SummaryDegree {
   readonly counts: Readonly<Record<"verified" | "indirect" | "failed" | "outdated" | "open", number>>;
 }
 
+// The two types below mirror `EvidenceDegreeOutput` (`names`, `view`) by hand, so this module imports nothing.
+
 /** A variant as `names` of `evidence.degree` gives it (`common.schema.json#/$defs/elementName`). */
-export type SummaryName = NonNullable<EvidenceDegreeOutput["names"]>[number];
+export interface SummaryName {
+  readonly id: string;
+  readonly shortId: string;
+  readonly title: string;
+}
 
 /** What the line takes of `evidence.degree`: the degree, the view it is for, and the name of a variant view. */
-export type SummaryDegreeOutput = Pick<EvidenceDegreeOutput, "view" | "names"> & {
+export interface SummaryDegreeOutput {
   readonly degree: SummaryDegree;
-};
+  readonly view: string;
+  readonly names?: readonly SummaryName[];
+}
 
 /**
  * How the line names the view of the degree (SR-112 AK3). The core is `core`, as the example of SR-112 AK3
