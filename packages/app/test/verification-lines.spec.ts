@@ -137,11 +137,11 @@ test("a line that cuts a long reason gives the whole reason on hover, click and 
     // Open, the reason has no tooltip over it.
     await expect(line(window, "Validation")).not.toHaveAttribute("title", /./);
     // The evidence record of the same validation cuts its reason as well and opens the same way.
-    const record = window
-      .locator("article")
-      .getByRole("group", { name: "Evidence", exact: true })
-      .getByRole("group", { name: "Evidence record" })
-      .first();
+    // It stands in the validation row and its case, one fold each (SR-032 AK4).
+    const evidence = window.locator("article").getByRole("group", { name: "Evidence", exact: true });
+    await evidence.getByRole("button", { name: /^Validation · inconclusive/ }).click();
+    await evidence.getByRole("button", { name: "2026-11-03 09:00 UTC · inconclusive" }).click();
+    const record = evidence.getByRole("group", { name: "Evidence record" }).first();
     await expect(record).toHaveAttribute("title", reason);
     await record.press("Enter");
     await expect(record.locator(".whole-reason")).toHaveText(reason, { useInnerText: true });

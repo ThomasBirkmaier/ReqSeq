@@ -34,7 +34,13 @@ describe("EvidenceLines", () => {
       calls.push([name, input]);
       return Promise.resolve({
         ok: true,
-        output: { records: [], testCases: [], problems: [], incomplete: false },
+        output: {
+          records: [],
+          display: { shared: {}, rows: [], older: [] },
+          testCases: [],
+          problems: [],
+          incomplete: false,
+        },
       });
     }) as Call;
     const element = { verification: [] } as unknown as ElementGetOutput["element"];

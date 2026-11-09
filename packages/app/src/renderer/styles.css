@@ -639,6 +639,20 @@ mark {
   padding-left: 1rem;
 }
 
+/* The Evidence section at a glance (SR-032 AK4): each fold line indents what it opens by one step, so a
+   criterion's test cases stand under it and their records under them; a run under "Older runs" likewise.
+   A failed or outdated head takes the colour of its badge (D-062), the rest stays muted. */
+.element .evidence-lines .fold-body,
+.element .evidence-lines .evidence-older .evidence-row {
+  padding-left: 1rem;
+}
+.element .evidence-lines .fold-head[data-status="failed"] {
+  color: var(--badge-failed);
+}
+.element .evidence-lines .fold-head[data-status="outdated"] {
+  color: var(--badge-outdated);
+}
+
 /* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
    comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
 .element h1 .editor {
