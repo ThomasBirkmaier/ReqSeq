@@ -15,7 +15,7 @@ acceptance-criteria:
   - Gegeben ein Need, von dem kein gültiges Requirement abgeleitet ist, wenn er im Graphen angezeigt wird, dann zeigt er keinen Fortschrittskreis.
 verification-method: test
 refines:
-  - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n1:80895fb29bfa5796, title: Graph des aktuellen Elements zeigen }
+  - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n2:36cdc9fb1a2c567d, title: Graph des aktuellen Elements zeigen }
 derives-from:
   - { id: 1015b447-7845-49a6-984d-f1b4e809800f, version: n1:8971994df12cd206, title: Graph des aktuellen Elements }
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:b20a6c9601d52cfe, title: Status von Nachweis und Validierung }
