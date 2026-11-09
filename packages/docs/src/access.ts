@@ -34,7 +34,7 @@ export interface CommandAccess {
 }
 
 /** The text `reqseq <args>` prints, run in this process with `runtime` (its catalog). */
-async function cliOutput(args: readonly string[], runtime: CommandRuntime): Promise<string> {
+export async function cliOutput(args: readonly string[], runtime: CommandRuntime): Promise<string> {
   let text = "";
   const sink = {
     write: (chunk: string): boolean => {

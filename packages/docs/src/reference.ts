@@ -12,6 +12,7 @@ import { commandIndex, commandPage } from "./command-page.js";
 import type { Example } from "./formats.js";
 import type { StandardModel } from "./standard-model.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
+import { SERVERS_PAGE, serversPage } from "./servers.js";
 import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
 import {
   COMMON_TYPES_PAGE,
@@ -86,7 +87,7 @@ function formatPages(
 }
 
 /**
- * The command index and pages (catalog order), the codes page, the format pages, the standard model page and the
+ * The command index and pages (catalog order), the page of the server commands after them, the codes page, the format pages, the standard model page and the
  * page of the app's keyboard shortcuts.
  */
 export async function referencePages(
@@ -109,5 +110,6 @@ export async function referencePages(
       text: commandPage(entry, access, context, index + 1),
     });
   }
+  pages.push({ path: SERVERS_PAGE, text: await serversPage(runtime, base, entries.length + 1) });
   return pages;
 }
