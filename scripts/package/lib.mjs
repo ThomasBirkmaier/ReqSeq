@@ -47,6 +47,12 @@ export function tagReleasesVersion(tag, version) {
   return tag === `v${version}` || (m[3] === "0" && tag === `v${m[1]}.${m[2]}`);
 }
 
+/** The version a release tag releases (ADR-0014): `v0.6` releases `0.6.0`; undefined for any other ref. */
+export function versionOfTag(tag) {
+  const m = /^v(\d+)\.(\d+)(?:\.(\d+))?$/.exec(tag);
+  return m === null ? undefined : `${m[1]}.${m[2]}.${m[3] ?? "0"}`;
+}
+
 /** A launcher template with the names of names.json filled in; Windows scripts get CRLF line ends. */
 export function renderLauncher(template, names, { crlf = false } = {}) {
   const text = template.replaceAll("@PRODUCT@", names.productName);
@@ -178,22 +184,17 @@ function noteGroups(subjects) {
 
 /**
  * The release notes of a tag (#346): the Conventional Commit subjects since the previous release tag (`previous`,
- * undefined for the first release), grouped into new functions, fixes and specification; all other subjects
- * (enabler, test, ci, docs, ...) are folded into "Other changes". `compareUrl` links the full difference.
+ * undefined for the first release), grouped into new functions, fixes, specification and other changes (enabler,
+ * test, ci, docs, ...), all folded under "Technical changes", since the summary of the release (`releaseBody`) says
+ * what changed for the user. `compareUrl` links the full difference.
  */
 export function releaseNotes(subjects, { previous, compareUrl }) {
-  const groups = noteGroups(subjects);
-  const lines = [previous === undefined ? "## Changes" : `## Changes since ${previous}`, ""];
-  for (const [title, items] of groups) {
-    if (items.length === 0) {
-      continue;
+  const title = previous === undefined ? "Technical changes" : `Technical changes since ${previous}`;
+  const lines = [`<details><summary>${title}</summary>`, ""];
+  for (const [section, items] of noteGroups(subjects)) {
+    if (items.length > 0) {
+      lines.push(`### ${section}`, "", ...items, "");
     }
-    lines.push(
-      ...(title === "Other changes"
-        ? [`<details><summary>${title} (${items.length})</summary>`, "", ...items, "", "</details>"]
-        : [`### ${title}`, "", ...items]),
-      "",
-    );
   }
   if (subjects.every((s) => s.trim() === "")) {
     lines.push("No changes.", "");
@@ -201,7 +202,37 @@ export function releaseNotes(subjects, { previous, compareUrl }) {
   if (previous !== undefined) {
     lines.push(`Full list: ${compareUrl}`, "");
   }
+  lines.push("</details>", "");
   return lines.join("\n");
+}
+
+/** The markers around the delivery part of a release body, so that `releaseBody` can write a body again. */
+const DELIVERY_START = "<!-- delivery -->";
+const DELIVERY_END = "<!-- /delivery -->";
+
+/**
+ * The delivery part of a release body: the download note and the files. A body that `releaseBody` wrote has it
+ * between its markers; an older body has it before its "## Changes" list; other text (the delivery part the release
+ * job composes) is all of it.
+ */
+export function deliveryOfBody(body) {
+  const text = body.replaceAll("\r\n", "\n");
+  const start = text.indexOf(DELIVERY_START);
+  const end = text.indexOf(DELIVERY_END);
+  if (start !== -1 && end > start) {
+    return text.slice(start + DELIVERY_START.length, end).trim();
+  }
+  const changes = text.search(/^## Changes/m);
+  return (changes === -1 ? text : text.slice(0, changes)).trim();
+}
+
+/**
+ * The body of a GitHub release: the summary for the user (`docs/releases/<version>.md`), then the delivery part of
+ * `body` (`deliveryOfBody`) between its markers, then the folded technical notes (`releaseNotes`). Writing a body
+ * again from its own output gives the same body.
+ */
+export function releaseBody({ summary, body, notes }) {
+  return [summary.trim(), "", DELIVERY_START, deliveryOfBody(body), DELIVERY_END, "", notes].join("\n");
 }
 
 /**
@@ -209,26 +240,31 @@ export function releaseNotes(subjects, { previous, compareUrl }) {
  * the same commit subjects and sections as `releaseNotes`, so that an offline installation has them too. `releases`
  * are `{ version, date, subjects }`, newest first; a `version` of undefined is the work since the last release. Only
  * new functions, fixes and the specification are listed: the other changes concern the development of ReqSeq. The
- * page names no web address, since an offline site cannot reach one.
+ * page names no web address, since an offline site cannot reach one. A release with a `summary` (the text of
+ * `docs/releases/<version>.md`) shows that summary instead of its commit subjects.
  */
 export function whatsNewPage(releases) {
   const lines = [
     "---",
     "title: What's new",
-    "description: The new functions, fixes and changes to the specification of each version of ReqSeq, newest first.",
+    "description: What changed for you in each version of ReqSeq, newest first.",
     "---",
     "",
-    "The changes of each version, newest first, from the history of ReqSeq: new functions, fixes and changes to " +
-      "the specification. Changes to tests, the build and the documentation are left out.",
+    "What changed for you in each version, newest first. A version without a summary, and the work not released " +
+      "yet, list their new functions, fixes and changes to the specification from the history of ReqSeq.",
     "",
   ];
   if (releases.length === 0) {
     lines.push("The history this documentation was built from holds no release.", "");
   }
-  for (const { version, date, subjects } of releases) {
+  for (const { version, date, subjects, summary } of releases) {
     lines.push(version === undefined ? "## Not released yet" : `## ${version}`, "");
     if (date !== undefined) {
       lines.push(`Released ${date}.`, "");
+    }
+    if (summary !== undefined) {
+      lines.push(summary.trim(), "");
+      continue;
     }
     const groups = [...noteGroups(subjects)].filter(
       ([title, items]) => title !== "Other changes" && items.length > 0,
