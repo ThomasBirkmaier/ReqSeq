@@ -276,9 +276,10 @@ body,
    text and the ring of the element's node in the graph, in the same greys; empty for an element without
    them. The rows of a list share one grid: each group, the folded section and each row is a subgrid of
    `.rows` across all its columns, so the ID, status, verification status and ring stand in one line in
-   every row, however wide their text is (#1275). The ID column is as wide as the longest ID up to 10rem,
-   so a short ID ("SR-83308a") leaves the room to the title; the ring's text stands right-aligned in a
-   column at least as wide as "10 of 10" before the ring, so the rings stand in one line in every list. */
+   every row, however wide their text is (#1275). The ID column is as wide as the longest ID up to 10rem
+   (a cut ID shows in full on hover), so a short ID ("SR-83308a") leaves the room to the title; the ring's
+   text stands right-aligned in a column at least as wide as "10 of 10" before the ring, so the rings
+   stand in one line also across lists whose ring texts fit in it. */
 .list .rows {
   display: grid;
   /* The first track holds the row's padding too: in a subgrid it is a margin of the edge cells. */

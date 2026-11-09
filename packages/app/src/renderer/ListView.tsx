@@ -842,7 +842,7 @@ export const ListView = ({
           dispatch({ type: "cursor", key: buffer.key, cursor: at });
         }}
       >
-        <span className="id" id={`${id}-id`}>
+        <span className="id" id={`${id}-id`} title={row.label}>
           <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
         </span>
         <span className="title" id={`${id}-title`} style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
