@@ -5,9 +5,9 @@ sidebar:
   order: 8
 ---
 
-A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or a list of IDs. Here it is a package: elements you declare to belong together for any reason, such as a topic. When and why you take a baseline is up to you.
+A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as a topic or a use case. When and why you take a baseline is up to you.
 
-ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuses one while files of the selection are uncommitted, and after it. A second baseline with the same name is refused.
+ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuses one while the files of the selection, their images, the metamodel or the workspace file are uncommitted, and after it. A second baseline with the same name is refused.
 
 ## App
 
@@ -16,7 +16,7 @@ ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuse
 3. Open the package with **Go to element or buffer** (Ctrl+P, ⌘P); its page lists its elements.
 4. Commit the files with Git.
 5. On the package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Create baseline**; it asks only the name. Commit the new file.
-6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline. After the baseline's commit it warns `baseline.repository-commit-differs`, as expected; for evidence exactly as it stood, check out the commit the baseline names and keep the baseline file.
+6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline names. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
 7. **Compare baseline** asks a baseline and an element and gives the two commits and the Git command. Run it from the workspace folder.
 8. On the package page, **Export data** shows the current state of the package in a result buffer.
 
@@ -65,7 +65,7 @@ elements:
 
 A baseline needs committed files, so in your repository, after a commit:
 
-1. `reqseq baseline create "Review 1" --package PKG-65ba20` writes `Review-1.yaml` in the baseline folder. With uncommitted files in the package it refuses with `baseline.uncommitted-changes`. Commit the new file.
+1. `reqseq baseline create "Review 1" --package PKG-65ba20` writes `Review-1.yaml` in the baseline folder. With uncommitted files it refuses with `baseline.uncommitted-changes`. Commit the new file.
 2. `reqseq baseline list` lists them with date and element count.
 3. `reqseq baseline get "Review 1"` lists each element with its state, its version in the baseline and, when it differs, the current one; `--with-evidence` adds the verification and validation status at the baseline (see the warning above).
 4. `reqseq baseline compare "Review 1" SR-c67baa` gives the commit of the baseline, the current one (`null` while uncommitted), and the command, such as `git -C . diff <from> <to> -- system-requirement/SR-…md`. A change to a relation such as `derives-from` does not make an element `changed` in `baseline get`; this diff shows it.
