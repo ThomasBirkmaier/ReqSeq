@@ -32,10 +32,13 @@ runs:
         pnpm --filter @reqseq/app electron:install
         xvfb-run -a pnpm docs:screenshots
     # The audit sees only the site's lockfile; `pnpm audit --prod` and `licenses:check` of the workspace do not.
+    # The page "What's new" needs the release tags (#1259): the callers check out the whole history, and
+    # REQSEQ_DOCS_RELEASES=1 stops a build in a shallow clone or without a release tag.
     - name: Generate, install and audit the site
       shell: bash
       env:
         REQSEQ_DOCS_OFFLINE: ${{ inputs.offline == 'true' && '1' || '' }}
+        REQSEQ_DOCS_RELEASES: "1"
       run: |
         pnpm docs:generate
         pnpm docs:install

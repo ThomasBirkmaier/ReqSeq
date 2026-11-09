@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Checks that every schema compiles, the command catalog is valid and every example file
-// in schemas/examples/<format>/ matches its schema (SR-009 AK2, AK3).
+// Checks that every schema compiles, the command catalog is valid, every example file
+// in schemas/examples/<format>/ matches its schema (SR-009 AK2, AK3) and every example input in
+// schemas/examples/commands/ the input schema of its command.
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE, CATALOG_HEADER } from "./load.mjs";
 import { checkCatalog } from "./catalog-checks.mjs";
+import { checkCommandExamples } from "./command-examples.mjs";
 import { PROBLEM_CODES_FILE, checkProblemCodes } from "./problem-codes.mjs";
 
 const errors = [];
@@ -194,6 +196,12 @@ let count = 0;
 for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
   if (dir.name === "version") {
     count += checkVersionVectors(path.join(examplesDir, dir.name));
+    continue;
+  }
+  if (dir.name === "commands") {
+    const found = checkCommandExamples(path.join(examplesDir, dir.name), catalog, ajv);
+    count += found.count;
+    errors.push(...found.errors);
     continue;
   }
   const validate = ajv.getSchema(`${BASE}${dir.name}.schema.json`);

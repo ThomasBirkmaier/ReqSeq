@@ -1,0 +1,5 @@
+{
+  "file": "in/test-results.xml",
+  "item": "build 42",
+  "output": "evidence/ci/build-42.xml"
+}

@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { assembleContent, contentPaths } from "./assemble.js";
+import { commandExamples, readExampleInputs } from "./command-examples.js";
 import { readProblemCodes } from "./codes.js";
 import { checkExamples, readGuidePages, runReqseq, wordProblems } from "./examples.js";
 import { readExamples } from "./formats.js";
@@ -8,7 +9,7 @@ import { accessNames, checkHowTos } from "./how-to.js";
 import { readGeneratedContracts, referencePages } from "./reference.js";
 import { readStandardModel } from "./standard-model.js";
 
-// `pnpm docs:generate`: runs the examples of the guide (SR-140 AK2), checks that every how-to shows its task in each
+// `pnpm docs:generate`: runs the examples of the guide (SR-140 AK2) and of every command page (#1250), checks that every how-to shows its task in each
 // access with names that exist (SR-140 AK3), fails on pages above the word budget (#1254), and
 // fills packages/docs/site/src/content/docs/ before the site is built (ADR-0017). A failing example rejects, so
 // the process ends with a non-zero exit code and the build stops. The base path must be the one the site is
@@ -32,8 +33,13 @@ const sources = {
   generated,
   codes: await readProblemCodes(paths.repoRoot),
   standardModel: await readStandardModel(paths.repoRoot),
+  commandExamples: await commandExamples(
+    runtime.contracts.commands,
+    await readExampleInputs(paths.repoRoot),
+    runtime,
+  ),
 };
 const files = await assembleContent(paths, await referencePages(sources, base), base);
 process.stdout.write(
-  `docs: ${String(examples)} example commands passed, ${String(files.length)} files in the content folder\n`,
+  `docs: ${String(examples)} example commands and ${String(sources.commandExamples.size)} command examples passed, ${String(files.length)} files in the content folder\n`,
 );

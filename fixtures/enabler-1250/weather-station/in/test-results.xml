@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="3" failures="1" errors="0" time="0.042">
+    <testsuite name="wind.test.ts" timestamp="2026-11-02T10:00:00.000Z" hostname="ci" tests="3" failures="1" errors="0" skipped="0" time="0.042">
+        <testcase classname="wind.test.ts" name="[SR-c67baa/AK1] shows the speed in knots with one decimal" time="0.011">
+        </testcase>
+        <testcase classname="wind.test.ts" name="[SR-c67baa/AK2] shows a value at most 10 seconds old" time="0.012">
+        </testcase>
+        <testcase classname="wind.test.ts" name="[SR-5e1d0a/AK1] warns of a gust above 25 knots" time="0.019">
+            <failure message="expected a warning within 5 seconds" type="AssertionError">
+AssertionError: expected a warning within 5 seconds
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>
