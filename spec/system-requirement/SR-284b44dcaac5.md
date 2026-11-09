@@ -15,7 +15,7 @@ packages:
 derives-from:
   - { id: 6adc4b47-50a8-4546-9007-f7cfdfa7b9cb, version: n1:d8500282bf5102a9, title: Traceability bis zu Testfall und Durchführung }
 based-on:
-  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:15bed38f1bb678ad, title: Ein offenes Format für Nachweis-Datensätze }
 ---
 
 Das Tool muss Testfälle und ihre Durchführungen als Teil der Kette bis zum Nachweis zeigen.
