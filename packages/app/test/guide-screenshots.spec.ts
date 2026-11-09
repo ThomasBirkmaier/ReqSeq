@@ -1,10 +1,12 @@
-// Screenshots of the app for the user documentation (ADR-0017, #344): the overview, an open requirement, the
-// command prompt, the neighbourhood of a need, the traceability matrix of the requirements and the graph of the
-// standard model, on the fixed workspace `fixtures/enabler-344/weather-station` (the elements of Get started, with
-// the same IDs, and the standard model), light, 1024×576; the graph in a window of 1600×1000, cut to its boxes. They go to
-// `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
-// also to `docs/guide/images/`, the site's copy, committed after a run; a normal run leaves tracked files alone. They
-// are made on Linux only, because fonts differ between systems, and nothing compares pixels.
+// Screenshots of the app for the user documentation (ADR-0017, #344), light, 1024×576. Those of Get started (the
+// overview, the requirement, the command prompt, the neighbourhood of the need) and of "Write the text of an
+// element" (the slash menu) are made on `fixtures/SR-140/get-started`: exactly the need and the requirement the steps
+// of Get started create, with the same IDs (#1253). The traceability matrix and the graph of the standard model are
+// made on `fixtures/enabler-344/weather-station`, which has more elements; the graph in a window of 1600×1000, cut
+// to its boxes. They go to `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set
+// (`pnpm docs:screenshots`) also to `docs/guide/images/`, the site's copy, committed after a run; a normal run
+// leaves tracked files alone. They are made on Linux only, because fonts differ between systems, and nothing
+// compares pixels.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +15,8 @@ import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
 
-const FIXTURE = { fixture: "enabler-344/weather-station" };
+const GET_STARTED = { fixture: "SR-140/get-started" };
+const WEATHER_STATION = { fixture: "enabler-344/weather-station" };
 const folder = (relative: string): string => fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
 const FOLDERS = [
   folder("test-results/electron/guide-images"),
@@ -46,22 +49,74 @@ const open = async (window: Page, title: string): Promise<void> => {
   await expect(text(window)).toBeVisible();
 };
 
+/** Writes a screenshot of the window, or of `clip` of it, as `app-<name>.png` into each folder. */
+const shooter =
+  (window: Page) =>
+  async (name: string, clip?: { x: number; y: number; width: number; height: number }): Promise<void> => {
+    const png = await window.screenshot({ animations: "disabled", caret: "hide", ...(clip && { clip }) });
+    await Promise.all(FOLDERS.map((folder) => fs.writeFile(path.join(folder, `app-${name}.png`), png)));
+  };
+
 test.skip(process.platform !== "linux", "the guide's screenshots are made on Linux only (ADR-0017)");
 
-test("screenshots of the app for the user guide", async () => {
-  const running = await launchApp(FIXTURE, { colorScheme: "light" });
+test.beforeAll(async () => {
+  await Promise.all(FOLDERS.map((folder) => fs.mkdir(folder, { recursive: true })));
+});
+
+test("screenshots of Get started and of the text editor, on the workspace the steps of Get started create", async () => {
+  const running = await launchApp(GET_STARTED, { colorScheme: "light" });
   const { window } = running;
   try {
-    await Promise.all(FOLDERS.map((folder) => fs.mkdir(folder, { recursive: true })));
     await resize(running, 1024, 576);
-    const shot = async (name: string, clip?: { x: number; y: number; width: number; height: number }) => {
-      const png = await window.screenshot({ animations: "disabled", caret: "hide", ...(clip && { clip }) });
-      await Promise.all(FOLDERS.map((folder) => fs.writeFile(path.join(folder, `app-${name}.png`), png)));
-    };
+    const shot = shooter(window);
+
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await expect(window.getByLabel("Modeline")).toContainText("2 elements");
+    await shot("overview");
+
+    await open(window, "Show the wind speed");
+    await expect(text(window)).toContainText("updated every 10 seconds");
+    await shot("element");
+
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("show");
+    await expect(candidates(window).first()).toContainText("Show");
+    await shot("command-prompt");
+    await window.keyboard.press("Escape");
+
+    await open(window, "See the wind speed");
+    await window.keyboard.press("ControlOrMeta+J");
+    await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(1);
+    await shot("neighbourhood");
+
+    // "Write the text of an element": the slash menu on a new line below the text, before anything is typed after
+    // the slash.
+    await open(window, "Show the wind speed");
+    await window.locator("article").focus();
+    await window.keyboard.press("Enter");
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("/");
+    const menu = window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
+    await expect(menu.locator("li").first()).toBeVisible();
+    await expect(window.locator(".cm-lr-slash-leaving")).toHaveCount(0);
+    await shot("slash-menu");
+  } finally {
+    await running.close();
+  }
+});
+
+test("screenshots of the traceability matrix and the standard model", async () => {
+  const running = await launchApp(WEATHER_STATION, { colorScheme: "light" });
+  const { window } = running;
+  try {
+    await resize(running, 1024, 576);
+    const shot = shooter(window);
 
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     await expect(window.getByLabel("Modeline")).toContainText("5 elements");
-    await shot("overview");
 
     // The end of "Trace a requirement": the requirements as a matrix, each with the need it derives from.
     const lines = await window.locator(".overview .line").allTextContents();
@@ -76,21 +131,6 @@ test("screenshots of the app for the user guide", async () => {
     await window.keyboard.press("ControlOrMeta+T");
     await expect(window.locator("tbody tr")).toHaveCount(3);
     await shot("trace-matrix");
-
-    await open(window, "Show the wind speed");
-    await expect(text(window)).toContainText("updated every 10 seconds");
-    await shot("element");
-
-    await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("show");
-    await expect(candidates(window).first()).toContainText("Show");
-    await shot("command-prompt");
-    await window.keyboard.press("Escape");
-
-    await open(window, "See the wind speed");
-    await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(2);
-    await shot("neighbourhood");
 
     // The standard model (the fixture's metamodel is the one `workspace.init` writes), on its own page: the
     // graph of its six types and "Any type", cut to the boxes and the names of their relations.

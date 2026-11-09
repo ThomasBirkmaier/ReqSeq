@@ -3,11 +3,11 @@ title: Get started
 description: Create a workspace, a first need and a requirement derived from it, look at the trace chain and check the workspace.
 ---
 
-At the end of this page you have a workspace with a need, a system requirement derived from it and the trace chain between them. Every command on this page runs when the documentation is built, so it works with the version the documentation belongs to.
+This page creates a workspace with a need and a system requirement derived from it, in the app and on the command line. The commands run when the documentation is built, so they work with its version. On macOS, read ⌘ for Ctrl.
 
 ## Install
 
-Unpack the delivery for your system and put `reqseq` on your path: [Install ReqSeq](/how-to/install-reqseq/) says how. Then check that it runs:
+[Install ReqSeq](/how-to/install-reqseq/), then check that it runs:
 
 ```sh
 reqseq --version
@@ -15,7 +15,7 @@ reqseq --version
 
 ## Create a workspace
 
-A workspace is a folder with a `reqseq-workspace.yaml` and a metamodel: the types, properties, relation kinds and statuses of your elements. Make an empty folder, open a terminal in it and run:
+A workspace is a folder with a `reqseq-workspace.yaml` and a metamodel, which defines the types of your elements. In an empty folder, run:
 
 ```sh
 reqseq workspace init . "Weather station"
@@ -29,17 +29,15 @@ files:
 No problems.
 ```
 
-The `.gitignore` gets `*.reqseq-tmp`, so a temporary file left by an interrupted write is never committed. ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
+ReqSeq never commits: put the folder under Git yourself.
 
-In the app: press Ctrl+O (⌘O on macOS) and choose the folder, then open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. Details: [Open or create a workspace](/how-to/open-a-workspace/), [workspace.init](/reference/commands/workspace-init/).
-
-![The app on a workspace with two needs and three system requirements: the overview counts the elements per type, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
+In the app: Ctrl+O and choose the folder, then run **Initialise workspace** in the command prompt (Ctrl+Shift+P). The minibuffer at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
 ## Write a first need
 
-A need says what someone wants, in their own words. Each element is one Markdown file in the workspace.
+A need says what someone wants. Each element is one Markdown file.
 
 ```sh
 reqseq element create need "See the wind speed" --text "As a sailor, I want to see the wind speed before I leave the harbour."
@@ -52,9 +50,9 @@ files:
 No problems.
 ```
 
-`N-7fe707` is the short ID of the need. Yours differs: use it in place of `N-7fe707` below. A new element starts as draft. Only people change a status; ReqSeq never does.
+`N-7fe707` is its short ID; use yours in its place below. A new element starts as draft; only people change a status.
 
-In the app: **Create element**. Reference: [element.create](/reference/commands/element-create/).
+In the app: run **Create element** (Ctrl+K E). The minibuffer asks for the type (`Need`) and the title. The need opens in its own buffer: press Enter to write its text, and Ctrl+S to save.
 
 ## Derive a system requirement
 
@@ -73,9 +71,9 @@ warning  element.missing-required  ...
 warning  trace.no-parent  ...
 ```
 
-The first two warnings say that a system requirement also needs a requirement type and acceptance criteria. Fill them in later, in the file, in the app or with `reqseq element update SR-c67baa --set requirement-type=functional`; ReqSeq never fills them in for you. The third says that the requirement has no parent yet, so its chain does not reach a need.
+A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. The third warning says that it has no parent yet.
 
-Now link the requirement to the need it derives from, again with your own short IDs:
+Link the requirement to the need it derives from, with your own short IDs:
 
 ```sh
 reqseq relation add SR-c67baa derives-from N-7fe707
@@ -87,11 +85,9 @@ files:
 No problems.
 ```
 
-The relation is stored in the file of the requirement, with the version of the need it points to. When the need changes later, ReqSeq shows the relation as outdated, so you know to review the requirement. In the app, the mark "link outdated" stands at the other end of the link: on the requirement next to the need, and in the neighbourhood of the need next to the requirement. Both mark the same relation; the hover text says which element points to an older version of which.
+The relation keeps the version of the need. When the need changes, ReqSeq marks the relation as outdated, so you know to review the requirement.
 
-In the app: **Create relation**. Reference: [relation.add](/reference/commands/relation-add/).
-
-The text of an element can name another element too, with a Markdown link whose destination is `reqseq:` and the short ID: `[the need](reqseq:N-7fe707)`. ReqSeq writes it with the UUID and version, and it counts like a relation. `reqseq:N-7fe707` alone is no link; `workspace check` warns about it (`relation.not-a-link`). A reference-style link, `[the need][n]` with `[n]: reqseq:N-7fe707`, counts for nothing either; `workspace check` warns about its definition (`relation.reference-style`).
+In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property. Later, Down moves to a property's box on the element and Enter edits it. Then run **Create relation** (Ctrl+K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
 
 ![The requirement "Show the wind speed" open in the app: its text, its requirement type and acceptance criteria, and below them the need it derives from.](../images/app-element.png)
 
@@ -109,11 +105,11 @@ total: 2
 No problems.
 ```
 
-The chain runs from the need down to its requirements and on to their evidence. The gap says that no test or other evidence shows the requirement yet.
+The chain runs from the need to its requirements and their evidence; the gap says that no test shows the requirement yet.
 
-In the app: **Show trace chain**, or **Show neighbourhood** (Ctrl+J) on the need. Reference: [trace.chain](/reference/commands/trace-chain/).
+In the app: open the need with Ctrl+P and a word of its title, then press Ctrl+J for its neighbourhood, or run **Show trace chain**.
 
-![The neighbourhood of the need "See the wind speed": its two child requirements with their status.](../images/app-neighbourhood.png)
+![The neighbourhood of the need "See the wind speed": the requirement derived from it, with its status.](../images/app-neighbourhood.png)
 
 ## Check the workspace
 
@@ -127,10 +123,12 @@ checkedElements: 2
 ...
 ```
 
-`ok: true` means there are no errors. The warnings about the two empty properties stay until you fill them in. In a pipeline, the command exits with 1 when there are errors; with `--fail-on warning`, warnings count too.
+`ok: true` means no errors. In a pipeline the command exits with 1 on errors, with `--fail-on warning` on warnings too.
 
-In the app: **Check workspace**. Reference: [workspace.check](/reference/commands/workspace-check/).
+In the app: **Check workspace**. The overview, where a workspace opens, counts the elements per type.
+
+![The app on the workspace of this page: the overview counts one need and one system requirement, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
 
 ## The same through the API and MCP
 
-Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The [local API](/concepts/cli-api-and-mcp/#api) (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The [MCP server](/concepts/cli-api-and-mcp/#mcp) (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.
+Each step is a command with the same result in the app, the CLI, the [local API](/concepts/cli-api-and-mcp/#api) (`POST /v1/commands/element.create`) and the [MCP server](/concepts/cli-api-and-mcp/#mcp) (tool `element_create`); the [command reference](/reference/commands/) shows all four. [Write the text of an element](/how-to/write-the-text-of-an-element/) shows the app's text editor.
