@@ -241,6 +241,18 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
           unshare -rn node packages/docs/site/run.mjs build
+      # The variant a delivery ships (release job `docs-site`): its maps must name only the packages the licence step
+      # above checks, and its files must match the allow-list (`stage.mjs --docs-site`), so a new client package fails
+      # here and not only in the release. A few seconds; it replaces the Pages build in dist/.
+      - name: Docs - check the offline site a delivery ships
+        if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
+        env:
+          REQSEQ_DOCS_OFFLINE: "1"
+          REQSEQ_DOCS_SITE: ${{ runner.temp }}/docs-site
+        run: |
+          pnpm docs:generate
+          unshare -rn node packages/docs/site/run.mjs build
+          node scripts/package/stage.mjs --docs-site
 
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)

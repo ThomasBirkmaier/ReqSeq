@@ -25,7 +25,7 @@ node scripts/package/stage.mjs --pack              # the CLI tarball
 scripts/package/delivery-tests.sh                  # the delivery tests (Linux: as a normal user with sudo)
 ```
 
-The release job `docs-site` runs the same two steps.
+The release job `docs-site` runs the same two steps, and CI runs them on every pull request (step "Docs - check the offline site a delivery ships").
 
 The artifacts land in `delivery/`. electron-builder downloads the Electron zip for the target at build time
 (checksum-verified); the delivery itself downloads nothing (SR-078).

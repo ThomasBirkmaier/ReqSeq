@@ -12,11 +12,11 @@ import { Icon } from "@astrojs/starlight/components";
     <kbd class="sl-hidden md:sl-flex">Ctrl K</kbd>
   </button>
   <dialog aria-label="Search">
-    <form method="dialog" class="frame">
+    <form class="frame">
       <input type="search" placeholder="Search the documentation" aria-label="Search the documentation" autocomplete="off" />
       <p class="status" role="status"></p>
       <ul class="hits"></ul>
-      <button type="submit" class="close">Close</button>
+      <button type="button" class="close">Close</button>
     </form>
   </dialog>
 </reqseq-search>
@@ -42,8 +42,12 @@ import { Icon } from "@astrojs/starlight/components";
       const input = this.querySelector("input");
       const hits = this.querySelector("ul");
       const status = this.querySelector(".status");
-      if (!open || !dialog || !input || !hits || !status) {
+      const form = this.querySelector("form");
+      if (!open || !dialog || !input || !hits || !status || !form) {
         return;
+      }
+      if (/Mac|iPhone|iPad/.test(navigator.platform)) {
+        this.querySelector("kbd")?.replaceChildren("⌘ K");
       }
       const show = (): void => {
         dialog.showModal();
@@ -69,6 +73,18 @@ import { Icon } from "@astrojs/starlight/components";
       input.addEventListener("input", () => {
         void this.#render(input.value, hits, status);
       });
+      this.querySelector("button.close")?.addEventListener("click", () => {
+        dialog.close();
+      });
+      // Enter in the box opens the first hit (Enter on a focused hit follows its link).
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void this.#render(input.value, hits, status).then((first) => {
+          if (first !== undefined) {
+            window.location.assign(first);
+          }
+        });
+      });
       // Down from the box goes to the first hit, Up and Down move between hits, Up from the first goes back.
       dialog.addEventListener("keydown", (event) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
@@ -88,7 +104,12 @@ import { Icon } from "@astrojs/starlight/components";
 
     #load(): Promise<(term: string) => { url: string; title: string; excerpt: string }[]> {
       this.#search ??= fetch(this.dataset["index"] ?? "")
-        .then((response) => response.json() as Promise<IndexFile>)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`search index: HTTP ${String(response.status)}`);
+          }
+          return response.json() as Promise<IndexFile>;
+        })
         .then((file) => {
           const search = MiniSearch.loadJS(file.index as Parameters<typeof MiniSearch.loadJS>[0], {
             fields: file.fields,
@@ -100,12 +121,25 @@ import { Icon } from "@astrojs/starlight/components";
               title: String(hit["title"]),
               excerpt: String(hit["excerpt"]),
             }));
+        })
+        .catch((error: unknown) => {
+          // Not kept: the next search fetches the index again.
+          this.#search = undefined;
+          throw error;
         });
       return this.#search;
     }
 
-    async #render(term: string, hits: HTMLUListElement, status: Element): Promise<void> {
-      const found = term.trim() === "" ? [] : (await this.#load())(term);
+    /** Shows the hits of `term` and gives the address of the first one. */
+    async #render(term: string, hits: HTMLUListElement, status: Element): Promise<string | undefined> {
+      let found: { url: string; title: string; excerpt: string }[];
+      try {
+        found = term.trim() === "" ? [] : (await this.#load())(term);
+      } catch {
+        hits.replaceChildren();
+        status.textContent = "Search unavailable";
+        return undefined;
+      }
       // Text only: nothing of the index is read as markup.
       hits.replaceChildren(
         ...found.slice(0, MAX_HITS).map((hit) => {
@@ -123,6 +157,7 @@ import { Icon } from "@astrojs/starlight/components";
       );
       status.textContent =
         term.trim() === "" ? "" : found.length === 0 ? "No pages found" : `${String(found.length)} pages found`;
+      return found[0]?.url;
     }
   }
 
