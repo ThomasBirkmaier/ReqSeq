@@ -38,7 +38,7 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
    { "mcpServers": { "reqseq": { "command": "/Applications/ReqSeq.app/Contents/Resources/bin/reqseq", "args": ["mcp", "--workspace", "/path/to/repo/spec"] } } }
    ```
 
-   Give absolute paths of the launcher and the workspace, since MCP clients often start the server without your shell's path; [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/#mcp) has the line for each system.
+   This is the macOS launcher. Give absolute paths of the launcher and the workspace, since MCP clients often start the server without your shell's path; [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/#mcp) has the line for each system.
 
 2. **Let it change the spec with commands.** `element create`, `element update`, `relation add` and `element supersede` keep IDs, versions and relations consistent; `element search` and `trace chain` let it read before it writes. A requirement is never deleted, only superseded, and a status is only ever set, never computed, so approving stays a decision someone makes.
 3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak1` where brackets do not fit.

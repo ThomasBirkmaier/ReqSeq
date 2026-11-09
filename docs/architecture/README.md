@@ -236,7 +236,7 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 - **Never lose user data.** Write only what a command is about; atomic writes; refuse when the file changed on disk; never write a file that failed to parse.
 - **Status is human.** Only `element.setStatus` and `element.supersede` change a status.
 - **Missing access is normal.** A missing repository or target is shown with its short ID and marks results `incomplete`; nothing blocks (SR-006).
-- **Performance budget.** Every command touching many elements has a perf test at 50,000 elements (N-036).
+- **Performance budget.** Every command touching many elements gets a perf test at 50,000 elements (N-036).
 - **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist. CI tooling downloads test inputs before the tests (the ReqIF XSDs), never the product.
 - **Language.** All UI, CLI messages, errors and docs in English (SR-074). Content is shown unchanged (SR-074 AK2).
 - **Logging.** Local only, to the cache folder, rotated; never content of elements at info level.
