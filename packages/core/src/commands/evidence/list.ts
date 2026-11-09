@@ -34,8 +34,16 @@ import {
   shortIdState,
   storedForms,
 } from "../../model/index.js";
+import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
+
+/** Whether `holder` is `asked` (any view when none is asked). */
+const sameView = (holder: View, asked: View | undefined): boolean =>
+  asked === undefined ||
+  (holder.kind === "core"
+    ? asked.kind === "core"
+    : asked.kind === "variant" && asked.variant.id === holder.variant.id);
 
 export default defineCommand({
   name: "evidence.list",
@@ -75,14 +83,16 @@ export default defineCommand({
         ? 0
         : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
     const bearing = bearingRecords(listed, current, count, independent);
-    // The views the element applies in (the view rule of the status, as `verificationOf`); read only
-    // for an element with records.
+    // The views the element applies in (the view rule of the status, as `verificationOf`), with
+    // `view` that one alone, as `listed` holds only its records; none for an element that is no
+    // requirement. Read only for an element with records.
+    const status = listed.length === 0 ? undefined : await ctx.workspace.get(verificationState);
     const views =
-      listed.length === 0
+      status?.source.requirements.has(element.type) !== true
         ? []
-        : (await ctx.workspace.get(verificationState)).holders
-            .filter(({ includes }) => includes(element))
-            .map(({ view: shownIn }) => shownIn);
+        : status.holders
+            .filter(({ view: holder, includes }) => includes(element) && sameView(holder, view))
+            .map(({ view: holder }) => holder);
     return {
       records: listed,
       bearing,

@@ -7557,7 +7557,7 @@
                     },
                     "views": {
                       "type": "array",
-                      "description": "Verification only: the status of the criterion in each view the element applies in, the core first; the row names those whose status is the row's.",
+                      "description": "Verification only: the status of the criterion in each view the element applies in (with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                       "items": {
                         "type": "object",
                         "properties": {

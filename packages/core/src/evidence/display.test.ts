@@ -155,15 +155,16 @@ describe("displayOf", () => {
 
   it("pools records without variant in a variant-independent repository and leaves out views the element does not apply in", () => {
     const records = [record({ testCase: "t", result: "failed" }), record({ testCase: "u", variant: "gone" })];
-    const [row] = display(records, 0, [CORE, MAC], true).rows;
-    expect(row).toEqual({
+    const shown = display(records, 0, [CORE, MAC], true);
+    // The record for a variant the element does not apply in is no case; it is folded away.
+    expect(shown.older).toEqual([{ date: "2026-11-09T08:48:23Z", version: CURRENT.n1, records: [1] }]);
+    expect(shown.rows[0]).toEqual({
       kind: "verification",
       status: "failed",
       views: [
         { view: "core", status: "failed" },
         { view: "mac", status: "failed" },
       ],
-      // The record for a variant the element does not apply in is not one of its cases.
       cases: [{ testCase: "t", result: "failed", views: ["core"], records: [0] }],
     });
   });
@@ -256,13 +257,11 @@ describe("displayOf", () => {
       "b",
     ]);
     expect(display([], 2)).toEqual({ shared: {}, rows: [], older: [] });
-    // Without views (no requirement) every row is open.
-    expect(display([record()], 1, []).rows[0]).toEqual({
-      kind: "verification",
-      criterion: 1,
-      status: "open",
-      views: [],
-      cases: [],
+    // Without views (no requirement) no verification row; its records are folded away.
+    expect(display([record()], 1, [])).toEqual({
+      shared: {},
+      rows: [],
+      older: [{ date: "2026-11-09T08:48:23Z", version: CURRENT.n1, records: [0] }],
     });
   });
 });

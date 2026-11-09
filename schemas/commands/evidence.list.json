@@ -6,22 +6,10 @@
   "stage": 4,
   "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
   "arguments": [
-    {
-      "field": "ref",
-      "complete": "element"
-    },
-    {
-      "field": "view",
-      "complete": "view"
-    },
-    {
-      "field": "repository",
-      "complete": "repository"
-    },
-    {
-      "field": "file",
-      "complete": "text"
-    }
+    { "field": "ref", "complete": "element" },
+    { "field": "view", "complete": "view" },
+    { "field": "repository", "complete": "repository" },
+    { "field": "file", "complete": "text" }
   ],
   "input": {
     "type": "object",
@@ -118,7 +106,7 @@
                 },
                 "views": {
                   "type": "array",
-                  "description": "Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047), the core first; the row names those whose status is the row's.",
+                  "description": "Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047; with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                   "items": {
                     "type": "object",
                     "properties": {

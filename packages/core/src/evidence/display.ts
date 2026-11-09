@@ -1,7 +1,7 @@
 // The Evidence section of an element at a glance (SR-032 AK3 to AK5): `display` of `evidence.list`,
 // so the app only lays it out (ADR-0002) and every access gives the same (SR-080). From the records
 // the command lists and the positions that bear the status (`bearingRecords`):
-// - `shared` (AK5): each of date, item, version and baselines that every bearing record has, equal
+// - `shared` (AK5): each of date, item, version and baselines that every record of the rows has, equal
 //   (the date as an instant, shown as the first record writes it; baselines as an ordered list).
 // - `rows` (AK4): with a verification record, one row per acceptance criterion 1..count, or one for
 //   the whole requirement without criteria; its status in each view the element applies in comes from
@@ -13,8 +13,10 @@
 //   (`testCaseKeyOf`), a record without test case its own; two records of one execution in two views
 //   (one JUnit test case for core and variant) are both records of the case. Order: worst result
 //   first, then class name, then name, in code units; records without test case last, in their order.
-// - `older` (AK3): the records outside `bearing` by run, the same instant and version, newest first,
-//   then version. A record that names only criteria beyond the count bears nothing and lands here.
+// - `older` (AK3): the records no row shows by run, the same instant and version (as written: one
+//   version in its two normal forms is two runs), newest first, then version. A record that names only
+//   criteria beyond the count bears nothing and lands here, as does a bearing record for a view the
+//   element does not apply in. Without views (no requirement) there are no verification rows.
 // Pure; O(records × (count + 1) × views).
 import type { EvidenceListOutput } from "../generated/types.js";
 import type { VersionForms } from "../model/index.js";
@@ -49,8 +51,13 @@ interface Placed {
   readonly at: number;
 }
 
-/** Worse first: a row's status is the first of its views' in this order. */
-const STATUS_ORDER: readonly RecordVerificationStatus[] = ["failed", "outdated", "open", "verified"];
+/** Worse first: a row's status is the worst of its views'. */
+const STATUS_RANK: Readonly<Record<RecordVerificationStatus, number>> = {
+  failed: 0,
+  outdated: 1,
+  open: 2,
+  verified: 3,
+};
 const RESULT_RANK: Readonly<Record<EvidenceRecord["result"], number>> = {
   failed: 0,
   inconclusive: 1,
@@ -142,10 +149,10 @@ const verificationRows = (
     ({ record }) =>
       record.kind === "verification" && views.some((view) => holdsIn(record, view, independent)),
   );
-  return Array.from({ length: Math.max(count, 1) }, (_, i): Row => {
+  // `views` is not empty (`displayOf`), so there is one entry per criterion, or one without criteria.
+  return perRow.map((statuses, i): Row => {
     const criterion = i + 1;
-    const statuses = perRow[i] ?? [];
-    const status = STATUS_ORDER.find((s) => statuses.some((v) => v.status === s)) ?? "open";
+    const { status } = statuses.reduce((a, b) => (STATUS_RANK[b.status] < STATUS_RANK[a.status] ? b : a));
     const mine =
       count === 0
         ? ofKind
@@ -181,7 +188,8 @@ export const displayOf = (records: readonly EvidenceRecord[], input: DisplayInpu
   const placed = records.map((record, at): Placed => ({ record, at }));
   const bearing = placed.filter(({ at }) => bears.has(at));
   const rows: Row[] = [];
-  if (records.some((r) => r.kind === "verification")) {
+  // No verification rows without a view (an element that is no requirement, or one in no view asked).
+  if (input.views.length > 0 && records.some((r) => r.kind === "verification")) {
     rows.push(...verificationRows(records, bearing, input));
   }
   if (records.some((r) => r.kind === "validation")) {
@@ -191,9 +199,12 @@ export const displayOf = (records: readonly EvidenceRecord[], input: DisplayInpu
       cases: casesOf(bearing.filter(({ record }) => record.kind === "validation")),
     });
   }
+  // A bearing record no row shows (one for a view the element does not apply in) is folded away with
+  // the older ones, so every record stands somewhere (AK3), and only shown records are shared (AK5).
+  const shown = new Set(rows.flatMap((row) => row.cases.flatMap((c) => c.records)));
   return {
-    shared: sharedOf(bearing.map(({ record }) => record)),
+    shared: sharedOf(placed.filter(({ at }) => shown.has(at)).map(({ record }) => record)),
     rows,
-    older: olderOf(placed.filter(({ at }) => !bears.has(at))),
+    older: olderOf(placed.filter(({ at }) => !shown.has(at))),
   };
 };

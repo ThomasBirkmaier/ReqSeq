@@ -3231,7 +3231,7 @@ export interface EvidenceListOutput {
       readonly criterion?: number;
       /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
       readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
-      /** Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047), the core first; the row names those whose status is the row's. */
+      /** Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047; with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
       readonly views?: readonly {
         /** `core` or the variant's UUID. */
         readonly view: string;
