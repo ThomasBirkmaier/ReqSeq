@@ -80,7 +80,8 @@ export function siteLicenses({ lockText, readPackage, packages = SITE_PACKAGES }
 
 /**
  * The files the built site may hold, by path relative to it with `/`: its pages, the chunks and images of
- * `_astro/` (with the hidden source maps of the offline build), the search index and the icons of public/. A file
+ * `_astro/` (with the hidden source maps of the offline build), the search index, the plain-text documentation for
+ * AI assistants (`llms.txt`, `llms-full.txt`) and the icons of public/. A file
  * outside them could be code no check has read.
  */
 export const SITE_FILES = [
@@ -88,6 +89,7 @@ export const SITE_FILES = [
   /^404\.html$/,
   /^_astro\/[\w.-]+\.(?:js|js\.map|css|png|svg|jpg|jpeg|gif|webp|avif)$/,
   /^search-index\.json$/,
+  /^llms(?:-full)?\.txt$/,
   /^(?:favicon\.ico|favicon\.svg|apple-touch-icon\.png)$/,
 ];
 

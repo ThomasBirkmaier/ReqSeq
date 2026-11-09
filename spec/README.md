@@ -38,6 +38,5 @@ New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` 
 
 ## Known limits
 
-- The workspace lies in a subfolder of the Git repository, so ReqSeq sees no Git here: versions have no date and `workspace check --changed-since` is refused (`git.unavailable`, ThomasBirkmaier/ReqSeq-archive#377).
 - Mentions of spec IDs in acceptance criteria are plain text (properties are not Markdown text, ThomasBirkmaier/ReqSeq-archive#379).
 - The successor's own `supersedes` relation to a superseded decision is reported as `relation.target-superseded` (warning, exit code 0, ThomasBirkmaier/ReqSeq-archive#304, ThomasBirkmaier/ReqSeq-archive#382).

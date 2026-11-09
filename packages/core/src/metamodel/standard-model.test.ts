@@ -23,6 +23,8 @@ const FIXTURE_COPIES = [
   "SR-072/supersede/metamodel/standard-model.yaml",
   // The workspace of the guide images (#849): they show the standard model as `workspace init` writes it.
   "enabler-344/weather-station/metamodel/standard-model.yaml",
+  // The workspace of Get started's images (#1253): the elements its steps create, and no others.
+  "SR-140/get-started/metamodel/standard-model.yaml",
 ];
 
 /**

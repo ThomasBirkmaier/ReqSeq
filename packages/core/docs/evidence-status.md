@@ -1,6 +1,6 @@
 # Evidence block: status and degree (`src/evidence/`)
 
-Part of the [`@reqseq/core` README](../README.md). Lane B of stage 4 fills this file; the records, folders and index are in [evidence-records.md](evidence-records.md).
+Part of the [`@reqseq/core` README](../README.md). It covers the verification status, indirect verification, the validation status and the verification degree; the records, folders and index are in [evidence-records.md](evidence-records.md).
 
 The verification status (Nachweisstatus) and validation status (Validierungsstatus) are derived views of the records; they never change the `status` of an element (D-030, ADR-0012 "Status rules").
 

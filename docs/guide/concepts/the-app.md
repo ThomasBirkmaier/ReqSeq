@@ -33,7 +33,7 @@ A list or search result, an element, its neighbourhood or graph, a traceability 
 
 A workspace opens on the overview: the number of elements per type and the elements you opened last. Enter or a click opens a line. The buffers you had open come back behind it.
 
-![The overview of a workspace with two needs and three system requirements, and the modeline at the bottom.](../images/app-overview.png)
+![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
 **Split window** shows two buffers side by side; the other side previews the element you select in a list or graph, until you work in it. Alt+O switches sides, **Unsplit window** ends the split.
 
