@@ -14,6 +14,8 @@
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
 #   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
+# - packages on every type: a package is a set of any elements (glossary „Paket“, D-040;
+#   product owner decision, 2026-11-09, #1293).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
 
@@ -28,7 +30,7 @@ types:
   - key: use-case
     name: Use Case
     prefix: UC
-    properties: [title, spec-id, rationale]
+    properties: [title, spec-id, rationale, packages]
     required: [title]
     statuses: [draft, approved, obsolete]
   - key: system-requirement
@@ -58,27 +60,27 @@ types:
   - key: decision
     name: Decision
     prefix: D
-    properties: [title, spec-id, rationale]
+    properties: [title, spec-id, rationale, packages]
     required: [title]
     statuses: [draft, accepted, superseded, obsolete]
   - key: variant
     name: Variant
     prefix: VAR
     meaning: variant
-    properties: [title, spec-id]
+    properties: [title, spec-id, packages]
     required: [title]
     statuses: [draft, approved, obsolete]
   - key: package
     name: Package
     prefix: PKG
     meaning: package
-    properties: [title, spec-id]
+    properties: [title, spec-id, packages]
     required: [title]
     statuses: [draft, approved, obsolete]
   - key: glossary-term
     name: Glossary Term
     prefix: GL
-    properties: [title, area, synonyms, do-not-use]
+    properties: [title, area, synonyms, do-not-use, packages]
     required: [title]
     statuses: [obsolete]
 
