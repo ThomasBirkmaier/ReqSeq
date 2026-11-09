@@ -24,7 +24,7 @@ evidence:
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. **Show evidence status** then lists each requirement with its verification status, and **Show evidence coverage** counts per level how many have evidence. Reopen the workspace to see a file a pipeline wrote while the app was open.
+Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. **Show evidence status** then lists each requirement with its verification status, and **Show evidence coverage** counts per level how many have evidence. A file that a pipeline writes while the app is open shows up within a few seconds, without reopening the workspace.
 
 ## CLI
 

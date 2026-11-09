@@ -35,8 +35,10 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
 1. **Give the agent the workspace.** Either the `reqseq` command line in the repository, or the MCP server, one tool per command with the same result as the CLI:
 
    ```json
-   { "mcpServers": { "reqseq": { "command": "reqseq", "args": ["mcp", "--workspace", "spec"] } } }
+   { "mcpServers": { "reqseq": { "command": "/Applications/ReqSeq.app/Contents/Resources/bin/reqseq", "args": ["mcp", "--workspace", "/path/to/repo/spec"] } } }
    ```
+
+   This is the macOS launcher. Give absolute paths of the launcher and the workspace, since MCP clients often start the server without your shell's path; [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/#mcp) has the line for each system.
 
 2. **Let it change the spec with commands.** `element create`, `element update`, `relation add` and `element supersede` keep IDs, versions and relations consistent; `element search` and `trace chain` let it read before it writes. A requirement is never deleted, only superseded, and a status is only ever set, never computed, so approving stays a decision someone makes.
 3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak1` where brackets do not fit.
@@ -52,14 +54,14 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
 
 Where this runs today:
 
-- **ReqSeq itself.** `spec/` holds the more than 160 system requirements of this repository as a ReqSeq workspace. The agents that build ReqSeq change it only through ReqSeq, every pull request checks it, and each acceptance criterion with the method Test has a test named after it (`[SR-036/AK2] ...`), which `pnpm trace-check` enforces.
+- **ReqSeq itself.** `spec/` holds the more than 200 system requirements of this repository as a ReqSeq workspace. The agents that build ReqSeq change it only through ReqSeq, every pull request checks it, and each acceptance criterion with the method Test has a test named after it (`[SR-036/AK2] ...`), which `pnpm trace-check` enforces.
 - **A pilot.** [reqseq-weight-and-balance](https://github.com/ThomasBirkmaier/reqseq-weight-and-balance) is a small web app built by agents that had not used ReqSeq before, from stakeholders and hazards down to Rust and Playwright tests. Its CI checks the workspace and enriches the JUnit results of both test suites.
 
 [Check a workspace in CI](https://thomasbirkmaier.github.io/ReqSeq/how-to/check-a-workspace-in-ci/) and [Record test evidence](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-evidence/) in the documentation have the details.
 
 ## Get started
 
-1. Download the artifact for your system from the [latest release](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest) and unpack it. [Getting ReqSeq](docs/delivery/README.md) lists the artifacts and says how to install them; ReqSeq needs `git` on the PATH.
+1. Download the artifact for your system from the [latest release](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest) and unpack it. [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/) says how to check, unpack and start it and how to put the `reqseq` launcher on your path; ReqSeq needs `git` on the PATH.
 2. In an empty folder, create a workspace, a first need and a requirement derived from it, look at the chain and check the workspace. Use the short IDs that ReqSeq prints in place of `N-7fe707` and `SR-c67baa`:
 
 ```sh
@@ -76,7 +78,7 @@ reqseq workspace check
 
 ## Documentation
 
-The documentation is at **[thomasbirkmaier.github.io/ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/)**: Get started, and a reference of every command with its call in the app, the CLI, the API and MCP, every problem and error code, and every file format.
+The documentation is at **[thomasbirkmaier.github.io/ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/)**: Get started, and a reference of every command with its call in the app, the CLI, the API and MCP, every problem and error code, and every file format. Every delivery also carries the documentation of its version for reading without network: **Help > ReqSeq Documentation** in the app, or `reqseq serve docs`.
 
 ## Reporting bugs
 
@@ -98,9 +100,9 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `docs/guide/` | The user documentation's hand-written pages, built into a site by `packages/docs` (`pnpm docs:build`, ADR-0017) |
 | `docs/architecture/`, `docs/adr/` | arc42 (short), architecture decision records |
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
-| `packages/` | `core`, `cli`, `api`, `mcp`, `app`, `docs` (the documentation site) |
+| `packages/` | `core`, `cli`, `api`, `mcp`, `app`, `docs` (the documentation site), `testkit` (shared test helpers) |
 | `verification/` | Records for analysis, inspection and demonstration |
-| `toolchain/` | `junit/` connects a test tool that writes JUnit XML (SR-063); `packaging/` builds the release archives |
+| `toolchain/` | `junit/` connects a test tool that writes JUnit XML (SR-063); `packaging/` builds the release archives; `reqif/` lists the ReqIF 1.2 XSDs that CI downloads and pins by hash for the tests |
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
