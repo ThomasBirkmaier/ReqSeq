@@ -258,10 +258,10 @@ function notes(ref) {
 }
 
 /**
- * The releases for the page "What's new" (#1259), newest first: each release tag in the first-parent history of
- * HEAD with its commits since the tag before, and the commits since the last one when HEAD is no release. A shallow
- * clone has no tags: the page then names no release, which `REQSEQ_DOCS_RELEASES=1` (the builds that are published,
- * `.github/actions/docs-site`) refuses.
+ * The releases for the page "What's new" (#1259), newest first by version: each release tag reachable from HEAD
+ * with the first-parent commits since the tag before, and the commits since the last one when HEAD is no release.
+ * A shallow clone lacks tags or history: the page then names no release or too few commits, which
+ * `REQSEQ_DOCS_RELEASES=1` (the builds that are published, `.github/actions/docs-site`) refuses.
  */
 function releasesForWhatsNew() {
   const git = (...args) =>
@@ -272,12 +272,15 @@ function releasesForWhatsNew() {
   const tags = lines(git("tag", "--list", "v[0-9]*", "--merged", "HEAD", "--sort=-v:refname")).filter(
     (tag) => !tag.includes("-"),
   );
-  if (tags.length === 0 && process.env.REQSEQ_DOCS_RELEASES === "1") {
-    throw new Error("no release tag in the history of HEAD: fetch the whole history with its tags");
+  if (
+    process.env.REQSEQ_DOCS_RELEASES === "1" &&
+    (tags.length === 0 || git("rev-parse", "--is-shallow-repository") === "true")
+  ) {
+    throw new Error("no release tag or a shallow history: check out the whole history with its tags");
   }
   const releases = tags.map((tag, index) => ({
     version: tag.slice(1),
-    date: git("log", "-1", "--format=%cs", tag),
+    date: git("for-each-ref", "--format=%(creatordate:short)", `refs/tags/${tag}`),
     subjects: subjects(index + 1 < tags.length ? `${tags[index + 1]}..${tag}` : tag),
   }));
   const head = git("rev-parse", "HEAD");
