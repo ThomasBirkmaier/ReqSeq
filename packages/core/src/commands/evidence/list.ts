@@ -7,17 +7,20 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`). Nothing is written.
+// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
+// app (AK3 to AK5, `displayOf`, over the views the element applies in). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   bearingRecords,
+  displayOf,
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
   testCaseWithEvidenceSource,
   testCasesIn,
+  verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
@@ -71,9 +74,19 @@ export default defineCommand({
       listed.length === 0
         ? 0
         : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
+    const bearing = bearingRecords(listed, current, count, independent);
+    // The views the element applies in (the view rule of the status, as `verificationOf`); read only
+    // for an element with records.
+    const views =
+      listed.length === 0
+        ? []
+        : (await ctx.workspace.get(verificationState)).holders
+            .filter(({ includes }) => includes(element))
+            .map(({ view: shownIn }) => shownIn);
     return {
       records: listed,
-      bearing: bearingRecords(listed, current, count, independent),
+      bearing,
+      display: displayOf(listed, { bearing, current, count, views, independent }),
       testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,

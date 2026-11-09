@@ -7494,11 +7494,185 @@
           },
           "bearing": {
             "type": "array",
-            "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion. Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
+            "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
             "items": {
               "type": "integer",
               "minimum": 0
             }
+          },
+          "display": {
+            "type": "object",
+            "description": "The Evidence section at a glance, computed in core so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
+            "properties": {
+              "shared": {
+                "type": "object",
+                "description": "Each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise.",
+                "properties": {
+                  "date": {
+                    "$ref": "#/$defs/common/$defs/dateTime"
+                  },
+                  "item": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "$ref": "#/$defs/common/$defs/version"
+                  },
+                  "baselines": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "rows": {
+                "type": "array",
+                "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them.",
+                "items": {
+                  "type": "object",
+                  "description": "One line of the Evidence section: an acceptance criterion, the whole requirement without criteria, or the validation.",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "verification",
+                        "validation"
+                      ]
+                    },
+                    "criterion": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row."
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "verified",
+                        "failed",
+                        "outdated",
+                        "validated",
+                        "inconclusive"
+                      ],
+                      "description": "Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status."
+                    },
+                    "views": {
+                      "type": "array",
+                      "description": "Verification only: the status of the criterion in each view the element applies in, the core first; the row names those whose status is the row's.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "view": {
+                            "type": "string",
+                            "description": "`core` or the variant's UUID."
+                          },
+                          "status": {
+                            "enum": [
+                              "open",
+                              "verified",
+                              "failed",
+                              "outdated"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "view",
+                          "status"
+                        ]
+                      }
+                    },
+                    "cases": {
+                      "type": "array",
+                      "description": "The bearing records of the row (those naming the criterion or none) by test case: worst result first, then class name, then name in code-unit order, records without test case last in their order.",
+                      "items": {
+                        "type": "object",
+                        "description": "The bearing records of a row that form one test case (`testCase` and `className`), or one record without test case.",
+                        "properties": {
+                          "testCase": {
+                            "type": "string",
+                            "description": "The test case's name; left out for a record without test case."
+                          },
+                          "className": {
+                            "type": "string",
+                            "description": "The JUnit class name; left out for a Markdown record or a record without test case."
+                          },
+                          "result": {
+                            "enum": [
+                              "passed",
+                              "failed",
+                              "inconclusive"
+                            ],
+                            "description": "The worst result of its records: failed before inconclusive before passed."
+                          },
+                          "views": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "The views its records hold for: `core` for a record without variant, else the variant's UUID; `core` first, then the UUIDs in code-unit order."
+                          },
+                          "records": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "description": "Its records, positions in `records`, in their order."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "result",
+                          "views",
+                          "records"
+                        ]
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "status",
+                    "cases"
+                  ]
+                }
+              },
+              "older": {
+                "type": "array",
+                "description": "The records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "$ref": "#/$defs/common/$defs/dateTime"
+                    },
+                    "version": {
+                      "$ref": "#/$defs/common/$defs/version"
+                    },
+                    "records": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "description": "Its records, positions in `records`, in their order."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "date",
+                    "version",
+                    "records"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "shared",
+              "rows",
+              "older"
+            ]
           },
           "testCases": {
             "type": "array",
@@ -7523,6 +7697,7 @@
         "required": [
           "records",
           "bearing",
+          "display",
           "testCases",
           "problems",
           "incomplete"

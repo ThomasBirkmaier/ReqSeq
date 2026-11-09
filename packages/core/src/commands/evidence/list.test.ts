@@ -151,6 +151,7 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(workspace, { ref: "SR-0032a1" })).toEqual({
       records: [],
       bearing: [],
+      display: { shared: {}, rows: [], older: [] },
       testCases: [],
       problems: [],
       incomplete: false,
@@ -277,6 +278,8 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: [] }],
       bearing: [0],
+      // The grouping is displayOf's (evidence/display.test.ts).
+      display: expect.anything() as unknown,
       testCases: [],
       problems: [],
       incomplete: true,
@@ -293,6 +296,8 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(workspace, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: ["Release 1.0", "Release 1.1"] }],
       bearing: [0],
+      // The grouping is displayOf's (evidence/display.test.ts).
+      display: expect.anything() as unknown,
       testCases: [],
       problems: [],
       incomplete: true,
