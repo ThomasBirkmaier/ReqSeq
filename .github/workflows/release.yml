@@ -260,7 +260,7 @@ jobs:
               -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"
           }
           product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
-          # The install guide on the documentation site, which the job docs-pages below deploys for this tag.
+          # The install guide on the documentation site, which the job `docs` below deploys for this tag.
           install="https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/"
           body="$(
             echo "Portable delivery: unpack the archive of your system and start ${product} (see [Install ${product}]($install))."
