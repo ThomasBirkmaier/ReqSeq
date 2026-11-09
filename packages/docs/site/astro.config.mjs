@@ -5,6 +5,7 @@ import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
 // Built by `pnpm docs:generate` (the @reqseq/docs package), which every site build runs first.
+import { writeLlmsFiles } from "../dist/llms.js";
 import { writeSearchIndex } from "../dist/search-index.js";
 
 // The sections of the hand-written pages (D-067), each a folder of docs/guide/. packages/docs/src/assemble.ts
@@ -24,6 +25,7 @@ const base = offline ? "/" : (process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq");
 const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
 const { version } = readJson("../../../package.json");
 const { productName } = readJson("../../../toolchain/packaging/names.json");
+const title = `${productName} ${version}`;
 /** A path of public/ under the base. */
 const publicPath = (name) => `${base.replace(/\/$/, "")}/${name}`;
 
@@ -40,7 +42,7 @@ export default defineConfig({
   image: { service: passthroughImageService() },
   integrations: [
     starlight({
-      title: `${productName} ${version}`,
+      title,
       description: "User documentation of ReqSeq.",
       // A link only; the site loads nothing from it. Left out offline, where it leads nowhere.
       social: offline
@@ -79,6 +81,10 @@ export default defineConfig({
         "astro:build:done": async ({ dir, logger }) => {
           const pages = await writeSearchIndex(fileURLToPath(dir), base);
           logger.info(`search index of ${String(pages)} pages`);
+          // The documentation as plain text for AI assistants (#1260), from the same content folder.
+          const content = fileURLToPath(new URL("src/content/docs/", import.meta.url));
+          const listed = await writeLlmsFiles(content, fileURLToPath(dir), base, title);
+          logger.info(`llms.txt of ${String(listed)} pages`);
         },
       },
     },
