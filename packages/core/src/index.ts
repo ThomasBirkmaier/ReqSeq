@@ -33,7 +33,13 @@ export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.j
 export { recordOpenedWorkspace } from "./model/recent-record.js";
 export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks, jsonLines } from "./files/index.js";
 export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
-export { degreePercent, degreeShareOf, minimumHeadText, packageSummaryText } from "./evidence/degree-text.js";
+export {
+  degreePercent,
+  degreeShareOf,
+  minimumHeadText,
+  packageSummaryText,
+  summaryViewText,
+} from "./evidence/degree-text.js";
 export type {
   SummaryDegree,
   SummaryDegreeOutput,

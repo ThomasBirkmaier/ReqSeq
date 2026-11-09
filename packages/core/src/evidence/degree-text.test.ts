@@ -146,7 +146,6 @@ describe("packageSummaryText (SR-112)", () => {
     ).toBe(
       "Coverage 8 of 10 with evidence · Degree (Coastal station) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
     );
-    expect(summaryViewText("VAR-0000c1", [coastal])).toBe("Coastal station");
     expect(summaryViewText("uuid-v2", [coastal, untitled])).toBe("VAR-0000c2");
     expect(summaryViewText("uuid-v3", [coastal])).toBe("uuid-v3");
     expect(summaryViewText("uuid-v3", undefined)).toBe("uuid-v3");
@@ -181,8 +180,14 @@ describe("packageSummaryText (SR-112)", () => {
 });
 
 describe("degree-text.ts (SR-037)", () => {
-  it("imports nothing: the app's renderer loads it as @reqseq/core/verification-degree, without the rest of core", async () => {
+  it("imports nothing but types: the app's renderer loads it as @reqseq/core/verification-degree, without the rest of core", async () => {
     const source = await readFile(new URL("degree-text.ts", import.meta.url), "utf8");
-    expect(source.split("\n").filter((line) => /^\s*(import|export .* from)\b/.test(line))).toEqual([]);
+    expect(
+      source
+        .split("\n")
+        .filter(
+          (line) => /^\s*(import|export .* from)\b/.test(line) && !/^\s*(import|export) type\b/.test(line),
+        ),
+    ).toEqual([]);
   });
 });

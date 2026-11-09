@@ -226,7 +226,12 @@ describe("the line of a list (product owner decision, 2026-11-06)", () => {
       },
     };
     const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
-    const summary = await askSummary(call as unknown as Call, { package: "uuid-p", view: "uuid-v1" });
+    const selection = { package: "uuid-p", view: "uuid-v1" };
+    const summary = await askSummary(call as unknown as Call, selection);
+    expect(call.mock.calls).toEqual([
+      ["evidence.coverage", { selection }],
+      ["evidence.degree", { selection: { package: "uuid-p", view: "uuid-v1" } }],
+    ]);
     expect(summary).toMatchObject({
       ok: true,
       line: "Coverage 1 of 2 with evidence · Degree (Coastal station) 50 % (1 verified, 1 open)",
