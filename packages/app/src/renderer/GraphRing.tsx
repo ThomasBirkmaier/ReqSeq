@@ -47,7 +47,7 @@ export const NodeVerification = ({
               transform="rotate(-90 6 6)"
             />
           </svg>
-          {ring.text}
+          <span className="ring-text">{ring.text}</span>
         </span>
       )}
     </span>

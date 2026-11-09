@@ -112,15 +112,22 @@ test("[SR-137/AK2] the statuses in the rows of a package page count as its degre
   }
 });
 
-/** The left edges of the cells a selector finds in each row of P1's page, one per row that has it. */
-const edges = (running: Running, cell: string): Promise<number[]> =>
+/** An edge of the cells a selector finds in each row of P1's page, one per row that has it. */
+const edges = (running: Running, cell: string, side: "left" | "right"): Promise<number[]> =>
   running.window.evaluate(
-    (selector) =>
+    ([selector, edge]) =>
       [...document.querySelectorAll<HTMLElement>(".members .row")]
-        .map((row) => row.querySelector<HTMLElement>(selector)?.getBoundingClientRect().left)
-        .filter((left): left is number => left !== undefined),
-    cell,
+        .map((row) => row.querySelector(selector)?.getBoundingClientRect()[edge])
+        .filter((at): at is number => at !== undefined),
+    [cell, side] as const,
   );
+
+/** The edges, rounded to pixels; all the same when the cells stand in one line. */
+const line = async (running: Running, cell: string, side: "left" | "right"): Promise<Set<number>> => {
+  const found = await edges(running, cell, side);
+  expect(found.length, cell).toBeGreaterThan(1);
+  return new Set(found.map((at) => Math.round(at)));
+};
 
 for (const colorScheme of ["light", "dark"] as const) {
   test(`[SR-137/AK3] the status, verification status and ring stand in one line in every row (${colorScheme})`, async () => {
@@ -129,13 +136,15 @@ for (const colorScheme of ["light", "dark"] as const) {
       const rows = await openP1(running);
       // The rows carry status words and ring texts of different widths ("verified", "failed", "1 of 1").
       expect(new Set(rows.map(({ verification }) => verification.length)).size).toBeGreaterThan(1);
-      for (const cell of [":scope > .status", ".verification .status", ".graph-ring"]) {
-        const lefts = await edges(running, cell);
-        expect(lefts.length, cell).toBeGreaterThan(1);
-        expect(new Set(lefts.map((left) => Math.round(left))), cell).toEqual(
-          new Set([Math.round(lefts[0] ?? 0)]),
-        );
+      for (const cell of [":scope > .status", ".verification .status", ".graph-ring svg"]) {
+        expect((await line(running, cell, "left")).size, cell).toBe(1);
       }
+      // The ring's text stands right-aligned before the ring.
+      const textEnds = await line(running, ".ring-text", "right");
+      expect(textEnds.size).toBe(1);
+      const [ring] = await line(running, ".graph-ring svg", "left");
+      const [textEnd] = textEnds;
+      expect(textEnd).toBeLessThan(ring ?? 0);
       await fs.mkdir(OUT, { recursive: true });
       await running.window.screenshot({ path: path.join(OUT, `sr-137-aligned-${colorScheme}.png`) });
     } finally {
