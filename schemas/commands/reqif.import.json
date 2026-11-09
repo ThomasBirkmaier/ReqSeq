@@ -1,7 +1,8 @@
 {
   "name": "reqif.import",
   "title": "Import ReqIF file",
-  "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
+  "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.",
+  "details": "Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",

@@ -3,14 +3,14 @@ import { getCommandRuntime } from "@reqseq/core";
 import { assembleContent, contentPaths } from "./assemble.js";
 import { commandExamples, readExampleInputs } from "./command-examples.js";
 import { readProblemCodes } from "./codes.js";
-import { checkExamples, readGuidePages, runReqseq, wordWarnings } from "./examples.js";
+import { checkExamples, readGuidePages, runReqseq, wordProblems } from "./examples.js";
 import { readExamples } from "./formats.js";
 import { accessNames, checkHowTos } from "./how-to.js";
 import { readGeneratedContracts, referencePages } from "./reference.js";
 import { readStandardModel } from "./standard-model.js";
 
 // `pnpm docs:generate`: runs the examples of the guide (SR-140 AK2) and of every command page (#1250), checks that every how-to shows its task in each
-// access with names that exist (SR-140 AK3), warns on pages above the word budget, and
+// access with names that exist (SR-140 AK3), fails on pages above the word budget (#1254), and
 // fills packages/docs/site/src/content/docs/ before the site is built (ADR-0017). A failing example rejects, so
 // the process ends with a non-zero exit code and the build stops. The base path must be the one the site is
 // built with (packages/docs/site/astro.config.mjs, same variables and default): `/` for the offline build.
@@ -18,8 +18,9 @@ const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
 const base =
   process.env["REQSEQ_DOCS_OFFLINE"] === "1" ? "/" : (process.env["REQSEQ_DOCS_BASE"] ?? "/ReqSeq");
 const guide = await readGuidePages(paths.guideDir);
-for (const warning of wordWarnings(guide)) {
-  process.stderr.write(`docs: warning: ${warning}\n`);
+const tooLong = wordProblems(guide);
+if (tooLong.length > 0) {
+  throw new Error(`docs: split or shorten the pages above the word budget:\n${tooLong.join("\n")}`);
 }
 const examples = await checkExamples(guide, runReqseq);
 const runtime = getCommandRuntime();

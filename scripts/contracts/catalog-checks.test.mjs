@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { checkCatalog } from "./catalog-checks.mjs";
+import { checkCatalog, SUMMARY_WORDS } from "./catalog-checks.mjs";
 
 const input = {
   type: "object",
@@ -49,6 +49,14 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       'schemas/commands/test.one.json: title "Remove it": elements are superseded, never deleted (D-045)',
     ]);
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
+  });
+
+  it("a summary has at most 50 words, counted at white space (#1252)", () => {
+    const words = (n) => Array.from({ length: n }, (_, i) => `w${String(i)}`).join(" ");
+    expect(check({ ...command("test.one", "One"), summary: words(SUMMARY_WORDS) })).toEqual([]);
+    expect(check({ ...command("test.one", "One"), summary: `${words(SUMMARY_WORDS)} (SR-001)` })).toEqual([
+      "schemas/commands/test.one.json: summary has 51 words, more than 50: keep one or two sentences, move the rest to details",
+    ]);
   });
 
   it("a flag of its own clashes neither with another field's flag nor with a common option (ADR-0009)", () => {

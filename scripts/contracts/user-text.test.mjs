@@ -2,15 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { root } from "./load.mjs";
-import { internalReferences, userText, userTexts } from "./user-text.mjs";
+import { internalReferences, TEXT_KEYS, userText, userTexts } from "./user-text.mjs";
 
 /** The references that are examples of a user's own identifiers in the texts, not ReqSeq's. */
 const EXAMPLES = new Set(["SR-036", "SR-001", "N-073", "N-030", "D-062"]);
 
-/** The internal references of every string under `description`, `summary` or `title` in `node`. */
+/** The internal references of every string under a key of `TEXT_KEYS` in `node`. */
 const referencesIn = (node, key = "") => {
   if (typeof node === "string") {
-    return ["description", "summary", "title"].includes(key) ? internalReferences(node) : [];
+    return TEXT_KEYS.has(key) ? internalReferences(node) : [];
   }
   if (Array.isArray(node)) {
     return node.flatMap((item) => referencesIn(item, key));
@@ -126,12 +126,12 @@ const GERMAN =
   /[äöüÄÖÜß]|\b(?:Beleg\w*|Prüfling|Durchführung\w*|Begründung|Nachweis\w*|\w*[Ff]assung\w*|Datens[aä]tz\w*|Validierung|Gültigkeit|Anforderung\w*|Abdeckung|Stand|Hinweis\w*|Stellungnahme|Pflichtfeld\w*|Wertart|Beziehungsart|nicht|beurteilbar|und|oder)\b/u;
 
 /** The keys whose strings users read; `examples` and `default` hold user content, which may be German. */
-const TEXT_KEYS = ["description", "summary", "title", "whileReadOnlyReason"];
+const GERMAN_KEYS = [...TEXT_KEYS, "whileReadOnlyReason"];
 
-/** The strings under `description`, `summary` or `title` in `node` that hold German. */
+/** The strings under a key of `GERMAN_KEYS` in `node` that hold German. */
 const germanIn = (node, key = "") => {
   if (typeof node === "string") {
-    return TEXT_KEYS.includes(key) && GERMAN.test(node) ? [node] : [];
+    return GERMAN_KEYS.includes(key) && GERMAN.test(node) ? [node] : [];
   }
   if (Array.isArray(node)) {
     return node.flatMap((item) => germanIn(item, key));

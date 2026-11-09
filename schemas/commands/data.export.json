@@ -1,7 +1,8 @@
 {
   "name": "data.export",
   "title": "Export data",
-  "summary": "Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
+  "summary": "Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.",
+  "details": "Every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
   "effect": "read",
   "stage": 4,
   "implements": ["SR-061", "SR-101"],

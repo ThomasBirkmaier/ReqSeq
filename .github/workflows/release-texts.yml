@@ -1,0 +1,69 @@
+name: Release texts
+
+# Writes the text of published GitHub releases again (#346): the summary for the user from docs/releases/<version>.md,
+# the delivery part the release already has and the folded commit subjects since the previous release tag, as
+# release.yml writes them for a new release. Run by hand on main after a summary was added or changed; a release
+# whose version has no summary keeps its text. Assets, title and tag stay as they are.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose text is written again (empty for every release)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# bash with pipefail: a failed API call fails the run instead of an empty jq input passing.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-texts
+  cancel-in-progress: false
+
+jobs:
+  texts:
+    name: texts
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The tags and the whole history: the notes of a release are the commits since the tag before.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Write the release texts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ONLY: ${{ inputs.tag }}
+        run: |
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          call() {
+            curl -fsS --retry 3 --max-time 60 -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"
+          }
+          call "$api/releases?per_page=100" | jq -c '.[] | select(.draft | not) | {id, tag_name, body}' > releases.jsonl
+          while read -r release; do
+            tag="$(jq -r .tag_name <<< "$release")"
+            if [ -n "$ONLY" ] && [ "$tag" != "$ONLY" ]; then continue; fi
+            # The version the tag releases (ADR-0014): v0.6 releases 0.6.0.
+            version="${tag#v}"
+            if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then version="$version.0"; fi
+            if [ ! -f "docs/releases/$version.md" ]; then
+              echo "::notice::$tag keeps its text: no docs/releases/$version.md"
+              continue
+            fi
+            jq -r '.body // ""' <<< "$release" > body.md
+            node scripts/package/stage.mjs --release-body "$tag" body.md > new-body.md
+            jq -n --rawfile body new-body.md '{body: $body}' \
+              | call -X PATCH "$api/releases/$(jq -r .id <<< "$release")" --data @- | jq -r .html_url
+          done < releases.jsonl

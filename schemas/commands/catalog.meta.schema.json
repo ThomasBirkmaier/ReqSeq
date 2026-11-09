@@ -36,7 +36,16 @@
             "pattern": "^[A-Z][^.!?]*$",
             "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045)."
           },
-          "summary": { "type": "string", "minLength": 10 },
+          "summary": {
+            "type": "string",
+            "minLength": 10,
+            "description": "What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252)."
+          },
+          "details": {
+            "type": "string",
+            "minLength": 10,
+            "description": "What a user needs to know beyond the summary: rules, cases and limits of the command. Shown on the command's reference page below the summary, not in the index, `--help` or the MCP tool list (#1252). Implementation notes belong in the block files of `packages/core/docs/`."
+          },
           "effect": {
             "enum": ["read", "write-files"],
             "description": "No command writes to Git (D-036). No command deletes elements (D-045)."

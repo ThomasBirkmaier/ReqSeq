@@ -73,9 +73,9 @@ elements:
 | `hint list --variant A`, 20 baselines of A (header reads), the newest of 50,000 entries read in full | ≤ 1 s beyond the start |
 | `workspace check`, 50 variants each with a newest baseline of 50,000 entries and one older | the baseline part ≤ 10 s, within ADR-0008's ≤ 60 s |
 | `element get` of A with 5,000 since-baseline hints, running server | ≤ 200 ms (SR-082 AK3) |
-| `baseline create` | ≤ 3 s |
+| `baseline create` | ≤ 3 s (design target, not a gate) |
 
-The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
+The `baseline create` bound is a design target the nightly record compares against, not a gate (product owner decision, 2026-11-05: typical workspaces hold 100 to 1,000 elements; #1244). The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
 
 ## Consequences
 

@@ -9,11 +9,13 @@ import {
   noticesText,
   offlineSiteProblems,
   packageFolders,
+  releaseBody,
   releaseNotes,
   removeBuildLeftovers,
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  versionOfTag,
   whatsNewPage,
   writeBuildInfo,
 } from "./lib.mjs";
@@ -83,7 +85,7 @@ describe("tagReleasesVersion", () => {
 });
 
 describe("releaseNotes", () => {
-  it("groups the subjects into new, fixes, specification and folded other changes, with the compare link", () => {
+  it("groups the subjects into new, fixes, specification and other changes, folded, with the compare link", () => {
     const notes = releaseNotes(
       [
         "feat(cli,api): data export as JSON Lines (#319)",
@@ -98,7 +100,7 @@ describe("releaseNotes", () => {
     );
     expect(notes).toBe(
       [
-        "## Changes since v0.4",
+        "<details><summary>Technical changes since v0.4</summary>",
         "",
         "### New",
         "",
@@ -113,14 +115,14 @@ describe("releaseNotes", () => {
         "",
         "- spec: SR-061 and SR-062 export as JSON Lines (#322)",
         "",
-        "<details><summary>Other changes (2)</summary>",
+        "### Other changes",
         "",
         "- enabler: warn on large pull requests (#315)",
         "- test(app): pass the app folder (#314)",
         "",
-        "</details>",
-        "",
         "Full list: https://example.test/compare/v0.4...v0.5",
+        "",
+        "</details>",
         "",
       ].join("\n"),
     );
@@ -134,8 +136,52 @@ describe("releaseNotes", () => {
 
   it("says so when nothing changed and leaves the link out for the first release", () => {
     expect(releaseNotes([""], { previous: undefined, compareUrl: "unused" })).toBe(
-      "## Changes\n\nNo changes.\n",
+      "<details><summary>Technical changes</summary>\n\nNo changes.\n\n</details>\n",
     );
+  });
+});
+
+describe("releaseBody", () => {
+  const notes = "<details><summary>Technical changes since v1</summary>\n\n</details>\n";
+
+  it("puts the summary first, then the delivery part between markers, then the notes", () => {
+    expect(
+      releaseBody({ summary: "**New.**\n\n- A point.\n", body: "Download it.\n\n- `a.zip`\n", notes }),
+    ).toBe(
+      [
+        "**New.**",
+        "",
+        "- A point.",
+        "",
+        "<!-- delivery -->",
+        "Download it.",
+        "",
+        "- `a.zip`",
+        "<!-- /delivery -->",
+        "",
+        notes,
+      ].join("\n"),
+    );
+  });
+
+  it("keeps the delivery part of an older text and of its own text", () => {
+    const older = "Download it.\r\n\r\n## Changes since v0\r\n\r\n### New\r\n\r\n- feat: x (#1)\r\n";
+    const first = releaseBody({ summary: "**One.**", body: older, notes });
+    expect(first).toContain("<!-- delivery -->\nDownload it.\n<!-- /delivery -->");
+    expect(first).not.toContain("feat: x");
+    const again = releaseBody({ summary: "**Two.**", body: first, notes });
+    expect(again).toBe(first.replace("**One.**", "**Two.**"));
+  });
+});
+
+describe("versionOfTag", () => {
+  it.each([
+    ["v0.6", "0.6.0"],
+    ["v0.8.5", "0.8.5"],
+    ["v0.0.0-rc.1", undefined],
+    ["0123abc", undefined],
+  ])("%s releases %s", (tag, version) => {
+    expect(versionOfTag(tag)).toBe(version);
   });
 });
 
@@ -163,6 +209,20 @@ describe("whatsNewPage", () => {
         "No new functions, fixes or changes to the specification.",
         "",
       ].join("\n"),
+    );
+  });
+
+  it("shows the summary of a version in place of its subjects", () => {
+    const page = whatsNewPage([
+      {
+        version: "0.2",
+        date: "2026-11-09",
+        subjects: ["feat(app): a key"],
+        summary: "**A key.**\n\n- Press it.\n",
+      },
+    ]);
+    expect(page.slice(page.indexOf("## "))).toBe(
+      "## 0.2\n\nReleased 2026-11-09.\n\n**A key.**\n\n- Press it.\n",
     );
   });
 

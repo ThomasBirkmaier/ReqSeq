@@ -7,7 +7,7 @@
 // Each step is a frame with the time it stays, and typing is a frame every few letters. The frames go to
 // `test-results/electron/guide-animation/` (the CI artifact); with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
 // ffmpeg also makes `docs/guide/images/app-get-started.gif` of them, committed after a run (ADR-0017). Linux only,
-// light, 1024×576, as the guide's screenshots; nothing compares pixels. The animation gets a grey frame with round
+// light, 1024×576, as the guide's screenshots; unlike those, nothing compares its pixels. The animation gets a grey frame with round
 // corners, transparent outside, so that it reads as a screen on a light page and leaves no square corners on a dark
 // one; ImageMagick then stores each frame as the rectangle that changed, which ffmpeg does not do once a frame has
 // transparent pixels.

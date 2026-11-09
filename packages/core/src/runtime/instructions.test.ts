@@ -20,7 +20,7 @@ describe("agentInstructions", () => {
     );
     expect(text).toContain("- `shortId`: Display ID: type prefix, dash, the trailing hex characters");
     expect(text).toContain("- `id`: Element ID: random UUID version 4, lower case, never changes.\n");
-    const confirm = runtime.contracts.entry("hint.confirm")?.summary.replace(" (D-042)", "");
+    const confirm = runtime.contracts.entry("hint.confirm")?.summary;
     expect(text).toContain(
       `- \`hintId\`: hint_list gives each confirmable hint a stable ID. hint_confirm: ${confirm ?? "missing"}\n`,
     );
