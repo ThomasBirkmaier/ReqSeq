@@ -36,7 +36,7 @@ describe("bearingRecords (SR-032 AK3)", () => {
     expect(bearingRecords([], CURRENT, 3)).toEqual([]);
   });
 
-  it("keeps one of the records that share the newest date: the failed one, else the first; an inconclusive verification is of no current version", () => {
+  it("[SR-032/AK3] keeps every record that shares the newest date, the whole run; an inconclusive verification is of no current version", () => {
     const records = [
       record("20", { result: "inconclusive" }),
       record("15"),
@@ -44,21 +44,15 @@ describe("bearingRecords (SR-032 AK3)", () => {
       record("15"),
       record("01"),
     ];
-    expect(bearingRecords(records, CURRENT, 0)).toEqual([2]);
-    // A run dates all its test cases alike: the first of them.
-    expect(bearingRecords([record("15"), record("15"), record("15")], CURRENT, 0)).toEqual([0]);
-    // Validation: a failed one, then an inconclusive one, before a passed one.
+    expect(bearingRecords(records, CURRENT, 0)).toEqual([1, 2, 3]);
+    // Validation alike: every newest one.
     const validation = (result: EvidenceRecord["result"]): EvidenceRecord =>
       record("15", { kind: "validation", result });
-    expect(bearingRecords([validation("passed"), validation("inconclusive")], CURRENT, 0)).toEqual([1]);
-  });
-
-  it("on a tie prefers a record that already bears another criterion", () => {
-    // AK1: only the second; AK2: both, and the second already bears AK1.
-    const records = [record("15", { criteria: [2] }), record("15", { criteria: [1, 2] })];
-    expect(bearingRecords(records, CURRENT, 2)).toEqual([1]);
-    // A record without criteria bears every criterion it is the newest for.
-    expect(bearingRecords([record("15"), record("15")], CURRENT, 3)).toEqual([0]);
+    expect(bearingRecords([validation("passed"), validation("inconclusive")], CURRENT, 0)).toEqual([0, 1]);
+    // Per criterion: AK1 only the second; AK2 both.
+    expect(
+      bearingRecords([record("15", { criteria: [2] }), record("15", { criteria: [1, 2] })], CURRENT, 2),
+    ).toEqual([0, 1]);
   });
 
   it("keeps the newest per acceptance criterion, a record without criteria counting for each (D-072, SR-031 AK6)", () => {

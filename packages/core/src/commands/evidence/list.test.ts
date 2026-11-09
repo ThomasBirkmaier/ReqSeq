@@ -151,6 +151,7 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(workspace, { ref: "SR-0032a1" })).toEqual({
       records: [],
       bearing: [],
+      display: { shared: {}, rows: [], older: [] },
       testCases: [],
       problems: [],
       incomplete: false,
@@ -258,6 +259,25 @@ describe("evidence.list (SR-032)", () => {
     expect((await listError(workspace, { ref: A1, view: "SR-0032a2" })).code).toBe("input.invalid");
   });
 
+  it("gives display the status of each view the element applies in, or of the view asked, and no verification row for an element that is no requirement", async () => {
+    const workspace = await open(await fixture(), [
+      ...RECORDS,
+      record({ element: C1, item: "on-the-variant" }),
+    ]);
+    const viewsOf = async (view?: string) =>
+      (
+        await list(workspace, view === undefined ? { ref: A1 } : { ref: A1, view })
+      ).display.rows[0]?.views?.map((v) => v.view);
+    expect(await viewsOf()).toEqual(["core", C1]);
+    expect(await viewsOf("core")).toEqual(["core"]);
+    expect(await viewsOf("VAR-0032c1")).toEqual([C1]);
+    const variant = await list(workspace, { ref: C1 });
+    expect(variant.display.rows).toEqual([]);
+    expect(variant.display.older).toEqual([
+      { date: variant.records[0]?.date, version: variant.records[0]?.version, records: [0] },
+    ]);
+  });
+
   it("refuses an element that does not exist", async () => {
     const workspace = await open(await fixture());
     expect((await listError(workspace, { ref: "SR-ffffff" })).code).toBe("ref.unknown");
@@ -277,6 +297,8 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: [] }],
       bearing: [0],
+      // The grouping is displayOf's (evidence/display.test.ts).
+      display: expect.anything() as unknown,
       testCases: [],
       problems: [],
       incomplete: true,
@@ -293,6 +315,8 @@ describe("evidence.list (SR-032)", () => {
     expect(await list(workspace, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: ["Release 1.0", "Release 1.1"] }],
       bearing: [0],
+      // The grouping is displayOf's (evidence/display.test.ts).
+      display: expect.anything() as unknown,
       testCases: [],
       problems: [],
       incomplete: true,

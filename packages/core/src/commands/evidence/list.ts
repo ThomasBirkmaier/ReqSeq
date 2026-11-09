@@ -7,17 +7,20 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`). Nothing is written.
+// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
+// app (AK3 to AK5, `displayOf`, over the views the element applies in). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   bearingRecords,
+  displayOf,
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
   testCaseWithEvidenceSource,
   testCasesIn,
+  verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
@@ -31,8 +34,16 @@ import {
   shortIdState,
   storedForms,
 } from "../../model/index.js";
+import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
+
+/** Whether `holder` is `asked` (any view when none is asked). */
+const sameView = (holder: View, asked: View | undefined): boolean =>
+  asked === undefined ||
+  (holder.kind === "core"
+    ? asked.kind === "core"
+    : asked.kind === "variant" && asked.variant.id === holder.variant.id);
 
 export default defineCommand({
   name: "evidence.list",
@@ -71,9 +82,21 @@ export default defineCommand({
       listed.length === 0
         ? 0
         : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
+    const bearing = bearingRecords(listed, current, count, independent);
+    // The views the element applies in (the view rule of the status, as `verificationOf`), with
+    // `view` that one alone, as `listed` holds only its records; none for an element that is no
+    // requirement. Read only for an element with records.
+    const status = listed.length === 0 ? undefined : await ctx.workspace.get(verificationState);
+    const views =
+      status?.source.requirements.has(element.type) !== true
+        ? []
+        : status.holders
+            .filter(({ view: holder, includes }) => includes(element) && sameView(holder, view))
+            .map(({ view: holder }) => holder);
     return {
       records: listed,
-      bearing: bearingRecords(listed, current, count, independent),
+      bearing,
+      display: displayOf(listed, { bearing, current, count, views, independent }),
       testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,

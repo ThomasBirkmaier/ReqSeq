@@ -3213,8 +3213,55 @@ export interface EvidenceListInput {
 export interface EvidenceListOutput {
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
-  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion (SR-031 AK6). Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
+  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
   readonly bearing: readonly number[];
+  /** The Evidence section at a glance (SR-032 AK3 to AK5), computed in core so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run. */
+  readonly display: {
+    /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
+    readonly shared: {
+      readonly date?: IsoDateTime;
+      /** The item under test that every shown record names. */
+      readonly item?: string;
+      readonly version?: Version;
+      /** The baselines every shown record names, in the same order. */
+      readonly baselines?: readonly string[];
+    };
+    /** AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them. */
+    readonly rows: readonly {
+      /** Whether the row shows verification or validation records. */
+      readonly kind: "verification" | "validation";
+      /** The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row. */
+      readonly criterion?: number;
+      /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
+      readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
+      /** Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047; with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
+      readonly views?: readonly {
+        /** `core` or the variant's UUID. */
+        readonly view: string;
+        readonly status: "open" | "verified" | "failed" | "outdated";
+      }[];
+      /** The bearing records of the row (those naming the criterion or none, SR-031 AK6) by test case: worst result first, then class name, then name in code-unit order, records without test case last in their order. */
+      readonly cases: readonly {
+        /** The test case's name; left out for a record without test case. */
+        readonly testCase?: string;
+        /** The JUnit class name; left out for a Markdown record or a record without test case. */
+        readonly className?: string;
+        /** The worst result of its records: failed before inconclusive before passed. */
+        readonly result: "passed" | "failed" | "inconclusive";
+        /** The views its records hold for: `core` for a record without variant, else the variant's UUID; `core` first, then the UUIDs in code-unit order. */
+        readonly views: readonly string[];
+        /** Its records, positions in `records`, in their order. */
+        readonly records: readonly number[];
+      }[];
+    }[];
+    /** AK3: the records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here. */
+    readonly older: readonly {
+      readonly date: IsoDateTime;
+      readonly version: Version;
+      /** Its records, positions in `records`, in their order. */
+      readonly records: readonly number[];
+    }[];
+  };
   /** The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false). */
   readonly testCases: readonly DataExportTestCase[];
   /** Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`. */
