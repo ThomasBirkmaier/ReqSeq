@@ -7513,7 +7513,7 @@
                   },
                   "item": {
                     "type": "string",
-                    "description": "The item (Prüfling) every shown record names."
+                    "description": "The item under test that every shown record names."
                   },
                   "version": {
                     "$ref": "#/$defs/common/$defs/version"

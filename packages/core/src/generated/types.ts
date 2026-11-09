@@ -3220,7 +3220,7 @@ export interface EvidenceListOutput {
     /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
     readonly shared: {
       readonly date?: IsoDateTime;
-      /** The item (Prüfling) every shown record names. */
+      /** The item under test that every shown record names. */
       readonly item?: string;
       readonly version?: Version;
       /** The baselines every shown record names, in the same order. */
