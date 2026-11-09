@@ -59,12 +59,14 @@
     "type": "object",
     "properties": {
       "confirmed": {
+        "description": "The IDs of the confirmed hints, each once.",
         "type": "array",
         "items": {
           "type": "string"
         }
       },
       "files": {
+        "description": "Written files, relative to the workspace root.",
         "type": "array",
         "items": {
           "type": "string"

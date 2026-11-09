@@ -57,7 +57,8 @@ const catalog = {
  * self-contained. So it has its own bound (6.6 KB with ThomasBirkmaier/ReqSeq-archive#336, 7 KB until ThomasBirkmaier/ReqSeq-archive#595, now 7.5 KB: SR-035's `emergent`
  * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of ThomasBirkmaier/ReqSeq-archive#303.
  */
-const SELECTION_MAX_BYTES = 7.5 * 1024;
+// 8 KB: raised for the field descriptions of the reference (product owner decision, 2026-11-09, #1249).
+const SELECTION_MAX_BYTES = 8 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */
@@ -88,7 +89,8 @@ const SELECTION_TOOLS: readonly string[] = [
  * What each listed tool brings to the bound of the whole list (ThomasBirkmaier/ReqSeq-archive#496). The tools average 1.85 KB without their
  * selection part; a tool above 2 KB spends the allowance of the others, so it must shorten once that is used up.
  */
-const TOOL_ALLOWANCE_BYTES = 2 * 1024;
+// 2.125 KB: raised for the field descriptions of the reference (product owner decision, 2026-11-09, #1249).
+const TOOL_ALLOWANCE_BYTES = 2.125 * 1024;
 /**
  * The whole list: 2 KB per listed tool plus one selection part per selection tool (ThomasBirkmaier/ReqSeq-archive#496; ADR-0009). It grows
  * with the commands, because the context an agent loads grows with the commands it is meant to call. ThomasBirkmaier/ReqSeq-archive#303's
@@ -498,7 +500,7 @@ describe("callTool", () => {
     expect(instructions).toContain("workspace_status");
   });
 
-  it("bounds the list by 2 KB per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
+  it("bounds the list by an allowance per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
     const { listed } = await productList();
     const headroom = toolsListMaxBytes(listed.tools.length) - bytes(listed);
     expect(headroom).toBeGreaterThan(0);
@@ -512,7 +514,9 @@ describe("callTool", () => {
     // Tools of 1 KB above their allowance keep the bound of a tool, but they spend the allowance of the
     // others: once the headroom is used up, the list fails.
     const count = Math.ceil(headroom / 1024);
-    const large = Array.from({ length: count }, (_, i) => filler(`large_${String(i)}`, 3 * 1024 - 1));
+    const large = Array.from({ length: count }, (_, i) =>
+      filler(`large_${String(i)}`, TOOL_ALLOWANCE_BYTES + 1024 - 1),
+    );
     expect(adding(large.slice(1))).toEqual([]);
     expect(adding(large).map((over) => over.split(":")[0])).toEqual(["list"]);
     // ThomasBirkmaier/ReqSeq-archive#303: a tool that carries whole schema files (13 KB of common and filter $defs) fails its own bound.

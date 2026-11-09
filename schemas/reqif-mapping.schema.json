@@ -6,8 +6,9 @@
   "type": "object",
   "required": ["reqseq-reqif-mapping", "source"],
   "properties": {
-    "reqseq-reqif-mapping": { "const": 1 },
+    "reqseq-reqif-mapping": { "description": "Version of this file format.", "const": 1 },
     "source": {
+      "description": "The ReqIF source this mapping is for.",
       "type": "object",
       "required": ["name"],
       "properties": {
@@ -27,6 +28,7 @@
       "description": "Folder where imported elements are written."
     },
     "types": {
+      "description": "Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted.",
       "type": "array",
       "items": {
         "type": "object",
@@ -34,13 +36,17 @@
         "properties": {
           "source": { "type": "string", "description": "LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE." },
           "type": { "$ref": "common.schema.json#/$defs/key" },
-          "omit": { "const": true }
+          "omit": {
+            "description": "Objects of this type are not imported; each is listed as a loss.",
+            "const": true
+          }
         },
         "oneOf": [{ "required": ["type"] }, { "required": ["omit"] }],
         "additionalProperties": false
       }
     },
     "attributes": {
+      "description": "Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted.",
       "type": "array",
       "items": {
         "type": "object",
@@ -52,6 +58,7 @@
             "description": "LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION."
           },
           "property": {
+            "description": "Where the value goes: `title`, `text` or the key of a property.",
             "anyOf": [{ "enum": ["title", "text"] }, { "$ref": "common.schema.json#/$defs/key" }]
           },
           "values": {
@@ -64,13 +71,17 @@
             "items": { "type": "string" },
             "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
           },
-          "omit": { "const": true }
+          "omit": {
+            "description": "The attribute is not imported, which is listed as a loss.",
+            "const": true
+          }
         },
         "oneOf": [{ "required": ["property"] }, { "required": ["omit"] }],
         "additionalProperties": false
       }
     },
     "relations": {
+      "description": "Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted.",
       "type": "array",
       "items": {
         "type": "object",
@@ -78,7 +89,7 @@
         "properties": {
           "source": { "type": "string", "description": "LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE." },
           "kind": { "$ref": "common.schema.json#/$defs/key" },
-          "omit": { "const": true }
+          "omit": { "description": "Relations of this type are not imported.", "const": true }
         },
         "oneOf": [{ "required": ["kind"] }, { "required": ["omit"] }],
         "additionalProperties": false
@@ -108,12 +119,13 @@
       "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3)."
     },
     "export-profiles": {
+      "description": "Saved exports to this source, each a selection under a name.",
       "type": "array",
       "items": {
         "type": "object",
         "required": ["name", "selection"],
         "properties": {
-          "name": { "type": "string" },
+          "name": { "description": "Name of the profile.", "type": "string" },
           "selection": { "$ref": "common.schema.json#/$defs/selection" },
           "omit-properties": {
             "type": "array",

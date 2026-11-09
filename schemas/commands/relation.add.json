@@ -32,6 +32,7 @@
     "type": "object",
     "properties": {
       "files": {
+        "description": "Written files, relative to the workspace root.",
         "type": "array",
         "items": {
           "type": "string"

@@ -23,6 +23,7 @@
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "delivery": {
+        "description": "Name of the delivery, written to the origin of each element it imports or updates.",
         "type": "string",
         "minLength": 1
       },

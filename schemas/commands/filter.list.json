@@ -27,6 +27,7 @@
               "description": "The filter file, relative to the workspace root."
             },
             "description": {
+              "description": "What the filter is for, as saved.",
               "type": "string"
             },
             "view": {

@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["reqseq-local"],
   "properties": {
-    "reqseq-local": { "const": 1 },
+    "reqseq-local": { "description": "Version of this file format.", "const": 1 },
     "repositories": {
       "type": "object",
       "description": "Per repository name of the workspace file: where it lies on this machine.",

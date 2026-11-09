@@ -110,9 +110,11 @@
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "reason": {
+              "description": "`not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read.",
               "enum": ["not-a-property", "unknown-type"]
             },
             "message": {
+              "description": "Why the element was left out, for people.",
               "type": "string"
             }
           },

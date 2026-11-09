@@ -11,6 +11,8 @@ export interface FieldRow {
   readonly type: string;
   readonly required: boolean;
   readonly description: string;
+  /** Whether the field has a text of its own, of its definition or of its items; a default alone is none. */
+  readonly described: boolean;
 }
 
 export type Schema = Readonly<Record<string, unknown>>;
@@ -75,9 +77,13 @@ export function typeText(schema: Schema, context?: SchemaContext): string {
   if ("const" in schema) {
     return code(JSON.stringify(schema["const"]));
   }
+  // Alternatives that only constrain (`required`) name no type: an object with `oneOf` of required fields is `object`.
   const alternatives = schema["anyOf"] ?? schema["oneOf"];
-  if (Array.isArray(alternatives)) {
-    return alternatives.filter(isSchema).map(inner).join(" or ");
+  const named = Array.isArray(alternatives)
+    ? alternatives.filter(isSchema).filter((part) => TYPE_KEYWORDS.some((keyword) => keyword in part))
+    : [];
+  if (named.length > 0) {
+    return named.map(inner).join(" or ");
   }
   if (Array.isArray(schema["allOf"])) {
     // Parts that only constrain (`minLength`, `not`) name no type of their own: `relativePath`, not `relativePath and any`.
@@ -96,24 +102,64 @@ export function typeText(schema: Schema, context?: SchemaContext): string {
   return code(typeof type === "string" ? type : "any");
 }
 
-const describe = (schema: Schema, context: SchemaContext): string => {
+/**
+ * The text of a schema: its own, else that of the definition its `$ref` names, followed over further `$ref`s; none
+ * for a cycle of `$ref`s without a text.
+ */
+const ownText = (schema: Schema, context: SchemaContext, seen: ReadonlySet<string> = new Set()): string => {
   const own = schema["description"];
-  const target = typeof schema["$ref"] === "string" ? resolveRef(schema["$ref"], context) : undefined;
-  const text =
-    typeof own === "string" ? own : typeof target?.["description"] === "string" ? target["description"] : "";
+  if (typeof own === "string") {
+    return own;
+  }
+  const ref = schema["$ref"];
+  // A `$ref` of the definition resolves against the file that holds it.
+  const url = typeof ref === "string" ? new URL(ref, context.base ?? CATALOG_BASE).href : undefined;
+  const target = url === undefined || seen.has(url) ? undefined : resolveRef(String(ref), context);
+  return target === undefined || url === undefined
+    ? ""
+    : ownText(target, { ...context, base: url }, new Set([...seen, url]));
+};
+
+/** The text of a field: its own or its definition's, else that of its items, so a list reads like its entries. */
+const fieldText = (schema: Schema, context: SchemaContext): string => {
+  const text = ownText(schema, context);
+  return text === "" && isSchema(schema["items"]) ? ownText(schema["items"], context) : text;
+};
+
+const describe = (schema: Schema, context: SchemaContext): string => {
+  const text = fieldText(schema, context);
   return "default" in schema
     ? `${text}${text === "" ? "" : " "}Default: ${code(JSON.stringify(schema["default"]))}.`
     : text;
 };
 
-/** The `properties` and `required` of a schema and of the parts of its `allOf`. */
-const objectParts = (schema: Schema): { properties: Schema; required: Set<unknown> } => {
+const propertiesOf = (schema: Schema | undefined): Schema =>
+  schema !== undefined && isSchema(schema["properties"]) ? schema["properties"] : {};
+
+/**
+ * The `properties` and `required` of a schema and of the parts of its `allOf`. A property that is only `true` lets a
+ * property of a `$ref` part through `unevaluatedProperties`, so it is that part's property.
+ */
+const objectParts = (
+  schema: Schema,
+  context: SchemaContext,
+): { properties: Schema; required: Set<unknown> } => {
   const parts = [schema, ...(Array.isArray(schema["allOf"]) ? schema["allOf"].filter(isSchema) : [])];
+  const referenced = Object.assign(
+    {},
+    ...parts.map((part) =>
+      propertiesOf(typeof part["$ref"] === "string" ? resolveRef(part["$ref"], context) : undefined),
+    ),
+  ) as Schema;
+  const merged = Object.assign({}, ...parts.map(propertiesOf)) as Schema;
+  // A property taken from a `$ref` part keeps the caller's base, so this holds for `$ref`s within one file only.
   return {
-    properties: Object.assign(
-      {},
-      ...parts.map((part) => (isSchema(part["properties"]) ? part["properties"] : {})),
-    ) as Schema,
+    properties: Object.fromEntries(
+      Object.entries(merged).map(([name, value]) => [
+        name,
+        value === true ? (referenced[name] ?? value) : value,
+      ]),
+    ),
     required: new Set(
       parts.flatMap((part): unknown[] =>
         Array.isArray(part["required"]) ? (part["required"] as unknown[]) : [],
@@ -124,7 +170,7 @@ const objectParts = (schema: Schema): { properties: Schema; required: Set<unknow
 
 /** The rows of every field of an object schema, nested objects and arrays of objects below their field. */
 export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", depth = 0): FieldRow[] {
-  const { properties, required } = objectParts(schema);
+  const { properties, required } = objectParts(schema, context);
   return Object.entries(properties).flatMap(([name, value]) => {
     const field = isSchema(value) ? value : {};
     const path = `${prefix}${name}`;
@@ -133,6 +179,7 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
       type: typeText(field, context),
       required: required.has(name),
       description: describe(field, context),
+      described: fieldText(field, context).trim() !== "",
     };
     const items = isSchema(field["items"]) ? field["items"] : undefined;
     const nested =
@@ -146,6 +193,15 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
     return [row, ...nested];
   });
 }
+
+/**
+ * The fields of an object schema without a text of their own, of their definition or of their items (a default alone,
+ * or white space, is no text), each as `<table>.<field>`, so no field ships without one (#1249).
+ */
+export const undescribedFields = (schema: Schema, context: SchemaContext, table: string): string[] =>
+  fieldRows(schema, context)
+    .filter((row) => !row.described)
+    .map((row) => `${table}.${row.field}`);
 
 /** The field table of an object schema, or `none` when it has no fields. */
 export function fieldTable(schema: Schema, context: SchemaContext, none: string): string {

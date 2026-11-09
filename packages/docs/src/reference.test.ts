@@ -191,4 +191,41 @@ describe("reference", () => {
     expect(section(page, "CLI")).toContain(changed);
     expect(pages[0]?.text).toContain(`](/reference/commands/element-get/): ${inline(changed)}`);
   });
+
+  it("fails on a field without a description, naming every page and field", async () => {
+    const catalog = structuredClone(contractsBundle.catalog) as {
+      commands: {
+        name: string;
+        input: { properties: Record<string, unknown> };
+        output: { properties: Record<string, unknown> };
+      }[];
+    };
+    const entry = catalog.commands.find((command) => command.name === "element.get");
+    expect(entry).toBeDefined();
+    if (entry !== undefined) {
+      entry.input.properties["bare"] = { type: "string" };
+      entry.output.properties["bare"] = { type: "string" };
+    }
+    const runtime = createCommandRuntime({ contracts: loadContracts({ catalog }) });
+    const bare = { properties: { bare: { type: "integer" } } };
+    const schemas = runtime.contracts.schemas.map((schema) =>
+      schemaName(schema) === "filter"
+        ? {
+            ...schema,
+            properties: { ...(schema["properties"] as object), ...bare.properties },
+            $defs: { ...(schema["$defs"] as object), extra: bare },
+          }
+        : schemaName(schema) === "common"
+          ? { ...schema, $defs: { ...(schema["$defs"] as object), extra: bare } }
+          : schema,
+    );
+    await expect(referencePages({ ...(await sources(runtime)), schemas }, "/")).rejects.toThrow(
+      [
+        "docs: reference pages",
+        "reference/common-types.md: fields without a description: extra.bare",
+        "reference/formats/filter.md: fields without a description: fields.bare, extra.bare",
+        "reference/commands/element-get.md: fields without a description: input.bare, output.bare",
+      ].join("\n"),
+    );
+  });
 });

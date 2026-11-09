@@ -35,6 +35,7 @@
         "$ref": "../common.schema.json#/$defs/key"
       },
       "title": {
+        "description": "Title of the new element.",
         "type": "string"
       },
       "text": {
@@ -43,6 +44,7 @@
         "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
       },
       "properties": {
+        "description": "Values of the properties of the type, by key.",
         "type": "object",
         "additionalProperties": {
           "$ref": "../element.schema.json#/$defs/inputValue"
@@ -53,6 +55,7 @@
         "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
       },
       "repository": {
+        "description": "Workspace name of the repository to write the element to. Default: the main repository.",
         "type": "string"
       },
       "folder": {
@@ -75,6 +78,7 @@
         "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none."
       },
       "files": {
+        "description": "Written files, relative to the workspace root.",
         "type": "array",
         "items": {
           "type": "string"

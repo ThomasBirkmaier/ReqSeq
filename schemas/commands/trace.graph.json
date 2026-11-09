@@ -123,15 +123,19 @@
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "description": "Key of its type.",
               "type": "string"
             },
             "title": {
+              "description": "Its title; empty without one.",
               "type": "string"
             },
             "status": {
+              "description": "Its status key as written; left out when it has none.",
               "type": "string"
             },
             "repository": {
+              "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
@@ -257,18 +261,22 @@
               "description": "The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out.",
               "properties": {
                 "passed": {
+                  "description": "Test cases and records whose newest result passed.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "failed": {
+                  "description": "Test cases and records whose newest result failed.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "inconclusive": {
+                  "description": "Test cases and records whose newest result is inconclusive.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "skipped": {
+                  "description": "Test cases that were only skipped.",
                   "type": "integer",
                   "minimum": 1
                 }

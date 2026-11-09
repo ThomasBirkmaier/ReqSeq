@@ -112,9 +112,11 @@
       ],
       "properties": {
         "reqseq-api": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "port": {
+          "description": "The port the API listens on.",
           "type": "integer",
           "minimum": 1,
           "maximum": 65535
@@ -156,6 +158,7 @@
       ],
       "properties": {
         "reqseq-baseline": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "name": {
@@ -180,6 +183,7 @@
             ],
             "properties": {
               "name": {
+                "description": "Workspace name of the repository.",
                 "type": "string"
               },
               "commit": {
@@ -296,6 +300,7 @@
               "$ref": "common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "description": "Workspace name of the repository of the element.",
               "type": "string"
             }
           },
@@ -384,9 +389,11 @@
               "$ref": "#/$defs/shortId"
             },
             "identifier": {
+              "description": "Its identifier, when it has one.",
               "type": "string"
             },
             "title": {
+              "description": "Its title; empty without one.",
               "type": "string"
             }
           },
@@ -428,6 +435,7 @@
               "$ref": "#/$defs/version"
             },
             "title": {
+              "description": "Title of the target as stored; only within the same repository.",
               "type": "string"
             },
             "repository": {
@@ -477,6 +485,7 @@
               "$ref": "#/$defs/version"
             },
             "title": {
+              "description": "Ignored; the tool writes it.",
               "type": "string"
             },
             "repository": {
@@ -529,6 +538,7 @@
               "$ref": "#/$defs/problemCode"
             },
             "severity": {
+              "description": "`error`, `warning` or `info`.",
               "enum": [
                 "error",
                 "warning",
@@ -536,9 +546,11 @@
               ]
             },
             "message": {
+              "description": "What is wrong, for people.",
               "type": "string"
             },
             "file": {
+              "description": "The file the problem is about; relative to `repository` when that is given.",
               "type": "string"
             },
             "repository": {
@@ -546,6 +558,7 @@
               "description": "Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository."
             },
             "line": {
+              "description": "The line in `file`, counted from 1.",
               "type": "integer",
               "minimum": 1
             },
@@ -590,6 +603,7 @@
               "$ref": "#/$defs/version"
             },
             "storedDate": {
+              "description": "Date of the stored version; null when unknown.",
               "type": [
                 "string",
                 "null"
@@ -597,6 +611,7 @@
               "format": "date-time"
             },
             "currentDate": {
+              "description": "Date of the current version; null when unknown.",
               "type": [
                 "string",
                 "null"
@@ -753,6 +768,7 @@
           ],
           "properties": {
             "code": {
+              "description": "Stable code of the error.",
               "enum": [
                 "input.invalid",
                 "ref.unknown",
@@ -781,9 +797,11 @@
               ]
             },
             "message": {
+              "description": "What went wrong, for people.",
               "type": "string"
             },
             "details": {
+              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code.",
               "type": "object"
             }
           },
@@ -931,6 +949,7 @@
           "type": "object",
           "properties": {
             "identifier": {
+              "description": "The IDENTIFIER of the object in the ReqIF file.",
               "type": "string"
             },
             "id": {
@@ -951,6 +970,7 @@
               "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
             },
             "kind": {
+              "description": "Which kind of object is affected.",
               "enum": [
                 "spec-object",
                 "spec-relation",
@@ -961,6 +981,7 @@
               "$ref": "#/$defs/uuid"
             },
             "code": {
+              "description": "Stable code of the loss.",
               "enum": [
                 "omitted-type",
                 "omitted-attribute",
@@ -982,6 +1003,7 @@
               ]
             },
             "reason": {
+              "description": "What is lost, for people.",
               "type": "string"
             }
           },
@@ -998,6 +1020,7 @@
           "type": "object",
           "properties": {
             "kind": {
+              "description": "What is not mapped: a type, an attribute, a relation type or an enumeration value.",
               "enum": [
                 "type",
                 "attribute",
@@ -1006,12 +1029,15 @@
               ]
             },
             "source": {
+              "description": "Its LONG-NAME or IDENTIFIER in the source.",
               "type": "string"
             },
             "sourceType": {
+              "description": "The SPEC-OBJECT-TYPE of an attribute or value.",
               "type": "string"
             },
             "attribute": {
+              "description": "The attribute of a value.",
               "type": "string"
             }
           },
@@ -1051,6 +1077,7 @@
           "description": "`false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file."
         },
         "workspace": {
+          "description": "Name of the workspace.",
           "type": "string"
         },
         "generated": {
@@ -1062,6 +1089,7 @@
           "description": "The selection as given; left out when none was given (every element)."
         },
         "repositories": {
+          "description": "The repositories of the workspace file, in its order.",
           "type": "array",
           "items": {
             "type": "object",
@@ -1071,9 +1099,11 @@
             ],
             "properties": {
               "name": {
+                "description": "Workspace name of the repository.",
                 "type": "string"
               },
               "available": {
+                "description": "The repository is on this machine.",
                 "type": "boolean"
               },
               "commit": {
@@ -1154,6 +1184,7 @@
           ],
           "properties": {
             "reqseq-data": {
+              "description": "Version of this file format.",
               "const": 3
             },
             "commit": {
@@ -1194,6 +1225,7 @@
               "description": "The status key as written; left out when the element has none (a type without status)."
             },
             "title": {
+              "description": "Title of the element; empty without one.",
               "type": "string"
             },
             "text": {
@@ -1213,6 +1245,7 @@
               "description": "Date of the version from Git (shown instead of the hash): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out."
             },
             "repository": {
+              "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
@@ -1333,6 +1366,7 @@
               "description": "`reference` = inline link in the text."
             },
             "direction": {
+              "description": "`out`: the element stores the relation. `in`: another element stores it and points at this one.",
               "enum": [
                 "out",
                 "in"
@@ -1378,6 +1412,7 @@
               "$ref": "common.schema.json#/$defs/version"
             },
             "outdated": {
+              "description": "The stored version of the other end differs from its current version.",
               "type": "boolean"
             }
           },
@@ -1402,6 +1437,7 @@
               "$ref": "common.schema.json#/$defs/version"
             },
             "kind": {
+              "description": "Verification or validation.",
               "enum": [
                 "verification",
                 "validation"
@@ -1690,6 +1726,7 @@
           ],
           "properties": {
             "verified": {
+              "description": "The number of verified acceptance criteria.",
               "type": "integer",
               "minimum": 0
             },
@@ -1742,22 +1779,27 @@
               ],
               "properties": {
                 "open": {
+                  "description": "Requirements with the verification status open.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "verified": {
+                  "description": "Requirements with the verification status verified.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "indirect": {
+                  "description": "Requirements verified indirectly, through their children.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "failed": {
+                  "description": "Requirements with the verification status failed.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "outdated": {
+                  "description": "Requirements with the verification status outdated.",
                   "type": "integer",
                   "minimum": 0
                 }
@@ -1878,6 +1920,7 @@
       ],
       "properties": {
         "reqseq-record": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "kind": {
@@ -2028,12 +2071,14 @@
       ],
       "properties": {
         "reqseq-filter": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "name": {
           "$ref": "#/$defs/name"
         },
         "description": {
+          "description": "What the filter is for, for people.",
           "type": "string"
         },
         "view": {
@@ -2274,6 +2319,7 @@
               "$ref": "common.schema.json#/$defs/key"
             },
             "op": {
+              "description": "The comparison, as the condition describes it.",
               "enum": [
                 "eq",
                 "ne",
@@ -2288,7 +2334,9 @@
                 "matches"
               ]
             },
-            "value": {}
+            "value": {
+              "description": "The value to compare with; a list for `in`; none for `exists` and `missing`."
+            }
           },
           "additionalProperties": false
         },
@@ -2301,6 +2349,7 @@
           ],
           "properties": {
             "relation": {
+              "description": "Which relations count.",
               "type": "object",
               "properties": {
                 "kind": {
@@ -2332,6 +2381,7 @@
               "additionalProperties": false
             },
             "exists": {
+              "description": "`true`: the element has such a relation. `false`: it has none.",
               "type": "boolean"
             }
           },
@@ -2363,6 +2413,7 @@
               ]
             },
             "order": {
+              "description": "Ascending or descending.",
               "enum": [
                 "asc",
                 "desc"
@@ -2439,6 +2490,7 @@
               "description": "Display name. English in the standard model."
             },
             "description": {
+              "description": "What it means, for people.",
               "type": "string"
             }
           }
@@ -2524,10 +2576,12 @@
               "$ref": "#/$defs/key"
             },
             "name": {
+              "description": "Display name of the type.",
               "type": "string",
               "minLength": 1
             },
             "description": {
+              "description": "What the type means, for people.",
               "type": "string"
             },
             "prefix": {
@@ -2840,9 +2894,11 @@
       ],
       "properties": {
         "reqseq-reqif-mapping": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "source": {
+          "description": "The ReqIF source this mapping is for.",
           "type": "object",
           "required": [
             "name"
@@ -2864,6 +2920,7 @@
           "description": "Folder where imported elements are written."
         },
         "types": {
+          "description": "Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted.",
           "type": "array",
           "items": {
             "type": "object",
@@ -2879,6 +2936,7 @@
                 "$ref": "common.schema.json#/$defs/key"
               },
               "omit": {
+                "description": "Objects of this type are not imported; each is listed as a loss.",
                 "const": true
               }
             },
@@ -2898,6 +2956,7 @@
           }
         },
         "attributes": {
+          "description": "Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted.",
           "type": "array",
           "items": {
             "type": "object",
@@ -2914,6 +2973,7 @@
                 "description": "LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION."
               },
               "property": {
+                "description": "Where the value goes: `title`, `text` or the key of a property.",
                 "anyOf": [
                   {
                     "enum": [
@@ -2941,6 +3001,7 @@
                 "description": "Enumeration values left out on import, each listed as a loss."
               },
               "omit": {
+                "description": "The attribute is not imported, which is listed as a loss.",
                 "const": true
               }
             },
@@ -2960,6 +3021,7 @@
           }
         },
         "relations": {
+          "description": "Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted.",
           "type": "array",
           "items": {
             "type": "object",
@@ -2975,6 +3037,7 @@
                 "$ref": "common.schema.json#/$defs/key"
               },
               "omit": {
+                "description": "Relations of this type are not imported.",
                 "const": true
               }
             },
@@ -3028,6 +3091,7 @@
           "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties`."
         },
         "export-profiles": {
+          "description": "Saved exports to this source, each a selection under a name.",
           "type": "array",
           "items": {
             "type": "object",
@@ -3037,6 +3101,7 @@
             ],
             "properties": {
               "name": {
+                "description": "Name of the profile.",
                 "type": "string"
               },
               "selection": {
@@ -3067,6 +3132,7 @@
       ],
       "properties": {
         "reqseq-local": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "repositories": {
@@ -3107,9 +3173,11 @@
       ],
       "properties": {
         "reqseq-workspace": {
+          "description": "Version of this file format.",
           "const": 1
         },
         "name": {
+          "description": "Name of the workspace.",
           "type": "string",
           "minLength": 1
         },
@@ -3180,6 +3248,7 @@
           ],
           "properties": {
             "name": {
+              "description": "Name of the repository in the workspace: lower case letters, digits, `.`, `_` and `-`.",
               "type": "string",
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
             },
@@ -3192,6 +3261,7 @@
               "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about; an absolute path is ignored, and so is one that leaves the folder holding the main repository or passes a link out of a repository (it can lead to a network share); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
             },
             "main": {
+              "description": "The repository that holds this file.",
               "type": "boolean",
               "default": false
             },
@@ -3210,6 +3280,7 @@
           ],
           "properties": {
             "main": {
+              "description": "The repository that holds this file.",
               "const": true
             }
           }
@@ -3222,6 +3293,7 @@
           ],
           "properties": {
             "repository": {
+              "description": "Workspace name of the repository.",
               "type": "string"
             },
             "path": {
@@ -3500,15 +3572,19 @@
               "description": "Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file."
             },
             "name": {
+              "description": "Name of the workspace, written to reqseq-workspace.yaml.",
               "type": "string"
             },
             "metamodel": {
+              "description": "Where the metamodel lies. Default: the folder `metamodel` in the main repository, where the standard model is written.",
               "type": "object",
               "properties": {
                 "repository": {
+                  "description": "Workspace name of the repository of the metamodel. Default: the main repository.",
                   "type": "string"
                 },
                 "path": {
+                  "description": "Folder of the metamodel, relative to that repository. Default: `metamodel`.",
                   "type": "string"
                 }
               },
@@ -3567,20 +3643,25 @@
           "type": "object",
           "properties": {
             "name": {
+              "description": "Name of the workspace, from reqseq-workspace.yaml.",
               "type": "string"
             },
             "repositories": {
+              "description": "The repositories of the workspace file, in its order.",
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "name": {
+                    "description": "Workspace name of the repository.",
                     "type": "string"
                   },
                   "available": {
+                    "description": "The repository is on this machine.",
                     "type": "boolean"
                   },
                   "path": {
+                    "description": "Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file.",
                     "type": "string"
                   },
                   "commit": {
@@ -3603,15 +3684,19 @@
               }
             },
             "metamodel": {
+              "description": "Where the metamodel comes from.",
               "type": "object",
               "properties": {
                 "repository": {
+                  "description": "Workspace name of the repository of the metamodel.",
                   "type": "string"
                 },
                 "path": {
+                  "description": "Folder of the metamodel, relative to that repository.",
                   "type": "string"
                 },
                 "valid": {
+                  "description": "The metamodel was read without errors.",
                   "type": "boolean"
                 }
               },
@@ -3628,6 +3713,7 @@
                 "type": "object",
                 "properties": {
                   "repository": {
+                    "description": "Workspace name of the repository of the evidence location.",
                     "type": "string"
                   },
                   "path": {
@@ -3648,6 +3734,7 @@
               "description": "The `evidence` locations of the workspace file, in its order, as written. Empty without the key."
             },
             "readOnly": {
+              "description": "The workspace opens read-only because its metamodel is missing or faulty: nothing can be written.",
               "type": "boolean"
             },
             "problems": {
@@ -3771,10 +3858,12 @@
                   "description": "The severity given: the findings counted are below it."
                 },
                 "warning": {
+                  "description": "Warnings left out.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "info": {
+                  "description": "Infos left out.",
                   "type": "integer",
                   "minimum": 0
                 }
@@ -4027,14 +4116,17 @@
               "type": "object",
               "properties": {
                 "app": {
+                  "description": "Version of the app.",
                   "type": "string",
                   "minLength": 1
                 },
                 "cli": {
+                  "description": "Version of the command line.",
                   "type": "string",
                   "minLength": 1
                 },
                 "mcp": {
+                  "description": "Version of the MCP server.",
                   "type": "string",
                   "minLength": 1
                 }
@@ -4048,6 +4140,7 @@
               "description": "The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery."
             },
             "build": {
+              "description": "The build of ReqSeq that runs.",
               "type": "object",
               "properties": {
                 "commit": {
@@ -4088,6 +4181,7 @@
                   "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
                 },
                 "node": {
+                  "description": "Version of Node.",
                   "type": "string",
                   "minLength": 1
                 },
@@ -4104,6 +4198,7 @@
               "description": "The runtime of the process. The delivered command line, API and MCP server run on the Electron of the app, so a delivery gives the same values in every access."
             },
             "workspace": {
+              "description": "The open workspace.",
               "type": "object",
               "properties": {
                 "path": {
@@ -4112,6 +4207,7 @@
                   "description": "The absolute path of the workspace root, the folder with reqseq-workspace.yaml."
                 },
                 "name": {
+                  "description": "Name of the workspace, from reqseq-workspace.yaml.",
                   "type": "string"
                 },
                 "repositories": {
@@ -4136,6 +4232,7 @@
               ]
             },
             "license": {
+              "description": "The licence notice of ReqSeq and where its third-party licences are.",
               "type": "object",
               "properties": {
                 "notice": {
@@ -4157,6 +4254,7 @@
               ]
             },
             "documentation": {
+              "description": "Where the documentation and the releases are.",
               "type": "object",
               "properties": {
                 "bundled": {
@@ -4354,6 +4452,7 @@
               "$ref": "../common.schema.json#/$defs/key"
             },
             "title": {
+              "description": "Title of the new element.",
               "type": "string"
             },
             "text": {
@@ -4362,6 +4461,7 @@
               "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added. Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
             },
             "properties": {
+              "description": "Values of the properties of the type, by key.",
               "type": "object",
               "additionalProperties": {
                 "$ref": "../element.schema.json#/$defs/inputValue"
@@ -4372,6 +4472,7 @@
               "description": "Relations of the new element by kind, written in the same file, e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
             },
             "repository": {
+              "description": "Workspace name of the repository to write the element to. Default: the main repository.",
               "type": "string"
             },
             "folder": {
@@ -4399,6 +4500,7 @@
               "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them. Left out when it names none."
             },
             "files": {
+              "description": "Written files, relative to the workspace root.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -4738,12 +4840,14 @@
               "description": "Also give what each row shows of its element's verification, in `rowVerification`."
             },
             "limit": {
+              "description": "The most elements on one page.",
               "type": "integer",
               "minimum": 1,
               "maximum": 5000,
               "default": 200
             },
             "offset": {
+              "description": "Elements skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -4801,6 +4905,7 @@
                         "$ref": "../common.schema.json#/$defs/uuid"
                       },
                       "repository": {
+                        "description": "Workspace name of the repository of the parent.",
                         "type": "string"
                       }
                     },
@@ -4916,13 +5021,16 @@
                 "type": "object",
                 "properties": {
                   "key": {
+                    "description": "Key of the type as written in the files.",
                     "type": "string",
                     "minLength": 1
                   },
                   "name": {
+                    "description": "Display name of the type; the key for a type the metamodel does not define.",
                     "type": "string"
                   },
                   "count": {
+                    "description": "Selected elements of exactly this type.",
                     "type": "integer",
                     "minimum": 1
                   }
@@ -4942,9 +5050,11 @@
                 "type": "object",
                 "properties": {
                   "key": {
+                    "description": "Key of the status as written in the files.",
                     "type": "string"
                   },
                   "count": {
+                    "description": "Selected elements with this status.",
                     "type": "integer",
                     "minimum": 1
                   }
@@ -4966,9 +5076,11 @@
                     "$ref": "../common.schema.json#/$defs/key"
                   },
                   "name": {
+                    "description": "Display name of the property.",
                     "type": "string"
                   },
                   "kind": {
+                    "description": "Value kind of the property.",
                     "enum": [
                       "text",
                       "number",
@@ -5003,6 +5115,7 @@
                       "type": "object",
                       "properties": {
                         "value": {
+                          "description": "The value, as `{ property, op: \"eq\", value }` selects it.",
                           "type": [
                             "string",
                             "number",
@@ -5134,6 +5247,7 @@
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "title": {
+              "description": "New title.",
               "type": "string"
             },
             "text": {
@@ -5142,6 +5256,7 @@
               "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break. Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
             },
             "set": {
+              "description": "New values by key.",
               "type": "object",
               "additionalProperties": {
                 "$ref": "../element.schema.json#/$defs/inputValue"
@@ -5157,6 +5272,7 @@
               }
             },
             "unset": {
+              "description": "Keys to remove.",
               "type": "array",
               "items": {
                 "allOf": [
@@ -5239,6 +5355,7 @@
               "description": "Of the file as written, or as read when nothing changed."
             },
             "files": {
+              "description": "Written files, relative to the workspace root.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -5573,12 +5690,14 @@
                     "$ref": "../common.schema.json#/$defs/shortId"
                   },
                   "reason": {
+                    "description": "`not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read.",
                     "enum": [
                       "not-a-property",
                       "unknown-type"
                     ]
                   },
                   "message": {
+                    "description": "Why the element was left out, for people.",
                     "type": "string"
                   }
                 },
@@ -5861,6 +5980,7 @@
           "type": "object",
           "properties": {
             "files": {
+              "description": "Written files, relative to the workspace root.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -6009,6 +6129,7 @@
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "direction": {
+              "description": "`up` to the parents, `down` to the children and evidence, `both` for both.",
               "enum": [
                 "up",
                 "down",
@@ -6020,6 +6141,7 @@
               "$ref": "../common.schema.json#/$defs/view"
             },
             "maxDepth": {
+              "description": "The deepest level in each direction; without it the chain is followed to its ends.",
               "type": "integer",
               "minimum": 0
             },
@@ -6081,15 +6203,19 @@
                     "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
+                    "description": "Key of its type.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "Its title; empty without one.",
                     "type": "string"
                   },
                   "status": {
+                    "description": "Its status key as written; left out when it has none.",
                     "type": "string"
                   },
                   "repository": {
+                    "description": "Workspace name of the repository of its file.",
                     "type": "string"
                   },
                   "file": {
@@ -6156,6 +6282,7 @@
                     "description": "Key of the relation kind with the meaning `derivation`."
                   },
                   "direction": {
+                    "description": "The walk it belongs to: `up` to the parents, `down` to the children.",
                     "enum": [
                       "up",
                       "down"
@@ -6192,6 +6319,7 @@
                     "description": "Workspace name of the repository of the element with the gap."
                   },
                   "kind": {
+                    "description": "The kind of the gap, as `gaps` describes it.",
                     "enum": [
                       "no-child",
                       "no-evidence",
@@ -6273,6 +6401,7 @@
                 "type": "object",
                 "properties": {
                   "direction": {
+                    "description": "`up` for a parent that could not be followed, `down` for a child.",
                     "enum": [
                       "up",
                       "down"
@@ -6301,6 +6430,7 @@
                     "description": "Identifier of the other end, when it is available and has one."
                   },
                   "title": {
+                    "description": "Title of the other end, when it is available.",
                     "type": "string"
                   },
                   "targetState": {
@@ -6397,18 +6527,21 @@
           "type": "object",
           "properties": {
             "refs": {
+              "description": "The elements to start from: the parents for `children`, the requirements for `parents`.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementRef"
               }
             },
             "direction": {
+              "description": "`children`: every element derived from them. `parents`: every element they derive from.",
               "enum": [
                 "children",
                 "parents"
               ]
             },
             "maxDepth": {
+              "description": "The most derivation steps from the start elements; without it every step.",
               "type": "integer",
               "minimum": 0
             },
@@ -6445,6 +6578,7 @@
               }
             },
             "total": {
+              "description": "The number of all related elements; `elements` holds the page.",
               "type": "integer",
               "minimum": 0
             },
@@ -6498,12 +6632,14 @@
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "limit": {
+              "description": "The most elements on one page.",
               "type": "integer",
               "minimum": 1,
               "maximum": 5000,
               "default": 200
             },
             "offset": {
+              "description": "Elements skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -6550,12 +6686,15 @@
                     "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
+                    "description": "Key of its type.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "Its title; empty without one.",
                     "type": "string"
                   },
                   "repository": {
+                    "description": "Workspace name of the repository of its file.",
                     "type": "string"
                   },
                   "file": {
@@ -6577,6 +6716,7 @@
                           "$ref": "../common.schema.json#/$defs/uuid"
                         },
                         "repository": {
+                          "description": "Workspace name of the repository of this element of the path.",
                           "type": "string"
                         }
                       },
@@ -6593,6 +6733,7 @@
                     "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`.",
                     "properties": {
                       "kind": {
+                        "description": "`relation`: a relation or relation property stored under `key`. `reference`: an inline reference.",
                         "enum": [
                           "relation",
                           "reference"
@@ -6797,15 +6938,19 @@
                     "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
+                    "description": "Key of its type.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "Its title; empty without one.",
                     "type": "string"
                   },
                   "status": {
+                    "description": "Its status key as written; left out when it has none.",
                     "type": "string"
                   },
                   "repository": {
+                    "description": "Workspace name of the repository of its file.",
                     "type": "string"
                   },
                   "file": {
@@ -7110,12 +7255,15 @@
                     "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
+                    "description": "Key of its type.",
                     "type": "string"
                   },
                   "status": {
+                    "description": "Its status key as written; left out when it has none.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "Its title; empty without one.",
                     "type": "string"
                   },
                   "file": {
@@ -7438,15 +7586,19 @@
                     "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
+                    "description": "Key of its type.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "Its title; empty without one.",
                     "type": "string"
                   },
                   "status": {
+                    "description": "Its status key as written; left out when it has none.",
                     "type": "string"
                   },
                   "repository": {
+                    "description": "Workspace name of the repository of its file.",
                     "type": "string"
                   },
                   "file": {
@@ -7601,18 +7753,22 @@
                     "description": "The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out.",
                     "properties": {
                       "passed": {
+                        "description": "Test cases and records whose newest result passed.",
                         "type": "integer",
                         "minimum": 1
                       },
                       "failed": {
+                        "description": "Test cases and records whose newest result failed.",
                         "type": "integer",
                         "minimum": 1
                       },
                       "inconclusive": {
+                        "description": "Test cases and records whose newest result is inconclusive.",
                         "type": "integer",
                         "minimum": 1
                       },
                       "skipped": {
+                        "description": "Test cases that were only skipped.",
                         "type": "integer",
                         "minimum": 1
                       }
@@ -7868,12 +8024,14 @@
           "type": "object",
           "properties": {
             "confirmed": {
+              "description": "The IDs of the confirmed hints, each once.",
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "files": {
+              "description": "Written files, relative to the workspace root.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -7972,12 +8130,14 @@
               "description": "Also give what each row shows of its element's verification, in `rowVerification`."
             },
             "limit": {
+              "description": "The most hits on one page.",
               "type": "integer",
               "minimum": 1,
               "maximum": 500,
               "default": 50
             },
             "offset": {
+              "description": "Hits skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -8195,6 +8355,7 @@
                     "description": "The filter file, relative to the workspace root."
                   },
                   "description": {
+                    "description": "What the filter is for, as saved.",
                     "type": "string"
                   },
                   "view": {
@@ -8276,6 +8437,7 @@
               "$ref": "../filter.schema.json#/$defs/name"
             },
             "description": {
+              "description": "What the filter is for, for people.",
               "type": "string"
             },
             "view": {
@@ -8698,9 +8860,11 @@
                 "type": "object",
                 "properties": {
                   "testCase": {
+                    "description": "The `name` of the test case.",
                     "type": "string"
                   },
                   "className": {
+                    "description": "The `classname` of the test case.",
                     "type": "string"
                   },
                   "line": {
@@ -8709,6 +8873,7 @@
                     "description": "The line of the `<testcase>` in the file as read."
                   },
                   "ref": {
+                    "description": "The reference as the test case gives it.",
                     "type": "string"
                   }
                 },
@@ -8781,12 +8946,14 @@
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "limit": {
+              "description": "The most elements on one page.",
               "type": "integer",
               "minimum": 1,
               "maximum": 5000,
               "default": 200
             },
             "offset": {
+              "description": "Elements skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -9030,12 +9197,14 @@
               "description": "Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent`; only requirements its view holds."
             },
             "limit": {
+              "description": "The most requirements on one page.",
               "type": "integer",
               "minimum": 1,
               "maximum": 5000,
               "default": 200
             },
             "offset": {
+              "description": "Requirements skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -9401,9 +9570,11 @@
               }
             },
             "baseline": {
+              "description": "The written baseline.",
               "type": "object",
               "properties": {
                 "name": {
+                  "description": "Name of the baseline.",
                   "type": "string"
                 },
                 "file": {
@@ -9475,6 +9646,7 @@
                 "type": "object",
                 "properties": {
                   "name": {
+                    "description": "Name of the baseline.",
                     "type": "string"
                   },
                   "file": {
@@ -9580,6 +9752,7 @@
               "description": "Elements of the page; total counts all."
             },
             "offset": {
+              "description": "Elements skipped before the page.",
               "type": "integer",
               "minimum": 0,
               "default": 0
@@ -9595,6 +9768,7 @@
           "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
           "properties": {
             "name": {
+              "description": "Name of the baseline.",
               "type": "string"
             },
             "file": {
@@ -9617,11 +9791,13 @@
               "description": "The file stores a selection. Without it no element is added or removed."
             },
             "repositories": {
+              "description": "The repositories the baseline names, each with its commit then.",
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "name": {
+                    "description": "Workspace name of the repository.",
                     "type": "string"
                   },
                   "commit": {
@@ -9741,30 +9917,37 @@
               "description": "Elements per state over all pages.",
               "properties": {
                 "unchanged": {
+                  "description": "Elements unchanged since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "changed": {
+                  "description": "Elements changed since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "superseded": {
+                  "description": "Elements superseded since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "removed": {
+                  "description": "Elements that left the selection since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "added": {
+                  "description": "Elements that joined the selection since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "missing": {
+                  "description": "Elements of the baseline that are not found.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "inaccessible": {
+                  "description": "Elements of the baseline in a repository that is not on this machine.",
                   "type": "integer",
                   "minimum": 0
                 }
@@ -9859,6 +10042,7 @@
           "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
           "properties": {
             "repository": {
+              "description": "Workspace name of the repository of the element.",
               "type": "string"
             },
             "from": {
@@ -10056,6 +10240,7 @@
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "delivery": {
+              "description": "Name of the delivery, written to the origin of each element it imports or updates.",
               "type": "string",
               "minLength": 1
             },
@@ -10264,6 +10449,7 @@
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "profile": {
+              "description": "Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`.",
               "type": "string"
             },
             "mapping": {
@@ -10277,6 +10463,7 @@
               }
             },
             "statements": {
+              "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
               "type": "boolean"
             }
           },
@@ -10289,13 +10476,16 @@
           "type": "object",
           "properties": {
             "file": {
+              "description": "The written ReqIF file, relative to the workspace root when it lies inside, else absolute.",
               "type": "string"
             },
             "elements": {
+              "description": "Exported elements.",
               "type": "integer",
               "minimum": 0
             },
             "relations": {
+              "description": "Exported relations.",
               "type": "integer",
               "minimum": 0
             },

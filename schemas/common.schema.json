@@ -65,9 +65,11 @@
           "$ref": "#/$defs/shortId"
         },
         "identifier": {
+          "description": "Its identifier, when it has one.",
           "type": "string"
         },
         "title": {
+          "description": "Its title; empty without one.",
           "type": "string"
         }
       },
@@ -106,6 +108,7 @@
           "$ref": "#/$defs/version"
         },
         "title": {
+          "description": "Title of the target as stored; only within the same repository.",
           "type": "string"
         },
         "repository": {
@@ -150,6 +153,7 @@
           "$ref": "#/$defs/version"
         },
         "title": {
+          "description": "Ignored; the tool writes it.",
           "type": "string"
         },
         "repository": {
@@ -198,12 +202,15 @@
           "$ref": "#/$defs/problemCode"
         },
         "severity": {
+          "description": "`error`, `warning` or `info`.",
           "enum": ["error", "warning", "info"]
         },
         "message": {
+          "description": "What is wrong, for people.",
           "type": "string"
         },
         "file": {
+          "description": "The file the problem is about; relative to `repository` when that is given.",
           "type": "string"
         },
         "repository": {
@@ -211,6 +218,7 @@
           "description": "Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository."
         },
         "line": {
+          "description": "The line in `file`, counted from 1.",
           "type": "integer",
           "minimum": 1
         },
@@ -255,10 +263,12 @@
           "$ref": "#/$defs/version"
         },
         "storedDate": {
+          "description": "Date of the stored version; null when unknown.",
           "type": ["string", "null"],
           "format": "date-time"
         },
         "currentDate": {
+          "description": "Date of the current version; null when unknown.",
           "type": ["string", "null"],
           "format": "date-time"
         },
@@ -398,6 +408,7 @@
       "required": ["code", "message"],
       "properties": {
         "code": {
+          "description": "Stable code of the error.",
           "enum": [
             "input.invalid",
             "ref.unknown",
@@ -426,9 +437,11 @@
           ]
         },
         "message": {
+          "description": "What went wrong, for people.",
           "type": "string"
         },
         "details": {
+          "description": "Facts about the error that a client can read without parsing `message`; they depend on the code.",
           "type": "object"
         }
       },
@@ -542,7 +555,7 @@
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",
       "type": "object",
       "properties": {
-        "identifier": { "type": "string" },
+        "identifier": { "description": "The IDENTIFIER of the object in the ReqIF file.", "type": "string" },
         "id": { "$ref": "#/$defs/uuid" }
       },
       "additionalProperties": false,
@@ -556,9 +569,13 @@
           "type": "string",
           "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
         },
-        "kind": { "enum": ["spec-object", "spec-relation", "specification"] },
+        "kind": {
+          "description": "Which kind of object is affected.",
+          "enum": ["spec-object", "spec-relation", "specification"]
+        },
         "id": { "$ref": "#/$defs/uuid" },
         "code": {
+          "description": "Stable code of the loss.",
           "enum": [
             "omitted-type",
             "omitted-attribute",
@@ -579,7 +596,7 @@
             "image-outside"
           ]
         },
-        "reason": { "type": "string" }
+        "reason": { "description": "What is lost, for people.", "type": "string" }
       },
       "additionalProperties": false,
       "required": ["identifier", "kind", "code", "reason"]
@@ -588,10 +605,13 @@
       "description": "A type, attribute, relation type or enumeration value of a ReqIF file that the mapping neither maps nor omits (SR-055 AK1). `source` is its LONG-NAME or IDENTIFIER; `sourceType` the SPEC-OBJECT-TYPE of an attribute or value, `attribute` the attribute of a value.",
       "type": "object",
       "properties": {
-        "kind": { "enum": ["type", "attribute", "relation", "value"] },
-        "source": { "type": "string" },
-        "sourceType": { "type": "string" },
-        "attribute": { "type": "string" }
+        "kind": {
+          "description": "What is not mapped: a type, an attribute, a relation type or an enumeration value.",
+          "enum": ["type", "attribute", "relation", "value"]
+        },
+        "source": { "description": "Its LONG-NAME or IDENTIFIER in the source.", "type": "string" },
+        "sourceType": { "description": "The SPEC-OBJECT-TYPE of an attribute or value.", "type": "string" },
+        "attribute": { "description": "The attribute of a value.", "type": "string" }
       },
       "additionalProperties": false,
       "required": ["kind", "source"]

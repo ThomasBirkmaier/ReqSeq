@@ -37,9 +37,11 @@
         }
       },
       "baseline": {
+        "description": "The written baseline.",
         "type": "object",
         "properties": {
           "name": {
+            "description": "Name of the baseline.",
             "type": "string"
           },
           "file": {

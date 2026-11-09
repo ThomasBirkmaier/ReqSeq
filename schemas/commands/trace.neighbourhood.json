@@ -87,10 +87,16 @@
               "type": "string",
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
-            "type": { "type": "string" },
-            "title": { "type": "string" },
-            "status": { "type": "string" },
-            "repository": { "type": "string" },
+            "type": { "description": "Key of its type.", "type": "string" },
+            "title": { "description": "Its title; empty without one.", "type": "string" },
+            "status": {
+              "description": "Its status key as written; left out when it has none.",
+              "type": "string"
+            },
+            "repository": {
+              "description": "Workspace name of the repository of its file.",
+              "type": "string"
+            },
             "file": { "type": "string", "description": "Path relative to the repository." },
             "depth": {
               "type": "integer",
