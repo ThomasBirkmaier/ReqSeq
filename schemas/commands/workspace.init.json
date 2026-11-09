@@ -20,15 +20,19 @@
         "description": "Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file."
       },
       "name": {
+        "description": "Name of the workspace, written to reqseq-workspace.yaml.",
         "type": "string"
       },
       "metamodel": {
+        "description": "Where the metamodel lies. Default: the folder `metamodel` in the main repository, where the standard model is written.",
         "type": "object",
         "properties": {
           "repository": {
+            "description": "Workspace name of the repository of the metamodel. Default: the main repository.",
             "type": "string"
           },
           "path": {
+            "description": "Folder of the metamodel, relative to that repository. Default: `metamodel`.",
             "type": "string"
           }
         },

@@ -17,15 +17,16 @@
       "versions": {
         "type": "object",
         "properties": {
-          "app": { "type": "string", "minLength": 1 },
-          "cli": { "type": "string", "minLength": 1 },
-          "mcp": { "type": "string", "minLength": 1 }
+          "app": { "description": "Version of the app.", "type": "string", "minLength": 1 },
+          "cli": { "description": "Version of the command line.", "type": "string", "minLength": 1 },
+          "mcp": { "description": "Version of the MCP server.", "type": "string", "minLength": 1 }
         },
         "additionalProperties": false,
         "required": ["app", "cli", "mcp"],
         "description": "The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery."
       },
       "build": {
+        "description": "The build of ReqSeq that runs.",
         "type": "object",
         "properties": {
           "commit": {
@@ -62,7 +63,7 @@
             "minLength": 1,
             "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
           },
-          "node": { "type": "string", "minLength": 1 },
+          "node": { "description": "Version of Node.", "type": "string", "minLength": 1 },
           "chromium": {
             "type": "string",
             "minLength": 1,
@@ -74,6 +75,7 @@
         "description": "The runtime of the process. The delivered command line, API and MCP server run on the Electron of the app, so a delivery gives the same values in every access."
       },
       "workspace": {
+        "description": "The open workspace.",
         "type": "object",
         "properties": {
           "path": {
@@ -81,7 +83,7 @@
             "minLength": 1,
             "description": "The absolute path of the workspace root, the folder with reqseq-workspace.yaml."
           },
-          "name": { "type": "string" },
+          "name": { "description": "Name of the workspace, from reqseq-workspace.yaml.", "type": "string" },
           "repositories": {
             "type": "array",
             "items": { "type": "string" },
@@ -97,6 +99,7 @@
         "required": ["path", "name", "repositories", "elements"]
       },
       "license": {
+        "description": "The licence notice of ReqSeq and where its third-party licences are.",
         "type": "object",
         "properties": {
           "notice": {
@@ -114,6 +117,7 @@
         "required": ["notice"]
       },
       "documentation": {
+        "description": "Where the documentation and the releases are.",
         "type": "object",
         "properties": {
           "bundled": {

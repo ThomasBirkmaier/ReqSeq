@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["reqseq-baseline", "name", "date", "repositories", "elements"],
   "properties": {
-    "reqseq-baseline": { "const": 1 },
+    "reqseq-baseline": { "description": "Version of this file format.", "const": 1 },
     "name": { "$ref": "#/$defs/name" },
     "date": {
       "description": "When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2).",
@@ -21,7 +21,7 @@
         "type": "object",
         "required": ["name", "commit"],
         "properties": {
-          "name": { "type": "string" },
+          "name": { "description": "Workspace name of the repository.", "type": "string" },
           "commit": { "$ref": "common.schema.json#/$defs/commit" }
         },
         "additionalProperties": false
@@ -96,7 +96,7 @@
       "required": ["id", "repository"],
       "properties": {
         "id": { "$ref": "common.schema.json#/$defs/uuid" },
-        "repository": { "type": "string" }
+        "repository": { "description": "Workspace name of the repository of the element.", "type": "string" }
       },
       "additionalProperties": false
     }

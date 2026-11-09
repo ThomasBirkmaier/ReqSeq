@@ -31,6 +31,7 @@
         "description": "Elements of the page; total counts all."
       },
       "offset": {
+        "description": "Elements skipped before the page.",
         "type": "integer",
         "minimum": 0,
         "default": 0
@@ -44,6 +45,7 @@
     "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
     "properties": {
       "name": {
+        "description": "Name of the baseline.",
         "type": "string"
       },
       "file": {
@@ -66,11 +68,13 @@
         "description": "The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3)."
       },
       "repositories": {
+        "description": "The repositories the baseline names, each with its commit then.",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "description": "Workspace name of the repository.",
               "type": "string"
             },
             "commit": {
@@ -164,13 +168,41 @@
         "type": "object",
         "description": "Elements per state over all pages.",
         "properties": {
-          "unchanged": { "type": "integer", "minimum": 0 },
-          "changed": { "type": "integer", "minimum": 0 },
-          "superseded": { "type": "integer", "minimum": 0 },
-          "removed": { "type": "integer", "minimum": 0 },
-          "added": { "type": "integer", "minimum": 0 },
-          "missing": { "type": "integer", "minimum": 0 },
-          "inaccessible": { "type": "integer", "minimum": 0 }
+          "unchanged": {
+            "description": "Elements unchanged since the baseline.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "changed": {
+            "description": "Elements changed since the baseline.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "superseded": {
+            "description": "Elements superseded since the baseline.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "removed": {
+            "description": "Elements that left the selection since the baseline.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "added": {
+            "description": "Elements that joined the selection since the baseline.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "missing": {
+            "description": "Elements of the baseline that are not found.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "inaccessible": {
+            "description": "Elements of the baseline in a repository that is not on this machine.",
+            "type": "integer",
+            "minimum": 0
+          }
         },
         "additionalProperties": false,
         "required": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"]

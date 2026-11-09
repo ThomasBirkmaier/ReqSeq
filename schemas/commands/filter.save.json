@@ -21,6 +21,7 @@
         "$ref": "../filter.schema.json#/$defs/name"
       },
       "description": {
+        "description": "What the filter is for, for people.",
         "type": "string"
       },
       "view": {

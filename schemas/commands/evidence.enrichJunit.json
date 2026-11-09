@@ -69,9 +69,11 @@
           "type": "object",
           "properties": {
             "testCase": {
+              "description": "The `name` of the test case.",
               "type": "string"
             },
             "className": {
+              "description": "The `classname` of the test case.",
               "type": "string"
             },
             "line": {
@@ -80,6 +82,7 @@
               "description": "The line of the `<testcase>` in the file as read."
             },
             "ref": {
+              "description": "The reference as the test case gives it.",
               "type": "string"
             }
           },

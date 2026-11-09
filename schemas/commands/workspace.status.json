@@ -15,20 +15,25 @@
     "type": "object",
     "properties": {
       "name": {
+        "description": "Name of the workspace, from reqseq-workspace.yaml.",
         "type": "string"
       },
       "repositories": {
+        "description": "The repositories of the workspace file, in its order.",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "description": "Workspace name of the repository.",
               "type": "string"
             },
             "available": {
+              "description": "The repository is on this machine.",
               "type": "boolean"
             },
             "path": {
+              "description": "Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file.",
               "type": "string"
             },
             "commit": {
@@ -48,15 +53,19 @@
         }
       },
       "metamodel": {
+        "description": "Where the metamodel comes from.",
         "type": "object",
         "properties": {
           "repository": {
+            "description": "Workspace name of the repository of the metamodel.",
             "type": "string"
           },
           "path": {
+            "description": "Folder of the metamodel, relative to that repository.",
             "type": "string"
           },
           "valid": {
+            "description": "The metamodel was read without errors.",
             "type": "boolean"
           }
         },
@@ -69,6 +78,7 @@
           "type": "object",
           "properties": {
             "repository": {
+              "description": "Workspace name of the repository of the evidence location.",
               "type": "string"
             },
             "path": {
@@ -85,6 +95,7 @@
         "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
       },
       "readOnly": {
+        "description": "The workspace opens read-only because its metamodel is missing or faulty: nothing can be written.",
         "type": "boolean"
       },
       "problems": {

@@ -17,12 +17,14 @@
         "$ref": "../common.schema.json#/$defs/selection"
       },
       "limit": {
+        "description": "The most elements on one page.",
         "type": "integer",
         "minimum": 1,
         "maximum": 5000,
         "default": 200
       },
       "offset": {
+        "description": "Elements skipped before the page.",
         "type": "integer",
         "minimum": 0,
         "default": 0

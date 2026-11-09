@@ -54,11 +54,22 @@ export interface ReferenceSources {
   readonly standardModel: StandardModel;
 }
 
+/** The page `render` writes at `path`; none when it throws, with the error noted in `failures` under the page. */
+function rendered(path: string, render: () => string, failures: string[]): Page[] {
+  try {
+    return [{ path, text: render() }];
+  } catch (error) {
+    failures.push(`${path}: ${(error as Error).message}`);
+    return [];
+  }
+}
+
 /** The format pages, their index and the page of the common types. */
 function formatPages(
   schemas: readonly JsonSchema[],
   examples: ReferenceSources["examples"],
   base: string,
+  failures: string[],
 ): Page[] {
   checkFormats(schemas);
   const link = schemaLink(base);
@@ -72,22 +83,25 @@ function formatPages(
   const named = (name: string): JsonSchema[] => schemas.filter((schema) => schemaName(schema) === name);
   return [
     { path: `${FORMATS_FOLDER}/index.md`, text: formatsIndex(schemas, base) },
-    ...named("common").map((common) => ({
-      path: `${COMMON_TYPES_PAGE}.md`,
-      text: commonTypesPage(common, contextOf(common)),
-    })),
+    ...named("common").flatMap((common) =>
+      rendered(`${COMMON_TYPES_PAGE}.md`, () => commonTypesPage(common, contextOf(common)), failures),
+    ),
     ...FORMATS.flatMap((name, index) =>
-      named(name).map((schema) => ({
-        path: `${FORMATS_FOLDER}/${name}.md`,
-        text: formatPage(schema, examples[name] ?? [], contextOf(schema), index + 1),
-      })),
+      named(name).flatMap((schema) =>
+        rendered(
+          `${FORMATS_FOLDER}/${name}.md`,
+          () => formatPage(schema, examples[name] ?? [], contextOf(schema), index + 1),
+          failures,
+        ),
+      ),
     ),
   ];
 }
 
 /**
  * The command index and pages (catalog order), the codes page, the format pages, the standard model page and the
- * page of the app's keyboard shortcuts.
+ * page of the app's keyboard shortcuts. Throws with every page that cannot be rendered, such as one with a field
+ * without a description.
  */
 export async function referencePages(
   { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
@@ -95,19 +109,26 @@ export async function referencePages(
 ): Promise<Page[]> {
   const entries = runtime.contracts.commands;
   const context = { schemas, link: schemaLink(base) };
+  const failures: string[] = [];
   const pages: Page[] = [
     { path: `${COMMANDS_FOLDER}/index.md`, text: commandIndex(entries, base) },
     { path: CODES_PAGE, text: codesPage(codes) },
-    ...formatPages(schemas, examples, base),
+    ...formatPages(schemas, examples, base, failures),
     { path: STANDARD_MODEL_PAGE, text: standardModelPage(standardModel) },
     { path: SHORTCUTS_PAGE, text: shortcutsPage(shortcutReference(entries)) },
   ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);
-    pages.push({
-      path: `${COMMANDS_FOLDER}/${commandSlug(entry.name)}.md`,
-      text: commandPage(entry, access, context, index + 1),
-    });
+    pages.push(
+      ...rendered(
+        `${COMMANDS_FOLDER}/${commandSlug(entry.name)}.md`,
+        () => commandPage(entry, access, context, index + 1),
+        failures,
+      ),
+    );
+  }
+  if (failures.length > 0) {
+    throw new Error(`docs: reference pages\n${failures.join("\n")}`);
   }
   return pages;
 }

@@ -22,6 +22,7 @@
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "direction": {
+        "description": "`up` to the parents, `down` to the children and evidence, `both` for both.",
         "enum": ["up", "down", "both"],
         "default": "both"
       },
@@ -29,6 +30,7 @@
         "$ref": "../common.schema.json#/$defs/view"
       },
       "maxDepth": {
+        "description": "The deepest level in each direction; without it the chain is followed to its ends.",
         "type": "integer",
         "minimum": 0
       },
@@ -88,15 +90,19 @@
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "description": "Key of its type.",
               "type": "string"
             },
             "title": {
+              "description": "Its title; empty without one.",
               "type": "string"
             },
             "status": {
+              "description": "Its status key as written; left out when it has none.",
               "type": "string"
             },
             "repository": {
+              "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
@@ -151,6 +157,7 @@
               "description": "Key of the relation kind with the meaning `derivation` (SR-013)."
             },
             "direction": {
+              "description": "The walk it belongs to: `up` to the parents, `down` to the children.",
               "enum": ["up", "down"]
             },
             "cyclic": {
@@ -184,6 +191,7 @@
               "description": "Workspace name of the repository of the element with the gap."
             },
             "kind": {
+              "description": "The kind of the gap, as `gaps` describes it.",
               "enum": ["no-child", "no-evidence", "no-parent", "not-in-view"]
             },
             "views": {
@@ -246,6 +254,7 @@
           "type": "object",
           "properties": {
             "direction": {
+              "description": "`up` for a parent that could not be followed, `down` for a child.",
               "enum": ["up", "down"]
             },
             "from": {
@@ -271,6 +280,7 @@
               "description": "Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), when it is available and has one."
             },
             "title": {
+              "description": "Title of the other end, when it is available.",
               "type": "string"
             },
             "targetState": {

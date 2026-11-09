@@ -18,12 +18,14 @@
         "description": "Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent` (SR-173); only requirements its view holds (SR-047, SR-043)."
       },
       "limit": {
+        "description": "The most requirements on one page.",
         "type": "integer",
         "minimum": 1,
         "maximum": 5000,
         "default": 200
       },
       "offset": {
+        "description": "Requirements skipped before the page.",
         "type": "integer",
         "minimum": 0,
         "default": 0

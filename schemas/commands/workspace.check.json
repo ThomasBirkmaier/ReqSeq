@@ -78,10 +78,12 @@
             "description": "The severity given: the findings counted are below it."
           },
           "warning": {
+            "description": "Warnings left out.",
             "type": "integer",
             "minimum": 0
           },
           "info": {
+            "description": "Infos left out.",
             "type": "integer",
             "minimum": 0
           }

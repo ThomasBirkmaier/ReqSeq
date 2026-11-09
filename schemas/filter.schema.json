@@ -6,9 +6,9 @@
   "type": "object",
   "required": ["reqseq-filter", "name", "where"],
   "properties": {
-    "reqseq-filter": { "const": 1 },
+    "reqseq-filter": { "description": "Version of this file format.", "const": 1 },
     "name": { "$ref": "#/$defs/name" },
-    "description": { "type": "string" },
+    "description": { "description": "What the filter is for, for people.", "type": "string" },
     "view": {
       "$ref": "common.schema.json#/$defs/view",
       "description": "Elements that apply in this view; also the view of its `verification` conditions without `variant`."
@@ -172,9 +172,12 @@
       "properties": {
         "property": { "$ref": "common.schema.json#/$defs/key" },
         "op": {
+          "description": "The comparison, as the condition describes it.",
           "enum": ["eq", "ne", "in", "contains", "lt", "le", "gt", "ge", "exists", "missing", "matches"]
         },
-        "value": {}
+        "value": {
+          "description": "The value to compare with; a list for `in`; none for `exists` and `missing`."
+        }
       },
       "additionalProperties": false
     },
@@ -184,6 +187,7 @@
       "required": ["relation", "exists"],
       "properties": {
         "relation": {
+          "description": "Which relations count.",
           "type": "object",
           "properties": {
             "kind": {
@@ -202,7 +206,10 @@
           },
           "additionalProperties": false
         },
-        "exists": { "type": "boolean" }
+        "exists": {
+          "description": "`true`: the element has such a relation. `false`: it has none.",
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     },
@@ -218,7 +225,7 @@
             { "$ref": "common.schema.json#/$defs/key" }
           ]
         },
-        "order": { "enum": ["asc", "desc"], "default": "asc" }
+        "order": { "description": "Ascending or descending.", "enum": ["asc", "desc"], "default": "asc" }
       },
       "additionalProperties": false
     }

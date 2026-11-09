@@ -40,9 +40,20 @@
         "items": {
           "type": "object",
           "properties": {
-            "key": { "type": "string", "minLength": 1 },
-            "name": { "type": "string" },
-            "count": { "type": "integer", "minimum": 1 }
+            "key": {
+              "description": "Key of the type as written in the files.",
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "description": "Display name of the type; the key for a type the metamodel does not define.",
+              "type": "string"
+            },
+            "count": {
+              "description": "Selected elements of exactly this type.",
+              "type": "integer",
+              "minimum": 1
+            }
           },
           "required": ["key", "name", "count"],
           "additionalProperties": false
@@ -54,8 +65,8 @@
         "items": {
           "type": "object",
           "properties": {
-            "key": { "type": "string" },
-            "count": { "type": "integer", "minimum": 1 }
+            "key": { "description": "Key of the status as written in the files.", "type": "string" },
+            "count": { "description": "Selected elements with this status.", "type": "integer", "minimum": 1 }
           },
           "required": ["key", "count"],
           "additionalProperties": false
@@ -68,8 +79,11 @@
           "type": "object",
           "properties": {
             "key": { "$ref": "../common.schema.json#/$defs/key" },
-            "name": { "type": "string" },
-            "kind": { "enum": ["text", "number", "date", "choice", "relation"] },
+            "name": { "description": "Display name of the property.", "type": "string" },
+            "kind": {
+              "description": "Value kind of the property.",
+              "enum": ["text", "number", "date", "choice", "relation"]
+            },
             "count": {
               "type": "integer",
               "minimum": 0,
@@ -95,7 +109,10 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "value": { "type": ["string", "number", "boolean"] },
+                  "value": {
+                    "description": "The value, as `{ property, op: \"eq\", value }` selects it.",
+                    "type": ["string", "number", "boolean"]
+                  },
                   "count": {
                     "type": "integer",
                     "minimum": 1,
