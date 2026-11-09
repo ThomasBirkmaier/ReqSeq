@@ -25,6 +25,8 @@ export interface TextPage {
 
 /** The groups of the files, in the order of the sidebar (site/astro.config.mjs), by the start of a page's path. */
 export const LLMS_SECTIONS: readonly (readonly [string, string])[] = [
+  // Written by `stage.mjs --whats-new` (#1259).
+  ["whats-new", "What's new"],
   ["start/", "Get started"],
   ["how-to/", "How-to"],
   ["concepts/", "Concepts"],
