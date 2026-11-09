@@ -260,13 +260,14 @@ jobs:
               -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"
           }
           product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
-          docs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$TAG/docs/delivery"
+          # The install guide on the documentation site, which the job `docs` below deploys for this tag.
+          install="https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/"
           body="$(
-            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Getting ${product}]($docs/README.md))."
+            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Install ${product}]($install))."
             echo
             for file in release-assets/*; do echo "- \`$(basename "$file")\`"; done
             echo
-            echo "The builds are not signed by a vendor certificate: see [unsigned builds]($docs/unsigned-builds.md)."
+            echo "The builds are not signed by a vendor certificate: see [the first start of the app]($install#app)."
             echo
             cat release-notes.md
           )"
