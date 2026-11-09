@@ -12,6 +12,6 @@ Damit sich auch Elemente eines Typs ohne Status ablösen lassen, bekommt ein sol
 
 Fehlt eine Datei trotzdem, etwa weil sie von Hand gelöscht wurde, behandelt das Tool das wie ein fehlendes Ziel ([N-041](reqseq:6adc4fbc-3b1e-4eb7-8e67-c99900ac6b04?version=n1:3f06f7d1100e3c6f)) und meldet es bei der Prüfung des Bestands.
 
-Ein Element, das nie den Status Approved hatte und in keiner Baseline steht, darf der Nutzer außerhalb des Tools mit Git entfernen; Beziehungen, die danach noch auf es zeigen, meldet die Prüfung des Bestands als fehlendes Ziel (Entscheidung des Produktverantwortlichen, 2026-11-09).
+Ein Element im Status Draft, das nie den Status Approved hatte und in keiner Baseline steht, darf der Nutzer außerhalb des Tools mit Git entfernen; Beziehungen, die danach noch auf es zeigen, meldet die Prüfung des Bestands als fehlendes Ziel (Entscheidung des Produktverantwortlichen, 2026-11-09).
 
 Grund: Beziehungen und Nachweise bleiben nachvollziehbar.

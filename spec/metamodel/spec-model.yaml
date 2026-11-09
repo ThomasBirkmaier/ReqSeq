@@ -5,7 +5,7 @@
 # - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq);
-# - packages on needs as well: packages give the structure of the spec by topic, not the schedule, and
+# - packages (on every type since 2026-11-09, below): packages give the structure of the spec by topic, not the schedule, and
 #   replace the former property topic; the property issue is gone, since issues are tasks that can
 #   implement several SRs (product owner decision, 2026-11-05);
 # - limit derives-from min 1 from system requirement to need (#838).
