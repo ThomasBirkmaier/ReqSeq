@@ -217,9 +217,9 @@ describe("withEvidenceRecords", () => {
     }
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
     // Pinned: a change of the generator shifts every perf baseline, so it shows here (the standard
-    // model it copies got the meaning acceptance-criteria in #960).
+    // model it copies got the meaning acceptance-criteria in #960, and packages on every type in #1293).
     expect(evidence.workspace.digest).toBe(
-      "37f76a08c17f66e2bc771b6e9bdfd75f0fec4e4da8daae1f46b6f38e2440ddc5",
+      "b29c15a5857d60104f9db9f47ea9c751161a31ea61c5a1a7be681a07dc0c1ac2",
     );
   });
 

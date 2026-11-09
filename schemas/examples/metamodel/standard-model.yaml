@@ -16,6 +16,7 @@ types:
         priority,
         validation-criteria,
         rationale,
+        packages,
         topic,
         source,
         source-identifier,
@@ -28,7 +29,7 @@ types:
     name: Use Case
     description: "A goal a user reaches with the system, step by step. Requirements can refine it."
     prefix: UC
-    properties: [title, rationale, source, source-identifier, import-date, delivery, import-version]
+    properties: [title, rationale, packages, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: system-requirement
     name: System Requirement
@@ -58,21 +59,21 @@ types:
     name: Decision
     description: "A decision with its rationale; requirements are based on it."
     prefix: D
-    properties: [title, rationale, source, source-identifier, import-date, delivery, import-version]
+    properties: [title, rationale, packages, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: variant
     name: Variant
     description: "A variant of the product. Its requirements replace requirements of the core only through Replaces; Excludes names the core requirements that do not apply in it."
     prefix: VAR
     meaning: variant
-    properties: [title, source, source-identifier, import-date, delivery, import-version]
+    properties: [title, packages, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: package
     name: Package
-    description: "A group of elements. System requirements name it in their property Package."
+    description: "A set of elements declared to belong together for any reason, such as a topic. Every element names its packages in its property Package."
     prefix: PKG
     meaning: package
-    properties: [title, source, source-identifier, import-date, delivery, import-version]
+    properties: [title, packages, source, source-identifier, import-date, delivery, import-version]
     required: [title]
 
 properties:
