@@ -1577,7 +1577,10 @@ export interface CommandCatalog {
     readonly name: string;
     /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045). */
     readonly title: string;
+    /** What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252). */
     readonly summary: string;
+    /** What a user needs to know beyond the summary: rules, cases and limits of the command. Shown on the command's reference page below the summary, not in the index, `--help` or the MCP tool list (#1252). Implementation notes belong in the block files of `packages/core/docs/`. */
+    readonly details?: string;
     /** No command writes to Git (D-036). No command deletes elements (D-045). */
     readonly effect: "read" | "write-files";
     /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, ThomasBirkmaier/ReqSeq-archive#142). */
@@ -1700,7 +1703,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1715,7 +1718,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1773,7 +1776,7 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path, for completing a path while it is typed.
  * Schema: `schemas/commands/workspace.listFolder.json input`.
  */
 export interface WorkspaceListFolderInput {
@@ -1786,7 +1789,7 @@ export interface WorkspaceListFolderInput {
 }
 
 /**
- * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path, for completing a path while it is typed.
  * Schema: `schemas/commands/workspace.listFolder.json output`.
  */
 export interface WorkspaceListFolderOutput {
@@ -1808,13 +1811,13 @@ export interface WorkspaceListFolderOutput {
 }
 
 /**
- * Input of `tool.info` as `run` gets it: validated, properties with a `default` filled in. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Input of `tool.info` as `run` gets it: validated, properties with a `default` filled in. Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.
  * Schema: `schemas/commands/tool.info.json input`.
  */
 export type ToolInfoInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `tool.info`. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Output of `tool.info`. Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.
  * Schema: `schemas/commands/tool.info.json output`.
  */
 export interface ToolInfoOutput {
@@ -1896,7 +1899,7 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json input`.
  */
 export interface ElementCreateInput {
@@ -1913,7 +1916,7 @@ export interface ElementCreateInput {
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Output of `element.create`. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
@@ -2157,7 +2160,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
@@ -2167,7 +2170,7 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
@@ -2198,7 +2201,7 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection; without confirm it only previews what changes. Never id, type or status.
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
@@ -2218,7 +2221,7 @@ export interface ElementBulkUpdateInput {
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection; without confirm it only previews what changes. Never id, type or status.
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
@@ -2612,7 +2615,7 @@ export interface TraceNeighbourhoodOutput {
 }
 
 /**
- * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
  * Schema: `schemas/commands/trace.matrix.json input`.
  */
 export interface TraceMatrixInput {
@@ -2629,7 +2632,7 @@ export interface TraceMatrixInput {
 }
 
 /**
- * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
  * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
@@ -2718,7 +2721,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -2741,7 +2744,7 @@ export interface TraceGraphInput {
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
@@ -2854,7 +2857,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -2873,7 +2876,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
@@ -3038,7 +3041,7 @@ export interface EvidenceListOutput {
 }
 
 /**
- * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.
  * Schema: `schemas/commands/evidence.record.json input`.
  */
 export interface EvidenceRecordInput {
@@ -3069,7 +3072,7 @@ export interface EvidenceRecordInput {
 }
 
 /**
- * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Output of `evidence.record`. Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.
  * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
@@ -3080,7 +3083,7 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
@@ -3099,7 +3102,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -3121,7 +3124,7 @@ export interface EvidenceEnrichJunitOutput {
 }
 
 /**
- * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
+ * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
@@ -3131,7 +3134,7 @@ export interface EvidenceStatusInput {
 }
 
 /**
- * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
+ * Output of `evidence.status`. Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
@@ -3232,7 +3235,7 @@ export interface EvidenceWithoutPassedTestOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.
  * Schema: `schemas/commands/data.export.json input`.
  */
 export interface DataExportInput {
@@ -3240,13 +3243,13 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.
  * Schema: `schemas/commands/data.export.json output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
- * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.
  * Schema: `schemas/commands/data.store.json input`.
  */
 export interface DataStoreInput {
@@ -3256,7 +3259,7 @@ export interface DataStoreInput {
 }
 
 /**
- * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Output of `data.store`. Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.
  * Schema: `schemas/commands/data.store.json output`.
  */
 export interface DataStoreOutput {
@@ -3381,7 +3384,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -3395,7 +3398,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
+ * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
@@ -3526,7 +3529,7 @@ export interface ReqifAnalyzeOutput {
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.
  * Schema: `schemas/commands/reqif.import.json input`.
  */
 export interface ReqifImportInput {
@@ -3543,7 +3546,7 @@ export interface ReqifImportInput {
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
+ * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.
  * Schema: `schemas/commands/reqif.import.json output`.
  */
 export interface ReqifImportOutput {

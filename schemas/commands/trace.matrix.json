@@ -1,7 +1,8 @@
 {
   "name": "trace.matrix",
   "title": "Show traceability matrix",
-  "summary": "Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.",
+  "summary": "Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.",
+  "details": "Rows in list order, columns for each kind and direction that occurs. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.",
   "effect": "read",
   "stage": 3,
   "implements": ["SR-125", "SR-126", "SR-153"],

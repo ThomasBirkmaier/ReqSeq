@@ -89,8 +89,8 @@ export const userText = (text) => {
 /** The internal references still in `text` (in running text), for checks of the texts users read. */
 export const internalReferences = (text) => text.match(FOUND_ALL) ?? [];
 
-/** The keys whose string values are texts users read: `description`, `summary` and `title`. */
-const TEXT_KEYS = new Set(["description", "summary", "title"]);
+/** The keys whose string values are texts users read: `description`, `summary`, `details` (of a catalog entry; `problem.details` is an object) and `title`. */
+export const TEXT_KEYS = new Set(["description", "summary", "details", "title"]);
 
 /** `node` with `userText` applied to every string under a key of `TEXT_KEYS`, at any depth. */
 export const userTexts = (node) => {

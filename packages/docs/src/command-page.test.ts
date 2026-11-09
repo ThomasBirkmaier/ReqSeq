@@ -2,7 +2,7 @@ import { contractsBundle, getCommandRuntime } from "@reqseq/core";
 import type { CatalogEntry } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { CommandAccess } from "./access.js";
-import { commandPage } from "./command-page.js";
+import { commandIndex, commandPage } from "./command-page.js";
 
 const entry = (name: string): CatalogEntry => {
   const found = getCommandRuntime().contracts.entry(name);
@@ -51,6 +51,15 @@ describe("commandPage", () => {
     const text = page(entry("element.get"), { ...access, implemented: false });
     expect(text).toContain("This version does not implement the command yet.");
     expect(text).toContain("Not offered by the app yet");
+  });
+
+  it("shows the details below the summary, and the index and the page description the summary only (#1252)", () => {
+    const command = { ...entry("element.get"), summary: "Gets one.", details: "More about <it>." };
+    expect(page(command)).toContain("\nGets one.\n\nMore about \\<it\\>.\n\nCommand `element.get`.");
+    expect(page(command)).toContain('description: "Gets one."');
+    expect(commandIndex([command], "")).not.toContain("More about");
+    const { details: _details, ...plain } = command;
+    expect(page(plain)).toContain("\nGets one.\n\nCommand `element.get`.");
   });
 
   it("says when a command has no input or no output fields", () => {

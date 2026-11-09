@@ -1,5 +1,6 @@
 // One page per catalog command and an index of all of them (SR-139 AK1, AK4). Every text comes from the catalog
-// and the adapters; internal references in it (SR, D, ADR, #nnn) are the tool's own text and stay as they are.
+// and the adapters, as users read it there: without internal references (`scripts/contracts/user-text.mjs`).
+// The page shows the summary and below it the details (#1252); the index and the page description the summary only.
 import type { CatalogEntry } from "@reqseq/core";
 import { commandPagePath } from "@reqseq/core/docs-site";
 import type { CommandAccess } from "./access.js";
@@ -49,6 +50,7 @@ export function commandPage(
     "",
     inline(entry.summary),
     "",
+    ...(entry.details === undefined ? [] : [inline(entry.details), ""]),
     `Command \`${entry.name}\`. ${behaviour(entry)}`,
     "",
     ...notYet,
