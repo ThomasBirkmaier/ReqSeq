@@ -1,0 +1,12 @@
+reqseq-workspace: 1
+name: Weather station
+repositories:
+  - name: ws
+    url: ""
+    main: true
+metamodel:
+  repository: ws
+  path: metamodel
+evidence:
+  - repository: ws
+    path: evidence

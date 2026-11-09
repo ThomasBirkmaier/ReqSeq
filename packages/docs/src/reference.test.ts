@@ -25,6 +25,7 @@ const sources = async (runtime: ReturnType<typeof getCommandRuntime>) => ({
   schemas: runtime.contracts.schemas,
   examples: await readExamples(repoRoot),
   standardModel: await readStandardModel(repoRoot),
+  commandExamples: new Map([["tool.info", { input: {}, cli: "reqseq tool info --json", output: "{}" }]]),
 });
 
 /** A definition's heading, with its own anchor where the heading's id differs from the name: never both. */
@@ -67,6 +68,15 @@ describe("reference", () => {
     }
     const index = pages[0]?.text ?? "";
     expect(index).toContain("](/ReqSeq/reference/commands/element-get/): ");
+  });
+
+  it("places the example of a command between its output and its app call", async () => {
+    const pages = await referencePages(await sources(getCommandRuntime()), "/ReqSeq");
+    const info = pageOf(pages, "tool.info");
+    expect(info.indexOf("\n## Output\n")).toBeLessThan(info.indexOf("\n## Example\n"));
+    expect(info.indexOf("\n## Example\n")).toBeLessThan(info.indexOf("\n## App\n"));
+    expect(section(info, "Example")).toContain("```sh\nreqseq tool info --json\n```");
+    expect(section(pageOf(pages, "element.get"), "Example")).toBe("No example.");
   });
 
   it("[SR-139/AK2] gives every problem code and every error code its cause and remedy", async () => {

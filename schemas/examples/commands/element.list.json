@@ -1,0 +1,13 @@
+{
+  "selection": {
+    "where": {
+      "type": ["system-requirement"]
+    }
+  },
+  "sort": [
+    {
+      "by": "title"
+    }
+  ],
+  "fields": ["title", "status"]
+}

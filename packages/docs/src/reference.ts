@@ -8,6 +8,8 @@ import type { GeneratedContracts } from "./access.js";
 import { commandAccess } from "./access.js";
 import type { ProblemCodes } from "./codes.js";
 import { CODES_PAGE, codesPage } from "./codes.js";
+import type { CommandExample } from "./command-examples.js";
+import { WITHOUT_EXAMPLE } from "./command-examples.js";
 import { commandIndex, commandPage } from "./command-page.js";
 import type { Example } from "./formats.js";
 import type { StandardModel } from "./standard-model.js";
@@ -46,7 +48,8 @@ export async function readGeneratedContracts(repoRoot: string): Promise<Generate
 
 /**
  * The sources of the reference: the catalog (of `runtime`), the generated contracts, the code texts, the schemas
- * (`runtime.contracts.schemas` in a build), the examples of the formats and the standard model.
+ * (`runtime.contracts.schemas` in a build), the examples of the formats, the standard model and the example of each
+ * command (`commandExamples`).
  */
 export interface ReferenceSources {
   readonly runtime: CommandRuntime;
@@ -55,6 +58,7 @@ export interface ReferenceSources {
   readonly schemas: readonly JsonSchema[];
   readonly examples: Readonly<Record<string, readonly Example[]>>;
   readonly standardModel: StandardModel;
+  readonly commandExamples: ReadonlyMap<string, CommandExample>;
 }
 
 /** Notes in `failures` the fields of the page at `path` without a description (`undescribedFields`), if any. */
@@ -116,7 +120,7 @@ function formatPages(
  * stops the build.
  */
 export async function referencePages(
-  { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
+  { runtime, generated, codes, schemas, examples, standardModel, commandExamples }: ReferenceSources,
   base: string,
 ): Promise<Page[]> {
   const entries = runtime.contracts.commands;
@@ -140,7 +144,16 @@ export async function referencePages(
       ],
       failures,
     );
-    pages.push({ path, text: commandPage(entry, access, context, index + 1) });
+    pages.push({
+      path,
+      text: commandPage(
+        entry,
+        access,
+        context,
+        index + 1,
+        commandExamples.get(entry.name) ?? WITHOUT_EXAMPLE[entry.name],
+      ),
+    });
   }
   if (failures.length > 0) {
     throw new Error(`docs: reference pages\n${failures.join("\n")}`);

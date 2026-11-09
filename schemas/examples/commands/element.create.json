@@ -1,0 +1,12 @@
+{
+  "type": "system-requirement",
+  "title": "Show the air pressure",
+  "text": "The station must show the air pressure in hectopascal.",
+  "properties": {
+    "requirement-type": "functional",
+    "acceptance-criteria": ["The pressure is shown in hPa, without decimals."]
+  },
+  "relations": {
+    "derives-from": ["N-3ac54f"]
+  }
+}
