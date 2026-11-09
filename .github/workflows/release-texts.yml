@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+# bash with pipefail: a failed API call fails the run instead of an empty jq input passing.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: release-texts
   cancel-in-progress: false
