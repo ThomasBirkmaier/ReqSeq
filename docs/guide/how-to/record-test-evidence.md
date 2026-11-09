@@ -24,7 +24,11 @@ evidence:
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. **Show evidence status** then lists each requirement with its verification status, and **Show evidence coverage** counts per level how many have evidence. A file that a pipeline writes while the app is open shows up within a few seconds, without reopening the workspace.
+Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. A file a pipeline writes shows up within seconds.
+
+A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the status too. **Show evidence status** lists each requirement with its status, **Show evidence coverage** counts per level.
+
+![A requirement whose test failed: its badge "Core: failed (0 of 1 criteria, AK1 not verified)" and below it the failed test record.](../images/app-verification-badges.png)
 
 ## CLI
 

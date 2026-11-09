@@ -13,12 +13,13 @@ A system requirement traces to the need it meets through a relation stored in it
 2. In the element buffer of a requirement, run **Create relation** (Ctrl+K R) and choose the kind `derives-from` and the need.
 3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J) shows the children of the open element in place.
 4. In a list of elements, **Show traceability matrix** (Ctrl+T, ⌘T) shows the list as a matrix, one column per relation kind and direction.
-
-![A requirement open in the app, with the need it derives from below its properties.](../images/app-element.png)
+5. **Show graph** (Ctrl+Shift+G, ⌘⇧G) draws the element with its neighbours. Each requirement shows its verification status and verified criteria, a need the share of its requirements that are verified.
 
 ![The neighbourhood of a need: the requirement derived from it.](../images/app-neighbourhood.png)
 
 ![The traceability matrix of the system requirements: each with the need it derives from.](../images/app-trace-matrix.png)
+
+![The graph of a need with 60 % of its requirements verified; below it each requirement with its status and verified criteria.](../images/app-verification-graph.png)
 
 ## CLI
 
