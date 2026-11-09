@@ -134,6 +134,11 @@ describe("one execution for the core and a variant (SR-093 AK5)", () => {
     const rerun = [at(4, { variant: COAST, date: "2026-01-03T10:00:00Z" }), core];
     expect(withoutShadowedCore(rerun, COAST)).toBe(rerun);
     expect(withoutShadowedCore([core, coast], COAST)).toEqual([coast]);
+    // Another test case at the same place and date (pytest writes a whole file on line 1).
+    const otherName = [at(4, { variant: COAST }), at(4, { testCase: "test_gusts" })];
+    expect(withoutShadowedCore(otherName, COAST)).toBe(otherName);
+    const otherClass = [at(4, { variant: COAST }), at(4, { className: "tests.Gusts" })];
+    expect(withoutShadowedCore(otherClass, COAST)).toBe(otherClass);
   });
 });
 

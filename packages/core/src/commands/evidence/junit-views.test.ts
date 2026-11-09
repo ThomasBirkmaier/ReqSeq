@@ -12,8 +12,8 @@ const P = "09300093-0000-4000-8000-0000000000";
 const LINUX = `${P}c1`;
 const MACOS = `${P}c2`;
 
-const open = async (): Promise<Workspace> => {
-  const fixture = await createFixtureWorkspace({ fixture: "SR-093/views" });
+const open = async (files: Readonly<Record<string, string>> = {}): Promise<Workspace> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-093/views", files });
   const workspace = new Workspace(fixture.root);
   onTestFinished(async () => {
     await workspace.close();
@@ -80,5 +80,31 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
     const windows = await list(workspace, "SR-0000b1", "VAR-0000c3");
     expect(windows.records.map((r) => r.variant)).toEqual([undefined]);
     expect(windows.testCases.map((t) => t.executions.length)).toEqual([1]);
+  });
+
+  it("keeps the record of another test case on the same line in the variant's list (pytest writes a whole file on line 1)", async () => {
+    const property = (name: string, value: string): string => `<property name="${name}" value="${value}"/>`;
+    const testCase = (name: string, views: readonly string[], body = ""): string =>
+      `<testcase classname="tests" name="${name}"><properties>` +
+      property("reqseq:element", `${P}b1`) +
+      property("reqseq:version", "n2:1220d601226af314") +
+      property("reqseq:item", "build-94") +
+      property("reqseq:date", "2026-11-09T11:00:00Z") +
+      views.map((v) => property("reqseq:variant", v)).join("") +
+      `</properties>${body}</testcase>`;
+    const workspace = await open({
+      "evidence/ci/linux.xml": `<testsuites><testsuite name="pytest">${testCase("test_a", [LINUX, "core"])}${testCase("test_b", [], "<failure/>")}</testsuite></testsuites>`,
+    });
+    const linux = await list(workspace, "SR-0000b1", "VAR-0000c1");
+    // test_a once (its core record is shadowed), test_b's failed run of the core too.
+    expect(linux.records.map((r) => [r.testCase, r.variant, r.result])).toEqual([
+      ["test_b", undefined, "failed"],
+      ["test_a", LINUX, "passed"],
+    ]);
+    expect(linux.testCases.map((t) => [t.name, t.executions.length])).toEqual([
+      ["test_a", 1],
+      ["test_b", 1],
+    ]);
+    expect((await statusRows(workspace))["b1"]?.["c1"]).toBe("failed");
   });
 });

@@ -23,14 +23,24 @@ export const holdsIn = (
 
 /**
  * The execution a record comes from and the element it names: two records of one JUnit test case for
- * two views share it. The date too, so that records of two runs at the same place stay apart.
+ * two views share it. Place alone is not enough: pytest writes a whole file on line 1, so the test
+ * case (name and class name) is part of it, and the date keeps two runs at the same place apart.
  */
 const executionOf = (record: EvidenceRecord): string =>
-  JSON.stringify([record.repository, record.file, record.line, record.element, record.date]);
+  JSON.stringify([
+    record.repository,
+    record.file,
+    record.line,
+    record.testCase,
+    record.className,
+    record.element,
+    record.date,
+  ]);
 
 /**
  * `records`, which hold in the variant `variant` (`holdsIn`), without each record without variant of
- * the same execution (repository, file, line, date) and element as a record for the variant: a JUnit test
+ * the same execution (repository, file, line, test case, class name, date) and element as a record
+ * for the variant: a JUnit test
  * case that names the core and the variant gives both (SR-093 AK5), and in a variant of a
  * `variant-independent` repository (SR-173) both hold, so a list of the view would show one execution
  * twice. Either gives the same status (same date and result). The same array when none is dropped.

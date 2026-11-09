@@ -38,7 +38,7 @@
 //   their order. Only the kind and criterion checks need the metamodel; the other findings show while
 //   it is not valid.
 // - A JUnit test case for several views gives one record per view (SR-093 AK5) with the same place
-//   and element, so the findings of the records are given once per code, place and target
+//   and element, so the findings of the records are given once per code, place, target and message
 //   (`distinctFindings`).
 import type { Problem } from "../catalog.js";
 import { zip } from "../files/index.js";
@@ -76,13 +76,14 @@ const placeOf = (problem: Problem): string =>
   JSON.stringify([problem.code, problem.repository, problem.file, problem.line]);
 
 /**
- * `problems` without a repetition of an earlier one of the same code, repository, file, line and
- * target (the records of one test case for several views, SR-093 AK5), in their order.
+ * `problems` without a repetition of an earlier one of the same code, repository, file, line, target
+ * and message (the records of one test case for several views, SR-093 AK5), in their order. The
+ * message keeps findings of two test cases on one line apart (pytest writes a whole file on line 1).
  */
 export const distinctFindings = (problems: readonly Problem[]): Problem[] => {
   const seen = new Set<string>();
   return problems.filter((problem) => {
-    const key = JSON.stringify([placeOf(problem), problem.targetId]);
+    const key = JSON.stringify([placeOf(problem), problem.targetId, problem.message]);
     const first = !seen.has(key);
     seen.add(key);
     return first;

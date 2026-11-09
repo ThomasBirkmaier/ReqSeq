@@ -28,18 +28,21 @@ export const recordHoldsIn = (
   independent: boolean,
 ): boolean => view === undefined || holdsIn(record, view, independent && record.kind === "verification");
 
+/** The variant whose list may hold shadowed records without variant: a variant view of an `independent` element. */
+const pooledVariant = (view: View | undefined, independent: boolean): string | undefined =>
+  independent && view?.kind === "variant" ? view.variant.id : undefined;
+
 /**
- * `records` that hold for `view` (`recordHoldsIn`), in a variant of an `independent` element without
- * the shadowed records without variant (`withoutShadowedCore`); the same array when none is left out.
+ * `records` that hold for `view` (`keep`), in the variant `pooled` without the shadowed records
+ * without variant (`withoutShadowedCore`); the same array when none is left out.
  */
 const heldIn = (
   records: readonly EvidenceRecord[],
-  view: View | undefined,
-  independent: boolean,
-  keep: (record: EvidenceRecord) => boolean = (record) => recordHoldsIn(record, view, independent),
+  keep: (record: EvidenceRecord) => boolean,
+  pooled: string | undefined,
 ): readonly EvidenceRecord[] => {
   const held = records.every(keep) ? records : records.filter(keep);
-  return independent && view?.kind === "variant" ? withoutShadowedCore(held, view.variant.id) : held;
+  return pooled === undefined ? held : withoutShadowedCore(held, pooled);
 };
 
 /**
@@ -53,10 +56,12 @@ export const listedRecords = (
   independent: boolean,
   containing: (id: string, version: string) => readonly string[],
 ): EvidenceRecord[] =>
-  heldIn(records, view, independent).map((record) => ({
-    ...record,
-    baselines: [...containing(record.element, record.version)],
-  }));
+  heldIn(records, (record) => recordHoldsIn(record, view, independent), pooledVariant(view, independent)).map(
+    (record) => ({
+      ...record,
+      baselines: [...containing(record.element, record.version)],
+    }),
+  );
 
 /** The kind of a record: verification (Nachweis) or validation (D-007). */
 export type RecordKind = EvidenceRecord["kind"];
@@ -80,12 +85,20 @@ export const testCasesIn = (
   const cases = index.testCasesOf(id);
   const keep = (record: EvidenceRecord): boolean =>
     recordHoldsIn(record, view, independent) && (kinds === undefined || kinds.includes(record.kind));
-  const shown = cases.map((test) => ({ test, executions: heldIn(test.executions, view, independent, keep) }));
-  if (shown.every(({ test, executions }) => executions === test.executions)) {
+  const pooled = pooledVariant(view, independent);
+  // The usual case: nothing is filtered and, outside a pooled variant, nothing is asked further.
+  if (
+    cases.every(
+      (test) =>
+        test.executions.every(keep) &&
+        (pooled === undefined || withoutShadowedCore(test.executions, pooled) === test.executions),
+    )
+  ) {
     return cases;
   }
   const kept: TestCase[] = [];
-  for (const { test, executions } of shown) {
+  for (const test of cases) {
+    const executions = heldIn(test.executions, keep, pooled);
     const [last] = executions;
     if (last !== undefined) {
       kept.push({ ...test, executions, last });

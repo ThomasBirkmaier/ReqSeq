@@ -286,7 +286,25 @@ describe("SR-028 findings of the evidence records", () => {
       ]);
     });
 
-    it("distinctFindings keeps the first of each code, place and target, in order", () => {
+    it("gives the findings of two test cases on one line each (pytest writes a whole file on line 1)", async () => {
+      const testCase = (name: string, criterion: number): string =>
+        `<testcase classname="c" name="${name}"><properties>` +
+        `<property name="reqseq:element" value="${A}"/><property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>` +
+        '<property name="reqseq:item" value="b"/><property name="reqseq:date" value="2026-10-23T10:00:00Z"/>' +
+        `<property name="reqseq:criterion" value="${A}:${String(criterion)}"/></properties></testcase>`;
+      const junit = `<testsuite name="s">${testCase("test_a", 7)}${testCase("test_b", 8)}</testsuite>`;
+      const workspace = await open({ "ci-results/evidence/run.xml": junit });
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.file === "evidence/run.xml")
+          .map((p) => [p.code, p.line, p.message.slice(0, 50)]),
+      ).toEqual([
+        ["evidence.unknown-criterion", 1, "The verification record names acceptance criterion"],
+        ["evidence.unknown-criterion", 1, "The verification record names acceptance criterion"],
+      ]);
+    });
+
+    it("distinctFindings keeps the first of each code, place, target and message, in order", () => {
       const at = (line: number, targetId?: string): Problem => ({
         code: "evidence.unknown-element",
         severity: "warning",
@@ -295,11 +313,13 @@ describe("SR-028 findings of the evidence records", () => {
         line,
         ...(targetId === undefined ? {} : { targetId }),
       });
-      expect(distinctFindings([at(3, A), at(3, A), at(4, A), at(3, UNKNOWN), at(3), at(3)])).toEqual([
+      const other = { ...at(3, A), message: "another test case on line 3" };
+      expect(distinctFindings([at(3, A), at(3, A), at(4, A), at(3, UNKNOWN), at(3), at(3), other])).toEqual([
         at(3, A),
         at(4, A),
         at(3, UNKNOWN),
         at(3),
+        other,
       ]);
     });
 
