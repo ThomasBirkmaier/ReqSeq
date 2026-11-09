@@ -1,5 +1,5 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { parse } from "yaml";
 
 // The documentation as plain text for AI assistants (llmstxt.org): `llms.txt`, an index with one line per page, and
@@ -65,8 +65,17 @@ export function pageUrl(path: string, base: string): string {
   return page === "" ? prefix : `${prefix}${page}/`;
 }
 
-/** The pages of each section, sorted as in the sidebar; the landing page and pages of no section are left out. */
+/**
+ * The pages of each section, sorted as in the sidebar, the landing page left out. Fails on any other page of no
+ * section, so a new part of the sidebar cannot be missing from the files unnoticed.
+ */
 function sections(pages: readonly TextPage[]): (readonly [string, TextPage[]])[] {
+  const outside = pages.filter(
+    (page) => page.path !== "index.md" && !LLMS_SECTIONS.some(([start]) => page.path.startsWith(start)),
+  );
+  if (outside.length > 0) {
+    throw new Error(`${outside.map((page) => page.path).join(", ")}: in no section of ${LLMS_FILE}`);
+  }
   return LLMS_SECTIONS.map(([start, label]) => [
     label,
     pages
@@ -102,6 +111,19 @@ export function llmsIndex(pages: readonly TextPage[], base: string, title: strin
   return lines.join("\n");
 }
 
+/**
+ * The body of a page with its relative image paths (`![alt](../images/a.png)`, relative to the page's file in the
+ * content folder) made addresses below `base`, since the file lies at the root of the site, not next to the page.
+ */
+function absoluteImages(page: TextPage, base: string): string {
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return page.body.replace(
+    /(!\[[^\]\n]*\]\()(\.{1,2}\/[^)\s]*)/g,
+    (_image, start: string, target: string) =>
+      `${start}${prefix}${posix.normalize(posix.join(posix.dirname(page.path), target))}`,
+  );
+}
+
 /** `llms-full.txt`: the landing page and then every page of `llms.txt`, each under its title and address. */
 export function llmsFull(pages: readonly TextPage[], base: string, title: string): string {
   const home = landing(pages);
@@ -117,7 +139,7 @@ export function llmsFull(pages: readonly TextPage[], base: string, title: string
       "",
       `Page: ${pageUrl(page.path, base)}`,
       "",
-      page.body,
+      absoluteImages(page, base),
       "",
     ]),
   ].join("\n");

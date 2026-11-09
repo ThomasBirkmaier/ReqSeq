@@ -37,6 +37,9 @@ describe("llms.txt", () => {
   });
 
   it("lists the pages by section in sidebar order and leaves out an empty section and a landing page without description", () => {
+    expect(() => llmsIndex([textPage("other/x.md", page("X"))], "/", "R")).toThrow(
+      "other/x.md: in no section of llms.txt",
+    );
     const text = llmsIndex([textPage("start/x.md", page("X"))], "/", "ReqSeq 1.0");
     expect(text).toBe(
       "# ReqSeq 1.0\n\nAll pages as Markdown in one file: [llms-full.txt](/llms-full.txt).\n\n## Get started\n\n- [X](/start/x/)\n",
@@ -62,7 +65,11 @@ describe("llms.txt", () => {
     );
     await writeFile(
       join(content, "how-to", "b.md"),
-      page("B", "description: Does b.\nsidebar:\n  order: 2\n"),
+      page(
+        "B",
+        "description: Does b.\nsidebar:\n  order: 2\n",
+        "Text.\n\n![Shot](../images/b.png) ![Web](https://x/y.png) `![c](./c.png)`",
+      ),
     );
     await writeFile(join(content, "how-to", "a.md"), page("A", "sidebar:\n  order: 3\n"));
     await writeFile(join(content, "how-to", "c.md"), page("C", "sidebar:\n  order: 2\n"));
@@ -92,7 +99,7 @@ describe("llms.txt", () => {
     const full = await readFile(join(dist, LLMS_FULL_FILE), "utf8");
     expect(
       full.startsWith(
-        "# ReqSeq 1.0\n\n# ReqSeq\n\nPage: /ReqSeq/\n\nWelcome.\n\n# B\n\nPage: /ReqSeq/how-to/b/\n\nText.\n",
+        "# ReqSeq 1.0\n\n# ReqSeq\n\nPage: /ReqSeq/\n\nWelcome.\n\n# B\n\nPage: /ReqSeq/how-to/b/\n\nText.\n\n![Shot](/ReqSeq/images/b.png) ![Web](https://x/y.png) `![c](/ReqSeq/how-to/c.png)`\n",
       ),
     ).toBe(true);
     expect(full.indexOf("# A\n")).toBeGreaterThan(full.indexOf("# C\n"));
