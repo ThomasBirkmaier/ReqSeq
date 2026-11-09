@@ -1,14 +1,20 @@
-// Whether the committed screenshots of the guide still show the app (#1258). The Linux Electron run of CI writes
-// them to test-results/electron/guide-images/ (packages/app/test/guide-screenshots.spec.ts); this compares each with
-// its copy in docs/guide/images/ and reports the ones that differ beyond a threshold, as warning annotations and in the
-// step summary. It never fails: fonts or a runner image may move pixels, and `pnpm docs:screenshots` is the fix.
+// Whether a pull request changes what the guide's screenshots show (#1258). The Linux Electron run of CI writes them to
+// test-results/electron/guide-images/ (packages/app/test/guide-screenshots.spec.ts). The nightly run on main keeps its
+// screenshots in the Actions cache, and a pull request's run restores them to build/guide-images-main/; this compares
+// the two and reports each screenshot that differs beyond a threshold, as a warning annotation and in the step summary,
+// so the author runs `pnpm docs:screenshots` and commits docs/guide/images/. Both sides come from the same runner image:
+// the committed copies cannot be the reference, because another machine's fonts move more pixels (0.5-4 %) than a
+// changed layout does (0.2-0.6 %). It never fails the job.
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { decodePng } from "./png.js";
 import type { Pixels } from "./png.js";
 
-/** Where the Electron run writes the screenshots and where their committed copies are, relative to the root. */
+/** Where the Electron run writes the screenshots, relative to the root. */
 export const SHOTS_DIR = "test-results/electron/guide-images";
+/** Where a pull request's run restores the screenshots of main's last nightly run, relative to the root. */
+export const MAIN_SHOTS_DIR = "build/guide-images-main";
+/** The committed copies the author regenerates. */
 export const GUIDE_IMAGES_DIR = "docs/guide/images";
 /** The command that writes the committed copies. */
 export const SCREENSHOTS_COMMAND = "pnpm docs:screenshots";
@@ -17,11 +23,11 @@ export const CHANNEL_TOLERANCE = 32;
 /** An image is reported when more than this share of its pixels differs: a changed word is about 0.1 %. */
 export const DIFF_LIMIT = 0.0005;
 
-/** The result of one screenshot: `share` is the share of differing pixels, undefined when the image is new or resized. */
+/** The result of one screenshot: `share` is the share of differing pixels, undefined when it is new, resized or broken. */
 export interface ImageCheck {
   readonly name: string;
   readonly share: number | undefined;
-  /** Why it is reported, undefined when the committed copy is current. */
+  /** Why it is reported, undefined when it shows what main shows. */
   readonly problem: string | undefined;
 }
 
@@ -49,32 +55,44 @@ export function differingShare(a: Pixels, b: Pixels): number {
 
 const percent = (share: number): string => `${(share * 100).toFixed(2)} %`;
 
-/** Compares one screenshot of the run with its committed copy (undefined when there is none). */
-export function checkImage(name: string, shot: Uint8Array, committed: Uint8Array | undefined): ImageCheck {
-  if (committed === undefined) {
-    return { name, share: undefined, problem: "is new and not committed" };
+/** Compares one screenshot of the run with main's (undefined when main has none); a broken PNG is reported too. */
+export function checkImage(name: string, shot: Uint8Array, main: Uint8Array | undefined): ImageCheck {
+  if (main === undefined) {
+    return { name, share: undefined, problem: "is new" };
   }
-  if (Buffer.compare(shot, committed) === 0) {
+  if (Buffer.compare(shot, main) === 0) {
     return { name, share: 0, problem: undefined };
   }
-  const [now, before] = [decodePng(shot), decodePng(committed)];
+  let now: Pixels;
+  let before: Pixels;
+  try {
+    [now, before] = [decodePng(shot), decodePng(main)];
+  } catch (error) {
+    return { name, share: undefined, problem: `cannot be compared (${(error as Error).message})` };
+  }
   if (now.width !== before.width || now.height !== before.height) {
     const size = (image: Pixels): string => `${String(image.width)}×${String(image.height)}`;
-    return { name, share: undefined, problem: `is ${size(now)} in the app, ${size(before)} committed` };
+    return { name, share: undefined, problem: `is ${size(now)}, ${size(before)} on main` };
   }
   const share = differingShare(now, before);
   return {
     name,
     share,
-    problem: share > DIFF_LIMIT ? `differs from the app in ${percent(share)} of its pixels` : undefined,
+    problem: share > DIFF_LIMIT ? `differs from main in ${percent(share)} of its pixels` : undefined,
   };
 }
 
-/** Compares every screenshot in `<root>/SHOTS_DIR` with its committed copy; undefined when the run made none. */
-export async function checkGuideImages(root: string): Promise<ImageCheck[] | undefined> {
+/** Why nothing was compared: the run made no screenshots, or no screenshots of main were restored. */
+export type NoComparison = "no-shots" | "no-main";
+
+/** Compares every screenshot in `<root>/SHOTS_DIR` with main's in `<root>/MAIN_SHOTS_DIR`. */
+export async function checkGuideImages(root: string): Promise<ImageCheck[] | NoComparison> {
   const names = await readdir(join(root, SHOTS_DIR)).catch(() => undefined);
   if (names === undefined) {
-    return undefined;
+    return "no-shots";
+  }
+  if ((await readdir(join(root, MAIN_SHOTS_DIR)).catch(() => undefined)) === undefined) {
+    return "no-main";
   }
   const pngs = names.filter((name) => name.endsWith(".png")).sort();
   return Promise.all(
@@ -82,7 +100,7 @@ export async function checkGuideImages(root: string): Promise<ImageCheck[] | und
       checkImage(
         name,
         await readFile(join(root, SHOTS_DIR, name)),
-        await readFile(join(root, GUIDE_IMAGES_DIR, name)).catch(() => undefined),
+        await readFile(join(root, MAIN_SHOTS_DIR, name)).catch(() => undefined),
       ),
     ),
   );
@@ -92,33 +110,39 @@ export async function checkGuideImages(root: string): Promise<ImageCheck[] | und
 const escapeData = (text: string): string =>
   text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 
-/** The log lines (warning annotations for the stale images) and the Markdown of the step summary. */
-export function guideImagesReport(checks: readonly ImageCheck[] | undefined): {
+/** The log lines (warning annotations for the changed images) and the Markdown of the step summary. */
+export function guideImagesReport(checks: readonly ImageCheck[] | NoComparison): {
   log: string;
   summary: string;
 } {
-  if (checks === undefined) {
+  if (checks === "no-shots") {
     return { log: `guide images: none in ${SHOTS_DIR} (another shard or system makes them)\n`, summary: "" };
+  }
+  if (checks === "no-main") {
+    return {
+      log: `guide images: no screenshots of main's nightly run in ${MAIN_SHOTS_DIR}, nothing compared\n`,
+      summary: "",
+    };
   }
   const stale = checks.filter((check) => check.problem !== undefined);
   const log = stale
     .map(
       ({ name, problem = "" }) =>
-        `::warning file=${GUIDE_IMAGES_DIR}/${name},title=Guide screenshot is stale::${escapeData(
-          `${name} ${problem}: run \`${SCREENSHOTS_COMMAND}\` and commit docs/guide/images/.`,
+        `::warning file=${GUIDE_IMAGES_DIR}/${name},title=Guide screenshot changed::${escapeData(
+          `${name} ${problem}: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit ${GUIDE_IMAGES_DIR}/.`,
         )}\n`,
     )
     .join("");
   const rows = checks.map(
     ({ name, share, problem }) =>
-      `| ${name} | ${share === undefined ? "-" : percent(share)} | ${problem === undefined ? "current" : `stale: ${problem}`} |`,
+      `| ${name} | ${share === undefined ? "-" : percent(share)} | ${problem === undefined ? "as on main" : `changed: ${problem}`} |`,
   );
   const summary = [
     "### Guide screenshots",
     "",
     stale.length === 0
-      ? `The ${String(checks.length)} screenshots of the app match docs/guide/images/.`
-      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from the app: run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
+      ? `The ${String(checks.length)} screenshots of the app show what main's nightly run showed.`
+      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from main's nightly run: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
     "",
     `| Image | Differing pixels | State (limit ${percent(DIFF_LIMIT)}) |`,
     "| --- | --- | --- |",
@@ -126,7 +150,7 @@ export function guideImagesReport(checks: readonly ImageCheck[] | undefined): {
     "",
   ].join("\n");
   return {
-    log: `${log}guide images: ${String(checks.length)} compared, ${String(stale.length)} stale\n`,
+    log: `${log}guide images: ${String(checks.length)} compared with main, ${String(stale.length)} changed\n`,
     summary,
   };
 }

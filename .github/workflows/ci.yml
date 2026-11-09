@@ -356,6 +356,21 @@ jobs:
           if ! unshare -r true 2>/dev/null; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
+      # The guide's screenshots of main's last nightly or manual run (saved below), the reference of the step "Guide
+      # screenshots" (#1258). Restored to the folder they were saved from, then moved aside before the tests write
+      # the new ones there.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false'
+        with:
+          path: test-results/electron/guide-images
+          key: guide-images-main-none
+          restore-keys: guide-images-main-
+      - name: Screenshots of main aside
+        if: runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false'
+        run: |
+          if [ -d test-results/electron/guide-images ]; then
+            mkdir -p build && mv test-results/electron/guide-images build/guide-images-main
+          fi
       # `test:electron` downloads the Electron binary unless it is cached (pnpm runs no install scripts), builds the
       # app with electron-vite and runs Playwright.
       - name: Electron tests (xvfb)
@@ -370,12 +385,20 @@ jobs:
           ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
         run: pnpm --filter @reqseq/app test:electron
       # The guide's screenshots (ADR-0017): the Linux shard that runs guide-screenshots.spec.ts has just made them
-      # (test-results/electron/guide-images/); this compares them with docs/guide/images/ and writes a warning and the
-      # step summary for each one that differs in more than 0.05 % of its pixels, so the author runs
-      # `pnpm docs:screenshots` (#1258). A second or two, on the build above; it never fails the job, since a
-      # rendering detail is no error. The other Linux shard makes none and says so; macOS and Windows skip the step.
-      - name: Guide screenshots up to date
-        if: ${{ !cancelled() && runner.os == 'Linux' && steps.changes.outputs.tests != 'false' }}
+      # (test-results/electron/guide-images/). A nightly or manual run on main keeps them as the reference of later
+      # pull requests (a few hundred KB; GitHub evicts a cache unused for 7 days, the nightly run renews it).
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.os == 'Linux' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && hashFiles('test-results/electron/guide-images/*.png') != ''
+        with:
+          path: test-results/electron/guide-images
+          key: guide-images-main-${{ github.run_id }}-${{ github.run_attempt }}
+      # On a pull request this compares them with main's and writes a warning and the step summary for each one that
+      # differs in more than 0.05 % of its pixels, so the author runs `pnpm docs:screenshots` (#1258). Main's come
+      # from the same runner image; the committed copies would not do, since another machine's fonts move more pixels
+      # than a changed layout. A second or two, on the build above; it never fails the job, since a rendering detail is
+      # no error. The other Linux shard makes none and says so; macOS and Windows skip the step.
+      - name: Guide screenshots changed
+        if: ${{ !cancelled() && runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false' }}
         continue-on-error: true
         run: node packages/docs/dist/guide-images-bin.js
       - name: Upload JUnit results (evidence, D-050)

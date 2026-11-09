@@ -4,8 +4,8 @@
 // the same IDs, and the standard model), light, 1024×576; the graph in a window of 1600×1000, cut to its boxes. They go to
 // `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
 // also to `docs/guide/images/`, the site's copy, committed after a run; a normal run leaves tracked files alone. They
-// are made on Linux only, because fonts differ between systems. CI compares them with the committed copies and only
-// warns when one is stale (packages/docs/src/guide-images.ts, #1258).
+// are made on Linux only, because fonts differ between systems. On a pull request CI compares them with those of main's
+// nightly run and only warns when one changed (packages/docs/src/guide-images.ts, #1258).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

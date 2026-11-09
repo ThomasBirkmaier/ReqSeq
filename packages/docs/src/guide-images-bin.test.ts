@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as GuideImages from "./guide-images.js";
 
 const checks = [{ name: "a.png", share: 0, problem: undefined }];
-const checkGuideImages = vi.fn<() => Promise<typeof checks | undefined>>(() => Promise.resolve(checks));
+const checkGuideImages = vi.fn<() => Promise<typeof checks | "no-shots">>(() => Promise.resolve(checks));
 vi.mock("./guide-images.js", async (importOriginal) => ({
   ...(await importOriginal<typeof GuideImages>()),
   checkGuideImages,
@@ -29,7 +29,7 @@ describe("guide-images-bin", () => {
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     await import("./guide-images-bin.js");
     expect(checkGuideImages).toHaveBeenCalledWith(fileURLToPath(new URL("../../../", import.meta.url)));
-    expect(write).toHaveBeenCalledWith("guide images: 1 compared, 0 stale\n");
+    expect(write).toHaveBeenCalledWith("guide images: 1 compared with main, 0 changed\n");
     write.mockRestore();
     expect(await readFile(summary, "utf8")).toContain("### Guide screenshots");
   });
@@ -41,7 +41,7 @@ describe("guide-images-bin", () => {
     vi.resetModules();
     const summary = join(dir, "summary.md");
     vi.stubEnv("GITHUB_STEP_SUMMARY", summary);
-    checkGuideImages.mockResolvedValueOnce(undefined);
+    checkGuideImages.mockResolvedValueOnce("no-shots");
     await import("./guide-images-bin.js");
     write.mockRestore();
     await expect(readFile(summary, "utf8")).rejects.toThrow("ENOENT");

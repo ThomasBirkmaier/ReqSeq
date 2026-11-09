@@ -2,7 +2,7 @@ import { appendFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { checkGuideImages, guideImagesReport } from "./guide-images.js";
 
-// The CI step "Guide screenshots" (#1258): reports the committed screenshots of the guide that no longer show the app,
+// The CI step "Guide screenshots" (#1258): reports the screenshots of the guide that a pull request changes,
 // after the Electron run wrote the current ones. Its exit code is 0 unless the comparison itself breaks.
 const { log, summary } = guideImagesReport(
   await checkGuideImages(fileURLToPath(new URL("../../../", import.meta.url))),
