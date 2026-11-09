@@ -111,3 +111,35 @@ test("[SR-137/AK2] the statuses in the rows of a package page count as its degre
     await running.close();
   }
 });
+
+/** The left edges of the cells a selector finds in each row of P1's page, one per row that has it. */
+const edges = (running: Running, cell: string): Promise<number[]> =>
+  running.window.evaluate(
+    (selector) =>
+      [...document.querySelectorAll<HTMLElement>(".members .row")]
+        .map((row) => row.querySelector<HTMLElement>(selector)?.getBoundingClientRect().left)
+        .filter((left): left is number => left !== undefined),
+    cell,
+  );
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`[SR-137/AK3] the status, verification status and ring stand in one line in every row (${colorScheme})`, async () => {
+    const running = await launchApp({ fixture: "SR-136/graph" }, { colorScheme });
+    try {
+      const rows = await openP1(running);
+      // The rows carry status words and ring texts of different widths ("verified", "failed", "1 of 1").
+      expect(new Set(rows.map(({ verification }) => verification.length)).size).toBeGreaterThan(1);
+      for (const cell of [":scope > .status", ".verification .status", ".graph-ring"]) {
+        const lefts = await edges(running, cell);
+        expect(lefts.length, cell).toBeGreaterThan(1);
+        expect(new Set(lefts.map((left) => Math.round(left))), cell).toEqual(
+          new Set([Math.round(lefts[0] ?? 0)]),
+        );
+      }
+      await fs.mkdir(OUT, { recursive: true });
+      await running.window.screenshot({ path: path.join(OUT, `sr-137-aligned-${colorScheme}.png`) });
+    } finally {
+      await running.close();
+    }
+  });
+}
