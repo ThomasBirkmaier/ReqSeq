@@ -14,6 +14,7 @@ import {
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  whatsNewPage,
   writeBuildInfo,
 } from "./lib.mjs";
 
@@ -135,6 +136,38 @@ describe("releaseNotes", () => {
     expect(releaseNotes([""], { previous: undefined, compareUrl: "unused" })).toBe(
       "## Changes\n\nNo changes.\n",
     );
+  });
+});
+
+describe("whatsNewPage", () => {
+  it("lists new functions, fixes and specification per version, and says when a version has none", () => {
+    const page = whatsNewPage([
+      { version: "0.2", date: "2026-11-09", subjects: ["feat(app): a key for @types/x <b>", "ci: faster"] },
+      { version: "0.1", date: "2026-11-01", subjects: ["test: only tests", ""] },
+    ]);
+    expect(page).toMatch(/^---\ntitle: What's new\n/);
+    expect(page.slice(page.indexOf("## "))).toBe(
+      [
+        "## 0.2",
+        "",
+        "Released 2026-11-09.",
+        "",
+        "### New",
+        "",
+        "- feat(app): a key for `@types/x` &lt;b>",
+        "",
+        "## 0.1",
+        "",
+        "Released 2026-11-01.",
+        "",
+        "No new functions, fixes or changes to the specification.",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("says when the history holds no release", () => {
+    expect(whatsNewPage([])).toContain("The history this documentation was built from holds no release.");
   });
 });
 

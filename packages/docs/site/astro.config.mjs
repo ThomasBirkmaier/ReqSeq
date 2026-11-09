@@ -60,6 +60,8 @@ export default defineConfig({
       ],
       sidebar: [
         { label: "Overview", slug: "index" },
+        // Written by `stage.mjs --whats-new` after the generator (#1259): the release notes of each version.
+        { label: "What's new", slug: "whats-new" },
         // A section without pages yet is left out rather than shown empty.
         ...GUIDE_SECTIONS.filter(([directory]) =>
           existsSync(new URL(`src/content/docs/${directory}`, import.meta.url)),

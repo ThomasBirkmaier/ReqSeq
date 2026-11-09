@@ -13,6 +13,8 @@
 //   node scripts/package/stage.mjs --check-tag T exit 0 when tag T releases the root version, else 1
 //   node scripts/package/stage.mjs --release-notes R  print the release notes of ref R (a tag or HEAD): the
 //                                                 first-parent commits since the previous release tag (#346)
+//   node scripts/package/stage.mjs --whats-new F  write the page "What's new" of the documentation site to F
+//                                                 (#1259): the release notes of every release before HEAD
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -27,6 +29,7 @@ import {
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  whatsNewPage,
   writeBuildInfo,
 } from "./lib.mjs";
 
@@ -254,6 +257,36 @@ function notes(ref) {
   return releaseNotes(subjects, { previous, compareUrl: `${repo}/compare/${previous}...${ref}` });
 }
 
+/**
+ * The releases for the page "What's new" (#1259), newest first: each release tag in the first-parent history of
+ * HEAD with its commits since the tag before, and the commits since the last one when HEAD is no release. A shallow
+ * clone has no tags: the page then names no release, which `REQSEQ_DOCS_RELEASES=1` (the builds that are published,
+ * `.github/actions/docs-site`) refuses.
+ */
+function releasesForWhatsNew() {
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).trim();
+  const lines = (text) => text.split("\n").filter((line) => line !== "");
+  const subjects = (range) => git("log", "--first-parent", "--format=%s", range).split("\n");
+  // Release tags only, as `notes`: `v<major>.<minor>` or `v<major>.<minor>.<patch>`, no `-rc` tags.
+  const tags = lines(git("tag", "--list", "v[0-9]*", "--merged", "HEAD", "--sort=-v:refname")).filter(
+    (tag) => !tag.includes("-"),
+  );
+  if (tags.length === 0 && process.env.REQSEQ_DOCS_RELEASES === "1") {
+    throw new Error("no release tag in the history of HEAD: fetch the whole history with its tags");
+  }
+  const releases = tags.map((tag, index) => ({
+    version: tag.slice(1),
+    date: git("log", "-1", "--format=%cs", tag),
+    subjects: subjects(index + 1 < tags.length ? `${tags[index + 1]}..${tag}` : tag),
+  }));
+  const head = git("rev-parse", "HEAD");
+  if (tags.length > 0 && git("rev-parse", `${tags[0]}^{commit}`) !== head) {
+    releases.unshift({ version: undefined, date: undefined, subjects: subjects(`${tags[0]}..HEAD`) });
+  }
+  return releases;
+}
+
 const [mode, argument] = process.argv.slice(2);
 if (mode === undefined) {
   await stage();
@@ -267,9 +300,11 @@ if (mode === undefined) {
   process.exitCode = ok ? 0 : 1;
 } else if (mode === "--release-notes" && argument !== undefined) {
   process.stdout.write(notes(argument));
+} else if (mode === "--whats-new" && argument !== undefined) {
+  await fs.writeFile(argument, whatsNewPage(releasesForWhatsNew()));
 } else {
   console.error(
-    "usage: node scripts/package/stage.mjs [--docs-site | --pack | --check-tag <tag> | --release-notes <ref>]",
+    "usage: node scripts/package/stage.mjs [--docs-site | --pack | --check-tag <tag> | --release-notes <ref> | --whats-new <file>]",
   );
   process.exitCode = 2;
 }
