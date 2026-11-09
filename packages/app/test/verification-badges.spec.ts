@@ -84,7 +84,7 @@ test.describe("the verification badges", () => {
     running = await launchApp({ fixture: "SR-034/indirect" });
     await openElement(running.window, "Warn of storms");
     await expect(verification(running.window).locator(".badge-status")).toHaveText([
-      "open (missing SR-00b121 Warn of gusts, SR-00b122 Warn of hail, SR-00b123 Warn of lightning)",
+      "open (missing SR-00b121, SR-00b122, SR-00b123)",
     ]);
     // In a narrow column the status wraps inside its half: nothing is cut off, the pill stays in the line,
     // and its ends stay round (the radius is half a line, the text kept out of the corners).
@@ -168,6 +168,67 @@ test.describe("the verification badges", () => {
     expect(grounds.get("indirect")).toEqual(grounds.get("open"));
     expect(grounds.get("failed")).not.toEqual(grounds.get("outdated"));
   });
+
+  for (const scheme of ["light", "dark"] as const) {
+    test(`a parent with missing children keeps its badges compact: one line each, the names whole, the children by ID (#1283, ${scheme})`, async () => {
+      // Three variants the parent is in, so it has a badge for the core and one for each, all open with
+      // missing children, as on the page that broke the badges apart.
+      const files = Object.fromEntries(
+        ["macOS", "Windows", "Linux"].map((title, at) => [
+          `variants/VAR-00000000d00${String(at + 1)}.md`,
+          `---\nid: 3b8d4f6a-0c1e-4a3b-9c5d-00000000d00${String(at + 1)}\ntype: variant\nstatus: draft\ntitle: ${title}\n---\n\nThe variant for ${title}.\n`,
+        ]),
+      );
+      running = await launchApp({ fixture: "SR-034/indirect", files }, { colorScheme: scheme });
+      await openElement(running.window, "Warn of storms");
+      const group = verification(running.window);
+      await expect(group.locator(".badge")).toHaveCount(4);
+      // The order of the variants is the core's; the names are what matters here.
+      expect((await group.locator(".badge-name").allInnerTexts()).sort()).toEqual(
+        ["Core", "Linux", "Windows", "macOS"].sort(),
+      );
+      await expect(group.locator(".badge-status").first()).toHaveText(
+        "open (missing SR-00b121, SR-00b122, SR-00b123)",
+      );
+      // A missing child shows its ID and title on hover.
+      await expect(group.getByRole("link", { name: "SR-00b122" }).first()).toHaveAttribute(
+        "title",
+        "SR-00b122 Warn of hail",
+      );
+      const shapes = await group.locator(".badge").evaluateAll((all) =>
+        all.map((badge) => {
+          const name = badge.querySelector<HTMLElement>(".badge-name");
+          const row = badge.parentElement;
+          if (name === null || row === null) {
+            throw new Error("no name half or no row");
+          }
+          return {
+            oneLine:
+              badge.getBoundingClientRect().height <= parseFloat(getComputedStyle(badge).lineHeight) + 0.5,
+            nameWhole: name.scrollWidth <= name.clientWidth,
+            compact: badge.getBoundingClientRect().width < row.getBoundingClientRect().width * 0.75,
+          };
+        }),
+      );
+      expect(shapes).toHaveLength(4);
+      for (const shape of shapes) {
+        expect(shape).toEqual({ oneLine: true, nameWhole: true, compact: true });
+      }
+      const box = await group.boundingBox();
+      expect(box).not.toBeNull();
+      if (box !== null) {
+        await running.window.screenshot({
+          path: path.join(OUT, `sr-157-missing-children-${scheme}.png`),
+          clip: {
+            x: 0,
+            y: Math.max(0, box.y - 120),
+            width: box.x + box.width + 200,
+            height: box.height + 220,
+          },
+        });
+      }
+    });
+  }
 
   for (const scheme of ["light", "dark"] as const) {
     test(`the badge row keeps apart from the property table, its text smaller than the lines around it (#1273, ${scheme})`, async () => {

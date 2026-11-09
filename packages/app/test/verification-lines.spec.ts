@@ -48,9 +48,9 @@ test.describe("the children missing for an indirect verification", () => {
     ]);
     const verification = line(window, "Verification");
     await expect(verification.locator(".badge-status")).toHaveText(
-      "open (missing SR-00b121 Warn of gusts, SR-00b122 Warn of hail, SR-00b123 Warn of lightning)",
+      "open (missing SR-00b121, SR-00b122, SR-00b123)",
     );
-    await verification.getByRole("link", { name: "SR-00b122 Warn of hail" }).click();
+    await verification.getByRole("link", { name: "SR-00b122" }).click();
     await expect(window.locator("article h1")).toHaveText("Warn of hail");
   });
 });

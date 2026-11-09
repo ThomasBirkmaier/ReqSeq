@@ -116,21 +116,22 @@ const named = (
 
 const titleOf = (name: ElementName): string => name.title;
 const idTitleOf = (name: ElementName): string => idTitle(name.identifier ?? name.shortId, name.title);
+const idOf = (name: ElementName): string => name.identifier ?? name.shortId;
 
 /** `groups` joined by " · ". */
 export const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
   groups.flatMap((group, at) => (at === 0 ? group : [SEPARATOR, ...group]));
 
-/** " (missing <child>, <child>)", each child a link by ID and title; nothing without missing children. */
+/**
+ * " (missing <child>, <child>)", each child a link by its ID with ID and title as its title (shown on hover);
+ * nothing without missing children. Only the ID, so that a badge stays compact (#1283).
+ */
 const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly string[]): LinePart[] =>
   children.length === 0
     ? []
     : [
         { text: " (missing " },
-        ...children.flatMap((child, at) => [
-          ...(at === 0 ? [] : [{ text: ", " }]),
-          named(byId, child, idTitleOf),
-        ]),
+        ...children.flatMap((child, at) => [...(at === 0 ? [] : [{ text: ", " }]), named(byId, child, idOf)]),
         { text: ")" },
       ];
 
