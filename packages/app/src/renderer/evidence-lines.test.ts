@@ -185,16 +185,28 @@ describe("the lines of an element's evidence records", () => {
     // A row without criterion names the verification of the whole requirement.
     const whole = displayLines(
       {
-        records: [],
+        records: [record({ kind: "validation", result: "inconclusive" })],
         display: {
           shared: {},
-          rows: [{ kind: "verification", status: "open", views: [], cases: [] }],
+          rows: [
+            { kind: "verification", status: "open", views: [], cases: [] },
+            {
+              kind: "validation",
+              status: "inconclusive",
+              cases: [{ result: "inconclusive", views: ["core"], records: [0] }],
+            },
+          ],
           older: [],
         },
       },
       undefined,
     );
-    expect(whole.rows.map((row) => row.head)).toEqual(["Verification · open · no tests"]);
+    expect(whole.rows.map((row) => row.head)).toEqual([
+      "Verification · open · no tests",
+      "Validation · inconclusive · 1 test",
+    ]);
+    // A record with neither test case, method nor item is named by its date.
+    expect(whole.rows[1]?.children.map((test) => test.head)).toEqual(["2026-10-21 09:00 UTC · inconclusive"]);
   });
 
   it("[SR-032/AK5] states the values the open records share once, and nothing when they share none", () => {

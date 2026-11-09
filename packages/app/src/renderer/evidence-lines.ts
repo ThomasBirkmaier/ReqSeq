@@ -161,14 +161,17 @@ const rowHead = (row: DisplayRow, byId: ReadonlyMap<string, ElementName>): strin
   return `${label} · ${state} · ${tests(row.cases.length)}`;
 };
 
-/** A case's head: its name (or the method and item of a record without test case), result and views. */
+/** A case's head: its name (or the method and item, else the date, of a record without test case), result and views. */
 const caseHead = (
   test: DisplayCase,
   records: readonly DataExportEvidenceRecord[],
   byId: ReadonlyMap<string, ElementName>,
 ): string => {
   const first = records[test.records[0] ?? -1];
-  const name = test.testCase ?? [first?.method, first?.item].filter((part) => part !== undefined).join(" · ");
+  // A record without test case by its method and item, else (a validation record may have neither) its date.
+  const parts = [first?.method, first?.item].filter((part) => part !== undefined);
+  const name =
+    test.testCase ?? (parts.length > 0 || first === undefined ? parts.join(" · ") : shortDate(first.date));
   const views =
     test.views.length === 1 && test.views[0] === "core"
       ? []
