@@ -1,13 +1,13 @@
 ---
-title: Freeze a release
-description: Group the requirements of a release in a package, freeze their versions in a baseline, and see what changed since.
+title: Take a baseline
+description: Freeze the versions of a selection of elements in a baseline, such as the elements of a package, and see what changed since.
 sidebar:
   order: 8
 ---
 
-A package groups the elements of a release. A baseline freezes it: a file in the baseline folder the workspace file names (`baselines` when it names none) with its name, date, the commit of each repository involved and the version of each element. Later, ReqSeq shows what changed since.
+A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as a topic or a use case. When and why you take a baseline is up to you.
 
-ReqSeq writes the baseline file but never commits it. You commit with Git: before the baseline, because ReqSeq refuses one while files of the selection are not committed, and after it, so the baseline is part of the history. A baseline is never replaced: a second one with the same name is refused.
+ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuses one while the files of the selection, their images, the metamodel or the workspace file are uncommitted, and after it. A second baseline with the same name is refused.
 
 ## App
 
@@ -16,7 +16,7 @@ ReqSeq writes the baseline file but never commits it. You commit with Git: befor
 3. Open the package with **Go to element or buffer** (Ctrl+P, ⌘P); its page lists its elements.
 4. Commit the files with Git.
 5. On the package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Create baseline**; it asks only the name. Commit the new file.
-6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline. After the baseline's commit it warns `baseline.repository-commit-differs`, as expected; for evidence exactly as it stood, check out the commit the baseline names and keep the baseline file.
+6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline names. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
 7. **Compare baseline** asks a baseline and an element and gives the two commits and the Git command. Run it from the workspace folder.
 8. On the package page, **Export data** shows the current state of the package in a result buffer.
 
@@ -26,11 +26,11 @@ In your workspace, use your own short IDs.
 
 ```sh
 reqseq workspace init . "Weather station"
-reqseq element create package "Release 1"
+reqseq element create package "Wind measurement"
 ```
 
 ```text title="Output"
-PKG-65ba20  draft  Release 1
+PKG-65ba20  draft  Wind measurement
 ...
 ```
 
@@ -65,13 +65,13 @@ elements:
 
 A baseline needs committed files, so in your repository, after a commit:
 
-1. `reqseq baseline create "Release 1" --package PKG-65ba20` writes `Release-1.yaml` in the baseline folder. With uncommitted files in the package it refuses with `baseline.uncommitted-changes`. Commit the new file.
+1. `reqseq baseline create "Review 1" --package PKG-65ba20` writes `Review-1.yaml` in the baseline folder. With uncommitted files it refuses with `baseline.uncommitted-changes`. Commit the new file.
 2. `reqseq baseline list` lists them with date and element count.
-3. `reqseq baseline get "Release 1"` lists each element with its state, its version in the baseline and, when it differs, the current one; `--with-evidence` adds the verification and validation status at the baseline (see the warning above).
-4. `reqseq baseline compare "Release 1" SR-c67baa` gives the commit of the baseline, the current one (`null` while uncommitted), and the command, such as `git -C . diff <from> <to> -- system-requirement/SR-…md`. A change to a relation such as `derives-from` does not make an element `changed` in `baseline get`; this diff shows it.
-5. `reqseq data export --baseline "Release 1"` gives the elements the baseline lists, as they are now.
+3. `reqseq baseline get "Review 1"` lists each element with its state, its version in the baseline and, when it differs, the current one; `--with-evidence` adds the verification and validation status at the baseline (see the warning above).
+4. `reqseq baseline compare "Review 1" SR-c67baa` gives the commit of the baseline, the current one (`null` while uncommitted), and the command, such as `git -C . diff <from> <to> -- system-requirement/SR-…md`. A change to a relation such as `derives-from` does not make an element `changed` in `baseline get`; this diff shows it.
+5. `reqseq data export --baseline "Review 1"` gives the elements the baseline lists, as they are now.
 
-Two baselines are two files, so `git diff --no-index baselines/Release-1.yaml baselines/Release-2.yaml` shows which elements and versions differ.
+Two baselines are two files, so `git diff --no-index baselines/Review-1.yaml baselines/Review-2.yaml` shows which elements and versions differ.
 
 ## API
 
@@ -86,7 +86,7 @@ POST /v1/commands/element.update
 ```http
 POST /v1/commands/baseline.create
 
-{ "name": "Release 1", "selection": { "package": "PKG-65ba20" } }
+{ "name": "Review 1", "selection": { "package": "PKG-65ba20" } }
 ```
 
 ```http
@@ -98,13 +98,13 @@ POST /v1/commands/baseline.list
 ```http
 POST /v1/commands/baseline.get
 
-{ "baseline": "Release 1", "withEvidence": true }
+{ "baseline": "Review 1", "withEvidence": true }
 ```
 
 ```http
 POST /v1/commands/baseline.compare
 
-{ "baseline": "Release 1", "ref": "SR-c67baa" }
+{ "baseline": "Review 1", "ref": "SR-c67baa" }
 ```
 
 ```http
@@ -124,7 +124,7 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 ```
 
 ```json
-{ "name": "baseline_create", "arguments": { "name": "Release 1", "selection": { "package": "PKG-65ba20" } } }
+{ "name": "baseline_create", "arguments": { "name": "Review 1", "selection": { "package": "PKG-65ba20" } } }
 ```
 
 ```json
@@ -132,11 +132,11 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 ```
 
 ```json
-{ "name": "baseline_get", "arguments": { "baseline": "Release 1", "withEvidence": true } }
+{ "name": "baseline_get", "arguments": { "baseline": "Review 1", "withEvidence": true } }
 ```
 
 ```json
-{ "name": "baseline_compare", "arguments": { "baseline": "Release 1", "ref": "SR-c67baa" } }
+{ "name": "baseline_compare", "arguments": { "baseline": "Review 1", "ref": "SR-c67baa" } }
 ```
 
 ```json
