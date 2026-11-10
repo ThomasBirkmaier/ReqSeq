@@ -676,6 +676,9 @@ describe("refusals before a command runs", () => {
       "Bearer x",
       `Basic ${token}`,
       `Bearer${token}`,
+      // The right token in a malformed header: text before the scheme, or after the token.
+      `XBearer ${token}`,
+      `Bearer ${token} junk`,
     ]) {
       const reply = await request({ headers: { authorization } });
       expect(reply.status).toBe(401);
