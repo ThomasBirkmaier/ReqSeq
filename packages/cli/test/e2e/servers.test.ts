@@ -1,5 +1,6 @@
 // End-to-end tests of `reqseq serve api` and `reqseq mcp` (ADR-0009, ADR-0011): the built binary as a real
-// process on a fixture workspace. On Linux CI inside `unshare -rn`: only loopback exists.
+// process on a fixture workspace. On Linux CI inside `unshare -rn`: loopback and a dummy interface with the
+// documentation address 198.51.100.1 (ci.yml, #1363), which leads nowhere.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -102,8 +103,8 @@ const post = (
 
 /**
  * The addresses of this machine that other machines can reach: not loopback, and no IPv6 link-local
- * addresses (they need a zone). None inside `unshare -rn` on Linux CI; the CI runners of macOS and Windows
- * have some.
+ * addresses (they need a zone). Inside `unshare -rn` on Linux CI the dummy address 198.51.100.1 (ci.yml); the
+ * CI runners of macOS and Windows have their own.
  */
 const externalAddresses = (): string[] =>
   Object.values(os.networkInterfaces())
@@ -141,9 +142,14 @@ const probe = (port: number, hosts: readonly string[]): Promise<string[]> =>
 describe("reqseq serve api", () => {
   const external = externalAddresses();
 
-  it.skipIf(external.length === 0)(
+  // Without an address other machines use there is nothing to probe; CI sets REQSEQ_E2E_EXTERNAL_ADDRESS
+  // where it provides one, so the test fails there instead of being skipped (#1363).
+  const required = process.env["REQSEQ_E2E_EXTERNAL_ADDRESS"] === "required";
+
+  it.skipIf(external.length === 0 && !required)(
     "[SR-079/AK2] cannot be reached on the addresses that other machines use",
     async () => {
+      expect(external, "an address other than loopback (REQSEQ_E2E_EXTERNAL_ADDRESS)").not.toEqual([]);
       const { child } = await start(["serve", "api"]);
       const lines = await firstLines(child);
       const file = /^Port and token: (.+)$/m.exec(lines)?.[1] ?? "";
