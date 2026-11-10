@@ -17,9 +17,10 @@
 //     AK3: the same elements, in the same order, on every access). An error in a hand-written filter
 //     file names the filter and its file.
 // - `baseline`: the elements the baseline file lists, as they are now (`Baseline.selects`,
-//   baselines/read.ts), for every command that takes a selection (SR-101, the glossary term
-//   „Auswahl“: the elements a function works on; SR-061 AK2 says so for the export, #1353); the
-//   versions at the baseline are what baseline.get shows (SR-051). It is found by name, then by
+//   baselines/read.ts), for every command that takes a selection (SR-101, #1353). "As they are now"
+//   is SR-061 AK2 for the export and, for every other command, assumption A1 of
+//   ThomasBirkmaier/ReqSeq-archive#530 Q4; the versions at the baseline are what baseline.get shows
+//   (SR-051). It is found by name, then by
 //   file name (`findBaseline`): none is `input.invalid`, a name two files share too, a text that
 //   names only a faulty file `file.faulty`. baseline.create refuses it before it gets here.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file

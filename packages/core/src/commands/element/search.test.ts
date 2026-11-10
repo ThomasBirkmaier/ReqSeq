@@ -309,7 +309,7 @@ describe("element.search (SR-068)", () => {
     expect([out.hits.map((hit) => hit.id), out.incomplete]).toEqual([[N2], true]);
   });
 
-  it("refuses a selection it cannot resolve, naming the field", async () => {
+  it("refuses a selection by an unknown baseline, naming the field", async () => {
     const ws = await open();
     const error = await search(ws, { query: "wind", selection: { baseline: "v1" } }).catch(
       (failure: unknown) => failure,

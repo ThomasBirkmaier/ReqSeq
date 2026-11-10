@@ -98,7 +98,7 @@ describe("reqseq element list (SR-069)", () => {
     expect([output.total, output.incomplete]).toEqual([2, false]);
   });
 
-  it("ends with exit code 2 and the error for a selection that comes later", async () => {
+  it("ends with exit code 2 and the error for a baseline that does not exist", async () => {
     const failed = await list({ selection: { baseline: "v1" } });
     expect([failed.code, failed.stdout]).toEqual([2, ""]);
     expect(JSON.parse(failed.stderr)).toMatchObject({

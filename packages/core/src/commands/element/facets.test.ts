@@ -438,7 +438,7 @@ describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
     expect(out).toEqual({ total: 0, types: [], statuses: [], properties: [], incomplete: false });
   });
 
-  it("refuses a selection it cannot resolve like element.list", async () => {
+  it("refuses a selection by an unknown baseline like element.list", async () => {
     const ws = await open();
     const error = await facets(ws, { selection: { baseline: "v1" } }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(CommandError);
