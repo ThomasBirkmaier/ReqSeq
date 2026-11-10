@@ -1,6 +1,6 @@
 // End-to-end tests of `reqseq serve api` and `reqseq mcp` (ADR-0009, ADR-0011): the built binary as a real
 // process on a fixture workspace. On Linux CI inside `unshare -rn`: loopback and a dummy interface with the
-// documentation address 192.0.2.1 (ci.yml, #1363), which leads nowhere.
+// documentation address 198.51.100.1 (ci.yml, #1363), which leads nowhere.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -103,8 +103,8 @@ const post = (
 
 /**
  * The addresses of this machine that other machines can reach: not loopback, and no IPv6 link-local
- * addresses (they need a zone). None inside `unshare -rn` on Linux CI; the CI runners of macOS and Windows
- * have some.
+ * addresses (they need a zone). Inside `unshare -rn` on Linux CI the dummy address 198.51.100.1 (ci.yml); the
+ * CI runners of macOS and Windows have their own.
  */
 const externalAddresses = (): string[] =>
   Object.values(os.networkInterfaces())
