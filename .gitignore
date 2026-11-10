@@ -31,3 +31,5 @@ __pycache__/
 packages/docs/site/src/content/docs/
 packages/docs/site/.astro/
 *.reqseq-tmp
+# Sandbox of `pnpm mutate` (Stryker, scripts/mutate/mutate.mjs)
+.stryker-tmp/

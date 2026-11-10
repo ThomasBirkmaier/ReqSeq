@@ -26,6 +26,7 @@
     "test:delivery": "vitest run --config vitest.delivery.config.ts",
     "test:perf": "node -e \"const fs = require('node:fs'); for (const f of ['test-results/perf.jsonl', 'test-results/junit-perf.xml']) fs.rmSync(f, { force: true })\" && vitest run --config vitest.perf.config.ts",
     "perf:report": "node scripts/perf/report.mjs",
+    "mutate": "node scripts/mutate/mutate.mjs",
     "reqseq": "node packages/cli/dist/bin.js",
     "spec:check": "node packages/cli/dist/bin.js workspace check --workspace spec",
     "docs:generate": "pnpm --filter \"@reqseq/docs...\" build && node packages/docs/dist/bin.js && node scripts/package/stage.mjs --whats-new packages/docs/site/src/content/docs/whats-new.md",
@@ -37,6 +38,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@types/node": "22.20.5",
     "@vitest/coverage-v8": "5.0.5",
     "ajv": "8.20.0",
