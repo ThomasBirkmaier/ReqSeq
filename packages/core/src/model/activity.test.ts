@@ -813,11 +813,11 @@ describe("watching the last access (SR-117)", () => {
     // waits for the report of SR-037 itself and ignores those of SR-036.
     const ofSr037 = (): ActivityAccess[] => seen.seen.filter((access) => access.element.id === SR_037);
     await call(agent, "element.get", { ref: "SR-037" }, "mcp");
-    while (ofSr037().length === 0) {
+    for (const until = Date.now() + 5000; ofSr037().length === 0 && Date.now() < until;) {
       await quiet(10);
     }
     const [access] = ofSr037();
-    expect(access?.element).toEqual({ id: SR_037, repository: "spec" });
+    expect(access?.element, "no report of SR-037 within 5 s").toEqual({ id: SR_037, repository: "spec" });
     // AK1 counts from the read, which `access.at` records when the call ends.
     expect(Date.now() - Date.parse(access?.at ?? "")).toBeLessThan(1000);
     await quiet(300);
