@@ -249,6 +249,23 @@ describe("element store", () => {
     expect(s.problems).toEqual([]);
   });
 
+  it("[SR-004/AK4] reads a repository from the place a local file names for it", async () => {
+    const ws = await fixture({ fixture: "SR-004/three-repositories", git: ["system", "product", "sensor"] });
+    await fs.mkdir(ws.path("checkouts"));
+    await fs.rename(ws.path("sensor"), ws.path("checkouts/sensor"));
+    await ws.write(
+      "system/.reqseq/local.yaml",
+      "reqseq-local: 1\nrepositories:\n  sensor: { path: ../checkouts/sensor }\n",
+    );
+    const s = await store(ws.path("system"));
+    expect(located(s)).toContainEqual([
+      "sensor",
+      "anemometer/SR-481f080784bf.md",
+      "c23372ad-5a33-47db-832f-481f080784bf",
+    ]);
+    expect(s.problems).toEqual([]);
+  });
+
   it("skips a missing repository and reads the others (SR-004 AK3)", async () => {
     const ws = await fixture({ fixture: "SR-004/three-repositories" });
     await fs.rm(ws.path("product"), { recursive: true });
