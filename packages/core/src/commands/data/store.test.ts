@@ -823,7 +823,7 @@ describe("data.store: selection and read-only workspace", () => {
     expect(lines.map((e) => e.id.slice(-2))).toEqual(["b1", "b2"]);
   });
 
-  it("takes selection.baseline (SR-061 AK2), which element.list still refuses", async () => {
+  it("takes selection.baseline (SR-061 AK2), as element.list does (#1353)", async () => {
     const ws = await fixture(EXPORT);
     const root = ws.path("system");
     const out = await storeIn(root, { folder: "out", selection: { baseline: "release-1" } });
@@ -831,9 +831,12 @@ describe("data.store: selection and read-only workspace", () => {
     expect(lines.map((e) => e.id.slice(-2))).toEqual(["a1", "b1", "b3"]);
     const workspace = new Workspace(root);
     onTestFinished(() => workspace.close());
-    await expect(
-      invoke("element.list", { selection: { baseline: "release-1" } }, { workspace }),
-    ).rejects.toMatchObject({ code: "input.invalid" });
+    const listed = (await invoke(
+      "element.list",
+      { selection: { baseline: "release-1" } },
+      { workspace },
+    )) as CommandOutput<"element.list">;
+    expect((listed.elements ?? []).map((e) => e.id.slice(-2))).toEqual(["a1", "b1", "b3"]);
   });
 
   it("data.store is refused with workspace.read-only while the metamodel is faulty", async () => {

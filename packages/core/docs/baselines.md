@@ -1,6 +1,6 @@
 # Baselines block (`src/baselines/`)
 
-Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): the read-only reader (`read.ts`) lets `evidence.list` name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question ThomasBirkmaier/ReqSeq-archive#530 Q1). `data.export` selects by baseline (SR-061 AK2, `selects` and `findBaseline` below); `create.ts` writes new baseline files (SR-050), `show.ts` and `compare.ts` show a baseline and compare an element with it (SR-051, below); `counting.ts` says which evidence records count for a baseline (SR-094, below). The other commands still refuse `selection.baseline` (ThomasBirkmaier/ReqSeq-archive#530 Q4). The block never changes or removes a file and never writes to Git.
+Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): the read-only reader (`read.ts`) lets `evidence.list` name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question ThomasBirkmaier/ReqSeq-archive#530 Q1). Every command that takes a selection selects by baseline (SR-101, SR-061 AK2, `selects` and `findBaseline` below); `create.ts` writes new baseline files (SR-050), `show.ts` and `compare.ts` show a baseline and compare an element with it (SR-051, below); `counting.ts` says which evidence records count for a baseline (SR-094, below). The block never changes or removes a file and never writes to Git.
 
 ## Reading
 

@@ -1,6 +1,5 @@
 // The selection of a command (SR-101, `common.schema.json#/$defs/selection`): which elements a
-// function works on, the same for every function that takes one (element.list now; search, bulk
-// update, coverage, export and baselines later) and on every access (D-029).
+// function works on, the same for every function that takes one and on every access (D-029).
 //
 // - Every part given must hold (SR-101 AK2: "nur Elemente, die beide Bedingungen erfüllen"):
 //   - `ids`: exactly the elements named (AK3), each resolved with `resolveRef` (any case, ThomasBirkmaier/ReqSeq-archive#309;
@@ -17,13 +16,13 @@
 //     view of the selection, else the filter's. `sort` gives its sort for `element.list` (SR-070
 //     AK3: the same elements, in the same order, on every access). An error in a hand-written filter
 //     file names the filter and its file.
-// - `baseline`: only for a command that opts in (`SelectionOptions.baseline`); so far
-//   data.export (SR-061 AK2) and data.store (SR-062). The elements the baseline file lists, as
-//   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of ThomasBirkmaier/ReqSeq-archive#530 Q2/Q4). It is found by
-//   name, then by file name (`findBaseline`): none is `input.invalid`, a name two files share too,
-//   a text that names only a faulty file `file.faulty`. Every other command refuses it with
-//   `input.invalid` naming itself and stage 5 until ThomasBirkmaier/ReqSeq-archive#530 Q4 decides what a baseline means for it;
-//   so no caller takes every element for a narrower selection.
+// - `baseline`: the elements the baseline file lists, as they are now (`Baseline.selects`,
+//   baselines/read.ts), for every command that takes a selection (SR-101, #1353). "As they are now"
+//   is SR-061 AK2 for the export and, for every other command, the product owner decision of
+//   2026-11-10 (ThomasBirkmaier/ReqSeq-archive#530 Q4, reading 1: one meaning of the selection for
+//   every function); the versions at the baseline are what baseline.get shows (SR-051). It is found by name, then by
+//   file name (`findBaseline`): none is `input.invalid`, a name two files share too, a text that
+//   names only a faulty file `file.faulty`. baseline.create refuses it before it gets here.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
@@ -71,14 +70,8 @@ export interface Selected {
   readonly views: readonly View[];
 }
 
-/** What a command takes beyond the selection every command takes. */
-export interface SelectionOptions {
-  /** `baseline` is taken (see the file comment); else it is refused. Default: false. */
-  readonly baseline?: boolean;
-}
-
 /**
- * The baseline `text` names for `command` (see the file comment). A baselines folder in a repository
+ * The baseline `text` names for the command (see the file comment). A baselines folder in a repository
  * that is not on this machine holds no baseline here, so `text` names none and the message says why.
  */
 const baselineFor = async (
@@ -116,25 +109,6 @@ const baselineFor = async (
   }
 };
 
-/** The baseline of `selection.baseline`, when it is given and the command takes it (`options`). */
-const baselineOf = async (
-  context: Pick<QueryContext, "workspace" | "command">,
-  text: string | undefined,
-  options: SelectionOptions,
-): Promise<Baseline | undefined> => {
-  if (text === undefined) {
-    return undefined;
-  }
-  if (options.baseline !== true) {
-    throw invalidAt(
-      context,
-      "selection.baseline",
-      `for ${context.command} a selection by baseline comes with stage 5; leave it out`,
-    );
-  }
-  return baselineFor(context, text);
-};
-
 /** The view of a saved filter, when it has one. */
 const savedViewOf = (
   context: Pick<QueryContext, "metamodel" | "store" | "shortIds">,
@@ -155,14 +129,13 @@ export const resolveSelection = async (
   workspace: Workspace,
   selection: ElementSelection,
   command: CommandName,
-  options: SelectionOptions = {},
 ): Promise<Selected> => {
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const base = { workspace, command, layout, metamodel, store, shortIds };
-  const baseline = await baselineOf(base, selection.baseline, options);
+  const baseline = selection.baseline === undefined ? undefined : await baselineFor(base, selection.baseline);
   const saved: SavedFilter | undefined =
     selection.filter === undefined ? undefined : await savedFilterFor(layout, selection.filter, command);
   const savedView = saved === undefined ? undefined : savedViewOf(base, saved, command);

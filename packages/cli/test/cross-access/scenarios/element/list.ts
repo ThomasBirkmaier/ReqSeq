@@ -6,7 +6,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { EMERGENT, FILTER, SAVED, VARIANT_VIEWS } from "../../fixtures.js";
+import { EMERGENT, EXPORT, FILTER, SAVED, VARIANT_VIEWS } from "../../fixtures.js";
 
 /**
  * SR-069/filter with a topic shared by a single value and a list, so that a value of a list property selects
@@ -73,6 +73,19 @@ const groupLines = ({ elements, groups }: Grouped): string[] =>
 const BY_TITLE = [{ by: "title", order: "asc" }];
 
 scenariosOf("element.list", [
+  {
+    name: "a selection by baseline: the elements it lists, as they are now (SR-101, #1353)",
+    fixture: EXPORT,
+    root: "system",
+    input: { selection: { baseline: "Release 1" } },
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[] } }
+      ).output;
+      expect(elements.map((e) => e.shortId)).toEqual(["N-0000a1", "SR-0000b1", "SR-0000b3"]);
+    },
+  },
   {
     name: "with the verification of the rows: status and progress ring as the graph's nodes (SR-137)",
     fixture: { fixture: "SR-136/graph", git: true },

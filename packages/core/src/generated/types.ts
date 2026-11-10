@@ -458,7 +458,7 @@ export interface ElementSelection {
   readonly filter?: string;
   readonly where?: FilterCondition;
   readonly package?: ElementRef;
-  /** Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet. */
+  /** Name of a baseline, or its file name in the baselines folder (with or without .yaml). */
   readonly baseline?: string;
   readonly view?: View;
 }

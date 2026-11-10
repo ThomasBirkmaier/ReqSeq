@@ -2,7 +2,7 @@
   "name": "data.store",
   "title": "Store data",
   "summary": "Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.",
-  "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
+  "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Stores the data of the current state with the versions of its elements, which depend on the metamodel (which properties count).",

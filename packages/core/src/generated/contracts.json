@@ -833,7 +833,7 @@
             },
             "baseline": {
               "type": "string",
-              "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet."
+              "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml)."
             },
             "view": {
               "$ref": "#/$defs/view"
@@ -9451,7 +9451,7 @@
         "name": "data.export",
         "title": "Export data",
         "summary": "Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.",
-        "details": "Every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
+        "details": "Every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. A baseline selects the elements it lists, as they are now. `data store` writes a whole state to a file.",
         "effect": "read",
         "stage": 4,
         "implements": [
@@ -9490,7 +9490,7 @@
         "name": "data.store",
         "title": "Store data",
         "summary": "Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.",
-        "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
+        "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Stores the data of the current state with the versions of its elements, which depend on the metamodel (which properties count).",

@@ -556,8 +556,8 @@ describe("element.list (SR-069)", () => {
   });
 });
 
-describe("element.list refuses what it cannot do yet, and wrong conditions", () => {
-  it("refuses an unknown saved filter and baselines, naming the field", async () => {
+describe("element.list refuses unknown names and wrong conditions", () => {
+  it("refuses an unknown saved filter and an unknown baseline, naming the field", async () => {
     const ws = await open();
     expect((await failure(ws, { selection: { filter: "open ones" } })).details?.["fields"]).toEqual([
       "selection.filter",

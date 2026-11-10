@@ -16,7 +16,7 @@ scenariosOf("element.facets", [
     expect: "output",
   },
   {
-    name: "a selection that is not there yet (ThomasBirkmaier/ReqSeq-archive#425)",
+    name: "a selection by a baseline that does not exist (ThomasBirkmaier/ReqSeq-archive#425)",
     fixture: FILTER,
     input: { selection: { baseline: "v1" } },
     expect: "error",

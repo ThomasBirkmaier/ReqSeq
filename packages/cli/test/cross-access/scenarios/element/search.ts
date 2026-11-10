@@ -125,7 +125,7 @@ scenariosOf("element.search", [
     expect: "output",
   },
   {
-    name: "a selection that is not there yet",
+    name: "a selection by a baseline that does not exist",
     fixture: FILTER,
     input: { query: "wind", selection: { baseline: "v1" } },
     expect: "error",

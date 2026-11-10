@@ -825,7 +825,7 @@
             },
             "baseline": {
               "type": "string",
-              "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet."
+              "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml)."
             },
             "view": {
               "$ref": "#/$defs/common/$defs/view"

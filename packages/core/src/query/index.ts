@@ -25,7 +25,7 @@ export { orderedGroups, orderedSelection } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
 export { groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";
-export type { Selected, SelectionOptions } from "./selection.js";
+export type { Selected } from "./selection.js";
 export { sortElements } from "./sort.js";
 export type { SortContext, SortedElements, TreePlace } from "./sort.js";
 export {
