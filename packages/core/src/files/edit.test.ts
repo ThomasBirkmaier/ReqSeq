@@ -484,6 +484,18 @@ describe("editElementFile: file form", () => {
     expect(out).toContain("\r\nx:\r\n  - a\r\n---\r\n# Text\r\n");
   });
 
+  it("edits around a block value in a CRLF file without a stray carriage return", () => {
+    const text = "---\r\nid: a\r\nnotes: |\r\n  one\r\n  two\r\nfold: >\r\n  three\r\nx: b\r\n---\r\n";
+    // A key after the block values, and the block values themselves.
+    expect(edit(text, { edits: [set("x", "c")] })).toBe(text.replace("x: b", "x: c"));
+    expect(edit(text, { edits: [set("notes", "new"), set("fold", "f")] })).toBe(
+      "---\r\nid: a\r\nnotes: new\r\nfold: f\r\nx: b\r\n---\r\n",
+    );
+    expect(edit(text, { edits: [{ kind: "remove", key: "notes" }] })).toBe(
+      "---\r\nid: a\r\nfold: >\r\n  three\r\nx: b\r\n---\r\n",
+    );
+  });
+
   it("replaces the text only when it differs", () => {
     const file = fileOf(TYPICAL);
     expect(editElementFile(file, { body: file.body }).changed).toBe(false);
