@@ -1059,16 +1059,27 @@ describe("the watcher's rules (SR-007)", () => {
     const { fixture, workspace } = await opened();
     const store = workspace.get(elementStoreState);
     await store;
-    const { fake, watcher } = await watched(workspace, { debounceMs: 50, maxWaitMs: 60 });
+    const { fake, watcher } = await watched(workspace, { debounceMs: 50, maxWaitMs: 120 });
     await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Streamed"));
-    // Events every 10 ms never leave 50 ms quiet, yet the batch runs after 60 ms.
-    const handle = fake.only();
-    const elapsed = await within(SAVE_LIMIT_MS, () => {
-      handle.send(REQUIREMENT_FILE);
-      return Promise.resolve(workspace.peek(elementStoreState) !== store);
+    // A batch starts by waiting for this process's write commands: each call is one batch begun.
+    const begun = vi.spyOn(workspace, "writesSettled");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
     });
-    expect(elapsed).toBeLessThan(SAVE_LIMIT_MS);
+    // Events every 10 ms never leave 50 ms quiet: no batch runs before 120 ms after the first one.
+    const handle = fake.only();
+    for (let elapsed = 0; elapsed < 120; elapsed += 10) {
+      handle.send(REQUIREMENT_FILE);
+      await vi.advanceTimersByTimeAsync(elapsed === 110 ? 9 : 10);
+    }
+    expect(begun).not.toHaveBeenCalled();
+    // At the longest wait the batch runs, although events still come (#1341).
+    await vi.advanceTimersByTimeAsync(1);
+    expect(begun).toHaveBeenCalledOnce();
+    vi.useRealTimers();
     await watcher.settled();
+    expect(workspace.peek(elementStoreState)).not.toBe(store);
     expect(await title(workspace, REQUIREMENT)).toBe("Streamed");
   });
 
