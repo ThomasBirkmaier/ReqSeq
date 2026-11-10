@@ -582,6 +582,40 @@ describe("editElementFile: review round 1", () => {
     ).toBe("---\nl:\n  -   { id: a, version: v1 } # reviewed\n  - f # keep\n  - d\n---\n");
   });
 
+  it("a new list keeps the lines of the items equal at its start and at its end", () => {
+    const text = "---\nl:\n  - a # first\n  - b\n  - 'c' # third\n  - \"d\" # last\n---\n";
+    // The middle changes: the end items keep their comments and their quoting.
+    expect(edit(text, { edits: [set("l", ["a", "x", "c", "d"])] })).toBe(
+      "---\nl:\n  - a # first\n  - x\n  - 'c' # third\n  - \"d\" # last\n---\n",
+    );
+    // Items inserted or removed in the middle: the end items are found from the end of the old list.
+    expect(edit(text, { edits: [set("l", ["a", "p", "q", "r", "c", "d"])] })).toBe(
+      "---\nl:\n  - a # first\n  - p\n  - q\n  - r\n  - 'c' # third\n  - \"d\" # last\n---\n",
+    );
+    expect(edit(text, { edits: [set("l", ["a", "d"])] })).toBe(
+      '---\nl:\n  - a # first\n  - "d" # last\n---\n',
+    );
+    expect(edit(text, { edits: [set("l", ["q", "c", "d"])] })).toBe(
+      "---\nl:\n  - q\n  - 'c' # third\n  - \"d\" # last\n---\n",
+    );
+    // An item counts once, at the start or at the end, never for both.
+    expect(edit("---\nl:\n  - a # 1\n  - a # 2\n---\n", { edits: [set("l", ["a", "a", "a"])] })).toBe(
+      "---\nl:\n  - a # 1\n  - a # 2\n  - a\n---\n",
+    );
+    expect(edit("---\nl:\n  - a # 1\n  - a # 2\n  - a # 3\n---\n", { edits: [set("l", ["a", "a"])] })).toBe(
+      "---\nl:\n  - a # 1\n  - a # 2\n---\n",
+    );
+  });
+
+  it("a text that replaces a block scalar or an anchored item takes no quoting from it", () => {
+    const replace = (text: string): string =>
+      edit(text, { edits: [{ kind: "replace-item", key: "l", index: 0, value: "x" }] });
+    expect(replace("---\nl:\n  - |\n    one\n  - b\n---\n")).toBe("---\nl:\n  - x\n  - b\n---\n");
+    expect(replace("---\nl:\n  - >\n    one\n  - b\n---\n")).toBe("---\nl:\n  - x\n  - b\n---\n");
+    // The anchor stays; the text is written plain.
+    expect(replace("---\nl:\n  - &n 'one'\n  - b\n---\n")).toBe("---\nl:\n  - &n x\n  - b\n---\n");
+  });
+
   it("replace-item on an empty item rewrites the line", () => {
     expect(
       edit("---\nl:\n  -\n  - b\n---\n", {
