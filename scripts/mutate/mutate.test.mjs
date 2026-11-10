@@ -1,6 +1,14 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { format, packagesOf, parseArgs, strykerOptions, summarize, testGlobs } from "./mutate.mjs";
+import {
+  excludedTests,
+  format,
+  packagesOf,
+  parseArgs,
+  strykerOptions,
+  summarize,
+  testGlobs,
+} from "./mutate.mjs";
 
 const ROOT = path.resolve("/repo");
 const mutant = (status, line, extra = {}) => ({
@@ -14,13 +22,30 @@ const mutant = (status, line, extra = {}) => ({
 
 describe("pnpm mutate", () => {
   it("reads the files, the test globs and the concurrency", () => {
+    const where = { root: ROOT, cwd: ROOT };
     expect(
-      parseArgs(["./packages\\core\\src\\a.ts", "--tests", "packages/core/src/x/**", "--concurrency", "2"]),
+      parseArgs(
+        ["./packages\\core\\src\\a.ts", "--tests", "packages/core/src/x/**", "--concurrency", "2"],
+        where,
+      ),
     ).toEqual({ files: ["packages/core/src/a.ts"], tests: ["packages/core/src/x/**"], concurrency: 2 });
-    expect(() => parseArgs([])).toThrow("at least one source file");
-    expect(() => parseArgs(["a.ts", "--concurrency", "0"])).toThrow("whole number");
-    expect(() => parseArgs(["a.ts", "--tests"])).toThrow("needs a glob");
-    expect(() => parseArgs(["a.ts", "--bail"])).toThrow("unknown option --bail");
+    expect(parseArgs([path.join(ROOT, "packages/core/src/b.ts")], where).files).toEqual([
+      "packages/core/src/b.ts",
+    ]);
+    expect(parseArgs(["src/c.ts"], { root: ROOT, cwd: path.join(ROOT, "packages/core") }).files).toEqual([
+      "packages/core/src/c.ts",
+    ]);
+    expect(() => parseArgs([], where)).toThrow("at least one source file");
+    expect(() => parseArgs(["a.ts", "--concurrency", "0"], where)).toThrow("whole number");
+    expect(() => parseArgs(["a.ts", "--tests"], where)).toThrow("--tests needs a glob");
+    expect(() => parseArgs(["a.ts", "--tests", "--concurrency", "2"], where)).toThrow("--tests needs a glob");
+    expect(() => parseArgs(["a.ts", "--concurrency", "--tests", "x"], where)).toThrow("--concurrency needs");
+    expect(() => parseArgs(["a.ts", "--bail"], where)).toThrow("unknown option --bail");
+  });
+
+  it("leaves out the timing tests, and the source text test of SR-079/AK3 only for api", () => {
+    expect(excludedTests(["core"])).toEqual(["linear time", "N-036"]);
+    expect(excludedTests(["api", "core"])).toEqual(["linear time", "N-036", "has no address option"]);
   });
 
   it("takes the unit tests of the packages of the files and refuses tests and files outside src/", () => {

@@ -37,7 +37,7 @@ Optional, for a risky change to core: a local mutation run of the changed source
 pnpm mutate packages/core/src/baselines/counting.ts [more files] [--tests '<glob>'] [--concurrency <n>]
 ```
 
-It runs the unit tests of the files' packages in a Stryker sandbox (`.stryker-tmp/`), without the timing tests; files of `cli`, `api`, `mcp` or `app` need `pnpm build` first. The dry run alone takes minutes (7 min for core on 4 cores), and each mutant about 5 s, so keep a run under about 1,500 mutants; `--tests` narrows the tests (`'packages/core/src/baselines/**/*.test.ts'`), at the price of mutants that only other tests kill. Run it under `flock /home/user/wt/.gates.lock` in a cloud session. For each survivor, ask: would a wrong result fail a test?
+It runs the unit tests of the files' packages in a Stryker sandbox (`.stryker-tmp/`), without the tests that fail under instrumentation although the code is right (listed with their reason in `scripts/mutate/mutate.mjs`); files of `cli`, `api`, `mcp` or `app` need `pnpm build` first. The dry run alone takes minutes (7 min for core on 4 cores), and each mutant about 5 s, so keep a run under about 1,500 mutants; `--tests` narrows the tests (`'packages/core/src/baselines/**/*.test.ts'`), at the price of mutants that only other tests kill. Run it under `flock /home/user/wt/.gates.lock` in a cloud session. For each survivor, ask: would a wrong result fail a test?
 
 Also run `pnpm schemas:check && pnpm contracts:check` when schemas or the catalog changed, `pnpm spec:check` when `spec/` changed, and the Electron specs a change in `packages/app` touches or could break. If a check is red for a reason outside your change, say so in the PR. Merging still needs green CI.
 

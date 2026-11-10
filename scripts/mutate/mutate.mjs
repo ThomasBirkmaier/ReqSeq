@@ -4,7 +4,8 @@
 // It runs the unit tests of the packages the files belong to (or those of `--tests`), prints the score per file and the surviving
 // mutants, and writes Stryker's JSON report to test-results/mutation/mutation.json. Static mutants (module-level
 // code, which the runner never reloads) are not run, because they would show as survived (ignoreStatic).
-// Stryker talks to its worker processes over a socket on localhost; nothing leaves the machine.
+// Stryker opens no outbound connection, but its parent process listens on a random TCP port of all interfaces for the
+// log lines of its workers, which connect over localhost: that port is reachable from the LAN while a run lasts.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,27 +16,56 @@ const USAGE = "Usage: pnpm mutate <packages/<pkg>/src/... .ts files> [--tests <g
 // Packages whose tests import @reqseq/core through its build (packages/core/dist), not its sources.
 const NEEDS_CORE_BUILD = new Set(["api", "app", "cli", "mcp"]);
 
-/** The source files and options of the command line `argv` (without node and the script). */
-export function parseArgs(argv) {
+/**
+ * The tests left out of every run, by a part of their name, with the reason: they fail under instrumentation although
+ * the code is right, so they would fail the dry run.
+ */
+const EXCLUDED_TESTS = [
+  // Timing tests miss their bound under instrumentation (model/markdown-links.test.ts: 16 s against 10 s).
+  "linear time",
+  "N-036",
+];
+/** The same, only when a file of the package is mutated. */
+const EXCLUDED_TESTS_OF = {
+  // [SR-079/AK3] in api/src/server.test.ts reads server.ts, listen.ts, handler.ts and index.ts from disk and matches
+  // their text; Stryker's instrumented copies hold its mutant switches (`process.env`, more `.listen(` calls).
+  api: ["has no address option"],
+};
+
+/** The parts of the names of the tests a run over the files of `packages` leaves out. */
+export const excludedTests = (packages) => [
+  ...EXCLUDED_TESTS,
+  ...packages.flatMap((p) => EXCLUDED_TESTS_OF[p] ?? []),
+];
+
+/**
+ * The source files and options of the command line `argv` (without node and the script). Files are made relative
+ * to `root`, from `cwd` (pnpm runs scripts in the root; INIT_CWD is where it was called).
+ */
+export function parseArgs(argv, { root = ROOT, cwd = process.env.INIT_CWD ?? process.cwd() } = {}) {
   const files = [];
   const tests = [];
   let concurrency;
-  for (let i = 0; i < argv.length; i++) {
+  let i = 0;
+  const value = (option, what) => {
+    const next = argv[++i];
+    if (next === undefined || next.startsWith("-")) {
+      throw new Error(`${option} needs ${what}`);
+    }
+    return next;
+  };
+  for (; i < argv.length; i++) {
     if (argv[i] === "--tests") {
-      const glob = argv[++i];
-      if (!glob) {
-        throw new Error("--tests needs a glob");
-      }
-      tests.push(glob);
+      tests.push(value("--tests", "a glob"));
     } else if (argv[i] === "--concurrency") {
-      concurrency = Number(argv[++i]);
+      concurrency = Number(value("--concurrency", "a whole number of at least 1"));
       if (!Number.isInteger(concurrency) || concurrency < 1) {
         throw new Error("--concurrency needs a whole number of at least 1");
       }
     } else if (argv[i].startsWith("-")) {
       throw new Error(`unknown option ${argv[i]}`);
     } else {
-      files.push(argv[i].replaceAll("\\", "/").replace(/^\.\//, ""));
+      files.push(path.relative(root, path.resolve(cwd, argv[i])).replaceAll("\\", "/"));
     }
   }
   if (files.length === 0) {
@@ -158,6 +188,7 @@ async function main(argv) {
   process.chdir(ROOT);
   // Read by vitest.mutate.config.mjs in Stryker's worker processes, which inherit the environment.
   process.env.REQSEQ_MUTATE_INCLUDE = JSON.stringify(args.tests.length ? args.tests : testGlobs(packages));
+  process.env.REQSEQ_MUTATE_EXCLUDE = JSON.stringify(excludedTests(packages));
   const { Stryker } = await import("@stryker-mutator/core");
   const results = await new Stryker(strykerOptions(args)).runMutationTest();
   console.log(`\n${format(summarize(results))}\n\nReport: ${REPORT}`);
