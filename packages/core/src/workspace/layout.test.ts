@@ -127,7 +127,7 @@ describe("loadWorkspaceLayout", () => {
     expect(layout.problems.map((p) => p.severity)).toEqual(["warning"]);
   });
 
-  it("applies relative and absolute paths of .reqseq/local.yaml", async () => {
+  it("[SR-004/AK4] applies relative and absolute paths of .reqseq/local.yaml", async () => {
     const ws = await setup(
       yaml(`${MAIN}  - { name: a, url: u }\n  - { name: b, url: u, path: ../b }\n  - { name: c, url: u }\n`),
       {
