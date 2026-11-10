@@ -5,7 +5,11 @@ sidebar:
   order: 4.3
 ---
 
-A test result without variant counts only for the core. For the test run of a variant build, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names another variant than the one given, or a requirement that does not count in its variant (excluded, replaced or not valid there).
+A test result without variant counts only for the core. For the test run of a variant build, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded, replaced or not valid there).
+
+One test run can count for the core and for a variant at once, for example a run on the operating system a variant stands for. Give the variant once per view, `core` among them: each enriched test case then gets one `reqseq:variant` property per view, the variant's UUID or `core`, and counts for exactly those views. Without the property a test case counts for the core only.
+
+Such a run often also tests a requirement that applies only in another variant, for example a macOS-only requirement on the Linux runner. By default the command then exits with 1. With the option to skip requirements that are not in the view, a requirement that applies in none of the given views is left out of that test case instead: the test case gets no element, version or criterion for it, `notInView` in the output counts these, and the command ends without error. A test case that names only such requirements stays unchanged, and `workspace check` counts it among the test cases that are not enriched. A requirement that applies in some of the given views is enriched and counts only where it applies. The option works only together with the variant.
 
 Some repositories do not know your variants, for example one a supplier keeps for its component. Mark such a repository in `reqseq-workspace.yaml` with `variant-independent: true`; then a result without variant for one of its requirements counts for the core and for every variant the requirement applies in. A result with a variant still counts only there, and together with the results without variant the newest decides. `reqseq workspace status` shows the mark.
 
@@ -78,12 +82,37 @@ elements:
 ...
 ```
 
+A run that counts for the core and the variant at once, and leaves out requirements of other variants:
+
+```xml title="evidence/ci/results-coastal-2.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="wind" tests="1" failures="0">
+    <testcase classname="wind" name="[SR-c67baa] shows the wind speed in knots" time="0.01"/>
+  </testsuite>
+</testsuites>
+```
+
+```sh
+reqseq evidence enrich-junit evidence/ci/results-coastal-2.xml coastal-2 --variant core --variant VAR-f23826 --skip-not-in-view
+```
+
+```text title="Output"
+testCases: 1
+withoutReference: 0
+notInView: 0
+unknown: none
+files:
+  evidence/ci/results-coastal-2.xml
+No problems.
+```
+
 ## API
 
 ```http
 POST /v1/commands/evidence.enrichJunit
 
-{ "file": "evidence/ci/results-coastal-1.xml", "item": "coastal-1", "variant": "VAR-f23826" }
+{ "file": "evidence/ci/results-coastal-1.xml", "item": "coastal-1", "variant": ["VAR-f23826"] }
 ```
 
 ```http
@@ -95,7 +124,7 @@ POST /v1/commands/baseline.get
 ## MCP
 
 ```json
-{ "name": "evidence_enrichJunit", "arguments": { "file": "evidence/ci/results-coastal-1.xml", "item": "coastal-1", "variant": "VAR-f23826" } }
+{ "name": "evidence_enrichJunit", "arguments": { "file": "evidence/ci/results-coastal-1.xml", "item": "coastal-1", "variant": ["VAR-f23826"] } }
 ```
 
 ```json

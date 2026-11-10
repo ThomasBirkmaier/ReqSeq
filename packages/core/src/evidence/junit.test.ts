@@ -27,6 +27,7 @@ const LOGIN = "0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54";
 const REPORT = "93000000-0000-4000-8000-0000000b0036";
 const OTHER = "93000000-0000-4000-8000-0000000c0037";
 const VARIANT = "93000000-0000-4000-8000-0000000d0038";
+const VARIANT_B = "93000000-0000-4000-8000-0000000d0039";
 const V1 = "n1:1111111111111111";
 const V2 = "n1:2222222222222222";
 const V3 = "n1:3333333333333333";
@@ -330,6 +331,87 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
+  it("[SR-093/AK5] a test case that names the variants A and B and the core gives one record per view and element, each for its view only", () => {
+    const read = readJunitRecords(
+      AT,
+      suite(
+        testCase("[SR-46fb54] [SR-0b0036] runs on A and B", [
+          ["reqseq:element", LOGIN],
+          ["reqseq:element", REPORT],
+          ["reqseq:version", V1],
+          ["reqseq:version", V2],
+          ["reqseq:item", "build-512"],
+          ["reqseq:date", DATE],
+          ["reqseq:variant", VARIANT],
+          ["reqseq:variant", VARIANT_B],
+          ["reqseq:variant", "core"],
+          ["reqseq:criterion", `${LOGIN}:2`],
+        ]),
+      ),
+    );
+    expect(read.problems).toBeUndefined();
+    // Views outer, elements inner; the record of the core carries no variant.
+    expect(read.records.map((r) => [r.element, r.version, r.variant, r.criteria])).toEqual([
+      [LOGIN, V1, VARIANT, [2]],
+      [REPORT, V2, VARIANT, undefined],
+      [LOGIN, V1, VARIANT_B, [2]],
+      [REPORT, V2, VARIANT_B, undefined],
+      [LOGIN, V1, undefined, [2]],
+      [REPORT, V2, undefined, undefined],
+    ]);
+    expect(read.records.filter((r) => "variant" in r)).toHaveLength(4);
+    // One execution: place, name, item, date and result are the same in each.
+    expect(
+      new Set(
+        read.records.map((r) =>
+          JSON.stringify([r.file, r.line, r.testCase, r.className, r.item, r.date, r.result]),
+        ),
+      ),
+    ).toEqual(
+      new Set([
+        JSON.stringify([
+          "ci/results.xml",
+          3,
+          "[SR-46fb54] [SR-0b0036] runs on A and B",
+          "c",
+          "build-512",
+          DATE,
+          "passed",
+        ]),
+      ]),
+    );
+    // Each counts for its view only (holdsIn): in A the record for A, in the core the one without variant.
+    const index = evidenceIndex(read.records);
+    expect(index.byElement.get(LOGIN)?.map((r) => r.variant)).toEqual([undefined, VARIANT, VARIANT_B]);
+  });
+
+  it("reads each view once, core in any case and a UUID in any case, and keeps a skipped test case for several views as one", () => {
+    const views: (readonly [string, string])[] = [
+      ["reqseq:variant", VARIANT.toUpperCase()],
+      ["reqseq:variant", " Core "],
+      ["reqseq:variant", VARIANT],
+      ["reqseq:variant", "CORE"],
+    ];
+    const read = readJunitRecords(
+      AT,
+      suite(
+        [
+          testCase("twice", [...enriched(), ...views]),
+          testCase("skipped", [...enriched(REPORT), ...views], "<skipped/>"),
+          testCase("empty variant", [...enriched(), ["reqseq:variant", ""]]),
+        ].join("\n"),
+      ),
+    );
+    expect(read.records.map((r) => [r.testCase, r.variant])).toEqual([
+      ["twice", VARIANT],
+      ["twice", undefined],
+    ]);
+    expect(read.skipped?.map((t) => [t.name, t.elements])).toEqual([["skipped", [REPORT]]]);
+    expect(read.problems?.map((p) => [p.line, p.message])).toEqual([
+      [5, 'Test case "empty variant" is not read: reqseq:variant "" is not a UUID or core'],
+    ]);
+  });
+
   it("an error counts as failed, as a failure does", () => {
     const read = readJunitRecords(
       AT,
@@ -363,7 +445,7 @@ describe("JUnit reader (SR-093)", () => {
           file: "ci/results.xml",
           line: 1,
           message:
-            "2 test case(s) name a requirement but have no reqseq:version, so they give no record; enrich the file with reqseq evidence enrich-junit",
+            "2 test case(s) name a requirement but have no reqseq:version, so they give no record: enrich the file with reqseq evidence enrich-junit, unless enrich-junit --skip-not-in-view left them out because their requirements apply in none of the given views",
         },
       ],
     });
@@ -394,7 +476,7 @@ describe("JUnit reader (SR-093)", () => {
           at("two items", [...enriched(), ["reqseq:item", "build-513"]]),
           at("no date", without("reqseq:date")),
           at("bad date", [...without("reqseq:date"), ["reqseq:date", "2026-10-27"]]),
-          at("bad variant", [...enriched(), ["reqseq:variant", "core"]]),
+          at("bad variant", [...enriched(), ["reqseq:variant", "core"], ["reqseq:variant", "VAR-1"]]),
           at("good", enriched()),
           at("same item twice", [...enriched(), ["reqseq:item", "build-512"]]),
           at("element twice, two versions", [
@@ -450,7 +532,7 @@ describe("JUnit reader (SR-093)", () => {
         "evidence.invalid-record",
         "error",
         12,
-        'Test case "bad variant" is not read: reqseq:variant "core" is not a UUID',
+        'Test case "bad variant" is not read: reqseq:variant "VAR-1" is not a UUID or core',
       ],
       [
         "evidence.invalid-record",

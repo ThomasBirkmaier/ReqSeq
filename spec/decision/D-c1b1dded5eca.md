@@ -5,7 +5,7 @@ status: accepted
 title: Nachweisstatus je Akzeptanzkriterium
 spec-id: D-072
 based-on:
-  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:15bed38f1bb678ad, title: Ein offenes Format für Nachweis-Datensätze }
 ---
 
 Ein Requirement gilt erst als nachgewiesen, wenn für jedes seiner Akzeptanzkriterien der neueste Datensatz zur aktuellen Fassung bestanden ist. Fehlt für ein Akzeptanzkriterium ein solcher Datensatz, bleibt das Requirement offen, und das Tool zeigt, wie viele seiner Akzeptanzkriterien schon nachgewiesen sind.

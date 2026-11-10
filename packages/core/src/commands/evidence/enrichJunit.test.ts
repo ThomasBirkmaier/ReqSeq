@@ -97,6 +97,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(pytest).toEqual({
       testCases: 3,
       withoutReference: 5,
+      notInView: 0,
       unknown: [],
       files: ["results/pytest.xml"],
       problems: [],
@@ -116,6 +117,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(vitest).toEqual({
       testCases: 2,
       withoutReference: 3,
+      notInView: 0,
       unknown: [],
       files: ["results/vitest.xml"],
       problems: [],
@@ -168,6 +170,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(output).toEqual({
       testCases: 3,
       withoutReference: 0,
+      notInView: 0,
       unknown: [],
       files: ["evidence/ci/two.xml"],
       problems: [],
@@ -218,6 +221,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(output).toEqual({
       testCases: 2,
       withoutReference: 2,
+      notInView: 0,
       unknown: [],
       files: ["results/nextest.xml"],
       problems: [],
@@ -408,7 +412,14 @@ describe("evidence.enrichJunit (SR-029)", () => {
     await enrich(workspace, { file: "results/vitest.xml" });
     const { mtimeMs } = await fs.stat(fixture.path("results/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", item: "build-513" });
-    expect(again).toEqual({ testCases: 2, withoutReference: 3, unknown: [], files: [], problems: [] });
+    expect(again).toEqual({
+      testCases: 2,
+      withoutReference: 3,
+      notInView: 0,
+      unknown: [],
+      files: [],
+      problems: [],
+    });
     expect((await fs.stat(fixture.path("results/vitest.xml"))).mtimeMs).toBe(mtimeMs);
   });
 
@@ -458,6 +469,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(again).toEqual({
       testCases: 2,
       withoutReference: 3,
+      notInView: 0,
       unknown: [],
       files: ["evidence/ci/vitest.xml"],
       problems: [],
@@ -468,6 +480,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(plain).toEqual({
       testCases: 0,
       withoutReference: 1,
+      notInView: 0,
       unknown: [],
       files: ["evidence/ci/plain.xml"],
       problems: [],
@@ -482,7 +495,14 @@ describe("evidence.enrichJunit (SR-029)", () => {
     await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
     const { mtimeMs } = await fs.stat(fixture.path("evidence/ci/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
-    expect(again).toEqual({ testCases: 2, withoutReference: 3, unknown: [], files: [], problems: [] });
+    expect(again).toEqual({
+      testCases: 2,
+      withoutReference: 3,
+      notInView: 0,
+      unknown: [],
+      files: [],
+      problems: [],
+    });
     expect((await fs.stat(fixture.path("evidence/ci/vitest.xml"))).mtimeMs).toBe(mtimeMs);
   });
 
@@ -570,7 +590,10 @@ const COAST = uuid43("c1");
 const MOUNTAIN = uuid43("c2");
 
 /** The example with an identifier for variants, and `results/run.xml` holding `cases`. */
-const openExample = async (cases: string): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+const openExample = async (
+  cases: string,
+  more: Readonly<Record<string, string>> = {},
+): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
   const model = exampleFile("metamodel/model.yaml")
     .replace("meaning: variant, properties: [title]", "meaning: variant, properties: [title, code]")
     .replace(
@@ -586,6 +609,7 @@ const openExample = async (cases: string): Promise<{ fixture: FixtureWorkspace; 
         "title: Coast\ncode: coast\n",
       ),
       "results/run.xml": `<testsuites><testsuite name="s">${cases}</testsuite></testsuites>`,
+      ...more,
     },
   });
   const workspace = new Workspace(fixture.root);
@@ -614,10 +638,11 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       const { fixture, workspace } = await openExample(
         '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000b2] storm"/><testcase name="names nothing"/>',
       );
-      const output = await enrich(workspace, { file: "results/run.xml", variant });
+      const output = await enrich(workspace, { file: "results/run.xml", variant: [variant] });
       expect(output).toEqual({
         testCases: 2,
         withoutReference: 1,
+        notInView: 0,
         unknown: [],
         files: ["results/run.xml"],
         problems: [],
@@ -627,6 +652,141 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
         ["[SR-0000b2] storm", uuid43("b2"), COAST],
       ]);
     }
+  });
+
+  it("[SR-029/AK6] writes each given view, variants and the core, into each enriched test case, each once", async () => {
+    const { fixture, workspace } = await openExample(
+      '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000a4] temperature"/>',
+    );
+    const output = await enrich(workspace, {
+      file: "results/run.xml",
+      variant: ["core", "VAR-0000c2", "coast", COAST, "CORE"],
+    });
+    expect(output).toMatchObject({ testCases: 2, notInView: 0, problems: [] });
+    expect(properties(await bytesOf(fixture, "results/run.xml")).map(([, list]) => list.slice(2, 5))).toEqual(
+      [
+        ["reqseq:variant=core", `reqseq:variant=${MOUNTAIN}`, `reqseq:variant=${COAST}`],
+        ["reqseq:variant=core", `reqseq:variant=${MOUNTAIN}`, `reqseq:variant=${COAST}`],
+      ],
+    );
+    expect(await variantRecords(fixture)).toEqual([
+      ["[SR-0000a3] rain", uuid43("a3"), undefined],
+      ["[SR-0000a3] rain", uuid43("a3"), MOUNTAIN],
+      ["[SR-0000a3] rain", uuid43("a3"), COAST],
+      ["[SR-0000a4] temperature", uuid43("a4"), undefined],
+      ["[SR-0000a4] temperature", uuid43("a4"), MOUNTAIN],
+      ["[SR-0000a4] temperature", uuid43("a4"), COAST],
+    ]);
+  });
+
+  it("[SR-029/AK8] takes a test case whose views are among the given ones, a hand-written core too, and reports one with another", async () => {
+    const { fixture, workspace } = await openExample(
+      `<testcase name="[SR-0000a3] rain">${variantProperty("core")}</testcase>` +
+        `<testcase name="[SR-0000a4] temperature">${variantProperty("VAR-0000c2")}</testcase>`,
+    );
+    const before = await bytesOf(fixture, "results/run.xml");
+    const coast = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c1", "VAR-0000c2"] });
+    expect(coast.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000a3] rain" (line 1) is not enriched: reqseq:variant "core" names a view that is not among the given ones (VAR-0000c1, VAR-0000c2)',
+    ]);
+    await fixture.write("results/run.xml", before);
+    const output = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c2", "core"] });
+    expect(output).toMatchObject({ testCases: 2, problems: [] });
+    expect(await variantRecords(fixture)).toEqual([
+      ["[SR-0000a3] rain", uuid43("a3"), undefined],
+      ["[SR-0000a3] rain", uuid43("a3"), MOUNTAIN],
+      ["[SR-0000a4] temperature", uuid43("a4"), MOUNTAIN],
+      ["[SR-0000a4] temperature", uuid43("a4"), undefined],
+    ]);
+  });
+
+  it("[SR-029/AK11] with skipNotInView leaves out a requirement of only another variant, counts it and ends without error", async () => {
+    // SR-0000b2 applies only in Coast (like SR-145 only on macOS); the run is for the core and Mountain.
+    const cases =
+      '<testcase name="[SR-0000a3] [SR-0000b2] rain and storm"/><testcase name="[SR-0000b2] storm"/>' +
+      '<testcase name="[SR-0000a2] wind"/>';
+    const { fixture, workspace } = await openExample(cases);
+    const before = await bytesOf(fixture, "results/run.xml");
+    const output = await enrich(workspace, {
+      file: "results/run.xml",
+      variant: ["core", "VAR-0000c2"],
+      skipNotInView: true,
+    });
+    expect(output).toEqual({
+      testCases: 2,
+      withoutReference: 0,
+      notInView: 2,
+      unknown: [],
+      files: ["results/run.xml"],
+      problems: [],
+    });
+    expect(await variantRecords(fixture)).toEqual([
+      ["[SR-0000a3] [SR-0000b2] rain and storm", uuid43("a3"), undefined],
+      ["[SR-0000a3] [SR-0000b2] rain and storm", uuid43("a3"), MOUNTAIN],
+      ["[SR-0000a2] wind", uuid43("a2"), undefined],
+      ["[SR-0000a2] wind", uuid43("a2"), MOUNTAIN],
+    ]);
+    // SR-0000a2 is excluded in Coast but applies in the core: enriched for both, it counts only in the core.
+    await fixture.write("results/run.xml", before);
+    const coast = await enrich(workspace, {
+      file: "results/run.xml",
+      variant: ["core", "VAR-0000c1"],
+      skipNotInView: true,
+    });
+    expect(coast).toMatchObject({ testCases: 3, notInView: 0, problems: [] });
+    await fixture.write("results/run.xml", before);
+    // Without the option AK9 holds.
+    const strict = await enrich(workspace, { file: "results/run.xml", variant: ["core", "VAR-0000c2"] });
+    expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
+    expect(strict.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000a3] [SR-0000b2] rain and storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040); SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040); SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
+    ]);
+  });
+
+  it("[SR-029/AK11] with skipNotInView a requirement that applies in one of the given views counts only there", async () => {
+    // The core and Coast: SR-0000a2 is excluded in Coast, SR-0000b2 applies only in Coast.
+    const { workspace } = await openExample(
+      '<testcase name="[SR-0000a2] wind"/><testcase name="[SR-0000b2] storm"/>',
+      {
+        "reqseq-workspace.yaml": `${exampleFile("reqseq-workspace.yaml")}evidence:\n  - { repository: system, path: evidence }\n`,
+        "evidence/ci/.gitkeep": "",
+      },
+    );
+    const output = await enrich(workspace, {
+      file: "results/run.xml",
+      output: "evidence/ci/run.xml",
+      variant: ["core", "VAR-0000c1"],
+      skipNotInView: true,
+    });
+    expect(output).toMatchObject({ testCases: 2, notInView: 0, problems: [] });
+    const status = (await invoke(
+      "evidence.status",
+      { selection: { ids: [uuid43("a2"), uuid43("b2")] } },
+      { workspace },
+    )) as CommandOutput<"evidence.status">;
+    const views = (id: string): Record<string, string> =>
+      Object.fromEntries(
+        (status.elements.find((e) => e.id === id)?.verification ?? []).map((v) => [v.view, v.status]),
+      );
+    // SR-0000a2: verified in the core, and Coast, which excludes it, has no status for it.
+    expect(views(uuid43("a2"))).toMatchObject({ core: "verified" });
+    expect(views(uuid43("a2"))).not.toHaveProperty(COAST);
+    // SR-0000b2: verified in Coast; the core view does not hold it.
+    expect(views(uuid43("b2"))).toEqual({ [COAST]: "verified" });
+  });
+
+  it("refuses skipNotInView without the views given, before it reads the file", async () => {
+    const { workspace } = await openExample("");
+    const error = await failure(workspace, { file: "results/gone.xml", skipNotInView: true });
+    expect([error.code, error.message, error.details]).toEqual([
+      "input.invalid",
+      "skipNotInView applies only to the views given in variant: give them for the whole file",
+      { command: "evidence.enrichJunit", fields: ["skipNotInView"], reason: "skip-without-views" },
+    ]);
+    expect((await failure(workspace, { file: "results/gone.xml", skipNotInView: false })).message).toBe(
+      "The file gone.xml does not exist",
+    );
   });
 
   it("[SR-029/AK7] turns a reqseq:variant given by short ID or identifier into the variant's UUID", async () => {
@@ -650,14 +810,14 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     const { fixture, workspace } = await openExample(
       `<testcase name="[SR-0000a3] rain">${variantProperty("VAR-0000c2")}</testcase><testcase name="[SR-0000a4] temperature"/>`,
     );
-    const output = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    const output = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c1"] });
     expect(output.problems.map((p) => [p.code, p.severity, p.file, p.line, p.message])).toEqual([
       [
         "evidence.invalid-record",
         "error",
         "results/run.xml",
         1,
-        'Test case "[SR-0000a3] rain" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+        'Test case "[SR-0000a3] rain" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (VAR-0000c1)',
       ],
     ]);
     expect(await variantRecords(fixture)).toEqual([["[SR-0000a4] temperature", uuid43("a4"), COAST]]);
@@ -670,18 +830,18 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
         '<testcase name="[SR-0000b1] response"/>',
     );
     const before = await bytesOf(fixture, "results/run.xml");
-    const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
+    const output = await enrich(workspace, { file: "results/run.xml", variant: ["core"] });
     // The core given: the test case that names Mountain is another variant (AK8); SR-0000b1 holds only in Coast.
     expect(output.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, core',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (core)',
       'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)',
     ]);
     await fixture.write("results/run.xml", before);
-    const coast = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    const coast = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c1"] });
     expect(coast.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000a2] wind" (line 1) is not enriched: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)',
       'Test case "[SR-0000a1] response" (line 1) is not enriched: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)',
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (VAR-0000c1)',
     ]);
     await fixture.write("results/run.xml", before);
     const own = await enrich(workspace, { file: "results/run.xml" });
@@ -697,16 +857,16 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
 
   it("[SR-029/AK8] reports a test case enriched before for another variant than the given one, and keeps it", async () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000a3] rain"/>');
-    expect((await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c2" })).problems).toEqual(
+    expect((await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c2"] })).problems).toEqual(
       [],
     );
     const before = await bytesOf(fixture, "results/run.xml");
-    const again = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    const again = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c1"] });
     expect(again.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
       [
         "evidence.invalid-record",
         "error",
-        `Test case "[SR-0000a3] rain" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, not for the given VAR-0000c1; an enriched test case is never changed (D-026)`,
+        `Test case "[SR-0000a3] rain" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, outside the given views (VAR-0000c1); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
       ],
     ]);
     expect(again.files).toEqual([]);
@@ -715,7 +875,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
 
   it("[SR-029/AK9] reports a requirement that does not apply in the given core", async () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
-    const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
+    const output = await enrich(workspace, { file: "results/run.xml", variant: ["core"] });
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040)',
     ]);
@@ -730,12 +890,12 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       "metamodel/model.yaml",
       String(model).replace("properties: [title, validity]", "properties: [title]"),
     );
-    const output = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c2" });
+    const output = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c2"] });
     expect(output.problems).toEqual([]);
     expect(await variantRecords(fixture)).toEqual([["[SR-0000b2] storm", uuid43("b2"), MOUNTAIN]]);
   });
 
-  it("reports a reqseq:variant that names no variant or the core, and refuses a given variant that is none", async () => {
+  it("reports a reqseq:variant that names no variant, takes core, and refuses a given variant that is none", async () => {
     const { workspace } = await openExample(
       `<testcase name="[SR-0000a3] a">${variantProperty("VAR-ffffff")}</testcase>` +
         `<testcase name="[SR-0000a3] b">${variantProperty("SR-0000a4")}</testcase>` +
@@ -744,13 +904,14 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     const output = await enrich(workspace, { file: "results/run.xml" });
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000a3] a" (line 1) is not enriched: reqseq:variant "VAR-ffffff" names no variant: No element has the short ID or identifier "VAR-ffffff"',
-      'Test case "[SR-0000a3] b" (line 1) is not enriched: reqseq:variant "SR-0000a4" names no variant: SR-0000a4 is no variant: reqseq:variant takes a variant, an element whose type has the meaning variant',
-      'Test case "[SR-0000a3] c" (line 1) is not enriched: reqseq:variant "core" names no variant: core is no variant; leave the property out for the core',
+      'Test case "[SR-0000a3] b" (line 1) is not enriched: reqseq:variant "SR-0000a4" names no variant: SR-0000a4 is no variant: reqseq:variant takes core or a variant, an element whose type has the meaning variant',
     ]);
-    const error = await failure(workspace, { file: "results/run.xml", variant: "SR-0000a4" });
+    // `core` is a view a test case may name (AK8): it is enriched for the core.
+    expect(output.testCases).toBe(1);
+    const error = await failure(workspace, { file: "results/run.xml", variant: ["core", "SR-0000a4"] });
     expect([error.code, error.message]).toEqual([
       "input.invalid",
-      "SR-0000a4 is no variant: variant takes a variant, an element whose type has the meaning variant",
+      "SR-0000a4 is no variant: variant takes core or a variant, an element whose type has the meaning variant",
     ]);
   });
 
@@ -767,7 +928,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     // One lookup per distinct value.
     const resolver = variantResolverOf(views, new Map());
     const first = resolver("VAR-0000c1");
-    expect(first).toEqual({ kind: "variant", id: COAST });
+    expect(first).toEqual({ kind: "view", id: COAST });
     expect(resolver("VAR-0000c1")).toBe(first);
     // The note of an incomplete workspace follows only a reference no element has.
     const noted = variantResolverOf(views, new Map(), "; the workspace is incomplete");

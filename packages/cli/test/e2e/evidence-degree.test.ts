@@ -83,8 +83,8 @@ describe("the numbers of a package page (SR-112)", () => {
       ["system-requirement", 10, 8],
     ]);
     const output = JSON.parse(degree.stdout) as EvidenceDegreeOutput;
-    expect(packageSummaryText(levels, output.degree)).toBe(
-      "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+    expect(packageSummaryText(levels, output)).toBe(
+      "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
     );
   });
 });

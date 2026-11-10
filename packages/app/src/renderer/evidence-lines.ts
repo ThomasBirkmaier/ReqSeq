@@ -8,8 +8,10 @@
 // does. A part that is absent is left out with its separator. After the records, one note per problem of
 // `evidence.list` (a baseline file that cannot be read names no baseline) and one when the answer is
 // incomplete (a repository not on this machine), so a line without baselines is not taken for a sure one.
-// Only the records that bear the status stand open (`bearing` of `evidence.list`, SR-032 AK3); the others
-// go into a folded section under them (`evidenceParts`).
+// The section is laid out from `display` of `evidence.list` (`displayLines`, SR-032 AK3 to AK5): the values
+// the open records share once, then one fold line per acceptance criterion ("AK2 · failed in Windows · 4
+// tests", coloured when failed or outdated), opening to one line per test case, opening to the record
+// lines above; then one fold line per older run, opening to its records.
 import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -79,27 +81,142 @@ export const evidenceRows = (
   }));
 };
 
-/** The rows that bear the status (`bearing` of `evidence.list`, SR-032 AK3), open, and the others, folded away. */
-export interface EvidenceParts {
-  readonly open: EvidenceRow[];
-  readonly folded: EvidenceRow[];
-}
-
-/** The rows of `output` split by its `bearing`, each part in core's order (newest first). */
-export const evidenceParts = (
-  output: Pick<EvidenceListOutput, "records" | "bearing">,
-  names: readonly ElementName[] | undefined,
-): EvidenceParts => {
-  const bearing = new Set(output.bearing);
-  const rows = evidenceRows(output, names);
-  return {
-    open: rows.filter((_, at) => bearing.has(at)),
-    folded: rows.filter((_, at) => !bearing.has(at)),
-  };
-};
-
 /** The notes under the records: each problem as "<severity> · <code> · <message>", then the incomplete note. */
 export const evidenceNotes = (output: Pick<EvidenceListOutput, "problems" | "incomplete">): string[] => [
   ...output.problems.map((problem) => `${problem.severity} · ${problem.code} · ${problem.message}`),
   ...(output.incomplete ? [INCOMPLETE_NOTE] : []),
 ];
+
+type Display = EvidenceListOutput["display"];
+type DisplayRow = Display["rows"][number];
+type DisplayCase = DisplayRow["cases"][number];
+
+/** A fold line of the Evidence section (SR-032 AK4): its head, the colour of a failed or outdated one, and what it folds. */
+export interface FoldRow<T> {
+  readonly key: string;
+  readonly head: string;
+  readonly status?: "failed" | "outdated";
+  readonly children: readonly T[];
+}
+
+/** The Evidence section at a glance (`display` of `evidence.list`, SR-032 AK3 to AK5), as text. */
+export interface DisplayLines {
+  /** AK5: the values the open records share, once; undefined when they share none. */
+  readonly shared: string | undefined;
+  /** AK4: one line per criterion (and validation), each folding its test cases, each its records. */
+  readonly rows: readonly FoldRow<FoldRow<EvidenceRow>>[];
+  /** AK3: one line per older run, each folding its records. */
+  readonly older: readonly FoldRow<EvidenceRow>[];
+}
+
+/**
+ * "2026-11-09 08:48 UTC" for a date in UTC as CI writes it, with its seconds when they are not 0
+ * ("2026-11-09 08:48:05 UTC"), else the date as written.
+ */
+export const shortDate = (date: string): string => {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2})(?:\.\d+)?)?Z$/.exec(date);
+  if (match === null) {
+    return date;
+  }
+  const seconds = match[3] === undefined || match[3] === "00" ? "" : `:${match[3]}`;
+  return `${String(match[1])} ${String(match[2])}${seconds} UTC`;
+};
+
+/** "1 test", "7 tests", "no tests". */
+const tests = (count: number): string =>
+  count === 0 ? "no tests" : count === 1 ? "1 test" : `${String(count)} tests`;
+
+/** The name of a view: "core", or the variant's title from `names`, else its UUID. */
+const viewTitle = (view: string, byId: ReadonlyMap<string, ElementName>): string =>
+  view === "core" ? "core" : (byId.get(view)?.title ?? view);
+
+/**
+ * A row's head (AK4): "AK2 · passed · 7 tests", "AK2 · failed in Windows · 4 tests", "AK1 · passed · outdated · 1 test".
+ * A verification row gives the worst result of its records, its first case's (core sorts the cases worst first),
+ * or "open" without cases; a failed or outdated row names the views where it is so when there are several. A
+ * validation row gives its status.
+ */
+const rowHead = (row: DisplayRow, byId: ReadonlyMap<string, ElementName>): string => {
+  const label =
+    row.criterion !== undefined
+      ? `AK${String(row.criterion)}`
+      : row.kind === "validation"
+        ? "Validation"
+        : "Verification";
+  const views = row.views ?? [];
+  const named =
+    views.length > 1
+      ? ` in ${views
+          .filter((view) => view.status === row.status)
+          .map((view) => viewTitle(view.view, byId))
+          .join(", ")}`
+      : "";
+  const result = row.kind === "validation" ? row.status : (row.cases[0]?.result ?? "open");
+  const state =
+    row.status === "failed"
+      ? `failed${named}`
+      : row.status === "outdated"
+        ? `${result} · outdated${named}`
+        : result;
+  return `${label} · ${state} · ${tests(row.cases.length)}`;
+};
+
+/** A case's head: its name (or the method and item, else the date, of a record without test case), result and views. */
+const caseHead = (
+  test: DisplayCase,
+  records: readonly DataExportEvidenceRecord[],
+  byId: ReadonlyMap<string, ElementName>,
+): string => {
+  const first = records[test.records[0] ?? -1];
+  // A record without test case by its method and item, else (a validation record may have neither) its date.
+  const parts = [first?.method, first?.item].filter((part) => part !== undefined);
+  const name =
+    test.testCase ?? (parts.length > 0 || first === undefined ? parts.join(" · ") : shortDate(first.date));
+  const views =
+    test.views.length === 1 && test.views[0] === "core"
+      ? []
+      : [test.views.map((view) => viewTitle(view, byId)).join(", ")];
+  return [name, test.result, ...views].join(" · ");
+};
+
+/** The text of `display` (SR-032 AK3 to AK5), each record line as `evidenceRows` gives it (AK1, AK2). */
+export const displayLines = (
+  output: Pick<EvidenceListOutput, "records" | "display">,
+  names: readonly ElementName[] | undefined,
+): DisplayLines => {
+  const byId = new Map((names ?? []).map((name) => [name.id, name]));
+  const rows = evidenceRows(output, names);
+  const pick = (positions: readonly number[]): EvidenceRow[] =>
+    positions.flatMap((at) => {
+      const row = rows[at];
+      return row === undefined ? [] : [row];
+    });
+  const { shared } = output.display;
+  const sharedParts = [
+    shared.date === undefined ? undefined : shortDate(shared.date),
+    shared.item,
+    shared.version === undefined ? undefined : `version ${shared.version}`,
+    shared.baselines === undefined || shared.baselines.length === 0
+      ? undefined
+      : `baselines ${shared.baselines.join(", ")}`,
+  ].filter((part) => part !== undefined);
+  return {
+    shared: sharedParts.length === 0 ? undefined : sharedParts.join(" · "),
+    rows: output.display.rows.map((row, at) => ({
+      key: `${row.kind}\u0000${String(row.criterion ?? at)}`,
+      head: rowHead(row, byId),
+      ...(row.status === "failed" || row.status === "outdated" ? { status: row.status } : {}),
+      children: row.cases.map((test) => ({
+        key: test.records.join(","),
+        head: caseHead(test, output.records, byId),
+        ...(test.result === "failed" ? { status: "failed" as const } : {}),
+        children: pick(test.records),
+      })),
+    })),
+    older: output.display.older.map((run) => ({
+      key: `${run.date}\u0000${run.version}`,
+      head: `${shortDate(run.date)} · version ${run.version} · ${String(run.records.length)} ${run.records.length === 1 ? "record" : "records"}`,
+      children: pick(run.records),
+    })),
+  };
+};

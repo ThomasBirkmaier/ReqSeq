@@ -33,6 +33,13 @@
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
 //   tested against (D-026, spec question ThomasBirkmaier/ReqSeq-archive#529 Q5, assumption "keep"). A kept version that is no longer
 //   current gives `evidence.outdated` (warning); one the reader rejects `evidence.invalid-record`.
+//   It may name several views (`reqseq:variant` with variants and `core`, SR-093 AK5); with given
+//   views it fits only when each of its views is among them, and each of its views must hold its
+//   elements (AK8, AK9; with `skipNotInView` one of them, AK11).
+// - Views (AK6 to AK9, AK11): the given views (`variant`: variants and `core`) go into each test case
+//   enriched, one `reqseq:variant` per view (none for the core alone); a test case's own views must be
+//   among them (AK8). Each view must hold each element (AK9); with `skipNotInView`, an element that no
+//   given view holds is left out of the test case instead (`notInView`), and the others are enriched.
 // - The bytes are spliced at the offsets of the JUnit model, so every other byte stays (BOM, CRLF,
 //   comments, CDATA, layout). The result is read back with the reader's checks before it is written
 //   (ADR-0007 pattern): a difference is `internal`, and nothing is written.
@@ -44,7 +51,7 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
-import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
+import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput, ViewId } from "../generated/types.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
 import {
@@ -96,14 +103,14 @@ export type VersionLookup =
     }
   | { readonly kind: "unknown"; readonly message: string };
 
-/** What a `reqseq:variant` value names: a variant's UUID, or why it names none. */
+/** What a `reqseq:variant` value names: a view (a variant's UUID, or `core`), or why it names none. */
 export type VariantLookup =
-  { readonly kind: "variant"; readonly id: string } | { readonly kind: "invalid"; readonly reason: string };
+  { readonly kind: "view"; readonly id: string } | { readonly kind: "invalid"; readonly reason: string };
 
-/** The variant given for every test case (SR-029 AK6). */
-export interface GivenVariant {
-  /** The variant's UUID; undefined for `core` (no variant). */
-  readonly id: string | undefined;
+/** A view given for every test case (SR-029 AK6): a variant or the core. */
+export interface GivenView {
+  /** The variant's UUID, or `core`. */
+  readonly id: string;
   /** How messages name it: its short ID, or `core`. */
   readonly name: string;
 }
@@ -137,9 +144,17 @@ export interface EnrichOptions {
   readonly file: string;
   /** Appended to the message of an unknown reference, e.g. that a repository is not on this machine. */
   readonly unknownNote?: string;
-  /** The variant every enriched test case gets (AK6); absent: each keeps its own, if any. */
-  readonly variant?: GivenVariant | undefined;
-  /** What a `reqseq:variant` value of a test case names (AK7). */
+  /**
+   * The views every enriched test case gets (AK6), each once and at least one; absent: each keeps its
+   * own, if any.
+   */
+  readonly views?: readonly GivenView[] | undefined;
+  /**
+   * With `views`: an element that applies in none of them is left out of a test case instead of
+   * refusing the test case (AK11); without `views` it does nothing.
+   */
+  readonly skipNotInView?: boolean | undefined;
+  /** What a `reqseq:variant` value of a test case names (AK7): a variant, or `core`. */
   readonly resolveVariant: (ref: string) => VariantLookup;
   /**
    * Why a record of the element `id` for the view `view` (a variant's UUID, or `core`) would count
@@ -170,6 +185,8 @@ export interface EnrichResult {
   readonly testCases: number;
   /** Test cases that name no element (AK4). */
   readonly withoutReference: number;
+  /** Elements left out of a test case, once per test case, as no given view holds them (AK11). */
+  readonly notInView: number;
   readonly unknown: readonly UnknownRef[];
   readonly problems: readonly Problem[];
 }
@@ -210,8 +227,8 @@ type Plan =
       readonly kind: "kept";
       readonly testCase: JunitTestCase;
       readonly pairs: ReadonlyMap<string, string>;
-      /** Its `reqseq:variant` (a UUID), if any. */
-      readonly variant: string | undefined;
+      /** The views of its `reqseq:variant` properties as the reader reads them (`core` without one). */
+      readonly views: readonly ViewId[];
     }
   | { readonly kind: "invalid"; readonly testCase: JunitTestCase; readonly reason: string }
   | {
@@ -219,6 +236,8 @@ type Plan =
       readonly testCase: JunitTestCase;
       readonly refs: readonly Reported[];
     }
+  /** Every element it names applies in none of the given views (AK11): it stays unchanged. */
+  | { readonly kind: "outside"; readonly notInView: number }
   | {
       readonly kind: "enrich";
       readonly testCase: JunitTestCase;
@@ -228,6 +247,10 @@ type Plan =
       /** Elements only the name names, to append. */
       readonly added: readonly string[];
       readonly variant: VariantPlan;
+      /** Properties to remove: those of the elements left out (AK11). */
+      readonly drop: readonly JunitProperty[];
+      /** The elements left out, as no given view holds them (AK11). */
+      readonly notInView: number;
     };
 
 /** The criteria an enriched test case gets (SR-029 AK10): how they are written, and how they read back. */
@@ -236,17 +259,22 @@ interface CriteriaPlan {
   readonly rewrite: readonly { readonly property: JunitProperty; readonly value: string }[];
   /** New `reqseq:criterion` values (`<UUID>:<n>`) for the criteria only the name names, in name order. */
   readonly add: readonly string[];
+  /** Hand-written `reqseq:criterion` properties of an element left out (AK11), to remove. */
+  readonly drop: readonly JunitProperty[];
   /** All of them as the reader reads them back (`criteriaText`). */
   readonly text: string;
 }
 
-/** The variant an enriched test case gets: its UUID (none: the core), and how it is written. */
+/** The views an enriched test case gets, and how they are written (AK6, AK7). */
 interface VariantPlan {
-  readonly id: string | undefined;
-  /** Existing `reqseq:variant` properties whose value becomes the UUID (AK7). */
-  readonly rewrite: readonly JunitProperty[];
-  /** Whether a `reqseq:variant` property is added (AK6). */
-  readonly add: boolean;
+  /** Its views after enrich, each once: `core` or a variant's UUID. */
+  readonly views: readonly string[];
+  /** The views whose elements are checked (AK9): all of them, none for the core no view implies. */
+  readonly checked: readonly string[];
+  /** Existing `reqseq:variant` properties whose value becomes the variant's UUID (AK7). */
+  readonly rewrite: readonly { readonly property: JunitProperty; readonly id: string }[];
+  /** New `reqseq:variant` values, in the order given (AK6). */
+  readonly add: readonly string[];
 }
 
 const testCaseText = (testCase: JunitTestCase): string =>
@@ -265,52 +293,77 @@ const valuesOf = (testCase: JunitTestCase, name: string): string[] =>
 /** The view `core` as `outOfVariant` takes it (`viewIdOf`). */
 const CORE = "core";
 
-/**
- * Why records of the elements `ids` would count nowhere in `view` (a variant's UUID or `core`), joined;
- * undefined when they all count or no view is given (AK9).
- */
-const outOfViewText = (
-  ids: readonly string[],
-  view: string | undefined,
-  options: EnrichOptions,
-): string | undefined => {
-  const out = view === undefined ? [] : ids.flatMap((element) => options.outOfVariant(element, view) ?? []);
-  return out.length === 0 ? undefined : out.join("; ");
+/** Why records of the elements would count nowhere in a view, view by view (`fitOf`). */
+interface Fit {
+  /** Each element and view in which its records would count nowhere, with why (views outer). */
+  readonly why: readonly { readonly id: string; readonly text: string }[];
+  /** The elements that count in none of the views (none when no view is checked). */
+  readonly nowhere: ReadonlySet<string>;
+}
+
+/** Where the records of the elements `ids` would count nowhere among `views` (AK9, AK11). */
+const fitOf = (ids: readonly string[], views: readonly string[], options: EnrichOptions): Fit => {
+  const elements = [...new Set(ids)];
+  const why = views.flatMap((view) =>
+    elements.flatMap((id) => {
+      const text = options.outOfVariant(id, view);
+      return text === undefined ? [] : [{ id, text }];
+    }),
+  );
+  const outIn = (id: string): number => why.filter((w) => w.id === id).length;
+  return { why, nowhere: new Set(elements.filter((id) => views.length > 0 && outIn(id) === views.length)) };
 };
 
+/** Whether elements no given view holds are left out (AK11): only with given views. */
+const skipping = (options: EnrichOptions): boolean =>
+  options.skipNotInView === true && options.views !== undefined;
+
+/** Whether `view` is among the given views. */
+const isGiven = (given: readonly GivenView[], view: string): boolean => given.some((g) => g.id === view);
+
+/** The given views as messages name them. */
+const givenNames = (given: readonly GivenView[]): string => given.map((v) => v.name).join(", ");
+
 /**
- * Why a kept test case does not fit its variant (AK8, AK9), or undefined: it is enriched for another
- * variant (or the core) than the given one, or names an element that does not count in its variant (or
- * the given core). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either way.
+ * Why a kept test case does not fit (AK8, AK9, AK11), or undefined: one of its views is not among the
+ * given ones, or it names an element that does not count in one of its views (with `skipNotInView`:
+ * in none of them). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either
+ * way. A variant the workspace does not have is not checked, nor the core it has without a
+ * `reqseq:variant`, unless the core is given.
  */
 const keptVariantProblem = (
   plan: Extract<Plan, { kind: "kept" }>,
   ids: readonly string[],
   options: EnrichOptions,
 ): string | undefined => {
-  const mine = plan.variant;
-  const given = options.variant;
-  if (given !== undefined && mine !== given.id) {
-    const what = mine === undefined ? "the core" : `the variant ${mine}`;
-    return `it is enriched already for ${what}, not for the given ${given.name}; an enriched test case is never changed (D-026)`;
+  const given = options.views;
+  const other = given === undefined ? [] : plan.views.filter((view) => !isGiven(given, view));
+  if (given !== undefined && other.length > 0) {
+    const what = other.map((view) => (view === CORE ? "the core" : `the variant ${view}`)).join(" and ");
+    return `it is enriched already for ${what}, outside the given views (${givenNames(given)}); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`;
   }
-  if (mine !== undefined && options.resolveVariant(mine).kind === "invalid") {
+  const named = plan.testCase.properties.some((p) => p.name === VARIANT);
+  const checked = plan.views.filter((view) =>
     // A variant the workspace does not have: nothing to check against, as for an unknown element.
-    return undefined;
-  }
-  return outOfViewText(ids, mine ?? (given === undefined ? undefined : CORE), options);
+    view === CORE ? named || given !== undefined : options.resolveVariant(view).kind !== "invalid",
+  );
+  const fit = fitOf(ids, checked, options);
+  const why = skipping(options) ? fit.why.filter((w) => fit.nowhere.has(w.id)) : fit.why;
+  return why.length === 0 ? undefined : why.map((w) => w.text).join("; ");
 };
 
 /**
  * `; it names the variant <uuid>, …` when a kept test case gives its `reqseq:variant` by short ID or
- * identifier (which the reader refuses): enrich does not rewrite an enriched test case (D-026), so it
+ * identifier (which the reader refuses): enrich does not rewrite an enriched test case
+ * (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5), so it
  * says which UUID to write.
  */
 const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions): string => {
-  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v));
+  // `core` is no variant, and the reader reads it.
+  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v) && v.toLowerCase() !== CORE);
   const lookup = value === undefined ? undefined : options.resolveVariant(value);
-  return lookup?.kind === "variant"
-    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026)`
+  return lookup?.kind === "view"
+    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`
     : "";
 };
 
@@ -318,50 +371,61 @@ const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions): strin
 const isUuidOf = (value: string, id: string): boolean => isUuidText(value) && value.toLowerCase() === id;
 
 /**
- * The variant of a test case that names the elements `ids` (AK6 to AK9), or why it is not enriched:
- * each `reqseq:variant` must name one variant (by UUID, short ID or identifier) and all the same one;
- * one given for every test case must be that one; and each element must count in it (not excluded,
- * not replaced, valid there).
+ * The views the `reqseq:variant` properties of a test case to enrich name (AK7), each with the first
+ * value that names it, and those to rewrite as the variant's UUID; or why one names no view.
  */
-const variantPlanOf = (
+const ownViewsOf = (
   testCase: JunitTestCase,
-  ids: readonly string[],
   options: EnrichOptions,
-): VariantPlan | { readonly error: string } => {
-  const properties = testCase.properties.filter((p) => p.name === VARIANT);
-  /** Each variant named, with the first value that names it. */
+):
+  | { readonly own: ReadonlyMap<string, string>; readonly rewrite: VariantPlan["rewrite"] }
+  | { readonly error: string } => {
   const own = new Map<string, string>();
-  for (const property of properties) {
+  const rewrite: { property: JunitProperty; id: string }[] = [];
+  for (const property of testCase.properties.filter((p) => p.name === VARIANT)) {
     const value = property.value.trim();
     const lookup = options.resolveVariant(value);
     if (lookup.kind === "invalid") {
       return { error: `${VARIANT} "${shown(value)}" names no variant: ${lookup.reason}` };
     }
     own.set(lookup.id, own.get(lookup.id) ?? value);
+    if (lookup.id !== CORE && !isUuidOf(value, lookup.id)) {
+      rewrite.push({ property, id: lookup.id });
+    }
   }
-  if (own.size > 1) {
-    return { error: `${VARIANT} is given with different values` };
+  return { own, rewrite };
+};
+
+/**
+ * The views of a test case to enrich (AK6 to AK8), or why it is not enriched: each `reqseq:variant`
+ * must name a view (a variant by UUID, short ID or identifier, or `core`), and with given views each
+ * of its own must be among them. With given views it gets all of them, else its own (the core without
+ * one). The elements are checked against them apart (`fitOf`).
+ */
+const variantPlanOf = (
+  testCase: JunitTestCase,
+  options: EnrichOptions,
+): VariantPlan | { readonly error: string } => {
+  const read = ownViewsOf(testCase, options);
+  if ("error" in read) {
+    return read;
   }
-  const [entry] = own;
-  const mine = entry?.[0];
-  const given = options.variant;
-  if (given !== undefined && entry !== undefined && entry[0] !== given.id) {
+  const { own, rewrite } = read;
+  const given = options.views;
+  const other = given === undefined ? undefined : [...own].find(([id]) => !isGiven(given, id));
+  if (given !== undefined && other !== undefined) {
     return {
-      error: `${VARIANT} "${shown(entry[1])}" names another variant than the given one, ${given.name}`,
+      error: `${VARIANT} "${shown(other[1])}" names a view that is not among the given ones (${givenNames(given)})`,
     };
   }
-  const id = mine ?? given?.id;
-  const out = outOfViewText(ids, id ?? (given === undefined ? undefined : CORE), options);
-  if (out !== undefined) {
-    return { error: out };
-  }
-  if (id === undefined) {
-    return { id, rewrite: [], add: false };
-  }
+  const views = given?.map((g) => g.id) ?? (own.size === 0 ? [CORE] : [...own.keys()]);
+  // The core alone needs no property: a test case without one is for the core.
+  const implied = own.size === 0 && views.length === 1 && views[0] === CORE;
   return {
-    id,
-    rewrite: properties.filter((p) => !isUuidOf(p.value.trim(), id)),
-    add: properties.length === 0,
+    views,
+    checked: given === undefined && own.size === 0 ? [] : views,
+    rewrite,
+    add: implied ? [] : views.filter((view) => !own.has(view)),
   };
 };
 
@@ -493,12 +557,14 @@ const nameCriteria = (
 /**
  * The criteria of a test case to enrich that names the elements `ids` (SR-029 AK10, see the file
  * comment), or why it is not enriched: each hand-written `reqseq:criterion` is kept and gets its UUID
- * in place (`handCriterion`); each criterion of the name (`nameCriteria`) that no property names yet
- * is added once.
+ * in place (`handCriterion`), or is removed when its element is left out (`left`, AK11); each
+ * criterion of the name (`nameCriteria`) of an element not left out that no property names yet is
+ * added once.
  */
 const criteriaPlanOf = (
   testCase: JunitTestCase,
   ids: readonly string[],
+  left: ReadonlySet<string>,
   options: EnrichOptions,
 ): CriteriaPlan | { readonly error: string } => {
   const elements = new Set(ids);
@@ -512,37 +578,89 @@ const criteriaPlanOf = (
     return added;
   };
   const rewrite: { property: JunitProperty; value: string }[] = [];
+  const drop: JunitProperty[] = [];
   for (const property of testCase.properties.filter((p) => p.name === CRITERION_PROPERTY)) {
     const hand = handCriterion(property, elements, options);
     if ("error" in hand) {
       return hand;
+    }
+    if (left.has(hand.id)) {
+      drop.push(property);
+      continue;
     }
     if (!isUuidOf(hand.ref, hand.id)) {
       rewrite.push({ property, value: `${hand.id}:${String(hand.n)}` });
     }
     put(hand.id, hand.n);
   }
-  const fromName = nameCriteria(testCase, elements, options);
+  const fromName = nameCriteria(testCase, new Set(ids.filter((id) => !left.has(id))), options);
   if ("error" in fromName) {
     return fromName;
   }
   const add = fromName.flatMap(([id, n]) => (put(id, n) ? [`${id}:${String(n)}`] : []));
-  return { rewrite, add, text: criteriaText(numbers) };
+  return { rewrite, add, drop, text: criteriaText(numbers) };
+};
+
+/** What an enriched test case gives (D-026): kept, or why the reader refuses it. */
+const keptPlanOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
+  const enrichment = enrichmentOf(testCase);
+  if ("error" in enrichment) {
+    return { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) };
+  }
+  // A criterion the reader refuses makes it give no record, so it is not counted either.
+  const criteria = criteriaOf(testCase, new Set(enrichment.pairs.keys()));
+  return "error" in criteria
+    ? { kind: "invalid", testCase, reason: criteria.error }
+    : { kind: "kept", testCase, pairs: enrichment.pairs, views: enrichment.views };
+};
+
+/**
+ * What a test case to enrich gives once its references are resolved: the `reqseq:element` properties
+ * `named` and the elements only its name names (`added`); see the file comment.
+ */
+const enrichPlanOf = (
+  testCase: JunitTestCase,
+  named: readonly { readonly property: JunitProperty; readonly id: string }[],
+  added: readonly string[],
+  options: EnrichOptions,
+): Plan => {
+  const ids = [...named.map((n) => n.id), ...added];
+  const variant = variantPlanOf(testCase, options);
+  if ("error" in variant) {
+    return { kind: "invalid", testCase, reason: variant.error };
+  }
+  const fit = fitOf(ids, variant.checked, options);
+  const skip = skipping(options);
+  if (!skip && fit.why.length > 0) {
+    return { kind: "invalid", testCase, reason: fit.why.map((w) => w.text).join("; ") };
+  }
+  // AK11: an element no given view holds is left out; the test case stays unchanged when none is left.
+  const left = skip ? fit.nowhere : new Set<string>();
+  if (ids.every((id) => left.has(id))) {
+    return { kind: "outside", notInView: left.size };
+  }
+  // A criterion the reader would refuse after enrich leaves the test case unchanged: enriched, it
+  // would give no record.
+  const criteria = criteriaPlanOf(testCase, ids, left, options);
+  return "error" in criteria
+    ? { kind: "invalid", testCase, reason: criteria.error }
+    : {
+        kind: "enrich",
+        testCase,
+        criteria,
+        named: named.filter((n) => !left.has(n.id)),
+        added: added.filter((id) => !left.has(id)),
+        variant,
+        drop: [...named.filter((n) => left.has(n.id)).map((n) => n.property), ...criteria.drop],
+        notInView: left.size,
+      };
 };
 
 /** What `testCase` gives (see the file comment). */
 const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   const { resolve } = options;
   if (testCase.properties.some((p) => p.name === VERSION)) {
-    const enrichment = enrichmentOf(testCase);
-    if ("error" in enrichment) {
-      return { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) };
-    }
-    // A criterion the reader refuses makes it give no record, so it is not counted either.
-    const criteria = criteriaOf(testCase, new Set(enrichment.pairs.keys()));
-    return "error" in criteria
-      ? { kind: "invalid", testCase, reason: criteria.error }
-      : { kind: "kept", testCase, pairs: enrichment.pairs, variant: enrichment.variant };
+    return keptPlanOf(testCase, options);
   }
   const reported: Reported[] = [];
   const named: { property: JunitProperty; id: string }[] = [];
@@ -568,19 +686,8 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   if (named.length === 0 && added.length === 0) {
     return { kind: "none" };
   }
-  const ids = [...named.map((n) => n.id), ...added];
-  const variant = variantPlanOf(testCase, ids, options);
-  if ("error" in variant) {
-    return { kind: "invalid", testCase, reason: variant.error };
-  }
-  // A criterion the reader would refuse after enrich leaves the test case unchanged: enriched, it
-  // would give no record.
-  const criteria = criteriaPlanOf(testCase, ids, options);
-  return "error" in criteria
-    ? { kind: "invalid", testCase, reason: criteria.error }
-    : { kind: "enrich", testCase, criteria, named, added, variant };
+  return enrichPlanOf(testCase, named, added, options);
 };
-
 /** The message of a reported reference (N2: the test case, its line, the reference). */
 const reportedMessage = (
   testCase: JunitTestCase,
@@ -628,22 +735,18 @@ const separatorAfter = (bytes: Uint8Array, anchor: JunitProperty): string => {
 };
 
 /**
- * The variant of an enriched test case (AK6, AK7): each `rewrite` property gets the UUID in place
- * (`replace`), and the new property (`property`) is returned when one is added.
+ * The views of an enriched test case (AK6, AK7): each `rewrite` property gets its variant's UUID in
+ * place (`replace`), and the new properties (`property`) are returned.
  */
 const variantSplices = (
   variant: VariantPlan,
   replace: (existing: JunitProperty, id: string) => void,
   property: (id: string) => string,
 ): string[] => {
-  const { id } = variant;
-  if (id === undefined) {
-    return [];
-  }
-  for (const existing of variant.rewrite) {
+  for (const { property: existing, id } of variant.rewrite) {
     replace(existing, id);
   }
-  return variant.add ? [property(id)] : [];
+  return variant.add.map(property);
 };
 
 /**
@@ -660,6 +763,14 @@ const criteriaSplices = (
   }
   return criteria.add.map(property);
 };
+
+/** The removal of the properties of an element left out (AK11), with their line when they stand on one of their own. */
+const dropSplices = (bytes: Uint8Array, drop: readonly JunitProperty[]): Omit<Splice, "seq">[] =>
+  drop.map((existing) => ({
+    start: existing.start - separatorAfter(bytes, existing).length,
+    end: existing.end,
+    text: "",
+  }));
 
 /** What enriching one test case changes; the splices are numbered from `seq`. */
 const splicesOf = (
@@ -753,6 +864,8 @@ const splicesOf = (
       splices.push({ start: at.start, end: at.end, text: `>${block}</testcase>` });
       break;
   }
+  // Last, so an insertion at the same offset (after the property before) comes first.
+  splices.push(...dropSplices(bytes, plan.drop));
   return splices.map((s, i) => ({ ...s, seq: i }));
 };
 
@@ -803,8 +916,8 @@ export interface Intended {
   readonly pairs: ReadonlyMap<string, string>;
   readonly item: string;
   readonly date: string;
-  /** The variant's UUID; undefined for none. */
-  readonly variant?: string | undefined;
+  /** Its views (`core` or a variant's UUID), each once, as enrich writes them; undefined compares as the core alone. */
+  readonly views?: readonly string[] | undefined;
   /** Its criteria as `criteriaText` gives them; undefined for none checked. */
   readonly criteria?: string | undefined;
 }
@@ -813,6 +926,10 @@ const NOT_READ_BACK = "Enrich produced a file that does not read back; nothing w
 
 const SUITE_START = Buffer.from("<testsuite>");
 const SUITE_END = Buffer.from("</testsuite>");
+
+/** Whether two lists of distinct views hold the same views. */
+const sameViews = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && b.every((view) => a.includes(view));
 
 /** Whether the criteria of `testCase` read back, as `wanted` (`criteriaText`) when it is given. */
 const criteriaReadBack = (
@@ -827,7 +944,7 @@ const criteriaReadBack = (
 /**
  * Whether `testCase`, the bytes of one enriched `<testcase>` element of the result, reads back as
  * `wanted` says: one test case with the same name, class name and outcome that gives exactly the
- * intended pairs, item and date by the reader's checks (`enrichmentOf`).
+ * intended pairs, item, date and view by the reader's checks (`enrichmentOf`).
  */
 export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => {
   const read = junitTestCases(Buffer.concat([SUITE_START, testCase, SUITE_END]));
@@ -847,7 +964,8 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
     criteriaReadBack(a, got.pairs, wanted.criteria) &&
     got.item === wanted.item.trim() &&
     got.date === wanted.date &&
-    got.variant === wanted.variant &&
+    // Exactly the views enrich writes, in any order (the core alone without the property).
+    sameViews(got.views, wanted.views ?? [CORE]) &&
     got.pairs.size === wanted.pairs.size &&
     [...wanted.pairs].every(([id, version]) => got.pairs.get(id) === version)
   );
@@ -898,6 +1016,7 @@ interface Outcome {
   readonly intended: Intended[];
   count: number;
   withoutReference: number;
+  notInView: number;
 }
 
 /** What the plans need: the lookups and the values, for `addPlan`. */
@@ -970,10 +1089,11 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
     pairs: new Map(zip(ids, current)),
     item: options.item,
     date,
-    variant: plan.variant.id,
+    views: plan.variant.views,
     criteria: plan.criteria.text,
   });
   outcome.count += 1;
+  outcome.notInView += plan.notInView;
   outcome.problems.push(...kindProblems(plan.testCase, ids, context));
 };
 
@@ -983,6 +1103,9 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
   switch (plan.kind) {
     case "none":
       outcome.withoutReference += 1;
+      return;
+    case "outside":
+      outcome.notInView += plan.notInView;
       return;
     case "invalid":
       outcome.problems.push({
@@ -1089,6 +1212,7 @@ const planFile = async (bytes: Uint8Array, options: EnrichOptions): Promise<Plan
     intended: [],
     count: 0,
     withoutReference: 0,
+    notInView: 0,
   };
   for (const plan of plans) {
     addPlan(outcome, plan, context);
@@ -1097,6 +1221,7 @@ const planFile = async (bytes: Uint8Array, options: EnrichOptions): Promise<Plan
     result: {
       testCases: outcome.count,
       withoutReference: outcome.withoutReference,
+      notInView: outcome.notInView,
       unknown: outcome.unknown,
       problems: byLine(outcome.problems),
     },
@@ -1266,29 +1391,35 @@ export const resolverOf =
   };
 
 /**
- * The given variant (AK6) through `resolveView`, as `evidence.record` takes it; `core` is none: the
- * records count in the core, and in every view of an element of a `variant-independent` repository
- * (SR-173).
+ * The given views (AK6) through `resolveView`, each once in the order first given: a variant, or
+ * `core`, whose records count in the core, and in every view of an element of a `variant-independent`
+ * repository (SR-173).
  */
-const givenVariant = (
+const givenViews = (
   views: ViewContext,
-  ref: string | undefined,
+  refs: readonly string[] | undefined,
   variants: Map<string, ElementRecord>,
-): GivenVariant | undefined => {
-  if (ref === undefined) {
+): GivenView[] | undefined => {
+  if (refs === undefined) {
     return undefined;
   }
-  const view = resolveView(views, ref, COMMAND, "variant", false);
-  if (view.kind === "core") {
-    return { id: undefined, name: "core" };
+  const given = new Map<string, GivenView>();
+  for (const ref of refs) {
+    const view = resolveView(views, ref, COMMAND, "variant", true);
+    if (view.kind === "core") {
+      given.set(CORE, { id: CORE, name: CORE });
+    } else {
+      variants.set(view.variant.id, view.variant);
+      given.set(view.variant.id, { id: view.variant.id, name: views.shortIds.of(view.variant) });
+    }
   }
-  variants.set(view.variant.id, view.variant);
-  return { id: view.variant.id, name: views.shortIds.of(view.variant) };
+  return [...given.values()];
 };
 
 /**
- * What a `reqseq:variant` of a test case names (AK7), through `resolveView`: any refusal (no element,
- * several, no variant, `core`, a metamodel without variants) is a result. Remembers each variant found.
+ * What a `reqseq:variant` of a test case names (AK7), through `resolveView`: a variant, or `core`; any
+ * refusal (no element, several, no variant, a metamodel without variants) is a result. Remembers each
+ * variant found.
  * `unknownNote` follows the reason when no element has the reference, as for an unknown element.
  */
 export const variantResolverOf = (
@@ -1317,12 +1448,12 @@ const lookupVariant = (
   unknownNote: string,
 ): VariantLookup => {
   try {
-    const view = resolveView(views, ref, COMMAND, VARIANT, false);
+    const view = resolveView(views, ref, COMMAND, VARIANT, true);
     if (view.kind === "core") {
-      return { kind: "invalid", reason: "core is no variant; leave the property out for the core" };
+      return { kind: "view", id: CORE };
     }
     variants.set(view.variant.id, view.variant);
-    return { kind: "variant", id: view.variant.id };
+    return { kind: "view", id: view.variant.id };
   } catch (error) {
     if (error instanceof CommandError) {
       return { kind: "invalid", reason: error.message + (error.code === "ref.unknown" ? unknownNote : "") };
@@ -1366,6 +1497,13 @@ export const enrichJunitFile = async (
 ): Promise<EvidenceEnrichJunitOutput> => {
   // The pattern's syntax first: a refusal touches no file.
   const pattern = input.namePattern === undefined ? undefined : parseNamePattern(input.namePattern);
+  if (input.skipNotInView === true && input.variant === undefined) {
+    throw new CommandError(
+      "input.invalid",
+      "skipNotInView applies only to the views given in variant: give them for the whole file",
+      { command: COMMAND, fields: ["skipNotInView"], reason: "skip-without-views" },
+    );
+  }
   const layout = await workspace.get(workspaceLayoutState);
   const main = await fs.realpath(layout.root);
   const source = path.resolve(workspace.root, input.file);
@@ -1382,7 +1520,7 @@ export const enrichJunitFile = async (
   const found = new Map<string, ElementRecord>();
   const views: ViewContext = { workspace, metamodel, store, shortIds };
   const variants = new Map<string, ElementRecord>();
-  const variant = givenVariant(views, input.variant, variants);
+  const given = givenViews(views, input.variant, variants);
   // The metamodel is valid here: a write is refused while it is not (`workspace.read-only`).
   const requirements = new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key));
   const typePrefixes = metamodel.effectiveTypes.map((t) => t.prefix);
@@ -1408,7 +1546,8 @@ export const enrichJunitFile = async (
     name: path.basename(source),
     file: shownPath(layout, main, sourceFolder, source),
     unknownNote: incompleteNote(layout),
-    variant,
+    views: given,
+    skipNotInView: input.skipNotInView,
     resolveVariant: variantResolverOf(views, variants, incompleteNote(layout)),
     outOfVariant: outOfVariantOf(views, found, variants),
     notRequirement: (id) => {
@@ -1422,6 +1561,7 @@ export const enrichJunitFile = async (
   const output = {
     testCases: result.testCases,
     withoutReference: result.withoutReference,
+    notInView: result.notInView,
     unknown: [...result.unknown],
     problems: [...result.problems],
   };

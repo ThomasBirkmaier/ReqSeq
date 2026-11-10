@@ -6,8 +6,9 @@
 # brought onto main through a pull request that merges itself; local runs are no source.
 #
 # - `enrich` (read rights only) checks out the tested commit, builds the CLI and runs `reqseq evidence enrich-junit`
-#   on each JUnit file of the run, against the spec of that commit (D-026). One date for the whole run (its start), so
-#   that the records of one run tie and a failure in any file of it wins over a pass in another (ThomasBirkmaier/ReqSeq-archive#525 Q2).
+#   on each JUnit file of the run, against the spec of that commit (D-026), for the core and the variant of the system
+#   the file ran on (#1313). One date for the whole run (its start), so that the records of one run tie and a failure
+#   in any file of it wins over a pass in another (ThomasBirkmaier/ReqSeq-archive#525 Q2).
 # - `publish` runs no code of the repository: it copies the enriched files onto a branch cut from the current main,
 #   with a GitHub App token, so that the pull request gets the normal CI run that the required checks read (a pull
 #   request made with GITHUB_TOKEN starts none).
@@ -188,8 +189,8 @@ jobs:
           {
             echo "$WORKFLOW run $RUN on \`$SHA\` ($CONCLUSION), started $DATE."
             echo
-            echo "| File | Enriched test cases | Without a requirement | Unknown |"
-            echo "|---|---|---|---|"
+            echo "| File | Enriched test cases | Without a requirement | Not in its views | Unknown |"
+            echo "|---|---|---|---|---|"
           } > "$RUNNER_TEMP/summary.md"
           # The artifacts a full run of the kind uploads. The workflows upload with `if-no-files-found: ignore`, so
           # a suite that wrote no file has no artifact at all; it is listed, and main keeps its last file.
@@ -201,7 +202,7 @@ jobs:
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac
           for artifact in $expected; do
-            [ -d "$JUNIT/$artifact" ] || echo "| \`$artifact\` | no artifact | | |" >> "$RUNNER_TEMP/summary.md"
+            [ -d "$JUNIT/$artifact" ] || echo "| \`$artifact\` | no artifact | | | |" >> "$RUNNER_TEMP/summary.md"
           done
           # One line per file: artifact, file, name of the evidence file, system.
           for dir in "$JUNIT"/*/; do
@@ -219,11 +220,23 @@ jobs:
           done > "$RUNNER_TEMP/files.txt"
           while read -r artifact file name os; do
             if [ ! -f "$file" ]; then
-              echo "| \`$artifact\` | missing $(basename "$file") | | |" >> "$RUNNER_TEMP/summary.md"
+              echo "| \`$artifact\` | missing $(basename "$file") | | | |" >> "$RUNNER_TEMP/summary.md"
               continue
             fi
+            # The views of the run (#1313): the core and the variant of its runner's system, by UUID as in
+            # spec/variant/. A requirement that applies in neither is left out of the test case (notInView).
+            case "$os" in
+              ubuntu-*) variant=9a7c2fca-3edf-43ab-8b68-7771b9666d08 ;; # VAR-002 Linux
+              macos-*) variant=eb05fd98-7ec2-4f49-9374-2397642c0d8b ;; # VAR-003 macOS
+              windows-*) variant=cd696c2d-2472-4299-8faa-2688cd15c366 ;; # VAR-001 Windows
+              *)
+                echo "| \`$artifact\` | no variant for $os | | | |" >> "$RUNNER_TEMP/summary.md"
+                status=1
+                continue ;;
+            esac
             set +e
             node packages/cli/dist/bin.js evidence enrich-junit "$file" "main@$SHA ($os)" --date "$DATE" \
+              --variant core --variant "$variant" --skip-not-in-view \
               --workspace spec --output "$new/$name.xml" --json > "$RUNNER_TEMP/$name.json"
             code=$?
             set -e
@@ -231,21 +244,23 @@ jobs:
             node -e '
               const r = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
               const unknown = (r.unknown ?? []).length;
-              console.log(`| \`${process.argv[2]}.xml\` | ${r.testCases ?? "?"} | ${r.withoutReference ?? "?"} | ${unknown} |`);
-            ' "$RUNNER_TEMP/$name.json" "$name" >> "$RUNNER_TEMP/summary.md" || echo "| \`$name.xml\` | error $code | | |" >> "$RUNNER_TEMP/summary.md"
+              console.log(`| \`${process.argv[2]}.xml\` | ${r.testCases ?? "?"} | ${r.withoutReference ?? "?"} | ${r.notInView ?? "?"} | ${unknown} |`);
+            ' "$RUNNER_TEMP/$name.json" "$name" >> "$RUNNER_TEMP/summary.md" || echo "| \`$name.xml\` | error $code | | | |" >> "$RUNNER_TEMP/summary.md"
           done < "$RUNNER_TEMP/files.txt"
           if compgen -G "$new/*.xml" > /dev/null; then cp "$new"/*.xml "$out/"; fi
           # A suite split into shards (macOS Electron, #1229): its shard files replace the one file of before.
           for file in "$new"/*-1.xml; do [ -e "$file" ] && rm -f "$out/$(basename "${file%-1.xml}").xml"; done
           # The records as ReqSeq reads them: the workspace check reads every evidence file (codes evidence.*).
           node packages/cli/dist/bin.js workspace check --workspace spec > "$RUNNER_TEMP/check.txt" || status=1
-          {
+          # One degree per view: the core and each variant (VAR-001 Windows, VAR-002 Linux, VAR-003 macOS).
+          for entry in "core:core" "VAR-001 Windows:cd696c2d-2472-4299-8faa-2688cd15c366" \
+            "VAR-002 Linux:9a7c2fca-3edf-43ab-8b68-7771b9666d08" "VAR-003 macOS:eb05fd98-7ec2-4f49-9374-2397642c0d8b"; do
             echo
-            echo "Verification degree of the system requirements (core):"
+            echo "Verification degree of the system requirements (${entry%%:*}):"
             echo '```'
-            node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement || true
+            node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement --view "${entry#*:}" 2>&1 || true
             echo '```'
-          } >> "$RUNNER_TEMP/summary.md"
+          done >> "$RUNNER_TEMP/summary.md"
           cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
           cp "$RUNNER_TEMP/summary.md" "$RUNNER_TEMP/out/"
           if compgen -G "$new/*.xml" > /dev/null; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi

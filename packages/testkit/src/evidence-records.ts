@@ -26,6 +26,11 @@ export interface EvidenceRecordsOptions {
    * JUnit files, review of ThomasBirkmaier/ReqSeq-archive#561, N4), in `archive/`. Default 0.
    */
   readonly history?: number;
+  /**
+   * Every test case names the core and one variant (`reqseq:variant` twice, SR-093 AK5), so the
+   * reader gives two records per element and execution. Default false: about 2 % run for one variant.
+   */
+  readonly coreAndVariant?: boolean;
 }
 
 export interface EvidenceCounts {
@@ -36,7 +41,7 @@ export interface EvidenceCounts {
   readonly junitBytes: number;
   /** Executions marked `<skipped/>`: no record (SR-093 AK3). */
   readonly skipped: number;
-  /** Records the JUnit reader gives: one per element a test case names, per execution. */
+  /** Records the JUnit reader gives: one per view and element a test case names, per execution. */
   readonly junitRecords: number;
   /** Markdown records (one file each): verification and validation. */
   readonly markdownVerification: number;
@@ -110,8 +115,8 @@ interface TestCaseSpec {
   readonly elements: readonly GeneratedElement[];
   /** Executions: it runs in the newest `executions` CI runs. */
   readonly executions: number;
-  /** The variant it runs for (`reqseq:variant`); none: the core. */
-  readonly variant?: string;
+  /** The views it runs for (`reqseq:variant`: a variant's UUID or `core`); none: the core. */
+  readonly views: readonly string[];
 }
 
 /**
@@ -141,7 +146,7 @@ const testCaseXml = (
   if (roll < SKIPPED_SHARE) {
     counts.skipped++;
   } else {
-    counts.junitRecords += spec.elements.length;
+    counts.junitRecords += spec.elements.length * Math.max(1, spec.views.length);
   }
   // Names, titles and IDs hold no character XML must escape (the generator's words, digits, `-`).
   return [
@@ -150,9 +155,7 @@ const testCaseXml = (
     ...spec.elements.map((e) => `        <property name="reqseq:element" value="${e.id}"/>\n`),
     ...versions.map((v) => `        <property name="reqseq:version" value="${v}"/>\n`),
     `        <property name="reqseq:item" value="${run.item}"/>\n`,
-    ...(spec.variant === undefined
-      ? []
-      : [`        <property name="reqseq:variant" value="${spec.variant}"/>\n`]),
+    ...spec.views.map((view) => `        <property name="reqseq:variant" value="${view}"/>\n`),
     `        <property name="reqseq:date" value="${date}"/>\n`,
     "      </properties>\n",
     outcome,
@@ -174,12 +177,18 @@ const junitFile = (suite: string, run: number, testCases: readonly string[]): st
 /** Writes a record file below the evidence folder. */
 type AddFile = (file: string, content: string) => void;
 
-/** One test case per automated requirement; about 10 % name 2 to 5 requirements. */
+/**
+ * One test case per automated requirement; about 10 % name 2 to 5 requirements. About 2 % run for one
+ * variant, or, with `coreAndVariant`, each for the core and one variant.
+ */
 const testCaseSpecs = (
   automated: readonly GeneratedElement[],
   variants: readonly GeneratedElement[],
-  perFile: number,
-  runs: number,
+  {
+    perFile,
+    runs,
+    coreAndVariant,
+  }: { readonly perFile: number; readonly runs: number; readonly coreAndVariant: boolean },
   random: Random,
 ): TestCaseSpec[] =>
   automated.map((requirement, index) => {
@@ -195,7 +204,11 @@ const testCaseSpecs = (
       name: `${elements.map((e) => `[${shortIdOf(e)}]`).join(" ")} ${requirement.title.toLowerCase()}`,
       elements,
       executions: 1 + random.below(runs),
-      ...(random.next() < VARIANT_SHARE ? { variant: random.pick(variants).id } : {}),
+      // The draw stays, so the files without the option are the same as before it.
+      views:
+        random.next() < VARIANT_SHARE || coreAndVariant
+          ? [random.pick(variants).id, ...(coreAndVariant ? ["core"] : [])]
+          : [],
     };
   });
 
@@ -320,7 +333,8 @@ const validationRecords = (validated: readonly GeneratedElement[], random: Rando
  *   (other automated ones). A test case runs in the newest 1 to `runs` CI runs, so it has 1 to 3
  *   executions by default; per execution about 5 % are skipped and 5 % fail. About 15 % of the
  *   named elements changed after one of the runs: up to it their executions store one older version
- *   (outdated), later ones the current version. About 2 % of the test cases run for a variant.
+ *   (outdated), later ones the current version. About 2 % of the test cases run for a variant;
+ *   with `coreAndVariant` every test case runs for the core and one variant (SR-093 AK5).
  *   Every test case is enriched. `ci/run-<n>/junit-<nnn>.xml`, `testCasesPerFile` per file;
  *   `history` adds older runs as large files `archive/run-<nn>.xml` with every test case, which
  *   sort before `ci` and so are read first (16 at a time, `readEvidence`).
@@ -366,7 +380,12 @@ export function withEvidenceRecords(
     files.set(`${root}/${file}`, content);
   };
   const variants = generated.elements.filter((e) => e.type === "variant");
-  const specs = testCaseSpecs(automated, variants, perFile, runs, random);
+  const specs = testCaseSpecs(
+    automated,
+    variants,
+    { perFile, runs, coreAndVariant: options.coreAndVariant ?? false },
+    random,
+  );
   const junit = junitRuns(specs, { runs, perFile, history }, random, add);
   const markdownVerification = manualRecords(manual, random, add);
   const validated = generated.elements.filter(

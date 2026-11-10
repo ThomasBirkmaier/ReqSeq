@@ -59,15 +59,19 @@ export const instantOf = (date: string): number => {
 /** Code unit order, the same on every OS. */
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
-/** Compares two records of one date and keeps one order on every machine: repository, file, line. */
+/**
+ * Compares two records of one date and keeps one order on every machine: repository, file, line,
+ * then variant (none first), since one JUnit test case gives a record per view (SR-093 AK5).
+ */
 const byLocation = (a: EvidenceRecord, b: EvidenceRecord): number =>
   byCodeUnits(a.repository ?? "", b.repository ?? "") ||
   byCodeUnits(a.file ?? "", b.file ?? "") ||
-  (a.line ?? 0) - (b.line ?? 0);
+  (a.line ?? 0) - (b.line ?? 0) ||
+  byCodeUnits(a.variant ?? "", b.variant ?? "");
 
 /**
  * The order of records everywhere in the block: newest `date` first (compared as instants), then by
- * repository, file and line. For one comparison; `sortNewestFirst` sorts a list.
+ * repository, file, line and variant. For one comparison; `sortNewestFirst` sorts a list.
  */
 export const newestFirst = (a: EvidenceRecord, b: EvidenceRecord): number =>
   instantOf(b.date) - instantOf(a.date) || byLocation(a, b);

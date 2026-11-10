@@ -8558,11 +8558,188 @@
             },
             "bearing": {
               "type": "array",
-              "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion. Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
+              "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
               "items": {
                 "type": "integer",
                 "minimum": 0
               }
+            },
+            "display": {
+              "type": "object",
+              "description": "The Evidence section at a glance, computed in core so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
+              "properties": {
+                "shared": {
+                  "type": "object",
+                  "description": "Each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise.",
+                  "properties": {
+                    "date": {
+                      "$ref": "../common.schema.json#/$defs/dateTime"
+                    },
+                    "item": {
+                      "type": "string",
+                      "description": "The item under test that every shown record names."
+                    },
+                    "version": {
+                      "$ref": "../common.schema.json#/$defs/version"
+                    },
+                    "baselines": {
+                      "type": "array",
+                      "description": "The baselines every shown record names, in the same order.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "rows": {
+                  "type": "array",
+                  "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them.",
+                  "items": {
+                    "type": "object",
+                    "description": "One line of the Evidence section: an acceptance criterion, the whole requirement without criteria, or the validation.",
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "verification",
+                          "validation"
+                        ],
+                        "description": "Whether the row shows verification or validation records."
+                      },
+                      "criterion": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row."
+                      },
+                      "status": {
+                        "enum": [
+                          "open",
+                          "verified",
+                          "failed",
+                          "outdated",
+                          "validated",
+                          "inconclusive"
+                        ],
+                        "description": "Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status."
+                      },
+                      "views": {
+                        "type": "array",
+                        "description": "Verification only: the status of the criterion in each view the element applies in (with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "view": {
+                              "type": "string",
+                              "description": "`core` or the variant's UUID."
+                            },
+                            "status": {
+                              "enum": [
+                                "open",
+                                "verified",
+                                "failed",
+                                "outdated"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false,
+                          "required": [
+                            "view",
+                            "status"
+                          ]
+                        }
+                      },
+                      "cases": {
+                        "type": "array",
+                        "description": "The bearing records of the row (those naming the criterion or none) by test case: worst result first, then class name, then name in code-unit order, records without test case last in their order.",
+                        "items": {
+                          "type": "object",
+                          "description": "The bearing records of a row that form one test case (`testCase` and `className`), or one record without test case.",
+                          "properties": {
+                            "testCase": {
+                              "type": "string",
+                              "description": "The test case's name; left out for a record without test case."
+                            },
+                            "className": {
+                              "type": "string",
+                              "description": "The JUnit class name; left out for a Markdown record or a record without test case."
+                            },
+                            "result": {
+                              "enum": [
+                                "passed",
+                                "failed",
+                                "inconclusive"
+                              ],
+                              "description": "The worst result of its records: failed before inconclusive before passed."
+                            },
+                            "views": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The views its records hold for: `core` for a record without variant, else the variant's UUID; `core` first, then the UUIDs in code-unit order."
+                            },
+                            "records": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "description": "Its records, positions in `records`, in their order."
+                            }
+                          },
+                          "additionalProperties": false,
+                          "required": [
+                            "result",
+                            "views",
+                            "records"
+                          ]
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "status",
+                      "cases"
+                    ]
+                  }
+                },
+                "older": {
+                  "type": "array",
+                  "description": "The records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "$ref": "../common.schema.json#/$defs/dateTime"
+                      },
+                      "version": {
+                        "$ref": "../common.schema.json#/$defs/version"
+                      },
+                      "records": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "description": "Its records, positions in `records`, in their order."
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "date",
+                      "version",
+                      "records"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "shared",
+                "rows",
+                "older"
+              ]
             },
             "testCases": {
               "type": "array",
@@ -8587,6 +8764,7 @@
           "required": [
             "records",
             "bearing",
+            "display",
             "testCases",
             "problems",
             "incomplete"
@@ -8767,8 +8945,8 @@
       {
         "name": "evidence.enrichJunit",
         "title": "Enrich JUnit file",
-        "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.",
-        "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; the variant's UUID is added when there is one. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed. The output counts the test cases that name no element.",
+        "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
+        "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
@@ -8792,7 +8970,11 @@
           },
           {
             "field": "variant",
-            "complete": "element"
+            "complete": "view"
+          },
+          {
+            "field": "skipNotInView",
+            "complete": "boolean"
           },
           {
             "field": "namePattern",
@@ -8808,7 +8990,7 @@
           "properties": {
             "file": {
               "$ref": "../common.schema.json#/$defs/localPath",
-              "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed."
+              "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
             },
             "item": {
               "$ref": "../common.schema.json#/$defs/item",
@@ -8819,8 +9001,16 @@
               "description": "The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
             },
             "variant": {
-              "$ref": "../common.schema.json#/$defs/elementRef",
-              "description": "The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant (a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent`). A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed) whose variant differs from the given one."
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "../common.schema.json#/$defs/view"
+              },
+              "description": "The views the test run was for, one or more: a variant by UUID, short ID or identifier, or `core`. Each enriched test case gets a `reqseq:variant` per view, the variant's UUID or `core`; the core alone writes none. Absent: a test case keeps its own `reqseq:variant` properties, if any, whose short ID or identifier becomes the UUID. A test case that names a view not given, or names an element that does not count in one of its views (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, version from the tested state) with a view not given. The core is checked like a variant when it is given or named; a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent`."
+            },
+            "skipNotInView": {
+              "type": "boolean",
+              "description": "Only with `variant` (else `input.invalid` with `details.reason` `skip-without-views`): an element that applies in none of the given views is left out of the test case instead of refusing it: it gets no `reqseq:element`, `reqseq:version` or `reqseq:criterion`, and a test case with no element left stays unchanged; `notInView` counts these. An element that applies in some of them is enriched, and its records count only where it applies. Default false: such a test case stays unchanged and is reported."
             },
             "namePattern": {
               "type": "string",
@@ -8852,6 +9042,11 @@
               "type": "integer",
               "minimum": 0,
               "description": "The test cases that name no element: no `reqseq:element` property and no name token or pattern match that names one (a pytest parameter list counts here). Test cases enriched already, listed in `unknown` or refused are not counted. Information only: it does not change the exit code."
+            },
+            "notInView": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element. Information only: it does not change the exit code."
             },
             "unknown": {
               "type": "array",
@@ -8903,6 +9098,7 @@
           "required": [
             "testCases",
             "withoutReference",
+            "notInView",
             "unknown",
             "files",
             "problems"

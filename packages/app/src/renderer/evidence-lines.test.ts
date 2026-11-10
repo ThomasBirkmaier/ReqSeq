@@ -1,11 +1,11 @@
-import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
+import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
 import {
   INCOMPLETE_NOTE,
   evidenceLines,
   evidenceNotes,
-  evidenceParts,
+  displayLines,
   evidenceRows,
 } from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
@@ -89,15 +89,142 @@ describe("the lines of an element's evidence records", () => {
     expect(new Set(rows.map((row) => row.key)).size).toBe(3);
   });
 
-  it("[SR-032/AK3] splits the rows into those that bear the status and the others, each in core's order", () => {
-    const records = ["a", "b", "c", "d"].map((item) => record({ item }));
-    const parts = evidenceParts({ records, bearing: [0, 2] }, undefined);
-    const items = (rows: readonly { readonly parts: readonly LinePart[] }[]): string[] =>
-      rows.map((row) => text(row.parts).split(" · ")[2] ?? "");
-    expect([items(parts.open), items(parts.folded)]).toEqual([
-      ["a", "c"],
-      ["b", "d"],
+  it("[SR-032/AK3] folds the older records by run, one line each with date, version and count, opening to its records", () => {
+    const records = ["a", "b", "c"].map((item) => record({ item }));
+    const lines = displayLines(
+      {
+        records,
+        display: {
+          shared: {},
+          rows: [],
+          older: [
+            { date: "2026-11-08T08:00:00Z", version: "n1:1111111111111111", records: [1, 2] },
+            { date: "2026-11-01T08:00:00+01:00", version: "n1:0000000000000000", records: [0] },
+          ],
+        },
+      },
+      undefined,
+    );
+    expect(
+      lines.older.map((run) => [run.head, run.children.map((row) => text(row.parts).split(" · ")[2])]),
+    ).toEqual([
+      ["2026-11-08 08:00 UTC · version n1:1111111111111111 · 2 records", ["b", "c"]],
+      ["2026-11-01T08:00:00+01:00 · version n1:0000000000000000 · 1 record", ["a"]],
     ]);
+  });
+
+  it("[SR-032/AK4] gives one line per criterion with result and test count, a failed or outdated one coloured and naming its views, opening to test cases and records", () => {
+    const records = [
+      record({ item: "mac", testCase: "shows speed", variant: "uuid-v" }),
+      record({ item: "core", testCase: "shows speed" }),
+      record({ item: "win", testCase: "reads unit", result: "failed", variant: "uuid-w" }),
+      record({ item: "Display sample B2", method: "inspection" }),
+    ];
+    const lines = displayLines(
+      {
+        records,
+        display: {
+          shared: {},
+          rows: [
+            {
+              kind: "verification",
+              criterion: 1,
+              status: "verified",
+              views: [{ view: "core", status: "verified" }],
+              cases: [
+                { testCase: "shows speed", result: "passed", views: ["core", "uuid-v"], records: [0, 1] },
+                { result: "passed", views: ["core"], records: [3] },
+              ],
+            },
+            {
+              kind: "verification",
+              criterion: 2,
+              status: "failed",
+              views: [
+                { view: "core", status: "verified" },
+                { view: "uuid-v", status: "failed" },
+                { view: "uuid-w", status: "failed" },
+              ],
+              cases: [{ testCase: "reads unit", result: "failed", views: ["uuid-w"], records: [2] }],
+            },
+            {
+              kind: "verification",
+              criterion: 3,
+              status: "outdated",
+              views: [{ view: "core", status: "outdated" }],
+              cases: [{ testCase: "old", result: "passed", views: ["core"], records: [1] }],
+            },
+            {
+              kind: "verification",
+              criterion: 4,
+              status: "open",
+              views: [{ view: "core", status: "open" }],
+              cases: [{ testCase: "unsure", result: "inconclusive", views: ["core"], records: [1] }],
+            },
+            { kind: "validation", status: "validated", cases: [] },
+          ],
+          older: [],
+        },
+      },
+      [COAST],
+    );
+    expect(lines.rows.map((row) => [row.head, row.status])).toEqual([
+      ["AK1 · passed · 2 tests", undefined],
+      ["AK2 · failed in Coast, uuid-w · 1 test", "failed"],
+      ["AK3 · passed · outdated · 1 test", "outdated"],
+      ["AK4 · inconclusive · 1 test", undefined],
+      ["Validation · validated · no tests", undefined],
+    ]);
+    expect(lines.rows[0]?.children.map((test) => [test.head, test.children.length])).toEqual([
+      ["shows speed · passed · core, Coast", 2],
+      ["inspection · Display sample B2 · passed", 1],
+    ]);
+    expect(lines.rows[1]?.children.map((test) => [test.head, test.status])).toEqual([
+      ["reads unit · failed · uuid-w", "failed"],
+    ]);
+    // A row without criterion names the verification of the whole requirement.
+    const whole = displayLines(
+      {
+        records: [record({ kind: "validation", result: "inconclusive" })],
+        display: {
+          shared: {},
+          rows: [
+            { kind: "verification", status: "open", views: [], cases: [] },
+            {
+              kind: "validation",
+              status: "inconclusive",
+              cases: [{ result: "inconclusive", views: ["core"], records: [0] }],
+            },
+          ],
+          older: [],
+        },
+      },
+      undefined,
+    );
+    expect(whole.rows.map((row) => row.head)).toEqual([
+      "Verification · open · no tests",
+      "Validation · inconclusive · 1 test",
+    ]);
+    // A record with neither test case, method nor item is named by its date.
+    expect(whole.rows[1]?.children.map((test) => test.head)).toEqual(["2026-10-21 09:00 UTC · inconclusive"]);
+  });
+
+  it("[SR-032/AK5] states the values the open records share once, and nothing when they share none", () => {
+    const shared = (values: Partial<EvidenceListOutput["display"]["shared"]>) =>
+      displayLines({ records: [], display: { shared: values, rows: [], older: [] } }, undefined).shared;
+    expect(
+      shared({
+        date: "2026-11-09T08:48:23Z",
+        item: "main@c915641 (macos-26)",
+        version: "n2:30df7b1ac271d53b",
+        baselines: ["Stufe 5", "Stufe 6"],
+      }),
+    ).toBe(
+      "2026-11-09 08:48:23 UTC · main@c915641 (macos-26) · version n2:30df7b1ac271d53b · baselines Stufe 5, Stufe 6",
+    );
+    expect(shared({ date: "2026-11-09T08:48:23.120Z", baselines: [] })).toBe("2026-11-09 08:48:23 UTC");
+    expect(shared({ date: "2026-11-09T08:48:00Z" })).toBe("2026-11-09 08:48 UTC");
+    expect(shared({})).toBe(undefined);
   });
 
   it("names a variant that `names` lacks by its UUID", () => {

@@ -97,7 +97,7 @@ test("[SR-137/AK2] the statuses in the rows of a package page count as its degre
     }
     const line = running.window.locator(".package-summary");
     await expect(line).toContainText("Degree");
-    // "Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)": the count of each status that occurs.
+    // "Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)": the count of each status that occurs.
     const text = (await line.textContent()) ?? "";
     const named = new Map(
       [...text.matchAll(/(\d+) (open|verified|indirect|failed|outdated)/g)].map(([, n, status]) => [

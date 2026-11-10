@@ -60,6 +60,17 @@ describe("evidenceIndex", () => {
     expect(sortNewestFirst(all)).toEqual([...all].sort(newestFirst));
   });
 
+  it("evidenceIndex orders the records of one test case for several views by variant, none first (SR-093 AK5)", () => {
+    const at = (variant?: string): EvidenceRecord => ({
+      ...junit(A, "2026-01-01T10:00:00Z", "results.xml"),
+      ...(variant === undefined ? {} : { variant }),
+    });
+    const [w, v, core] = [at(W), at(V), at()];
+    expect(evidenceIndex([w, v, core]).byElement.get(A)).toEqual([core, v, w]);
+    expect(newestFirst(core, v)).toBeLessThan(0);
+    expect(newestFirst(w, v)).toBeGreaterThan(0);
+  });
+
   it("evidenceIndex gives each record its position in the records as given (ThomasBirkmaier/ReqSeq-archive#698)", () => {
     const first = record(A, "2026-01-01T10:00:00Z", { repository: "zeta" });
     const second = record(A, "2026-01-01T10:00:00Z", { repository: "alpha" });

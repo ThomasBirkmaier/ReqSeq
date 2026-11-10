@@ -3213,8 +3213,55 @@ export interface EvidenceListInput {
 export interface EvidenceListOutput {
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
-  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion (SR-031 AK6). Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
+  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
   readonly bearing: readonly number[];
+  /** The Evidence section at a glance (SR-032 AK3 to AK5), computed in core so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run. */
+  readonly display: {
+    /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
+    readonly shared: {
+      readonly date?: IsoDateTime;
+      /** The item under test that every shown record names. */
+      readonly item?: string;
+      readonly version?: Version;
+      /** The baselines every shown record names, in the same order. */
+      readonly baselines?: readonly string[];
+    };
+    /** AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them. */
+    readonly rows: readonly {
+      /** Whether the row shows verification or validation records. */
+      readonly kind: "verification" | "validation";
+      /** The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row. */
+      readonly criterion?: number;
+      /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
+      readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
+      /** Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047; with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
+      readonly views?: readonly {
+        /** `core` or the variant's UUID. */
+        readonly view: string;
+        readonly status: "open" | "verified" | "failed" | "outdated";
+      }[];
+      /** The bearing records of the row (those naming the criterion or none, SR-031 AK6) by test case: worst result first, then class name, then name in code-unit order, records without test case last in their order. */
+      readonly cases: readonly {
+        /** The test case's name; left out for a record without test case. */
+        readonly testCase?: string;
+        /** The JUnit class name; left out for a Markdown record or a record without test case. */
+        readonly className?: string;
+        /** The worst result of its records: failed before inconclusive before passed. */
+        readonly result: "passed" | "failed" | "inconclusive";
+        /** The views its records hold for: `core` for a record without variant, else the variant's UUID; `core` first, then the UUIDs in code-unit order. */
+        readonly views: readonly string[];
+        /** Its records, positions in `records`, in their order. */
+        readonly records: readonly number[];
+      }[];
+    }[];
+    /** AK3: the records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here. */
+    readonly older: readonly {
+      readonly date: IsoDateTime;
+      readonly version: Version;
+      /** Its records, positions in `records`, in their order. */
+      readonly records: readonly number[];
+    }[];
+  };
   /** The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false). */
   readonly testCases: readonly DataExportTestCase[];
   /** Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`. */
@@ -3266,18 +3313,20 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
-  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026). */
+  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
   readonly file: LocalPath;
   /** The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
   /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
-  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant (a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent`, SR-173). A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
-  readonly variant?: ElementRef;
+  /** The views the test run was for, one or more: a variant by UUID, short ID or identifier, or `core` (SR-029 AK6). Each enriched test case gets a `reqseq:variant` per view, the variant's UUID or `core`; the core alone writes none. Absent: a test case keeps its own `reqseq:variant` properties, if any, whose short ID or identifier becomes the UUID. A test case that names a view not given (AK8), or names an element that does not count in one of its views (not valid there, excluded or replaced, as at `evidence.record`, AK9), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5) with a view not given. The core is checked like a variant when it is given or named; a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent` (SR-173). */
+  readonly variant?: readonly View[];
+  /** Only with `variant` (else `input.invalid` with `details.reason` `skip-without-views`): an element that applies in none of the given views is left out of the test case instead of refusing it (SR-029 AK11): it gets no `reqseq:element`, `reqseq:version` or `reqseq:criterion`, and a test case with no element left stays unchanged; `notInView` counts these. An element that applies in some of them is enriched, and its records count only where it applies. Default false: such a test case stays unchanged and is reported (AK9). */
+  readonly skipNotInView?: boolean;
   /** A template that finds a short ID written in another form in test case names, for names that cannot hold brackets, e.g. `{prefix}_{id}_ak{ak}` for `sr_348143_ak1` (SR-348143). `{prefix}` is a type prefix of the metamodel, `{id}` 6 to 32 hex digits, `{ak}` 1 to 9 digits, the number of the acceptance criterion written as `reqseq:criterion` (from 1 without leading zero, else the test case is not enriched); `{prefix}` and `{id}` once each, `{ak}` once at most and not next to `{id}`. The rest is literal text; `{{` and `}}` are braces, square brackets are refused. All of it is ASCII case-insensitive. A match starts and ends at a word boundary (the start or end of the name, a character that is not a letter or digit, or the start of a camel case word) and is looked for in the name outside `[...]` only, not in the class name. It adds to the bracket form and the `reqseq:element` property; a short ID it finds that names no element, or several, is listed in `unknown`. */
   readonly namePattern?: string;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
@@ -3285,7 +3334,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item and date, so the file is test evidence. Test cases with an unknown reference or a variant that does not fit are listed, and the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -3293,6 +3342,8 @@ export interface EvidenceEnrichJunitOutput {
   readonly testCases: number;
   /** The test cases that name no element: no `reqseq:element` property and no name token or pattern match that names one (a pytest parameter list counts here). Test cases enriched already, listed in `unknown` or refused are not counted. Information only: it does not change the exit code. */
   readonly withoutReference: number;
+  /** With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11). Information only: it does not change the exit code. */
+  readonly notInView: number;
   /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
   readonly unknown: readonly {
     /** The `name` of the test case. */

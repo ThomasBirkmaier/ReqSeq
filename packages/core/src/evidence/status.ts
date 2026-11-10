@@ -270,6 +270,28 @@ export const ownVerificationOf = (
   };
 };
 
+/**
+ * The status of each acceptance criterion of an element in `view` (SR-031, the rule of
+ * `ownVerificationOf`), criterion n at position n - 1; with `count` 0 one status for the whole
+ * requirement (AK7). The rows of `evidence.list`'s `display` name the views by it (SR-032 AK4), so they
+ * agree with the status by construction. One pass over the records.
+ */
+export const criterionStatusesOf = (
+  records: readonly EvidenceRecord[],
+  current: VersionForms | undefined,
+  view: View,
+  independent: boolean,
+  count: number,
+): RecordVerificationStatus[] => {
+  if (count === 0) {
+    const status = recordStatusOf(records, "verification", current, view, independent);
+    // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
+    return [status === "passed" ? "verified" : (status as RecordVerificationStatus)];
+  }
+  const { all, named } = talliesOf(records, current, view, independent, count);
+  return Array.from({ length: count }, (_, i) => criterionStatus(all, named?.get(i + 1)));
+};
+
 /** The tallies of the verification records of an element in a view (`ownVerificationOf`). */
 interface Tallies {
   /** The records that name no criterion. */

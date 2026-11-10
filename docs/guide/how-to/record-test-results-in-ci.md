@@ -5,7 +5,7 @@ sidebar:
   order: 4.2
 ---
 
-After the tests, the pipeline runs one line per JUnit file, `reqseq evidence enrich-junit results.xml "$BUILD" --workspace "$REQSEQ_WORKSPACE" --output "$REQSEQ_WORKSPACE/evidence/ci/results-$BUILD.xml"`, as in the snippets below; nothing else connects the test tool. In PowerShell, write `$env:BUILD` for `$BUILD`. The machine needs the `reqseq` command line on its path ([Install ReqSeq](/how-to/install-reqseq/)) and a checkout of the workspace at the state the tests test against.
+After the tests, the pipeline runs one line per JUnit file, `reqseq evidence enrich-junit results.xml "$BUILD" --workspace "$REQSEQ_WORKSPACE" --output "$REQSEQ_WORKSPACE/evidence/ci/results-$BUILD.xml"`, as in the snippets below. In PowerShell, write `$env:BUILD` for `$BUILD`. The machine needs the `reqseq` command line on its path ([Install ReqSeq](/how-to/install-reqseq/)) and a checkout of the workspace at the state the tests test against.
 
 - `results.xml` is the JUnit file of the test tool, and `$BUILD` what was tested (the item under test), such as the build number or version.
 - `--workspace` is the folder with `reqseq-workspace.yaml`.
@@ -14,6 +14,8 @@ After the tests, the pipeline runs one line per JUnit file, `reqseq evidence enr
 The line exits with 1 when a test names an ID the workspace does not have, and lists those test cases, so the step fails; the other test cases are enriched all the same. A high `withoutReference` count may mean that tests name their requirement in a form ReqSeq does not read ([Name the requirement in a test](/how-to/name-the-requirement-in-a-test/)).
 
 Run the line once per JUnit file, each with its own `--output` name, for example `results-$BUILD-unit.xml` and `results-$BUILD-api.xml`: the same `--output` twice keeps only the last file, without a message. Tools that write a folder of files, such as Maven Surefire and Gradle, need one line per file or their option to write one file. A test case that was enriched once keeps its version, so running the line again on its output changes nothing.
+
+On a runner whose system is a variant, add `--variant core --variant <variant> --skip-not-in-view`: a result counts where its requirement applies, and one that applies in neither is left out ([Record evidence for a variant](/how-to/record-evidence-for-a-variant/)).
 
 The enriched file is evidence only once it is committed in the evidence folder: let the pipeline commit it where it may push to the requirements repository (`git add evidence/ci && git commit -m "Test results of $BUILD"`). ReqSeq never commits. A file kept only as a pipeline artifact is read once it is copied there.
 
@@ -86,7 +88,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 
 **When something goes wrong:**
 
-- `evidence.unknown-element`, exit 1: a test names an ID the workspace does not have. Check the spelling with `reqseq element list`, and that `--workspace` is the right checkout.
+- `evidence.unknown-element`, exit 1: check the spelling with `reqseq element list`, and that `--workspace` is the right checkout.
 - `evidence.not-enriched` in `workspace check` or `evidence status`: a JUnit file in the evidence folder that did not go through the line. Run it, or move the file out.
 - A requirement stays `open` although its test ran: the test case does not name it, the test was skipped, or the file is not in the evidence folder.
 - A requirement is `outdated`: it changed after its last test run; the next run records the new version. A test that ran twice gives two results, and the newest decides.
@@ -94,7 +96,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 
 ## App
 
-The pipeline step is the command line's. The app shows its result: **Show evidence status** lists the requirements with their status, also for a file a pipeline writes while the app is open.
+The app shows the result of the step: **Show evidence status** lists the requirements with their status, also for a file a pipeline writes while the app is open.
 
 ## CLI
 
@@ -143,6 +145,7 @@ reqseq evidence enrich-junit results.xml build-1 --workspace . --output evidence
 ```text title="Output"
 testCases: 1
 withoutReference: 0
+notInView: 0
 unknown: none
 files:
   evidence/ci/results-build-1.xml

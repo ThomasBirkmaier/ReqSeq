@@ -17,7 +17,7 @@ derives-from:
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:b20a6c9601d52cfe, title: Status von Nachweis und Validierung }
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n2:53ccd5c22e173820, title: Nachweise und Validierungen als Datensätze }
-  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:15bed38f1bb678ad, title: Ein offenes Format für Nachweis-Datensätze }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-04: AK3 an SR-172 angeglichen, das den Validierungsstatus nicht beurteilbar einführt."
 ---
 

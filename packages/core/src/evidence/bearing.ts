@@ -4,19 +4,15 @@
 // decides by), or, when none is of it, the newest of an older version. A record without `criteria`
 // counts for every criterion (SR-031 AK6), one that names criteria for those it names up to `count`
 // (a larger number for none, as the status); with `count` 0 (AK7) and for validation records, which
-// have no status per criterion, all records of the kind and variant form one group. One record bears
-// each group: when several share the newest date (a CI run dates all its test cases alike), the one the
-// status follows, a failed before an inconclusive before a passed one (the tie rule of `status.ts`),
-// then one that already bears another group, then the first in the list (core's order). In a repository
+// have no status per criterion, all records of the kind and variant form one group. Every record with
+// the newest date bears its group (a CI run dates all its test cases alike, so the whole run stays
+// open; SR-032 AK3 as of 2026-11-09); the status still follows `status.ts`. In a repository
 // marked `variant-independent` (SR-173) a variant's verification records are pooled with those without
 // variant, as its status pools them (`holdsIn`). Pure.
 import type { VersionForms } from "../model/index.js";
 import { instantOf } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
 import { ofVersion } from "./status.js";
-
-/** How a result wins a tie at the newest date (`status.ts`): lower first. */
-const RANK: Readonly<Record<EvidenceRecord["result"], number>> = { failed: 0, inconclusive: 1, passed: 2 };
 
 /** A record with its position in the list and its date as an instant. */
 interface Placed {
@@ -25,7 +21,7 @@ interface Placed {
   readonly time: number;
 }
 
-/** Marks in `bearing` the position of the record of `group` that bears their status (file comment). */
+/** Marks in `bearing` the positions of the records of `group` that bear their status (file comment). */
 const markNewest = (
   group: readonly Placed[],
   current: VersionForms | undefined,
@@ -34,21 +30,10 @@ const markNewest = (
   const deciding = group.filter(({ record }) => ofVersion(record, record.kind, current));
   const from = deciding.length > 0 ? deciding : group;
   const newest = from.reduce((max, { time }) => Math.max(max, time), Number.NEGATIVE_INFINITY);
-  // Lower first; of equal ones the first in the list.
-  const order = ({ record, at }: Placed): number => RANK[record.result] * 2 + (bearing.has(at) ? 0 : 1);
-  let best: Placed | undefined;
   for (const placed of from) {
-    if (
-      placed.time === newest &&
-      (best === undefined ||
-        order(placed) < order(best) ||
-        (order(placed) === order(best) && placed.at < best.at))
-    ) {
-      best = placed;
+    if (placed.time === newest) {
+      bearing.add(placed.at);
     }
-  }
-  if (best !== undefined) {
-    bearing.add(best.at);
   }
 };
 
