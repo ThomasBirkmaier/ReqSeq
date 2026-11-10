@@ -26,6 +26,12 @@ beforeEach(async () => {
       "utf16be.json": utf16('{"title":"Größe 測試"}', true),
       "odd.json": Buffer.from([0xfe, 0xff, 0x00, 0x7b, 0x00]),
       "odd-le.json": Buffer.from([0xff, 0xfe, 0x7b, 0x00, 0x7d]),
+      // One byte of a UTF-16 byte order mark only, first or second: UTF-8 (0xff and 0xfe are no
+      // UTF-8, so U+FFFD).
+      "half-le.md": Buffer.from([0xff, 0x41, 0x42, 0x43]),
+      "half-be.md": Buffer.from([0xfe, 0x41, 0x42, 0x43]),
+      "half-le-2.md": Buffer.from([0x41, 0xfe, 0x42, 0x43]),
+      "half-be-2.md": Buffer.from([0x41, 0xff, 0x42, 0x43]),
       "sub/list.json": "[1]",
       "text.md": "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n",
       "cond.json": '{"status":["draft"]}',
@@ -394,6 +400,11 @@ describe("buildInput", () => {
     expect(await read("@text.md")).toEqual({ text: "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n" });
     expect(await read("-", Readable.from([utf16("Größe", false)]))).toEqual({ text: "Größe" });
     expect(await read("inline @ text")).toEqual({ text: "inline @ text" });
+    // A file whose first two bytes hold only one byte of a UTF-16 byte order mark is UTF-8.
+    expect(await read("@half-le.md")).toEqual({ text: "\uFFFDABC" });
+    expect(await read("@half-be.md")).toEqual({ text: "\uFFFDABC" });
+    expect(await read("@half-le-2.md")).toEqual({ text: "A\uFFFDBC" });
+    expect(await read("@half-be-2.md")).toEqual({ text: "A\uFFFDBC" });
     expect((await rejection(read("@nothing.md"))).message).toBe("Cannot read the input file nothing.md");
     const twice = await rejection(read("-", Readable.from(['{"a":1}']), "-"));
     expect(twice.toJSON()).toEqual({
