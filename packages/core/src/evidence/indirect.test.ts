@@ -8,7 +8,7 @@ import type { ElementRecord } from "../model/index.js";
 import { isEmergent } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
-import type { ChildRules, VerificationResult } from "./indirect.js";
+import type { ChildRules, VerificationResult, ViewScope } from "./indirect.js";
 import { validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
@@ -73,6 +73,8 @@ interface Setup {
   readonly independent?: ReadonlySet<string>;
   /** The count of acceptance criteria of an element; 0 for all others (SR-031, D-072). */
   readonly criteria?: ReadonlyMap<ElementRecord, number>;
+  /** The views, from the views by validity alone. */
+  readonly scope?: (byValidity: ViewScope) => ViewScope;
 }
 
 const evaluator = (setup: Setup) => {
@@ -93,7 +95,7 @@ const evaluator = (setup: Setup) => {
     source,
     setup.noRules === true ? undefined : rules(setup.children ?? new Map()),
     (e) => forms(versions.has(e) ? versions.get(e) : CURRENT),
-    validityScope(source.validity),
+    (setup.scope ?? ((byValidity) => byValidity))(validityScope(source.validity)),
   );
 };
 
@@ -521,5 +523,44 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(evaluate(b, CORE)).toEqual({ status: "open", missingChildren: [a.id] });
     expect(evaluate(a, CORE)).toEqual({ status: "open" });
     expect(evaluate(top, CORE)).toEqual({ status: "open", missingChildren: [a.id] });
+  });
+});
+
+describe("the seeds below an element (ThomasBirkmaier/ReqSeq-archive#698)", () => {
+  it("a parent's seeds do not leak into a child's: a child without seed of a variant is not walked there", () => {
+    // P has the children A (a record for V) and B (a record for W), A the child A1 without records.
+    // P's seeds are A's and B's; A's must stay its own, or A would be walked in W.
+    const W = `${P}0c002`;
+    const inW: View = { kind: "variant", variant: { id: W, repository: "system" } };
+    const parent = element();
+    const a = element();
+    const a1 = element();
+    const b = element();
+    const askedInW: ElementRecord[] = [];
+    const evaluate = evaluator({
+      children: new Map([
+        [parent, [a, b]],
+        [a, [a1]],
+      ]),
+      records: [record(a, "passed", { variant: V }), record(b, "passed", { variant: W })],
+      scope: (byValidity) => ({
+        ...byValidity,
+        includesIn: (view) => {
+          const includes = byValidity.includesIn(view);
+          return view.kind === "variant" && view.variant.id === W
+            ? (e) => {
+                askedInW.push(e);
+                return includes(e);
+              }
+            : includes;
+        },
+      }),
+    });
+    expect(evaluate(parent, inW)).toEqual({ status: "open", missingChildren: [a.id] });
+    expect(evaluate(a, inW)).toEqual({ status: "open", missingChildren: [a1.id] });
+    expect(evaluate(b, inW)).toEqual({ status: "verified" });
+    expect(evaluate(a, IN_V)).toEqual({ status: "verified" });
+    // A's subtree holds no seed of W: its result there is the neutral one, A1 is never asked in W.
+    expect(askedInW).not.toContain(a1);
   });
 });
