@@ -15,11 +15,11 @@ packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 derives-from:
   - { id: 6ad39e3f-7e60-4366-8cc6-f01bd8691823, version: n1:b82714cd69ef89ec, title: Abdeckung über Werkzeuggrenzen }
-  - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:b20a6c9601d52cfe, title: Status von Nachweis und Validierung }
+  - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n2:b080b82a30d57303, title: Status von Nachweis und Validierung }
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n2:53ccd5c22e173820, title: Nachweise und Validierungen als Datensätze }
-  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:15bed38f1bb678ad, title: Ein offenes Format für Nachweis-Datensätze }
-  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:f54135246b68ac5a, title: Nachweisstatus je Akzeptanzkriterium }
+  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:7ad54b00f062ca52, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:6ee1dcf2cf64f9cc, title: Nachweisstatus je Akzeptanzkriterium }
 ---
 
 Das Tool muss Datensätze für manuelle Tests, Inspektionen, Analysen, Demonstrationen und Validierungen erfassen lassen.

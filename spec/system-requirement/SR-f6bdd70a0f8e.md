@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Lücken in der Matrix nur bei erwarteten Beziehungen zeigen
 spec-id: SR-153
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Die Matrix wertet heute jede leere Zelle als Lücke (SR-125 AK3). Ein Anteil unter 100 % in der Spalte „Refines“ sieht deshalb nach einer Lücke aus, obwohl ein System Requirement kein anderes verfeinern muss. Als Lücke soll nur gelten, was das Metamodell als Mindestzahl verlangt (SR-152); das ersetzt SR-125 AK3. Eingetragen in Später."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Die Matrix wertet heute jede leere Zelle als Lücke (SR-125 AK3). Ein Anteil unter 100 % in der Spalte „Refines“ sieht deshalb nach einer Lücke aus, obwohl ein System Requirement kein anderes verfeinern muss. Als Lücke soll nur gelten, was das Metamodell als Mindestzahl verlangt (SR-152); das gilt statt SR-125 AK3."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben das Metamodell legt für eine Beziehungsart eine Mindestzahl ab 1 für den Typ einer Zeile und einen Ziel-Typ fest, wenn die Matrix angezeigt wird, dann ist die Zelle dieser Zeile in der Spalte dieser Beziehungsart als Lücke gekennzeichnet, wenn sie eine dieser Mindestzahlen unterschreitet, und über der Spalte stehen Anzahl und Anteil der Zeilen, die alle Mindestzahlen dieser Beziehungsart erfüllen.
@@ -14,7 +14,7 @@ packages:
   - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:4585916724ff3a77, title: Traceability }
 verification-method: test
 refines:
-  - { id: fc803465-d4c0-477c-9907-fd8f4bce5508, version: n1:f3bbcb41b6193944, title: Traceability-Matrix einer Auswahl zeigen }
+  - { id: fc803465-d4c0-477c-9907-fd8f4bce5508, version: n2:12de8ce6ab97cc66, title: Traceability-Matrix einer Auswahl zeigen }
   - { id: 6f3fa565-e6b7-4799-99b4-e8d0c814f71b, version: n1:1c52957809bfed5b, title: Anzahl der Beziehungen im Metamodell begrenzen }
 derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }

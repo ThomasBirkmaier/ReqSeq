@@ -7,7 +7,7 @@ synonyms:
   - "Report"
   - "Visualisierung"
 distinct-from:
-  - { id: 6ad4f97f-b653-4f85-8070-3e73f5936b05, version: n1:f427c68ee36b5712, title: Sicht }
+  - { id: 6ad4f97f-b653-4f85-8070-3e73f5936b05, version: n1:f427c68ee36b5712, title: Ansicht }
 ---
 
-Darstellung in einem anderen Werkzeug, nicht im Tool. Darstellungen im Tool sind eine Sicht.
+Darstellung in einem anderen Werkzeug, nicht im Tool. Darstellungen im Tool sind eine Ansicht.
