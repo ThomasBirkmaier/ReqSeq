@@ -1,11 +1,11 @@
 ---
 title: Remove a draft
-description: Remove an element that was never approved and is in no baseline, without leaving links to it behind.
+description: Remove a draft that was never approved and is in no baseline, without leaving links to it behind.
 sidebar:
   order: 6
 ---
 
-ReqSeq never deletes an element: one that was approved or is in a baseline is replaced with **Supersede element** (`reqseq element supersede`), so its history stays. A draft that was never approved and is in no baseline you can remove yourself with Git, in three steps:
+ReqSeq never deletes an element: one that was approved or is in a baseline is replaced with **Supersede element** (`reqseq element supersede`), so its history stays. An element in status Draft that never had status Approved and is in no baseline you can remove yourself with Git, in three steps:
 
 1. Find the elements that link to it and remove those links.
 2. Remove its file with `git rm`, or delete the file if Git does not track it yet.
