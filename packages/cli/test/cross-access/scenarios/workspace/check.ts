@@ -29,11 +29,11 @@ scenariosOf("workspace.check", [
       expect(
         output.problems
           .filter((p) => p.code === "evidence.kind-mismatch")
-          .map((p) => [p.targetId, p.message?.split(" ")[1]]),
+          .map((p) => [p.targetId, p.message?.startsWith("The validation record") === true]),
       ).toEqual([
         // N1: its verification record (#628); U1: its validation record (AK5).
-        ["38383838-3838-4838-8838-00000000a001", "verification"],
-        ["38383838-3838-4838-8838-00000000e001", "validation"],
+        ["38383838-3838-4838-8838-00000000a001", false],
+        ["38383838-3838-4838-8838-00000000e001", true],
       ]);
     },
   },

@@ -3226,7 +3226,7 @@ export interface EvidenceListOutput {
       /** The baselines every shown record names, in the same order. */
       readonly baselines?: readonly string[];
     };
-    /** AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them. */
+    /** AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them (SR-038 AK5). */
     readonly rows: readonly {
       /** Whether the row shows verification or validation records. */
       readonly kind: "verification" | "validation";
@@ -3694,7 +3694,7 @@ export interface BaselineGetOutput {
       /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
       readonly later?: readonly DataExportEvidenceRecord[];
     }[];
-    /** With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
+    /** With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record (SR-038 AK5, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
     readonly validation?: ValidationStatus;
     /** With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2). */
     readonly validationReason?: string;

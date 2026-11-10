@@ -89,7 +89,7 @@
           },
           "rows": {
             "type": "array",
-            "description": "AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them.",
+            "description": "AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them (SR-038 AK5).",
             "items": {
               "type": "object",
               "description": "One line of the Evidence section (SR-032 AK4): an acceptance criterion, the whole requirement without criteria, or the validation.",

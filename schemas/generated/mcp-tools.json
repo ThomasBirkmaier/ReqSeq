@@ -7530,7 +7530,7 @@
               },
               "rows": {
                 "type": "array",
-                "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them.",
+                "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them.",
                 "items": {
                   "type": "object",
                   "description": "One line of the Evidence section: an acceptance criterion, the whole requirement without criteria, or the validation.",
@@ -8796,7 +8796,7 @@
                 },
                 "validation": {
                   "$ref": "#/$defs/common/$defs/validationStatus",
-                  "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for any other with a validation record: the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+                  "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record: the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
                 },
                 "validationReason": {
                   "type": "string",

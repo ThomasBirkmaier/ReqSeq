@@ -158,8 +158,8 @@ export interface WorkspaceStatus {
   ) => Promise<void>;
   readonly evaluate: VerificationEvaluator;
   /**
-   * The validation status of `element` (SR-038): for a need, and for any other element with a
-   * counted validation record (ThomasBirkmaier/ReqSeq-archive#534 assumption); undefined otherwise. Measured against `shown.current`
+   * The validation status of `element` (SR-038): for a need, and for a requirement with a counted
+   * validation record; undefined otherwise (AK5). Measured against `shown.current`
    * when given (also when that is undefined, ThomasBirkmaier/ReqSeq-archive#276), else against the version read by `prepare`
    * (`own`); `shown` is never kept. `inconclusive` comes with its reason (SR-172 AK2).
    */

@@ -17,7 +17,7 @@
 //   are read from it (SR-031): the element's own when the baseline holds its current version, else
 //   from the start of that version in Git (`versionDatesAndValues`, the walk of the version dates,
 //   page only), counted as `evidence.status` counts them (`baselineStatusOf`).
-// - Validation (AK7): for a need and any other element with a validation record of the core of any
+// - Validation (AK7): for a need and a requirement with a validation record of the core of any
 //   date (the rule of `hasValidationStatus`, SR-038 as `WorkspaceStatus.validate`, found in the
 //   same pass), without view.
 // - Later (AK2): the records of the baseline version that hold in a row's view (validation: the
