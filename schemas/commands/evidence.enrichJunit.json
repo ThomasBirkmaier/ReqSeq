@@ -2,7 +2,7 @@
   "name": "evidence.enrichJunit",
   "title": "Enrich JUnit file",
   "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
-  "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views.",
+  "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
@@ -42,7 +42,7 @@
       },
       "skipNotInView": {
         "type": "boolean",
-        "description": "Only with `variant` (else `input.invalid` with `details.reason` `skip-without-views`): an element that applies in none of the given views is left out of the test case instead of refusing it (SR-029 AK11): it gets no `reqseq:element`, `reqseq:version` or `reqseq:criterion`, and a test case with no element left stays unchanged; `notInView` counts these. An element that applies in some of them is enriched, and its records count only where it applies. Default false: such a test case stays unchanged and is reported (AK9)."
+        "description": "Only with `variant` (else `input.invalid` with `details.reason` `skip-without-views`): an element that applies in none of the given views is left out of the test case instead of refusing it (SR-029 AK11): it gets no `reqseq:element`, `reqseq:version` or `reqseq:criterion`, and `notInView` counts these. A test case with no element left gets no requirement but one `reqseq:not-in-view` property per given view, the variant's UUID or `core`, in the order given (AK12); its name and other properties stay. A run with the same views leaves such a mark as it is, one with other views rewrites it, and a run that enriches the test case removes it. The JUnit reader passes over a marked test case without `evidence.not-enriched` (SR-093 AK6). An element that applies in some of them is enriched, and its records count only where it applies. Default false: such a test case stays unchanged and is reported (AK9)."
       },
       "namePattern": {
         "type": "string",
@@ -75,7 +75,7 @@
       "notInView": {
         "type": "integer",
         "minimum": 0,
-        "description": "With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11). Information only: it does not change the exit code."
+        "description": "With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11); a test case with no element left is marked (AK12, see `skipNotInView`). Information only: it does not change the exit code."
       },
       "unknown": {
         "type": "array",

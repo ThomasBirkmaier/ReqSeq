@@ -412,6 +412,58 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
+  it("[SR-093/AK6] passes over a test case enrich marked as not applying in the given views, without the not-enriched warning", () => {
+    const mark = (value: string): readonly [string, string] => ["reqseq:not-in-view", value];
+    const handWritten: (readonly [string, string])[] = [
+      ["reqseq:element", "SR-46fb54"],
+      ["reqseq:criterion", "SR-46fb54:2"],
+    ];
+    const read = readJunitRecords(
+      AT,
+      suite(
+        [
+          testCase("[SR-46fb54] marked", [mark("core"), mark(VARIANT)]),
+          testCase("hand-written", [...handWritten, mark("CORE"), mark(VARIANT.toUpperCase())]),
+          // Skipped and marked: no record and no skipped test case either (SR-033 AK3 holds for enriched ones).
+          testCase("[SR-46fb54] skipped", [mark("core")], "<skipped/>"),
+          testCase("[SR-46fb54] enriched", enriched()),
+        ].join("\n"),
+      ),
+    );
+    expect(read.problems).toBeUndefined();
+    expect(read.skipped).toBeUndefined();
+    expect(read.records.map((r) => r.testCase)).toEqual(["[SR-46fb54] enriched"]);
+  });
+
+  it("refuses a mark that names no view, and a mark on an enriched test case, at the line of the test case", () => {
+    const read = readJunitRecords(
+      AT,
+      suite(
+        [
+          testCase("[SR-46fb54] bad", [["reqseq:not-in-view", "VAR-0000c1"]]),
+          testCase("enriched", [...enriched(), ["reqseq:not-in-view", "core"]]),
+          // A test case that names no requirement is passed over, its marks unread (SR-093 AK2).
+          testCase("names nothing", [["reqseq:not-in-view", "x"]]),
+          testCase("[SR-46fb54] plain", []),
+        ].join("\n"),
+      ),
+    );
+    expect(read.records).toEqual([]);
+    expect(read.problems?.map((p) => [p.code, p.line, p.message])).toEqual([
+      [
+        "evidence.invalid-record",
+        3,
+        'Test case "[SR-46fb54] bad" is not read: reqseq:not-in-view "VAR-0000c1" is not a UUID or core',
+      ],
+      [
+        "evidence.invalid-record",
+        4,
+        'Test case "enriched" is not read: reqseq:not-in-view is given on an enriched test case: it marks only a test case that enrich left out',
+      ],
+      ["evidence.not-enriched", 6, expect.stringMatching(/^1 test case\(s\) name a requirement/)],
+    ]);
+  });
+
   it("an error counts as failed, as a failure does", () => {
     const read = readJunitRecords(
       AT,
@@ -445,7 +497,7 @@ describe("JUnit reader (SR-093)", () => {
           file: "ci/results.xml",
           line: 1,
           message:
-            "2 test case(s) name a requirement but have no reqseq:version, so they give no record: enrich the file with reqseq evidence enrich-junit, unless enrich-junit --skip-not-in-view left them out because their requirements apply in none of the given views",
+            "2 test case(s) name a requirement but have no reqseq:version, so they give no record: enrich the file with reqseq evidence enrich-junit",
         },
       ],
     });

@@ -912,7 +912,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     });
     const written = properties(result.bytes);
     // SR-036 applies only in Mountain: no element, version or criterion for it; the test case that
-    // names nothing else stays as it was.
+    // names nothing else gets only the marks of the given views (AK12).
     expect(written["[SR-46fb54] [SR-036] login and spec"]).toEqual([
       `reqseq:element=${LOGIN}`,
       `reqseq:version=${V[LOGIN]}`,
@@ -921,7 +921,10 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       "reqseq:item=build-1",
       `reqseq:date=${DATE}`,
     ]);
-    expect(written["[SR-036/AK2] spec only"]).toEqual([]);
+    expect(written["[SR-036/AK2] spec only"]).toEqual([
+      "reqseq:not-in-view=core",
+      `reqseq:not-in-view=${COAST}`,
+    ]);
     // Each applies in one of the views: both enriched, each record counts only where it applies.
     expect(written["[SR-0b0036] [SR-0c0037] one view each"]?.slice(0, 2)).toEqual([
       `reqseq:element=${REPORT}`,
@@ -982,6 +985,176 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       'Test case "some" (line 1) does not fit: SR-0b0036 is excluded in VAR-0aaaaa',
       'Test case "none" (line 1) does not fit: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
     ]);
+  });
+
+  it("[SR-029/AK12] with skipNotInView marks a test case whose requirements apply in none of the given views with each of them, keeps the rest of it, and a re-run changes nothing", async () => {
+    const xml =
+      "<testsuite>\r\n" +
+      '  <testcase name="[SR-036/AK2] spec">\r\n' +
+      "    <properties>\r\n" +
+      `      ${prop("reqseq:element", "SR-036")}\r\n` +
+      `      ${prop("reqseq:criterion", "SR-036:2")}\r\n` +
+      "    </properties>\r\n  </testcase>\r\n" +
+      '  <testcase name="[SR-036] inline"/>\r\n' +
+      '  <testcase name="[SR-46fb54] login"/>\r\n' +
+      "</testsuite>\r\n";
+    const views = [GIVEN_CORE, GIVEN_COAST];
+    const result = await enrich(xml, { views, skipNotInView: true });
+    expect(result).toMatchObject({ changed: true, problems: [], testCases: 1, notInView: 2 });
+    const core = prop("reqseq:not-in-view", "core");
+    const coast = prop("reqseq:not-in-view", COAST);
+    expect(text(result)).toBe(
+      "<testsuite>\r\n" +
+        '  <testcase name="[SR-036/AK2] spec">\r\n' +
+        "    <properties>\r\n" +
+        `      ${prop("reqseq:element", "SR-036")}\r\n` +
+        `      ${prop("reqseq:criterion", "SR-036:2")}\r\n` +
+        `      ${core}\r\n      ${coast}\r\n` +
+        "    </properties>\r\n  </testcase>\r\n" +
+        `  <testcase name="[SR-036] inline"><properties>${core}${coast}</properties></testcase>\r\n` +
+        `  <testcase name="[SR-46fb54] login"><properties>${four(LOGIN, V[LOGIN]).replace(prop("reqseq:item", "build-1"), prop("reqseq:variant", "core") + prop("reqseq:variant", COAST) + prop("reqseq:item", "build-1"))}</properties></testcase>\r\n` +
+        "</testsuite>\r\n",
+    );
+    // The same views again: nothing changes, and the marked test cases still count as left out.
+    const again = await enrich(result.bytes, { views, skipNotInView: true });
+    expect(again).toMatchObject({ changed: false, problems: [], testCases: 1, notInView: 2 });
+    expect(again.bytes).toBe(result.bytes);
+    // The reader passes over the marked test cases (SR-093 AK6).
+    const read = readJunitRecords({ repository: "system", file: "results.xml" }, result.bytes);
+    expect(read.problems).toBeUndefined();
+    expect(read.records.map((r) => r.testCase)).toEqual(["[SR-46fb54] login", "[SR-46fb54] login"]);
+  });
+
+  it("[SR-029/AK12] writes the core as a mark when it is the only given view", async () => {
+    const result = await enrich(suite('<testcase name="[SR-036] spec"/>'), {
+      views: [GIVEN_CORE],
+      skipNotInView: true,
+    });
+    expect(result).toMatchObject({ changed: true, problems: [], testCases: 0, notInView: 1 });
+    expect(properties(result.bytes)["[SR-036] spec"]).toEqual(["reqseq:not-in-view=core"]);
+  });
+
+  it("rewrites the marks of a test case left out for other views, in place, and leaves the same set in any order or case (AK12)", async () => {
+    const marked = (...values: string[]): string =>
+      suite(
+        `<testcase name="[SR-036] spec"><properties>${prop("x", "1")}${values.map((v) => prop("reqseq:not-in-view", v)).join("")}${prop("y", "2")}</properties></testcase>`,
+      );
+    const run = (xml: string, views: EnrichOptions["views"]): Promise<EnrichResult> =>
+      enrich(xml, { views, skipNotInView: true });
+    const marksOf = (result: EnrichResult): string[] | undefined => properties(result.bytes)["[SR-036] spec"];
+    for (const [values, views] of [
+      [
+        [COAST, "core"],
+        [GIVEN_CORE, GIVEN_COAST],
+      ],
+      [
+        ["CORE", COAST.toUpperCase()],
+        [GIVEN_CORE, GIVEN_COAST],
+      ],
+      [["core", "core"], [GIVEN_CORE]],
+    ] as const) {
+      const same = await run(marked(...values), views);
+      expect(same.changed, values.join()).toBe(false);
+    }
+    // Another set: replaced in place, extra ones removed, missing ones after the last mark.
+    expect(marksOf(await run(marked("core"), [GIVEN_COAST]))).toEqual([`reqseq:not-in-view=${COAST}`]);
+    expect(marksOf(await run(marked("core", COAST), [GIVEN_CORE]))).toEqual(["reqseq:not-in-view=core"]);
+    expect(marksOf(await run(marked("core"), [GIVEN_CORE, GIVEN_COAST]))).toEqual([
+      "reqseq:not-in-view=core",
+      `reqseq:not-in-view=${COAST}`,
+    ]);
+    expect(marksOf(await run(marked("bogus", "core"), [GIVEN_CORE]))).toEqual(["reqseq:not-in-view=core"]);
+    const between = await run(marked("core"), [GIVEN_CORE, GIVEN_COAST]);
+    expect(text(between)).toContain(
+      `${prop("x", "1")}${prop("reqseq:not-in-view", "core")}${prop("reqseq:not-in-view", COAST)}${prop("y", "2")}`,
+    );
+    // A mark without a value is replaced whole.
+    const bare = await run(
+      suite(
+        '<testcase name="[SR-036] spec"><properties><property name="reqseq:not-in-view"/></properties></testcase>',
+      ),
+      [GIVEN_CORE],
+    );
+    expect(marksOf(bare)).toEqual(["reqseq:not-in-view=core"]);
+  });
+
+  it("removes every mark of a test case it enriches: without given views, with views of which some apply, or with one in which it applies (AK12)", async () => {
+    const marks = prop("reqseq:not-in-view", "core") + prop("reqseq:not-in-view", COAST);
+    const xml = suite(
+      `<testcase name="[SR-036] spec"><properties>${marks}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] [SR-036] both"><properties>${marks}</properties></testcase>`,
+    );
+    const hasMark = (result: EnrichResult): boolean =>
+      Object.values(properties(result.bytes)).some((list) =>
+        list.some((p) => p.startsWith("reqseq:not-in-view=")),
+      );
+    const own = await enrich(xml);
+    expect(own).toMatchObject({ problems: [], testCases: 2 });
+    expect(hasMark(own)).toBe(false);
+    const partly = await enrich(xml, { views: [GIVEN_CORE, GIVEN_COAST], skipNotInView: true });
+    expect(partly).toMatchObject({ problems: [], testCases: 1, notInView: 2 });
+    expect(properties(partly.bytes)["[SR-46fb54] [SR-036] both"]).not.toContain("reqseq:not-in-view=core");
+    expect(properties(partly.bytes)["[SR-036] spec"]).toEqual([
+      "reqseq:not-in-view=core",
+      `reqseq:not-in-view=${COAST}`,
+    ]);
+    const mountain = await enrich(xml, { views: [GIVEN_MOUNTAIN], skipNotInView: true });
+    expect(mountain).toMatchObject({ problems: [], testCases: 2, notInView: 0 });
+    expect(hasMark(mountain)).toBe(false);
+  });
+
+  it("keeps the marks of a test case it refuses, reports or that names nothing, and refuses a mark on an enriched test case (AK12)", async () => {
+    const mark = prop("reqseq:not-in-view", "core");
+    const xml = suite(
+      `<testcase name="[SR-036] spec"><properties>${mark}</properties></testcase>` +
+        `<testcase name="nothing"><properties>${mark}</properties></testcase>` +
+        `<testcase name="dup"><properties>${prop("reqseq:element", "SR-dup")}${mark}</properties></testcase>` +
+        `<testcase name="kept"><properties>${four(LOGIN, V[LOGIN])}${mark}</properties></testcase>` +
+        '<testcase name="[SR-46fb54] login"/>',
+    );
+    // Without the option AK9 refuses it; the other test cases are still enriched and the file written.
+    const strict = await enrich(xml, { views: [GIVEN_CORE] });
+    expect(strict.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-036] spec" (line 1) is not enriched: SR-036 does not apply in core',
+      expect.stringContaining('"SR-dup" names more than one element'),
+      'Test case "kept" (line 1) is not enriched: reqseq:not-in-view is given on an enriched test case: it marks only a test case that enrich left out',
+    ]);
+    expect(strict).toMatchObject({ changed: true, testCases: 1, withoutReference: 1 });
+    const written = properties(strict.bytes);
+    expect(written["[SR-036] spec"]).toEqual(["reqseq:not-in-view=core"]);
+    expect(written["nothing"]).toEqual(["reqseq:not-in-view=core"]);
+    expect(written["dup"]).toEqual(["reqseq:element=SR-dup", "reqseq:not-in-view=core"]);
+    expect(written["kept"]).toContain("reqseq:not-in-view=core");
+  });
+
+  it("reads a test case left out back only with exactly the given marks and its other properties unchanged (AK12)", () => {
+    const wanted: Intended = {
+      kind: "left-out",
+      name: "[SR-036] a",
+      className: "",
+      outcome: "passed",
+      start: 0,
+      end: 0,
+      marks: ["core", COAST],
+      properties: [["x", "1"]],
+    };
+    const testCase = (body: string): Buffer =>
+      Buffer.from(`<testcase name="[SR-036] a"><properties>${body}</properties></testcase>`);
+    const core = prop("reqseq:not-in-view", "core");
+    const coast = prop("reqseq:not-in-view", COAST);
+    expect(readsBackAs(testCase(prop("x", "1") + core + coast), wanted)).toBe(true);
+    expect(readsBackAs(testCase(coast + prop("x", "1") + core), wanted)).toBe(true);
+    for (const body of [
+      prop("x", "1") + core,
+      prop("x", "1") + core + coast + core,
+      prop("x", "1") + core + prop("reqseq:not-in-view", MOUNTAIN),
+      prop("x", "1") + core + prop("reqseq:not-in-view", "bogus"),
+      prop("x", "2") + core + coast,
+      core + coast,
+      prop("x", "1") + core + coast + prop("reqseq:version", V[LOGIN]),
+    ]) {
+      expect(readsBackAs(testCase(body), wanted), body).toBe(false);
+    }
   });
 
   it("does nothing with skipNotInView without given views: AK9 holds for the views a test case names", async () => {

@@ -252,6 +252,42 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     ]);
   });
 
+  it("[SR-029/AK12] reqseq evidence enrich-junit --skip-not-in-view marks a test case of only another variant with each given view, and a re-run leaves the file byte for byte", async () => {
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-043/example",
+      files: {
+        "results/run.xml":
+          '<testsuites><testsuite name="s"><testcase name="[SR-0000b2] storm"/>' +
+          '<testcase name="[SR-0000a3] rain"/></testsuite></testsuites>',
+      },
+    });
+    fixtures.push(ws);
+    const args = [
+      "results/run.xml",
+      "build-1343",
+      "--date",
+      DATE,
+      "--variant",
+      "core",
+      "--variant",
+      "VAR-0000c2",
+      "--skip-not-in-view",
+      "--json",
+    ];
+    const run = await enrich(ws, args);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    expect(JSON.parse(run.stdout) as Output).toMatchObject({ testCases: 1, notInView: 1, problems: [] });
+    const written = await fs.readFile(ws.path("results/run.xml"));
+    expect(written.toString("utf8")).toContain(
+      '<testcase name="[SR-0000b2] storm"><properties><property name="reqseq:not-in-view" value="core"/>' +
+        '<property name="reqseq:not-in-view" value="43043043-0000-4000-8000-0000000000c2"/></properties></testcase>',
+    );
+    const again = await enrich(ws, args);
+    expect([again.code, again.stderr]).toEqual([0, ""]);
+    expect(JSON.parse(again.stdout) as Output).toMatchObject({ files: [], notInView: 1, problems: [] });
+    expect(await fs.readFile(ws.path("results/run.xml"))).toEqual(written);
+  });
+
   it("[SR-029/AK4] reqseq evidence enrich-junit prints the number of test cases that name no requirement", async () => {
     const ws = await open();
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE]);
