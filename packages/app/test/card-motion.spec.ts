@@ -30,7 +30,13 @@ interface Started {
   readonly from: string;
 }
 
-/** Records every animation of the card's parts from now on, in `window.started`. */
+/**
+ * Records every animation of the card's parts from now on, in `window.started`. Each one is taken when it
+ * is made, in the task that shows the card or its copy running back, not at its `animationstart`: on a
+ * slow runner that event comes after a frame in which the rise already ended, and an ended rise (fill
+ * `backwards`) is no longer among the element's animations (#1349). Each counts once it started (its
+ * `ready`), so a card gone before its first frame did not rise.
+ */
 const record = (window: Page): Promise<void> =>
   window.evaluate(() => {
     const started: Started[] = [];
@@ -41,35 +47,55 @@ const record = (window: Page): Promise<void> =>
       ["card-list", "list"],
       ["card", "card"],
     ] as const;
-    document.addEventListener(
-      "animationstart",
-      (event) => {
-        const target = event.target as HTMLElement;
-        const part = PARTS.find(([name]) => target.classList.contains(name))?.[1];
-        const animation = target
-          .getAnimations()
-          .find((one) => (one as CSSAnimation).animationName === event.animationName);
-        const effect = animation?.effect as KeyframeEffect | undefined;
-        if (part === undefined || animation === undefined || effect === undefined) {
-          return;
+    const made = new WeakSet<Animation>();
+    const take = (): void => {
+      for (const animation of document.getAnimations()) {
+        const effect = animation.effect as KeyframeEffect | null;
+        const target = effect?.target;
+        const part =
+          target instanceof HTMLElement
+            ? PARTS.find(([name]) => target.classList.contains(name))?.[1]
+            : undefined;
+        if (
+          made.has(animation) ||
+          effect === null ||
+          !(target instanceof HTMLElement) ||
+          part === undefined
+        ) {
+          continue;
         }
-        const timing = effect.getComputedTiming();
-        const [first] = effect.getKeyframes();
+        made.add(animation);
         const card = target.closest(".card") ?? target.nextElementSibling;
-        started.push({
-          part,
-          leaving: target.closest(".card-leaving") !== null,
-          nextKeys: (card?.querySelector(".next-keys") ?? null) !== null,
-          name: event.animationName,
-          duration: Number(timing.duration),
-          easing: String(first?.easing),
-          direction: String(timing.direction),
-          start: animation.startTime === null ? null : Number(animation.startTime),
-          from: String(first?.["transform"] ?? first?.["opacity"]),
-        });
-      },
-      true,
-    );
+        const leaving = target.closest(".card-leaving") !== null;
+        const nextKeys = (card?.querySelector(".next-keys") ?? null) !== null;
+        animation.ready.then(
+          () => {
+            const timing = effect.getComputedTiming();
+            const [first] = effect.getKeyframes();
+            started.push({
+              part,
+              leaving,
+              nextKeys,
+              name: (animation as CSSAnimation).animationName,
+              duration: Number(timing.duration),
+              easing: String(first?.easing),
+              direction: String(timing.direction),
+              start: animation.startTime === null ? null : Number(animation.startTime),
+              from: String(first?.["transform"] ?? first?.["opacity"]),
+            });
+          },
+          // Cancelled before it started: it never ran.
+          () => undefined,
+        );
+      }
+    };
+    // The card gets its `data-motion`, and the copy that runs back is added, before their first frame;
+    // `getAnimations` makes their animations then.
+    new MutationObserver(take).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributeFilter: ["data-motion"],
+    });
   });
 
 const started = (window: Page): Promise<Started[]> =>
