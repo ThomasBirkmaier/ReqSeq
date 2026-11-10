@@ -1,6 +1,7 @@
 // Tests for behaviour that the mutation run of ThomasBirkmaier/ReqSeq-archive#704 found untested in store.ts: the order of paths,
 // a file read again that did not parse before and after, with another result, and snapshots of a
-// write that differ from the store's in one field only.
+// write that differ from the store's in one field only. The run of 2026-11-09 (#1322) added a file
+// below a changed folder whose size or modification time alone changed (#1342).
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -53,6 +54,34 @@ describe("updating the element store file by file (SR-007)", () => {
     expect(next).toBeDefined();
     expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(problemsOf(next ?? before)).not.toEqual(problemsOf(before));
+  });
+
+  it("reads a file below a changed folder again when only its modification time or only its size changed (#1342)", async () => {
+    const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
+    const FILE = "requirements/SR-88cc6ebc472a.md";
+    const ws = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    onTestFinished(() => ws.cleanup());
+    const workspace = new Workspace(ws.root);
+    onTestFinished(() => workspace.close());
+    const layout = await workspace.get(workspaceLayoutState);
+    const before = await workspace.get(elementStoreState);
+    const titleIn = (store: ElementStore | undefined): unknown =>
+      store?.elements.find((e) => e.id === REQUIREMENT)?.data["title"];
+    // The watcher names the folder only, so the file is looked at by its size and time.
+    const folder = new Map([["system", { paths: ["requirements"] }]]);
+    const text = await fs.readFile(ws.path(FILE), "utf8");
+    // Whole seconds, so every file system stores the time exactly.
+    const later = new Date((Math.floor(Date.now() / 1000) + 60) * 1000);
+    // The same size, a new time.
+    await ws.write(FILE, text.replace("Show wind speed", "Show wind gusts"));
+    await fs.utimes(ws.path(FILE), later, later);
+    const sameSize = await updateElements(before, layout, folder);
+    expect(titleIn(sameSize)).toBe("Show wind gusts");
+    // Another size, the same time as before.
+    await ws.write(FILE, text.replace("Show wind speed", "Show the wind direction"));
+    await fs.utimes(ws.path(FILE), later, later);
+    const sameTime = await updateElements(sameSize ?? before, layout, folder);
+    expect(titleIn(sameTime)).toBe("Show the wind direction");
   });
 });
 
