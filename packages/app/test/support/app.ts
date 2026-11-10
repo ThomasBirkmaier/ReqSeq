@@ -41,6 +41,8 @@ const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url)
 const APP_FOLDER = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
+/** Node's compile cache of the CLI processes of this test run, shared by all launches (#1356). */
+const COMPILE_CACHE = path.join(os.tmpdir(), "reqseq-app-test-compile-cache");
 /** Fails every connection that leaves the machine in a spawned CLI, as in the CLI's end-to-end tests (SR-077). */
 const BLOCK_NETWORK = pathToFileURL(
   fileURLToPath(new URL("../../../../scripts/test-support/block-network.mjs", import.meta.url)),
@@ -364,6 +366,11 @@ export const launchApp = async (
     APPDATA: home,
     LOCALAPPDATA: home,
     ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
+    // Node's compile cache of the CLI is shared by all launches of the run, not one per home: with a new
+    // home the first CLI call of every test compiled ReqSeq from scratch, which on Windows took more than
+    // 15 s at times (#1356). It holds only compiled code (`compileCacheFolder`), so sharing it keeps the
+    // tests apart; the CLI keeps a NODE_COMPILE_CACHE that is set.
+    NODE_COMPILE_CACHE: COMPILE_CACHE,
   };
   const app = await electron.launch({
     executablePath: ELECTRON,
