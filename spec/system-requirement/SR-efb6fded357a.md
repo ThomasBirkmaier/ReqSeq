@@ -19,7 +19,7 @@ derives-from:
   - { id: 6adc6939-8613-4ad1-bcbe-36c978755079, version: n1:0aaaa75a8f382d15, title: Nachweisgrad einer Auswahl }
 based-on:
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
-  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:9f5afea8292bf01a, title: Baseline als Datei }
+  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:c39ce145802bd72b, title: Baseline als Datei }
   - { id: 6adc6920-0efc-478d-b91c-4ca42caaa8a8, version: n2:e84656cd8b820df6, title: Paket als Element }
 ---
 

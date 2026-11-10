@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Export an die Quelle in ihrem Modell schreiben
 spec-id: SR-158
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können. Eingetragen in Später."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können."
 requirement-type: interface
 acceptance-criteria:
   - Gegeben importierte Requirements einer Quelle und ihre gespeicherte Zuordnung, wenn sie im Modell der Quelle an die Quelle exportiert werden, dann tragen SPEC-OBJECT-TYPE, ATTRIBUTE-DEFINITION und Datentyp jeweils den IDENTIFIER und den LONG-NAME der Quelle und jedes Requirement seinen ursprünglichen IDENTIFIER.

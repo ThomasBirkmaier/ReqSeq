@@ -162,7 +162,12 @@ properties:
     choices:
       - { key: fachlich, name: Fachlich }
       - { key: tool-entwicklung, name: Tool-Entwicklung }
-  - { key: synonyms, name: Synonyms, kind: text, many: true }
+  # The description of synonyms follows the product owner decision, 2026-11-10 (#1300, B-31).
+  - key: synonyms
+    name: Synonyms
+    kind: text
+    many: true
+    description: "Ein Synonym ist ein gleichbedeutendes Wort für den Begriff; es darf in der Spec stehen, aber nur in dieser Bedeutung."
   - key: do-not-use
     name: Do not use
     kind: choice

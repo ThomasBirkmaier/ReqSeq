@@ -1,0 +1,12 @@
+---
+id: ab08f733-17e9-43fe-bcf6-cfbc00c26e7c
+type: glossary-term
+title: Validierungsstatus
+area: fachlich
+packages:
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
+distinct-from:
+  - { id: 0d5a8379-b25c-4218-9d4a-fe1e9bc4c235, version: n2:1ade91d7c49ecee5, title: Status }
+---
+
+Vom Tool aus den Datensätzen berechneter Stand der Validierung eines Needs oder Requirements: offen, erfolgreich, nicht erfolgreich, nicht beurteilbar oder veraltet ([SR-038](reqseq:6adc6c4a-6284-4d56-93b7-86aecd1b44e4?version=n2:391d4852d22be280), [SR-172](reqseq:8b5c50e8-1c2f-4e5b-9ebf-8d7e4cc20809?version=n2:177f57caa3e13c06)). Er ist kein Status, den ein Mensch setzt.
