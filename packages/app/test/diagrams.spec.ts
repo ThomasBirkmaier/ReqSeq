@@ -402,5 +402,9 @@ test.describe("diagrams in the editor", () => {
       await window.keyboard.press("ControlOrMeta+a");
       await window.keyboard.press("Backspace");
     }
+    // The empty text is saved before the window closes. A drawing that still holds the main thread would
+    // hold the save before the close past main's 2 s, and the window would stay open (#1310).
+    await expect(content.locator("img.cm-lr-diagram")).toHaveCount(0);
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified", { timeout: 30_000 });
   });
 });
