@@ -173,6 +173,9 @@ const fixture = async (git?: readonly string[]): Promise<FixtureWorkspace> => {
 const execError = (message: string, props: Record<string, unknown>): Error =>
   Object.assign(new Error(message), props);
 
+/** The answer of a git run that timed out. */
+const TIMEOUT: Fake = { error: execError("Command failed", { killed: true }) };
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
@@ -736,6 +739,13 @@ describe("file moves", () => {
       known: false,
       reason: "not-a-repository",
     });
+    // The run after the partial-clone check fails: its own reason, not a parse of its output.
+    mock.fake = TIMEOUT;
+    expect(await fileMoves(ws.path("plain"), [commit])).toEqual({
+      known: false,
+      reason: "timeout",
+      detail: "Command failed",
+    });
     mock.fake = { stdout: "b.md\0" };
     expect(await fileMoves(ws.path("plain"), [commit])).toEqual({
       known: false,
@@ -1194,6 +1204,13 @@ describe("commits and changes since a commit (SR-092)", () => {
         ? { error: execError("Command failed", { killed: true, signal: "SIGKILL" }) }
         : undefined;
     expect(await changedPaths(folder, first)).toMatchObject({ known: false, reason: "timeout" });
+    // The changes run fails while the untracked files are listed: its reason, not its output.
+    mock.fake = (args) => (args.includes("diff") ? TIMEOUT : undefined);
+    expect(await changedPaths(folder, first)).toEqual({
+      known: false,
+      reason: "timeout",
+      detail: "Command failed",
+    });
     await expect(changedPaths(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
   });
 });
@@ -1367,6 +1384,13 @@ describe("a repository folder below the top level of its work tree (ThomasBirkma
     expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md"])).toMatchObject({
       known: false,
       reason: "timeout",
+    });
+    // The prefix is known and the history run fails: its own reason, not a parse of its output.
+    mock.fake = (args) => (args.includes("log") ? TIMEOUT : undefined);
+    expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md"])).toEqual({
+      known: false,
+      reason: "timeout",
+      detail: "Command failed",
     });
     mock.fake = undefined;
     // A commit the repository does not have: the prefix is known, the history is not.
