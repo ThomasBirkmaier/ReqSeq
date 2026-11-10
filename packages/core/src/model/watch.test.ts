@@ -561,6 +561,10 @@ describe("the watcher's rules (SR-007)", () => {
     const store = workspace.get(elementStoreState);
     await store;
     const { fake, watcher } = await watched(workspace);
+    // The root alone names no element path: the layout is checked, and is unchanged (#1340).
+    fake.only().send(".");
+    await watcher.settled();
+    expect(workspace.peek(elementStoreState)).toBe(store);
     for (const name of [
       ".git/index",
       "node_modules/x/a.md",
@@ -1059,16 +1063,27 @@ describe("the watcher's rules (SR-007)", () => {
     const { fixture, workspace } = await opened();
     const store = workspace.get(elementStoreState);
     await store;
-    const { fake, watcher } = await watched(workspace, { debounceMs: 50, maxWaitMs: 60 });
+    const { fake, watcher } = await watched(workspace, { debounceMs: 50, maxWaitMs: 120 });
     await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Streamed"));
-    // Events every 10 ms never leave 50 ms quiet, yet the batch runs after 60 ms.
-    const handle = fake.only();
-    const elapsed = await within(SAVE_LIMIT_MS, () => {
-      handle.send(REQUIREMENT_FILE);
-      return Promise.resolve(workspace.peek(elementStoreState) !== store);
+    // A batch starts by waiting for this process's write commands: each call is one batch begun.
+    const begun = vi.spyOn(workspace, "writesSettled");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
     });
-    expect(elapsed).toBeLessThan(SAVE_LIMIT_MS);
+    // Events every 10 ms never leave 50 ms quiet: no batch runs before 120 ms after the first one.
+    const handle = fake.only();
+    for (let elapsed = 0; elapsed < 120; elapsed += 10) {
+      handle.send(REQUIREMENT_FILE);
+      await vi.advanceTimersByTimeAsync(elapsed === 110 ? 9 : 10);
+    }
+    expect(begun).not.toHaveBeenCalled();
+    // At the longest wait the batch runs, although events still come (#1341).
+    await vi.advanceTimersByTimeAsync(1);
+    expect(begun).toHaveBeenCalledOnce();
+    vi.useRealTimers();
     await watcher.settled();
+    expect(workspace.peek(elementStoreState)).not.toBe(store);
     expect(await title(workspace, REQUIREMENT)).toBe("Streamed");
   });
 
@@ -1095,6 +1110,110 @@ describe("the watcher's rules (SR-007)", () => {
     fake.handles[0]?.send(REQUIREMENT_FILE);
     await watcher.settled();
     expect(workspace.peek(elementStoreState)).toBe(store);
+  });
+
+  it("neither waits for nor starts a batch of a watch that breaks once closed (#1340)", async () => {
+    const { workspace } = await opened();
+    const store = workspace.get(elementStoreState);
+    await store;
+    const { fake, watcher } = await watched(workspace, { debounceMs: 1000 });
+    const handle = fake.only();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    await watcher.close();
+    handle.emitter.emit("error", new Error("EPERM"));
+    // No timer of a batch is waiting, so `settled` has nothing to wait for.
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+    await watcher.settled();
+    expect(workspace.peek(elementStoreState)).toBe(store);
+  });
+
+  it("drops a due batch when closed while it waits for a write command of this process (#1340)", async () => {
+    const { workspace } = await opened();
+    const store = workspace.get(elementStoreState);
+    await store;
+    const layout = workspace.peek(workspaceLayoutState);
+    const { fake, watcher } = await watched(workspace, { debounceMs: 0 });
+    const settledWrites = vi.spyOn(workspace, "writesSettled");
+    let release: () => void = () => undefined;
+    const write = workspace.runCommand(() => new Promise<void>((resolve) => (release = resolve)), {
+      writes: true,
+    });
+    fake.only().send("reqseq-workspace.yaml");
+    await vi.waitFor(() => {
+      expect(settledWrites).toHaveBeenCalledOnce();
+    });
+    const closing = watcher.close();
+    release();
+    await write;
+    await closing;
+    // The batch that would read the layout again ends with the watcher: nothing is reset or watched.
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
+    expect(workspace.peek(elementStoreState)).toBe(store);
+    expect(fake.open()).toEqual([]);
+  });
+
+  it("drops the element paths of a batch that a layout read again by the batch before it overtook (#1340)", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace, { debounceMs: 0 });
+    // As the app does: a change of the whole workspace makes it read the store again.
+    let reread: Promise<ElementStore> | undefined;
+    watcher.onChange((change) => {
+      if (change.scope === "workspace") {
+        reread = workspace.get(elementStoreState);
+      }
+    });
+    const settledWrites = vi.spyOn(workspace, "writesSettled");
+    let release: () => void = () => undefined;
+    const write = workspace.runCommand(() => new Promise<void>((resolve) => (release = resolve)), {
+      writes: true,
+    });
+    onTestFinished(() => {
+      release();
+    });
+    // The new layout leaves the requirement out; the second batch was sorted with the old one.
+    await fixture.write(
+      "reqseq-workspace.yaml",
+      `${await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8")}ignore: ["requirements/**"]\n`,
+    );
+    const old = fake.only();
+    old.send("reqseq-workspace.yaml");
+    await vi.waitFor(() => {
+      expect(settledWrites).toHaveBeenCalledOnce();
+    });
+    // The second batch is due and queues behind the first one, sorted with the old layout.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    old.send(REQUIREMENT_FILE);
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+    release();
+    await write;
+    await watcher.settled();
+    expect(old.closed).toBe(true);
+    expect(reread).toBeDefined();
+    expect(workspace.peek(elementStoreState)).toBe(reread);
+    expect(records(await workspace.get(elementStoreState), REQUIREMENT)).toEqual([]);
+  });
+
+  it("does not look at the paths of a batch while no command has read the store (#1340)", async () => {
+    const { fixture, workspace } = await opened();
+    const { fake, watcher } = await watched(workspace);
+    const lstat = vi.spyOn(nodeFs.promises, "lstat");
+    onTestFinished(() => {
+      lstat.mockRestore();
+    });
+    // A folder is looked at (`lstat`) before its update; without a store there is none to update.
+    fake.only().send("requirements");
+    await watcher.settled();
+    expect(lstat).not.toHaveBeenCalledWith(fixture.path("requirements"));
+    expect(workspace.peek(elementStoreState)).toBeUndefined();
   });
 
   /** Lets timers of 0 ms that were set before it run first (Node runs timers in order). */

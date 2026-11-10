@@ -38,6 +38,8 @@ export default tseslint.config(
       "spec/**",
       "scripts/spec-export/raw/**",
       ".claude/worktrees/**",
+      // The sandbox of `pnpm mutate` (Stryker).
+      ".stryker-tmp/**",
       // The staged packages and the built delivery (scripts/package/stage.mjs, ADR-0014).
       "build/**",
       "delivery/**",

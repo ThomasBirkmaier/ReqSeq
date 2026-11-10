@@ -5,8 +5,8 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Extension, Range } from "@codemirror/state";
 import { StateEffect, StateField } from "@codemirror/state";
-import type { DecorationSet } from "@codemirror/view";
-import { Decoration, EditorView } from "@codemirror/view";
+import type { DecorationSet, ViewUpdate } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin } from "@codemirror/view";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import { INLINE_NODES, inlineMarkup } from "./markup.js";
 import type { PreviewContext, PreviewRule } from "./plugins.js";
@@ -20,8 +20,35 @@ export const focusEffect = StateEffect.define<boolean>();
 /** Builds the preview again for something a rule reads besides the document (the titles of references, D-058). */
 export const refreshPreview = StateEffect.define();
 
+/**
+ * Sets `focusState` to focused when an update finds the editor focused but the state not. CodeMirror
+ * computes the focus transaction of an update at once and applies it a microtask later: an update while
+ * the editor has lost the focus, and its 10 ms check of the blur has not run yet, followed by `focus()` in
+ * the same task (the image or reference that comes back from a prompt, `insertHeld`), applies "not
+ * focused" to a focused editor, and nothing reports the focus again (#1308): the caret line showed no
+ * source. Only this direction is set right; a blur is left to CodeMirror's own check.
+ */
+const focusFollows = ViewPlugin.define((view) => {
+  let gone = false;
+  return {
+    update: (update: ViewUpdate) => {
+      // The state first: it is cheap, and the focus is asked of the document only when it says unfocused.
+      if (!update.state.field(focusState) && update.view.hasFocus) {
+        queueMicrotask(() => {
+          if (!gone && !view.state.field(focusState) && view.hasFocus) {
+            view.dispatch({ effects: focusEffect.of(true) });
+          }
+        });
+      }
+    },
+    destroy: () => {
+      gone = true;
+    },
+  };
+});
+
 /** Whether the editor has the focus. Without the focus there is no cursor line: everything is set. */
-export const focusState = StateField.define<boolean>({
+export const focusState: StateField<boolean> = StateField.define<boolean>({
   create: () => false,
   update: (value, transaction) => {
     for (const effect of transaction.effects) {
@@ -31,7 +58,10 @@ export const focusState = StateField.define<boolean>({
     }
     return value;
   },
-  provide: () => EditorView.focusChangeEffect.of((_state, focusing) => focusEffect.of(focusing)),
+  provide: () => [
+    EditorView.focusChangeEffect.of((_state, focusing) => focusEffect.of(focusing)),
+    focusFollows,
+  ],
 });
 
 /** The numbers of the lines whose source is shown: every line a selection range touches, while focused. */

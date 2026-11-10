@@ -8,7 +8,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Run } from "../support/reqseq.js";
-import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli, warmCli } from "../support/reqseq.js";
 
 const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
@@ -31,9 +31,11 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
 });
 
-beforeAll(() => {
+// The first start fills the compile cache outside the tests' timeout (#1290); the bound only ends a hang.
+beforeAll(async () => {
   requireBuiltCli("pnpm test:e2e");
-});
+  await warmCli();
+}, 60_000);
 
 const A_FILE = "requirements/SR-0b0000000001.md";
 
@@ -79,10 +81,6 @@ describe("reqseq hint confirm (SR-027)", () => {
     }
     expect(await fs.readFile(ws.path(A_FILE), "utf8")).toBe(expected);
     expect((await hints(ws)).map((h) => h.hintId)).toEqual([link?.hintId]);
-    // A stale ID is a warning: nothing to write, exit code 0.
-    const again = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
-    expect([again.code, again.stderr]).toEqual([0, ""]);
-    expect(again.stdout).toContain("hint.not-found");
   });
 
   it("[SR-027/AK2] confirms all hints that point at an element, then all hints about one, without their IDs (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
@@ -161,6 +159,18 @@ describe("reqseq hint confirm (SR-027)", () => {
       `-  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.storedVersion ?? ""}, title: See the wind }`,
       `+  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.currentVersion ?? ""}, title: See the wind }`,
     ]);
+  });
+
+  it("reports a hint ID confirmed before as a warning, writes nothing and exits with 0", async () => {
+    const ws = await changed();
+    const derives = (await hints(ws))[1];
+    const first = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
+    expect([first.code, first.stderr]).toEqual([0, ""]);
+    const diff = await ws.git(["diff", "--no-color"]);
+    const again = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
+    expect([again.code, again.stderr]).toEqual([0, ""]);
+    expect(again.stdout).toContain("hint.not-found");
+    expect(await ws.git(["diff", "--no-color"])).toBe(diff);
   });
 });
 

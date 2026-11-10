@@ -33,9 +33,9 @@ concurrency:
 # Two lanes (#303, #412): every push starts the Ubuntu lane (`static`, `checks` and `electron` on ubuntu-24.04). A draft
 # pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
-# `checks` and `electron` on macos-26 and windows-2025, Electron in two shards on each. The lanes ran one after the
-# other while runner minutes cost money; in a public repository they are free, and in sequence a full run took about
-# 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
+# `checks` and `electron` on macos-26 and windows-2025, Electron in two shards on macOS and three on Windows (#1311).
+# The lanes ran one after the other while runner minutes cost money; in a public repository they are free, and in
+# sequence a full run took about 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
 # three systems before its merge (merge skill), but not every push.
 
 jobs:
@@ -292,6 +292,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
+        shards: [2]
     runs-on: ubuntu-24.04
     steps: &electron-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -338,8 +339,8 @@ jobs:
         if: steps.changes.outputs.tests != 'false'
         run: pnpm --filter @reqseq/app electron:install
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        # One shard saves; both would try the same key.
-        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && matrix.shard != 2
+        # One shard saves; all would try the same key.
+        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && (matrix.shard || 1) == 1
         with:
           path: ${{ runner.temp }}/electron-cache
           key: ${{ steps.electron-cache.outputs.cache-primary-key }}
@@ -380,14 +381,14 @@ jobs:
       # app with electron-vite and runs Playwright.
       - name: Electron tests (xvfb)
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
-        # Each shard runs every second file (test/playwright.config.ts); without a shard, all of them.
+        # Shard n of k runs every k-th file (test/playwright.config.ts); without a shard, all of them.
         env:
-          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
+          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/{1}', matrix.shard, matrix.shards) || '' }}
         run: xvfb-run -a pnpm --filter @reqseq/app test:electron
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
         env:
-          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
+          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/{1}', matrix.shard, matrix.shards) || '' }}
         run: pnpm --filter @reqseq/app test:electron
       # The guide's screenshots (ADR-0017): the Linux shard that runs guide-screenshots.spec.ts has just made them
       # (test-results/electron/guide-images/). A nightly or manual run on main keeps them as the reference of later
@@ -467,8 +468,10 @@ jobs:
   # when both are.
   electron-macos-shard:
     name: electron (${{ matrix.os }}, ${{ matrix.shard }}/2)
-    # A normal run takes 10-16 minutes (one app at a time); the bound ends a hang.
-    timeout-minutes: 20
+    # A normal run takes 12-19 minutes (one app at a time; 18 shard jobs, 2026-11-10), and a slow runner hit the
+    # old bound of 20 with every test green (#1423); the bound ends a hang. A longer bound, not a third shard,
+    # since macOS runs at most 5 jobs at once.
+    timeout-minutes: 25
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:
@@ -476,6 +479,7 @@ jobs:
       matrix:
         os: [macos-26]
         shard: [1, 2]
+        shards: [2]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
@@ -497,11 +501,13 @@ jobs:
           RESULT: ${{ needs.electron-macos-shard.result }}
         run: test "$RESULT" = success
 
-  # Windows runs Electron slowest (about 16 minutes in one job), so in two shards like Ubuntu (#412); `electron
-  # (windows-2025)` below is green when both are.
+  # Windows runs Electron slowest, so in shards (#412). With two, a shard job took 17 minutes in the median and up to
+  # 18.4 (58 runs, 2026-11-09/10; 15 of them tests, the rest setup and build), and a slow runner hit the bound of 20
+  # (#1311); macOS stays at two, since it runs at most 5 jobs at once. `electron (windows-2025)` below is green when
+  # all three are.
   electron-windows-shard:
-    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/2)
-    # A normal run takes about 10 minutes; the bound ends a hang.
+    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/3)
+    # A normal run takes about 12 minutes; the bound ends a hang.
     timeout-minutes: 20
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
@@ -509,7 +515,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2025]
-        shard: [1, 2]
+        shard: [1, 2, 3]
+        shards: [3]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
@@ -526,7 +533,7 @@ jobs:
         os: [windows-2025]
     runs-on: ubuntu-24.04
     steps:
-      - name: Both shards passed
+      - name: All three shards passed
         env:
           RESULT: ${{ needs.electron-windows-shard.result }}
         run: test "$RESULT" = success

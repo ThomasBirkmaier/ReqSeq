@@ -2,6 +2,7 @@
 // cache folder, and the CLI on the same workspace for comparisons (SR-080).
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -38,6 +39,20 @@ const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url)
 const APP_FOLDER = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
+/**
+ * Node's compile cache of the CLI and MCP processes the tests start, shared by all launches of this test
+ * process and removed when it exits (#1356). With a new home per launch, the first CLI call of every test
+ * compiled ReqSeq from scratch, which on Windows took more than 15 s at times. It holds only compiled code
+ * (`compileCacheFolder`), so sharing it keeps the tests apart. The app itself does not get it: it runs as
+ * it ships, without a compile cache (ADR-0008). A NODE_COMPILE_CACHE that is set is kept.
+ */
+const COMPILE_CACHE =
+  process.env["NODE_COMPILE_CACHE"] ?? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-"));
+if (process.env["NODE_COMPILE_CACHE"] === undefined) {
+  process.once("exit", () => {
+    rmSync(COMPILE_CACHE, { recursive: true, force: true });
+  });
+}
 /** Fails every connection that leaves the machine in a spawned CLI, as in the CLI's end-to-end tests (SR-077). */
 const BLOCK_NETWORK = pathToFileURL(
   fileURLToPath(new URL("../../../../scripts/test-support/block-network.mjs", import.meta.url)),
@@ -129,8 +144,8 @@ const runner = (
   env: NodeJS.ProcessEnv,
 ): { readonly program: string; readonly env: NodeJS.ProcessEnv } =>
   runtime.electron === true
-    ? { program: ELECTRON, env: { ...env, ELECTRON_RUN_AS_NODE: "1" } }
-    : { program: process.execPath, env };
+    ? { program: ELECTRON, env: { ...env, NODE_COMPILE_CACHE: COMPILE_CACHE, ELECTRON_RUN_AS_NODE: "1" } }
+    : { program: process.execPath, env: { ...env, NODE_COMPILE_CACHE: COMPILE_CACHE } };
 
 /** An MCP client on a `reqseq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
 export interface McpSession {
