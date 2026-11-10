@@ -727,6 +727,27 @@ describe("file moves", () => {
       "[core]\n\tbare = false\n[extensions]\n\tpartialClone = origin\n",
     );
     expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: unchanged });
+    // Other layouts of the config file, as git reads them: the key counts only in its own section,
+    // as the whole key, with or without white space around it, and `promisor` only when true.
+    const layouts: readonly (readonly [string, boolean])[] = [
+      ["[core]\n\tpartialClone = origin\n", false],
+      ["[core]\n\tpromisor = true\n", false],
+      ['[remote "origin"]\n\tpromisor = false\n', false],
+      ['[remote "origin"]\n\tnopromisor = true\n', false],
+      ["[extensions]\n\tnopartialClone = origin\n", false],
+      ['[remote "origin"]\n\tpromisor\n', true],
+      ['[Remote "origin"]\npromisor=1\n', true],
+      ['[remote "origin"]\n \t promisor  =  yes \n', true],
+      ["[extensions]\npartialclone=origin\n", true],
+      ["[extensions]\n  \tpartialClone   = origin\n", true],
+    ];
+    for (const [config, partial] of layouts) {
+      await fs.writeFile(path.join(ws.root, ".git", "config"), config);
+      expect(await fileMoves(ws.root, [moved]), config).toEqual({
+        known: true,
+        moves: partial ? unchanged : both,
+      });
+    }
   });
 
   it("runs no git for no commits, refuses what is no commit ID, and is unknown when git fails or prints something else", async () => {
