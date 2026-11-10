@@ -18,9 +18,9 @@
 //     file names the filter and its file.
 // - `baseline`: the elements the baseline file lists, as they are now (`Baseline.selects`,
 //   baselines/read.ts), for every command that takes a selection (SR-101, #1353). "As they are now"
-//   is SR-061 AK2 for the export and, for every other command, assumption A1 of
-//   ThomasBirkmaier/ReqSeq-archive#530 Q4; the versions at the baseline are what baseline.get shows
-//   (SR-051). It is found by name, then by
+//   is SR-061 AK2 for the export and, for every other command, the product owner decision of
+//   2026-11-10 (ThomasBirkmaier/ReqSeq-archive#530 Q4, reading 1: one meaning of the selection for
+//   every function); the versions at the baseline are what baseline.get shows (SR-051). It is found by name, then by
 //   file name (`findBaseline`): none is `input.invalid`, a name two files share too, a text that
 //   names only a faulty file `file.faulty`. baseline.create refuses it before it gets here.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
