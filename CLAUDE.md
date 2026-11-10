@@ -9,6 +9,7 @@ This file is the starting point. It holds the rules that apply to every change, 
 | Before … | read |
 | --- | --- |
 | a change to `spec/` | skill `spec-change` |
+| planning a new or changed requirement, or fixing a bug against an AK | skill `spec-change` (Dependency check) and Issues below |
 | every push | skill `verify` |
 | opening, reviewing or merging a PR, or a release | skill `merge` |
 | architecture work | `docs/architecture/README.md` and the ADRs of your area |
@@ -53,6 +54,7 @@ The way of working of 2026-11-07 (product owner decision; picture in `docs/proce
 - **Milestone:** one per version x.y, with its goal and exit criterion in its description. An issue gets the milestone only when the version needs it; without one it ships in the next release.
 - **Closing:** the merged PR closes its issue with `Closes #`. A close without a PR (duplicate, not planned) needs the product owner's explicit approval and a reason.
 - Issues labelled `needs-human` wait. **Before the first change for an issue, set `agent:working` on it** (`gh api -X POST repos/ThomasBirkmaier/ReqSeq/issues/<n>/labels -f 'labels[]=agent:working'`): the board shows an issue "In Progress" only through this label. The workflow `issue-working` also sets it on each open issue a PR closes (`Closes #`) and removes it when the PR is closed. Remove it yourself when you stop without a PR.
+- **Bugs take the short path:** a bug without an SR is fixed without a dependency check. A bug against an AK first lists the SR's parents and children (`trace related parents --refs <SR>` and `trace related children --refs <SR>`) and runs one `element search` per term of the AK, then is fixed. A fix that needs an interpretation of the AK wording becomes a `question` (`docs/process.md`).
 - If ReqSeq behaves badly while you use it and you can reproduce it, open a `bug` issue with the reproduction and say in the text that it came from own use.
 
 ## Traceability
@@ -75,7 +77,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 
 ## How we work
 
-- Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building.
+- Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security, and a spec change that changes a decision or a glossary term or whose `trace affected` returns any element. Post a plan of about a page on the issue (for a spec change without one, in the thread) and have it reviewed once at effort high before building; for a risky spec change the plan is a concept with its edge cases, reviewed by an independent second agent before it goes on a decision card (`spec-change`).
 - About one focused test per acceptance criterion, plus what the coverage threshold needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
 - Opus at effort medium by default; implementing agents run as `implementer` (`.claude/agents/`) where the session lists it. Effort high only for risky plans and changes and for the periodic check against the spec.
 - Stop and ask the product owner only when you cannot continue without them, or before anything destructive or irreversible, here or on GitHub: deleting files, issues or releases (merged PR branches excepted), force-pushing or rewriting history, or changing branch protection or access.
