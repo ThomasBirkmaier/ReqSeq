@@ -84,9 +84,10 @@ export const reqseq = (args: readonly string[], options: RunOptions): Promise<Ru
 
 /**
  * Starts `reqseq --version` once in `cacheHome`, which fills Node's compile cache of the CLI (#178) for
- * every later start of this test process. Without it the first start of a file runs with an empty cache
- * and writes it, which on the Windows runner took a test past its timeout (#1290). For a `beforeAll`
- * with its own timeout.
+ * the later starts of this test process that use `cacheHome`; a start with its own HOME or LOCALAPPDATA
+ * (`RunOptions.env`) has its own cache and is not covered. Without it the first start of a file runs
+ * with an empty cache and writes it, which on the Windows runner took a test past its timeout (#1290).
+ * For a `beforeAll` with its own timeout.
  */
 export const warmCli = async (): Promise<void> => {
   const out = await reqseq(["--version"], { cwd: cacheHome });

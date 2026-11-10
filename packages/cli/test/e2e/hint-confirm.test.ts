@@ -159,10 +159,18 @@ describe("reqseq hint confirm (SR-027)", () => {
       `-  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.storedVersion ?? ""}, title: See the wind }`,
       `+  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.currentVersion ?? ""}, title: See the wind }`,
     ]);
-    // The confirmed ID is stale now: a warning, nothing to write, exit code 0.
+  });
+
+  it("reports a hint ID confirmed before as a warning, writes nothing and exits with 0", async () => {
+    const ws = await changed();
+    const derives = (await hints(ws))[1];
+    const first = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
+    expect([first.code, first.stderr]).toEqual([0, ""]);
+    const diff = await ws.git(["diff", "--no-color"]);
     const again = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
     expect([again.code, again.stderr]).toEqual([0, ""]);
     expect(again.stdout).toContain("hint.not-found");
+    expect(await ws.git(["diff", "--no-color"])).toBe(diff);
   });
 });
 
