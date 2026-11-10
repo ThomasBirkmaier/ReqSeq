@@ -19,7 +19,7 @@
 //   else the copy in the repository of the file, else the only copy; an entry without `repository`
 //   whose UUID has several copies elsewhere is ambiguous and names none. `baseline.get`,
 //   `baseline.compare`, the hints since a baseline and `selects` share it (#690).
-// - Selects (`data.export` with `selection.baseline`, SR-061 AK2, assumption A1 of ThomasBirkmaier/ReqSeq-archive#530 Q2/Q4): a
+// - Selects (`selection.baseline` of every command that takes a selection, SR-101, SR-061 AK2): a
 //   baseline selects an element, whatever its version now, when an entry of its `elements` names
 //   that copy (`copyOf` in the store the caller passes). One index per file read, kept with the
 //   file, so a large baseline is indexed once.

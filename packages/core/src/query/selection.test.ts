@@ -1,12 +1,11 @@
-// `resolveSelection` with `selection.baseline` (selection.ts, SR-061 AK2, B1 of the plan review):
-// only a command that opts in takes it (data.export); every other one refuses it, naming itself and
-// stage 5. On fixtures/SR-061/export (its README lists the baselines and the expected selections);
+// `resolveSelection` with `selection.baseline` (selection.ts, SR-101, SR-061 AK2): every command
+// that takes a selection takes it (#1353). On fixtures/SR-061/export (its README lists the baselines and the expected selections);
 // what data.export makes of it: commands/data/export.test.ts.
 import { rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { CommandError } from "../catalog.js";
+import type { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
 import { resolveSelection } from "./selection.js";
 
@@ -25,18 +24,17 @@ const open = (ws: FixtureWorkspace): Workspace => {
 const shortIds = (ids: readonly { readonly id: string }[]): string[] => ids.map((e) => e.id.slice(-2));
 
 describe("selection by baseline", () => {
-  it("is refused by a command that does not take it, naming the command and stage 5", async () => {
+  it("selects the elements the baseline lists, as they are now, for every command that takes a selection (#1353)", async () => {
     const workspace = open(await fixture());
-    const error = await resolveSelection(workspace, { baseline: "Release 1" }, "element.list").catch(
-      (e: unknown) => e,
-    );
-    expect(error).toBeInstanceOf(CommandError);
-    expect((error as CommandError).toJSON()).toEqual({
-      code: "input.invalid",
-      message:
-        "selection.baseline: for element.list a selection by baseline comes with stage 5; leave it out",
-      details: { command: "element.list", fields: ["selection.baseline"] },
-    });
+    for (const command of [
+      "element.list",
+      "evidence.coverage",
+      "element.bulkUpdate",
+      "data.export",
+    ] as const) {
+      const selected = await resolveSelection(workspace, { baseline: "Release 1" }, command);
+      expect(shortIds(selected.elements)).toEqual(["a1", "b1", "b3"]);
+    }
   });
 
   it("selects the elements the baseline lists that meet every other part too", async () => {
@@ -45,7 +43,6 @@ describe("selection by baseline", () => {
       workspace,
       { baseline: "release-1", package: "PKG-0000d1" },
       "data.export",
-      { baseline: true },
     );
     expect(shortIds(selected.elements)).toEqual(["b1"]);
     expect(selected.incomplete).toBe(false);
@@ -60,9 +57,9 @@ describe("selection by baseline", () => {
         "metamodel: { repository: system, path: metamodel }\nbaselines: { repository: sensor, path: baselines }\n",
     });
     await rm(ws.path("sensor"), { recursive: true });
-    const error = await resolveSelection(open(ws), { baseline: "Release 1" }, "data.export", {
-      baseline: true,
-    }).catch((e: unknown) => e);
+    const error = await resolveSelection(open(ws), { baseline: "Release 1" }, "data.export").catch(
+      (e: unknown) => e,
+    );
     expect((error as CommandError).toJSON()).toEqual({
       code: "input.invalid",
       message:
