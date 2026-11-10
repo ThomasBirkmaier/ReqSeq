@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentActivity } from "./protocol.js";
 import {
   BRIDGE_EVENTS,
+  DOCS_FAILED,
   PORT_EVENTS,
   MAX_ROOT_LENGTH,
   MAX_CHANGED_IDS,
@@ -11,6 +12,7 @@ import {
   externalChange,
   folderListing,
   isBridgeEvent,
+  openDocsResult,
   openWorkspaceResult,
   portMessage,
   portRequest,
@@ -255,6 +257,20 @@ describe("portMessage: what the core process sends a window", () => {
     }
   });
 
+  it("takes MAX_CHANGED_IDS UUIDs in all three lists together, and drops one more", () => {
+    const ids = (count: number): string[] => Array.from({ length: count }, (_, at) => `id-${String(at)}`);
+    const at = (removed: number) => ({
+      event: "workspace-changed",
+      data: {
+        reason: "external",
+        scope: "elements",
+        elements: { added: ["a"], changed: ["c"], removed: ids(removed) },
+      },
+    });
+    expect(portMessage(at(MAX_CHANGED_IDS - 2))).toEqual(at(MAX_CHANGED_IDS - 2));
+    expect(portMessage(at(MAX_CHANGED_IDS - 1))).toBeUndefined();
+  });
+
   it("drops anything else", () => {
     for (const value of [
       null,
@@ -315,6 +331,67 @@ describe("main's listing of a typed folder (SR-143)", () => {
       expect(folderListing(value)).toEqual(refused);
     }
   });
+
+  it("folderListing takes MAX_FOLDER_ENTRIES entries and refuses one more, and an entry without a name", () => {
+    const entries = (count: number) => Array.from({ length: count }, () => ({ name: "a", kind: "file" }));
+    expect(folderListing({ name: "a", entries: entries(MAX_FOLDER_ENTRIES) }).entries).toHaveLength(
+      MAX_FOLDER_ENTRIES,
+    );
+    const refused = { name: "", entries: [], problem: "invalid" };
+    for (const value of [
+      { name: "a", entries: entries(MAX_FOLDER_ENTRIES + 1) },
+      { name: "a", entries: [{ kind: "file" }] },
+      { name: "a", entries: [{ name: 3, kind: "file" }] },
+      { name: 3, entries: [] },
+      { name: "a", entries: [], folder: null },
+      { name: "a", entries: [], problem: null },
+    ]) {
+      expect(folderListing(value), JSON.stringify(value).slice(0, 80)).toStrictEqual(refused);
+    }
+  });
+
+  it("folderListing gives folder and problem only when the listing has them", () => {
+    expect(folderListing({ name: "a", entries: [] })).toStrictEqual({ name: "a", entries: [] });
+    expect(folderListing({ name: "a", entries: [], truncated: "yes" })).toStrictEqual({
+      name: "a",
+      entries: [],
+    });
+    expect(folderListing({ name: "a", entries: [], folder: "/g" })).toStrictEqual({
+      folder: "/g",
+      name: "a",
+      entries: [],
+    });
+    for (const problem of ["missing", "unreadable", "invalid"]) {
+      expect(folderListing({ name: "a", entries: [], problem })).toStrictEqual({
+        name: "a",
+        entries: [],
+        problem,
+      });
+    }
+  });
+});
+
+describe("main's answer about the documentation", () => {
+  it("openDocsResult keeps ok, or a failure with its message cut to 1,000 characters", () => {
+    expect(openDocsResult({ ok: true, message: "x" })).toStrictEqual({ ok: true });
+    expect(openDocsResult({ ok: false, message: "no viewer", more: 1 })).toStrictEqual({
+      ok: false,
+      message: "no viewer",
+    });
+    const long = "m".repeat(1000);
+    expect(openDocsResult({ ok: false, message: long })).toStrictEqual({ ok: false, message: long });
+    expect(openDocsResult({ ok: false, message: `${long}x` })).toStrictEqual({ ok: false, message: long });
+    for (const value of [
+      null,
+      "x",
+      {},
+      { ok: false },
+      { ok: false, message: 3 },
+      { ok: "false", message: "x" },
+    ]) {
+      expect(openDocsResult(value), JSON.stringify(value)).toBe(DOCS_FAILED);
+    }
+  });
 });
 
 describe("the answers of the main process about recent workspaces (SR-131)", () => {
@@ -369,6 +446,25 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
       reason: "external",
       scope: "metamodel",
       elements: { added: ["a"], changed: ids, removed: ["r"] },
+    });
+  });
+
+  it("counts the UUIDs of all three lists together against MAX_CHANGED_IDS", () => {
+    const ids = (count: number): string[] => Array.from({ length: count }, (_, at) => `id-${String(at)}`);
+    const of = (removed: number): ReturnType<typeof externalChange> =>
+      externalChange({
+        scope: "elements",
+        elements: { added: ["a"], changed: ["c"], removed: ids(removed) },
+      });
+    expect(of(MAX_CHANGED_IDS - 2)).toEqual({
+      reason: "external",
+      scope: "elements",
+      elements: { added: ["a"], changed: ["c"], removed: ids(MAX_CHANGED_IDS - 2) },
+    });
+    expect(of(MAX_CHANGED_IDS - 1)).toEqual({
+      reason: "external",
+      scope: "workspace",
+      elements: { added: [], changed: [], removed: [] },
     });
   });
 
