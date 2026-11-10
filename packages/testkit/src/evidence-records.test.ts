@@ -219,7 +219,7 @@ describe("withEvidenceRecords", () => {
     // Pinned: a change of the generator shifts every perf baseline, so it shows here (the standard
     // model it copies got the meaning acceptance-criteria in #960, and packages on every type in #1293).
     expect(evidence.workspace.digest).toBe(
-      "b29c15a5857d60104f9db9f47ea9c751161a31ea61c5a1a7be681a07dc0c1ac2",
+      "acd5e7384bd996673f2487d508bb0e1559cc0b996d68be86f69cb67f97415b06",
     );
   });
 

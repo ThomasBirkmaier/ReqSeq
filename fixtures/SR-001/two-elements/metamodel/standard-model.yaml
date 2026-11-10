@@ -70,7 +70,7 @@ types:
     required: [title]
   - key: package
     name: Package
-    description: "A set of elements declared to belong together for any reason, such as a topic. Every element names its packages in its property Package."
+    description: "A set of elements declared to belong together for any reason, such as all requirements of a use case. An element can belong to several packages and names them in its property Package."
     prefix: PKG
     meaning: package
     properties: [title, packages, source, source-identifier, import-date, delivery, import-version]
