@@ -18,11 +18,12 @@
 //   parameter replaced; label and other parameters stay.
 // - Several hints (AK2), each as if confirmed on its own: a write can change the version of its
 //   source (ADR-0005: the text counts), so a hint of the same call whose target is such a source
-//   gets the version the target has after this call, not the one before: the edits are planned,
-//   the new versions of the planned sources computed from their bytes, and the sources with a hint
-//   on a planned source planned once more with them. A version written by a confirmation is no part
-//   of the n2 version of its source (ADR-0005 "Normal form 2"), so that one round settles chains and
-//   rings of references alike (#166). One write per file. Every check comes before the first write
+//   gets the version the target has after this call, not the one before. That is its current
+//   version: a confirmation changes only `version` values of relation items, the `version=`
+//   parameters of inline references and the titles of relation targets, and none of them is part
+//   of the n2 version of its source (ADR-0005 "Normal form 2": relation targets count by `id` only,
+//   `version=` parameters are removed), so one plan with the current versions settles chains and
+//   rings of references alike (#166, #1328). One write per file. Every check comes before the first write
 //   (`assertElementWritable`, `readUnchanged`); `writeElementFiles` writes, restores on a failure and
 //   records the writes in the element store.
 // - IDs that confirm nothing are problems, not a failure of the call, so the other IDs still count:
@@ -67,15 +68,11 @@ import type { CommandName, Problem } from "../catalog.js";
 import { CommandError, commandErrorOrThrow } from "../catalog.js";
 import type { FrontmatterEdit, ParsedFile } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
-import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   assertElementWritable,
   elementStoreState,
-  elementVersion,
-  embeddedImages,
-  ignoredBy,
   incomingFor,
   incomingTo,
   resolveRef,
@@ -87,7 +84,6 @@ import { inlineReferences } from "../model/references.js";
 import type { ElementFileWrite, UnchangedElement } from "../model/write.js";
 import { readUnchanged, writeElementFiles } from "../model/write.js";
 import type { Workspace } from "../runtime/workspace.js";
-import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { HintTarget } from "./hint-id.js";
 import { CONFIRMABLE_CODES, hintIdOf, parseHintId } from "./hint-id.js";
@@ -132,9 +128,6 @@ interface Source {
   readonly unchanged: UnchangedElement;
   readonly found: Found[];
 }
-
-/** The version each planned source has after this call, by its record in the store. */
-type NewVersions = ReadonlyMap<ElementRecord, string>;
 
 const NOT_CONFIRMABLE =
   "only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in hint.list) is confirmed, by writing the current version (D-042); other hints go away when what they report is changed";
@@ -209,12 +202,8 @@ const notFound = (id: string, target: HintTarget): Problem => ({
   hintId: id,
 });
 
-/** The version `candidate` writes: the target's version after this call when this call writes it. */
-const versionFor = (candidate: Candidate, versions: NewVersions): string =>
-  versions.get(candidate.finding.target) ?? candidate.finding.current;
-
 /** The frontmatter edits of the relation items of `found`: the `version` of each item, nothing else. */
-const itemEdits = (found: readonly Found[], versions: NewVersions): FrontmatterEdit[] =>
+const itemEdits = (found: readonly Found[]): FrontmatterEdit[] =>
   found.flatMap(({ candidates }) =>
     candidates.flatMap((candidate): FrontmatterEdit[] => {
       const { path } = candidate;
@@ -223,7 +212,7 @@ const itemEdits = (found: readonly Found[], versions: NewVersions): FrontmatterE
       }
       const [key, index] = path;
       const at = index === undefined ? ["version"] : [index, "version"];
-      return [{ kind: "set-scalar", key, path: at, value: versionFor(candidate, versions) }];
+      return [{ kind: "set-scalar", key, path: at, value: candidate.finding.current }];
     }),
   );
 
@@ -239,16 +228,12 @@ const withVersion = (destination: string, version: string): string => {
  * The version each reference of `found` in the text (`property` undefined) or in the property
  * `property` (SR-127) is to get, by its place: target, repository, stored version and `n`.
  */
-const versionsToWrite = (
-  found: readonly Found[],
-  versions: NewVersions,
-  property: string | undefined,
-): Map<string, string> => {
+const versionsToWrite = (found: readonly Found[], property: string | undefined): Map<string, string> => {
   const current = new Map<string, string>();
   for (const { target, first } of found) {
     if (target.kind === "reference" && target.property === property) {
       const place = JSON.stringify([target.target, target.repository ?? null, target.version]);
-      current.set(`${place}#${String(target.occurrence)}`, versionFor(first, versions));
+      current.set(`${place}#${String(target.occurrence)}`, first.finding.current);
     }
   }
   return current;
@@ -284,8 +269,8 @@ const confirmedReferences = (
  * The body with the versions of the inline references of `found` replaced; undefined when `found`
  * names no reference of the text.
  */
-const confirmedText = (body: string, found: readonly Found[], versions: NewVersions): string | undefined => {
-  const current = versionsToWrite(found, versions, undefined);
+const confirmedText = (body: string, found: readonly Found[]): string | undefined => {
+  const current = versionsToWrite(found, undefined);
   return current.size === 0 ? undefined : confirmedReferences(body, current, new Map());
 };
 
@@ -325,7 +310,7 @@ interface PropertyEdits {
  * value is a `fallback` edit: the item replaced (a list) or the key set (one value), as one line.
  * The two kinds are applied one after the other, as `set-scalar` allows no other edit of its key.
  */
-const propertyEdits = (file: ParsedFile, found: readonly Found[], versions: NewVersions): PropertyEdits => {
+const propertyEdits = (file: ParsedFile, found: readonly Found[]): PropertyEdits => {
   const keys = new Set(
     found.flatMap(({ target }) =>
       target.kind === "reference" && target.property !== undefined ? [target.property] : [],
@@ -335,7 +320,7 @@ const propertyEdits = (file: ParsedFile, found: readonly Found[], versions: NewV
   const scalar: FrontmatterEdit[] = [];
   const fallback: FrontmatterEdit[] = [];
   for (const key of keys) {
-    const current = versionsToWrite(found, versions, key);
+    const current = versionsToWrite(found, key);
     const value = data[key];
     const list = Array.isArray(value);
     const seen = new Map<string, number>();
@@ -371,14 +356,14 @@ const propertyEdits = (file: ParsedFile, found: readonly Found[], versions: NewV
   return { scalar, fallback };
 };
 
-/** The new bytes of `source` with `versions`. */
-const planned = (source: Source, versions: NewVersions): Uint8Array => {
+/** The new bytes of `source`: the current version of each target of its hints written. */
+const planned = (source: Source): Uint8Array => {
   const { unchanged, found } = source;
   const { file } = unchanged.current;
-  const body = confirmedText(file.body, found, versions);
-  const { scalar, fallback } = propertyEdits(file, found, versions);
+  const body = confirmedText(file.body, found);
+  const { scalar, fallback } = propertyEdits(file, found);
   const { bytes } = editElementFile(file, {
-    edits: [...itemEdits(found, versions), ...scalar],
+    edits: [...itemEdits(found), ...scalar],
     ...(body === undefined ? {} : { body }),
   });
   if (fallback.length === 0) {
@@ -387,19 +372,6 @@ const planned = (source: Source, versions: NewVersions): Uint8Array => {
   // The block scalars, now that the other scalars of their keys are written.
   const { file: written } = writtenElement(unchanged.repository.name, bytes, file.snapshot);
   return editElementFile(written, { edits: fallback }).bytes;
-};
-
-/** The version of the element `bytes` of `source` hold (ADR-0005), with the images its text embeds. */
-const versionOf = async (
-  layout: WorkspaceLayout,
-  metamodel: Metamodel,
-  { unchanged }: Source,
-  bytes: Uint8Array,
-): Promise<string> => {
-  const { repository, current } = unchanged;
-  const { record, file } = writtenElement(repository.name, bytes, current.file.snapshot);
-  const images = await embeddedImages({ repository, ignored: ignoredBy(layout) }, record.file, file.body);
-  return elementVersion(record, file.body, metamodel, images);
 };
 
 /** A source planned: its new bytes. */
@@ -415,47 +387,21 @@ interface Failed {
 }
 
 /**
- * The bytes of every source (see the file comment): the first plan writes the versions the hints
- * found; then the versions of the planned sources that are targets of a hint of this call are
- * computed from their planned bytes, and the sources with a hint on one of them planned again with
- * those. The second round changes only `version` values, which do not count for the n2 version of a
- * source (ADR-0005), so it changes no version computed before: no further round. A source the
- * writer cannot change in place is left out, with the error (`CommandError`) of the writer: that
- * does not depend on the versions written.
+ * The bytes of every source (see the file comment), each planned once with the current versions of
+ * the targets of its hints. A source the writer cannot change in place is left out, with the error
+ * (`CommandError`) of the writer: that does not depend on the versions written.
  */
-const plan = async (
-  layout: WorkspaceLayout,
-  metamodel: Metamodel,
+const plan = (
   sources: ReadonlyMap<ElementRecord, Source>,
-): Promise<{ bytes: Map<ElementRecord, Planned>; failed: Map<ElementRecord, Failed> }> => {
+): { bytes: Map<ElementRecord, Planned>; failed: Map<ElementRecord, Failed> } => {
   const failed = new Map<ElementRecord, Failed>();
   const bytes = new Map<ElementRecord, Planned>();
   for (const [record, source] of sources) {
     try {
-      bytes.set(record, { source, bytes: planned(source, new Map()) });
+      bytes.set(record, { source, bytes: planned(source) });
     } catch (error) {
       failed.set(record, { source, error: commandErrorOrThrow(error) });
     }
-  }
-  // The planned sources with a hint on a planned source, and the versions of those targets.
-  const again = new Map<ElementRecord, Source>();
-  const targets = new Set<ElementRecord>();
-  for (const [record, { source }] of bytes) {
-    for (const { finding } of source.found.flatMap((f) => f.candidates)) {
-      if (bytes.has(finding.target)) {
-        again.set(record, source);
-        targets.add(finding.target);
-      }
-    }
-  }
-  const versions = new Map<ElementRecord, string>();
-  for (const [record, entry] of bytes) {
-    if (targets.has(record)) {
-      versions.set(record, await versionOf(layout, metamodel, entry.source, entry.bytes));
-    }
-  }
-  for (const [record, source] of again) {
-    bytes.set(record, { source, bytes: planned(source, versions) });
   }
   return { bytes, failed };
 };
@@ -673,7 +619,7 @@ const confirmSelected = async (workspace: Workspace, input: ConfirmInput): Promi
       found: [...found.values()],
     });
   }
-  const { bytes, failed } = await plan(layout, metamodel, sources);
+  const { bytes, failed } = plan(sources);
   const writes: ElementFileWrite[] = [];
   const confirmedIds = new Set<string>();
   for (const { source, bytes: planned } of bytes.values()) {
