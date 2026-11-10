@@ -5,7 +5,7 @@ How work on ReqSeq goes from a need to a release (product owner decision, 2026-1
 ```mermaid
 flowchart LR
   need["Need<br/><small>set by the product owner</small>"]
-  sr["SR in its topic package<br/><small>an idea is a draft SR<br/>skill spec-change</small>"]
+  sr["SR in its topic package<br/><small>dependency check first<br/>an idea is a draft SR<br/>skill spec-change</small>"]
   study["Pre-study<br/><small>steps per SR<br/>plan only if risky</small>"]
   entry["Bug, question,<br/>task asked for"]
   issue["Issue = one task<br/><small>too large: epic with sub-issues</small>"]
@@ -18,6 +18,16 @@ flowchart LR
   entry --> issue
   issue --> pr --> merged --> evidence --> release
 ```
+
+## Dependency check
+
+Every change starts in requirements engineering, with a check of what it touches; trace finds relations and inline references, the text search finds the words (product owner decision, 2026-11-09).
+
+| Path | Check | Then |
+| --- | --- | --- |
+| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, `element search` for the term and its synonyms (`spec-change`) | Risky when it changes a decision or a glossary term, or `trace affected` returns any element: concept with edge cases, review at effort high by a second agent, decision card. Otherwise questions, then the spec PR, which names each touchpoint. |
+| Bug against an AK | `trace related` in both directions, `element search` for the terms of the AK | Fix it. A fix that needs an interpretation of the AK wording becomes a `question`. |
+| Bug without an SR | none | Fix it. |
 
 ## Issues
 
