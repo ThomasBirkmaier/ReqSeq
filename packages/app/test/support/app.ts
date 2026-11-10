@@ -344,6 +344,7 @@ const timedCli = (
   args: readonly string[],
   env: NodeJS.ProcessEnv,
   name: string,
+  pending: Set<() => string>,
 ): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }> =>
   new Promise((resolve, reject) => {
     const started = Date.now();
@@ -361,8 +362,15 @@ const timedCli = (
           : `first output after ${firstOutput}, ${String(written)} bytes`,
         ended ?? "its process still ran",
       ].join("; ");
+    const describe = (): string => `${name} after ${since()}: ${facts()}`;
+    pending.add(describe);
     const child = execFile(program, args, { env }, (error, stdout, stderr) => {
       clearTimeout(timer);
+      pending.delete(describe);
+      // After the bound the call has failed already: no second report of the killed process.
+      if (settled) {
+        return;
+      }
       if (Date.now() - started > CLI_SLOW_MS) {
         process.stderr.write(`${name} took ${since()}: ${facts()}\n`);
       }
@@ -374,7 +382,7 @@ const timedCli = (
     });
     child.stdout?.on("data", (chunk: unknown) => {
       firstOutput ??= since();
-      written += String(chunk).length;
+      written += typeof chunk === "string" ? Buffer.byteLength(chunk) : (chunk as Buffer).length;
     });
     child.stderr?.on("data", (chunk: unknown) => {
       errors += String(chunk);
@@ -384,8 +392,12 @@ const timedCli = (
         return;
       }
       settled = true;
+      pending.delete(describe);
       const held = ended === undefined ? "" : ", but its output stayed open: another process holds the pipe";
       child.kill();
+      // An ended process whose pipes another process holds: let go of them, so the test can end.
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       reject(
         new Error(
           `${name} did not end within ${String(CLI_WAIT_MS)} ms: ${facts()}${held}. Standard error so far: ${JSON.stringify(errors.slice(-2000))}`,
@@ -446,6 +458,8 @@ export const launchApp = async (
   });
   let stderr = "";
   const sessions: McpSession[] = [];
+  /** The CLI calls still running, each with where its time went (`timedCli`). */
+  const pendingCli = new Set<() => string>();
   // The app's code has ended once Node waits for the debugger, even before its process has ended.
   let debuggerWait: (() => void) | undefined;
   const codeEnded = new Promise<void>((resolve) => {
@@ -492,7 +506,7 @@ export const launchApp = async (
         ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
       ];
       const spawned = runner(runtime, env);
-      return timedCli(spawned.program, args, spawned.env, `reqseq ${argv.slice(0, 2).join(" ")}`);
+      return timedCli(spawned.program, args, spawned.env, `reqseq ${argv.slice(0, 2).join(" ")}`, pendingCli);
     },
     mcp: async (runtime) => {
       const session = await startMcp(
@@ -508,6 +522,11 @@ export const launchApp = async (
       discard = true;
     },
     close: async (options) => {
+      // A test that timed out while a CLI call ran ends here (afterEach): name the call, which the
+      // timeout does not (#1339, #1399).
+      for (const describe of pendingCli) {
+        process.stderr.write(`Still running at the close: ${describe()}\n`);
+      }
       await Promise.all(sessions.splice(0).map((session) => session.close()));
       let hung = false;
       if (options?.discard !== true && !discard && !ended) {
