@@ -95,6 +95,39 @@ const VARIANT_JUNIT: FixtureOptions = {
   },
 };
 
+/**
+ * The example of SR-043 with a JUnit file of a run for several views (SR-029 AK6, AK8, AK11):
+ * SR-0000a3 (core) alone and with SR-0000b2 (only Coast, as SR-145 only on macOS), SR-0000b2 alone,
+ * SR-0000a4 (core) with a hand-written `core`, and SR-0000a5, a core requirement Mountain excludes.
+ */
+const VIEWS_JUNIT: FixtureOptions = {
+  fixture: "SR-043/example",
+  git: true,
+  files: {
+    "requirements/SR-0000000000a5.md":
+      "---\nid: 43043043-0000-4000-8000-0000000000a5\ntype: system-requirement\nstatus: draft\ntitle: Show the humidity\n---\n",
+    "variants/VAR-0000000000c2.md":
+      "---\nid: 43043043-0000-4000-8000-0000000000c2\ntype: variant\nstatus: draft\ntitle: Mountain\n" +
+      "excludes: [{ id: 43043043-0000-4000-8000-0000000000a5, version: n1:67ebd0624004c969, title: Show the humidity }]\n---\n",
+    "results/views.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station">\n' +
+      '    <testcase classname="station" name="[SR-0000a3] rain"/>\n' +
+      '    <testcase classname="station" name="[SR-0000a3] [SR-0000b2] rain and storm"/>\n' +
+      '    <testcase classname="station" name="[SR-0000b2] storm"/>\n' +
+      '    <testcase classname="station" name="[SR-0000a4] temperature">\n' +
+      '      <properties><property name="reqseq:variant" value="core"/></properties>\n    </testcase>\n' +
+      '    <testcase classname="station" name="[SR-0000a5] humidity"/>\n' +
+      "  </testsuite>\n</testsuites>\n",
+  },
+};
+
+/** The `reqseq:variant` values of each test case of `results/views.xml` as core wrote it. */
+const viewsWritten = (results: Readonly<Record<string, Result>>): string[][] =>
+  (results["core"]?.files["results/views.xml"] ?? "")
+    .split("<testcase ")
+    .slice(1)
+    .map((testCase) => [...testCase.matchAll(/reqseq:variant" value="([^"]*)"/g)].map((m) => m[1] ?? ""));
+
 // `file` and `output` are localPaths (see scenarios/workspace/init.ts). The date is given: without it the
 // time of the call would differ between the accesses.
 scenariosOf("evidence.enrichJunit", [
@@ -195,7 +228,7 @@ scenariosOf("evidence.enrichJunit", [
       file: "results/run.xml",
       item: "build-631",
       date: "2026-11-01T10:00:00Z",
-      variant: "VAR-0000c1",
+      variant: ["VAR-0000c1"],
     },
     tag: "[SR-029/AK6]",
     expect: "output",
@@ -207,6 +240,80 @@ scenariosOf("evidence.enrichJunit", [
         'reqseq:variant" value="VAR-0000c2"',
       ]);
     },
+  },
+  {
+    name: "each given view, the core and a variant, goes into each enriched test case",
+    fixture: VIEWS_JUNIT,
+    input: {
+      file: "results/views.xml",
+      item: "build-1315",
+      date: "2026-11-09T10:00:00Z",
+      variant: ["core", "VAR-0000c2"],
+    },
+    tag: "[SR-029/AK6]",
+    expect: "output",
+    check: (results) => {
+      // SR-0000b2 applies in neither view, SR-0000a5 not in Mountain: those test cases stay unchanged (AK9).
+      expect(viewsWritten(results)).toEqual([["core", VARIANT_C2], [], [], ["core", VARIANT_C2], []]);
+      expect(enrichOutput(results)).toMatchObject({ testCases: 2, notInView: 0 });
+    },
+  },
+  {
+    name: "a hand-written core not among the given views is reported",
+    fixture: VIEWS_JUNIT,
+    input: {
+      file: "results/views.xml",
+      item: "build-1315",
+      date: "2026-11-09T10:00:00Z",
+      variant: ["VAR-0000c1"],
+    },
+    tag: "[SR-029/AK8]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichMessages(results)).toEqual([
+        'Test case "[SR-0000a4] temperature" (line 7) is not enriched: reqseq:variant "core" names a view that is not among the given ones (VAR-0000c1)',
+      ]);
+      expect(viewsWritten(results)).toEqual([
+        [VARIANT_C1],
+        [VARIANT_C1],
+        [VARIANT_C1],
+        ["core"],
+        [VARIANT_C1],
+      ]);
+    },
+  },
+  {
+    name: "a requirement that applies in none of the given views is left out with skipNotInView, and counted",
+    fixture: VIEWS_JUNIT,
+    input: {
+      file: "results/views.xml",
+      item: "build-1315",
+      date: "2026-11-09T10:00:00Z",
+      variant: ["core", "VAR-0000c2"],
+      skipNotInView: true,
+    },
+    tag: "[SR-029/AK11]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({ testCases: 4, notInView: 2, problems: [] });
+      const file = results["core"]?.files["results/views.xml"] ?? "";
+      // Only SR-0000a3 in the test case that names both; the one with SR-0000b2 alone stays unchanged.
+      expect(file.match(/reqseq:element" value="[^"]*"/g)).toEqual([
+        'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
+        'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
+        'reqseq:element" value="43043043-0000-4000-8000-0000000000a4"',
+        'reqseq:element" value="43043043-0000-4000-8000-0000000000a5"',
+      ]);
+      expect(file).toContain('<testcase classname="station" name="[SR-0000b2] storm"/>');
+      // SR-0000a5 applies only in the core: enriched for both views, its Mountain record counts nowhere.
+      expect(viewsWritten(results)[4]).toEqual(["core", VARIANT_C2]);
+    },
+  },
+  {
+    name: "skipNotInView without the views given",
+    fixture: VIEWS_JUNIT,
+    input: { file: "results/views.xml", item: "build-1315", skipNotInView: true },
+    expect: "error",
   },
   {
     name: "a reqseq:variant given by short ID becomes its UUID",
@@ -229,13 +336,13 @@ scenariosOf("evidence.enrichJunit", [
       file: "results/run.xml",
       item: "build-631",
       date: "2026-11-01T10:00:00Z",
-      variant: "VAR-0000c1",
+      variant: ["VAR-0000c1"],
     },
     tag: "[SR-029/AK8]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toContain(
-        'Test case "[SR-0000a3] rain on the mountain" (line 5) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+        'Test case "[SR-0000a3] rain on the mountain" (line 5) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (VAR-0000c1)',
       );
     },
   },
@@ -246,7 +353,7 @@ scenariosOf("evidence.enrichJunit", [
       file: "results/run.xml",
       item: "build-631",
       date: "2026-11-01T10:00:00Z",
-      variant: "VAR-0000c1",
+      variant: ["VAR-0000c1"],
     },
     tag: "[SR-029/AK9]",
     expect: "output",

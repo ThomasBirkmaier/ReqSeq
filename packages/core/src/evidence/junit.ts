@@ -340,7 +340,7 @@ export const readJunitRecords = (location: JunitLocation, bytes: Uint8Array): Ev
       repository,
       file,
       line: first.line,
-      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record; enrich the file with reqseq evidence enrich-junit`,
+      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record: enrich the file with reqseq evidence enrich-junit, unless enrich-junit --skip-not-in-view left them out because their requirements apply in none of the given views`,
     });
   }
   // By line; stable, so problems on one line stay in file order.

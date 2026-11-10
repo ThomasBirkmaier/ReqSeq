@@ -87,7 +87,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 **When something goes wrong:**
 
 - `evidence.unknown-element`, exit 1: a test names an ID the workspace does not have. Check the spelling with `reqseq element list`, and that `--workspace` is the right checkout.
-- `evidence.not-enriched` in `workspace check` or `evidence status`: a JUnit file in the evidence folder that did not go through the line. Run it, or move the file out.
+- `evidence.not-enriched` in `workspace check` or `evidence status`: a JUnit file in the evidence folder that did not go through the line. Run it, or move the file out. `--skip-not-in-view` also leaves out test cases whose requirements apply in none of the given views.
 - A requirement stays `open` although its test ran: the test case does not name it, the test was skipped, or the file is not in the evidence folder.
 - A requirement is `outdated`: it changed after its last test run; the next run records the new version. A test that ran twice gives two results, and the newest decides.
 - Files with several hundred thousand test cases can run out of memory: set `NODE_OPTIONS=--max-old-space-size=8192`.
@@ -143,6 +143,7 @@ reqseq evidence enrich-junit results.xml build-1 --workspace . --output evidence
 ```text title="Output"
 testCases: 1
 withoutReference: 0
+notInView: 0
 unknown: none
 files:
   evidence/ci/results-build-1.xml

@@ -80,6 +80,7 @@ reqseq evidence enrich-junit evidence/ci/results-build-1.xml build-1
 ```text title="Output"
 testCases: 1
 withoutReference: 0
+notInView: 0
 unknown: none
 files:
   evidence/ci/results-build-1.xml

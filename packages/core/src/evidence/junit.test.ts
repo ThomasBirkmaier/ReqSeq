@@ -445,7 +445,7 @@ describe("JUnit reader (SR-093)", () => {
           file: "ci/results.xml",
           line: 1,
           message:
-            "2 test case(s) name a requirement but have no reqseq:version, so they give no record; enrich the file with reqseq evidence enrich-junit",
+            "2 test case(s) name a requirement but have no reqseq:version, so they give no record: enrich the file with reqseq evidence enrich-junit, unless enrich-junit --skip-not-in-view left them out because their requirements apply in none of the given views",
         },
       ],
     });
