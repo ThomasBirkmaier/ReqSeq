@@ -32,9 +32,10 @@ const focusFollows = ViewPlugin.define((view) => {
   let gone = false;
   return {
     update: (update: ViewUpdate) => {
-      if (update.view.hasFocus && !update.state.field(focusState)) {
+      // The state first: it is cheap, and the focus is asked of the document only when it says unfocused.
+      if (!update.state.field(focusState) && update.view.hasFocus) {
         queueMicrotask(() => {
-          if (!gone && view.hasFocus && !view.state.field(focusState)) {
+          if (!gone && !view.state.field(focusState) && view.hasFocus) {
             view.dispatch({ effects: focusEffect.of(true) });
           }
         });

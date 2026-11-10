@@ -184,6 +184,7 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     await expect(prompt).toHaveCount(0);
     // The caret stands after the image in the focused editor, so its line shows the source (#1308).
     const markdown = `![Wind-Skizze](${FOLDER_NAME}/Wind-Skizze.png)`;
+    await expect(window.locator(".cm-content")).toBeFocused();
     await expect(window.locator(".cm-content")).toContainText(markdown);
     const root = running.workspace?.root ?? "";
     await saveAndRead(window, path.join(root, ...DEMO_FILE.split("/")), markdown);
