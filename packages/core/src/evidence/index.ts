@@ -39,6 +39,7 @@ export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } fro
 export {
   hasValidationRecord,
   hasValidationStatus,
+  validatesType,
   recordStatusOf,
   statusSource,
   validationOf,

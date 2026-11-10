@@ -282,7 +282,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     ...more,
   });
 
-  it("[SR-038/AK3] a need without validation record is open, any element with a validation record has its status", async () => {
+  it("[SR-038/AK3] a need without validation record is open, a requirement with a validation record has its status", async () => {
     const [need, requirement, useCase] = [element({}, "need"), element(), element({}, "use-case")];
     const status = workspaceStatusOf(
       sourceOf([validation(requirement), validation(useCase, { result: "failed" })]),
@@ -295,7 +295,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
       status.validate(need)?.status,
       status.validate(requirement)?.status,
       status.validate(useCase)?.status,
-    ]).toEqual(["open", "validated", "failed"]);
+    ]).toEqual(["open", "validated", undefined]);
   });
 
   it("a requirement or other element without validation record has no validation status (ThomasBirkmaier/ReqSeq-archive#534)", () => {
@@ -320,7 +320,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     ]).toEqual(["open", undefined]);
   });
 
-  it("prepare with own reads the versions of validation-recorded elements in the one batch, once", async () => {
+  it("prepare with own reads the versions of validation-recorded needs and requirements in the one batch, once, not of other elements (SR-038 AK5)", async () => {
     const [need, requirement, other] = [element({}, "need"), element(), element({}, "use-case")];
     const { asked, read } = reader();
     const status = workspaceStatusOf(
@@ -331,7 +331,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     );
     await status.prepare([need, requirement, other], { own: true });
     await status.prepare([need, requirement, other], { own: true });
-    expect(asked).toEqual([[need, requirement, other]]);
+    expect(asked).toEqual([[need, requirement]]);
     expect(status.versionBatches()).toBe(1);
   });
 

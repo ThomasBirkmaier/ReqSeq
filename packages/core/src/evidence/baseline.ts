@@ -260,8 +260,8 @@ export const baselineEvidence =
       counts,
       requirement,
     );
-    // SR-038 as `hasValidationStatus`: a need, and any other element with a validation record.
-    const validation = validated || source.needs.has(element.type);
+    // SR-038 as `hasValidationStatus`: a need, and a requirement with a validation record (AK5).
+    const validation = source.needs.has(element.type) || (validated && source.requirements.has(element.type));
     const verification = requirement
       ? verificationRows(
           element,

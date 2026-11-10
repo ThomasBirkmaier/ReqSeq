@@ -65,7 +65,8 @@ const FROM_FILES: Record<string, readonly unknown[]> = {
   [N6]: ["validated", undefined],
   [S1]: ["validated", core("failed")],
   [S2]: [undefined, core("verified")],
-  [U1]: ["failed", undefined],
+  // A use case is neither need nor requirement: its validation record counts for no status (SR-038 AK5).
+  [U1]: [undefined, undefined],
 };
 
 describe("validation status in element.get, element.resolve, evidence.status and the filter (SR-038)", () => {
@@ -121,7 +122,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
   it("[SR-038/AK3] the filter condition validation finds the elements by their computed status", async () => {
     const ws = await open();
     expect(await where(ws, { validation: ["validated"] })).toEqual([N1, N6, S1]);
-    expect(await where(ws, { validation: ["failed"] })).toEqual([N2, N5, U1]);
+    expect(await where(ws, { validation: ["failed"] })).toEqual([N2, N5]);
     expect(await where(ws, { validation: ["outdated"] })).toEqual([N3]);
     expect(await where(ws, { validation: ["open"] })).toEqual([N4]);
   });

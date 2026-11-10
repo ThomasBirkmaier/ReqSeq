@@ -14,11 +14,12 @@
 //   record cannot be assigned to one of them. The UUID is its `targetId` too: the problem is about
 //   the record, which is no hint (`isHint` of `hint.list` needs an `elementId`).
 // - `evidence.kind-mismatch` (warning, #628) for a verification record whose element has one copy of a
-//   type without the meaning `requirement` (D-012: a verification names a requirement). Such a record
-//   counts for no status, so a JUnit test case naming a need (always a verification, ADR-0012) no
-//   longer passes silently. Validation records are not checked: one of any element type counts for
-//   its validation status (ThomasBirkmaier/ReqSeq-archive#534 assumption, `hasValidationStatus`). Left out while the metamodel is
-//   not valid, since the types then have no meanings.
+//   type without the meaning `requirement`, and for a validation record whose element has one copy of
+//   a type with neither the meaning `need` nor `requirement` (D-012: a verification names a
+//   requirement, a validation a need or a requirement; SR-038 AK5, #1360). Such a record counts for
+//   no status (`hasValidationStatus`), so a JUnit test case naming a need (always a verification,
+//   ADR-0012) or a hand-written validation of a decision no longer passes silently. Left out while
+//   the metamodel is not valid, since the types then have no meanings.
 // - `evidence.unknown-criterion` (warning, SR-028 AK5: „Gegeben ein Datensatz nennt eine Nummer, die
 //   es in der genannten Fassung des Requirements nicht als Akzeptanzkriterium gibt, wenn er gelesen
 //   wird, dann meldet die Prüfung des Arbeitsbereichs einen Befund.“) for a record whose `criteria`
@@ -154,19 +155,26 @@ export const recordKindProblems = (
     return [];
   }
   const requirements = new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key));
+  const needs = new Set(typesWithMeaning(metamodel, "need").map((t) => t.key));
   const problems: Problem[] = [];
   for (const record of records) {
-    if (record.kind !== "verification") {
-      continue;
-    }
     const [element, ...others] = store.byId.get(record.element) ?? [];
-    if (element === undefined || others.length > 0 || requirements.has(element.type)) {
+    if (
+      element === undefined ||
+      others.length > 0 ||
+      requirements.has(element.type) ||
+      (record.kind === "validation" && needs.has(element.type))
+    ) {
       continue;
     }
+    const names =
+      record.kind === "verification"
+        ? "a verification record names a requirement"
+        : "a validation record names a need or a requirement";
     problems.push({
       code: "evidence.kind-mismatch",
       severity: "warning",
-      message: `The verification record names element ${record.element} of type ${element.type}, so it counts for no status: a verification record names a requirement (D-012)`,
+      message: `The ${record.kind} record names element ${record.element} of type ${element.type}, so it counts for no status: ${names} (D-012)`,
       ...recordPlace(record),
       targetId: record.element,
       targetRepository: element.repository,

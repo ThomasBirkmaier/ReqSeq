@@ -158,10 +158,17 @@ scenariosOf("evidence.status", [
     expect: "output",
   },
   {
-    name: "validation status apart from the verification status (SR-038)",
+    name: "validation status apart from the verification status, none for a use case with a validation record (SR-038)",
     fixture: VALIDATION,
     input: {},
+    tag: "[SR-038/AK5]",
     expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+      ).output;
+      expect(elements.find((e) => e["shortId"] === "UC-00e001")?.["validation"]).toBeUndefined();
+    },
   },
   {
     name: "an inconclusive validation with its reason as a status of its own (SR-172 AK2)",

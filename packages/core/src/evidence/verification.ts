@@ -76,7 +76,13 @@ import {
 import type { EvidenceRecord } from "./record.js";
 import { insertionOf } from "./state.js";
 import type { CriteriaCount, StatusSource, Validation, VerificationEntries } from "./status.js";
-import { hasValidationRecord, hasValidationStatus, statusSource, validationOf } from "./status.js";
+import {
+  hasValidationRecord,
+  hasValidationStatus,
+  statusSource,
+  validatesType,
+  validationOf,
+} from "./status.js";
 
 /**
  * The verification entries of `element` (`$defs/element` `verification`): the core and each variant
@@ -242,6 +248,10 @@ const statusWith = (
   ];
   const hasRecords = (element: ElementRecord): boolean =>
     source.recordsOf(element.id).some((r) => r.kind === "verification");
+  /** A requirement with verification records, or a need or requirement with a counted validation record (SR-038 AK5). */
+  const hasOwnStatusRecords = (element: ElementRecord): boolean =>
+    (source.requirements.has(element.type) && hasRecords(element)) ||
+    (validatesType(source, element.type) && hasValidationRecord(source.recordsOf(element.id)));
   // Below an element with an own record in every view it applies in, or one marked emergent (SR-035),
   // its children decide nothing.
   const holders = views.map((view) => ({ view, includes: scope.includesIn(view) }));
@@ -262,14 +272,10 @@ const statusWith = (
       }
     };
     if (own) {
-      // Their own versions: requirements with verification records, any element with a counted
-      // validation record (SR-038). The walk below stays on verification (S4 of the SR-038 plan review).
+      // Their own versions: requirements with verification records, needs and requirements with a
+      // counted validation record (SR-038, AK5). The walk below stays on verification (S4 of the SR-038 plan review).
       for (const element of elements) {
-        if (
-          !versions.has(element) &&
-          ((source.requirements.has(element.type) && hasRecords(element)) ||
-            hasValidationRecord(source.recordsOf(element.id)))
-        ) {
+        if (!versions.has(element) && hasOwnStatusRecords(element)) {
           wanted.add(element);
         }
       }

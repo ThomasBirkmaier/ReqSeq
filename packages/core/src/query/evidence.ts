@@ -8,7 +8,7 @@
 // requirement without own record, from its children (SR-034 ThomasBirkmaier/ReqSeq-archive#46): each requirement (a type with the
 // meaning `requirement`, own or inherited, SR-012) in each view it applies in (SR-040, SR-047 AK3).
 // The validation status (SR-038 ThomasBirkmaier/ReqSeq-archive#50) comes from the validation records of the core: every need has
-// one (`open` without record), any other element only with a validation record (ThomasBirkmaier/ReqSeq-archive#534). Both come
+// one (`open` without record), a requirement only with a validation record, no other element (SR-038 AK5). Both come
 // from the evidence block's `verificationState` (`evidence/verification.ts`), which element.get and
 // evidence.status share. Only the elements that have records get a current version
 // (`currentVersionsOf`: the files of those elements, or the whole store when they are a large share
