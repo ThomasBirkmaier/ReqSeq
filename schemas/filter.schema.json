@@ -122,7 +122,7 @@
             "validation": {
               "type": "array",
               "items": { "$ref": "common.schema.json#/$defs/validationStatus" },
-              "description": "Needs always (open without record), other elements only with a validation record (assumption ThomasBirkmaier/ReqSeq-archive#534)."
+              "description": "Needs always (open without record), requirements only with a validation record, no other element (SR-038 AK5)."
             }
           },
           "additionalProperties": false

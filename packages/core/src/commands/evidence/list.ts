@@ -20,6 +20,7 @@ import {
   listedRecords,
   testCaseWithEvidenceSource,
   testCasesIn,
+  validatesType,
   verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
@@ -96,7 +97,14 @@ export default defineCommand({
     return {
       records: listed,
       bearing,
-      display: displayOf(listed, { bearing, current, count, views, independent }),
+      display: displayOf(listed, {
+        bearing,
+        current,
+        count,
+        views,
+        independent,
+        validates: status !== undefined && validatesType(status.source, element.type),
+      }),
       testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,

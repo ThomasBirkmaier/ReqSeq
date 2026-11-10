@@ -438,14 +438,22 @@ export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean
   records.some((r) => r.kind === "validation" && holdsIn(r, CORE, false));
 
 /**
- * Whether `element` has a validation status (SR-038): a need, and any other element with a counted
- * validation record among its `records` (ThomasBirkmaier/ReqSeq-archive#534 assumption).
+ * Whether a validation record can name an element of `type` (D-012): a need or a requirement. A
+ * validation record of any other element counts for no status (SR-038 AK5, #1360).
+ */
+export const validatesType = (source: Pick<StatusSource, "needs" | "requirements">, type: string): boolean =>
+  source.needs.has(type) || source.requirements.has(type);
+
+/**
+ * Whether `element` has a validation status (SR-038): a need, and a requirement with a counted
+ * validation record among its `records`; no other element (AK5).
  */
 export const hasValidationStatus = (
-  source: Pick<StatusSource, "needs">,
+  source: Pick<StatusSource, "needs" | "requirements">,
   element: Pick<ElementRecord, "type">,
   records: readonly EvidenceRecord[],
-): boolean => source.needs.has(element.type) || hasValidationRecord(records);
+): boolean =>
+  source.needs.has(element.type) || (source.requirements.has(element.type) && hasValidationRecord(records));
 
 /** What the verification status of the elements of a workspace is computed from. */
 export interface StatusSource {

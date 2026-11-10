@@ -15,6 +15,29 @@ templateSetup(SECOND_COMMIT, async (ws) => {
 
 scenariosOf("workspace.check", [
   {
+    name: "a validation record of a use case, neither need nor requirement, is a finding (SR-038 AK5)",
+    fixture: { fixture: "SR-038/validation", git: true },
+    input: {},
+    tag: "[SR-038/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as {
+          output: { problems: { code: string; targetId?: string; message?: string }[] };
+        }
+      ).output;
+      expect(
+        output.problems
+          .filter((p) => p.code === "evidence.kind-mismatch")
+          .map((p) => [p.targetId, p.message?.startsWith("The validation record") === true]),
+      ).toEqual([
+        // N1: its verification record (#628); U1: its validation record (AK5).
+        ["38383838-3838-4838-8838-00000000a001", false],
+        ["38383838-3838-4838-8838-00000000e001", true],
+      ]);
+    },
+  },
+  {
     name: "a repository whose own metamodel counts another property to the version (#666)",
     fixture: { fixture: "SR-004/own-metamodel", git: ["system", "fuel"] },
     root: "system",

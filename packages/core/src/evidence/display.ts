@@ -43,6 +43,8 @@ export interface DisplayInput {
   readonly views: readonly View[];
   /** Its repository is marked `variant-independent` (SR-173). */
   readonly independent: boolean;
+  /** A validation record can name it (`validatesType`): no validation row otherwise (SR-038 AK5). */
+  readonly validates: boolean;
 }
 
 /** A record with its position in the records of `evidence.list`. */
@@ -192,7 +194,7 @@ export const displayOf = (records: readonly EvidenceRecord[], input: DisplayInpu
   if (input.views.length > 0 && records.some((r) => r.kind === "verification")) {
     rows.push(...verificationRows(records, bearing, input));
   }
-  if (records.some((r) => r.kind === "validation")) {
+  if (input.validates && records.some((r) => r.kind === "validation")) {
     rows.push({
       kind: "validation",
       status: validationOf(records, input.current).status,

@@ -142,18 +142,12 @@ describe("SR-028 findings of the evidence records", () => {
     expect(checked.ok).toBe(false);
   });
 
-  it("warns about a verification of a need, not about validations (#628)", async () => {
+  it("warns about a verification of a need, not about a validation of a need (#628)", async () => {
     const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
-    const decision = "3c3c3c3c-3333-4333-8333-0d00000000a2";
     const workspace = await open({
       "system/needs/N-0d00000000a1.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: Weigh the load\n---\n`,
-      "system/decisions/D-0d00000000a2.md": `---\nid: ${decision}\ntype: decision\nstatus: draft\ntitle: Use kg\n---\n`,
       "ci-results/evidence/2026-10-23-need-test.md": recordFile(need),
       "ci-results/evidence/2026-10-23-need-validation.md": recordFile(need).replace(
-        "kind: verification",
-        "kind: validation",
-      ),
-      "ci-results/evidence/2026-10-23-decision-validation.md": recordFile(decision).replace(
         "kind: verification",
         "kind: validation",
       ),
@@ -167,6 +161,40 @@ describe("SR-028 findings of the evidence records", () => {
     expect(found[0]?.message).toBe(
       `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement (D-012)`,
     );
+  });
+
+  it("[SR-038/AK5] a validation record of an element that is neither need nor requirement counts for no status and is a finding", async () => {
+    const decision = "3c3c3c3c-3333-4333-8333-0d00000000a2";
+    const workspace = await open({
+      "system/decisions/D-0d00000000a2.md": `---\nid: ${decision}\ntype: decision\nstatus: draft\ntitle: Use kg\n---\n`,
+      "ci-results/evidence/2026-10-23-decision-validation.md": recordFile(decision).replace(
+        "kind: verification",
+        "kind: validation",
+      ),
+    });
+    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    const found = checked.problems.filter((p) => p.code === "evidence.kind-mismatch");
+    expect(found.map((p) => [p.file, p.targetId, p.severity, p.message])).toEqual([
+      [
+        "evidence/2026-10-23-decision-validation.md",
+        decision,
+        "warning",
+        `The validation record names element ${decision} of type decision, so it counts for no status: a validation record names a need or a requirement (D-012)`,
+      ],
+    ]);
+    const got = (await invoke(
+      "element.get",
+      { ref: decision },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect(got.element.validation).toBeUndefined();
+    const listed = (await invoke(
+      "evidence.list",
+      { ref: decision },
+      { workspace },
+    )) as CommandOutput<"evidence.list">;
+    expect(listed.records).toHaveLength(1);
+    expect(listed.display.rows).toEqual([]);
   });
 
   it("checks no kind while the metamodel is not valid", () => {

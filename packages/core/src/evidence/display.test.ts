@@ -37,6 +37,7 @@ const display = (
   count: number,
   views: readonly View[] = [CORE],
   independent = false,
+  validates = true,
 ) =>
   displayOf(records, {
     bearing: bearingRecords(records, CURRENT, count, independent),
@@ -44,6 +45,7 @@ const display = (
     count,
     views,
     independent,
+    validates,
   });
 
 describe("displayOf", () => {

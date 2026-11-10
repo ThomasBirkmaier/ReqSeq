@@ -2331,7 +2331,7 @@
                   "properties": {
                     "element": {
                       "$ref": "#/components/schemas/data-export/$defs/element",
-                      "description": "Text, properties, version (in normal form n2, the form the tool writes; a stored version of n1 is compared in its own form) and, with the input `versionDate`, its date (`versionDate`, the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element, the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed`, at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline`, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why. The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule, as evidence.status gives it, with the indirect verification and the children that are missing. `validation`: its validation status, for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it."
+                      "description": "Text, properties, version (in normal form n2, the form the tool writes; a stored version of n1 is compared in its own form) and, with the input `versionDate`, its date (`versionDate`, the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element, the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed`, at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline`, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why. The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule, as evidence.status gives it, with the indirect verification and the children that are missing. `validation`: its validation status, for every need and for a requirement with a validation record (a validation record of any other element counts for no status), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it."
                     },
                     "fileSha256": {
                       "$ref": "#/components/schemas/common/$defs/fileSha256",
@@ -8481,7 +8481,7 @@
                         },
                         "rows": {
                           "type": "array",
-                          "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record, one validation row after them.",
+                          "description": "With a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them.",
                           "items": {
                             "type": "object",
                             "description": "One line of the Evidence section: an acceptance criterion, the whole requirement without criteria, or the validation.",
@@ -9308,7 +9308,7 @@
                   "properties": {
                     "elements": {
                       "type": "array",
-                      "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+                      "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
                       "items": {
                         "$ref": "#/components/schemas/data-export/$defs/element"
                       }
@@ -11321,7 +11321,7 @@
                           },
                           "validation": {
                             "$ref": "#/components/schemas/common/$defs/validationStatus",
-                            "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for any other with a validation record: the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+                            "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record: the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
                           },
                           "validationReason": {
                             "type": "string",
@@ -13878,7 +13878,7 @@
               },
               "validation": {
                 "$ref": "#/components/schemas/common/$defs/validationStatus",
-                "description": "The Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise. Never inherited from children; never the element's `status`. `inconclusive` when that record is inconclusive; on a tie at the newest date `failed` before `inconclusive` before `validated`."
+                "description": "The Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status. Never inherited from children; never the element's `status`. `inconclusive` when that record is inconclusive; on a tie at the newest date `failed` before `inconclusive` before `validated`."
               },
               "validationReason": {
                 "type": "string",
@@ -14798,7 +14798,7 @@
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/validationStatus"
                     },
-                    "description": "Needs always (open without record), other elements only with a validation record."
+                    "description": "Needs always (open without record), requirements only with a validation record, no other element."
                   }
                 },
                 "additionalProperties": false

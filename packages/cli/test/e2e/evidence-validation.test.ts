@@ -56,7 +56,7 @@ describe("reqseq and the validation status (SR-038)", () => {
         "  N-00a006  approved  Know the sunshine  [validation: validated]",
         "  SR-00b001  approved  Show wind speed  [verification: core failed]  [validation: validated]",
         "  SR-00b002  draft  Show wind direction  [verification: core verified]",
-        "  UC-00e001  approved  Read the wind  [validation: failed]",
+        "  UC-00e001  approved  Read the wind",
         "total: 9",
         "",
       ].join("\n"),
