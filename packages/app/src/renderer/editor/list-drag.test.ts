@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { history, undo } from "@codemirror/commands";
+import { forceParsing } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { BlockInfo } from "@codemirror/view";
@@ -44,6 +45,10 @@ const viewOf = (doc: string, readOnly = false): EditorView => {
   view.lineBlockAtHeight = (height: number): BlockInfo => block(Math.floor(height / LINE) + 1);
   view.lineBlockAt = (pos: number): BlockInfo => block(view.state.doc.lineAt(pos).number);
   views.push(view);
+  // The handles come from the syntax tree, and the first parse stops after 20 ms (CodeMirror's budget for a
+  // new state); the rest follows in the background. On a slow runner the tree ends before the last item,
+  // and so do the handles (#1296). The whole tree first, as the editor's `parseAhead` does.
+  expect(forceParsing(view, view.state.doc.length, 5000)).toBe(true);
   return view;
 };
 
