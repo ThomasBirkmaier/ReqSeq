@@ -377,7 +377,7 @@ describe("generateLargeWorkspace", () => {
     expect(model).toContain(
       "\nproperties:\n  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\n",
     );
-    expect(model).toContain("properties: [spec-id, title, rationale, source,");
+    expect(model).toContain("properties: [spec-id, title, rationale, packages, source,");
     expect(model).toContain("[\n        spec-id, title,");
     expect(withSpecIdProperty(model)).toBe(model);
     const generated = small();

@@ -377,7 +377,7 @@ const TYPES: readonly TypeSpec[] = [
 /** Properties of a new element besides `id`, `type`, `status` and `title` (standard model). */
 const propertiesFor = (spec: TypeSpec, title: string, random: Random): Record<string, unknown> => {
   const properties: Record<string, unknown> = {};
-  // Variants and packages have only a title in the standard model.
+  // The generator fills only a title for variants and packages.
   if (random.next() < 0.3 && spec.pool !== "variant" && spec.pool !== "package") {
     properties["rationale"] = `Needed so that ${random.pick(NOUNS)} stays visible ${random.pick(PLACES)}`;
   }
