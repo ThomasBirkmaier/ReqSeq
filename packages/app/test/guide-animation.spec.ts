@@ -1,4 +1,4 @@
-// The animation at the top of the README (SR-140 AK4): the steps of Get started done in the app, from an empty
+// The animation at the top of the README (SR-203 AK1): the steps of Get started done in the app, from an empty
 // folder to the graph of the need, where it ends. The app opens the empty folder, initialises the workspace,
 // creates the need and the system requirement with their texts, adds the relation and shows the graph of the need.
 // The elements get the UUIDs of Get started and of `fixtures/enabler-344/weather-station` (`fixed-uuids.mjs`), so
@@ -66,7 +66,7 @@ const heading = (window: Page) => window.locator("article h1");
 
 test.skip(process.platform !== "linux", "the guide's images are made on Linux only (ADR-0017)");
 
-test("[SR-140/AK4] the README animation: Get started in the app, ending in the graph of the need", async () => {
+test("[SR-203/AK1] the README animation: Get started in the app, ending in the graph of the need", async () => {
   // About a hundred frames: more than the default minute on a slow runner.
   test.setTimeout(120_000);
   // The README shows the animation.
