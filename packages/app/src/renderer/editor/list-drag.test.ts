@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { history, undo } from "@codemirror/commands";
+import { forceParsing } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { BlockInfo } from "@codemirror/view";
@@ -47,11 +48,22 @@ const viewOf = (doc: string, readOnly = false): EditorView => {
   return view;
 };
 
+/**
+ * Parses the whole text into the view's state. The handles come from the syntax tree, and CodeMirror
+ * parses a new state, and each change, for at most 20 ms; the rest follows in the background. On a slow
+ * runner the tree, and so the handles, ended before the last item (#1296).
+ */
+const parsed = (view: EditorView): void => {
+  expect(forceParsing(view, view.state.doc.length, 5000)).toBe(true);
+};
+
 const handles = (view: EditorView): HTMLElement[] => [
   ...view.contentDOM.querySelectorAll<HTMLElement>(".cm-lr-handle"),
 ];
 
+/** The handle of item `index`, once the text, as it is now (also after a drop), is parsed. */
 const handle = (view: EditorView, index: number): HTMLElement => {
+  parsed(view);
   const found = handles(view)[index];
   if (found === undefined) {
     throw new Error(`no handle ${String(index)}`);
