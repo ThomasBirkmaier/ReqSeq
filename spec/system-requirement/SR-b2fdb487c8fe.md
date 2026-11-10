@@ -9,6 +9,7 @@ acceptance-criteria:
   - "Gegeben eine Arbeitsbereichs-Datei nennt drei Repositories, die alle lokal vorhanden sind, wenn der Arbeitsbereich geöffnet wird, dann zeigt das Tool die Elemente aller drei Repositories gemeinsam."
   - "Gegeben ein Arbeitsbereich mit nur einem Repository, wenn er geöffnet wird, dann stehen alle Funktionen genauso zur Verfügung wie bei mehreren Repositories."
   - "Gegeben ein genanntes Repository fehlt lokal, wenn der Arbeitsbereich geöffnet wird, dann zeigt das Tool es als nicht vorhanden und arbeitet mit den übrigen normal."
+  - "Gegeben eine Person nennt in einer lokalen Datei des Arbeitsbereichs für ein Repository einen anderen Ort auf ihrem Rechner, wenn der Arbeitsbereich geöffnet wird, dann liest das Tool das Repository von dort."
 verification-method: test
 packages:
   - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
@@ -17,6 +18,7 @@ derives-from:
 based-on:
   - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n2:5fa2f004bf0408a2, title: Das Metamodell gehört zum Stand }
   - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n2:ab35a04348d6fa8b, title: Arbeitsbereich als Datei }
+rationale: "Entscheidung des Produktverantwortlichen, 2026-11-09: AK4 nimmt die lokale Angabe des Orts eines Repositorys auf, die das Tool schon bietet, statt eines eigenen SR."
 ---
 
 Das Tool muss die Repositories eines Arbeitsbereichs aus der Arbeitsbereichs-Datei im Haupt-Repository lesen und alle lokal vorhandenen gemeinsam öffnen.
