@@ -809,15 +809,19 @@ describe("watching the last access (SR-117)", () => {
       seen: () => Promise.resolve(seen.seen.length > 0),
     });
     await quiet(300);
-    const probes = seen.seen.length;
-    const next = seen.next();
+    // A probe read can still be reported after the quiet time on a busy runner (#1425), so the test
+    // waits for the report of SR-037 itself and ignores those of SR-036.
+    const ofSr037 = (): ActivityAccess[] => seen.seen.filter((access) => access.element.id === SR_037);
     await call(agent, "element.get", { ref: "SR-037" }, "mcp");
-    const access = await next;
-    expect(access.element).toEqual({ id: SR_037, repository: "spec" });
+    while (ofSr037().length === 0) {
+      await quiet(10);
+    }
+    const [access] = ofSr037();
+    expect(access?.element).toEqual({ id: SR_037, repository: "spec" });
     // AK1 counts from the read, which `access.at` records when the call ends.
-    expect(Date.now() - Date.parse(access.at)).toBeLessThan(1000);
+    expect(Date.now() - Date.parse(access?.at ?? "")).toBeLessThan(1000);
     await quiet(300);
-    expect(seen.seen).toHaveLength(probes + 1);
+    expect(ofSr037()).toHaveLength(1);
   });
 
   it("[SR-117/AK1] reports a change only once the store of the watching process holds it", async () => {
