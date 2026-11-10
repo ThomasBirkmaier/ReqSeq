@@ -287,6 +287,11 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
       record("2025-12-31T10:00:00Z", "failed", { criteria: [3] }),
     ];
     expect(perCriterion(records)).toEqual({ status: "verified", criteria: { verified: 3, total: 3 } });
+    // An older failed record for all criteria does not decide over newer passed ones naming them (#1323).
+    expect(perCriterion([record(DAY1, "failed"), record(DAY2, "passed", { criteria: [1, 2, 3] })])).toEqual({
+      status: "verified",
+      criteria: { verified: 3, total: 3 },
+    });
   });
 
   it("[SR-031/AK3] failed when the newest record of the current version for one criterion failed", () => {
@@ -299,6 +304,14 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
       status: "failed",
       criteria: { verified: 2, total: 3, notVerified: [2] },
     });
+    // A failed and a passed record of the same date naming the same criterion give failed (#1323).
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { criteria: [1, 3] }),
+        record(DAY1, "failed", { criteria: [2] }),
+        record(DAY1, "passed", { criteria: [2] }),
+      ]),
+    ).toEqual({ status: "failed", criteria: { verified: 2, total: 3, notVerified: [2] } });
     // Failed also beats a criterion without record and one of an older version.
     expect(
       perCriterion([
