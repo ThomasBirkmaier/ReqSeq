@@ -5,4 +5,4 @@ title: "Hinweis"
 area: fachlich
 ---
 
-Meldung des Tools, dass ein Element geprüft werden sollte, zum Beispiel weil sich sein Parent oder der Kern geändert hat oder weil es eine unbekannte Property trägt. Ein Hinweis blockiert nichts und ändert keinen Status. Hinweise stehen in der Liste der Hinweise ([SR-026](reqseq:6adc6bdb-76ac-4954-b213-7c1989fd4444?version=n2:3bae1339e57bc748)); eine Meldung, die die App nur an Ort und Stelle zeigt, ist kein Hinweis.
+Meldung des Tools, dass ein Element geprüft werden sollte, zum Beispiel weil sich sein Parent oder der Kern geändert hat oder weil es eine unbekannte Property trägt. Ein Hinweis blockiert nichts und ändert keinen Status. Hinweise stehen in der Liste der Hinweise ([SR-026](reqseq:6adc6bdb-76ac-4954-b213-7c1989fd4444?version=n2:50d9d8a3d2f2cc16)); eine Meldung, die die App nur an Ort und Stelle zeigt, ist kein Hinweis.
