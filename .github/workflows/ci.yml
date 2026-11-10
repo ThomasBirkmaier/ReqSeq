@@ -211,8 +211,12 @@ jobs:
           if ! unshare -rn true 2>/dev/null; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-          # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (ThomasBirkmaier/ReqSeq-archive#125).
-          unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
+          # Loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (ThomasBirkmaier/ReqSeq-archive#125).
+          # Plus a dummy interface with a documentation address (192.0.2.1, RFC 5737) that leads nowhere, so the test
+          # of SR-079 AK2 has an address other machines would use (#1363). The namespace cannot load the module itself.
+          # REQSEQ_E2E_EXTERNAL_ADDRESS makes that test fail instead of skip when the address is missing.
+          sudo modprobe dummy
+          REQSEQ_E2E_EXTERNAL_ADDRESS=required unshare -rn sh -c 'ip link set lo up && ip link add reqseq0 type dummy && ip addr add 192.0.2.1/24 dev reqseq0 && ip link set reqseq0 up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
 
       # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
       # Linux only. The site (Astro, Starlight) has its own lockfile outside the workspace; only these steps and
