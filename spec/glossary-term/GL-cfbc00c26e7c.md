@@ -3,8 +3,6 @@ id: ab08f733-17e9-43fe-bcf6-cfbc00c26e7c
 type: glossary-term
 title: Validierungsstatus
 area: fachlich
-packages:
-  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 distinct-from:
   - { id: 0d5a8379-b25c-4218-9d4a-fe1e9bc4c235, version: n2:1ade91d7c49ecee5, title: Status }
 ---

@@ -3,8 +3,6 @@ id: 7360f1e8-0589-41cd-96d0-7a93fc2d2d6d
 type: glossary-term
 title: Ungültig
 area: fachlich
-packages:
-  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:cbcfa73eec53e04c, title: Metamodell und Prüfung }
 distinct-from:
   - { id: 6adc52ea-51e2-4e4f-8583-885837c736b0, version: n2:66c70c0ee6c77bf4, title: Gültigkeit }
 ---

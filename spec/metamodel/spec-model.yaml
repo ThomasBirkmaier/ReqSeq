@@ -162,7 +162,7 @@ properties:
     choices:
       - { key: fachlich, name: Fachlich }
       - { key: tool-entwicklung, name: Tool-Entwicklung }
-  # The description of synonyms follows the product owner decision, 2026-11-10 (#1300, B-31).
+  # The description of synonyms follows the product owner decision, 2026-11-10 (#1300).
   - key: synonyms
     name: Synonyms
     kind: text
