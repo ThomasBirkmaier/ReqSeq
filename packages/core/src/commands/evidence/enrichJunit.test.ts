@@ -776,6 +776,35 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(views(uuid43("b2"))).toEqual({ [COAST]: "verified" });
   });
 
+  it("[SR-029/AK12] [SR-093/AK6] marks a test case of only another variant with the given views, and the workspace reads it without a warning", async () => {
+    // SR-0000b2 applies only in Coast; the run is for the core and Mountain.
+    const { fixture, workspace } = await openExample(
+      '<testcase name="[SR-0000b2] storm"/><testcase name="[SR-0000a2] wind"/>',
+      {
+        "reqseq-workspace.yaml": `${exampleFile("reqseq-workspace.yaml")}evidence:\n  - { repository: system, path: evidence }\n`,
+        "evidence/ci/.gitkeep": "",
+      },
+    );
+    const input = {
+      file: "results/run.xml",
+      output: "evidence/ci/run.xml",
+      variant: ["core", "VAR-0000c2"],
+      skipNotInView: true,
+    };
+    expect(await enrich(workspace, input)).toMatchObject({ testCases: 1, notInView: 1, problems: [] });
+    const written = await bytesOf(fixture, "evidence/ci/run.xml");
+    expect(properties(written)[0]).toEqual([
+      "[SR-0000b2] storm",
+      ["reqseq:not-in-view=core", `reqseq:not-in-view=${MOUNTAIN}`],
+    ]);
+    const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(check.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+    // A re-run with the same views leaves the file as it is.
+    const again = { file: "evidence/ci/run.xml", variant: input.variant, skipNotInView: true };
+    expect(await enrich(workspace, again)).toMatchObject({ files: [], notInView: 1, problems: [] });
+    expect(await bytesOf(fixture, "evidence/ci/run.xml")).toEqual(written);
+  });
+
   it("refuses skipNotInView without the views given, before it reads the file", async () => {
     const { workspace } = await openExample("");
     const error = await failure(workspace, { file: "results/gone.xml", skipNotInView: true });

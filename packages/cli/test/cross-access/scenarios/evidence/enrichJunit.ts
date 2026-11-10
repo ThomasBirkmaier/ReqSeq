@@ -128,6 +128,25 @@ const viewsWritten = (results: Readonly<Record<string, Result>>): string[][] =>
     .slice(1)
     .map((testCase) => [...testCase.matchAll(/reqseq:variant" value="([^"]*)"/g)].map((m) => m[1] ?? ""));
 
+/** A mark of a test case left out for a view (SR-029 AK12). */
+const mark = (view: string): string => `<property name="reqseq:not-in-view" value="${view}"/>`;
+
+/**
+ * The views workspace with a JUnit file of SR-0000b2 (only Coast): one test case marked for the core
+ * and Mountain already, as a run for them wrote it, one not marked yet (SR-029 AK12).
+ */
+const MARKED_JUNIT: FixtureOptions = {
+  ...VIEWS_JUNIT,
+  files: {
+    ...VIEWS_JUNIT.files,
+    "results/marked.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+      `  <testcase classname="station" name="[SR-0000b2] storm"><properties>${mark("core")}${mark("43043043-0000-4000-8000-0000000000c2")}</properties></testcase>\n` +
+      '  <testcase classname="station" name="[SR-0000b2] gusts">\n    <properties>\n      <property name="reqseq:element" value="SR-0000b2"/>\n    </properties>\n  </testcase>\n' +
+      "</testsuite>\n",
+  },
+};
+
 // `file` and `output` are localPaths (see scenarios/workspace/init.ts). The date is given: without it the
 // time of the call would differ between the accesses.
 scenariosOf("evidence.enrichJunit", [
@@ -297,16 +316,43 @@ scenariosOf("evidence.enrichJunit", [
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 4, notInView: 2, problems: [] });
       const file = results["core"]?.files["results/views.xml"] ?? "";
-      // Only SR-0000a3 in the test case that names both; the one with SR-0000b2 alone stays unchanged.
+      // Only SR-0000a3 in the test case that names both; the one with SR-0000b2 alone gets only the
+      // marks of the given views (AK12).
       expect(file.match(/reqseq:element" value="[^"]*"/g)).toEqual([
         'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
         'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
         'reqseq:element" value="43043043-0000-4000-8000-0000000000a4"',
         'reqseq:element" value="43043043-0000-4000-8000-0000000000a5"',
       ]);
-      expect(file).toContain('<testcase classname="station" name="[SR-0000b2] storm"/>');
+      expect(file).toContain(
+        `<testcase classname="station" name="[SR-0000b2] storm"><properties><property name="reqseq:not-in-view" value="core"/><property name="reqseq:not-in-view" value="${VARIANT_C2}"/></properties></testcase>`,
+      );
       // SR-0000a5 applies only in the core: enriched for both views, its Mountain record counts nowhere.
       expect(viewsWritten(results)[4]).toEqual(["core", VARIANT_C2]);
+    },
+  },
+  {
+    name: "a test case whose requirements apply in none of the given views is marked with each of them, once",
+    fixture: MARKED_JUNIT,
+    input: {
+      file: "results/marked.xml",
+      item: "build-1343",
+      date: "2026-11-10T10:00:00Z",
+      variant: ["core", "VAR-0000c2"],
+      skipNotInView: true,
+    },
+    tag: "[SR-029/AK12]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({ testCases: 0, notInView: 2, problems: [] });
+      // The marked one stays as it was; the other keeps its property and gets the marks after it.
+      expect(results["core"]?.files["results/marked.xml"]).toBe(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+          `  <testcase classname="station" name="[SR-0000b2] storm"><properties>${mark("core")}${mark(VARIANT_C2)}</properties></testcase>\n` +
+          '  <testcase classname="station" name="[SR-0000b2] gusts">\n    <properties>\n      <property name="reqseq:element" value="SR-0000b2"/>\n' +
+          `      ${mark("core")}\n      ${mark(VARIANT_C2)}\n    </properties>\n  </testcase>\n` +
+          "</testsuite>\n",
+      );
     },
   },
   {

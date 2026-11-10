@@ -40,6 +40,13 @@
 //   enriched, one `reqseq:variant` per view (none for the core alone); a test case's own views must be
 //   among them (AK8). Each view must hold each element (AK9); with `skipNotInView`, an element that no
 //   given view holds is left out of the test case instead (`notInView`), and the others are enriched.
+// - Marks (AK12, SR-093 AK6): a test case left out whole, as every element it names applies in none of
+//   the given views, gets one `reqseq:not-in-view` per given view, in the given order, and no element,
+//   version or criterion; its name and hand-written properties stay. A mark that names the same set of
+//   views (`notInViewOf`, any order or case) is left as it is, so a re-run changes nothing; another set
+//   is rewritten in place, the extra marks removed and the missing ones added after the last. Every
+//   test case that is enriched loses its marks; one that is reported, refused or names nothing keeps
+//   them until a run enriches it or leaves it out again.
 // - The bytes are spliced at the offsets of the JUnit model, so every other byte stays (BOM, CRLF,
 //   comments, CDATA, layout). The result is read back with the reader's checks before it is written
 //   (ADR-0007 pattern): a difference is `internal`, and nothing is written.
@@ -68,7 +75,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveView } from "../variants/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
-import { criteriaOf, enrichmentOf } from "./junit.js";
+import { criteriaOf, enrichmentOf, NOT_IN_VIEW, notInViewOf } from "./junit.js";
 import type { ElementRefToken, JunitProperty, JunitTestCase } from "./junit-model.js";
 import { CRITERION_PROPERTY, criterionRefsOf, elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { NameMatch } from "./name-pattern.js";
@@ -236,8 +243,16 @@ type Plan =
       readonly testCase: JunitTestCase;
       readonly refs: readonly Reported[];
     }
-  /** Every element it names applies in none of the given views (AK11): it stays unchanged. */
-  | { readonly kind: "outside"; readonly notInView: number }
+  /**
+   * Every element it names applies in none of the given views (AK11): it gets no requirement, only a
+   * mark for each of `marks`, the given views (AK12).
+   */
+  | {
+      readonly kind: "outside";
+      readonly testCase: JunitTestCase;
+      readonly marks: readonly string[];
+      readonly notInView: number;
+    }
   | {
       readonly kind: "enrich";
       readonly testCase: JunitTestCase;
@@ -247,7 +262,7 @@ type Plan =
       /** Elements only the name names, to append. */
       readonly added: readonly string[];
       readonly variant: VariantPlan;
-      /** Properties to remove: those of the elements left out (AK11). */
+      /** Properties to remove: those of the elements left out (AK11), and every mark (AK12). */
       readonly drop: readonly JunitProperty[];
       /** The elements left out, as no given view holds them (AK11). */
       readonly notInView: number;
@@ -317,6 +332,10 @@ const fitOf = (ids: readonly string[], views: readonly string[], options: Enrich
 /** Whether elements no given view holds are left out (AK11): only with given views. */
 const skipping = (options: EnrichOptions): boolean =>
   options.skipNotInView === true && options.views !== undefined;
+
+/** Whether two lists of distinct views hold the same views. */
+const sameViews = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && b.every((view) => a.includes(view));
 
 /** Whether `view` is among the given views. */
 const isGiven = (given: readonly GivenView[], view: string): boolean => given.some((g) => g.id === view);
@@ -634,10 +653,11 @@ const enrichPlanOf = (
   if (!skip && fit.why.length > 0) {
     return { kind: "invalid", testCase, reason: fit.why.map((w) => w.text).join("; ") };
   }
-  // AK11: an element no given view holds is left out; the test case stays unchanged when none is left.
+  // AK11: an element no given view holds is left out; with none left the test case is marked (AK12).
   const left = skip ? fit.nowhere : new Set<string>();
   if (ids.every((id) => left.has(id))) {
-    return { kind: "outside", notInView: left.size };
+    // With `skip` the views are the given ones (`variantPlanOf`).
+    return { kind: "outside", testCase, marks: variant.views, notInView: left.size };
   }
   // A criterion the reader would refuse after enrich leaves the test case unchanged: enriched, it
   // would give no record.
@@ -651,7 +671,11 @@ const enrichPlanOf = (
         named: named.filter((n) => !left.has(n.id)),
         added: added.filter((id) => !left.has(id)),
         variant,
-        drop: [...named.filter((n) => left.has(n.id)).map((n) => n.property), ...criteria.drop],
+        drop: [
+          ...named.filter((n) => left.has(n.id)).map((n) => n.property),
+          ...criteria.drop,
+          ...notInViewOf(testCase).properties,
+        ],
         notInView: left.size,
       };
 };
@@ -764,13 +788,78 @@ const criteriaSplices = (
   return criteria.add.map(property);
 };
 
-/** The removal of the properties of an element left out (AK11), with their line when they stand on one of their own. */
+/** The removal of properties (an element left out, AK11, or a mark, AK12), with their line when they stand on one of their own. */
 const dropSplices = (bytes: Uint8Array, drop: readonly JunitProperty[]): Omit<Splice, "seq">[] =>
   drop.map((existing) => ({
     start: existing.start - separatorAfter(bytes, existing).length,
     end: existing.end,
     text: "",
   }));
+
+/** A new property element. */
+const propertyText = (name: string, value: string): string =>
+  `<property name="${name}" value="${escapeAttribute(value, '"')}"/>`;
+
+/** The value of `existing` replaced in place by `value`: no splice when it is that already. */
+const replaceSplices = (existing: JunitProperty, name: string, value: string): Omit<Splice, "seq">[] => {
+  if (existing.value === value) {
+    return [];
+  }
+  const at = existing.valueAt;
+  if (at === undefined) {
+    return [{ start: existing.start, end: existing.end, text: propertyText(name, value) }];
+  }
+  const text = at.quote === undefined ? escapeText(value) : escapeAttribute(value, at.quote);
+  return [{ start: at.start, end: at.end, text }];
+};
+
+/** The new properties `added` (their texts) after the last one of `testCase`, or in a new block (`propertiesAt`). */
+const insertionOf = (
+  bytes: Uint8Array,
+  testCase: JunitTestCase,
+  added: readonly string[],
+): Omit<Splice, "seq"> => {
+  const at = testCase.propertiesAt;
+  const block = `<properties>${added.join("")}</properties>`;
+  switch (at.kind) {
+    case "append": {
+      const anchor = testCase.properties.filter((p) => p.end <= at.offset).at(-1);
+      const separator = anchor === undefined ? "" : separatorAfter(bytes, anchor);
+      const offset = anchor?.end ?? at.offset;
+      return { start: offset, end: offset, text: added.map((p) => separator + p).join("") };
+    }
+    case "open-properties":
+      return { start: at.start, end: at.end, text: `>${added.join("")}</properties>` };
+    case "new-block":
+      return { start: at.offset, end: at.offset, text: block };
+    case "open-testcase":
+      return { start: at.start, end: at.end, text: `>${block}</testcase>` };
+  }
+};
+
+/**
+ * The marks of a test case left out (AK12): none when its marks name the views `marks` already (in
+ * any order or case); else the marks in place get the given views in order, the extra ones are
+ * removed, and the missing ones follow the last mark (or the last property).
+ */
+const markSplices = (bytes: Uint8Array, testCase: JunitTestCase, marks: readonly string[]): Splice[] => {
+  const existing = notInViewOf(testCase);
+  if (existing.error === undefined && sameViews(existing.views, marks)) {
+    return [];
+  }
+  const { properties } = existing;
+  const splices = zip(properties, marks).flatMap(([p, id]) => replaceSplices(p, NOT_IN_VIEW, id));
+  splices.push(...dropSplices(bytes, properties.slice(marks.length)));
+  const missing = marks.slice(properties.length).map((id) => propertyText(NOT_IN_VIEW, id));
+  const last = properties.at(-1);
+  if (last === undefined) {
+    splices.push(insertionOf(bytes, testCase, missing));
+  } else if (missing.length > 0) {
+    const separator = separatorAfter(bytes, last);
+    splices.push({ start: last.end, end: last.end, text: missing.map((p) => separator + p).join("") });
+  }
+  return splices.map((s, i) => ({ ...s, seq: i }));
+};
 
 /** What enriching one test case changes; the splices are numbered from `seq`. */
 const splicesOf = (
@@ -782,20 +871,10 @@ const splicesOf = (
 ): Splice[] => {
   const { testCase, named, added, variant, criteria } = plan;
   const splices: Omit<Splice, "seq">[] = [];
-  const property = (name: string, value: string): string =>
-    `<property name="${name}" value="${escapeAttribute(value, '"')}"/>`;
+  const property = propertyText;
   /** Replaces the value of `existing` in place by `value`, unless it is that already. */
   const replace = (existing: JunitProperty, name: string, value: string): void => {
-    if (existing.value === value) {
-      return;
-    }
-    const at = existing.valueAt;
-    if (at === undefined) {
-      splices.push({ start: existing.start, end: existing.end, text: property(name, value) });
-    } else {
-      const text = at.quote === undefined ? escapeText(value) : escapeAttribute(value, at.quote);
-      splices.push({ start: at.start, end: at.end, text });
-    }
+    splices.push(...replaceSplices(existing, name, value));
   };
   for (const { property: existing, id } of named) {
     replace(existing, ELEMENT, id);
@@ -844,26 +923,7 @@ const splicesOf = (
       replace(p, name, value);
     }
   }
-  const at = testCase.propertiesAt;
-  const block = `<properties>${rest.join("")}</properties>`;
-  switch (at.kind) {
-    case "append": {
-      const anchor = testCase.properties.filter((p) => p.end <= at.offset).at(-1);
-      const separator = anchor === undefined ? "" : separatorAfter(bytes, anchor);
-      const offset = anchor?.end ?? at.offset;
-      splices.push({ start: offset, end: offset, text: rest.map((p) => separator + p).join("") });
-      break;
-    }
-    case "open-properties":
-      splices.push({ start: at.start, end: at.end, text: `>${rest.join("")}</properties>` });
-      break;
-    case "new-block":
-      splices.push({ start: at.offset, end: at.offset, text: block });
-      break;
-    case "open-testcase":
-      splices.push({ start: at.start, end: at.end, text: `>${block}</testcase>` });
-      break;
-  }
+  splices.push(insertionOf(bytes, testCase, rest));
   // Last, so an insertion at the same offset (after the property before) comes first.
   splices.push(...dropSplices(bytes, plan.drop));
   return splices.map((s, i) => ({ ...s, seq: i }));
@@ -905,14 +965,22 @@ const applySplices = (
   return { bytes: Buffer.concat(parts), moved };
 };
 
-/** What a test case enriched by this call must read back as, and where it lies in the file as read. */
-export interface Intended {
+/** What a test case changed by this call must read back as (`readsBackAs`): enriched, or left out (AK12). */
+export type Intended = EnrichedIntended | LeftOutIntended;
+
+/** Where a changed test case lies in the file as read, and what it must keep. */
+interface IntendedTestCase {
   readonly name: string;
   readonly className: string;
   readonly outcome: JunitTestCase["outcome"];
   /** The `<` of `<testcase` and the byte after the test case, in the file as read. */
   readonly start: number;
   readonly end: number;
+}
+
+/** A test case enriched by this call. */
+export interface EnrichedIntended extends IntendedTestCase {
+  readonly kind?: "enriched";
   readonly pairs: ReadonlyMap<string, string>;
   readonly item: string;
   readonly date: string;
@@ -922,14 +990,37 @@ export interface Intended {
   readonly criteria?: string | undefined;
 }
 
+/** A test case left out whose marks this call wrote (AK12). */
+export interface LeftOutIntended extends IntendedTestCase {
+  readonly kind: "left-out";
+  /** The given views its marks name (`core` or a variant's UUID), each once. */
+  readonly marks: readonly string[];
+  /** Its other properties as name and value, in file order: they stay as they were. */
+  readonly properties: readonly (readonly [name: string, value: string])[];
+}
+
+/** The properties of `testCase` other than its marks, as name and value (`LeftOutIntended`). */
+const unmarkedOf = (testCase: JunitTestCase): LeftOutIntended["properties"] =>
+  testCase.properties.filter((p) => p.name !== NOT_IN_VIEW).map((p) => [p.name, p.value] as const);
+
+/**
+ * Whether a test case left out reads back as `wanted`: one mark per given view and no other, and its
+ * other properties as they were (so still no `reqseq:version`).
+ */
+const leftOutReadsBack = (testCase: JunitTestCase, wanted: LeftOutIntended): boolean => {
+  const marks = notInViewOf(testCase);
+  return (
+    marks.error === undefined &&
+    marks.properties.length === wanted.marks.length &&
+    sameViews(marks.views, wanted.marks) &&
+    JSON.stringify(unmarkedOf(testCase)) === JSON.stringify(wanted.properties)
+  );
+};
+
 const NOT_READ_BACK = "Enrich produced a file that does not read back; nothing written";
 
 const SUITE_START = Buffer.from("<testsuite>");
 const SUITE_END = Buffer.from("</testsuite>");
-
-/** Whether two lists of distinct views hold the same views. */
-const sameViews = (a: readonly string[], b: readonly string[]): boolean =>
-  a.length === b.length && b.every((view) => a.includes(view));
 
 /** Whether the criteria of `testCase` read back, as `wanted` (`criteriaText`) when it is given. */
 const criteriaReadBack = (
@@ -942,9 +1033,10 @@ const criteriaReadBack = (
 };
 
 /**
- * Whether `testCase`, the bytes of one enriched `<testcase>` element of the result, reads back as
+ * Whether `testCase`, the bytes of one changed `<testcase>` element of the result, reads back as
  * `wanted` says: one test case with the same name, class name and outcome that gives exactly the
- * intended pairs, item, date and view by the reader's checks (`enrichmentOf`).
+ * intended pairs, item, date and view by the reader's checks (`enrichmentOf`), or, left out, the
+ * intended marks and its other properties unchanged (`leftOutReadsBack`).
  */
 export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => {
   const read = junitTestCases(Buffer.concat([SUITE_START, testCase, SUITE_END]));
@@ -957,6 +1049,9 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
     a.outcome !== wanted.outcome
   ) {
     return false;
+  }
+  if (wanted.kind === "left-out") {
+    return leftOutReadsBack(a, wanted);
   }
   const got = enrichmentOf(a);
   return (
@@ -973,10 +1068,11 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
 
 /**
  * Reads the result back (B3 of the plan review) without a model of the whole result (S1 of the PR
- * review): the bytes outside the enriched test cases must be those of `input` (the file as read, which
- * scanned), so the test cases not to be enriched are unchanged (N1), and each enriched `<testcase>`
- * element must read back as intended (`readsBackAs`). `intended` is in file order; `moved` gives where
- * an offset of `input` lies in `out` and is called with offsets in ascending order. Throws `internal`
+ * review): the bytes outside the changed test cases must be those of `input` (the file as read, which
+ * scanned), so the test cases not to be changed are unchanged (N1), and each changed `<testcase>`
+ * element, enriched or marked (AK12), must read back as intended (`readsBackAs`). `intended` is in
+ * file order; `moved` gives where an offset of `input` lies in `out` and is called with offsets in
+ * ascending order. Throws `internal`
  * on any difference.
  */
 export const checkReadBack = (
@@ -1097,6 +1193,29 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
   outcome.problems.push(...kindProblems(plan.testCase, ids, context));
 };
 
+/** Adds what a test case left out gives to `outcome`: its count, and its marks unless they are there (AK12). */
+const addLeftOut = (outcome: Outcome, plan: Extract<Plan, { kind: "outside" }>, context: Context): void => {
+  outcome.notInView += plan.notInView;
+  const { testCase, marks } = plan;
+  const own = markSplices(context.bytes, testCase, marks);
+  if (own.length === 0) {
+    return;
+  }
+  const base = outcome.splices.length;
+  outcome.splices.push(...own.map((s) => ({ ...s, seq: base + s.seq })));
+  const { name, className, start, end, outcome: result } = testCase;
+  outcome.intended.push({
+    kind: "left-out",
+    name,
+    className,
+    outcome: result,
+    start,
+    end,
+    marks,
+    properties: unmarkedOf(testCase),
+  });
+};
+
 /** Adds what one planned test case gives to `outcome`. */
 const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
   const { where, options } = context;
@@ -1105,7 +1224,7 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
       outcome.withoutReference += 1;
       return;
     case "outside":
-      outcome.notInView += plan.notInView;
+      addLeftOut(outcome, plan, context);
       return;
     case "invalid":
       outcome.problems.push({

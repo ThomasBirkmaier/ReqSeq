@@ -23,6 +23,12 @@
 // - A test case that names a requirement but is not enriched gives no record; the file gets one
 //   `evidence.not-enriched` warning with the number of such test cases and the line of the first
 //   (spec question ThomasBirkmaier/ReqSeq-archive#529 Q3).
+// - A test case that enrich left out because its requirements apply in none of the given views
+//   (SR-029 AK12) has no `reqseq:version` and one `reqseq:not-in-view` per given view: a variant UUID
+//   (any case) or `core` (any case). It is passed over without `evidence.not-enriched` (SR-093 AK6),
+//   its hand-written `reqseq:element` and `reqseq:criterion` properties ignored. A value of another
+//   form is `evidence.invalid-record` at the line of the test case, and so is a mark on an enriched
+//   test case (`enrichmentOf`). Marks are looked at only where the test case names a requirement.
 // - An enriched test case marked `<skipped>` gives no record (ADR-0012), so it never counts as passed
 //   (SR-093 AK3); it is kept as one skipped test case, a test case without execution (SR-033 AK3),
 //   whatever views it names.
@@ -45,7 +51,7 @@ import type { ViewId } from "../generated/types.js";
 import { isUuid, isVersion } from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { EvidenceFile } from "./folders.js";
-import type { JunitTestCase } from "./junit-model.js";
+import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { CRITERION_PROPERTY, elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
 import { withCriterionLines } from "./record.js";
@@ -59,6 +65,8 @@ const VERSION = "reqseq:version";
 const ITEM = "reqseq:item";
 const DATE = "reqseq:date";
 const VARIANT = "reqseq:variant";
+/** The mark of a test case left out for the given views (SR-029 AK12, SR-093 AK6). */
+export const NOT_IN_VIEW = "reqseq:not-in-view";
 /** The view of the core as a `reqseq:variant` value names it (`viewIdOf`). */
 const CORE = "core";
 
@@ -76,6 +84,7 @@ interface Fields {
   readonly items: readonly string[];
   readonly dates: readonly string[];
   readonly variants: readonly string[];
+  readonly marks: readonly JunitProperty[];
 }
 
 /** `value` in lower case when that is a UUID (`uuidRef` allows any case), else as it is. */
@@ -83,6 +92,9 @@ const uuidOf = (value: string): string => (isUuid(value.toLowerCase()) ? value.t
 
 /** A `reqseq:variant` value as a view: `core` in any case as `core`, a UUID in lower case, else as it is. */
 const viewOf = (value: string): string => (value.toLowerCase() === CORE ? CORE : uuidOf(value));
+
+/** Whether a view value is one the reader reads: `core` or a UUID (after `viewOf`). */
+const isView = (value: string): boolean => value === CORE || isUuid(value);
 
 /** Why `values` do not fit: the first value `test` rejects. (`test` returns a plain boolean, so nothing is narrowed.) */
 const invalid = (
@@ -117,8 +129,34 @@ const CHECKS: readonly ((fields: Fields) => string | undefined)[] = [
     conflict(dates, DATE) ??
     missing(dates, DATE) ??
     invalid(dates, DATE, isDateTime, "a date and time with time zone"),
-  ({ variants }) => invalid(variants, VARIANT, (v) => v === CORE || isUuid(v), "a UUID or core"),
+  ({ variants }) => invalid(variants, VARIANT, isView, "a UUID or core"),
+  ({ marks }) =>
+    marks.length === 0
+      ? undefined
+      : `${NOT_IN_VIEW} is given on an enriched test case: it marks only a test case that enrich left out`,
 ];
+
+/**
+ * The `reqseq:not-in-view` marks of a test case (SR-029 AK12, SR-093 AK6): its properties in file
+ * order, and the views they name (`viewOf`), each once in the order of their first property; or why a
+ * value names no view (`error`).
+ */
+export interface NotInViewMarks {
+  readonly properties: readonly JunitProperty[];
+  readonly views: readonly string[];
+  readonly error?: string | undefined;
+}
+
+/** The marks of `testCase` (`NotInViewMarks`). */
+export const notInViewOf = (testCase: JunitTestCase): NotInViewMarks => {
+  const properties = testCase.properties.filter((p) => p.name === NOT_IN_VIEW);
+  const values = properties.map((p) => viewOf(p.value.trim()));
+  return {
+    properties,
+    views: [...new Set(values)],
+    error: invalid(values, NOT_IN_VIEW, isView, "a UUID or core"),
+  };
+};
 
 /** What an enriched test case says: the element/version pairs, item, date and views, or why it does not fit. */
 export type Enrichment =
@@ -145,6 +183,7 @@ export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
     items: valuesOf(testCase, ITEM),
     dates: valuesOf(testCase, DATE),
     variants: valuesOf(testCase, VARIANT).map(viewOf),
+    marks: notInViewOf(testCase).properties,
   };
   for (const check of CHECKS) {
     const error = check(fields);
@@ -290,7 +329,21 @@ export const readJunitRecords = (location: JunitLocation, bytes: Uint8Array): Ev
   const notEnriched: JunitTestCase[] = [];
   for (const testCase of read.file.testCases) {
     if (!testCase.properties.some((p) => p.name === VERSION)) {
-      if (namesElement(testCase)) {
+      if (!namesElement(testCase)) {
+        continue;
+      }
+      // Left out by enrich for the given views (SR-093 AK6): passed over, unless a mark is malformed.
+      const marks = notInViewOf(testCase);
+      if (marks.error !== undefined) {
+        problems.push({
+          code: "evidence.invalid-record",
+          severity: "error",
+          repository,
+          file,
+          line: testCase.line,
+          message: `Test case "${shown(testCase.name)}" is not read: ${marks.error}`,
+        });
+      } else if (marks.views.length === 0) {
         notEnriched.push(testCase);
       }
       continue;
@@ -340,7 +393,7 @@ export const readJunitRecords = (location: JunitLocation, bytes: Uint8Array): Ev
       repository,
       file,
       line: first.line,
-      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record: enrich the file with reqseq evidence enrich-junit, unless enrich-junit --skip-not-in-view left them out because their requirements apply in none of the given views`,
+      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record: enrich the file with reqseq evidence enrich-junit`,
     });
   }
   // By line; stable, so problems on one line stay in file order.
