@@ -45,18 +45,25 @@ const viewOf = (doc: string, readOnly = false): EditorView => {
   view.lineBlockAtHeight = (height: number): BlockInfo => block(Math.floor(height / LINE) + 1);
   view.lineBlockAt = (pos: number): BlockInfo => block(view.state.doc.lineAt(pos).number);
   views.push(view);
-  // The handles come from the syntax tree, and the first parse stops after 20 ms (CodeMirror's budget for a
-  // new state); the rest follows in the background. On a slow runner the tree ends before the last item,
-  // and so do the handles (#1296). The whole tree first, as the editor's `parseAhead` does.
-  expect(forceParsing(view, view.state.doc.length, 5000)).toBe(true);
   return view;
+};
+
+/**
+ * Parses the whole text into the view's state. The handles come from the syntax tree, and CodeMirror
+ * parses a new state, and each change, for at most 20 ms; the rest follows in the background. On a slow
+ * runner the tree, and so the handles, ended before the last item (#1296).
+ */
+const parsed = (view: EditorView): void => {
+  expect(forceParsing(view, view.state.doc.length, 5000)).toBe(true);
 };
 
 const handles = (view: EditorView): HTMLElement[] => [
   ...view.contentDOM.querySelectorAll<HTMLElement>(".cm-lr-handle"),
 ];
 
+/** The handle of item `index`, once the text, as it is now (also after a drop), is parsed. */
 const handle = (view: EditorView, index: number): HTMLElement => {
+  parsed(view);
   const found = handles(view)[index];
   if (found === undefined) {
     throw new Error(`no handle ${String(index)}`);
