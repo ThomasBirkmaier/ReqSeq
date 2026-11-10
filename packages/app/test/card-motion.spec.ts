@@ -50,18 +50,13 @@ const record = (window: Page): Promise<void> =>
     const made = new WeakSet<Animation>();
     const take = (): void => {
       for (const animation of document.getAnimations()) {
-        const effect = animation.effect as KeyframeEffect | null;
-        const target = effect?.target;
-        const part =
-          target instanceof HTMLElement
-            ? PARTS.find(([name]) => target.classList.contains(name))?.[1]
-            : undefined;
-        if (
-          made.has(animation) ||
-          effect === null ||
-          !(target instanceof HTMLElement) ||
-          part === undefined
-        ) {
+        const { effect } = animation;
+        if (made.has(animation) || !(effect instanceof KeyframeEffect)) {
+          continue;
+        }
+        const { target } = effect;
+        const part = PARTS.find(([name]) => target?.classList.contains(name) === true)?.[1];
+        if (target === null || part === undefined) {
           continue;
         }
         made.add(animation);
