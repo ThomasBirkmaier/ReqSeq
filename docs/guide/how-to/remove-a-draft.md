@@ -11,7 +11,7 @@ ReqSeq never deletes an element: one that was approved or is in a baseline is re
 2. Remove its file with `git rm`, or delete the file if Git does not track it yet.
 3. Run `workspace check`, which reports any link left behind as the error `relation.missing-target`.
 
-ReqSeq itself does not remove the file, because it never writes to Git.
+ReqSeq itself does not remove the file, because it never deletes elements.
 
 ## App
 
