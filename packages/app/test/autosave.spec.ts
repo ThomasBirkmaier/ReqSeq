@@ -137,6 +137,9 @@ test.describe("saving without a save command", () => {
     await window.locator("article").focus();
     await window.keyboard.press("Enter");
     await window.keyboard.type("Drei.");
+    // The input is in the editor before closing, so a file without it below is a lost input, not keys
+    // that went elsewhere (#1336).
+    await expect(window.locator('article [data-field="Text"] .cm-content')).toContainText("Drei.");
     await run(window, "Close buffer");
     await expect(window.locator("article h1")).toHaveCount(0);
     expect(await read(running, SR_FILE)()).toContain("Drei.");
