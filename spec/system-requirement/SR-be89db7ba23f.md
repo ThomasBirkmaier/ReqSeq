@@ -8,7 +8,7 @@ requirement-type: functional
 acceptance-criteria:
   - "Gegeben ein Need mit abgeleiteten System Requirements, Component Requirements und Nachweisen, wenn die Kette des Needs angezeigt wird, dann erscheinen alle Ebenen bis zu den Nachweisen mit ihrer Tiefe."
   - "Gegeben ein Component Requirement, wenn seine Kette aufwärts angezeigt wird, dann erscheinen alle Parents bis zu den Needs."
-  - "Gegeben eine Ebene ohne Child oder ohne Nachweis, wenn die Kette angezeigt wird, dann ist die Lücke gekennzeichnet."
+  - "Gegeben ein Need der Kette ohne Child oder ein Requirement ohne Child und ohne Nachweis, wenn die Kette angezeigt wird, dann ist die Lücke gekennzeichnet."
   - "Gegeben ein Zyklus in den Ableitungen, wenn die Kette angezeigt wird, dann bricht das Tool am Zyklus ab und meldet ihn als Hinweis."
   - "Gegeben ein Element eines Typs mit der Bedeutung Requirement, das über keine Beziehung mit der Bedeutung Ableitung einen Parent hat, wenn seine Kette angezeigt wird (App, CLI, API, MCP: `trace.chain`), dann ist der fehlende Parent als Lücke gekennzeichnet."
   - "Gegeben dasselbe Element, wenn der Bestand geprüft wird (CLI, API, MCP: `workspace.check`), dann meldet das Tool es als Hinweis mit seiner ID."

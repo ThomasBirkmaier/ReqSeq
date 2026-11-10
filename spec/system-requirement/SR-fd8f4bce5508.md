@@ -23,7 +23,7 @@ based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:b98a6de8c51aee04, title: Fest eingebaute Bedeutungen des Metamodells }
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:59d1b195778616da, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f, version: n1:833647641a3f903c, title: Kette aufwärts und abwärts zeigen }
+  - { id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f, version: n2:d4e7ba49fc318ecc, title: Kette aufwärts und abwärts zeigen }
 ---
 
 Das Tool muss für eine Auswahl von Elementen, zum Beispiel die aktuelle gefilterte Liste, eine Traceability-Matrix zeigen: je Element eine Zeile und je Beziehungsart eine Spalte mit den verbundenen Elementen.
