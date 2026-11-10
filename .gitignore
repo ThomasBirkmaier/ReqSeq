@@ -10,6 +10,13 @@ issue-backup-*.json
 /trace-*.md
 test-results/
 .claude/worktrees/
+# Local Claude Code settings: "don't ask again" approvals store whole commands, tokens included
+.claude/settings.local.json
+CLAUDE.local.md
+# Local environment files with credentials
+.env
+.env.*
+!.env.example
 
 # Python bytecode and pytest's cache of the example in toolchain/junit/pytest
 __pycache__/
