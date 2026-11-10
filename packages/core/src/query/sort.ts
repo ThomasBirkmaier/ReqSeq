@@ -97,10 +97,9 @@ interface Cell {
   readonly next: Cell | undefined;
 }
 
-/** An element with its values under every key and its position in the workspace order. */
+/** An element with its values under every key. */
 interface Row {
   readonly element: ElementRecord;
-  readonly position: number;
   readonly first: Cell | undefined;
 }
 
@@ -293,7 +292,11 @@ export const sortValueOf = (value: unknown, ranks: ReadonlyMap<string, number>):
 /** How two values of `sortValueOf` compare, ascending. */
 export const compareSortValues: (a: SortValue, b: SortValue) => number = compareCells;
 
-/** How two rows compare: key by key, then by the workspace order. */
+/**
+ * How two rows compare, key by key; 0 when they are equal under every key. Such rows keep the
+ * workspace order: every caller gives the rows in store order (`resolveSelection`, `treeRowsOf`
+ * checks it) and `Array.prototype.sort` is stable (ES2019), so no tie-breaker is needed (#1331).
+ */
 const compareRows = (a: Row, b: Row): number => {
   let x = a.first;
   let y = b.first;
@@ -305,7 +308,7 @@ const compareRows = (a: Row, b: Row): number => {
     x = x.next;
     y = y.next;
   }
-  return a.position - b.position;
+  return 0;
 };
 
 /** The parents of every element of a store by position, with the metamodel they were read with. */
@@ -367,7 +370,6 @@ const treeRowsOf = (
     }
     const row: TreeRow = {
       element,
-      position: rows.length,
       first: cellsOf(element),
       place: at.length,
       parents,
@@ -544,7 +546,7 @@ export const sortElements = (
     rows.sort(compareRows);
     return treeElements(treeOf(rows, (place) => at[place]));
   }
-  const rows: Row[] = elements.map((element, position) => ({ element, position, first: cellsOf(element) }));
+  const rows: Row[] = elements.map((element) => ({ element, first: cellsOf(element) }));
   rows.sort(compareRows);
   return { elements: rows.map((row) => row.element) };
 };
