@@ -5,7 +5,7 @@ sidebar:
   order: 8
 ---
 
-A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as a topic or a use case. When and why you take a baseline is up to you.
+A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as all requirements of a use case. When and why you take a baseline is up to you.
 
 ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuses one while the files of the selection, their images, the metamodel or the workspace file are uncommitted, and after it. A second baseline with the same name is refused.
 
