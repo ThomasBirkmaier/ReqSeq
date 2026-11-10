@@ -7,12 +7,9 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
-
-const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
 // The Windows and macOS runners in CI stall under load (#753, playwright.config.ts): there the wait is three times as
@@ -328,6 +325,75 @@ export const fileSha256 = async (running: RunningApp, ref: string): Promise<stri
   return (JSON.parse(got.stdout) as { fileSha256: string }).fileSha256;
 };
 
+/**
+ * How long one CLI call of a test may take. On the Windows runner two graph tests hung until the test timeout
+ * (#1339, #1399) with no pending step named, which Playwright gives only for an await outside its own calls; of
+ * those, this call is the one both tests make, and nothing in the job log tells why it did not end. The bound
+ * fails such a call before the test timeout with what tells the cause apart: whether the CLI had written its
+ * answer, whether its process still ran or had ended while its output stayed open (another process holds
+ * the pipe), and its standard error so far. It leaves the test (120 s there, 60 s elsewhere) time for the
+ * rest, so that the error names the call instead of the test timeout.
+ */
+const CLI_WAIT_MS = SLOW_CI ? 90_000 : 40_000;
+/** A CLI call that takes longer is reported on the test's standard error with the same facts, also when it passes. */
+const CLI_SLOW_MS = 5000;
+
+/** Runs `program` with `args` (the CLI), bounded by `CLI_WAIT_MS`; `name` names the call in the reports. */
+const timedCli = (
+  program: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  name: string,
+): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const started = Date.now();
+    const since = (): string => `${String(Date.now() - started)} ms`;
+    let firstOutput: string | undefined;
+    let written = 0;
+    let ended: string | undefined;
+    let errors = "";
+    let settled = false;
+    /** Where the time of the call went, for a report. */
+    const facts = (): string =>
+      [
+        firstOutput === undefined
+          ? "no output"
+          : `first output after ${firstOutput}, ${String(written)} bytes`,
+        ended ?? "its process still ran",
+      ].join("; ");
+    const child = execFile(program, args, { env }, (error, stdout, stderr) => {
+      clearTimeout(timer);
+      if (Date.now() - started > CLI_SLOW_MS) {
+        process.stderr.write(`${name} took ${since()}: ${facts()}\n`);
+      }
+      settled = true;
+      resolve({ code: error === null ? 0 : (error.code as number), stdout, stderr });
+    });
+    child.once("exit", (code, signal) => {
+      ended = `its process ended after ${since()} (${String(code ?? signal)})`;
+    });
+    child.stdout?.on("data", (chunk: unknown) => {
+      firstOutput ??= since();
+      written += String(chunk).length;
+    });
+    child.stderr?.on("data", (chunk: unknown) => {
+      errors += String(chunk);
+    });
+    const timer = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      const held = ended === undefined ? "" : ", but its output stayed open: another process holds the pipe";
+      child.kill();
+      reject(
+        new Error(
+          `${name} did not end within ${String(CLI_WAIT_MS)} ms: ${facts()}${held}. Standard error so far: ${JSON.stringify(errors.slice(-2000))}`,
+        ),
+      );
+    }, CLI_WAIT_MS);
+  });
+
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
@@ -425,14 +491,8 @@ export const launchApp = async (
         "--json",
         ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
       ];
-      try {
-        const spawned = runner(runtime, env);
-        const { stdout, stderr: err } = await execFileAsync(spawned.program, args, { env: spawned.env });
-        return { code: 0, stdout, stderr: err };
-      } catch (error) {
-        const failed = error as { code: number; stdout: string; stderr: string };
-        return { code: failed.code, stdout: failed.stdout, stderr: failed.stderr };
-      }
+      const spawned = runner(runtime, env);
+      return timedCli(spawned.program, args, spawned.env, `reqseq ${argv.slice(0, 2).join(" ")}`);
     },
     mcp: async (runtime) => {
       const session = await startMcp(
