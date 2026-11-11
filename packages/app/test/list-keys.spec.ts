@@ -272,4 +272,35 @@ test.describe("the physical Ctrl key under macOS", () => {
     await expect(promptLabel(window)).toHaveText("Go to");
     await window.keyboard.press("Escape");
   });
+
+  test("[SR-145/AK3] under macOS the physical Ctrl+N and Ctrl+P move the selection of the slash menu, not the caret", async () => {
+    const { window } = running;
+    await window.keyboard.press("Meta+P");
+    await window.keyboard.type(DEMO_TITLE);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(DEMO_TITLE);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    await window.keyboard.press("Enter");
+    const content = window.locator('[data-field="Text"] .cm-content');
+    await expect(content).toBeFocused();
+    // A new last line, and the slash menu on it.
+    await window.keyboard.press("Meta+ArrowDown");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("/");
+    const menu = window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
+    const selected = menu.locator('li[aria-selected="true"] .cm-completionLabel');
+    await expect(selected).toHaveText("Heading 1");
+    await window.keyboard.press("Control+N");
+    await expect(selected).toHaveText("Heading 2");
+    await window.keyboard.press("Control+N");
+    await expect(selected).toHaveText("Heading 3");
+    await window.keyboard.press("Control+P");
+    await expect(selected).toHaveText("Heading 2");
+    await expect(promptLabel(window)).toHaveCount(0);
+    // The caret stayed after the /: Enter takes the entry there.
+    await window.keyboard.press("Enter");
+    await expect(menu).toHaveCount(0);
+    const last = window.locator('[data-field="Text"] .cm-line').last();
+    await expect.poll(() => last.innerText()).toMatch(/^## ?$/);
+  });
 });

@@ -20,6 +20,8 @@ const PAGES: Readonly<Record<string, string>> = {
   "index.html": "<!doctype html><title>ReqSeq documentation</title><h1>Start</h1>",
   "reference/commands/relation-options/index.html":
     "<!doctype html><title>relation.options</title><h1>Show relation options</h1>",
+  "reference/keyboard-shortcuts/index.html":
+    '<!doctype html><title>Keyboard shortcuts</title><h1>Keys</h1><p id="action-close-all">Close all buffers</p>',
 };
 
 /** A fixture site in a temporary folder. */
@@ -119,6 +121,27 @@ test.describe("the bundled documentation", () => {
     await expect(window.locator("label.prompt-label")).toHaveText("Command");
     await window.keyboard.press("Escape");
     await expect(window.getByLabel("Minibuffer")).toHaveText("Opened the documentation in the browser");
+  });
+
+  test("[SR-141/AK3] help on a command only the app has opens its place in the key reference", async () => {
+    running = await launchApp({ fixture: "SR-069/filter" }, { docsFolder: site });
+    const { app, window } = running;
+    await expect(window.getByLabel("Modeline")).toContainText("Weather station");
+    await stubBrowser(app);
+    // "Close all buffers" is offered once a buffer besides the overview is open.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("List all elements");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox", { name: "All elements" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Close all buffers");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Close all buffers");
+    await window.keyboard.press("F1");
+    await expect.poll(() => opened(app)).toHaveLength(1);
+    const [url = ""] = await opened(app);
+    expect(url).toMatch(LOOPBACK);
+    expect(url.replace(LOOPBACK, "/")).toBe("/reference/keyboard-shortcuts/#action-close-all");
+    expect((await fetchPage(url)).text).toBe(PAGES["reference/keyboard-shortcuts/index.html"]);
   });
 
   test("a delivery without the documentation says so and opens nothing", async () => {

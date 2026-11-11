@@ -7,7 +7,9 @@
 // with a checked commit ID after it; paths and object names go to git's standard input, one per
 // line. There is no way to pass another subcommand or argument. Add commands from ADR-0006's list
 // as SRs need them. `headFiles` reads the few small files of the Git folder that name HEAD itself,
-// so that opening an element needs no `rev-parse` (ADR-0006).
+// so that opening an element needs no `rev-parse` (ADR-0006). Object names are object IDs or
+// `<commit ID>:<path>`; only `trackedFile` also names index entries (`:<stage>:./<path>`) and
+// `HEAD:./<path>`, built from a checked path, which git reads and never writes (SR-004 AK8).
 //
 // A repository folder may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377): a workspace in
 // `spec/` of a code repository. Every path in and out of this module is relative to the folder git
@@ -134,6 +136,11 @@ const COMMANDS = {
    * `<commit>:<path>` took about 10 s, the listing about 0.03 s).
    */
   tree: ["ls-tree", "-r", "-z"],
+  /**
+   * The paths of the index below the folder git runs in, relative to it, NUL after each (`-z`): staged
+   * and unmerged entries (`trackedFile`). Read from the index; nothing is refreshed or written.
+   */
+  indexed: ["ls-files", "--cached", "-z"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 type GitCommand = keyof typeof COMMANDS;
@@ -247,6 +254,8 @@ const unknownReason = (error: ExecError): GitUnknownReason => {
 const NO_GIT = { reason: "no-git", detail: "git was not found on PATH" } as const;
 
 interface RunOptions extends ReadOptions {
+  /** The short time limit of a `rev-parse` instead of the one of a read. */
+  readonly quick?: boolean;
   /** A commit ID after the command line (checked by the caller with `isObjectId`). */
   readonly revision?: string;
   /** Lines for standard input. */
@@ -273,7 +282,8 @@ const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): 
         env: gitEnv(),
         encoding: "buffer",
         maxBuffer: MAX_OUTPUT,
-        timeout: command === "head" || command === "prefix" ? TIMEOUT_MS : READ_TIMEOUT_MS,
+        timeout:
+          options.quick === true || command === "head" || command === "prefix" ? TIMEOUT_MS : READ_TIMEOUT_MS,
         killSignal: "SIGKILL",
         windowsHide: true,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -1138,6 +1148,97 @@ export const changedPaths = async (
     return unknown(untracked);
   }
   return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
+};
+
+/** Whether Git tracks a file (`trackedFile`), or why Git cannot tell. */
+export type TrackedFile = { readonly known: true; readonly tracked: boolean } | GitUnknown;
+
+/** The index entries of a path: stage 0 (staged) and the stages 1 to 3 of an unmerged path. */
+const INDEX_STAGES = ["", "1:", "2:", "3:"] as const;
+
+/** Device and inode of `file`, links followed; undefined when it cannot be looked at. */
+const identityOf = async (
+  file: string,
+): Promise<{ readonly dev: bigint; readonly ino: bigint } | undefined> =>
+  fs.stat(file, { bigint: true }).then(
+    (stats) => ({ dev: stats.dev, ino: stats.ino }),
+    () => undefined,
+  );
+
+/**
+ * Whether one of the index `entries` (relative to `folder`, with `/`) names the file that `file`
+ * names on this file system: the same device and inode, compared name by name from the first, so
+ * only the entries below a matching folder are looked at. This catches every spelling the file
+ * system maps onto the same file (another case, Unicode folding or ignorable code points, a short
+ * 8.3 name, a linked folder) and nothing that is another file.
+ */
+const namesSameFile = async (folder: string, file: string, entries: readonly string[]): Promise<boolean> => {
+  const parts = file.split("/");
+  let candidates = entries.map((entry) => entry.split("/")).filter((entry) => entry.length === parts.length);
+  for (let depth = 1; depth <= parts.length && candidates.length > 0; depth += 1) {
+    const wanted = await identityOf(path.join(folder, ...parts.slice(0, depth)));
+    if (wanted === undefined) {
+      return false;
+    }
+    const prefixes = [...new Set(candidates.map((entry) => entry.slice(0, depth).join("/")))];
+    const same = new Set<string>();
+    await Promise.all(
+      prefixes.map(async (prefix) => {
+        const found = await identityOf(path.join(folder, ...prefix.split("/")));
+        if (found?.dev === wanted.dev && found.ino === wanted.ino) {
+          same.add(prefix);
+        }
+      }),
+    );
+    candidates = candidates.filter((entry) => same.has(entry.slice(0, depth).join("/")));
+  }
+  return candidates.length > 0;
+};
+
+/**
+ * Whether Git tracks `file` (relative to `folder`, with `/`) in the repository whose work tree holds
+ * `folder` (SR-004 AK8), read from the index and the objects and never written (D-036), each under
+ * the short time limit:
+ * - one `cat-file --batch-check` with `:<stage>:./<file>` and `HEAD:./<file>` on standard input: an
+ *   index entry in any stage (staged, also `git add -N`, or unmerged) or the file in HEAD (also
+ *   with its index entry removed); without a commit `HEAD` names nothing;
+ * - `ls-files --cached -z`, the index entries below `folder`, compared with the file on disk by
+ *   device and inode (`namesSameFile`): on a case-insensitive file system Git may check out a
+ *   committed `.REQSEQ/local.yaml` (or a name that folds or shortens to it) into an existing
+ *   `.reqseq` folder, where the exact names of `cat-file` find nothing.
+ * Any object counts (a link too); a submodule entry is no file. Unknown when git fails, refuses the
+ * repository or does not answer in time. A programming error when `file` is no `isGitPath`.
+ */
+export const trackedFile = async (
+  folder: string,
+  file: string,
+  options: ReadOptions = {},
+): Promise<TrackedFile> => {
+  if (!isGitPath(file)) {
+    throw new Error(`trackedFile cannot ask about ${JSON.stringify(file)}`);
+  }
+  const names = [...INDEX_STAGES.map((stage) => `:${stage}./${file}`), `HEAD:./${file}`];
+  const [objects, index] = await Promise.all([
+    run(folder, "objectInfo", { ...options, quick: true, input: names.map((name) => `${name}\n`).join("") }),
+    run(folder, "indexed", { ...options, quick: true }),
+  ]);
+  if (!objects.ok) {
+    return unknown(objects);
+  }
+  if (!index.ok) {
+    return unknown(index);
+  }
+  const output = objects.stdout.toString("utf8");
+  const lines = output.split("\n");
+  try {
+    if (lines.length !== names.length + 1 || lines.at(-1) !== "") {
+      throw new Error(`unexpected output of git cat-file: ${output}`);
+    }
+    const found = names.some((name, i) => parseHeader(name, String(lines[i])) !== null);
+    return { known: true, tracked: found || (await namesSameFile(folder, file, zList(index.stdout))) };
+  } catch (error) {
+    return { known: false, reason: "not-a-repository", detail: (error as Error).message };
+  }
 };
 
 /** The blob IDs a commit holds for some paths (`commitBlobs`), or why Git cannot tell. */

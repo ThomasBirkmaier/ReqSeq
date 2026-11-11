@@ -1660,7 +1660,7 @@ describe("ListView, a list", () => {
     });
   });
 
-  it("indents the rows of a tree by their depth", async () => {
+  it("[SR-075/AK2] indents the rows of a tree by their depth", async () => {
     const call = fakeCall({
       "element.list": () => ({
         elements: rowsOf(1, 4),
@@ -1675,6 +1675,11 @@ describe("ListView, a list", () => {
     await listHarness(
       asCall(call),
       listBuffer("All elements", undefined, [{ by: "hierarchy", order: "asc" }]),
+    );
+    // The tree is core's: the list asks for the hierarchy and draws the depths core gives.
+    expect(call).toHaveBeenCalledWith(
+      "element.list",
+      expect.objectContaining({ sort: [{ by: "hierarchy", order: "asc" }] }),
     );
     expect(
       [...container.querySelectorAll<HTMLElement>(".row .title")].map((title) => title.style.paddingLeft),
@@ -4688,7 +4693,7 @@ describe("ElementView", () => {
       expect(echoed).toEqual([]);
     });
 
-    it("[SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
+    it("[SR-066/AK4] [SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
       const { controls, opened, echoed } = await mountCriteria([FIRST, SECOND]).mounted;
       const [view] = boxViews();
       if (view === undefined) {

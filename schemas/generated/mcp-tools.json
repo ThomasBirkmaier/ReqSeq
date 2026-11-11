@@ -3170,7 +3170,7 @@
     },
     "workspace-local": {
       "title": "Local workspace overrides",
-      "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.",
+      "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. A file Git tracks or has staged is ignored with a warning, and the places of the workspace file apply; `workspace.init` adds `.reqseq/local.yaml` to `.gitignore`. It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.",
       "type": "object",
       "required": [
         "reqseq-local"

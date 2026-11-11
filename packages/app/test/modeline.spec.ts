@@ -4,7 +4,7 @@
 // same tests run on Linux and macOS.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 import { REFERENCE_FILES, REFERENCE_SOURCE_ID, REFERENCE_SOURCE_TITLE } from "./support/demo.js";
@@ -26,6 +26,9 @@ const FIXTURE = {
     ),
   },
 };
+
+/** The buffer shown in the sheet. */
+const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
 
 /** The parts of the modeline for the shown buffer, left of the workspace. */
 const parts = (window: Page) => window.locator('[aria-label="Modeline"] .parts > .segment');
@@ -144,5 +147,28 @@ test.describe("the counts of the modeline", () => {
       ["PKG-0000d1", typeName, ...(got.element.status === undefined ? [] : [got.element.status])].join(" · "),
       plural(members.total, "element"),
     ]);
+  });
+
+  test("[SR-114/AK3] in a list and on a package page the count takes in the elements of the folded section at the end", async () => {
+    const { window } = running;
+    const folded = (text: string): Locator => shownBuffer(window).locator(".row.fold-row", { hasText: text });
+    // The list of all elements: one obsolete element is folded, and counted.
+    await listAll(window);
+    const listed = await cliJson<{ total: number }>(running, ["element", "list"]);
+    await expect(folded("(1)")).toHaveAttribute("aria-expanded", "false");
+    await expect(shownBuffer(window).locator(".row:not(.fold-row)")).toHaveCount(listed.total - 1);
+    await expect(parts(window)).toHaveText(["All elements", plural(listed.total, "element")]);
+    // The package Display holds a draft element and the obsolete one.
+    await goTo(window, "Display");
+    const members = await cliJson<{ total: number; elements: { status: string }[] }>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ selection: { where: { package: "PKG-0000d2" } } }),
+    ]);
+    expect(members.elements.map((member) => member.status).toSorted()).toEqual(["draft", "obsolete"]);
+    await expect(window.locator(".members .row.fold-row")).toContainText("(1)");
+    await expect(window.locator(".members .row:not(.fold-row)")).toHaveCount(1);
+    await expect(parts(window).nth(1)).toHaveText(plural(members.total, "element"));
   });
 });

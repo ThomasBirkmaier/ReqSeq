@@ -1,6 +1,7 @@
 // End-to-end tests of `reqseq serve api` and `reqseq mcp` (ADR-0009, ADR-0011): the built binary as a real
 // process on a fixture workspace. On Linux CI inside `unshare -rn`: loopback and a dummy interface with the
-// documentation address 198.51.100.1 (ci.yml, #1363), which leads nowhere.
+// documentation address 198.51.100.1 (ci.yml, #1363), which leads nowhere. Both run with no display set, as on
+// a server (SR-080 AK3; the command line is in headless.test.ts).
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -40,7 +41,10 @@ beforeAll(() => {
   }
 });
 
-/** `reqseq <args>` in the fixture, with the OS cache folder inside the fixture on every OS. */
+/** No display of X11 or Wayland, as on a server or in a container. */
+const HEADLESS = { DISPLAY: "", WAYLAND_DISPLAY: "" };
+
+/** `reqseq <args>` in the fixture, with no display and the OS cache folder inside the fixture on every OS. */
 const start = async (
   args: readonly string[],
 ): Promise<{ child: ChildProcessWithoutNullStreams; ws: FixtureWorkspace }> => {
@@ -50,7 +54,14 @@ const start = async (
   const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
     cwd: ws.root,
     stdio: "pipe",
-    env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home },
+    env: {
+      ...process.env,
+      ...HEADLESS,
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CACHE_HOME: home,
+      LOCALAPPDATA: home,
+    },
   });
   children.push(child);
   return { child, ws };
@@ -164,7 +175,7 @@ describe("reqseq serve api", () => {
     },
   );
 
-  it("[SR-079/AK1] serves the workspace on loopback only, with the token from api.json", async () => {
+  it("[SR-079/AK1] [SR-080/AK3] serves the workspace on loopback only, with the token from api.json, with no display", async () => {
     const { child } = await start(["serve", "api"]);
     const lines = await firstLines(child);
     const file = /^Port and token: (.+)$/m.exec(lines)?.[1] ?? "";
@@ -180,6 +191,9 @@ describe("reqseq serve api", () => {
       expect(reply.status).toBe(200);
       expect(reply.body).toMatchObject({ name: "Weather station", readOnly: false });
     }
+    const checked = await post(endpoint.urls[0] ?? "", endpoint.token, "workspace.check");
+    expect(checked.status).toBe(200);
+    expect(checked.body).toHaveProperty("checkedElements");
     expect((await post(endpoint.urls[0] ?? "", "wrong", "workspace.status")).status).toBe(401);
     if (process.platform !== "win32") {
       // Windows has no SIGTERM handler: kill() ends the process at once.
@@ -254,7 +268,7 @@ describe("reqseq serve api", () => {
 });
 
 describe("reqseq mcp", () => {
-  it("serves MCP on standard input and output and exits 0 when the input ends", async () => {
+  it("[SR-080/AK3] serves MCP on standard input and output with no display, and exits 0 when the input ends", async () => {
     const { child } = await start(["mcp"]);
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
@@ -264,6 +278,8 @@ describe("reqseq mcp", () => {
     expect(tools.find((t) => t.name === "workspace_status")?.annotations?.readOnlyHint).toBe(true);
     const result = await client.callTool({ name: "workspace_status", arguments: {} });
     expect(result.structuredContent).toMatchObject({ name: "Weather station", readOnly: false });
+    const checked = await client.callTool({ name: "workspace_check", arguments: {} });
+    expect(checked.structuredContent).toHaveProperty("checkedElements");
     child.stdin.end();
     expect(await exited(child)).toBe(0);
     expect(stderr).toBe("");

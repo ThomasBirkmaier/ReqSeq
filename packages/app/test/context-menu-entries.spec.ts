@@ -11,6 +11,32 @@ import { goTo, launchApp, listAll } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
+/** "Measure the gusts" derives from "See the wind" (its parent) and lies in the package Sensors. */
+const GUSTS = "Measure the gusts";
+const WITH_LINKS = {
+  fixture: "SR-069/filter",
+  files: {
+    "requirements/SR-00000000f197.md": [
+      "---",
+      "id: 69069069-0000-4000-8000-00000000f197",
+      "type: system-requirement",
+      "status: draft",
+      `title: ${GUSTS}`,
+      "requirement-type: functional",
+      "acceptance-criteria:",
+      "  - Given a gust, when it is checked, then it holds.",
+      "derives-from:",
+      "  - { id: 69069069-0000-4000-8000-0000000000a1, version: n1:1111111111111111 }",
+      "packages:",
+      "  - { id: 69069069-0000-4000-8000-0000000000d1, version: n1:1111111111111111 }",
+      "---",
+      "",
+      "Gusts are measured.",
+      "",
+    ].join("\n"),
+  },
+};
+
 const ENTRIES = [
   "Show element",
   "Show graph",
@@ -191,6 +217,73 @@ test.describe("the context menu of an element as an entry", () => {
     expect(graphId).not.toBe("");
     expect(targetLabel).toContain(graphId);
     expect(graphId).not.toBe(rowId);
+  });
+
+  test("[SR-197/AK1] a row of the overview and of the neighbourhood have the same entries for that element", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    // A row of the neighbourhood of "See the wind": its children.
+    await openElement(window, "See the wind");
+    await window.keyboard.press("ControlOrMeta+J");
+    const child = window.locator(".neighbourhood .row").first();
+    await expect(child).toBeVisible();
+    await hasEntries(child);
+    // A recent row of the overview; "Show element" opens its element.
+    await fromCommandLine(window, "Show overview");
+    const recent = window.locator(".overview .line.recent", { hasText: "See the wind" });
+    await expect(recent).toBeVisible();
+    await hasEntries(recent);
+    await rightClick(recent);
+    await choose(window, "Show element");
+    await expect(window.locator("article h1").first()).toHaveText("See the wind");
+  });
+
+  test("[SR-197/AK3] [SR-197/AK4] a connected element in a group of relations or a relation box has the field's menu; a result row and a parent title have the buffer's", async () => {
+    running = await launchApp(WITH_LINKS);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await openElement(window, GUSTS);
+    // AK3: the link in the group "derives-from" and in the box "packages" (a property of kind relation).
+    for (const link of [
+      window.locator('article [data-field="derives-from"] [role="link"]').first(),
+      window.locator('article [data-field="packages"] [role="link"]').first(),
+    ]) {
+      await expect(link).toBeVisible();
+      await rightClick(link);
+      const names = await entryNames(window);
+      expect(names[0]).toBe("Copy field");
+      expect(names).not.toContain("Show element");
+      await window.keyboard.press("Escape");
+      await expect(menu(window)).toBeHidden();
+    }
+    await rightClick(window.locator('article [data-field="packages"] [role="link"]').first());
+    expect(await entryNames(window)).toContain("Add property");
+    await window.keyboard.press("Escape");
+
+    // AK4: a title in the line of the parents has the menu of the buffer, as its empty sheet has.
+    const buffer = window.locator('[data-area="left"] .buffer');
+    const box = await buffer.boundingBox();
+    await buffer.click({ button: "right", position: { x: 30, y: (box?.height ?? 100) - 30 } });
+    await expect(menu(window)).toBeVisible();
+    const ofBuffer = await entryNames(window);
+    await window.keyboard.press("Escape");
+    expect(ofBuffer.slice(0, 3)).toEqual(["Go to element or buffer", "Search elements", "Close buffer"]);
+    const parent = window.locator('.parents [role="link"]', { hasText: "See the wind" });
+    await expect(parent).toBeVisible();
+    await rightClick(parent);
+    expect(await entryNames(window)).toEqual(ofBuffer);
+    await window.keyboard.press("Escape");
+
+    // AK4: a row of the output of "List hints", which no other buffer shows.
+    await fromCommandLine(window, "List hints");
+    const line = window.locator(".result .line").nth(1);
+    await expect(line).toBeVisible();
+    await rightClick(line);
+    const names = await entryNames(window);
+    expect(names.slice(0, 3)).toEqual(["Go to element or buffer", "Search elements", "Close buffer"]);
+    expect(names).not.toContain("Show element");
+    expect(names).not.toContain("Copy field");
   });
 
   test("[SR-197/AK2] in a split window, Show element opens the element in the area of the entry, as Enter on it does", async () => {

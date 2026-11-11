@@ -127,7 +127,8 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   baselines: { values: ["files", "model", "runtime state", "workspace"] },
   model: { values: ["files", "git", "metamodel", "runtime state", "version", "workspace"] },
   metamodel: { values: ["files", "runtime state", "workspace"] },
-  workspace: { values: ["files", "runtime state"] },
+  // git: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456).
+  workspace: { values: ["files", "git", "runtime state"] },
   files: { values: [] },
   version: { values: [] },
   git: { values: [] },

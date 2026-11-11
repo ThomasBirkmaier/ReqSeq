@@ -381,7 +381,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(unknown.files).toEqual([path.join(outside, "unknown.xml")]);
   });
 
-  it("never writes into a .git folder, in any case and through a linked folder (D-036)", async () => {
+  it("[SR-083/AK4] never writes into a .git folder, in any case and through a linked folder (D-036)", async () => {
     const { fixture, workspace } = await open({ ".git/results.xml": "<testsuites/>", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("results/hooks"));
     for (const input of [

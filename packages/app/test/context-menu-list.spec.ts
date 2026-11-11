@@ -136,4 +136,55 @@ test.describe("the context menu of a list", () => {
     await expect(members).toBeVisible();
     expect(await menuOf(members)).toEqual([...FILTERS, "Sort list", ALL]);
   });
+
+  test("[SR-198/AK1] the head of the folded section has the list's menu; the overview and the neighbourhood outside their rows have the buffer's", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    /** The menu of the empty sheet below the shown buffer's content: the buffer's (SR-194 AK6). */
+    const ofBuffer = async (): Promise<string[]> => {
+      const buffer = window.locator('[data-area="left"] .buffer');
+      const box = await buffer.boundingBox();
+      await buffer.click({ button: "right", position: { x: 30, y: (box?.height ?? 100) - 30 } });
+      await expect(menu(window)).toBeVisible();
+      const names = await entryNames(window);
+      await window.keyboard.press("Escape");
+      await expect(menu(window)).toBeHidden();
+      return names;
+    };
+    // The list of all elements: its one obsolete element is in the collapsed section at the end.
+    await listAll(window);
+    const head = shownBuffer(window).locator(".row.fold-row");
+    await expect(head).toHaveText("▸ Folded statuses (1)");
+    expect(await menuOf(head)).toEqual([...FILTERS, "Sort list", "Group list", ALL]);
+    // Grouped: also on the head of the section after the groups.
+    await fromMenu(shownBuffer(window).locator("h1"), "Group list", "Group by", "Status");
+    await expect(shownBuffer(window).locator(".group h2").first()).toHaveText("Draft 6");
+    expect(await menuOf(head)).toEqual([...FILTERS, "Sort list", "Ungroup list", ALL]);
+
+    // The neighbourhood of "See the wind": its headings are no element rows.
+    await goTo(window);
+    await window.keyboard.type("See the wind");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("See the wind");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1").first()).toHaveText("See the wind");
+    await window.keyboard.press("ControlOrMeta+J");
+    const neighbourhood = window.locator(".neighbourhood");
+    await expect(neighbourhood.locator(".row").first()).toBeVisible();
+    const aroundBuffer = await ofBuffer();
+    expect(aroundBuffer).not.toContain(FILTERS[0]);
+    expect(await menuOf(neighbourhood.locator("h1"))).toEqual(aroundBuffer);
+    expect(await menuOf(neighbourhood.locator("h2").first())).toEqual(aroundBuffer);
+
+    // The overview: its heading of the recent elements and a line of a type are no element rows.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Show overview");
+    await expect(candidates(window).first()).toHaveText("Show overview");
+    await window.keyboard.press("Enter");
+    const overview = window.locator(".overview");
+    await expect(overview.locator(".group")).toHaveText("Recent");
+    const overviewBuffer = await ofBuffer();
+    expect(overviewBuffer).not.toContain(FILTERS[0]);
+    expect(await menuOf(overview.locator(".group"))).toEqual(overviewBuffer);
+    expect(await menuOf(overview.locator(".line.type").first())).toEqual(overviewBuffer);
+  });
 });

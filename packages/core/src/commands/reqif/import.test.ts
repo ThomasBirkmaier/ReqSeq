@@ -398,8 +398,8 @@ describe("reqif.import (SR-053)", () => {
     expect(await tree(fixture)).toEqual(before);
   });
 
-  it("is file.folder-missing when the target's repository is not on this machine", async () => {
-    const { workspace } = await open({
+  it("[SR-053/AK3] [SR-004/AK3] [SR-055/AK3] is file.folder-missing when a repository other than the target is not on this machine, and changes no file", async () => {
+    const { workspace, fixture } = await open({
       "reqseq-workspace.yaml": [
         "reqseq-workspace: 1",
         "name: Weather station",
@@ -409,11 +409,14 @@ describe("reqif.import (SR-053)", () => {
         "metamodel: { repository: system, path: metamodel }",
         "",
       ].join("\n"),
-      "reqif/kunde-a.yaml": `${MAPPING}target: { repository: customer, path: kunde-a }\n`,
+      "reqif/kunde-a.yaml": MAPPING,
     });
-    // While a repository is not on this machine its elements of the source cannot be matched, so
-    // every import is refused before the target is looked at (SR-056, #575/7).
+    // The target is in the main repository, which is here. While another repository is not on this
+    // machine, its elements of the source cannot be matched, so the import is refused all the same
+    // (SR-056, #575/7).
+    const before = await tree(fixture);
     const error = await failure(workspace);
     expect([error.code, error.details?.["repositories"]]).toEqual(["file.folder-missing", ["customer"]]);
+    expect(await tree(fixture)).toEqual(before);
   });
 });
