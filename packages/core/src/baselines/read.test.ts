@@ -146,6 +146,20 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     expect(read.problems[3]?.message).toBe("baselines/old.yml is not read: baseline files end in .yaml");
   });
 
+  it("[SR-008/AK4] reports a baseline file of an unknown format number as faulty and reads no baseline from it", async () => {
+    const { layout } = await open({
+      "baselines/future.yaml": baseline("Future", `{ id: ${A1}, version: ${V2} }`).replace(
+        "reqseq-baseline: 1",
+        "reqseq-baseline: 2",
+      ),
+    });
+    const read = await readBaselines(layout);
+    expect(read.baselines.map((b) => b.name)).not.toContain("Future");
+    expect(read.problems.map((p) => [p.code, p.severity, p.file])).toEqual([
+      ["baseline.invalid", "error", "baselines/future.yaml"],
+    ]);
+  });
+
   it("lists at most MAX_VIOLATIONS violations of one file and counts the rest", async () => {
     const entries = Array.from(
       { length: MAX_VIOLATIONS + 3 },

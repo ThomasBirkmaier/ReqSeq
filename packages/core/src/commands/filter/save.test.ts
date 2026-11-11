@@ -140,7 +140,22 @@ describe("filter.save (SR-070)", () => {
     });
   });
 
-  it("[SR-070/AK1] saves under an existing name, in any case, into its file and changes only what changed (ThomasBirkmaier/ReqSeq-archive#363)", async () => {
+  it("[SR-070/AK4] saves under an existing name in another Unicode normal form into its file, with the name as last saved", async () => {
+    const composed = "Pr\u00fcfung";
+    const decomposed = "Pru\u0308fung";
+    const hand = `reqseq-filter: 1\nname: ${composed}\nwhere:\n  status: [draft]\n`;
+    const { fixture, workspace } = await open({
+      fixture: "SR-069/filter",
+      files: { "filters/check.yaml": hand },
+    });
+    expect(await save(workspace, { name: decomposed, where: { status: ["draft"] } })).toEqual({
+      files: ["filters/check.yaml"],
+      problems: [],
+    });
+    expect(await read(fixture, "filters/check.yaml")).toBe(hand.replace(composed, decomposed));
+  });
+
+  it("[SR-070/AK1] [SR-070/AK4] [SR-070/AK5] saves under an existing name, in any case, into its file and changes only what changed, keeping comments on unchanged lines (ThomasBirkmaier/ReqSeq-archive#363)", async () => {
     const hand = [
       "# Kept by the team",
       "reqseq-filter: 1",

@@ -52,7 +52,29 @@ describe("guide", () => {
     await expect(checkExamples([changed], runReqseq)).rejects.toThrow("the output differs from the page");
   });
 
-  it("[SR-140/AK3] every how-to shows its task in the app, the CLI, the API and MCP, with names that exist", async () => {
+  it("[SR-140/AK2] the build checks that the app entries, API paths and MCP tools a how-to names exist in this version", async () => {
+    const pages = await readGuidePages(guideDir);
+    const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
+    expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);
+    const howTo = pages.find((page) => page.path === "how-to/trace-a-requirement.md");
+    const text = howTo?.text ?? "";
+    const renamed = {
+      path: howTo?.path ?? "",
+      text: text
+        .replace("**Show trace chain**", "**Show trace tree**")
+        .replace("POST /v1/commands/trace.chain", "POST /v1/commands/trace.tree")
+        .replace('"name": "trace_chain"', '"name": "trace_tree"'),
+    };
+    expect(howToProblems(renamed, names)).toEqual([
+      'how-to/trace-a-requirement.md: ## App: the command prompt has no entry "Show trace tree"',
+      "how-to/trace-a-requirement.md: ## API: no command trace.tree in the API and MCP",
+      'how-to/trace-a-requirement.md: ## MCP: no MCP tool "trace_tree"',
+    ]);
+    // A name that does not exist stops the build.
+    expect(() => checkHowTos([renamed], names)).toThrow("docs: how-to pages");
+  });
+
+  it("[SR-140/AK3] every how-to shows its task in the app, the CLI, the API and MCP", async () => {
     const pages = await readGuidePages(guideDir);
     const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
     expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);

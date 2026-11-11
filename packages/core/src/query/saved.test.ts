@@ -60,7 +60,7 @@ describe("saved filter files (SR-070)", () => {
     });
   });
 
-  it("keeps every faulty file of a name, and reports an empty file", async () => {
+  it("[SR-008/AK4] reports a filter file of an unknown format number as faulty and uses none of it; keeps every faulty file of a name, and reports an empty file", async () => {
     const workspace = await open({
       fixture: "SR-069/filter",
       files: {
@@ -70,6 +70,7 @@ describe("saved filter files (SR-070)", () => {
       },
     });
     const read = await readSavedFilters(await workspace.get(workspaceLayoutState));
+    expect(read.filters.map((f) => f.name)).not.toContain("Twice");
     expect(read.faultyNames).toEqual(new Map([["twice", ["filters/a.yaml", "filters/b.yaml"]]]));
     expect(read.problems.map((p) => [p.file, p.line, p.message])).toEqual([
       ["filters/a.yaml", 1, "Invalid saved filter filters/a.yaml: reqseq-filter 2 is not 1"],
