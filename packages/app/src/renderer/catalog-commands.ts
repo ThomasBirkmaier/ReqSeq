@@ -7,7 +7,7 @@
 // what is allowed; core validates). The output opens a result buffer.
 //
 // Keys: Enter takes the selected candidate or the typed text; Backspace in an empty input goes back one
-// argument; Escape ends the command; Ctrl/Cmd+Enter takes the answer and then offers the optional
+// argument, and so does Escape (SR-134 AK1), before the first to the command prompt; Ctrl/Cmd+Enter takes the answer and then offers the optional
 // arguments ("Run" first). A list field (`refs`) takes one value per Enter, and Enter on an empty input ends it.
 // A refused input (`input.invalid`) asks again, with core's message, the value core names in the details
 // of the error: the field of the first schema violation (`refs[0]`, `properties.<key>`,

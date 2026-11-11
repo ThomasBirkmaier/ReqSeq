@@ -133,6 +133,9 @@ test.describe("the command line by mouse", () => {
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("Status");
     const statuses = await names(window);
+    // Escape goes back to the commands (SR-134 AK1), a second one closes.
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveText("Command");
     await window.keyboard.press("Escape");
     await expect(input(window)).toHaveCount(0);
     const line = await boxOf(minibuffer(window));

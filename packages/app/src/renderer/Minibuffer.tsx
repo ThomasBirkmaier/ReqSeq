@@ -442,7 +442,7 @@ const PromptLine = ({
     return true;
   };
 
-  /** Escape, or a press outside the minibuffer (SR-156 AK3): the prompt ends without an answer. */
+  /** Escape in the first step, or a press outside the minibuffer (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
@@ -515,7 +515,19 @@ const PromptLine = ({
         break;
       case "Escape":
         event.preventDefault();
-        cancel();
+        // In a later step one step back, and the prompt stays open (SR-134 AK1); in the first it ends (AK2).
+        {
+          const back = prompt.back ?? prompt.previous;
+          if (back === undefined) {
+            cancel();
+          } else {
+            // A prompt that waited for an answer is told it got none, as when the prompt ends.
+            prompt.cancel?.();
+            waiting.current = 0;
+            onClose(false);
+            back();
+          }
+        }
         break;
     }
   };

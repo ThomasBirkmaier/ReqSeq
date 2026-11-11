@@ -286,7 +286,9 @@ test.describe("the card of the command line in motion", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
     await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);
-    // Closed, it rises again the next time.
+    // Escape goes back to the commands (SR-134 AK1), a second one closes; closed, it rises again the next time.
+    await window.keyboard.press("Escape");
+    await expect(window.locator("label.prompt-label")).toHaveText("Command");
     await window.keyboard.press("Escape");
     await cardSettled(window);
     await window.waitForTimeout(APART_MS);

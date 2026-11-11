@@ -133,8 +133,13 @@ export interface Prompt {
   readonly help?: (choice: Choice | undefined) => void;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
-  /** Backspace in an empty input: one argument back (catalog commands). */
+  /** Backspace in an empty input and Escape (SR-134 AK1): one argument back (catalog commands). */
   readonly back?: () => void;
+  /**
+   * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
+   * Escape ends the prompt (the first step, AK2).
+   */
+  readonly previous?: () => void;
   /** Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments. */
   readonly more?: (text: string) => void;
   /** Enter on an empty input: end a list argument; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
@@ -1309,12 +1314,42 @@ export const ACTIONS: readonly Action[] = [
   ...ENTRY_ACTIONS,
 ];
 
-/** Runs an action. Any action but "Close buffer" ends a question that closing asked. */
-export const runAction = (action: Action, context: ActionContext): void => {
+/**
+ * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
+ * (`previous`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
+ * `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
+ * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
+ */
+const steppedContext = (context: ActionContext, first?: () => void): ActionContext => {
+  let shown: Prompt | undefined;
+  const ask = (prompt: Prompt): void => {
+    const before = shown;
+    const previous =
+      before === undefined
+        ? first
+        : (): void => {
+            shown = before;
+            context.ask(before);
+          };
+    const next =
+      previous === undefined || prompt.back !== undefined || prompt.step !== undefined
+        ? prompt
+        : { ...prompt, previous };
+    shown = next;
+    context.ask(next);
+  };
+  return { ...context, ask };
+};
+
+/**
+ * Runs an action. Any action but "Close buffer" ends a question that closing asked. `first`: the action was
+ * chosen in the command prompt, and Escape in its first prompt opens that again (SR-134 AK1).
+ */
+export const runAction = (action: Action, context: ActionContext, first?: () => void): void => {
   if (action.id !== "close") {
     context.armClose(undefined);
   }
-  action.run(context);
+  action.run(steppedContext(context, first));
 };
 
 /**
@@ -1337,6 +1372,7 @@ export const commandPrompt = (
   context: ActionContext,
   use?: PromptUse,
   commands: readonly Choice[] = [],
+  reopen?: () => void,
 ): Prompt => ({
   label: "Command",
   ...(use === undefined ? {} : { use }),
@@ -1347,7 +1383,7 @@ export const commandPrompt = (
       ...hintOf(action, context.mac),
       fits: true,
       run: () => {
-        runAction(action, context);
+        runAction(action, context, reopen);
       },
     })),
     ...commands,
