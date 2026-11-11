@@ -5859,6 +5859,122 @@
         }
       },
       {
+        "name": "element.assignCriterionKeys",
+        "title": "Assign criterion keys",
+        "summary": "Give a criterion key to every acceptance criterion without one in the elements of a selection, and name how many elements changed. Versions and existing criterion keys stay as they are.",
+        "details": "A criterion stored as plain text gets a new key (`element.criterion-key-missing` names them); a criterion with a key keeps it, also one in another form or used twice, which workspace.check reports. Only the lines of the acceptance criteria change, and the current titles of the file's same-repository relation targets. The new keys follow from the file's content, so the same files get the same keys. An element whose type the metamodel does not know is only read and named in `skipped`. A failed write is rolled back; after a crash, the same call writes the remaining elements.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "Which property holds the acceptance criteria comes from the metamodel, and no change can be checked against a missing or faulty metamodel.",
+        "stage": 1,
+        "implements": [
+          "SR-204"
+        ],
+        "arguments": [
+          {
+            "field": "selection",
+            "complete": "selection"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "selection": {
+              "$ref": "../common.schema.json#/$defs/selection"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selection"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of changed elements."
+            },
+            "changed": {
+              "type": "array",
+              "description": "The changed elements, in store order, each with the number of its acceptance criteria that got a key.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  },
+                  "shortId": {
+                    "$ref": "../common.schema.json#/$defs/shortId"
+                  },
+                  "assigned": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Acceptance criteria of the element that got a criterion key."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "shortId",
+                  "assigned"
+                ]
+              }
+            },
+            "skipped": {
+              "type": "array",
+              "description": "Elements of the selection with acceptance criteria without key that were left out.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  },
+                  "shortId": {
+                    "$ref": "../common.schema.json#/$defs/shortId"
+                  },
+                  "reason": {
+                    "description": "`unknown-type`: the metamodel has no type of the element, so it is only read.",
+                    "enum": [
+                      "unknown-type"
+                    ]
+                  },
+                  "message": {
+                    "description": "Why the element was left out, for people.",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "shortId",
+                  "reason",
+                  "message"
+                ]
+              }
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Written files relative to the workspace root."
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "changed",
+            "skipped",
+            "files"
+          ]
+        }
+      },
+      {
         "name": "element.addAttachment",
         "title": "Add attachment",
         "summary": "Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version. Never replaces a file.",

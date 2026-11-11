@@ -15,6 +15,7 @@ import baselineList from "./baseline/list.js";
 import dataExport from "./data/export.js";
 import dataStore from "./data/store.js";
 import elementAddAttachment from "./element/addAttachment.js";
+import elementAssignCriterionKeys from "./element/assignCriterionKeys.js";
 import elementBulkUpdate from "./element/bulkUpdate.js";
 import elementCreate from "./element/create.js";
 import elementFacets from "./element/facets.js";
@@ -63,6 +64,7 @@ export const commands: readonly AnyCommand[] = [
   dataExport,
   dataStore,
   elementAddAttachment,
+  elementAssignCriterionKeys,
   elementBulkUpdate,
   elementCreate,
   elementFacets,

@@ -5231,6 +5231,113 @@
       }
     },
     {
+      "name": "element_assignCriterionKeys",
+      "title": "Assign criterion keys",
+      "description": "Give a criterion key to every acceptance criterion without one in the elements of a selection, and name how many elements changed. Versions and existing criterion keys stay as they are.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/$defs/common/$defs/selection"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "selection"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of changed elements."
+          },
+          "changed": {
+            "type": "array",
+            "description": "The changed elements, in store order, each with the number of its acceptance criteria that got a key.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/common/$defs/uuid"
+                },
+                "shortId": {
+                  "$ref": "#/$defs/common/$defs/shortId"
+                },
+                "assigned": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Acceptance criteria of the element that got a criterion key."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "shortId",
+                "assigned"
+              ]
+            }
+          },
+          "skipped": {
+            "type": "array",
+            "description": "Elements of the selection with acceptance criteria without key that were left out.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/common/$defs/uuid"
+                },
+                "shortId": {
+                  "$ref": "#/$defs/common/$defs/shortId"
+                },
+                "reason": {
+                  "description": "`unknown-type`: the metamodel has no type of the element, so it is only read.",
+                  "enum": [
+                    "unknown-type"
+                  ]
+                },
+                "message": {
+                  "description": "Why the element was left out, for people.",
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "shortId",
+                "reason",
+                "message"
+              ]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Written files relative to the workspace root."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "count",
+          "changed",
+          "skipped",
+          "files"
+        ]
+      }
+    },
+    {
       "name": "element_addAttachment",
       "title": "Add attachment",
       "description": "Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version. Never replaces a file.",

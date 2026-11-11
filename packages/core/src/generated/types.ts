@@ -2455,6 +2455,42 @@ export interface ElementBulkUpdateOutput {
 }
 
 /**
+ * Input of `element.assignCriterionKeys` as `run` gets it: validated, properties with a `default` filled in. Give a criterion key to every acceptance criterion without one in the elements of a selection, and name how many elements changed. Versions and existing criterion keys stay as they are.
+ * Schema: `schemas/commands/element.assignCriterionKeys.json input`.
+ */
+export interface ElementAssignCriterionKeysInput {
+  readonly selection: ElementSelection;
+}
+
+/**
+ * Output of `element.assignCriterionKeys`. Give a criterion key to every acceptance criterion without one in the elements of a selection, and name how many elements changed. Versions and existing criterion keys stay as they are.
+ * Schema: `schemas/commands/element.assignCriterionKeys.json output`.
+ */
+export interface ElementAssignCriterionKeysOutput {
+  /** Number of changed elements (SR-204 AK3). */
+  readonly count: number;
+  /** The changed elements, in store order, each with the number of its acceptance criteria that got a key. */
+  readonly changed: readonly {
+    readonly id: Uuid;
+    readonly shortId: ShortId;
+    /** Acceptance criteria of the element that got a criterion key. */
+    readonly assigned: number;
+  }[];
+  /** Elements of the selection with acceptance criteria without key that were left out. */
+  readonly skipped: readonly {
+    readonly id: Uuid;
+    readonly shortId: ShortId;
+    /** `unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3). */
+    readonly reason: "unknown-type";
+    /** Why the element was left out, for people. */
+    readonly message: string;
+  }[];
+  /** Written files relative to the workspace root. */
+  readonly files: readonly string[];
+  readonly incomplete?: Incomplete;
+}
+
+/**
  * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
  * Schema: `schemas/commands/element.addAttachment.json input`.
  */
@@ -3965,6 +4001,7 @@ export interface CommandTypes {
   readonly "element.setStatus": { readonly input: ElementSetStatusInput; readonly output: ElementSetStatusOutput };
   readonly "element.supersede": { readonly input: ElementSupersedeInput; readonly output: ElementSupersedeOutput };
   readonly "element.bulkUpdate": { readonly input: ElementBulkUpdateInput; readonly output: ElementBulkUpdateOutput };
+  readonly "element.assignCriterionKeys": { readonly input: ElementAssignCriterionKeysInput; readonly output: ElementAssignCriterionKeysOutput };
   readonly "element.addAttachment": { readonly input: ElementAddAttachmentInput; readonly output: ElementAddAttachmentOutput };
   readonly "relation.options": { readonly input: RelationOptionsInput; readonly output: RelationOptionsOutput };
   readonly "relation.add": { readonly input: RelationAddInput; readonly output: RelationAddOutput };

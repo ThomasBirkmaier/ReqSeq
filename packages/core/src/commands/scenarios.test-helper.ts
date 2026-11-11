@@ -111,6 +111,12 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: RETIRED, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/.keep" },
   ],
+  // Writes the criteria of GUSTS (SR-001/two-elements has one without key) and those of FILES.
+  "element.assignCriterionKeys": [
+    { selection: {} },
+    { selection: { ids: [WIND, OBSOLETE] } },
+    { selection: { baseline: "nope" } },
+  ],
   "element.bulkUpdate": [
     { selection: {}, property: "rationale", operation: "set", value: "Changed together", confirm: true },
     { selection: { where: { type: ["need"] } }, property: "topic", operation: "set", value: "Wind" },

@@ -297,6 +297,8 @@ export {
   workspacePath,
   writtenElement,
 } from "./write.js";
+export { assignCriterionKeys } from "./assign-criterion-keys.js";
+export type { AssignCriterionKeysResult, KeyedElement, UnknownTypeElement } from "./assign-criterion-keys.js";
 export { bulkUpdateElements } from "./bulk-update.js";
 export type {
   BulkOperation,
