@@ -3,12 +3,14 @@
 // property counts in every view (SR-043 AK10). Out of the view, it does not apply there (SR-040), or
 // the variant excludes or replaces it (SR-047 AK4). `evidence.record` refuses such a record for a
 // variant, `evidence.enrichJunit` such a test case for a variant or the core (SR-029 AK9); both name
-// the element and the view by short ID.
+// the element and the view by short ID. `recordOutOfView` adds SR-173 for a record of the core: one of
+// an element of a repository marked `variant-independent` also counts in each variant whose view holds
+// the element, so it counts nowhere only when none does (SR-047 AK5).
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { ResolvedView } from "../variants/index.js";
-import { appliesIn, validityOf, viewRuleOf } from "../variants/index.js";
+import { appliesIn, validityOf, variantsOf, viewRuleOf } from "../variants/index.js";
 
 /** Why a record of an element would count nowhere in a view. */
 export interface OutOfView {
@@ -60,4 +62,30 @@ export const outOfView = (
     why: `is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
     replacedBy: replacements.map((r) => r.id),
   };
+};
+
+/** What `recordOutOfView` reads: also the repositories marked `variant-independent` (SR-173). */
+export interface RecordViewContext extends ViewContext {
+  readonly independent: ReadonlySet<string>;
+}
+
+/**
+ * Why a verification record of `element` for `view` would count in no view (SR-047 AK5), or undefined
+ * when it counts somewhere: `outOfView`, except that a record of the core of an element whose
+ * repository is marked `variant-independent` counts in each variant whose view holds the element
+ * (SR-173 AK1), so it counts nowhere only when no such view holds it.
+ */
+export const recordOutOfView = (
+  context: RecordViewContext,
+  element: ElementRecord,
+  view: ResolvedView,
+): OutOfView | undefined => {
+  const out = outOfView(context, element, view);
+  if (out === undefined || view.kind !== "core" || !context.independent.has(element.repository)) {
+    return out;
+  }
+  const holds = variantsOf(context.store, context.metamodel).some((variant) =>
+    viewRuleOf(context, { kind: "variant", variant }).includes(element),
+  );
+  return holds ? undefined : out;
 };

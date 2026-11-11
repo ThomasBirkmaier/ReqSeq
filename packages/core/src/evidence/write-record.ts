@@ -9,7 +9,10 @@
 //    whose view holds the element by the view rule, as the views decide it (SR-040, SR-043 AK10: an
 //    element of a type without the validity property is in every view), else the record would count
 //    nowhere; for a core requirement the variant excludes or replaces the refusal names the exclusion
-//    or the replacing requirements (SR-047 AK4). A validation record takes no variant (SR-038 AK4, D-007).
+//    or the replacing requirements (SR-047 AK4). Without `variant` a verification record holds in the
+//    core, so the core must hold the element, or a variant for an element of a repository marked
+//    `variant-independent` (SR-173 AK1), else it is `counts-in-no-view` (SR-047 AK5). A validation
+//    record takes no variant (SR-038 AK4, D-007).
 // 2. ID and current version (AK1): the UUID and `currentVersionsOf` (one file read in a fresh process,
 //    N-036); neither is an input. No current version: `file.faulty`, nothing written.
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
@@ -65,9 +68,9 @@ import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { resolveView } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
-import { locate, workspaceLayoutState } from "../workspace/index.js";
-import type { ViewContext } from "./in-variant.js";
-import { outOfView } from "./in-variant.js";
+import { locate, variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
+import type { RecordViewContext } from "./in-variant.js";
+import { outOfView, recordOutOfView } from "./in-variant.js";
 import {
   CRITERIA_VERIFICATION_ONLY,
   INCONCLUSIVE_REASON_REQUIRED,
@@ -454,6 +457,30 @@ interface Prepared {
 }
 
 /**
+ * Rule 1 for a verification record without variant: it holds in the core, so the core's view must hold
+ * the element, or, for an element of a repository marked `variant-independent`, a variant's view
+ * (SR-173 AK1); else the record would count in no view and is `input.invalid` (SR-047 AK5). A
+ * validation record counts per element, in no view.
+ */
+const coreOutOfView = (
+  context: RecordViewContext,
+  element: ElementRecord,
+  input: EvidenceRecordInput,
+): void => {
+  if (input.kind === "validation") {
+    return;
+  }
+  const out = recordOutOfView(context, element, { kind: "core" });
+  if (out === undefined) {
+    return;
+  }
+  throw invalid(
+    `${context.shortIds.of(element)} does not apply in core, so a record for it without variant would count in no view; give a variant it applies in (SR-047)`,
+    { fields: ["variant"], reason: "counts-in-no-view" },
+  );
+};
+
+/**
  * The variant of rule 1: its record, undefined when none is given (the core); `input.invalid` for
  * `core`, which names no variant (#464), for a validation record (SR-038 AK4), and when the variant's
  * view (`outOfView`: the view rule, as the views decide it) leaves the element out: it does not apply there
@@ -462,11 +489,12 @@ interface Prepared {
  * gives `details.variant`, the UUID of the variant.
  */
 const variantOf = (
-  context: ViewContext,
+  context: RecordViewContext,
   element: ElementRecord,
   input: EvidenceRecordInput,
 ): ElementRecord | undefined => {
   if (input.variant === undefined) {
+    coreOutOfView(context, element, input);
     return undefined;
   }
   const view = resolveView(context, input.variant, COMMAND, "variant", false);
@@ -525,7 +553,8 @@ const prepare = async (
   const keys = (meaning: "requirement" | "need"): Set<string> =>
     new Set(typesWithMeaning(metamodel, meaning).map((t) => t.key));
   checkKind({ requirements: keys("requirement"), needs: keys("need") }, element, input.kind, input.ref);
-  const variant = variantOf({ workspace, metamodel, store, shortIds }, element, input);
+  const independent = variantIndependentOf(await workspace.get(workspaceLayoutState));
+  const variant = variantOf({ workspace, metamodel, store, shortIds, independent }, element, input);
   const criteria = criteriaFields(input);
   // AK1: `currentVersionsOf` gives an entry for every record it is given.
   const entry = (await currentVersionsOf(workspace, [element])).get(element);

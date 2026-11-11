@@ -18,7 +18,7 @@ import { EXIT, runCli } from "../src/index.js";
 
 const runtime = createCommandRuntime();
 
-/** A pytest-style JUnit file whose one test case names SR-0000b1 (system) or SR-0000e1 (sensor). */
+/** A pytest-style JUnit file whose one test case names SR-0000b2 (system; it applies in the core) or SR-0000e1 (sensor). */
 const junit = (shortId: string): string =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites><testsuite name="s" tests="1"><testcase classname="c" name="[${shortId}] works" time="0"/></testsuite></testsuites>\n`;
 
@@ -46,8 +46,8 @@ const fixture = async (): Promise<FixtureWorkspace> => {
     fixture: "SR-061/export",
     git: ["system", "sensor"],
     files: {
-      "outside/delivery.xml": junit("SR-0000b1"),
-      "system/evidence/ci/run.xml": junit("SR-0000b1"),
+      "outside/delivery.xml": junit("SR-0000b2"),
+      "system/evidence/ci/run.xml": junit("SR-0000b2"),
       "sensor/run.xml": junit("SR-0000e1"),
     },
   });

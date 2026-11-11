@@ -56,8 +56,17 @@ const withRecords = async (
   return workspace;
 };
 
-const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
-  (await invoke("workspace.check", input, { workspace })) as Output;
+/**
+ * `workspace.check` without `evidence.counts-in-no-view`: A applies in Pro only, so its records without
+ * variant count in no view (SR-047 AK5, tested in `commands/evidence/per-variant.test.ts`).
+ */
+const check = async (
+  workspace: Workspace,
+  input: Readonly<Record<string, unknown>> = {},
+): Promise<Output> => {
+  const out = (await invoke("workspace.check", input, { workspace })) as Output;
+  return { ...out, problems: out.problems.filter((p) => p.code !== "evidence.counts-in-no-view") };
+};
 
 /** The current version of `id` in the form the tool writes. */
 const currentOf = async (workspace: Workspace, id: string): Promise<string | undefined> => {

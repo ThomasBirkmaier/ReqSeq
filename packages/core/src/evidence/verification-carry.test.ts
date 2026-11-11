@@ -1241,7 +1241,15 @@ describe("the evidence index and verificationState carried over evidence.record 
   };
 
   it("equals a fresh build after records in the core, for a variant, with test cases and on a parent", async () => {
-    const opened = await open(698);
+    // The parent applies in the core, so its record without variant counts there (SR-047 AK5).
+    const opened = await open(698, {
+      adjust: (generated) => {
+        const parent = generated.specs.get(generated.requirements[0] ?? "");
+        if (parent !== undefined) {
+          parent.validity = [];
+        }
+      },
+    });
     await built(opened);
     const steps: readonly (() => Promise<void>)[] = [
       () => recorded(opened, opened.generated.deep),

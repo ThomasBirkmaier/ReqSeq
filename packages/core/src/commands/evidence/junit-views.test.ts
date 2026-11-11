@@ -107,4 +107,44 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
     ]);
     expect((await statusRows(workspace))["b1"]?.["c1"]).toBe("failed");
   });
+
+  it("[SR-047/AK5] reports each record that counts in no view, unless another record of its test case counts for the requirement", async () => {
+    // SR-0000a2 applies in Linux only; of each test case the record of the core counts nowhere.
+    const property = (name: string, value: string): string => `<property name="${name}" value="${value}"/>`;
+    const testCase = (name: string, views: readonly string[]): string =>
+      `<testcase classname="views.test.ts" name="${name}"><properties>` +
+      property("reqseq:element", `${P}a2`) +
+      property("reqseq:version", "n1:0000000000000000") +
+      property("reqseq:item", "build-93") +
+      property("reqseq:date", "2026-11-09T10:00:00Z") +
+      views.map((view) => property("reqseq:variant", view)).join("") +
+      "</properties></testcase>";
+    const workspace = await open({
+      "requirements/SR-0000000000a2.md":
+        `---\nid: ${P}a2\ntype: system-requirement\nstatus: draft\ntitle: Read the Linux log\n` +
+        `validity: [{ id: ${LINUX}, version: n1:67ebd0624004c969, title: Linux }]\n---\n\nThe tool reads the Linux log.\n`,
+      "evidence/ci/views.xml":
+        '<testsuites><testsuite name="views.test.ts" timestamp="2026-11-09T10:00:00.000Z">' +
+        testCase("linux and core", ["core", LINUX]) +
+        testCase("macos and core", ["core", MACOS]) +
+        "</testsuite></testsuites>",
+    });
+    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    // "linux and core" counts in Linux, so its record of the core is no finding.
+    expect(
+      checked.problems
+        .filter((p) => p.code === "evidence.counts-in-no-view")
+        .map((p) => [p.severity, p.file, p.targetId, p.message]),
+    ).toEqual(
+      [
+        "for the core counts in no view: it does not apply in the core",
+        "for the variant VAR-0000c2 counts in no view: it does not apply in the variant VAR-0000c2",
+      ].map((text) => [
+        "warning",
+        "evidence/ci/views.xml",
+        `${P}a2`,
+        `The verification record of SR-0000a2 ${text}; record it for a view that holds it (SR-047)`,
+      ]),
+    );
+  });
 });

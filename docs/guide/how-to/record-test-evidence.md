@@ -87,7 +87,7 @@ files:
 No problems.
 ```
 
-`withoutReference` counts the test cases that name no requirement; it does not change the exit code. The command exits with 1 when a test names an ID the workspace does not have, usually a typo, and lists those test cases; the others are enriched all the same. A test that names a need or another element that is no requirement is enriched too, with an `evidence.kind-mismatch` warning: its result counts for no status, so name the requirement instead, or record the validation of the need with `evidence record`. Commit the enriched file: ReqSeq never commits.
+`withoutReference` counts the test cases that name no requirement; it does not change the exit code. The command exits with 1 when a test names an ID the workspace does not have, usually a typo, or a requirement that does not apply in the core while no `--variant` is given, and lists those test cases; the others are enriched all the same. A test that names a need or another element that is no requirement is enriched too, with an `evidence.kind-mismatch` warning: its result counts for no status, so name the requirement instead, or record the validation of the need with `evidence record`. Commit the enriched file: ReqSeq never commits.
 
 ```sh
 reqseq evidence status
