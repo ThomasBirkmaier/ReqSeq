@@ -122,16 +122,8 @@ const writeCopy = async (root: string, copy: ImageCopy, command: string): Promis
   if (before.kind === "read" && before.snapshot.sha256 === copy.sha256) {
     return;
   }
-  if (before.kind === "problem" && !before.missing) {
-    throw new CommandError(
-      "file.faulty",
-      `output: ${copy.target} cannot be replaced: ${before.problem.message}`,
-      {
-        command,
-        fields: ["output"],
-      },
-    );
-  }
+  // A place that cannot be read was refused before any copy (`refuseCopyTargets`); one that became
+  // so since then fails in `writeFileAtomic`, which never replaces what it did not read.
   await writeFileAtomic(root, copy.target, read.bytes, before.kind === "read" ? before.snapshot : null, {
     kind: "image",
   });
