@@ -862,26 +862,34 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     });
   }, [bridge]);
   // The command prompt: the actions that apply now and the catalog's read and write commands (ThomasBirkmaier/ReqSeq-archive#85);
-  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`).
-  const commands = useCallback((): Prompt => {
-    const now = latest.current;
-    const items = catalogItems(
-      {
-        ...now,
-        revision: () => revisionNow.current,
-        reopen: () => {
-          ask(commands());
-        },
-      },
-      catalog.current,
-      ACTIONS,
-    );
-    return withHelp(commandPrompt(now, promptUse(appStorage), items), now, catalog.current);
-  }, [ask]);
+  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`). `shown`: the
+  // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
+  // entries run from the prefix key or the context menu have no command prompt to go back to.
+  const commands = useCallback(
+    (shown = true): Prompt => {
+      const now = latest.current;
+      // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
+      // chosen here (SR-134 AK1), open the command prompt again.
+      const reopen = (): void => {
+        ask(commands());
+      };
+      const items = catalogItems(
+        { ...now, revision: () => revisionNow.current, reopen },
+        catalog.current,
+        ACTIONS,
+      );
+      return withHelp(
+        commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+        now,
+        catalog.current,
+      );
+    },
+    [ask],
+  );
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
     mac: context.mac,
-    items: () => commands().items,
+    items: () => commands(false).items,
     nameOf: (id) =>
       ACTIONS.find((action) => action.id === id)?.title ??
       catalog.current.find((command) => `command:${command.name}` === id)?.title,
@@ -917,7 +925,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       return;
     }
     beforeCommand();
-    commands()
+    commands(false)
       .items.find((item) => item.id === id)
       ?.run();
   };
@@ -940,7 +948,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The menu of an entry acts on the element of the entry (SR-197): while it is open, the commands are built
   // from the context with that element, so its entries and the one clicked act on it.
   latest.current = menuContext(context, contextMenu.menu, kindNames);
-  const menuNow = openEntries(contextMenu.menu, () => commands().items, openedMenu.current);
+  const menuNow = openEntries(contextMenu.menu, () => commands(false).items, openedMenu.current);
   openedMenu.current = menuNow.opened;
   const shownEntries = menuNow.entries;
   menuEntriesNow.current = shownEntries.map((entry) => entry.id);

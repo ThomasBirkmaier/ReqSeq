@@ -604,13 +604,38 @@ describe("App", () => {
       await Promise.resolve();
     });
     expect(query("label").textContent).toBe("Status");
+    // Escape goes back to the command prompt (SR-134 AK1).
     await keyDown(query("input"), "Escape");
-    await clickLine();
+    expect(query("label").textContent).toBe("Command");
     // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
     expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
       "Filter list by status",
       "List all elements",
     ]);
+  });
+
+  it("[SR-134/AK1] [SR-134/AK2] goes back one step on Escape in a later step, and closes in the first", async () => {
+    const { bridge, invoke } = fakeBridge(workspace());
+    await renderList(bridge);
+    const lists = calls(invoke, "element.list").length;
+    await runCommand("filter list by property");
+    expect(query("label").textContent).toBe("Property");
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("status");
+    // The value: back to the property, then to the command; nothing filtered the list.
+    await keyDown(query("input"), "Escape");
+    expect(query("label").textContent).toBe("Property");
+    await keyDown(query("input"), "Escape");
+    expect(query("label").textContent).toBe("Command");
+    expect(calls(invoke, "element.list")).toHaveLength(lists);
+    // The first step closes: the command prompt, and a prompt a shortcut opened.
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    await keyDown(window, "p", { ctrlKey: true });
+    expect(query("label").textContent).toBe("Go to");
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    expect(calls(invoke, "element.list")).toHaveLength(lists);
   });
 
   it("opens the command prompt with a click on the idle minibuffer", async () => {
@@ -2373,7 +2398,9 @@ describe("App, the text editor", () => {
       "Close all and discard the unsaved changes",
     ]);
     expect(container.querySelector("dialog, [role=dialog], [role=alertdialog], [aria-modal]")).toBeNull();
-    // Escape closes the question and keeps every buffer.
+    // Escape goes back to the command prompt (SR-134 AK1), and a second one closes it; every buffer stays.
+    await keyDown(query("input"), "Escape");
+    expect(query("label").textContent).toBe("Command");
     await keyDown(query("input"), "Escape");
     expect(container.querySelector("input")).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
