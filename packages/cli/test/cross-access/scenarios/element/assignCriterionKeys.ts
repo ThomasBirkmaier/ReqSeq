@@ -2,7 +2,7 @@
 // (cross-access.test.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { NEW_CRITERION_KEYS, changedFiles } from "../../fixtures.js";
+import { changedFiles } from "../../fixtures.js";
 
 /** A requirement with `criteria` as the lines of its acceptance criteria. */
 const requirement = (tail: string, title: string, criteria: readonly string[]): string =>
@@ -46,7 +46,6 @@ scenariosOf("element.assignCriterionKeys", [
     input: { selection: {} },
     tag: "[SR-204/AK3]",
     expect: "output",
-    masks: NEW_CRITERION_KEYS,
     check: (results) => {
       const { core } = results;
       expect(changedFiles(core)).toEqual([
@@ -62,7 +61,6 @@ scenariosOf("element.assignCriterionKeys", [
     input: { selection: { ids: ["SR-000a02", "SR-000a03"] } },
     tag: "[SR-204/AK3]",
     expect: "output",
-    masks: NEW_CRITERION_KEYS,
   },
   {
     name: "a baseline that does not exist is refused, nothing is written",
