@@ -2,7 +2,7 @@
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { HINTS, IN_CRITERIA, SINCE_BASELINE } from "../../fixtures.js";
+import { HINTS, IN_CRITERIA, OBSOLETE_SOURCE, SINCE_BASELINE } from "../../fixtures.js";
 
 /** SR-A (SR-0000b1, validity [VAR-0000c1]) replaces the core requirement SR-K (SR-0000a1), whose content changed (SR-045). */
 const CORE_CHANGED: FixtureOptions = {
@@ -19,6 +19,19 @@ scenariosOf("hint.list", [
     fixture: IN_CRITERIA,
     input: { kind: ["relation.outdated"] },
     expect: "output",
+  },
+  {
+    tag: "[SR-025/AK5]",
+    name: "no outdated reference of an obsolete source",
+    fixture: OBSOLETE_SOURCE,
+    input: { kind: ["relation.outdated"] },
+    expect: "output",
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: { hints: { elementShortId: string }[] } }).output;
+      const sources = output.hints.map((h) => h.elementShortId);
+      expect(sources).toContain("SR-0000b1");
+      expect(sources).not.toContain("SR-0000b8");
+    },
   },
   {
     name: "every open hint with kind, element, target and reason, dates from Git (SR-026 AK1)",

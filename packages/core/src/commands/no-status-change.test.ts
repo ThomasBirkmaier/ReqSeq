@@ -3,8 +3,9 @@
 // command, read or write, runs here on elements of several statuses, among them one the metamodel does
 // not know; afterwards every element file has the `status` line it had. The status is read from the
 // files on disk, not from the element store. Loading, the watcher (SR-007) and a changed metamodel
-// (SR-015) change no status either. Confirming a hint (AK2) writes the files of approved, obsolete
-// and draft elements here; importing a delivery (AK2) creates new elements with the initial status
+// (SR-015) change no status either. Confirming a hint (AK2) writes the files of approved and draft
+// elements and of one with a status the metamodel does not know here (an obsolete source has no hint
+// to confirm, SR-025 AK5); importing a delivery (AK2) creates new elements with the initial status
 // only (SR-053), and a changed delivery of the same source updates them without their status
 // (SR-056).
 import fs from "node:fs";
@@ -156,16 +157,20 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     const { fixture, workspace } = await open();
     const sources = [
       ["requirements/SR-1d2e3f4a5b6c.md", GUSTS],
-      ["requirements/SR-444455556666.md", OBSOLETE],
       ["needs/N-aaaaaaaaaaaa.md", APPROVED],
     ] as const;
+    const obsolete = hintId("requirements/SR-444455556666.md", OBSOLETE, WIND);
     const before = contents(fixture.root, Object.keys(STATUS_LINES));
     const out = await runtime.invoke(
       "hint.confirm",
-      { hintIds: sources.map(([file, id]) => hintId(file, id, WIND)) },
+      { hintIds: [...sources.map(([file, id]) => hintId(file, id, WIND)), obsolete] },
       { workspace },
     );
-    expect(out).toMatchObject({ files: sources.map(([file]) => file), problems: [] });
+    // The obsolete source has no open hint (SR-025 AK5): its file is not written.
+    expect(out).toMatchObject({
+      files: sources.map(([file]) => file),
+      problems: [{ code: "hint.not-found", hintId: obsolete }],
+    });
     const after = contents(fixture.root, Object.keys(STATUS_LINES));
     expect(Object.keys(after).filter((file) => after[file] !== before[file])).toEqual(
       sources.map(([file]) => file).sort(),

@@ -129,6 +129,11 @@ export const NESTED_A = "39039039-0000-4000-8000-0000000000a1";
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
 export const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
 
+/** SR-0000b8 of IN_CRITERIA with `status`: only a criterion that references a need, in an outdated version. */
+const gustsRequirement = (status: string): string =>
+  `---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: ${status}\ntitle: Show gusts\nrequirement-type: functional\n` +
+  "acceptance-criteria:\n  - Given a gust, then [the other need](reqseq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n";
+
 /**
  * HINTS with the standard model as shipped, which marks the acceptance criteria and the rationale as
  * Markdown, and links in acceptance criteria (SR-127, ThomasBirkmaier/ReqSeq-archive#444): SR-0000b1 holds one to a changed need
@@ -148,9 +153,16 @@ export const IN_CRITERIA: FixtureOptions = {
       "then the station shows it.",
       "then [the need](reqseq:26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000) shows it.",
     ),
-    "requirements/SR-0000000000b8.md":
-      "---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\n" +
-      "acceptance-criteria:\n  - Given a gust, then [the other need](reqseq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n",
+    "requirements/SR-0000000000b8.md": gustsRequirement("draft"),
+  },
+};
+
+/** IN_CRITERIA with SR-0000b8 obsolete (D-044): its outdated reference is no hint (SR-025 AK5), the one of SR-0000b1 is. */
+export const OBSOLETE_SOURCE: FixtureOptions = {
+  ...IN_CRITERIA,
+  files: {
+    ...IN_CRITERIA.files,
+    "requirements/SR-0000000000b8.md": gustsRequirement("obsolete"),
   },
 };
 
