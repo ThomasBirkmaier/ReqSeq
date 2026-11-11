@@ -4688,7 +4688,7 @@ describe("ElementView", () => {
       expect(echoed).toEqual([]);
     });
 
-    it("[SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
+    it("[SR-066/AK4] [SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
       const { controls, opened, echoed } = await mountCriteria([FIRST, SECOND]).mounted;
       const [view] = boxViews();
       if (view === undefined) {
