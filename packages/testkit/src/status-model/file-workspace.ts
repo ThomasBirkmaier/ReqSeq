@@ -7,15 +7,12 @@
 import fc from "fast-check";
 import { UNREADABLE_DATE, criteriaArbitrary, renderDate } from "./generator.js";
 import { CURRENT, type ModelCriterion, type ModelRecord, instantOf } from "./model.js";
-import { ELEMENT_IDS, statusModelWorkspace } from "./workspace-generator.js";
+import { statusModelWorkspace } from "./workspace-generator.js";
 import type { ModelWorkspace, ModelWorkspaceElement } from "./workspace-model.js";
 
 /** Why the reader refuses a record (R5); `unreadable-date` comes from the base generator's dates. */
 export type ModelRefusal =
-  | "inconclusive-verification"
-  | "validation-with-variant"
-  | "inconclusive-without-reason"
-  | "unreadable-date";
+  "inconclusive-verification" | "validation-with-variant" | "inconclusive-without-reason" | "unreadable-date";
 
 export interface ModelFileRecord {
   readonly record: ModelRecord;
@@ -100,13 +97,40 @@ function refusedArbitrary(variants: readonly string[]): fc.Arbitrary<ModelFileRe
         return refused({ kind: "validation", version: CURRENT, date, result: "passed", variant }, kind);
       }
       return kind === "inconclusive-verification"
-        ? refused({ kind: "verification", version: CURRENT, date, result: "inconclusive", reason: "no decision" }, kind)
-        : refused({ kind: "validation", version: CURRENT, date, result: "inconclusive" }, "inconclusive-without-reason");
+        ? refused(
+            { kind: "verification", version: CURRENT, date, result: "inconclusive", reason: "no decision" },
+            kind,
+          )
+        : refused(
+            { kind: "validation", version: CURRENT, date, result: "inconclusive" },
+            "inconclusive-without-reason",
+          );
     });
 }
 
 function refused(record: ModelRecord, refusal: ModelRefusal): ModelFileRecord {
   return { record, pin: 0, form: "n2", format: "markdown", location: 0, crlf: false, refusal };
+}
+
+/**
+ * Two inconclusive validation records of the current version at one instant newer than the base generator's dates,
+ * written in two offsets with two reasons, so the index order picks the reason (A6).
+ */
+function inconclusiveTie(): ModelFileRecord[] {
+  return [renderDate(4, "+02:00"), renderDate(4, "Z")].map((date, index) => ({
+    record: {
+      kind: "validation",
+      version: CURRENT,
+      date,
+      result: "inconclusive",
+      reason: `tie ${String(index + 1)}`,
+    },
+    pin: 0,
+    form: "n1",
+    format: "markdown",
+    location: 0,
+    crlf: false,
+  }));
 }
 
 /** How one record of the base generator is written. */
@@ -137,16 +161,24 @@ function writtenArbitrary(record: ModelRecord): fc.Arbitrary<ModelFileRecord> {
 export function statusModelFileWorkspace(): fc.Arbitrary<ModelFileWorkspace> {
   return statusModelWorkspace().chain((base) => {
     const variants = base.variants.map((variant) => variant.id);
-    const used = ELEMENT_IDS.filter((id) => base.elements.some((element) => element.id === id));
-    const recordsOfId = (id: string) => {
-      const own = filesOf(base, id)[0]?.own.records ?? [];
-      return fc
-        .tuple(fc.tuple(...own.map(writtenArbitrary)), fc.array(refusedArbitrary(variants), { maxLength: 2 }))
-        .map(([written, refused]) => {
+    // The first file of each UUID, in element order: its own part holds the UUID's records (R4).
+    const firsts = base.elements.filter(
+      (element, index) => base.elements.findIndex((other) => other.id === element.id) === index,
+    );
+    const recordsOf = ({ id, own }: ModelWorkspaceElement) =>
+      fc
+        .tuple(
+          fc.tuple(...own.records.map(writtenArbitrary)),
+          fc.integer({ min: 0, max: 3 }).map((value) => (value === 0 ? inconclusiveTie() : [])),
+          fc.array(refusedArbitrary(variants), { maxLength: 2 }),
+        )
+        .map(([written, tie, refused]) => {
           const count = filesOf(base, id).length;
-          return [...written.map((file) => ({ ...file, pin: file.pin % count })), ...refused];
+          return [
+            id,
+            [...written.map((file) => ({ ...file, pin: file.pin % count })), ...tie, ...refused],
+          ] as const;
         });
-    };
     return fc
       .record({
         criteria: fc.tuple(
@@ -156,14 +188,16 @@ export function statusModelFileWorkspace(): fc.Arbitrary<ModelFileWorkspace> {
               : fc.option(criteriaArbitrary(), { nil: undefined }),
           ),
         ),
-        crlf: fc.tuple(...base.elements.map(() => fc.integer({ min: 0, max: 3 }).map((value) => value === 0))),
-        records: fc.tuple(...used.map(recordsOfId)),
+        crlf: fc.tuple(
+          ...base.elements.map(() => fc.integer({ min: 0, max: 3 }).map((value) => value === 0)),
+        ),
+        records: fc.tuple(...firsts.map(recordsOf)),
       })
       .map(({ criteria, crlf, records }) => ({
         base,
         criteria,
         crlf,
-        records: Object.fromEntries(used.map((id, index) => [id, records[index] ?? []])),
+        records: Object.fromEntries(records),
       }));
   });
 }

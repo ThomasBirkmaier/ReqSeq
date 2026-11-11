@@ -49,8 +49,8 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | A3 | The newest validation record of the current version decides: passed gives validated (erfolgreich), failed gives failed, inconclusive gives inconclusive. | SR-038 AK3: „… erfolgreich, nicht erfolgreich oder nicht beurteilbar (SR-172) nach dem neuesten Datensatz zur aktuellen Fassung …“ |
 | A4 | Ties at the newest instant (V7, V8): the worst result, failed before inconclusive before passed. | SR-038 AK3: „… bei mehreren gleich neuen nach dem schlechtesten Ergebnis (nicht erfolgreich vor nicht beurteilbar vor erfolgreich) …“ |
 | A5 | Records of older versions only: outdated. | SR-038 AK2: „Gegeben ein Element, dessen Validierungs-Datensätze alle zu älteren Fassungen gehören, wenn der Status berechnet wird, dann ist er veraltet.“ |
-| A7 | Every need shows a validation status (open without record), a requirement only with a validation record, no other element. | SR-038 AK1, AK5; `data-export.schema.json` `element.validation` |
 | A6 | An inconclusive status carries the reason of its record; on a tie of several inconclusive records, the reason of the first in index order (here: input order). | SR-172 AK2: „… dann ist er nicht beurteilbar … und das Tool zeigt die Begründung.“ The tie: assumption, ADR-0012 „Validation status“ (#807 Q3) |
+| A7 | Every need shows a validation status (open without record), a requirement only with a validation record, no other element. | SR-038 AK1, AK5; `data-export.schema.json` `element.validation` |
 
 ### Views (Sichten)
 

@@ -74,17 +74,17 @@ export async function forAllFileWorkspaces(
   try {
     await fc.assert(fc.asyncProperty(statusModelFileWorkspace(), check), parameters);
   } catch (error) {
-    throw replayError(error, parameters);
+    throw replayError(error, parameters, "STATUS_MODEL_FILE_RUNS");
   }
 }
 
 // fast-check's message holds the seed, the replay path and the shrunk counterexample; keep it in the message, as a
 // short reporter may not print the cause. fc.assert always throws an Error.
-function replayError(error: unknown, parameters: PropertyParameters): Error {
+function replayError(error: unknown, parameters: PropertyParameters, runs = "STATUS_MODEL_RUNS"): Error {
   const detail = (error as Error).message;
   return new Error(
     `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)} ` +
-      `STATUS_MODEL_RUNS=${String(parameters.numRuns)} (level 2: STATUS_MODEL_FILE_RUNS)\n${detail}`,
+      `${runs}=${String(parameters.numRuns)}\n${detail}`,
     { cause: error },
   );
 }

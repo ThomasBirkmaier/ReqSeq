@@ -4,7 +4,6 @@
 // the core computes (ADR-0005), so the caller passes them.
 import { CURRENT, type ModelCriterion, type ModelCriterionRef } from "./model.js";
 import { type ModelFileRecord, type ModelFileWorkspace, filesOf } from "./file-workspace.js";
-import { REPOSITORIES } from "./workspace-generator.js";
 import type { ModelRef, ModelWorkspaceElement } from "./workspace-model.js";
 
 /** The folder of each repository below the workspace root; the main repository is the root. */
@@ -56,7 +55,7 @@ statuses:
 
 /** The UUID of a model id: `e1` to `e6` for elements, `A` to `C` for variants. */
 export function uuidOf(id: string): string {
-  const code = [...id].map((char) => char.charCodeAt(0).toString(16)).join("");
+  const code = Array.from({ length: id.length }, (_, at) => id.charCodeAt(at).toString(16)).join("");
   return `13961396-0000-4000-8000-${code.padStart(12, "0")}`;
 }
 
@@ -71,13 +70,21 @@ export interface ElementPlace {
 export function elementPlaceOf(element: ModelWorkspaceElement): ElementPlace {
   const [folder, prefix] = element.type === "need" ? ["needs", "N"] : ["requirements", "SR"];
   const file = `${folder}/${element.key}/${prefix}-${uuidOf(element.id).slice(-12)}.md`;
-  return { repository: element.repository, file, path: `${REPOSITORY_FOLDERS[element.repository] ?? ""}${file}` };
+  return {
+    repository: element.repository,
+    file,
+    path: `${REPOSITORY_FOLDERS[element.repository] ?? ""}${file}`,
+  };
 }
 
 /** The place of a variant file. */
 export function variantPlaceOf(variant: { readonly id: string; readonly repository: string }): ElementPlace {
   const file = `variants/VAR-${uuidOf(variant.id).slice(-12)}.md`;
-  return { repository: variant.repository, file, path: `${REPOSITORY_FOLDERS[variant.repository] ?? ""}${file}` };
+  return {
+    repository: variant.repository,
+    file,
+    path: `${REPOSITORY_FOLDERS[variant.repository] ?? ""}${file}`,
+  };
 }
 
 function withEol(text: string, crlf: boolean): string {
@@ -156,7 +163,7 @@ export function elementFilesOf(files: ModelFileWorkspace): Map<string, string> {
       itemsOf("derives-from", element.derivesFrom) +
       itemsOf("replaces", element.replaces) +
       `---\n\nText of ${element.key}.\n`;
-    out.set(elementPlaceOf(element).path, withEol(text, files.crlf[index] ?? false));
+    out.set(elementPlaceOf(element).path, withEol(text, files.crlf[index] === true));
   });
   return out;
 }
@@ -170,7 +177,12 @@ function refsOf(refs: readonly ModelCriterionRef[]): (string | number)[] {
 }
 
 /** The version a record names: a current one of the file it was written against (R4), else an older one. */
-function versionOf(files: ModelFileWorkspace, id: string, file: ModelFileRecord, forms: CurrentForms): string {
+function versionOf(
+  files: ModelFileWorkspace,
+  id: string,
+  file: ModelFileRecord,
+  forms: CurrentForms,
+): string {
   if (file.record.version !== CURRENT) {
     return OLDER_VERSIONS[file.record.version] ?? STORED_VERSION;
   }
@@ -230,7 +242,7 @@ export function recordFilesOf(files: ModelFileWorkspace, forms: CurrentForms): M
   Object.entries(files.records).forEach(([id, records], uuidIndex) => {
     records.forEach((file, position) => {
       const name = `r-${String(uuidIndex)}-${String(position).padStart(2, "0")}`;
-      const folder = `${REPOSITORY_FOLDERS[REPOSITORIES[file.location]] ?? ""}evidence/`;
+      const folder = file.location === 1 ? "lib/evidence/" : "evidence/";
       const version = versionOf(files, id, file, forms);
       out.set(
         `${folder}${name}.${file.format === "junit" ? "xml" : "md"}`,

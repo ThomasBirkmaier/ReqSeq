@@ -1,7 +1,12 @@
 // Reference model of the verification degree and of the status filters (#1396): rules D… and F… in README.md.
 // Written from the spec and the command contracts only (SR-037, `evidence.degree`, filter conditions), without reading
 // the core's degree or filter code. Deliberately naive: it counts the model's entries of one view.
-import { type ModelViewId, type ModelWorkspace, type ModelWorkspaceElement, entriesInView } from "./workspace-model.js";
+import {
+  type ModelViewId,
+  type ModelWorkspace,
+  type ModelWorkspaceElement,
+  entriesInView,
+} from "./workspace-model.js";
 import { type ModelValidationStatus, validationOf } from "./model.js";
 
 export type ModelDegreeStatus = "open" | "verified" | "indirect" | "failed" | "outdated";
@@ -24,7 +29,13 @@ export function degreeOf(
   selection: ReadonlySet<string>,
 ): ModelDegree {
   const entries = entriesInView(workspace, view);
-  const counts: Record<ModelDegreeStatus, number> = { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 };
+  const counts: Record<ModelDegreeStatus, number> = {
+    open: 0,
+    verified: 0,
+    indirect: 0,
+    failed: 0,
+    outdated: 0,
+  };
   let total = 0;
   for (const element of workspace.elements) {
     const entry = entries.get(element.key);
@@ -34,7 +45,9 @@ export function degreeOf(
     counts[entry.status] += 1;
     total += 1;
   }
-  return total === 0 ? { total, counts } : { total, counts, share: (counts.verified + counts.indirect) / total };
+  return total === 0
+    ? { total, counts }
+    : { total, counts, share: (counts.verified + counts.indirect) / total };
 }
 
 // F1 (filter condition `verification`, SR-069): the elements whose verification status in `view` is one of
