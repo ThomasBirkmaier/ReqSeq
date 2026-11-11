@@ -56,6 +56,58 @@ test.describe("the command prompt", () => {
     await expect(names(window).first()).toHaveText("Filter list by type");
   });
 
+  test('[SR-121/AK1] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("lae");
+    await expect(names(window).first()).toHaveText("List all elements");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox", { name: "All elements" })).toBeVisible();
+    await expect(window.locator("label.prompt-label")).toHaveCount(0);
+  });
+
+  test("[SR-133/AK1] Bulk update elements is found only on a list, and no write command while the tool refuses writes", async () => {
+    /** The names the prompt finds for `typed`; the prompt closes again. */
+    const found = async (window: Page, typed: string): Promise<string[]> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type(typed);
+      await expect(window.locator(".prompt-input")).toHaveValue(typed);
+      const shown = await names(window).allTextContents();
+      await window.keyboard.press("Escape");
+      await expect(window.locator("label.prompt-label")).toHaveCount(0);
+      return shown;
+    };
+    running = await launchApp(FIXTURE);
+    let { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    // It needs the selection of a list: not on the overview, nor on an element, also not by search.
+    expect(await found(window, "Bulk update elements")).not.toContain("Bulk update elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Measure wind speed");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Measure wind speed");
+    expect(await found(window, "Bulk update elements")).not.toContain("Bulk update elements");
+    expect(await found(window, "Set status")).toContain("Set status");
+    await listAll(window);
+    expect(await found(window, "Bulk update elements")).toContain("Bulk update elements");
+    await running.close();
+
+    // A metamodel file that is no YAML: the tool refuses writes (SR-011 AK3), so no write command is found.
+    running = await launchApp({ ...FIXTURE, files: { "metamodel/broken.yaml": "types: [\n" } });
+    ({ window } = running);
+    await listAll(window);
+    for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
+      expect(await found(window, write)).not.toContain(write);
+    }
+    // Reading still works.
+    expect(await found(window, "Show relation options")).toContain("Show relation options");
+    const status = await running.cli(["workspace", "status"]);
+    expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
+  });
+
   test("a catalog read command asks its arguments in the minibuffer, with the kinds core allows, and shows its output", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;

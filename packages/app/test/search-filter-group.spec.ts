@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { inShownOrder, launchApp, showFolded, snapshot } from "./support/app.js";
+import { FOLDED_STATUS, inShownOrder, launchApp, showFolded, snapshot } from "./support/app.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -102,5 +102,21 @@ test.describe("search hits filtered and grouped", () => {
     ).toHaveCount(0);
     await window.keyboard.press("Escape");
     expect(await snapshot(root)).toEqual(before);
+  });
+
+  test("[SR-201/AK1] the search list puts its hits in a folded status at the end, in a collapsed section with their count, the others before it in their order", async () => {
+    const { window } = running;
+    const hits = await hitsOf(running);
+    const folded = hits.filter((hit) => hit.status === FOLDED_STATUS);
+    expect(folded.length).toBeGreaterThan(0);
+    // The folded hit is not the last by relevance: the section moves it.
+    expect(hits.at(-1)?.status).not.toBe(FOLDED_STATUS);
+    const section = shownBuffer(window).locator(".row.fold-row");
+    await expect(section).toHaveText(`▸ Folded statuses (${String(folded.length)})`);
+    await expect(ids(window)).toHaveText(
+      hits.filter((hit) => hit.status !== FOLDED_STATUS).map((hit) => hit.shortId),
+    );
+    await section.click();
+    await expect(ids(window)).toHaveText(await searched(running));
   });
 });

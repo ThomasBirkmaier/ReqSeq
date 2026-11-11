@@ -168,6 +168,18 @@ test.describe("the context menu on a field", () => {
     await expect.poll(read).toContain("status: approved");
   });
 
+  test("[SR-196/AK3] Copy field on the status copies it; the status has no copy symbol", async () => {
+    const { window } = running;
+    await writeClipboard("");
+    await rightClick(window, modelineField(window, "Status"));
+    await choose(window, "Copy field");
+    await expect.poll(readClipboard).toBe("draft");
+    // The ID beside it has one (SR-128); the status has none.
+    await expect(modelineField(window, "ID").locator(".copy")).toHaveCount(1);
+    await expect(modelineField(window, "Status").locator(".copy")).toHaveCount(0);
+    await expect(window.locator(".modeline .copy")).toHaveCount(1);
+  });
+
   test("[SR-196/AK4] the short ID has Show element ID and version, which says them", async () => {
     const { window } = running;
     await rightClick(window, modelineField(window, "ID"));
@@ -179,6 +191,42 @@ test.describe("the context menu on a field", () => {
     await rightClick(window, modelineField(window, "ID"));
     await window.keyboard.press("Escape");
     await expect(window.locator("article")).toBeFocused();
+  });
+
+  test("[SR-196/AK4] a right-click on the type or any other place of the modeline opens no menu", async () => {
+    const { window } = running;
+    /** Right-clicks the middle of the first text of the modeline that is `text`. */
+    const rightClickText = async (text: string): Promise<void> => {
+      const point = await window.locator(".modeline").evaluate((modeline, wanted) => {
+        const walker = document.createTreeWalker(modeline, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          const at = node.textContent?.indexOf(wanted) ?? -1;
+          if (at >= 0) {
+            const range = document.createRange();
+            range.setStart(node, at);
+            range.setEnd(node, at + wanted.length);
+            const box = range.getBoundingClientRect();
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+          }
+        }
+        return undefined;
+      }, text);
+      expect(point, text).toBeDefined();
+      await window.mouse.click(point?.x ?? 0, point?.y ?? 0, { button: "right" });
+    };
+    // The first part is "ID · type · status" (SR-114 AK1).
+    const head = (await window.locator(".modeline .parts > .segment").first().textContent()) ?? "";
+    const type = head.split(" · ")[1] ?? "";
+    expect(type).not.toBe("");
+    for (const text of [type, "Weather station"]) {
+      await rightClickText(text);
+      // A menu that opens shows at once; wait a moment, so that a late one fails the test too.
+      await window.waitForTimeout(300);
+      await expect(menu(window), text).toHaveCount(0);
+    }
+    // The short ID next to the type still has its menu.
+    await rightClick(window, modelineField(window, "ID"));
+    await window.keyboard.press("Escape");
   });
 
   test("the menu on a property box in light, as a screenshot", async () => {

@@ -1246,7 +1246,7 @@ describe("close all buffers", () => {
     expect(echoed.at(-1)).toBe("Closed 3 buffers");
   });
 
-  it("[SR-105/AK1] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
+  it("[SR-105/AK1] [SR-123/AK2] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
     const drafted = (key: string): boolean => key !== list.key;
     const saving: string[] = [];
     const all = setup([element, other, list], {}, true, {
@@ -1297,6 +1297,15 @@ describe("close all buffers", () => {
     const { context } = setup([element, other, filtered], {}, true, { element: controls });
     const items = commandPrompt(context).items;
     expect(rank(items, (item) => item.name, "cab")[0]?.item.name).toBe("Close all buffers");
+  });
+
+  it('[SR-123/AK3] "cab" ranks Close all buffers first with one buffer beside the overview, and the lone overview has no Close all buffers', () => {
+    const cab = (buffers: Parameters<typeof setup>[0]): string | undefined =>
+      rank(commandPrompt(setup(buffers).context).items, (item) => item.name, "cab")[0]?.item.name;
+    expect(cab([element, overviewBuffer()])).toBe("Close all buffers");
+    const lone = commandPrompt(setup([overviewBuffer()]).context).items.map((item) => item.name);
+    expect(lone).not.toContain("Close all buffers");
+    expect(cab([overviewBuffer()])).not.toBe("Close all buffers");
   });
 
   it("is offered with buffers only", () => {

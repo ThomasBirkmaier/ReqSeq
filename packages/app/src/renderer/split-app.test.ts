@@ -226,6 +226,15 @@ const runCommand = async (name: string): Promise<void> => {
   await press(query("input"), { key: "Enter" });
 };
 
+/** Whether the command prompt offers `name` when it is typed; the prompt closes again. */
+const offered = async (name: string): Promise<boolean> => {
+  await press(window, { key: "P", ctrlKey: true, shiftKey: true });
+  await type(name);
+  const names = [...container.querySelectorAll('[role="option"] .name')].map((option) => option.textContent);
+  await press(query("input"), { key: "Escape" });
+  return names.includes(name);
+};
+
 const render = async (): Promise<void> => {
   await act(async () => {
     root.render(createElement(App, { bridge }));
@@ -494,6 +503,59 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(query('[data-area="left"]').contains(document.activeElement)).toBe(true);
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
     expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000002 Title 2"]);
+  });
+
+  it("[SR-150/AK2] in the app, Open to the left opens the marked row on the left as a preview; the list stands on the right and stays active", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = (areas()[0] ?? "").replace("*", "");
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the left");
+    expect(areas()).toEqual(["SR-000001 Title 1", `${list}*`]);
+    expect(query('[data-area="right"]').contains(document.activeElement)).toBe(true);
+    // A preview: it follows the row marked next.
+    await press(query('[data-area="right"] [role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
+  });
+
+  it("[SR-150/AK3] in a split, Open to the left shows the marked row in the inactive left area and the list stays active; Open to the right on the active side opens it there as Enter does", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = (areas()[0] ?? "").replace("*", "");
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the left");
+    // Entered once, the left area shows no preview any more: the next row leaves it (AK5).
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    await press(query('[data-area="right"] [role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual(["SR-000001 Title 1", `${list}*`]);
+    await runCommand("Open to the left");
+    expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
+    expect(query('[data-area="right"]').contains(document.activeElement)).toBe(true);
+    // The active area is on the right: the marked element opens there, in place of the list, as Enter opens
+    // it. The left area entered again first, so that it keeps its element.
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    await press(query('[data-area="right"] [role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
+    await runCommand("Open to the right");
+    expect(areas()).toEqual(["SR-000002 Title 2", "SR-000003 Title 3*"]);
+  });
+
+  it("[SR-150/AK6] with only the overview open there is no Split window, also with a row of the overview marked", async () => {
+    await render();
+    expect(await offered("Split window")).toBe(false);
+    // An element opened and closed again: the overview is the only buffer, with the element as a recent row.
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await runCommand("Close all buffers");
+    expect(areas()).toEqual(["Overview*"]);
+    await press(query('[role="listbox"]'), { key: "End" });
+    expect(query('[role="listbox"] [aria-selected="true"]').textContent).toContain("Title 1");
+    expect(await offered("Split window")).toBe(false);
+    // Another buffer open: it is offered.
+    await runCommand("List all elements");
+    expect(await offered("Split window")).toBe(true);
   });
 
   it("[SR-150/AK1] Open to the right from a graph opens its selected node's element beside it; the element follows a node selected next, and a graph opened in the active area moves nothing", async () => {

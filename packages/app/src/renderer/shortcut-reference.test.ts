@@ -273,7 +273,7 @@ describe("shortcutReference", () => {
     expect(actions.some((row) => row.does === "Close all buffers")).toBe(false);
   });
 
-  it("anchors each action at its first row, for F1 on it in the command prompt (SR-141 AK3)", () => {
+  it("[SR-139/AK6] [SR-141/AK3] anchors each action at its first row, a keyless one too, for F1 on it in the command prompt", () => {
     const sections = shortcutReference(COMMANDS);
     const anchors = sections.flatMap((section) => section.rows.flatMap((row) => row.actions ?? []));
     expect(new Set(anchors).size).toBe(anchors.length);
@@ -282,6 +282,15 @@ describe("shortcutReference", () => {
     expect(own.length).toBeGreaterThan(30);
     for (const candidate of own) {
       expect(anchors, candidate.id).toContain(candidate.id);
+    }
+    // The row of each such action names it, with its key where it has one (SR-139 AK6).
+    const rows = sections.flatMap((section) => section.rows);
+    for (const candidate of own) {
+      const at = rows.find((row) => row.actions?.includes(candidate.id) === true);
+      expect(at?.does, candidate.id).toContain(candidate.title);
+      if (candidate.shortcut !== undefined) {
+        expect(at?.keys.length, candidate.id).toBeGreaterThan(0);
+      }
     }
     const keyless = sections.at(-1)?.rows ?? [];
     expect(keyless.find((row) => row.actions?.includes("close-all") === true)).toEqual({
