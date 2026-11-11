@@ -1,7 +1,8 @@
 // Saving without a save command (SR-105) on the built app: the input of an element is in its file a second
 // after the last key or at once when the element is left (AK1), undo and redo step through everything since
-// the element was opened, also after it was saved and after another buffer was shown (AK2), and there is no
-// button and no dialog to save (AK3). Every result is checked in the file of the workspace. Keys use
+// the element was opened, also after it was saved and after another buffer was shown (AK2), there is no
+// button and no dialog to save (AK3), Ctrl/Cmd+S writes at once (AK4), and a file that cannot be written keeps
+// the input, the modeline names the reason and the first close keeps the window open (AK5). Every result is checked in the file of the workspace. Keys use
 // ControlOrMeta (Linux and macOS). The screenshots of a save that failed (`not saved`) go to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fs from "node:fs/promises";
@@ -296,6 +297,30 @@ test.describe("saving without a save command", () => {
     const after = await file();
     expect(after).toContain("Fremd geändert.");
     expect(after).not.toContain("Meins.");
+  });
+
+  test("[SR-105/AK5] a file that cannot be written keeps the input, the modeline names the reason, and the first close keeps the window open", async () => {
+    const { app, window } = running;
+    // The file, not its folder: Windows ignores the read-only attribute of a folder.
+    const file = path.join(running.workspace?.root ?? "", ...SR_FILE.split("/"));
+    try {
+      await fs.chmod(file, 0o444);
+      await window.keyboard.press("Enter");
+      await window.keyboard.type(" Meins.");
+      await expect(modeline(window)).toContainText(/not saved \(.+read-only\)/, { timeout: 5000 });
+      await expect(text(window)).toContainText("Meins.");
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.close();
+      });
+      await expect(minibuffer(window)).toHaveText(/close the window again to discard the unsaved input$/);
+      expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+      await expect(text(window)).toContainText("Meins.");
+      await expect(modeline(window)).toContainText(/not saved \(.+read-only\)/);
+      // The test ends with input that cannot be saved: the close after it discards it.
+      running.discardAtClose();
+    } finally {
+      await fs.chmod(file, 0o644);
+    }
   });
 
   test("[SR-105/AK3] there is no button and no dialog to save, when typing, leaving or closing", async () => {
