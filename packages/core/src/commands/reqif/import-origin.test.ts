@@ -11,7 +11,7 @@ import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
-import { metamodelState } from "../../metamodel/index.js";
+import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../metamodel/index.js";
 import { originKeys } from "../../reqif/index.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 import type { Output } from "../list.test-helper.js";
@@ -117,7 +117,20 @@ describe("origin of imported elements (SR-057)", () => {
     expect(other.element.properties["import-version"]).toBe(one.element.version);
   });
 
-  it("[SR-057/AK1] refuses a mapping to a type that cannot hold the origin, and an origin property of another kind", async () => {
+  it("[SR-057/AK4] every type of the standard model has the five origin properties", async () => {
+    const metamodel = await (
+      await open({ "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT })
+    ).get(metamodelState);
+    const origin = Object.values(originKeys(metamodel));
+    expect(origin).toHaveLength(5);
+    const types = metamodel.effectiveTypes.map((t) => t.key);
+    expect(types.length).toBeGreaterThan(5);
+    expect(
+      types.filter((key) => !origin.every((p) => findType(metamodel, key)?.properties.includes(p) === true)),
+    ).toEqual([]);
+  });
+
+  it("[SR-057/AK4] refuses a mapping to a type that cannot hold the origin, and an origin property of another kind", async () => {
     const without = await open({
       "metamodel/standard-model.yaml": METAMODEL.replace(
         "        import-version,\n        topic,",

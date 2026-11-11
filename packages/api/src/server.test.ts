@@ -375,7 +375,7 @@ describe("listening", () => {
     expect(opened.every((s) => !s.listening)).toBe(true);
   });
 
-  it("writes api.json with port and token, readable by the owner only", async () => {
+  it("[SR-079/AK4] writes api.json with port and token, readable by the owner only", async () => {
     const api = await start();
     expect(api.endpointFile).toBe(path.join(dir, "api.json"));
     const endpoint = JSON.parse(await fs.readFile(api.endpointFile, "utf8")) as Record<string, unknown>;
@@ -646,7 +646,7 @@ describe("refusals before a command runs", () => {
     }
   });
 
-  it("refuses any other Host header (DNS rebinding)", async () => {
+  it("[SR-079/AK4] refuses any other Host header (DNS rebinding)", async () => {
     for (const host of ["evil.example", `evil.example:${String(server?.port)}`, "127.0.0.1", "127.0.0.1:1"]) {
       const reply = await request({ headers: { host } });
       expect(reply.status).toBe(403);
@@ -654,7 +654,7 @@ describe("refusals before a command runs", () => {
     }
   });
 
-  it("refuses a request without Host header", async () => {
+  it("[SR-079/AK4] refuses a request without Host header", async () => {
     const socket = net.connect(server?.port ?? 0, "127.0.0.1");
     socket.end(`POST /v1/commands/test.echo HTTP/1.0\r\nAuthorization: Bearer ${token}\r\n\r\n`);
     const chunks: Buffer[] = [];
@@ -664,12 +664,12 @@ describe("refusals before a command runs", () => {
     expect(Buffer.concat(chunks).toString("utf8")).toMatch(/^HTTP\/1\.1 403/);
   });
 
-  it("refuses requests with an Origin header (no browser access)", async () => {
+  it("[SR-079/AK4] refuses requests with an Origin header (no browser access)", async () => {
     const reply = await request({ headers: { origin: "http://127.0.0.1" } });
     expect(reply.status).toBe(403);
   });
 
-  it("refuses a missing or wrong token", async () => {
+  it("[SR-079/AK4] refuses a missing or wrong token", async () => {
     for (const authorization of [
       "",
       `Bearer ${token.replace(/^./, token.startsWith("a") ? "b" : "a")}`,

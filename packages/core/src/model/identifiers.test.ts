@@ -67,7 +67,7 @@ const problemsOf = async (opened: Opened): Promise<readonly Problem[]> =>
   ((await run(opened, "workspace.check", {})) as { problems: readonly Problem[] }).problems;
 
 describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)", () => {
-  it("names an element by its identifier in element.get and element.resolve, in any case", async () => {
+  it("[SR-060/AK1] names an element by its identifier in element.get and element.resolve, in any case", async () => {
     const opened = await open();
     const byUuid = await elementOf(opened, SR036.id);
     expect(byUuid).toMatchObject({ id: SR036.id, shortId: "SR-0b0036", identifier: "SR-036" });
@@ -86,7 +86,7 @@ describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)
     expect(await elementOf(opened, "SR-0b0036")).toEqual(byUuid);
   });
 
-  it("says that no element has an identifier, and gives no candidate for it", async () => {
+  it("[SR-060/AK3] says that no element has an identifier, and gives no candidate for it", async () => {
     const opened = await open();
     const unknown = await failure(opened, "element.resolve", { ref: "SR-099" });
     expect(unknown.toJSON()).toEqual({
@@ -158,7 +158,7 @@ describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)
     expect(picked.element.id).toBe(other);
   });
 
-  it("refuses an identifier that elements of two types share as ambiguous, without a finding", async () => {
+  it("[SR-060/AK3] refuses an identifier that elements of two types share as ambiguous, without a finding", async () => {
     const other = "30500000-0000-4000-8000-0000000c0048";
     const opened = await open({ "decisions/D-0000000c0048.md": decision(other, "sr-036") });
     const error = await failure(opened, "element.update", { ref: "SR-036", title: "x" });
@@ -173,6 +173,8 @@ describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)
         ],
       },
     });
+    const resolved = await failure(opened, "element.resolve", { ref: "SR-036" });
+    expect([resolved.code, resolved.message]).toEqual([error.code, error.message]);
     const there = await failure(opened, "element.get", { ref: "SR-036", repository: "spec" });
     expect(there.message).toBe(
       "SR-036 names more than one element there (as the identifier of each); give the repository and file of one of the candidates",

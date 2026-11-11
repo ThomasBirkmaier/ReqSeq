@@ -247,6 +247,8 @@ describe("reqif.export (SR-052)", () => {
     const original = await open();
     await run<Exported>(original.workspace, "reqif.export", { output: "all.reqif" });
     const all = await fs.readFile(original.fixture.path("all.reqif"), "utf8");
+    // The text as XHTML plus the STRING attributes reqseq-markdown and reqseq-values.
+    expect([all.includes("reqseq-markdown"), all.includes("reqseq-values")]).toEqual([true, true]);
     const { fixture, workspace } = await open("SR-052/empty", { "in/all.reqif": all });
     await fs.cp(original.fixture.path("all-images"), fixture.path("in/all-images"), { recursive: true });
     const imported = await run<CommandOutput<"reqif.import">>(workspace, "reqif.import", {
@@ -284,15 +286,21 @@ describe("reqif.export (SR-052)", () => {
         .filter((r) => r.direction === "out")
         .map((r) => ({ kind: r.kind, id: ids(r.id), title: r.title })),
     });
+    const statuses = new Set<string>();
     for (const id of [PACKAGE, NEED, DECISION, VARIANT, WIND, HISTORY, TEMPERATURE]) {
       const before = (await run<Got>(original.workspace, "element.get", { ref: id })).element;
+      statuses.add(String(before.status));
       const after = (await run<Got>(workspace, "element.get", { ref: newId.get(id) })).element;
       expect(comparable(after, back), id).toEqual(comparable(before, (x) => x));
       expect(after.properties["source-identifier"]).toBe(`_${id}`);
+      // The status is not taken: each new element has the initial status of its type (SR-053 AK1).
+      expect(after.status, id).toBe("draft");
       // Versions match, but where the import rewrites a reference to a new UUID: WIND's validity
       // and the path of its image (assumption of spec question #565).
       expect(after.version === before.version, id).toBe(id !== WIND);
     }
+    // Some originals are not draft, so the status really is not copied.
+    expect([...statuses].sort()).toEqual(["approved", "draft"]);
     const wind = newId.get(WIND) ?? "";
     expect(await fs.readFile(fixture.path(`Weather-station/${stem(wind)}/anemometer.png`))).toEqual(
       await fs.readFile(original.fixture.path("requirements/SR-0000000052a1/anemometer.png")),
@@ -395,7 +403,7 @@ describe("reqif.export (SR-052)", () => {
     await expect(fs.access(fixture.path("gone"))).rejects.toThrow();
   });
 
-  it("[SR-083/AK3] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
+  it("[SR-083/AK3] [SR-083/AK4] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
     const { fixture, workspace } = await open(undefined, { ".git/hooks/keep": "", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("linked"), "junction");
     await fs.symlink(fixture.path(".git/hooks"), fixture.path("y-images"), "junction");
