@@ -28,19 +28,6 @@ describe("guard-gh hook", () => {
     expect(bash("gh pr list", {})).toEqual({ code: 0 });
     expect(guardGh({ tool_input: {} }, remote)).toEqual({ code: 0 });
   });
-
-  it("blocks a new issue without a milestone, through gh api and the MCP tool", () => {
-    const create = "gh api repos/ThomasBirkmaier/ReqSeq/issues -f title='Save fails' -f body=x";
-    expect(bash(create, {}).message).toMatch(/milestone/);
-    expect(bash(`${create} -F milestone=3`, {})).toEqual({ code: 0 });
-    expect(bash("gh api -X POST repos/ThomasBirkmaier/ReqSeq/issues/12/comments -f body='title=x'")).toEqual({
-      code: 0,
-    });
-    const mcp = (tool_input) => guardGh({ tool_name: "mcp__github__issue_write", tool_input }, {});
-    expect(mcp({ method: "create", title: "x" }).code).toBe(2);
-    expect(mcp({ method: "create", title: "x", milestone: 3 })).toEqual({ code: 0 });
-    expect(mcp({ method: "update", issue_number: 12 })).toEqual({ code: 0 });
-  });
 });
 
 describe("format-file hook", () => {

@@ -57,6 +57,5 @@ jobs:
             if (open.length > 0) {
               await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
             } else {
-              const milestone = (await github.rest.issues.listMilestones({ owner, repo, state: "open", per_page: 100 })).data.filter((m) => /^v\d+\.\d+\b/.test(m.title)).sort((a, b) => a.title.localeCompare(b.title, "en", { numeric: true }))[0]?.number; // the next version x.y (CLAUDE.md, Issues)
-              await github.rest.issues.create({ owner, repo, milestone, title, labels: ["bug", "dev", "P1"], body: text + footer });
+              await github.rest.issues.create({ owner, repo, title, labels: ["bug", "dev", "P1"], body: text + footer });
             }

@@ -11,4 +11,4 @@ SR: <!-- SR-xxx (AKn), only if this issue implements or breaks an acceptance cri
 
 <!-- Reproduction for a bug, the steps for a task, the question and your assumption for a question. -->
 
-<!-- Labels: one type (bug, feature, task, question), one area (core, cli, api, mcp, app, spec, dev), one priority (P1-P3). Milestone: the open version x.y whose goal it serves, a bug or flake the next one. Sub-issue of an open epic when it is one of its steps. -->
+<!-- Labels: one type (bug, feature, task, question), one area (core, cli, api, mcp, app, spec, dev), one priority (P1-P3). Milestone and epic: CLAUDE.md, Issues. -->
