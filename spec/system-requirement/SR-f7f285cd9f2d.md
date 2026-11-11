@@ -20,7 +20,7 @@ refines:
 derives-from:
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n2:b080b82a30d57303, title: Status von Nachweis und Validierung }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:59d1b195778616da, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
 ---
 
 Das Tool muss auf der Seite eines Requirements den Nachweisstatus des Kerns und jeder Variante als Plakette in Pillenform zeigen, links den Namen, rechts den Status.

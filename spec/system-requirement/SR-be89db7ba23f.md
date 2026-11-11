@@ -19,7 +19,7 @@ derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
   - { id: 6ad49bf0-0608-4419-8ed7-17ae97059199, version: n1:a8503d8bd977adba, title: Traceability bis zum Nachweis }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:b98a6de8c51aee04, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:56f3063b768f90cd, title: Fest eingebaute Bedeutungen des Metamodells }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Ein Requirement ohne Parent soll mit einem Befehl auffindbar sein, ohne eigenes Metamodell. Eine Entscheidung wird dagegen kein Parent: Based on bleibt ohne Bedeutung für die Kette; ein Projekt, das Entscheidungen als Parent zeigen will, gibt seiner Beziehungsart im eigenen Metamodell die Bedeutung Ableitung. Anlass ist ein Befund aus dem ersten Pilotlauf (#626)."
 ---
 

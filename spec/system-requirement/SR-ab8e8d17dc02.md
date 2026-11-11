@@ -17,7 +17,7 @@ derives-from:
   - { id: 6ad3a4c6-cb89-4fc6-acdf-ff0c8aad33ed, version: n1:0d48a780647af98d, title: Hinweis bei Änderung im Kern }
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n2:fa0fbf62535d1e3c, title: Fassung als Prüfwert über den Inhalt }
-  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n2:41ee49bdc409c8aa, title: Hinweise werden bestätigt }
+  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n2:7f2eda4c041e3a53, title: Hinweise werden bestätigt }
 ---
 
 Wenn sich ein Kern-Requirement ändert, das eine Variante durch ein eigenes Requirement ersetzt hat, muss das Tool am ersetzenden Requirement einen Hinweis zeigen, den die Variante auflistet.
