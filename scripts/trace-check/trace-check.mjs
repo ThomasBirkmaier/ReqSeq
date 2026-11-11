@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks the chain SR -> test -> verification record (CLAUDE.md, Traceability) before a merge: test names
-// [SR-xxx/AKn] point to an existing SR and AK, and the SRs given by --require or --stage have a test per
+// [SR-xxx/AKn] and [SR-xxx/AK-<key>] (the criterion key, SR-029 AK10) point to an existing SR and AK, and the SRs given by --require or --stage have a test per
 // acceptance criterion with method Test and a record verification/SR-xxx.md otherwise. It reads no PR text
 // (product owner decision, 2026-11-06): which SR a PR completes is checked at the end of a milestone and in
 // ReqSeq's own verification status (D-072).
@@ -151,7 +151,8 @@ export function stageMembers(spec, stage) {
     .sort();
 }
 
-const TAG = /\[(SR-\d{3})\/AK(\d+)\]/g;
+// [SR-036/AK2] by number, [SR-036/AK-k7f3] by criterion key (SR-204 AK5 form).
+const TAG = /\[(SR-\d{3})\/AK(?:(\d+)|-([a-z][a-z0-9]{3,15}))\]/g;
 // Cross-access scenarios carry their test name's tag in a `tag:` field (#689).
 const SCENARIO_FILE = /^packages\/cli\/test\/cross-access(\.test\.ts$|\/scenarios\/)/;
 // A call that names a test: `it(`, `test(`, or one of them through a call such as `.each(...)(`.
@@ -280,7 +281,7 @@ function closingBracket(code, open) {
  * argument) of an `it(`/`test(` call, plain or through `.each(...)`, `.skipIf(...)` or `.runIf(...)`,
  * outside a skipped `describe`; in a cross-access scenario file also those in a `tag:` field. Tags in
  * comments, in other strings and in `.skip`, `.todo`, `.fails` or `.only` tests do not count (#689).
- * Returns [{ id, ak, line }].
+ * Returns [{ id, ak, line }]: `ak` is the number, or `-` and the criterion key of a key tag.
  */
 export function activeTags(text, file = "") {
   const { code, strings } = scanSource(text);
@@ -340,13 +341,16 @@ export function activeTags(text, file = "") {
       continue;
     }
     for (const m of s.value.matchAll(TAG)) {
-      tags.push({ id: m[1], ak: m[2], line: lineOf(s.start + m.index) });
+      tags.push({ id: m[1], ak: m[2] ?? `-${m[3]}`, line: lineOf(s.start + m.index) });
     }
   }
   return tags;
 }
 
-/** Test references [SR-xxx/AKn] of active tests below root (activeTags): "SR-036/2" -> [file:line]. */
+/**
+ * Test references of active tests below root (activeTags): "SR-036/2" -> [file:line], and a key tag
+ * as "SR-036/-k7f3" (`resolveKeyTags` turns it into the number).
+ */
 export function testReferences(root) {
   const refs = new Map();
   const walk = (dir) => {
@@ -368,6 +372,37 @@ export function testReferences(root) {
   };
   walk(root);
   return refs;
+}
+
+/** The criterion key of an item of `acceptance-criteria` (`{ key, text }`, SR-204), else undefined. */
+const keyOf = (item) =>
+  item !== null && typeof item === "object" && typeof item.key === "string" ? item.key : undefined;
+
+/**
+ * `testRefs` with each key tag of a known SR counted for the number of the one criterion of spec/ that
+ * carries the key; an error for a key no criterion carries, or several do (SR-204 AK10).
+ */
+export function resolveKeyTags(spec, testRefs, errors) {
+  const resolved = new Map();
+  const add = (k, where) => resolved.set(k, [...(resolved.get(k) ?? []), ...where]);
+  for (const [k, where] of testRefs) {
+    const [id, ak] = k.split("/");
+    const sr = spec.srs.get(id);
+    if (!ak.startsWith("-") || sr === undefined) {
+      add(k, where);
+      continue;
+    }
+    const key = ak.slice(1);
+    const positions = sr.criteria.flatMap((item, i) => (keyOf(item) === key ? [i + 1] : []));
+    if (positions.length === 1) {
+      add(`${id}/${positions[0]}`, where);
+    } else if (positions.length === 0) {
+      errors.push(`${where[0]}: ${id} has no acceptance criterion with the key ${key}`);
+    } else {
+      errors.push(`${where[0]}: ${id} has ${positions.length} acceptance criteria with the key ${key}`);
+    }
+  }
+  return resolved;
 }
 
 function checkTestRefs(spec, testRefs, errors, warnings) {
@@ -431,7 +466,7 @@ export function traceCheck(root, args) {
   for (const id of spec.duplicates) {
     errors.push(`${id} is the spec ID of more than one system requirement`);
   }
-  const testRefs = testReferences(root);
+  const testRefs = resolveKeyTags(spec, testReferences(root), errors);
   checkTestRefs(spec, testRefs, errors, warnings);
 
   let required = (opt("--require") ?? "").split(",").filter(Boolean);

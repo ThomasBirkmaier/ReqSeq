@@ -2673,7 +2673,7 @@ describe("ListView, the verification of the rows (SR-137)", () => {
   const entry = (status: string) => [{ view: "core", status }];
   // Rows 1 to 4: open 2 of 3, failed without ring, indirect, a need at 60 %; row 5 has nothing to show.
   const verification = [
-    { verification: entry("open"), criteria: { verified: 2, total: 3, notVerified: [3] } },
+    { verification: entry("open"), criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] } },
     { verification: entry("failed") },
     { verification: entry("indirect") },
     {

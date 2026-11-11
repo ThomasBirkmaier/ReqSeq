@@ -1,6 +1,7 @@
 // The verification state of a workspace (SR-031, SR-034; `verification.ts`): which current versions
 // `prepare` reads, how often, and the entries `verificationOf` gives. The commands are tested in
 // commands/evidence/status.test.ts and commands/evidence/indirect.test.ts.
+import { plainCriteria } from "./criteria.js";
 import { describe, expect, it } from "vitest";
 import { forms } from "../model/version-forms.test-helper.js";
 import type { CurrentVersion, ElementRecord } from "../model/index.js";
@@ -60,7 +61,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) => isEmergent(e, "emergent"),
     independent: () => false,
-    criteriaOf: () => 0,
+    criteriaOf: () => plainCriteria(0),
   };
 };
 

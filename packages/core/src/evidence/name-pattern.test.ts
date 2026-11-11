@@ -42,18 +42,19 @@ describe("parseNamePattern", () => {
     expect(refusal("{prefix}_{id}_{ak}_{ak}")).toContain("may have {ak} once at most");
     expect(refusal("{prefix}_{id}{ak}")).toContain("has {id} and {ak} next to each other");
     expect(refusal("{prefix}_{ak}{id}")).toContain("has {id} and {ak} next to each other");
-    expect(refusal("{prefix}_{id}_ak{ak}9")).toContain("has a digit right after {ak}");
+    expect(refusal("{prefix}_{id}_ak{ak}9")).toContain("has a letter or digit right after {ak}");
+    expect(refusal("{prefix}_{id}_{ak}x")).toContain("has a letter or digit right after {ak}");
     expect(refusal("[{prefix}-{id}]")).toContain("has a square bracket");
   });
 
   it("takes {{ and }} as literal braces, joins literal text and keeps it in lower case", () => {
-    expect(parseNamePattern("{{Test}}_{prefix}{id}AK{ak}x").parts).toEqual([
+    expect(parseNamePattern("{{Test}}_{prefix}{id}AK{ak}_X").parts).toEqual([
       { kind: "literal", text: "{test}_" },
       { kind: "prefix" },
       { kind: "id" },
       { kind: "literal", text: "ak" },
       { kind: "ak" },
-      { kind: "literal", text: "x" },
+      { kind: "literal", text: "_x" },
     ]);
     expect(matches("{{{prefix}_{id}}}", "t_{sr_348143}")).toEqual(["SR-348143"]);
   });
@@ -102,6 +103,22 @@ describe("nameMatcher (SR-029 AK5)", () => {
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak123456789")).toEqual(["SR-348143"]);
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak1234567890")).toEqual([]);
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak")).toEqual([]);
+  });
+
+  it("[SR-029/AK10] reads a criterion key as {ak}, all of the run of lower-case letters and digits, possessively", () => {
+    const found = nameMatcher(parseNamePattern("{prefix}_{id}_ak_{ak}"), PREFIXES);
+    expect(found("sr_348143_ak_k7f3 sr_348143_ak_m2x9")).toEqual([
+      { shortId: "SR-348143", matched: "sr_348143_ak_k7f3", ak: "k7f3" },
+      { shortId: "SR-348143", matched: "sr_348143_ak_m2x9", ak: "m2x9" },
+    ]);
+    // 4 to 16 characters, the first a lower-case letter; an upper-case letter ends the run.
+    expect(matches("{prefix}_{id}_ak_{ak}", "sr_348143_ak_k7f")).toEqual([]);
+    expect(matches("{prefix}_{id}_ak_{ak}", `sr_348143_ak_k${"7".repeat(16)}`)).toEqual([]);
+    expect(matches("{prefix}_{id}_ak_{ak}", "sr_348143_ak_k7f3Max")).toEqual(["SR-348143"]);
+    // Without a literal before it, `{ak}` reads a word as a key: `verify` then names no criterion.
+    expect(nameMatcher(parseNamePattern("{prefix}_{id}_{ak}"), PREFIXES)("sr_348143_verify")).toEqual([
+      { shortId: "SR-348143", matched: "sr_348143_verify", ak: "verify" },
+    ]);
   });
 
   it("gives the digits of {ak} as written with each match (SR-029 AK10)", () => {

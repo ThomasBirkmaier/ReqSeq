@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 import type { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { RandomInt } from "./acceptance-criteria.js";
+import { criterionLabel } from "./criterion-items.js";
 import {
   acceptanceCriteriaKeyOf,
   carriedCriteria,
+  compareCriterionRefs,
   criteriaCount,
+  criteriaItemsOf,
   newCriterionKey,
   reconcileCriteria,
+  resolveCriterionRefs,
   seededRandom,
   withCriterionKeys,
 } from "./acceptance-criteria.js";
@@ -130,5 +134,51 @@ describe("criterion keys (SR-204)", () => {
     expect(withCriterionKeys(model, "ak", [{ key: "abcd", text: "A" }], ["A"])).toEqual([
       { key: "abcd", text: "A" },
     ]);
+  });
+});
+
+describe("criteria a record names (D-072, SR-031 AK11)", () => {
+  const current = [
+    { key: "kone", text: "One" },
+    "Two",
+    { key: "kdup", text: "A" },
+    { key: "kdup", text: "B" },
+  ];
+
+  it("resolves keys against the current items and numbers of an older version through their key there", () => {
+    const old = ["Plain", { key: "kone", text: "One before" }, { key: "kold", text: "Gone" }];
+    expect(resolveCriterionRefs([1, 2, 9, "kone", "kdup", "kxyz"], current, current)).toEqual([
+      { ref: 1, position: 1, key: "kone" },
+      { ref: 2, position: 2 },
+      { ref: 9, problem: "unknown-number" },
+      { ref: "kone", position: 1, key: "kone" },
+      { ref: "kdup", problem: "duplicate-key", key: "kdup" },
+      { ref: "kxyz", problem: "unknown-key", key: "kxyz" },
+    ]);
+    expect(resolveCriterionRefs([1, 2, 3, 4], old, current)).toEqual([
+      { ref: 1, problem: "no-key" },
+      { ref: 2, position: 1, key: "kone" },
+      { ref: 3, problem: "unknown-key", key: "kold" },
+      { ref: 4, problem: "unknown-number" },
+    ]);
+    expect(resolveCriterionRefs([1], undefined, current)).toEqual([{ ref: 1, problem: "no-history" }]);
+  });
+
+  it("reads the items under the key, none without key, list or values", () => {
+    expect(criteriaItemsOf({ ac: ["One"] }, "ac")).toEqual(["One"]);
+    expect(criteriaItemsOf({ ac: "One" }, "ac")).toEqual([]);
+    expect(criteriaItemsOf({ ac: ["One"] }, undefined)).toEqual([]);
+    expect(criteriaItemsOf(undefined, "ac")).toEqual([]);
+  });
+
+  it("orders numbers ascending before keys in code-unit order", () => {
+    expect(["kb", 3, "ka", 1, "ka"].sort(compareCriterionRefs)).toEqual([1, 3, "ka", "ka", "kb"]);
+  });
+
+  it("[SR-205/AK2] labels a criterion with number and key, number only, or key only", () => {
+    expect(criterionLabel({ criterion: 2, key: "k7f3" })).toBe("AK2 (k7f3)");
+    expect(criterionLabel({ criterion: 2 })).toBe("AK2");
+    expect(criterionLabel({ key: "k7f3" })).toBe("AK-k7f3");
+    expect(criterionLabel({})).toBe("AK-");
   });
 });

@@ -2,7 +2,7 @@
 // gives it and every command returns it, a skipped JUnit test case, and the identity of a test case.
 // The shapes are those of `data-export.schema.json` (`$defs/evidenceRecord`, `$defs/testCase`); this
 // file only names them for the block and adds what the schema has no place for.
-import type { DataExportEvidenceRecord, DataExportTestCase } from "../generated/types.js";
+import type { CriterionRef, DataExportEvidenceRecord, DataExportTestCase } from "../generated/types.js";
 
 /**
  * One evidence record (`data-export.schema.json#/$defs/evidenceRecord`): from a Markdown record or
@@ -53,8 +53,8 @@ export const testCaseKey = (name: string, className: string | undefined): string
 export const testCaseKeyOf = (named: TestCaseName): string | undefined =>
   named.testCase === undefined ? undefined : testCaseKey(named.testCase, named.className);
 
-/** The line of each criterion number a reader found, by record (`criterionLineOf`). */
-const criterionLines = new WeakMap<EvidenceRecord, ReadonlyMap<number, number>>();
+/** The line of each criterion (number or key, as written) a reader found, by record (`criterionLineOf`). */
+const criterionLines = new WeakMap<EvidenceRecord, ReadonlyMap<CriterionRef, number>>();
 
 /**
  * Registers where the criteria of `record` stand in its file (the line of `criteria` in a Markdown
@@ -62,7 +62,7 @@ const criterionLines = new WeakMap<EvidenceRecord, ReadonlyMap<number, number>>(
  */
 export const withCriterionLines = (
   record: EvidenceRecord,
-  lines: ReadonlyMap<number, number>,
+  lines: ReadonlyMap<CriterionRef, number>,
 ): EvidenceRecord => {
   criterionLines.set(record, lines);
   return record;
@@ -72,5 +72,5 @@ export const withCriterionLines = (
  * The line where `record` names the criterion `criterion` (SR-028 AK5: a finding at that line): as
  * its reader registered it, else the line of the record; undefined for a record without a place.
  */
-export const criterionLineOf = (record: EvidenceRecord, criterion: number): number | undefined =>
+export const criterionLineOf = (record: EvidenceRecord, criterion: CriterionRef): number | undefined =>
   criterionLines.get(record)?.get(criterion) ?? record.line;

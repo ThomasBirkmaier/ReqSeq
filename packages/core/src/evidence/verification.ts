@@ -74,6 +74,8 @@ import {
   verificationEvaluator,
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
+import type { OlderCriteria } from "./criteria.js";
+import { olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
 import { insertionOf } from "./state.js";
 import type { CriteriaCount, StatusSource, Validation, VerificationEntries } from "./status.js";
 import {
@@ -373,6 +375,8 @@ export interface StatusInputs {
   readonly incoming: IncomingIndex | undefined;
   /** The view rule index of `store` (`viewRuleIndexOf`), for the views. */
   readonly rules: ViewRuleIndex;
+  /** The criteria of older versions the records name (`olderCriteriaState`, SR-031 AK11). */
+  readonly older: OlderCriteria;
 }
 
 /** The status of `verificationState`: one built from `inputs`, which a store change can carry. */
@@ -383,7 +387,7 @@ export interface StateStatus extends KeptStatus {
 const statusOfInputs = (inputs: StatusInputs, read: VersionReader): StateStatus => {
   const { metamodel, layout, store, index, incoming } = inputs;
   const children = incoming === undefined ? undefined : childRulesOf({ layout, metamodel, store, incoming });
-  const source = statusSource(metamodel, index, variantIndependentOf(layout));
+  const source = statusSource(metamodel, index, variantIndependentOf(layout), inputs.older);
   const scope = ruleScope(inputs.rules);
   const status = statusWith(
     source,
@@ -569,7 +573,7 @@ const recordedStatus = (
     { from: store, to: store, ids: new Set([record.element]) },
     {
       inputs,
-      source: statusSource(inputs.metamodel, index, variantIndependentOf(inputs.layout)),
+      source: statusSource(inputs.metamodel, index, variantIndependentOf(inputs.layout), inputs.older),
       children: old.children,
       versionsOfChanged: true,
     },
@@ -596,8 +600,18 @@ const carryStore = carryStoreUpdate((value: Promise<StateStatus>, update, worksp
   }
   const ruleMemo = workspace.get(viewRuleIndexState);
   const read = readerOf(workspace);
-  return value.then((old) => carriedStatus(old, update, memo, ruleMemo, read));
+  const older = workspace.get(olderCriteriaState);
+  return value.then(async (old) =>
+    withOlder(carriedStatus(old, update, memo, ruleMemo, read), await older, read),
+  );
 });
+
+/**
+ * `status` as carried, while the criteria of older versions are those it was built with; else built
+ * afresh with `older` (a changed element made records of its old version older ones, SR-031 AK11).
+ */
+const withOlder = (status: StateStatus, older: OlderCriteria, read: VersionReader): StateStatus =>
+  sameOlderCriteria(status.inputs.older, older) ? status : statusOfInputs({ ...status.inputs, older }, read);
 
 /**
  * The carry of `verificationState` over the read after `evidence.record` (`recordedStatus`): the
@@ -615,7 +629,10 @@ const carryRecord = (
   }
   const index = workspace.get(evidenceIndexState);
   const read = readerOf(workspace);
-  return value.then(async (old) => recordedStatus(old, record, await index, read));
+  const older = workspace.get(olderCriteriaState);
+  return value.then(async (old) =>
+    withOlder(recordedStatus(old, record, await index, read), await older, read),
+  );
 };
 
 /**
@@ -640,7 +657,10 @@ export const verificationState = defineWorkspaceState(
     const index = valid ? await workspace.get(evidenceIndexState) : undefined;
     const incoming = valid ? incomingFor(workspace, store, metamodel) : undefined;
     const rules = viewRuleIndexOf(workspace, store, metamodel);
-    return statusOfInputs({ metamodel, layout, store, index, incoming, rules }, readerOf(workspace));
+    // Built also while the metamodel is not valid (it is empty then): a state the status depends on
+    // must be built to be carried with it (`Workspace.replace`).
+    const older = await workspace.get(olderCriteriaState);
+    return statusOfInputs({ metamodel, layout, store, index, incoming, rules, older }, readerOf(workspace));
   },
   {
     dependsOn: [
@@ -650,6 +670,7 @@ export const verificationState = defineWorkspaceState(
       incomingState,
       viewRuleIndexState,
       workspaceLayoutState,
+      olderCriteriaState,
     ],
     carry: (value, change, workspace) =>
       change.key === elementStoreState

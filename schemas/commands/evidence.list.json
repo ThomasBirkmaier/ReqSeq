@@ -103,6 +103,14 @@
                   "minimum": 1,
                   "description": "The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row."
                 },
+                "key": {
+                  "$ref": "../common.schema.json#/$defs/criterionKey",
+                  "description": "The criterion key of the row's criterion (SR-205 AK2); left out when it has none."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The text of the row's criterion (SR-205 AK2); left out for a row without `criterion`."
+                },
                 "status": {
                   "enum": ["open", "verified", "failed", "outdated", "validated", "inconclusive"],
                   "description": "Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038)."

@@ -238,7 +238,12 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located, flag:
     };
     const either = branchKinds("anyOf") ?? branchKinds("oneOf");
     if (either !== undefined) {
-      return combine(either, keepNull);
+      // A number or a text (a criterion by number or key, SR-030 AK4): the flag passes the text as
+      // given, and the schema takes a number written as digits too.
+      const kinds = new Set(either);
+      return kinds.size === 2 && kinds.has("number") && kinds.has("string")
+        ? "string"
+        : combine(either, keepNull);
     }
     const all = branchKinds("allOf");
     if (all !== undefined) {

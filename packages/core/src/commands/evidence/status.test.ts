@@ -435,14 +435,20 @@ describe("evidence.status (SR-031)", () => {
 describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
   const CRITERIA: FixtureOptions = { fixture: "SR-031/criteria" };
   const E = (n: number): string => `31313131-0000-4000-8000-3131310000e${String(n)}`;
+  // The criteria that are not verified, with number, key and text (SR-205 AK2).
+  const E1_3 = { criterion: 3, text: "Given a gust, then the peak shows." };
+  const E3_3 = { criterion: 3, key: "kfro", text: "Given frost, then a mark shows." };
+  const E4_2 = { criterion: 2, text: "Given no reading, then a dash shows." };
 
   it("[SR-031/AK5] evidence.status, element.get and the filter show open with 2 of 3 criteria", async () => {
     const workspace = await open(CRITERIA);
     expect(byId(await status(workspace))).toEqual({
-      [E(1)]: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      [E(1)]: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [E1_3] } }],
       [E(2)]: [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }],
-      [E(3)]: [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
-      [E(4)]: [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+      [E(3)]: [
+        { view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [E3_3] } },
+      ],
+      [E(4)]: [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [E4_2] } }],
       [E(5)]: [{ view: "core", status: "verified" }],
     });
     const got = (await invoke(
@@ -451,7 +457,7 @@ describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
       { workspace },
     )) as CommandOutput<"element.get">;
     expect(got.element.verification).toEqual([
-      { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+      { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [E1_3] } },
     ]);
     const filtered = await status(workspace, { selection: { where: { verification: ["open"] } } });
     expect(filtered.elements.map((e) => e.shortId)).toEqual(["SR-0000e1"]);
@@ -492,7 +498,19 @@ describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
     )) as CommandOutput<"element.update">;
     // A new version: the records are of an older one now.
     expect(updated.element.verification).toEqual([
-      { view: "core", status: "outdated", criteria: { verified: 0, total: 2, notVerified: [1, 2] } },
+      {
+        view: "core",
+        status: "outdated",
+        criteria: {
+          verified: 0,
+          total: 2,
+          // The criteria are named with their texts and their new keys (SR-205 AK2).
+          notVerified: [
+            { criterion: 1, key: expect.any(String) as string, text: "Given wind, then the speed shows." },
+            { criterion: 2, key: expect.any(String) as string, text: "Given no wind, then 0 shows." },
+          ],
+        },
+      },
     ]);
   });
 });

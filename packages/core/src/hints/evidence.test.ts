@@ -13,6 +13,7 @@ import {
   evidenceIndexState,
   evidenceReadState,
   evidenceRecordsState,
+  elementCriteria,
   readEvidence,
 } from "../evidence/index.js";
 import { loadWorkspaceLayout, workspaceLayoutState } from "../workspace/index.js";
@@ -82,6 +83,15 @@ const record = (
   more: Partial<EvidenceRecord> = {},
 ): EvidenceRecord => ({ kind: "verification", element, version, date, result: "passed", ...more });
 
+/**
+ * `n` criteria with the keys `kaaa`, `kbbb`, ... in the current version and in every older one, so a
+ * number of an older record names the same criterion (SR-031 AK11).
+ */
+const keyedCriteria = (n: number) => {
+  const items = ["kaaa", "kbbb", "kccc"].slice(0, n).map((key) => ({ key, text: key }));
+  return elementCriteria(B, items, () => items);
+};
+
 describe("outdated evidence (SR-025 AK4)", () => {
   it("[SR-025/AK4] reports the evidence of a requirement whose records all belong to older versions, naming the newest", async () => {
     const workspace = await withRecords([
@@ -149,7 +159,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         code: "evidence.outdated",
         severity: "warning",
         message:
-          "The verification of System Requirement SR-0000e3 is outdated: AK3 only has records of older versions, the newest from 2026-11-02T10:00:00Z",
+          "The verification of System Requirement SR-0000e3 is outdated: AK3 (kfro) only has records of older versions, the newest from 2026-11-02T10:00:00Z",
         repository: "system",
         file: "evidence/e3-ak3-older.md",
         line: 1,
@@ -172,7 +182,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         () => forms(A_VERSION),
         () => "B",
         () => false,
-        () => 3,
+        () => keyedCriteria(3),
       ).map((p) => p.message);
     const two = [
       record(B, A_VERSION, "2026-01-02T00:00:00Z", { criteria: [1] }),
@@ -180,7 +190,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(B, OLD, "2026-01-01T01:00:00Z", { criteria: [3] }),
     ];
     expect(findings(two)).toEqual([
-      "The verification of B is outdated: AK2, AK3 only have records of older versions, the newest from 2026-01-01T01:00:00Z",
+      "The verification of B is outdated: AK2 (kbbb), AK3 (kccc) only have records of older versions, the newest from 2026-01-01T01:00:00Z",
     ]);
     expect(findings([...two, record(B, A_VERSION, "2026-01-03T00:00:00Z")])).toEqual([]);
     // The named record is one of an outdated criterion, not a newer older record of a verified one.
@@ -194,13 +204,23 @@ describe("outdated evidence (SR-025 AK4)", () => {
       () => forms(A_VERSION),
       () => "B",
       () => false,
-      () => 2,
+      () => keyedCriteria(2),
     );
     expect(hints.map((p) => [p.message, p.file])).toEqual([
       [
-        "The verification of B is outdated: AK2 only has records of older versions, the newest from 2026-01-01T00:00:00Z",
+        "The verification of B is outdated: AK2 (kbbb) only has records of older versions, the newest from 2026-01-01T00:00:00Z",
         "evidence/ak2-old.md",
       ],
+    ]);
+    // An older record that names no criterion holds for the outdated one too, so it is named when newest.
+    expect(
+      findings([
+        record(B, A_VERSION, "2026-01-03T00:00:00Z", { criteria: [1, 2] }),
+        record(B, OLD, "2026-01-02T00:00:00Z", { criteria: [3] }),
+        record(B, OLD, "2026-01-04T00:00:00Z"),
+      ]),
+    ).toEqual([
+      "The verification of B is outdated: AK3 (kccc) only has records of older versions, the newest from 2026-01-04T00:00:00Z",
     ]);
     // A verification record of the current version that is inconclusive decides nothing, so the
     // status is outdated, but it is not of an older version: there is no record to name.
@@ -345,11 +365,11 @@ describe("outdated evidence (SR-025 AK4)", () => {
       () => forms(A_VERSION),
       label,
       marked,
-      () => 3,
+      () => keyedCriteria(3),
     );
     expect(pooledHints.map((p) => [p.message, p.file, p.storedVersion])).toEqual([
       [
-        `The verification of B for variant ${V} is outdated: AK3 only has records of older versions, the newest from 2026-01-01T00:00:00Z`,
+        `The verification of B for variant ${V} is outdated: AK3 (kccc) only has records of older versions, the newest from 2026-01-01T00:00:00Z`,
         "evidence/ak3.md",
         OLD,
       ],

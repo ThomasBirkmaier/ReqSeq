@@ -31,7 +31,7 @@ describe("baselineStatusOf (SR-031, SR-094)", () => {
   it("counts the criteria of the baseline version when they are known", () => {
     expect(statusOf([record("2026-11-01T10:00:00Z", "passed", { criteria: [1] })], 2)).toEqual({
       status: "open",
-      criteria: { verified: 1, total: 2, notVerified: [2] },
+      criteria: { verified: 1, total: 2, notVerified: [{ criterion: 2 }] },
     });
   });
 
@@ -59,16 +59,23 @@ describe("baselineStatusOf (SR-031, SR-094)", () => {
         undefined,
       ),
     ).toEqual({ status: "failed" });
-    // AK1 passed of this version, AK2 passed of an older one: open, not outdated.
+    // The criterion with key kaaa passed of this version, kbbb passed of an older one: open, not
+    // outdated. A number of an older version counts for no criterion here (no lookup, #1502).
     expect(
       statusOf(
         [
-          record("2026-11-01T10:00:00Z", "passed", { criteria: [1] }),
-          record("2026-11-01T10:00:00Z", "passed", { criteria: [2], version: "n1:0000000000000000" }),
+          record("2026-11-01T10:00:00Z", "passed", { criteria: ["kaaa"] }),
+          record("2026-11-01T10:00:00Z", "passed", { criteria: ["kbbb"], version: "n1:0000000000000000" }),
         ],
         undefined,
       ),
     ).toEqual({ status: "open" });
+    expect(
+      statusOf(
+        [record("2026-11-01T10:00:00Z", "passed", { criteria: ["kbbb"], version: "n1:0000000000000000" })],
+        undefined,
+      ),
+    ).toEqual({ status: "outdated" });
     expect(statusOf([named, record("2026-10-01T10:00:00Z", "passed")], undefined)).toEqual({
       status: "verified",
     });

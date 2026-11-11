@@ -38,17 +38,18 @@
 //   does a file the XML scanner refuses. XML whose root is not a JUnit root is no JUnit file and gives
 //   nothing.
 // - The `reqseq:criterion` properties of an enriched test case name acceptance criteria (D-072,
-//   SR-093 AK4): `<element UUID>:<n>`, `n` a whole number from 1 without leading zero, one property
-//   per pair. Each element's record gets the numbers that name it (ascending, each once, with the line
-//   of the property that names each first, for SR-028 AK5); an element no property names holds for
+//   SR-093 AK4): `<element UUID>:<key>` with a criterion key, or `<element UUID>:<n>`, `n` a whole
+//   number from 1 without leading zero, one property per pair. Each element's record gets the
+//   criteria that name it (numbers ascending, then keys, each once, with the line of the property
+//   that names each first, for SR-028 AK5); an element no property names holds for
 //   all its criteria. A value of another form, or whose UUID is not one of the test case's
 //   `reqseq:element`, is `evidence.invalid-record` at the line of that property, and the test case
 //   gives no record. Only enriched test cases are looked at: enrich resolves a hand-written
 //   reference first (#961), and a file enriched before criteria existed holds for all of them.
 import type { Problem } from "../catalog.js";
 import { shown, zip } from "../files/index.js";
-import type { ViewId } from "../generated/types.js";
-import { isUuid, isVersion } from "../model/index.js";
+import type { CriterionRef, ViewId } from "../generated/types.js";
+import { compareCriterionRefs, isCriterionKey, isUuid, isVersion } from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { EvidenceFile } from "./folders.js";
 import type { JunitProperty, JunitTestCase } from "./junit-model.js";
@@ -209,16 +210,27 @@ export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
 /** A criterion number as the property writes it: a whole number from 1, no sign, no leading zero. */
 const CRITERION_NUMBER = /^[1-9][0-9]*$/;
 
+/** The criterion of a `reqseq:criterion` value after its colon: a number or a criterion key; undefined for another form. */
+const criterionRefOf = (text: string): CriterionRef | undefined => {
+  if (isCriterionKey(text)) {
+    return text;
+  }
+  const n = Number(text);
+  return CRITERION_NUMBER.test(text) && Number.isSafeInteger(n) ? n : undefined;
+};
+
 /**
  * The criteria of an enriched test case by element (see the file comment): for each element some
- * `reqseq:criterion` names, the line of each number it names, in ascending order; or why a property
- * does not fit, with its line.
+ * `reqseq:criterion` names, the line of each number or key it names, numbers ascending, then keys in
+ * code-unit order; or why a property does not fit, with its line.
  */
 export const criteriaOf = (
   testCase: JunitTestCase,
   elements: ReadonlySet<string>,
-): ReadonlyMap<string, ReadonlyMap<number, number>> | { readonly error: string; readonly line: number } => {
-  const found = new Map<string, Map<number, number>>();
+):
+  | ReadonlyMap<string, ReadonlyMap<CriterionRef, number>>
+  | { readonly error: string; readonly line: number } => {
+  const found = new Map<string, Map<CriterionRef, number>>();
   for (const { name, value, line } of testCase.properties) {
     if (name !== CRITERION_PROPERTY) {
       continue;
@@ -227,11 +239,10 @@ export const criteriaOf = (
     // The last colon: a UUID has none, so no regular expression has to find the split (linear).
     const colon = text.lastIndexOf(":");
     const element = uuidOf(text.slice(0, colon));
-    const digits = text.slice(colon + 1);
-    const criterion = Number(digits);
-    if (!isUuid(element) || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(criterion)) {
+    const criterion = criterionRefOf(text.slice(colon + 1));
+    if (!isUuid(element) || criterion === undefined) {
       return {
-        error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element UUID>:<number from 1>`,
+        error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element UUID>:<number from 1 or criterion key>`,
         line,
       };
     }
@@ -241,13 +252,16 @@ export const criteriaOf = (
         line,
       };
     }
-    const lines = found.get(element) ?? new Map<number, number>();
+    const lines = found.get(element) ?? new Map<CriterionRef, number>();
     found.set(element, lines);
-    // A number named twice counts once, at its first line.
+    // A criterion named twice counts once, at its first line.
     lines.set(criterion, lines.get(criterion) ?? line);
   }
   return new Map(
-    [...found].map(([element, lines]) => [element, new Map([...lines].sort(([a], [b]) => a - b))]),
+    [...found].map(([element, lines]) => [
+      element,
+      new Map([...lines].sort(([a], [b]) => compareCriterionRefs(a, b))),
+    ]),
   );
 };
 
@@ -268,7 +282,7 @@ const nameOf = (testCase: JunitTestCase): { readonly name: string; readonly clas
 const recordsOf = (
   testCase: JunitTestCase,
   enrichment: Extract<Enrichment, { readonly pairs: unknown }>,
-  criteria: ReadonlyMap<string, ReadonlyMap<number, number>>,
+  criteria: ReadonlyMap<string, ReadonlyMap<CriterionRef, number>>,
   { repository, file }: JunitLocation,
 ): EvidenceRecord[] => {
   const named = nameOf(testCase);

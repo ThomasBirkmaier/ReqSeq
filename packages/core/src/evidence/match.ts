@@ -20,21 +20,23 @@
 //   no status (`hasValidationStatus`), so a JUnit test case naming a need (always a verification,
 //   ADR-0012) or a hand-written validation of a decision no longer passes silently. Left out while
 //   the metamodel is not valid, since the types then have no meanings.
-// - `evidence.unknown-criterion` (warning, SR-028 AK5: „Gegeben ein Datensatz nennt eine Nummer, die
-//   es in der genannten Fassung des Requirements nicht als Akzeptanzkriterium gibt, wenn er gelesen
-//   wird, dann meldet die Prüfung des Arbeitsbereichs einen Befund.“) for a record whose `criteria`
-//   name a number larger than the count of acceptance criteria (the property with the meaning
-//   `acceptance-criteria`, `model/acceptance-criteria.ts`) of the version it names. One per record,
-//   naming every such number, at the line of the first of them (the `criteria` key, the
-//   `reqseq:criterion` property), with the UUID as `targetId`. Only for an element with one copy
-//   (SR-088) and a known current version, while the metamodel is valid. A warning, as
-//   `evidence.unknown-element`: the record stays readable, only that number counts for nothing
-//   (plan of #960, assumption). A type without that property has no criteria, so every number is
-//   unknown; such a record counts for the whole requirement (SR-031 AK7, plan of #963 Q2). For the current version the count is that of the element file (`evidenceProblemsState`);
-//   for an older one it is that of the commit that started that version, through the walk of the
-//   version dates (`model/version-date.ts`), asked per call by `workspace.check`
-//   (`olderCriterionProblems`, since Git changes without a file change); without Git, or when Git
-//   does not have the version, the record is not checked.
+// - `evidence.unknown-criterion` (warning, SR-028 AK5: „Gegeben ein Datensatz nennt einen
+//   Kriterienschlüssel, den kein Akzeptanzkriterium der genannten Fassung des Requirements trägt, oder
+//   eine Nummer, die es in dieser Fassung nicht gibt, wenn er gelesen wird, dann meldet die Prüfung des
+//   Arbeitsbereichs einen Befund“) for a record whose `criteria` name a key that no acceptance
+//   criterion (the property with the meaning `acceptance-criteria`, `model/acceptance-criteria.ts`) of
+//   the version it names carries, or a number larger than their count. One per record, naming every
+//   such key and number, at the line of the first of them (the `criteria` key, the `reqseq:criterion`
+//   property), with the UUID as `targetId`. Only for an element with one copy (SR-088) and a known
+//   current version, while the metamodel is valid. A warning, as `evidence.unknown-element`: the
+//   record stays readable, only that criterion counts for nothing (plan of #960, assumption). A type
+//   without that property has no criteria, so every criterion is unknown; such a record counts for the
+//   whole requirement (SR-031 AK7, plan of #963 Q2). For the current version the criteria are those
+//   of the element file (`evidenceProblemsState`); for an older one those of the newest commit with
+//   that version, through the walk of the version dates (`model/version-date.ts`), asked per call by
+//   `workspace.check` (`olderCriterionProblems`, since Git changes without a file change); without
+//   Git, or when Git does not have the version, the record is not checked. A key two criteria carry
+//   is the element's error (`element.criterion-key-duplicate`, SR-204 AK10), not the record's.
 // - `evidence.counts-in-no-view` (warning, SR-047 AK5) for a verification record that counts in no
 //   view, unless another record of its test case counts for the element (`no-view.ts`).
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in
@@ -48,9 +50,11 @@ import { zip } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { CurrentVersions, ElementRecord, VersionForms } from "../model/index.js";
+import type { CriterionRef } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
-  criteriaCount,
+  criteriaItemsOf,
+  criterionKey,
   currentFormsOf,
   currentVersionsState,
   elementStoreState,
@@ -192,7 +196,7 @@ export const recordKindProblems = (
 export interface CriteriaTarget {
   readonly record: EvidenceRecord;
   /** The `criteria` of the record. */
-  readonly criteria: readonly number[];
+  readonly criteria: readonly CriterionRef[];
   readonly element: ElementRecord;
 }
 
@@ -222,25 +226,35 @@ export const criteriaTargets = (
 };
 
 /**
- * `evidence.unknown-criterion` of `target` when its record names a number larger than `count`, the
- * acceptance criteria of the version it names (see the file comment); undefined otherwise.
+ * Whether the items `items` of a version have the criterion `ref` names (SR-028 AK5): a number up to
+ * their count, a key one of them carries.
+ */
+const hasCriterion = (items: readonly unknown[], ref: CriterionRef): boolean =>
+  typeof ref === "number" ? ref <= items.length : items.some((item) => criterionKey(item) === ref);
+
+/**
+ * `evidence.unknown-criterion` of `target` when its record names a key that no item of `items`, the
+ * acceptance criteria of the version it names, carries, or a number larger than their count (see the
+ * file comment); undefined otherwise.
  */
 export const unknownCriterionProblem = (
   { record, criteria, element }: CriteriaTarget,
-  count: number,
+  items: readonly unknown[],
 ): Problem | undefined => {
-  const unknown = criteria.filter((n) => n > count);
+  const unknown = criteria.filter((ref) => !hasCriterion(items, ref));
   const [first] = unknown;
   if (first === undefined) {
     return undefined;
   }
+  const count = items.length;
   const line = criterionLineOf(record, first);
-  const numbers = unknown.length === 1 ? `criterion ${String(first)}` : `criteria ${unknown.join(", ")}`;
+  const named = unknown.map(String).join(", ");
+  const what = unknown.length === 1 ? `criterion ${named}` : `criteria ${named}`;
   return {
     code: "evidence.unknown-criterion",
     severity: "warning",
-    // Without criteria the record counts for the whole requirement (SR-031 AK7), else the number counts for none.
-    message: `The ${record.kind} record names acceptance ${numbers} of element ${record.element}, whose version ${record.version} has ${String(count)}; ${count === 0 ? "the record counts for the whole requirement" : `${unknown.length === 1 ? "it counts" : "they count"} for no criterion`}`,
+    // Without criteria the record counts for the whole requirement (SR-031 AK7), else the criterion counts for none.
+    message: `The ${record.kind} record names acceptance ${what} of element ${record.element}, whose version ${record.version} has ${String(count)}${unknown.some((ref) => typeof ref === "string") ? " and no criterion with that key" : ""}; ${count === 0 ? "the record counts for the whole requirement" : `${unknown.length === 1 ? "it counts" : "they count"} for no criterion`}`,
     ...recordPlace(record),
     ...(line === undefined ? {} : { line }),
     targetId: record.element,
@@ -248,10 +262,10 @@ export const unknownCriterionProblem = (
   };
 };
 
-/** `evidence.unknown-criterion` of each target with the count of criteria of its record's version. */
-const criterionProblems = (counted: readonly (readonly [CriteriaTarget, number])[]): Problem[] =>
-  counted.flatMap(([target, count]) => {
-    const problem = unknownCriterionProblem(target, count);
+/** `evidence.unknown-criterion` of each target with the criteria items of its record's version. */
+const criterionProblems = (counted: readonly (readonly [CriteriaTarget, readonly unknown[]])[]): Problem[] =>
+  counted.flatMap(([target, items]) => {
+    const problem = unknownCriterionProblem(target, items);
     return problem === undefined ? [] : [problem];
   });
 
@@ -299,8 +313,8 @@ export const olderCriterionProblems = async (workspace: Workspace): Promise<Prob
   );
   return distinctFindings(
     criterionProblems(
-      zip(older, values).flatMap(([target, at]): [CriteriaTarget, number][] =>
-        at === null ? [] : [[target, criteriaCount(at, found.key)]],
+      zip(older, values).flatMap(([target, at]): [CriteriaTarget, readonly unknown[]][] =>
+        at === null ? [] : [[target, criteriaItemsOf(at, found.key)]],
       ),
     ),
   );
@@ -332,7 +346,9 @@ export const evidenceProblemsState = defineWorkspaceState(
         ...(criteria === undefined
           ? []
           : criterionProblems(
-              criteria.targets.current.map((t) => [t, criteriaCount(t.element.data, criteria.key)] as const),
+              criteria.targets.current.map(
+                (t) => [t, criteriaItemsOf(t.element.data, criteria.key)] as const,
+              ),
             )),
       ]),
     ];

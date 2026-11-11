@@ -19,10 +19,13 @@
 //    checked against the format before anything is done on disk, so the format's rules (`method` and
 //    `item` for a verification; `reason` with the result `inconclusive` and only there, which only a
 //    validation may have, SR-172 AK1) give `input.invalid` naming the input field. `criteria` (SR-030
-//    AK4, D-072) is written in ascending order, for a verification only (`input.invalid` with
-//    `validation-with-criteria`: a validation counts per element, SR-030 AK3); absent, the record
-//    holds for every criterion. A number the current version does not have is written, with the
-//    warning `evidence.unknown-criterion` in `problems`, as `workspace check` gives it (SR-028 AK5).
+//    AK4, AK5, D-072) names criteria of the current version by number or key; the file gets their
+//    keys, in code-unit order as the reader keeps them, and the output names each with number, key
+//    and the first 60 characters of its text. A criterion without key, a key two criteria carry, and a
+//    number or key the current version does not have are `input.invalid`, and nothing is written (the
+//    last an assumption carried in the PR of #1417: it cannot be written by key). For a verification
+//    only (`input.invalid` with `validation-with-criteria`: a validation counts per element, SR-030
+//    AK3); absent, the record holds for every criterion.
 // 4. Folder (AK2, "in der gewählten Ablage"): an evidence location of the workspace file or a folder
 //    below one, relative to the workspace root; default the first location whose repository is on this
 //    machine. The full target passes the rules of every new ReqSeq file (`refuseUnlisted`) before and
@@ -51,7 +54,10 @@ import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
-  criteriaCount,
+  compareCriterionRefs,
+  criteriaItemsOf,
+  criterionKey,
+  isKeyedCriterion,
   clashKey,
   currentVersionsOf,
   elementStoreState,
@@ -82,7 +88,6 @@ import {
   VALIDATION_VARIANT_REASON,
   verificationInconclusive,
 } from "./markdown.js";
-import { unknownCriterionProblem } from "./match.js";
 import { withEvidenceSource } from "./evidence-source.js";
 import type { EvidenceRecord } from "./record.js";
 import { criterionLineOf, withCriterionLines } from "./record.js";
@@ -452,8 +457,8 @@ interface Prepared {
   /** The short ID of the record's variant, for the file name; undefined for the core. */
   readonly variantShortId: string | undefined;
   readonly fields: RecordFields;
-  /** How many acceptance criteria the element's current version has (SR-028 AK5). */
-  readonly criteriaCount: number;
+  /** The criteria the record is written for, with number, key and the start of the text (SR-030 AK4). */
+  readonly criteria?: readonly WrittenCriterion[];
 }
 
 /**
@@ -523,13 +528,64 @@ const variantOf = (
   });
 };
 
+/** How many characters of a criterion's text the output names (SR-030 AK4: „den Anfang des Texts“). */
+const TEXT_START = 60;
+
+/** A criterion the record is written for (rule 3): its number, its key, the start of its text. */
+type WrittenCriterion = NonNullable<EvidenceRecordOutput["criteria"]>[number];
+
+/** The refusal of a criterion of rule 3, naming it as given. */
+const refusedCriterion = (given: number | string, why: string, reason: string): CommandError =>
+  invalid(`Not written: acceptance criterion ${String(given)} ${why}`, {
+    fields: ["criteria"],
+    reason,
+    criterion: given,
+  });
+
 /**
- * Rule 3: `criteria` of the file, in ascending order; none without the input. `input.invalid` on a
- * validation record, which counts per element (SR-030 AK3).
+ * The position (from 1) of the criterion `given` names in the current `items` (rule 3): a number (or
+ * digits) is its position, a key the one item that carries it. `input.invalid` for a number or key
+ * the current version does not have, and for a key several criteria carry (SR-030 AK5).
  */
-const criteriaFields = (input: EvidenceRecordInput): Pick<RecordFields, "criteria"> => {
+const criterionPositionOf = (items: readonly unknown[], given: number | string): number => {
+  const asNumber = typeof given === "number" ? given : /^[0-9]+$/.test(given) ? Number(given) : undefined;
+  if (asNumber !== undefined) {
+    if (asNumber > items.length) {
+      throw refusedCriterion(
+        given,
+        `is not in the current version, which has ${String(items.length)}`,
+        "unknown-criterion",
+      );
+    }
+    return asNumber;
+  }
+  const found = items.flatMap((item, i) => (criterionKey(item) === given ? [i + 1] : []));
+  const [position] = found;
+  if (position === undefined) {
+    throw refusedCriterion(given, "is not in the current version", "unknown-criterion");
+  }
+  if (found.length > 1) {
+    throw refusedCriterion(
+      given,
+      `is carried by ${String(found.length)} criteria of the current version; give each its own key first (SR-204)`,
+      "criterion-key-duplicate",
+    );
+  }
+  return position;
+};
+
+/**
+ * Rule 3: the criteria the record is written for, by position, with their keys (SR-030 AK4); none
+ * without the input. `input.invalid` on a validation record, which counts per element (SR-030 AK3),
+ * and for a criterion `criterionPositionOf` refuses, one without key (`criterion-without-key`: the file names
+ * criteria by key only), and one whose key another criterion carries too (SR-030 AK5, SR-204 AK10).
+ */
+const criteriaOfInput = (
+  input: EvidenceRecordInput,
+  items: readonly unknown[],
+): readonly WrittenCriterion[] | undefined => {
   if (input.criteria === undefined) {
-    return {};
+    return undefined;
   }
   if (input.kind === "validation") {
     throw invalid(`Not written: ${CRITERIA_VERIFICATION_ONLY}`, {
@@ -537,7 +593,49 @@ const criteriaFields = (input: EvidenceRecordInput): Pick<RecordFields, "criteri
       reason: "validation-with-criteria",
     });
   }
-  return { criteria: [...input.criteria].sort((a, b) => a - b) };
+  const positions = [...new Set(input.criteria.map((given) => criterionPositionOf(items, given)))].sort(
+    (a, b) => a - b,
+  );
+  return positions.map((position) => {
+    const item = items[position - 1];
+    if (!isKeyedCriterion(item)) {
+      throw refusedCriterion(
+        position,
+        "has no criterion key; give the criteria their keys first (SR-204)",
+        "criterion-without-key",
+      );
+    }
+    const { key, text } = item;
+    if (items.filter((other) => criterionKey(other) === key).length > 1) {
+      throw refusedCriterion(
+        position,
+        `has the key ${key}, which another criterion of the current version carries too; give each its own key first (SR-204)`,
+        "criterion-key-duplicate",
+      );
+    }
+    return { criterion: position, key, text: text.slice(0, TEXT_START) };
+  });
+};
+
+/** The current version of `element` in its normal form; `file.faulty` when it has none (rule 2). */
+const currentVersionToWrite = async (
+  workspace: Workspace,
+  element: ElementRecord,
+  ref: string,
+): Promise<string> => {
+  // AK1: `currentVersionsOf` gives an entry for every record it is given.
+  const entry = (await currentVersionsOf(workspace, [element])).get(element);
+  if (entry?.kind !== "version") {
+    throw new CommandError(
+      "file.faulty",
+      `Not written: ${ref} has no current version (${String(entry?.message)})`,
+      {
+        elementId: element.id,
+        reason: entry?.reason,
+      },
+    );
+  }
+  return entry.forms[NORMAL_FORM];
 };
 
 /** Rules 1 to 3: the element, its current version and the fields, checked against the format. */
@@ -559,23 +657,11 @@ const prepare = async (
     element,
     input,
   );
-  const criteria = criteriaFields(input);
-  // AK1: `currentVersionsOf` gives an entry for every record it is given.
-  const entry = (await currentVersionsOf(workspace, [element])).get(element);
-  if (entry?.kind !== "version") {
-    throw new CommandError(
-      "file.faulty",
-      `Not written: ${input.ref} has no current version (${String(entry?.message)})`,
-      {
-        elementId: element.id,
-        reason: entry?.reason,
-      },
-    );
-  }
+  const written = criteriaOfInput(input, criteriaItemsOf(element.data, acceptanceCriteriaKeyOf(metamodel)));
   const fields: RecordFields = {
     kind: input.kind,
     element: element.id,
-    version: entry.forms[NORMAL_FORM],
+    version: await currentVersionToWrite(workspace, element, input.ref),
     ...(input.method === undefined ? {} : { method: input.method }),
     ...(variant === undefined ? {} : { variant: variant.id }),
     ...(input.item === undefined ? {} : { item: input.item }),
@@ -584,7 +670,8 @@ const prepare = async (
     date: input.date ?? recordDate(now()),
     ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
     ...(input.testCase === undefined ? {} : { "test-case": input.testCase }),
-    ...criteria,
+    // Keys in code-unit order, as the reader keeps them (rule 6).
+    ...(written === undefined ? {} : { criteria: written.map(({ key }) => key).sort(compareCriterionRefs) }),
   };
   const errors = recordViolations(fields);
   if (errors.length > 0) {
@@ -599,7 +686,7 @@ const prepare = async (
     shortId: shortIds.of(element),
     variantShortId: variant === undefined ? undefined : shortIds.of(variant),
     fields,
-    criteriaCount: criteriaCount(element.data, acceptanceCriteriaKeyOf(metamodel)),
+    ...(written === undefined ? {} : { criteria: written }),
   };
 };
 
@@ -653,7 +740,7 @@ export const recordEvidence = async (
 ): Promise<EvidenceRecordOutput> => {
   const layout = await workspace.get(workspaceLayoutState);
   const prepared = await prepare(workspace, input, deps.now);
-  const { element, shortId, variantShortId, fields } = prepared;
+  const { shortId, variantShortId, fields } = prepared;
   const { location, folder } = targetOf(layout, input.folder);
   const { repository } = location;
   const bytes = Buffer.from(deps.render(fields), "utf8");
@@ -672,17 +759,14 @@ export const recordEvidence = async (
   const { criteria } = record;
   if (criteria !== undefined) {
     // The line of `criteria` in the file, for the findings of `workspace check` (SR-028 AK5).
-    withCriterionLines(record, new Map(criteria.map((n) => [n, Number(criterionLineOf(read, n))])));
+    withCriterionLines(record, new Map(criteria.map((ref) => [ref, Number(criterionLineOf(read, ref))])));
   }
   await updateEvidence(workspace, layout, record);
-  const problem =
-    criteria === undefined
-      ? undefined
-      : unknownCriterionProblem({ record, criteria, element }, prepared.criteriaCount);
   return {
     files: [workspacePath(layout, repository, file)],
+    ...(prepared.criteria === undefined ? {} : { criteria: [...prepared.criteria] }),
     // A copy with its evidence source (#821): the evidence state keeps `record` as read.
     record: withEvidenceSource(record),
-    problems: problem === undefined ? [] : [problem],
+    problems: [],
   };
 };

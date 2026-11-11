@@ -219,3 +219,108 @@ export const withCriterionKeys = <T>(
   Array.isArray(value) && acceptanceCriteriaKeyOf(metamodel) === key
     ? (reconcileCriteria(key, previous, value as unknown[], random) as T)
     : value;
+
+/** No acceptance criteria. */
+const NO_ITEMS: readonly unknown[] = Object.freeze([]);
+
+/**
+ * The acceptance criteria items `values` (an element's frontmatter, current or of an older version)
+ * hold under `key` (`acceptanceCriteriaKeyOf`): the list itself, empty without one or without `values`.
+ */
+export const criteriaItemsOf = (
+  values: Readonly<Record<string, unknown>> | undefined,
+  key: string | undefined,
+): readonly unknown[] => {
+  const value = key === undefined ? undefined : values?.[key];
+  return Array.isArray(value) ? (value as unknown[]) : NO_ITEMS;
+};
+
+/** An acceptance criterion as a record names it: its number or its criterion key (SR-028 AK4). */
+export type CriterionRef = number | string;
+
+/**
+ * Why a criterion a record names counts for no criterion of the current version (SR-028 AK5, SR-031
+ * AK11, AK12, SR-204 AK10):
+ * - `unknown-number`: the version the record names has no criterion at that position;
+ * - `unknown-key`: no criterion of the current version carries the key;
+ * - `duplicate-key`: more than one criterion of the current version carries it;
+ * - `no-key`: the criterion at that position of the older version the record names has no key;
+ * - `no-history`: the record names a number of an older version whose criteria Git cannot tell.
+ */
+export type CriterionRefProblem =
+  "unknown-number" | "unknown-key" | "duplicate-key" | "no-key" | "no-history";
+
+/** A criterion a record names, resolved against the current version: its position there, or why it has none. */
+export type ResolvedCriterion =
+  | { readonly ref: CriterionRef; readonly position: number; readonly key?: string }
+  | { readonly ref: CriterionRef; readonly problem: CriterionRefProblem; readonly key?: string };
+
+/** The positions (from 1) of the items of `items` that carry `key`. */
+const positionsOfKey = (items: readonly unknown[], key: string): number[] => {
+  const found: number[] = [];
+  items.forEach((item, i) => {
+    if (criterionKey(item) === key) {
+      found.push(i + 1);
+    }
+  });
+  return found;
+};
+
+/** `key` resolved against the items of the current version (SR-028 AK4, SR-204 AK10). */
+const byKey = (ref: CriterionRef, key: string, current: readonly unknown[]): ResolvedCriterion => {
+  const [position, ...more] = positionsOfKey(current, key);
+  if (position === undefined) {
+    return { ref, problem: "unknown-key", key };
+  }
+  return more.length > 0 ? { ref, problem: "duplicate-key", key } : { ref, position, key };
+};
+
+/**
+ * Each criterion `refs` names, resolved against the items `current` of the element's current version
+ * (D-072, SR-028 AK4, SR-031 AK11, AK12, SR-204 AK10). `named`: the items of the version the record
+ * names when it is an older one, those of the newest commit with that version (SR-028 AK5);
+ * `undefined` when Git cannot tell them; `current` itself for a record of the current version.
+ *
+ * - A key counts for the one current criterion that carries it; for none when no criterion or more
+ *   than one carries it.
+ * - A number of the current version is its position.
+ * - A number of an older version is turned into the key its criterion had there, then counts like a
+ *   key; for none when that version has no such position, the criterion had no key there, or Git
+ *   cannot tell that version (product owner decision, 2026-11-11, #1502).
+ */
+export const resolveCriterionRefs = (
+  refs: readonly CriterionRef[],
+  named: readonly unknown[] | undefined,
+  current: readonly unknown[],
+): ResolvedCriterion[] =>
+  refs.map((ref): ResolvedCriterion => {
+    if (typeof ref === "string") {
+      return byKey(ref, ref, current);
+    }
+    if (named === current) {
+      return ref <= current.length
+        ? { ref, position: ref, ...withKey(criterionKey(current[ref - 1])) }
+        : { ref, problem: "unknown-number" };
+    }
+    if (named === undefined) {
+      return { ref, problem: "no-history" };
+    }
+    if (ref > named.length) {
+      return { ref, problem: "unknown-number" };
+    }
+    const key = criterionKey(named[ref - 1]);
+    return key === undefined ? { ref, problem: "no-key" } : byKey(ref, key, current);
+  });
+
+const withKey = (key: string | undefined): { readonly key?: string } => (key === undefined ? {} : { key });
+
+/** The order `criteria` of a record holds: numbers ascending, then keys in code-unit order. */
+export const compareCriterionRefs = (a: CriterionRef, b: CriterionRef): number => {
+  if (typeof a === "number") {
+    return typeof b === "number" ? a - b : -1;
+  }
+  if (typeof b === "number") {
+    return 1;
+  }
+  return a < b ? -1 : a > b ? 1 : 0;
+};

@@ -1399,7 +1399,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   describe("reqseq:criterion (#960, #961)", () => {
     const criterion = (value: string): string => prop("reqseq:criterion", value);
     /** The criteria of each record of the enriched file, by element. */
-    const criteriaOfRecords = (result: EnrichResult): [string, readonly number[] | undefined][] =>
+    const criteriaOfRecords = (result: EnrichResult): [string, readonly (number | string)[] | undefined][] =>
       readJunitRecords({ repository: "r", file: "f" }, result.bytes).records.map((r) => [
         r.element,
         r.criteria,
@@ -1463,6 +1463,9 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         "[SR-46fb54/AK1234567890] a",
         "[SR-46fb54/AK2] [SR-46fb54/AK] a",
         "[SR-46fb54] [SR-46fb54/AK0] a",
+        "[SR-46fb54/AK-k7f] a",
+        "[SR-46fb54/AK-] a",
+        "[SR-46fb54/AK-7f3k] a",
       ]) {
         const result = await enrich(suite(`<testcase name="${name}"/>`));
         expect([result.changed, result.testCases], name).toEqual([false, 0]);
@@ -1471,9 +1474,61 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
           name,
         ).toEqual([["evidence.invalid-record", "error"]]);
         expect(result.problems[0]?.message, name).toContain(
-          "names no acceptance criterion: write AK and a number from 1 without leading zero",
+          "names no acceptance criterion: write AK- and its criterion key, or AK and a number from 1 without leading zero",
         );
       }
+    });
+
+    it("[SR-029/AK10] writes the criterion keys of a name, for each requirement it names, and none for one named without", async () => {
+      const result = await enrich(
+        suite(
+          '<testcase name="[SR-46fb54/AK-k7f3] [SR-46fb54/ak-m2x9] [SR-036/AK-k7f3] a"/><testcase name="[SR-46fb54] [SR-46fb54/AK-k7f3] whole"/>',
+        ),
+      );
+      expect(result).toMatchObject({ changed: true, testCases: 2, problems: [] });
+      expect(
+        properties(result.bytes)["[SR-46fb54/AK-k7f3] [SR-46fb54/ak-m2x9] [SR-036/AK-k7f3] a"]?.filter((p) =>
+          p.startsWith("reqseq:criterion="),
+        ),
+      ).toEqual([
+        `reqseq:criterion=${LOGIN}:k7f3`,
+        `reqseq:criterion=${LOGIN}:m2x9`,
+        `reqseq:criterion=${SPEC}:k7f3`,
+      ]);
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, ["k7f3", "m2x9"]],
+        [SPEC, ["k7f3"]],
+        [LOGIN, undefined],
+      ]);
+    });
+
+    it("[SR-029/AK5] [SR-029/AK10] writes the key of a criterion a name pattern reads, and a word {ak} reads as a key", async () => {
+      const result = await enrich(
+        suite(
+          '<testcase name="tests::sr_46fb54_ak_k7f3_and_sr_46fb54_ak_m2x9"/><testcase name="sr_0b0036_ak_verify"/>',
+        ),
+        { namePattern: pattern("{prefix}_{id}_ak_{ak}") },
+      );
+      expect(result).toMatchObject({ testCases: 2, problems: [] });
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, ["k7f3", "m2x9"]],
+        [REPORT, ["verify"]],
+      ]);
+    });
+
+    it("writes a number tag as the key of its criterion where it has one no other carries, else as the number, until the switch-over (#1419)", async () => {
+      const items = [
+        { key: "kaaa", text: "one" },
+        "two",
+        { key: "kdup", text: "a" },
+        { key: "kdup", text: "b" },
+      ];
+      const result = await enrich(
+        suite('<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-46fb54/AK3] [SR-46fb54/AK5] a"/>'),
+        { criteriaOf: (id) => (id === LOGIN ? items : []) },
+      );
+      // A key two criteria carry stays a number: written as the key, it would count for neither.
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2, 3, 5, "kaaa"]]]);
     });
 
     it("writes the criterion of a name the name pattern reads (SR-029 AK5)", async () => {
@@ -1493,7 +1548,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
 
     it("keeps a hand-written criterion, gives its reference the UUID and adds those of the name", async () => {
       const xml = suite(
-        `<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"><properties>${criterion(`${LOGIN}:2`)}${criterion(" SR-036 :3")}${criterion(`${LOGIN.toUpperCase()}:4`)}</properties></testcase>`,
+        `<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"><properties>${criterion(`${LOGIN}:2`)}${criterion(" SR-036 :3")}${criterion(`${LOGIN.toUpperCase()}:4`)}${criterion(`${LOGIN}:kfour`)}</properties></testcase>`,
       );
       const result = await enrich(xml);
       expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
@@ -1502,20 +1557,27 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         `reqseq:criterion=${LOGIN}:2`,
         `reqseq:criterion=${SPEC}:3`,
         `reqseq:criterion=${LOGIN.toUpperCase()}:4`,
+        `reqseq:criterion=${LOGIN}:kfour`,
         `reqseq:criterion=${LOGIN}:1`,
       ]);
       expect(criteriaOfRecords(result)).toEqual([
-        [LOGIN, [1, 2, 4]],
+        [LOGIN, [1, 2, 4, "kfour"]],
         [SPEC, [3]],
       ]);
     });
 
     it("leaves a test case with a criterion that names no element of it, or is malformed, unchanged and reports it", async () => {
       const cases: [string, string][] = [
-        ["2", 'reqseq:criterion "2" is not <element reference>:<number from 1>'],
-        [":2", 'reqseq:criterion ":2" is not <element reference>:<number from 1>'],
-        [`${LOGIN}:0`, `reqseq:criterion "${LOGIN}:0" is not <element reference>:<number from 1>`],
-        [`${LOGIN}:02`, `reqseq:criterion "${LOGIN}:02" is not <element reference>:<number from 1>`],
+        ["2", 'reqseq:criterion "2" is not <element reference>:<number from 1 or criterion key>'],
+        [":2", 'reqseq:criterion ":2" is not <element reference>:<number from 1 or criterion key>'],
+        [
+          `${LOGIN}:0`,
+          `reqseq:criterion "${LOGIN}:0" is not <element reference>:<number from 1 or criterion key>`,
+        ],
+        [
+          `${LOGIN}:02`,
+          `reqseq:criterion "${LOGIN}:02" is not <element reference>:<number from 1 or criterion key>`,
+        ],
         [`${LOGIN}:99999999999999999999`, "reqseq:criterion"],
         [`${REPORT}:1`, `reqseq:criterion "${REPORT}:1" names no reqseq:element of the test case`],
         ["SR-ffffff:1", 'reqseq:criterion "SR-ffffff:1" names no element'],

@@ -16,6 +16,7 @@
 import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
+import { criterionLabel } from "@reqseq/core/criterion-items";
 import { shownIdTitle } from "./id-title.js";
 import { CORE_VIEW } from "./views.js";
 
@@ -146,7 +147,7 @@ const criteriaText = (criteria: Criteria | undefined): string => {
   if (criteria === undefined) {
     return "";
   }
-  const open = (criteria.notVerified ?? []).map((n) => `AK${String(n)}`);
+  const open = (criteria.notVerified ?? []).map(criterionLabel);
   return ` (${String(criteria.verified)} of ${String(criteria.total)} criteria${open.length === 0 ? "" : `, ${open.join(", ")} not verified`})`;
 };
 

@@ -26,16 +26,25 @@ export { emergentKeyOf, isEmergent } from "./emergent.js";
 export {
   acceptanceCriteriaKeyOf,
   carriedCriteria,
+  compareCriterionRefs,
   criteriaCount,
+  criteriaItemsOf,
   newCriterionKey,
+  resolveCriterionRefs,
   reconcileCriteria,
   withCriterionKeys,
 } from "./acceptance-criteria.js";
-export type { RandomInt } from "./acceptance-criteria.js";
+export type {
+  CriterionRef,
+  CriterionRefProblem,
+  RandomInt,
+  ResolvedCriterion,
+} from "./acceptance-criteria.js";
 export type { KeyedCriterion } from "./criterion-items.js";
 export {
   CRITERION_KEY,
   criterionKey,
+  criterionLabel,
   criterionText,
   isCriterionKey,
   isCriterionMapping,

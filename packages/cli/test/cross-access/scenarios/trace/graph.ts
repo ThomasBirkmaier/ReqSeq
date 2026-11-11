@@ -8,6 +8,12 @@ const GRAPH: FixtureOptions = { fixture: "SR-111/graph", git: true };
 /** The UUID prefix of GRAPH. */
 const GR = "5e111a7d-2b4f-4c61-9d08-";
 
+/** The criterion not verified, as outputs name it (SR-205 AK2). */
+const GRAPH_THIRD = {
+  criterion: 3,
+  text: "Given the station runs, when it is checked, then it shows the third reading.",
+};
+
 scenariosOf("trace.graph", [
   {
     name: "the direct neighbours of a requirement over every kind, with marks (SR-111 AK1, AK4)",
@@ -89,8 +95,8 @@ scenariosOf("trace.graph", [
         results["core"]?.outcome as { output: { nodes: { verification?: unknown; criteria?: unknown }[] } }
       ).output;
       expect([output.nodes[0]?.verification, output.nodes[0]?.criteria]).toEqual([
-        [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
-        { verified: 2, total: 3, notVerified: [3] },
+        [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [GRAPH_THIRD] } }],
+        { verified: 2, total: 3, notVerified: [GRAPH_THIRD] },
       ]);
     },
   },

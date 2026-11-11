@@ -501,8 +501,24 @@ describe("SR-028 reading Markdown records", () => {
     expect(listed.records.map((r) => r.criteria)).toEqual([[1]]);
   });
 
-  it("refuses criteria that are no whole numbers from 1, each once, at the line of criteria", () => {
-    for (const criteria of ["[0]", "[]", "[1, 1]", "[1.5]", '["2"]', "2"]) {
+  it("[SR-028/AK4] reads criteria named by key or number, mixed: numbers ascending, then keys", () => {
+    const out = read(record("criteria: [m2x9, 3, k7f3, 1]"));
+    expect(out.problems).toBeUndefined();
+    expect(out.records[0]?.criteria).toEqual([1, 3, "k7f3", "m2x9"]);
+  });
+
+  it("refuses criteria that are no whole numbers from 1 or criterion keys, each once, at the line of criteria", () => {
+    for (const criteria of [
+      "[0]",
+      "[]",
+      "[1, 1]",
+      "[1.5]",
+      '["2"]',
+      "2",
+      "[k7f]",
+      "[K7F3]",
+      "[k7f3, k7f3]",
+    ]) {
       const out = read(record(`criteria: ${criteria}`));
       expect(out.records, criteria).toEqual([]);
       expect(

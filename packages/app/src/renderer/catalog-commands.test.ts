@@ -931,7 +931,7 @@ describe("catalog commands in the command prompt", () => {
     });
   });
 
-  it("Record evidence takes the numbers of acceptance criteria one per Enter and passes them to core", async () => {
+  it("Record evidence takes acceptance criteria by number or key one per Enter and passes them to core as given", async () => {
     const { context, asked, call } = sources();
     start(context, "evidence.record", true);
     await pick(asked);
@@ -940,7 +940,7 @@ describe("catalog commands in the command prompt", () => {
     await pick(asked, "criteria");
     expect((await last(asked)).label).toMatch(/ · criteria:$/);
     await answer(asked, "3");
-    await answer(asked, "1");
+    await answer(asked, "kone");
     (await last(asked)).empty?.(true);
     await pick(asked, "Run");
     await flush();
@@ -948,7 +948,7 @@ describe("catalog commands in the command prompt", () => {
       ref: "uuid-1",
       kind: "verification",
       result: "passed",
-      criteria: [3, 1],
+      criteria: ["3", "kone"],
     });
   });
 

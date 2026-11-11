@@ -127,7 +127,8 @@ describe("inputFields", () => {
       "complex:input-only",
       "complex:input-only",
       "string:flag",
-      "complex:input-only",
+      // A number or a string (a criterion by number or key) is given as text; core reads the digits.
+      "string:flag",
       "complex:input-only",
       "complex:input-only",
       "complex:input-only",

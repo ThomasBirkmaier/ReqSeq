@@ -110,7 +110,11 @@ describe("the lines of a requirement's variants", () => {
     const lines = variantLines(
       output({
         verification: [
-          { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+          {
+            view: "core",
+            status: "open",
+            criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
+          },
           { view: "uuid-coast", status: "verified", criteria: { verified: 3, total: 3 } },
         ],
       }),

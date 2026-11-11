@@ -1,6 +1,7 @@
 // The verification degree (SR-037, ADR-0012 "Status rules") as a pure function of a status source and
 // an evaluator made by hand: which elements count, the count per status and the share. The command
 // (`evidence.degree`) on record files is tested in commands/evidence/degree.test.ts.
+import { plainCriteria } from "./criteria.js";
 import { describe, expect, it } from "vitest";
 import type { VerificationStatus } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
@@ -41,7 +42,7 @@ const SOURCE: StatusSource = {
   recordsOf: () => [],
   emergent: () => false,
   independent: () => false,
-  criteriaOf: () => 0,
+  criteriaOf: () => plainCriteria(0),
 };
 
 /**

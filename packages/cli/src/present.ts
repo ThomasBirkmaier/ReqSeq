@@ -7,8 +7,8 @@
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, ThomasBirkmaier/ReqSeq-archive#305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
-//   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 not
-//   verified)`), then its validation status (`[validation: validated]`, SR-038;
+//   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 (k7f3)
+//   not verified)`, with the key where the criterion has one, SR-205 AK2), then its validation status (`[validation: validated]`, SR-038;
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element, a search hit with its snippet (SR-174) on the line
 //   below it, `  text: …line…` or the property's name instead of `text`, on a terminal cut to its width
@@ -73,7 +73,7 @@
 // - hints and problems show their severity first, coloured by it; the line after them is faint.
 // No style is keyed to a status: statuses come from the metamodel. A matrix, a chain, a graph and the
 // comparisons keep the plain layout on a terminal.
-import { criterionText, degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
+import { criterionLabel, criterionText, degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 import type { Style, Terminal } from "./style.js";
@@ -270,7 +270,7 @@ const criteriaCountText = (criteria: unknown): string => {
   if (!isRecord(criteria)) {
     return "";
   }
-  const open = listOf(criteria["notVerified"]).map((n) => `AK${String(n)}`);
+  const open = listOf(criteria["notVerified"]).filter(isRecord).map(nameOfCriterion);
   return ` ${String(criteria["verified"])} of ${String(criteria["total"])} criteria${open.length === 0 ? "" : ` (${open.join(", ")} not verified)`}`;
 };
 
@@ -1106,11 +1106,26 @@ const evidenceByNode = (chain: Chain): ReadonlyMap<string, Rec> =>
       .map((item) => [nodeKey("", text(item["repository"]), text(item["id"])), item]),
   );
 
-/** The acceptance criteria a record names (D-072), `[criteria 1, 3]`; empty for one that holds for all. */
-const criteriaText = (criteria: unknown): string => {
-  const numbers = listOf(criteria).filter((n): n is number => typeof n === "number");
-  return numbers.length === 0 ? "" : `[criteria ${numbers.join(", ")}]`;
+/**
+ * The acceptance criteria a record names (D-072), `[criteria 1, k7f3]` as written, or as
+ * `criterionNames` name them (`[criteria AK1 (k7f3), AK-m2x9]`, SR-205 AK2); empty for one that
+ * holds for all.
+ */
+const criteriaText = (criteria: unknown, names: unknown): string => {
+  const named = listOf(names).filter(isRecord).map(nameOfCriterion);
+  const given = listOf(criteria)
+    .filter((n) => typeof n === "number" || typeof n === "string")
+    .map(String);
+  const shown = named.length > 0 ? named : given;
+  return shown.length === 0 ? "" : `[criteria ${shown.join(", ")}]`;
 };
+
+/** A criterion an output names (`$defs/criterionName`) as `AK2 (k7f3)` (`criterionLabel`), read loosely. */
+const nameOfCriterion = (value: Rec): string =>
+  criterionLabel({
+    ...(typeof value["criterion"] === "number" ? { criterion: value["criterion"] } : {}),
+    ...(typeof value["key"] === "string" ? { key: value["key"] } : {}),
+  });
 
 /**
  * A record as one line: date, method (`withMethod`), result, the reason of an inconclusive one (SR-172),
@@ -1127,7 +1142,7 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     // Where the Beleg is, as core gives it (#821).
     text(record["evidenceSource"]),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
-    criteriaText(record["criteria"]),
+    criteriaText(record["criteria"], record["criterionNames"]),
   );
 
 /** An evidence record (`data-export.schema.json#/$defs/evidenceRecord`), as far as a line reads it. */

@@ -15,8 +15,9 @@
 //   it applies is judged by the view rule and the variants of now, not by the content of the
 //   baseline version (D-033, N-036; assumption of spec question #657). Only its acceptance criteria
 //   are read from it (SR-031): the element's own when the baseline holds its current version, else
-//   from the start of that version in Git (`versionDatesAndValues`, the walk of the version dates,
-//   page only), counted as `evidence.status` counts them (`baselineStatusOf`).
+//   from the newest commit with that version in Git (`versionDatesAndValues`, the walk of the version
+//   dates, page only), counted as `evidence.status` counts them (`baselineStatusOf`): a record names
+//   them by key, or by number in the version it names (D-072, SR-031 AK11).
 // - Validation (AK7): for a need and a requirement with a validation record of the core of any
 //   date (the rule of `hasValidationStatus`, SR-038 as `WorkspaceStatus.validate`, found in the
 //   same pass), without view.
@@ -39,6 +40,8 @@ import { sameVersion, storedForms } from "../model/index.js";
 import { withEvidenceSource } from "./evidence-source.js";
 import { withoutShadowedCore } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
+import type { ElementCriteria } from "./criteria.js";
+import { elementCriteria } from "./criteria.js";
 import type { OwnVerification } from "./status.js";
 import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
@@ -122,7 +125,7 @@ const verificationRows = (
   groups: { readonly counting: Groups; readonly later: Groups },
   independent: boolean,
   records: readonly EvidenceRecord[],
-  count: number | undefined,
+  criteria: ElementCriteria | undefined,
 ): NonNullable<BaselineEvidence["verification"]> =>
   views.flatMap((holder) => {
     if (!holder.includes(element)) {
@@ -131,41 +134,55 @@ const verificationRows = (
     const key = keyOf(holder);
     const after = heldIn(groups.later, key, independent, records);
     const counted = heldIn(groups.counting, key, independent) ?? NONE;
-    const { status, criteria } = baselineStatusOf(counted, version, holder.view, independent, count);
+    const own = baselineStatusOf(counted, version, holder.view, independent, criteria);
     return [
       {
         view: key ?? "core",
-        status,
+        status: own.status,
         // Shared, not copied: the count without a record is one frozen object per count, and a
         // page holds up to hundreds of thousands of rows (N-036); outputs are never changed.
-        ...(criteria === undefined ? {} : { criteria }),
+        ...(own.criteria === undefined ? {} : { criteria: own.criteria }),
         ...(after === undefined ? {} : { later: after.map(withEvidenceSource) }),
       },
     ];
   });
 
 /**
- * The status of a row from its counting records with `count` acceptance criteria at the baseline's
- * version (SR-031 as `evidence.status`, `ownVerificationOf`). `count` undefined: Git does not have
- * that version, so its criteria are unknown (spec question #985, assumption). Then, when no record
- * names a criterion, the rule of the whole requirement; otherwise no count is given, a criterion
- * whose newest record of the version failed gives `failed` (the criteria as far as the records name
- * them), as do `open` and `outdated` (SR-094 AK3); `verified` only when the records that name no
- * criterion verify it, else `open`.
+ * The criteria as far as `records` name them, for a version whose criteria are unknown: one
+ * without key up to the largest number, then one per key (`baselineStatusOf`).
+ */
+const namedOnly = (records: readonly EvidenceRecord[]): ElementCriteria => {
+  const refs = records.flatMap((r) => r.criteria ?? []);
+  const numbers = refs.filter((r): r is number => typeof r === "number");
+  const keys = [...new Set(refs.filter((r): r is string => typeof r === "string"))];
+  return elementCriteria("", [
+    ...new Array<unknown>(Math.max(0, ...numbers)).fill(null),
+    ...keys.map((key) => ({ key, text: "" })),
+  ]);
+};
+
+/**
+ * The status of a row from its counting records with the acceptance `criteria` of the baseline's
+ * version (SR-031 as `evidence.status`, `ownVerificationOf`; a record of that version names them by
+ * key or number, one of another version as `ElementCriteria` resolves it). `criteria` undefined: Git
+ * does not have that version, so its criteria are unknown (spec question #985, assumption). Then,
+ * when no record names a criterion, the rule of the whole requirement; otherwise no count is given, a
+ * criterion whose newest record of the version failed gives `failed` (the criteria as far as the
+ * records name them), as do `open` and `outdated` (SR-094 AK3); `verified` only when the records that
+ * name no criterion verify it, else `open`.
  */
 export const baselineStatusOf = (
   counted: readonly EvidenceRecord[],
   version: VersionForms,
   view: View,
   independent: boolean,
-  count: number | undefined,
+  criteria: ElementCriteria | number | undefined,
 ): OwnVerification => {
-  if (count !== undefined) {
-    return ownVerificationOf(counted, version, view, independent, count);
+  if (criteria !== undefined) {
+    return ownVerificationOf(counted, version, view, independent, criteria);
   }
   // Per criterion as far as the records name them: a criterion whose newest record failed fails it.
-  const named = Math.max(0, ...counted.flatMap((r) => r.criteria ?? []));
-  const whole = verificationStatusOf(counted, version, view, independent, named);
+  const whole = verificationStatusOf(counted, version, view, independent, namedOnly(counted));
   // Outdated only when every record is of another version (SR-094 AK3, #985): a criterion of an
   // older version next to one of this version leaves it open, as the count is unknown.
   if (
@@ -270,7 +287,7 @@ export const baselineEvidence =
           { counting, later },
           source.independent(element),
           records,
-          values === undefined ? undefined : source.criteriaOf({ data: values }),
+          values === undefined ? undefined : source.criteriaOf({ id: element.id, data: values }),
         )
       : undefined;
     return {

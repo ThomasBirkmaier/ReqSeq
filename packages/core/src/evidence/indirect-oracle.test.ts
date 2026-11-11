@@ -6,6 +6,7 @@
 // exclusions through `ruleScope`), the result is the same, in any order of first evaluation. The
 // reference asks the scope where it asked `appliesIn` (SR-043: the view rule). Plus
 // the work the shared views save, counted, never timed (ADR-0011).
+import { plainCriteria } from "./criteria.js";
 import type { CurrentVersion } from "../model/index.js";
 import { generateLargeWorkspace, withEvidenceRecords, writeLargeWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -335,7 +336,7 @@ const generate = (seed: number): Generated => {
     // Variant-independent repositories (SR-173) by seed: none, `other`, `system` or both, so twins
     // in two repositories may differ.
     independent: (e) => (e.repository === "other" ? seed % 2 === 0 : seed % 3 === 0),
-    criteriaOf: () => 0,
+    criteriaOf: () => plainCriteria(0),
   };
   const views: View[] = [
     CORE,
@@ -587,7 +588,7 @@ describe("the work the shared views save (ThomasBirkmaier/ReqSeq-archive#698)", 
       recordsOf: (id) => index.byElement.get(id) ?? [],
       emergent: () => false,
       independent: () => false,
-      criteriaOf: () => 0,
+      criteriaOf: () => plainCriteria(0),
     };
     const rules: ChildRules = { childrenOf: (e) => children.get(e) ?? [], counts: () => true };
     const views: View[] = [CORE, ...variants.map((variant): View => ({ kind: "variant", variant }))];

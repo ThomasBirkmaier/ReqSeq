@@ -18,9 +18,10 @@
 //   verification record (#807 Q2), each at the line of `result` with its own message. A `reason` on a
 //   passed or failed record is a warning at the line of `result`, and the record counts without it
 //   (#807 Q4, as an unknown key).
-// - `criteria` names the acceptance criteria the record holds for, by number (D-072, SR-028 AK4):
-//   whole numbers from 1, each once; the record keeps them in ascending order, and registers the
-//   line of the key for the check of the numbers (`evidence/match.ts`, SR-028 AK5). Absent: every
+// - `criteria` names the acceptance criteria the record holds for, each by criterion key or by number
+//   (D-072, SR-028 AK4): keys in their form and whole numbers from 1, each once; the record keeps
+//   numbers ascending, then keys in code-unit order (`compareCriterionRefs`), and registers the line
+//   of the key for the check of the criteria (`evidence/match.ts`, SR-028 AK5). Absent: every
 //   criterion. On a validation record, which counts per element (SR-030 AK3), it is a warning at the
 //   line of `criteria`, whatever its value, and the record counts without it (plan of #960).
 // - The record is `$defs/evidenceRecord` of `data-export.schema.json`: the frontmatter without
@@ -28,7 +29,7 @@
 import type { Problem } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { EvidenceRecordFile } from "../generated/types.js";
-import { keyLinesOf } from "../model/index.js";
+import { compareCriterionRefs, keyLinesOf } from "../model/index.js";
 import type { SchemaViolation } from "../runtime/contracts.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import type { EvidenceFile } from "./folders.js";
@@ -88,8 +89,21 @@ export const misplacedReason = (violation: SchemaViolation): boolean =>
 export const verificationInconclusive = (violation: SchemaViolation): boolean =>
   violation.keyword === "not" && violation.path === "/result";
 
+/** An item of `criteria` (`/criteria/<index>`). */
+const CRITERIA_ITEM = /^\/criteria\/[0-9]+$/;
+
+/**
+ * Whether `violation` is one branch of the `anyOf` of a `criteria` item (a key or a number): only the
+ * `anyOf` itself is reported, as one sentence (`violationText`).
+ */
+const criterionBranch = (violation: SchemaViolation): boolean =>
+  CRITERIA_ITEM.test(violation.path) && violation.keyword !== "anyOf";
+
 /** What a violation says, with the reasons of SR-038 AK4 and SR-172 where they apply. */
 const violationText = (violation: SchemaViolation): string => {
+  if (violation.keyword === "anyOf" && CRITERIA_ITEM.test(violation.path)) {
+    return `${violation.path}: an acceptance criterion is named by its criterion key (a lower-case letter, then 3 to 15 lower-case letters or digits) or by a whole number from 1`;
+  }
   if (violation.keyword === "false schema" && violation.path === "/variant") {
     return `/variant: ${VALIDATION_VARIANT_REASON}`;
   }
@@ -122,10 +136,11 @@ const isWarning = (violation: SchemaViolation): boolean =>
  * `then` (a verification record without `method` or `item`). On a record that is not inconclusive,
  * `reason` is only a warning (#807 Q4): its own type or pattern does not matter, so only the `false`
  * subschema of `else` is kept for it. On a validation record `criteria` is only a warning, so its
- * own items do not matter either.
+ * own items do not matter either. Of a `criteria` item only the `anyOf` counts (`criterionBranch`).
  */
 const ignoredIn = (data: Readonly<Record<string, unknown>>, violation: SchemaViolation): boolean =>
   violation.keyword === "if" ||
+  criterionBranch(violation) ||
   (violation.path === "/reason" && data["result"] !== "inconclusive" && !misplacedReason(violation)) ||
   (keyOf(violation) === "criteria" && data["kind"] === "validation" && !misplacedCriteria(violation));
 
@@ -144,14 +159,14 @@ const recordOf = (data: EvidenceRecordFile, file: EvidenceFile): EvidenceRecord 
   ...(data["test-case"] === undefined ? {} : { testCase: data["test-case"] }),
   ...(data.criteria === undefined || data.kind !== "verification"
     ? {}
-    : { criteria: [...data.criteria].sort((a, b) => a - b) }),
+    : { criteria: [...data.criteria].sort(compareCriterionRefs) }),
   source: "markdown",
   repository: file.repository,
   file: file.file,
   line: 1,
 });
 
-/** `record` with the line of its `criteria` registered for each number, when it has criteria. */
+/** `record` with the line of its `criteria` registered for each number or key, when it has criteria. */
 const withLines = (record: EvidenceRecord, lineOf: (key: string) => number): EvidenceRecord => {
   const line = lineOf("criteria");
   return record.criteria === undefined

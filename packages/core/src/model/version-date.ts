@@ -72,7 +72,10 @@ export interface VersionStart {
   readonly commit: string;
 }
 
-/** A version start with the values the element had there: its frontmatter at that commit. */
+/**
+ * A version start with the values the element had in the newest commit that has that version: its
+ * frontmatter there, such as the criterion keys of an older version (SR-028 AK5, D-072).
+ */
 interface Started extends VersionStart {
   readonly values: Readonly<Record<string, unknown>>;
 }
@@ -446,6 +449,8 @@ const decide = (
   chunk: number,
 ): { readonly start: Started | null } | { readonly need: readonly string[] } => {
   const need: string[] = [];
+  // The values of the newest commit with the version: every newer one is computed once a start counts.
+  let newest: AtCommit | undefined;
   for (const { commit, parents } of walk.evaluated) {
     if (need.length >= chunk) {
       break;
@@ -458,6 +463,7 @@ const decide = (
     if (at === undefined) {
       continue;
     }
+    newest ??= at;
     const unknown = parents.filter((p): p is HistoryCommit => p !== null && !walk.versions.has(p.commit));
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
@@ -465,7 +471,7 @@ const decide = (
       need.length === 0 &&
       !parents.some((p) => p !== null && withVersion(walk, p.commit, version) !== undefined)
     ) {
-      return { start: { date: commit.date, commit: commit.commit, values: at.values } };
+      return { start: { date: commit.date, commit: commit.commit, values: newest.values } };
     }
   }
   return need.length === 0 ? { start: null } : { need };
@@ -1088,9 +1094,10 @@ export const versionStarts = async (
   );
 
 /**
- * The values of the element at the start of each requested version (`versionStarts`), in the order
- * of `requests`: the frontmatter of the text that commit held, such as the acceptance criteria of
- * an older version (SR-028 AK5); `null` where `versionStarts` gives `null`.
+ * The values of the element in the newest commit that has each requested version, in the order of
+ * `requests`: the frontmatter of the text that commit held, such as the acceptance criteria and
+ * their keys of an older version (SR-028 AK5, D-072: a key added later in the same version counts);
+ * `null` where `versionStarts` gives `null`.
  */
 export const versionValues = async (
   context: VersionDateContext,
@@ -1099,8 +1106,8 @@ export const versionValues = async (
   (await startsWithValues(context, requests)).map((start) => start?.values ?? null);
 
 /**
- * The date and the values of each requested version at its start (`versionStarts`, `versionValues`)
- * from one lookup, in the order of `requests`; `null` where `versionStarts` gives `null`. For
+ * The date of each requested version (`versionStarts`) and its values (`versionValues`) from one
+ * lookup, in the order of `requests`; `null` where `versionStarts` gives `null`. For
  * `baseline.get`, which shows the date and counts the acceptance criteria of a baseline's version
  * (SR-031, SR-094).
  */

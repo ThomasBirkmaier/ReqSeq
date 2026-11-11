@@ -6,6 +6,7 @@
 // columns (SR-126): the test cases of each requirement with the result and date of their last execution,
 // and its verification status, with the degree of the selection above it (`degreeLine`, `testCaseLine`,
 // `statusLine`).
+import { criterionLabel } from "@reqseq/core/criterion-items";
 import { degreePercent, minimumHeadText } from "@reqseq/core/verification-degree";
 import type {
   DataExportRelation,
@@ -193,5 +194,5 @@ export const statusLine = (entry: DataExportVerificationEntry): CellLine => ({
       ? `${String(entry.missingChildren.length)} missing child${entry.missingChildren.length === 1 ? "" : "ren"}`
       : entry.criteria?.notVerified === undefined
         ? ""
-        : `${entry.criteria.notVerified.map((n) => `AK${String(n)}`).join(", ")} not verified`,
+        : `${entry.criteria.notVerified.map(criterionLabel).join(", ")} not verified`,
 });

@@ -137,11 +137,11 @@ export const VERIFIED_GRAPH = graphOutput(
     }),
     graphNode("R11", 1, {
       verification: entry("open"),
-      criteria: { verified: 2, total: 3, notVerified: [3] },
+      criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
     }),
     graphNode("R07", 1, {
       verification: entry("failed"),
-      criteria: { verified: 0, total: 1, notVerified: [1] },
+      criteria: { verified: 0, total: 1, notVerified: [{ criterion: 1 }] },
     }),
     graphNode("I1", 1, { verification: entry("indirect") }),
     graphNode("R12", 1, { verification: entry("verified") }),
