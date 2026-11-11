@@ -27,8 +27,10 @@ const ALPINE = `${P}c1`;
 const COASTAL = `${P}c2`;
 const V = { b1: "n1:8e4ad117d2db675a", b3: "n1:9ef6067b7d2e918b", olderB2: "n1:2222222222222222" };
 
-const opened = async (): Promise<{ readonly fixture: FixtureWorkspace; readonly workspace: Workspace }> => {
-  const fixture = await createFixtureWorkspace({ fixture: "SR-094/baseline" });
+const opened = async (
+  files: Readonly<Record<string, string>> = {},
+): Promise<{ readonly fixture: FixtureWorkspace; readonly workspace: Workspace }> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-094/baseline", files });
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.root);
   onTestFinished(() => workspace.close());
@@ -316,6 +318,25 @@ describe("baseline.get withEvidence", () => {
       baselineText("Coastal 1", [`  view: { id: ${COASTAL}, title: Coastal }`], ["b1", "b3"]),
     );
     expect(rowsOf(await get(workspace, "Coastal 1"))).toEqual({ b1: ["coastal open"], b3: [] });
+  });
+
+  it("[SR-047/AK6] a baseline over its view keeps the rows of a variant with an invalid status, one without a view has none", async () => {
+    // Alpine is obsolete, a status the metamodel marks invalid.
+    const { workspace } = await opened({
+      "variants/VAR-0000000000c1.md": `---\nid: ${ALPINE}\ntype: variant\nstatus: obsolete\ntitle: Alpine\n---\n`,
+    });
+    // Without a view as the requirement's status shows it (SR-094 AK4, SR-047 AK3): no Alpine row.
+    const rows = rowsOf(await get(workspace, "Release 1"));
+    expect([rows["b1"], rows["b2"], rows["b7"]]).toEqual([
+      ["core verified +1", "coastal open"],
+      ["core outdated +1"],
+      ["coastal verified"],
+    ]);
+    // Over Alpine's view: its rows, as before (SR-094 AK5).
+    expect(rowsOf(await get(workspace, "Alpine 1"))).toEqual({
+      b1: ["alpine verified +1"],
+      b4: ["alpine verified"],
+    });
   });
 
   it("[SR-094/AK6] a baseline's status has no indirect verification", async () => {

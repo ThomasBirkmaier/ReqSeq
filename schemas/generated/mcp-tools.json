@@ -1306,7 +1306,7 @@
             },
             "verification": {
               "type": "array",
-              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it.",
+              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid.",
               "items": {
                 "$ref": "#/$defs/data-export/$defs/verificationEntry"
               }
@@ -7561,7 +7561,7 @@
                     },
                     "views": {
                       "type": "array",
-                      "description": "Verification only: the status of the criterion in each view the element applies in (with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                      "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -7989,7 +7989,7 @@
         "properties": {
           "elements": {
             "type": "array",
-            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
             "items": {
               "$ref": "#/$defs/data-export/$defs/element"
             }
@@ -8760,7 +8760,7 @@
                 },
                 "verification": {
                   "type": "array",
-                  "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order; with a variant in the stored selection only that variant's row. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
+                  "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order, none for a variant whose status the metamodel marks invalid now; with a variant in the stored selection only that variant's row, also when its status is invalid. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
                   "items": {
                     "type": "object",
                     "properties": {

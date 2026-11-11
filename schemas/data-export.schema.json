@@ -211,7 +211,7 @@
         },
         "verification": {
           "type": "array",
-          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3).",
+          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6).",
           "items": {
             "$ref": "#/$defs/verificationEntry"
           }

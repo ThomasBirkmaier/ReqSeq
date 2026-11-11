@@ -118,7 +118,7 @@
             },
             "verification": {
               "type": "array",
-              "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved.",
+              "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3), none for a variant whose status the metamodel marks invalid now (SR-047 AK6); with a variant in the stored selection only that variant's row, also when its status is invalid (AK5, SR-047 AK6). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved.",
               "items": {
                 "type": "object",
                 "properties": {

@@ -87,7 +87,8 @@ import {
 /**
  * The verification entries of `element` (`$defs/element` `verification`): the core and each variant
  * it applies in, in that order, with its status there and the children that are missing (SR-034);
- * undefined for an element that is no requirement. `shown`: see `VerificationEvaluator`.
+ * none for a variant with an invalid status (SR-047 AK6); undefined for an element that is no
+ * requirement. `shown`: see `VerificationEvaluator`.
  */
 export const verificationOf = (
   status: Pick<WorkspaceStatus, "source" | "holders" | "evaluate">,
@@ -97,8 +98,8 @@ export const verificationOf = (
   if (!status.source.requirements.has(element.type)) {
     return undefined;
   }
-  return status.holders.flatMap(({ view }) => {
-    const result = status.evaluate(element, view, shown);
+  return status.holders.flatMap(({ view, invalid }) => {
+    const result = invalid ? undefined : status.evaluate(element, view, shown);
     if (result === undefined) {
       return [];
     }
@@ -131,6 +132,12 @@ export const criteriaEntry = ({ verified, total, notVerified }: CriteriaCount): 
 export interface ViewHolder {
   readonly view: View;
   readonly includes: (element: ElementRecord) => boolean;
+  /**
+   * The view is that of a variant whose status the metamodel marks invalid (D-044): it gets no entry
+   * where the status of every view is shown (SR-047 AK6), but stays selectable, and a baseline over
+   * it keeps its rows (SR-094 AK5).
+   */
+  readonly invalid: boolean;
 }
 
 /**
@@ -242,10 +249,6 @@ const statusWith = (
   evaluatorOf: EvaluatorOf,
 ): KeptStatus => {
   const { versions, walked, volatile } = caches;
-  const views: View[] = [
-    { kind: "core" },
-    ...variants.map((variant): View => ({ kind: "variant", variant })),
-  ];
   const hasRecords = (element: ElementRecord): boolean =>
     source.recordsOf(element.id).some((r) => r.kind === "verification");
   /** A requirement with verification records, or a need or requirement with a counted validation record (SR-038 AK5). */
@@ -254,7 +257,17 @@ const statusWith = (
     (validatesType(source, element.type) && hasValidationRecord(source.recordsOf(element.id)));
   // Below an element with an own record in every view it applies in, or one marked emergent (SR-035),
   // its children decide nothing.
-  const holders = views.map((view) => ({ view, includes: scope.includesIn(view) }));
+  const holderOf = (view: View, invalid: boolean): ViewHolder => ({
+    view,
+    includes: scope.includesIn(view),
+    invalid,
+  });
+  const holders = [
+    holderOf({ kind: "core" }, false),
+    ...variants.map((variant) =>
+      holderOf({ kind: "variant", variant }, source.invalid.has(String(variant.data["status"]))),
+    ),
+  ];
   const decidedByChildren = (element: ElementRecord): boolean =>
     !source.emergent(element) &&
     holders.some(({ view, includes }) => includes(element) && !hasOwnRecordIn(source, element, view));

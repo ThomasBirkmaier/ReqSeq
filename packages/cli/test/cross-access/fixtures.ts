@@ -225,6 +225,18 @@ export const VARIANT_EVIDENCE: FixtureOptions = {
   git: true,
 };
 
+/** The example of SR-043 with variant C obsolete, an invalid status, and K3 passed for C (SR-047 AK6). */
+export const VARIANT_INVALID: FixtureOptions = {
+  fixture: "SR-043/example",
+  files: {
+    "reqseq-workspace.yaml": VARIANT_EVIDENCE.files?.["reqseq-workspace.yaml"] ?? "",
+    "variants/VAR-0000000000c3.md":
+      "---\nid: 43043043-0000-4000-8000-0000000000c3\ntype: variant\nstatus: obsolete\ntitle: Desert\n---\n",
+    "evidence/k3-c.md": exampleRecord("a3", "passed", "c3"),
+  },
+  git: true,
+};
+
 /** Requirements with every verification status, an indirect one, obsolete ones and three packages (SR-037). */
 export const DEGREE: FixtureOptions = { fixture: "SR-037/degree", git: true };
 
