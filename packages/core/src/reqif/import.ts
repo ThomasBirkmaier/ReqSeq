@@ -116,6 +116,7 @@ import type {
   ReqifSpecRelation,
   ReqifSpecType,
   ReqifValue,
+  XhtmlElement,
   XhtmlNode,
 } from "./model.js";
 import type { OriginKeys } from "./origin.js";
@@ -702,16 +703,80 @@ const propertyValue = async (
   if (one !== null) {
     return one === undefined || definition.many !== true ? one : [one];
   }
-  const texts = await textsOf(
-    context,
-    draft,
-    value,
-    datatype,
-    definition.markdown === true ? "markdown" : "plain",
-    loss,
-  );
-  return definition.many === true ? texts : texts.join(", ");
+  const target = definition.markdown === true ? "markdown" : "plain";
+  return definition.many === true
+    ? manyTexts(context, draft, value, datatype, target, loss)
+    : (await textsOf(context, draft, value, datatype, target, loss)).join(", ");
 };
+
+/** The items of a value for a text property with `many`: one per item of a list (`listItems`), else `textsOf`. */
+const manyTexts = async (
+  context: Context,
+  draft: Draft,
+  value: ReqifValue,
+  datatype: ReqifDatatype,
+  target: Target,
+  loss: Loss,
+): Promise<string[]> => {
+  const items = value.kind === "xhtml" ? listItems(value.value) : undefined;
+  if (items === undefined) {
+    return textsOf(context, draft, value, datatype, target, loss);
+  }
+  const texts: string[] = [];
+  for (const item of items) {
+    texts.push(await itemText(context, draft, value.definition, item, datatype, target, loss));
+  }
+  return texts;
+};
+
+/** Whether `node` is white space only, which XHTML lets stand between blocks. */
+const blank = (node: XhtmlNode): boolean => typeof node === "string" && node.trim() === "";
+
+/** The one element of `nodes` apart from white space, if there is exactly one. */
+const onlyElement = (nodes: readonly XhtmlNode[]): XhtmlElement | undefined => {
+  const rest = nodes.filter((node) => !blank(node));
+  const [first] = rest;
+  return rest.length === 1 && typeof first !== "string" ? first : undefined;
+};
+
+/**
+ * The items of an XHTML value that is exactly one list (`ul` or `ol`, alone or in one `div`, white
+ * space aside) of `li` elements, as the export writes a text property with `many` (own.ts); else
+ * undefined, and the value is one item. So a list another tool edited reads back as its items, and
+ * an unchanged item keeps its criterion key by its text (SR-204 AK4, AK12).
+ */
+const listItems = (value: readonly XhtmlNode[]): readonly (readonly XhtmlNode[])[] | undefined => {
+  const outer = onlyElement(value);
+  const list = outer?.name === "div" ? onlyElement(outer.children) : outer;
+  if (list === undefined || (list.name !== "ul" && list.name !== "ol")) {
+    return undefined;
+  }
+  const nodes = list.children.filter((node) => !blank(node));
+  const items = nodes.flatMap((node) =>
+    typeof node !== "string" && node.name === "li" ? [node.children] : [],
+  );
+  return items.length === nodes.length ? items : undefined;
+};
+
+/**
+ * The text of one list item (`listItems`): of a file of ReqSeq, an item of text only as written,
+ * since the export writes each item so (own.ts), like a STRING (`textsOf`); else its XHTML as
+ * `textsOf` reads it.
+ */
+const itemText = async (
+  context: Context,
+  draft: Draft,
+  definition: string,
+  item: readonly XhtmlNode[],
+  datatype: ReqifDatatype,
+  target: Target,
+  loss: Loss,
+): Promise<string> =>
+  context.own && item.every((node) => typeof node === "string")
+    ? item.join("")
+    : (
+        await textsOf(context, draft, { kind: "xhtml", definition, value: item }, datatype, target, loss)
+      ).join("");
 
 /**
  * The file of a draft, with its relations or without them (for its planned version); each
