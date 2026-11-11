@@ -640,7 +640,7 @@
             },
             "key": {
               "$ref": "#/$defs/key",
-              "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
+              "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
             },
             "place": {
               "type": "object",
@@ -710,6 +710,7 @@
             "element.too-many-items",
             "element.text-emptied",
             "relation.missing-target",
+            "relation.cross-repository-title",
             "relation.unresolved-link",
             "relation.not-a-link",
             "relation.reference-style",
@@ -3777,10 +3778,11 @@
         "name": "workspace.check",
         "title": "Check workspace",
         "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
-        "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
+        "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
         "stage": 1,
         "implements": [
+          "SR-005",
           "SR-008",
           "SR-015",
           "SR-016",

@@ -79,6 +79,11 @@ export {
   missingTargetProblemsState,
 } from "./missing-targets.js";
 export { unresolvedLinkProblems, unresolvedLinkProblemsState } from "./unresolved-links.js";
+export {
+  crossRepositoryTitleFindings,
+  crossRepositoryTitleProblemsState,
+} from "./cross-repository-titles.js";
+export type { CrossRepositoryTitleContext } from "./cross-repository-titles.js";
 export type { UnresolvedLinkContext } from "./unresolved-links.js";
 export { hasId, relationItems, relationKey } from "./relation-keys.js";
 export type { RelationKey, TargetItem } from "./relation-keys.js";
