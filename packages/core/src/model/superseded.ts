@@ -4,8 +4,10 @@
 // relation of a relation kind of the metamodel whose target is such an element gets one hint
 // `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), except the
 // successor's own relation with the meaning `succession` (`isSuccession`): it records the
-// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170). The
-// hint names the successors: the sources of `succession` relations to the same element.
+// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170), and
+// except a relation whose source has an invalid status itself: nobody reviews that source again
+// (SR-072 AK2, D-044). Such a source still counts as a successor. The hint names the successors:
+// the sources of `succession` relations to the same element.
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
 // superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
 // variants/superseded-validity.ts).
@@ -156,16 +158,18 @@ const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly Elemen
 };
 
 /**
- * The hint of each hit but a successor's own relation (`isSuccession`, SR-072 AK2); it names the
- * target's successors other than the hit's source.
+ * The hint of each hit but a successor's own relation (`isSuccession`) and a relation from a source
+ * with an invalid status (SR-072 AK2, D-044); it names the target's successors other than the hit's
+ * source.
  */
 const findingsOf = (
   context: SupersededContext,
   hits: readonly Hit[],
   successors: ReadonlyMap<string, readonly ElementRecord[]>,
-): LocatableFinding[] =>
-  hits
-    .filter((hit) => !isSuccession(hit))
+): LocatableFinding[] => {
+  const invalid = invalidStatuses(context.metamodel);
+  return hits
+    .filter((hit) => !isSuccession(hit) && !invalid.has(String(hit.source.data["status"])))
     .map(({ source, kind, index, target, status }): LocatableFinding => {
       const others = (successors.get(placeOf(target)) ?? []).filter((s) => placeOf(s) !== placeOf(source));
       const successorText =
@@ -185,6 +189,7 @@ const findingsOf = (
       };
       return { element: source, path: [kind.key, index], problem };
     });
+};
 
 /**
  * The hints `relation.target-superseded` (SR-072 AK2), one per relation to a superseded element,
