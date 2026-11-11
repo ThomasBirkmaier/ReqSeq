@@ -782,6 +782,41 @@ describe("trace.matrix outdated and missing relations", () => {
       ["GONE", "missing", false],
     ]);
   });
+
+  it("shows each twin in two repositories the relations into its own repository only (SR-088, D-058)", async () => {
+    const S1_FILE = "requirements/SR-0b0000000001.md";
+    const S7 = `${P}0b0000000007`;
+    const workspace = await open(MATRIX, async (fixture) => {
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
+          '  - { name: supplier, url: "ssh://example.com/supplier.git", path: supplier }\n' +
+          "metamodel: { repository: system, path: metamodel }\n",
+      );
+      // A twin of S1 in `supplier`, and S7 there, which refines it: in its own repository, not in `system`.
+      await fixture.write(`supplier/${S1_FILE}`, await fs.readFile(fixture.path(S1_FILE), "utf8"));
+      await fixture.write(
+        "supplier/requirements/SR-0b0000000007.md",
+        `---\nid: ${S7}\ntype: system-requirement\nstatus: draft\ntitle: Refine the twin\nrefines:\n  - { id: ${ID.S1} }\n---\n`,
+      );
+    });
+    // The whole store: a UUID that two elements have selects neither by `ids`.
+    const output = await matrix(workspace, { selection: {}, kinds: ["refines", "derives-from"], limit: 100 });
+    const incoming = output.rows
+      .filter((r) => r.id === ID.S1)
+      .map((r) => [
+        r.repository,
+        ...output.columns.flatMap((c, i) =>
+          c.direction === "in" ? [`${c.kind}: ${(r.cells[i] ?? []).map((l) => nameOf(l.id)).join(" ")}`] : [],
+        ),
+      ]);
+    // One twin per repository is no duplicate: each row keeps the relations that point into its repository.
+    expect(incoming).toEqual([
+      ["system", "refines: S3", "derives-from: S4 S5"],
+      ["supplier", `refines: ${S7}`, "derives-from: "],
+    ]);
+  });
 });
 
 describe("trace.matrix selections", () => {

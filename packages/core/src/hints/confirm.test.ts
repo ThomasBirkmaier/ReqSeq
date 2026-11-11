@@ -710,3 +710,48 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     });
   });
 });
+
+describe("hint.confirm of an element whose UUID another file has (SR-088, D-058)", () => {
+  /** A second repository, `supplier`, nested in the fixture; it holds a twin of A under the same file name. */
+  const WITH_SUPPLIER =
+    "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+    '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+    '  - { name: supplier, url: "git@git.example.com:ws/supplier.git", path: supplier }\n' +
+    "metamodel: { repository: system, path: metamodel }\n";
+  const TWIN = `---\nid: ${A}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\nderives-from:\n  - { id: ${N}, version: ${OLD}, repository: system }\n---\n`;
+
+  it("confirms the hint of the twin the ID names by repository and file, not the first record of its UUID", async () => {
+    const ws = await fixture({
+      files: { "reqseq-workspace.yaml": WITH_SUPPLIER, [`supplier/${A_FILE}`]: TWIN },
+    });
+    const workspace = open(ws.root);
+    // A of `system` is the first record of the UUID, so a lookup by UUID alone would read its hints.
+    expect((await workspace.get(elementStoreState)).byId.get(A)?.map((r) => r.repository)).toEqual([
+      "system",
+      "supplier",
+    ]);
+    const id = `relation.outdated/supplier/${encodeURIComponent(A_FILE)}/${A}/derives-from/${N}?version=${OLD}&repository=system`;
+    const hints = await outdated(workspace);
+    expect(hints.map((h) => h.hintId)).toEqual([id]);
+    const current = currentOf(hints, id);
+    const out = await confirm(workspace, [id]);
+    expect(out).toEqual({ confirmed: [id], files: [`supplier/${A_FILE}`], problems: [] });
+    expect(read(ws, `supplier/${A_FILE}`)).toBe(TWIN.replace(OLD, current));
+    expect(read(ws, A_FILE)).toBe(fromFixture(A_FILE));
+  });
+
+  it("confirms the hint of the copy of A that the ID names by file, in a repository with two files of its UUID", async () => {
+    const COPY = "requirements/SR-copy.md";
+    const ws = await fixture({ files: { [COPY]: TWIN } });
+    const workspace = open(ws.root);
+    expect((await workspace.get(elementStoreState)).byId.get(A)?.map((r) => r.file)).toEqual([A_FILE, COPY]);
+    const id = `relation.outdated/system/${encodeURIComponent(COPY)}/${A}/derives-from/${N}?version=${OLD}&repository=system`;
+    const hints = await outdated(workspace);
+    expect(hints.map((h) => h.hintId)).toContain(id);
+    const current = currentOf(hints, id);
+    const out = await confirm(workspace, [id]);
+    expect(out).toEqual({ confirmed: [id], files: [COPY], problems: [] });
+    expect(read(ws, COPY)).toBe(TWIN.replace(OLD, current));
+    expect(read(ws, A_FILE)).toBe(fromFixture(A_FILE));
+  });
+});
