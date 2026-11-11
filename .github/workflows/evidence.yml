@@ -275,14 +275,15 @@ jobs:
               --view "${entry#*:}" --json > "$RUNNER_TEMP/degree-after-$i.json" 2>/dev/null || true
           done >> "$RUNNER_TEMP/summary.md"
           # A view whose degree cannot be read on either side is left out: no comparison, no alarm.
+          # An incomplete degree (a repository not read) is no comparison either. A view left out is named as a warning.
           degrees="$(node -e '
             const fs = require("node:fs");
-            const share = (file) => { try { const s = JSON.parse(fs.readFileSync(file, "utf8")).degree?.share; return typeof s === "number" ? s : null; } catch { return null; } };
+            const share = (file) => { try { const r = JSON.parse(fs.readFileSync(file, "utf8")); const s = r.degree?.share; return typeof s === "number" && !r.incomplete ? s : null; } catch { return null; } };
             const [dir, ...names] = process.argv.slice(1);
-            const out = names.map((name, i) => ({ name, before: share(`${dir}/degree-before-${i}.json`), after: share(`${dir}/degree-after-${i}.json`) }))
-              .filter((v) => v.before !== null && v.after !== null);
-            console.log(JSON.stringify(out));
-          ' "$RUNNER_TEMP" "${views[@]%%:*}")"
+            const all = names.map((name, i) => ({ name, before: share(`${dir}/degree-before-${i}.json`), after: share(`${dir}/degree-after-${i}.json`) }));
+            for (const v of all) if (v.before === null || v.after === null) console.error(`::warning::No degree comparison for the view ${v.name}.`);
+            console.log(JSON.stringify(all.filter((v) => v.before !== null && v.after !== null)));
+          ' "$RUNNER_TEMP" "${views[@]%%:*}")" || degrees=""
           echo "degrees=$degrees" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
           cp "$RUNNER_TEMP/summary.md" "$RUNNER_TEMP/out/"
@@ -308,6 +309,10 @@ jobs:
     needs: enrich
     # A manual start runs the workflow file of the branch it names; only main's reports.
     if: ${{ !cancelled() && needs.enrich.outputs.degrees != '' && github.ref == 'refs/heads/main' }}
+    # One report at a time across the sources, whose evidence runs overlap: no two issues for one view.
+    concurrency:
+      group: evidence-report
+      cancel-in-progress: false
     permissions:
       issues: write
     runs-on: ubuntu-24.04
@@ -318,21 +323,27 @@ jobs:
           DEGREES: ${{ needs.enrich.outputs.degrees }}
           SHA: ${{ needs.enrich.outputs.sha }}
           RUN: ${{ needs.enrich.outputs.run }}
+          KIND: ${{ needs.enrich.outputs.kind }}
           WORKFLOW: ${{ needs.enrich.outputs.workflow }}
         with:
           retries: 3
           script: |
             const { owner, repo } = context.repo;
-            const { DEGREES, SHA, RUN, WORKFLOW } = process.env;
+            const { DEGREES, SHA, RUN, KIND, WORKFLOW } = process.env;
             const views = JSON.parse(DEGREES);
-            const percent = (share) => `${(share * 100).toFixed(1)} %`;
+            const percent = (share) => `${(share * 100).toFixed(2)} %`;
             const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${RUN}`;
             const evidenceUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
             const source = `${WORKFLOW} run [${RUN}](${runUrl}) on ${SHA}`;
             const footer = "\n\n---\n_Written by the evidence workflow_";
-            // The share before the first drop, kept in the issue so that a later run knows when the view recovered.
-            const marker = (share) => `<!-- degree-before: ${share} -->`;
-            const recorded = (body) => Number(/<!-- degree-before: ([0-9.eE+-]+) -->/.exec(body ?? "")?.[1] ?? Number.NaN);
+            // The share before the first drop and the kind of the run that dropped it, kept in the issue so that a later
+            // run knows when the view recovered. A run of another kind compares with main's evidence, which may not hold
+            // the drop yet; it closes the issue only when its own evidence raised the view.
+            const marker = (share) => `<!-- degree-before: ${share} kind: ${KIND} -->`;
+            const recorded = (body) => {
+              const m = /<!-- degree-before: ([0-9.eE+-]+) kind: ([a-z]+) -->/.exec(body ?? "");
+              return m ? { share: Number(m[1]), kind: m[2] } : null;
+            };
             // The list holds pull requests too; only issues count.
             const issues = (await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "open", per_page: 100 }))
               .filter((i) => !i.pull_request);
@@ -347,13 +358,14 @@ jobs:
                 if (open.length > 0) {
                   await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
                 } else {
-                  await github.rest.issues.create({ owner, repo, title, labels: ["bug", "dev", "P2"], body: `${text}\n\nThis issue closes when an evidence run brings the view back to ${percent(before)}.${footer}\n${marker(before)}` });
+                  await github.rest.issues.create({ owner, repo, title, labels: ["bug", "dev", "P2"], body: `${text}\n\nThis issue closes when an evidence run brings the view back to ${percent(before)}. If a change of the spec explains the lower share, a person closes it.${footer}\n${marker(before)}` });
                 }
                 continue;
               }
               for (const issue of open) {
+                // An issue without the marker (opened or edited by a person) is closed by a person.
                 const target = recorded(issue.body);
-                if (Number.isNaN(target) || after >= target) {
+                if (target !== null && after >= target.share && (target.kind === KIND || after > before)) {
                   await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Back at ${percent(after)} with the evidence of ${source}.${footer}` });
                   await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
                 }
