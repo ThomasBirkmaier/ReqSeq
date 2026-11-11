@@ -62,6 +62,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       publish: ${{ steps.files.outputs.publish }}
+      degrees: ${{ steps.files.outputs.degrees }}
       sha: ${{ steps.run.outputs.sha }}
       run: ${{ steps.run.outputs.id }}
       kind: ${{ steps.run.outputs.kind }}
@@ -185,6 +186,15 @@ jobs:
           new="$RUNNER_TEMP/out/ci"
           rm -rf "$out" && mkdir -p "$out" "$new"
           git checkout origin/main -- "$out" 2>/dev/null || true
+          # The views, as name and view: the core and each variant (VAR-001 Windows, VAR-002 Linux, VAR-003 macOS).
+          views=("core:core" "VAR-001 Windows:cd696c2d-2472-4299-8faa-2688cd15c366"
+            "VAR-002 Linux:9a7c2fca-3edf-43ab-8b68-7771b9666d08" "VAR-003 macOS:eb05fd98-7ec2-4f49-9374-2397642c0d8b")
+          # The degree of each view with main's evidence, against the same spec as the degree after this run, so
+          # that only a change of the evidence moves it (#1305).
+          for i in "${!views[@]}"; do
+            node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement \
+              --view "${views[$i]#*:}" --json > "$RUNNER_TEMP/degree-before-$i.json" 2>/dev/null || true
+          done
           status=0
           {
             echo "$WORKFLOW run $RUN on \`$SHA\` ($CONCLUSION), started $DATE."
@@ -253,15 +263,27 @@ jobs:
           for file in "$new"/*-1.xml; do [ -e "$file" ] && rm -f "$out/$(basename "${file%-1.xml}").xml"; done
           # The records as ReqSeq reads them: the workspace check reads every evidence file (codes evidence.*).
           node packages/cli/dist/bin.js workspace check --workspace spec > "$RUNNER_TEMP/check.txt" || status=1
-          # One degree per view: the core and each variant (VAR-001 Windows, VAR-002 Linux, VAR-003 macOS).
-          for entry in "core:core" "VAR-001 Windows:cd696c2d-2472-4299-8faa-2688cd15c366" \
-            "VAR-002 Linux:9a7c2fca-3edf-43ab-8b68-7771b9666d08" "VAR-003 macOS:eb05fd98-7ec2-4f49-9374-2397642c0d8b"; do
+          # One degree per view, and its share before and after this run for the job `report` (#1305).
+          for i in "${!views[@]}"; do
+            entry="${views[$i]}"
             echo
             echo "Verification degree of the system requirements (${entry%%:*}):"
             echo '```'
             node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement --view "${entry#*:}" 2>&1 || true
             echo '```'
+            node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement \
+              --view "${entry#*:}" --json > "$RUNNER_TEMP/degree-after-$i.json" 2>/dev/null || true
           done >> "$RUNNER_TEMP/summary.md"
+          # A view whose degree cannot be read on either side is left out: no comparison, no alarm.
+          degrees="$(node -e '
+            const fs = require("node:fs");
+            const share = (file) => { try { const s = JSON.parse(fs.readFileSync(file, "utf8")).degree?.share; return typeof s === "number" ? s : null; } catch { return null; } };
+            const [dir, ...names] = process.argv.slice(1);
+            const out = names.map((name, i) => ({ name, before: share(`${dir}/degree-before-${i}.json`), after: share(`${dir}/degree-after-${i}.json`) }))
+              .filter((v) => v.before !== null && v.after !== null);
+            console.log(JSON.stringify(out));
+          ' "$RUNNER_TEMP" "${views[@]%%:*}")"
+          echo "degrees=$degrees" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
           cp "$RUNNER_TEMP/summary.md" "$RUNNER_TEMP/out/"
           if compgen -G "$new/*.xml" > /dev/null; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
@@ -276,6 +298,68 @@ jobs:
           name: evidence-${{ steps.run.outputs.id }}
           path: ${{ runner.temp }}/out/
           retention-days: 7
+
+  # A view that loses verification must not go unnoticed (#1305): the variant views stood at 0 % for weeks because no
+  # run passed a variant to `enrich-junit`. One issue per view, found by its title as in nightly-check.yml: a drop of
+  # its degree against main's evidence opens it (or comments on the open one), a degree back at the share before the
+  # drop closes it. Runs no code of the repository.
+  report:
+    name: report a drop of the degree
+    needs: enrich
+    # A manual start runs the workflow file of the branch it names; only main's reports.
+    if: ${{ !cancelled() && needs.enrich.outputs.degrees != '' && github.ref == 'refs/heads/main' }}
+    permissions:
+      issues: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DEGREES: ${{ needs.enrich.outputs.degrees }}
+          SHA: ${{ needs.enrich.outputs.sha }}
+          RUN: ${{ needs.enrich.outputs.run }}
+          WORKFLOW: ${{ needs.enrich.outputs.workflow }}
+        with:
+          retries: 3
+          script: |
+            const { owner, repo } = context.repo;
+            const { DEGREES, SHA, RUN, WORKFLOW } = process.env;
+            const views = JSON.parse(DEGREES);
+            const percent = (share) => `${(share * 100).toFixed(1)} %`;
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${RUN}`;
+            const evidenceUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const source = `${WORKFLOW} run [${RUN}](${runUrl}) on ${SHA}`;
+            const footer = "\n\n---\n_Written by the evidence workflow_";
+            // The share before the first drop, kept in the issue so that a later run knows when the view recovered.
+            const marker = (share) => `<!-- degree-before: ${share} -->`;
+            const recorded = (body) => Number(/<!-- degree-before: ([0-9.eE+-]+) -->/.exec(body ?? "")?.[1] ?? Number.NaN);
+            // The list holds pull requests too; only issues count.
+            const issues = (await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "open", per_page: 100 }))
+              .filter((i) => !i.pull_request);
+            const lines = [];
+            for (const { name, before, after } of views) {
+              const title = `Verification degree dropped: ${name}`;
+              const open = issues.filter((i) => i.title === title);
+              lines.push(`| ${name} | ${percent(before)} | ${percent(after)} |`);
+              if (after < before) {
+                const zero = after === 0 ? " It fell to 0 %, so no test result counts for this view any more." : "";
+                const text = `The verification degree of the system requirements in the view ${name} fell from ${percent(before)} to ${percent(after)} with the evidence of ${source}, against the same spec.${zero} The degree tables of [the evidence run](${evidenceUrl}) and of the evidence pull request show each view; \`reqseq evidence status --workspace spec --view <view>\` before and after names the requirements that lost their evidence.`;
+                if (open.length > 0) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
+                } else {
+                  await github.rest.issues.create({ owner, repo, title, labels: ["bug", "dev", "P2"], body: `${text}\n\nThis issue closes when an evidence run brings the view back to ${percent(before)}.${footer}\n${marker(before)}` });
+                }
+                continue;
+              }
+              for (const issue of open) {
+                const target = recorded(issue.body);
+                if (Number.isNaN(target) || after >= target) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Back at ${percent(after)} with the evidence of ${source}.${footer}` });
+                  await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+                }
+              }
+            }
+            await core.summary.addRaw(["| View | Before | After |", "|---|---|---|", ...lines].join("\n")).write();
 
   publish:
     name: publish
