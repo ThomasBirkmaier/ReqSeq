@@ -1,7 +1,7 @@
 ---
 id: 1d177393-9693-45b9-bba4-9dd0ec74b8f0
 type: system-requirement
-status: draft
+status: approved
 title: Beim ReqIF-Export nur eine ReqIF-Datei ersetzen
 spec-id: SR-207
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-11: Die Angriffsflächen ohne Requirement aus der Liste zu #1429 werden als Draft aufgenommen, mit den empfohlenen Antworten auf die offenen Fragen. Der Export gilt über alle Zugänge, wie die Regel für Dateien der Daten je Stand (SR-062). Entscheidung des Produktverantwortlichen, 2026-11-11: Die offenen Punkte nach dem Review werden wie empfohlen geklärt: was eine ReqIF-Datei ist, welches Lesen gilt und dass die Regel auch für den Ordner der Bilder gilt."
