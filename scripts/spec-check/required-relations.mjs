@@ -1,8 +1,7 @@
 // CI fails when an element of the spec that is not a draft lacks a relation the metamodel requires (#1306):
 // `workspace check` reports it as the warning `relation.too-few` (SR-152 AK2), and CI stays green on warnings.
 // A draft is an idea, so its finding stays a warning; an element with an invalid status gets no such finding
-// (SR-152 AK5), so a superseded source stays open as the product owner decided on 2026-11-09 (`spec-change`).
-// Every other source fails, with no allow-list of single elements (ADR-0016).
+// (SR-152 AK5). Every other source fails, with no allow-list of single elements (ADR-0016).
 //
 // `pnpm spec:check` runs it after `workspace check`, through the built command line, as CI does.
 import { execFileSync } from "node:child_process";
@@ -40,7 +39,7 @@ function reqseqJson(cli, root, args) {
     );
   } catch (error) {
     // `workspace check` exits with 1 when it found errors, with its JSON on stdout all the same.
-    if (typeof error?.stdout === "string" && error.stdout.trim() !== "") {
+    if (error?.status === 1 && typeof error.stdout === "string" && error.stdout.trim() !== "") {
       return JSON.parse(error.stdout);
     }
     throw error;
