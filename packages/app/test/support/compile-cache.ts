@@ -10,7 +10,9 @@
 //
 // The folder reaches the workers as REQSEQ_TEST_COMPILE_CACHE, not as NODE_COMPILE_CACHE: the workers pass
 // their environment to the app, which runs as it ships, without a compile cache (ADR-0008). `app.ts` gives it
-// to the spawned CLIs. A REQSEQ_TEST_COMPILE_CACHE of the outer environment is used, warmed too and not removed.
+// to the spawned CLIs. A REQSEQ_TEST_COMPILE_CACHE of the outer environment is used (an empty one counts as unset),
+// warmed too and not removed; a NODE_COMPILE_CACHE of the outer environment is not used for the CLIs. `reqseq mcp`
+// loads its server lazily, so the first MCP start of a run still compiles that part; no flake is known there.
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -56,7 +58,11 @@ export default async function setup(): Promise<() => Promise<void>> {
   }
   return async () => {
     if (own) {
-      delete process.env["REQSEQ_TEST_COMPILE_CACHE"];
+      if (outer === undefined) {
+        Reflect.deleteProperty(process.env, TEST_COMPILE_CACHE);
+      } else {
+        process.env[TEST_COMPILE_CACHE] = outer;
+      }
       await rm(folder, { recursive: true, force: true, maxRetries: 3 });
     }
   };

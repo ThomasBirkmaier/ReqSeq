@@ -48,9 +48,10 @@ const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
  * it: it runs as it ships, without a compile cache (ADR-0008). Without the global setup (a test file run on its
  * own config), a folder of this test process is used and removed when it exits.
  */
+const SET_CACHE = process.env[TEST_COMPILE_CACHE] ?? "";
 const COMPILE_CACHE =
-  process.env[TEST_COMPILE_CACHE] ?? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-"));
-if (process.env[TEST_COMPILE_CACHE] === undefined) {
+  SET_CACHE === "" ? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-")) : SET_CACHE;
+if (SET_CACHE === "") {
   process.once("exit", () => {
     rmSync(COMPILE_CACHE, { recursive: true, force: true });
   });

@@ -5,7 +5,7 @@
 // every file compiled ReqSeq from scratch and wrote the cache (about 2 MB of new files). On the Windows
 // runner this start stalled now and then for 20 s or more inside the first test of a file: in
 // hint-confirm (#1290) and in baseline-get (#1448) the other tests of the file kept their normal time.
-// The app tests share one compile cache per test process for the same reason (#1356).
+// The app tests fill one compile cache before their first test for the same reason (#1356).
 //
 // The folder holds only compiled code, so sharing it keeps the tests apart; the model cache (SR-082) and
 // the other files of the OS cache folder stay in each file's own home. The variable reaches the test
