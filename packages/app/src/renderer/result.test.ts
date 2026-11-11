@@ -67,6 +67,12 @@ describe("result lines", () => {
       { ...hint, elementShortId: undefined, repository: "meta", elementRepository: "spec" },
     ]);
     expect(line?.open).toEqual(elementBuffer("uuid-2", "spec", "uuid-2"));
+    // With an identifier, the short ID and the identifier name it before it is read (SR-084 AK4).
+    const [named] = resultLines([{ ...hint, elementIdentifier: "SR-2" }]);
+    expect(named?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 (SR-2)"));
+    expect(named?.text).toBe("warning  relation.outdated  SR-000002 (SR-2)  The target changed");
+    const [identified] = resultLines([{ ...hint, elementShortId: undefined, elementIdentifier: "SR-2" }]);
+    expect(identified?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-2"));
   });
 
   it("[SR-037/AK1] shows the share of a verification degree as a percentage, rounded down as on every access", () => {

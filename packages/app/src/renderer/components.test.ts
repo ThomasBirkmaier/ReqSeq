@@ -1561,7 +1561,7 @@ describe("ListView, a list", () => {
         offset: 0,
       });
       expect(headings()).toEqual([
-        "R1 Wind 2",
+        "PKG-000001 (R1) Wind 2",
         "PKG-000002 Sun 1",
         "(no value) 1 · 1 with targets not available",
       ]);

@@ -40,7 +40,7 @@ interface Stored {
 
 const stored = (n: number, type: string, title: string, identifier: string, text = ""): Stored => ({
   id: `uuid-${String(n)}`,
-  shortId: identifier,
+  shortId: `${identifier.split("-")[0] ?? ""}-00000${String(n)}`,
   identifier,
   type,
   status: "draft",
@@ -470,10 +470,10 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     const { outside } = await start();
     await listAll();
     await openRow(0);
-    expect(query('article[aria-label="N-001 (N-001) See the wind"]')).toBeDefined();
+    expect(query('article[aria-label="N-000001 (N-001) See the wind"]')).toBeDefined();
     await outside("uuid-1", { title: "Feel the wind" });
-    expect(container.querySelector('article[aria-label="N-001 (N-001) See the wind"]')).toBeNull();
-    expect(query('article[aria-label="N-001 (N-001) Feel the wind"]')).toBeDefined();
+    expect(container.querySelector('article[aria-label="N-000001 (N-001) See the wind"]')).toBeNull();
+    expect(query('article[aria-label="N-000001 (N-001) Feel the wind"]')).toBeDefined();
   });
 
   it("highlights the title when the bytes changed but no field shows it, and nothing when the bytes are the same", async () => {
@@ -501,7 +501,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
       editorView().dispatch({ changes: { from: 0, insert: "Saved: " } });
     });
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
-    expect(query('[aria-label="Minibuffer"]').textContent).toBe("Saved N-001 (N-001) See the wind");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe("Saved N-000001 (N-001) See the wind");
     await send({ reason: "written" });
     // Even when the watcher names it within the time of a highlight, the bytes are those of the save.
     await send({
@@ -510,7 +510,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
       elements: { added: [], changed: ["uuid-1"], removed: [] },
     });
     expect(marked()).toEqual([]);
-    expect(query('[aria-label="Minibuffer"]').textContent).toBe("Saved N-001 (N-001) See the wind");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe("Saved N-000001 (N-001) See the wind");
   });
 
   it("does not highlight a field with input; its input stays", async () => {
@@ -697,7 +697,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
     expect(query('[aria-label="Modeline"]').textContent).toContain("deleted on disk");
     expect(query('[aria-label="Minibuffer"]').textContent).toBe(
-      "N-001 (N-001) See the wind was deleted on disk; its content stays here until you close the buffer",
+      "N-000001 (N-001) See the wind was deleted on disk; its content stays here until you close the buffer",
     );
     // The file is there again: the buffer is editable, and its input on other bytes asks which holds.
     deleted.delete("uuid-1");
@@ -736,7 +736,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
     expect(query('[aria-label="Modeline"]').textContent).toContain("deleted on disk");
     expect(query('[aria-label="Minibuffer"]').textContent).toBe(
-      "N-001 (N-001) See the wind was deleted on disk; its content stays here until you close the buffer",
+      "N-000001 (N-001) See the wind was deleted on disk; its content stays here until you close the buffer",
     );
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
     expect(calls("element.update")).toEqual([]);
@@ -754,7 +754,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query('[data-on-disk="Text"]').textContent).toBe("On diskThe wind blows hard.");
     expect(query('[aria-label="Modeline"]').textContent).toContain("changed on disk");
     expect(query('[aria-label="Minibuffer"]').textContent).toBe(
-      'N-001 (N-001) See the wind changed on disk. Resolve with "Resolve change on disk"',
+      'N-000001 (N-001) See the wind changed on disk. Resolve with "Resolve change on disk"',
     );
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
     expect(query('[aria-label="Minibuffer"]').textContent).toBe("Resolve the change on disk first");

@@ -23,3 +23,14 @@ export const shownIdTitle = (shortId: string, identifier: string | undefined, ti
   const id = shownId(shortId, identifier);
   return identifier !== undefined && title?.trim() === identifier.trim() ? id : idTitle(id, title);
 };
+
+/** What a reference is named by: as `shownIdTitle`; without a short ID its identifier, else its UUID. */
+export const refIdTitle = (ref: {
+  readonly id: string;
+  readonly shortId?: string | undefined;
+  readonly identifier?: string | undefined;
+  readonly title?: string | undefined;
+}): string =>
+  ref.shortId === undefined
+    ? idTitle(ref.identifier ?? ref.id, ref.title)
+    : shownIdTitle(ref.shortId, ref.identifier, ref.title);

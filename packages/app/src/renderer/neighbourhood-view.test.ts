@@ -307,7 +307,7 @@ describe("NeighbourhoodView", () => {
     expect(texts('[role="listbox"] .outdated')).toEqual([" link outdated"]);
     // The hover text says which end points to an older version of which (#513).
     expect(query('[role="tree"] .outdated').getAttribute("title")).toBe(
-      "S1 points to an older version of N1 (derives-from)",
+      "X-S1 (S1) points to an older version of X-N1 (N1) (derives-from)",
     );
   });
 
@@ -319,7 +319,7 @@ describe("NeighbourhoodView", () => {
     const line = query(".parents");
     expect(line.textContent).toBe("Title N1 › Title S1 link outdated");
     expect(line.querySelector(".outdated")?.getAttribute("title")).toBe(
-      "C1 points to an older version of S1 (derives-from)",
+      "X-C1 (C1) points to an older version of X-S1 (S1) (derives-from)",
     );
     expect(line.compareDocumentPosition(query("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -667,7 +667,7 @@ describe("the parents line on the element page", () => {
     expect(line.textContent).toBe("Title N1 › Title S1 link outdated");
     expect(line.compareDocumentPosition(query("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(texts('.parents [role="link"]')).toEqual(["Title N1", "Title S1"]);
-    expect(query('.parents [role="link"]').getAttribute("title")).toBe("N1");
+    expect(query('.parents [role="link"]').getAttribute("title")).toBe("X-N1 (N1)");
     await click(query('.parents [role="link"]'));
     expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { key: "element:spec:uuid-N1" } });
     await press(

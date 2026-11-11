@@ -273,7 +273,7 @@ const wholeChain = async (window: Page, nodes: number): Promise<void> => {
 const cutLines = (window: Page): Promise<string[]> =>
   window.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>(".graph-node")].flatMap((node) =>
-      [...node.querySelectorAll<HTMLElement>(".graph-id, .graph-marks")]
+      [...node.querySelectorAll<HTMLElement>(".graph-id > span, .graph-marks")]
         .filter((line) => line.scrollWidth > line.clientWidth)
         .map((line) => line.textContent),
     ),
@@ -424,25 +424,9 @@ test.describe("the graph of an element on a fixture workspace", () => {
         fits: node.scrollHeight <= node.clientHeight,
       })),
     );
-    // No mark is cut, and no ID: the fixture's short
-    // IDs (14 characters) with "Component Requirement" are wider than any of spec/ (the next test), and
-    // there only the end of the type gives way.
-    expect((await cutLines(window)).filter((line) => !line.includes(" · "))).toEqual([]);
-    const cutIds = await window.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".graph-id")].flatMap((line) => {
-        const text = line.firstChild;
-        const id = line.textContent.split(" · ")[0] ?? "";
-        if (text === null) {
-          return [id];
-        }
-        const range = document.createRange();
-        range.setStart(text, 0);
-        range.setEnd(text, id.length);
-        const right = range.getBoundingClientRect().right;
-        return right <= line.getBoundingClientRect().right - 8 ? [] : [id];
-      }),
-    );
-    expect(cutIds).toEqual([]);
+    // No mark is cut, and neither the ID nor the type: the fixture's short IDs (14 characters) with
+    // "Component Requirement" fit the box; an ID that does not gives way before the type (short-id.spec.ts).
+    expect(await cutLines(window)).toEqual([]);
     expect(shown).toEqual(
       output.nodes.map((node) => ({
         key: key(node.repository, node.id),

@@ -193,6 +193,7 @@ describe("relationLabel", () => {
     expect(relationLabel(relation({ shortId: "N-000001", title: "Need" }))).toBe("N-000001 Need");
     expect(relationLabel(relation({ shortId: "N-000001" }))).toBe("N-000001");
     expect(relationLabel(relation({ id: "uuid-9" }))).toBe("uuid-9");
+    expect(relationLabel(relation({ id: "uuid-9", identifier: "N-9", title: "Gone" }))).toBe("N-9 Gone");
     expect(relationLabel(relation({ identifier: "Später", shortId: "PKG-1", title: "Später" }))).toBe(
       "PKG-1 (Später)",
     );

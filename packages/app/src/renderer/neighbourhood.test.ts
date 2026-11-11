@@ -143,7 +143,7 @@ describe("parentLevels", () => {
       ["Title N1", "Title N2"],
       ["Title S1", "Title S2"],
     ]);
-    expect(levels[0]?.map((parent) => parent.label)).toEqual(["N1", "N2"]);
+    expect(levels[0]?.map((parent) => parent.label)).toEqual(["X-N1 (N1)", "X-N2 (N2)"]);
     expect(levels[0]?.[0]?.open).toEqual(elementBuffer("uuid-N1", "spec", "X-N1 (N1) Title N1"));
     expect(more).toBe(false);
   });
@@ -171,7 +171,7 @@ describe("parentLevels", () => {
     // The hover text names the direction: the element's link points to an older version of the parent (#513).
     expect(levels.map((level) => level.map((parent) => parent.outdated))).toEqual([
       [undefined],
-      ["C1 points to an older version of S1 (derives-from)"],
+      ["X-C1 (C1) points to an older version of X-S1 (S1) (derives-from)"],
     ]);
   });
 
@@ -188,7 +188,7 @@ describe("parentLevels", () => {
     );
     expect(levels.map((level) => level.map((parent) => parent.outdated))).toEqual([
       [
-        "C1 points to an older version of S1 (refines); C1 points to an older version of S1 (derives-from)",
+        "X-C1 (C1) points to an older version of X-S1 (S1) (refines); X-C1 (C1) points to an older version of X-S1 (S1) (derives-from)",
         undefined,
       ],
     ]);
@@ -229,7 +229,7 @@ describe("treeRows", () => {
       [edge("S1", "N1", { outdated: true })],
     );
     expect(treeRows(output, []).rows.map((row) => row.outdated)).toEqual([
-      "S1 points to an older version of N1 (derives-from)",
+      "X-S1 (S1) points to an older version of X-N1 (N1) (derives-from)",
     ]);
     expect(treeRows(children(), []).rows.map((row) => row.outdated)).toEqual([undefined, undefined]);
   });
@@ -328,7 +328,7 @@ describe("incomingGroups", () => {
     );
     const { groups } = incomingGroups(output);
     expect(groups.map((group) => group.entries.map((entry) => entry.outdated))).toEqual([
-      ["E points to an older version of D2 (inline reference)"],
+      ["X-E (E) points to an older version of X-D2 (D2) (inline reference)"],
       [undefined],
     ]);
   });

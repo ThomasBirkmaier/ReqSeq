@@ -1598,11 +1598,24 @@ mark {
   white-space: nowrap;
 }
 
+/* The ID and the type: the ID gives way with an ellipsis, so an identifier too long for the box never cuts
+   the type (SR-111 AK4); the whole ID is in the box's hover text. */
 .graph-id {
-  display: block;
+  gap: 0;
   margin-bottom: 2px;
-  text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
+}
+
+.graph-id-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `pre` keeps the space before the dot, which a flex item would drop. */
+.graph-id-type {
+  flex: none;
+  white-space: pre;
 }
 
 .graph-marks {

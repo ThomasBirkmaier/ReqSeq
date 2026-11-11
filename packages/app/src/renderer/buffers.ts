@@ -8,7 +8,7 @@ import type {
   FilterSortKeyWithDefaults,
   TraceGraphInput,
 } from "@reqseq/core";
-import { shownIdTitle } from "./id-title.js";
+import { refIdTitle, shownIdTitle } from "./id-title.js";
 import { hasSavedFilter } from "./list-filters.js";
 import type { ListQuery, QueryChange } from "./list-query.js";
 import { changeQuery, fitsView, queryIn } from "./list-query.js";
@@ -63,7 +63,7 @@ export interface ElementBuffer {
   readonly key: string;
   readonly id: string;
   readonly repository: string;
-  /** "<identifier or short ID> <title>". */
+  /** "<short ID> (<identifier>) <title>" (SR-084 AK4). */
   readonly name: string;
   /**
    * The element is shown read-only (`readOnlyBuffer`), as a comparison shows it (SR-044 AK2): a buffer of
@@ -95,7 +95,7 @@ export interface NeighbourhoodBuffer {
   readonly key: string;
   readonly id: string;
   readonly repository: string;
-  /** "<identifier or short ID> <title>" of the element. */
+  /** "<short ID> (<identifier>) <title>" (SR-084 AK4) of the element. */
   readonly name: string;
   /** The rows of the tree whose children are shown, as `<repository>:<id>`. */
   readonly open: readonly string[];
@@ -140,7 +140,7 @@ export interface GraphBuffer {
   readonly key: string;
   readonly id: string;
   readonly repository: string;
-  /** "<identifier or short ID> <title>" of the element. */
+  /** "<short ID> (<identifier>) <title>" (SR-084 AK4) of the element. */
   readonly name: string;
   readonly depth: GraphDepth;
   readonly kinds?: TraceGraphInput["kinds"];
@@ -498,11 +498,7 @@ export const relationBuffer = (
 ): ElementBuffer | undefined =>
   relation.repository === undefined
     ? undefined
-    : elementBuffer(
-        relation.id,
-        relation.repository,
-        shownIdTitle(relation.shortId ?? relation.id, relation.identifier, relation.title),
-      );
+    : elementBuffer(relation.id, relation.repository, refIdTitle(relation));
 
 /**
  * The order the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418): by type in the order of the metamodel, then by the

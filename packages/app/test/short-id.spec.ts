@@ -76,3 +76,49 @@ test("[SR-084/AK4] the modeline, the buffer name, the relations and the graph sh
     await running.close();
   }
 });
+
+test("[SR-084/AK4] an identifier too long for a graph box gives way with an ellipsis before the type, which stays whole (SR-111 AK4)", async () => {
+  const LONG = "REQ-SYS-0123-WIND-SPEED-DISPLAY";
+  const FILE = "system-requirement/SR-3d09c015e3b8.md";
+  const source = await fs.readFile(path.join(SPEC, FILE), "utf8");
+  expect(source).toContain('spec-id: "SR-084"');
+  const running = await launchApp(
+    { folder: SPEC, files: { [FILE]: source.replace('spec-id: "SR-084"', `spec-id: "${LONG}"`) } },
+    { colorScheme: "light" },
+  );
+  const { window } = running;
+  try {
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    await expect(window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
+    const { element } = JSON.parse((await running.cli(["element", "get", LONG])).stdout) as Got;
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type(LONG);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(LONG);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText(element.title);
+    await window.locator("article").focus();
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    const box = window.locator(".graph-node", { hasText: `(${LONG})` });
+    await expect(box).toHaveCount(1);
+    await expect(box).toHaveAttribute(
+      "title",
+      `${element.shortId} (${LONG}) · System Requirement\n${element.title}`,
+    );
+    const parts = await box.evaluate((node) =>
+      [...node.querySelectorAll<HTMLElement>(".graph-id > span")].map((part) => ({
+        text: part.textContent,
+        cut: part.scrollWidth > part.clientWidth,
+        inside: part.getBoundingClientRect().right <= node.getBoundingClientRect().right,
+      })),
+    );
+    expect(parts).toEqual([
+      { text: `${element.shortId} (${LONG})`, cut: true, inside: true },
+      { text: " · System Requirement", cut: false, inside: true },
+    ]);
+    await window.screenshot({ path: path.join(OUT, "sr-084-graph-long-identifier-light.png") });
+  } finally {
+    await running.close();
+  }
+});
