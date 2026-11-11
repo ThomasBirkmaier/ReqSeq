@@ -137,7 +137,7 @@ export type TextMarks = readonly {
 export type Uuid = string;
 
 /**
- * Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-002 AK3). The file name uses 12 (D-056).
+ * Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-084 AK1, AK2). The file name uses 12 (D-056).
  * Schema: `schemas/common.schema.json#/$defs/shortId`.
  */
 export type ShortId = string;
@@ -288,7 +288,7 @@ export interface Problem {
   readonly elementRepository?: string;
   /** The file of the element the problem is about, relative to `elementRepository`; given with it. */
   readonly elementFile?: string;
-  /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements. */
+  /** Short ID of the element `elementId` names, for display (SR-084); given on every problem that names an element of the workspace, by every command that has read the elements. */
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
@@ -1681,7 +1681,7 @@ export interface CommandCatalog {
     readonly whileReadOnly?: "refuse" | "allow";
     /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
     readonly whileReadOnlyReason?: string;
-    /** The stage of the delivery plan in which the command is built (D-035). */
+    /** The stage of the delivery plan in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
     /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, the one read command made for completion, because only core reads the file system). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`). */
