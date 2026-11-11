@@ -1223,6 +1223,33 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(texts('[role="option"] .name')).toContain("List all elements");
   });
+
+  it("gives a command prompt opened while the catalog is read its commands once they are there (#1413)", async () => {
+    const fake = fakeBridge({
+      ...workspace(),
+      "filter.list": () => ({ filters: [{ name: "open", where: {} }] }),
+    });
+    let answer: (commands: never) => void = () => undefined;
+    const bridge = {
+      ...fake.bridge,
+      commands: () =>
+        new Promise<never>((resolve) => {
+          answer = resolve;
+        }),
+    };
+    await render(bridge);
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    await type("List saved filters");
+    expect(texts('[role="option"] .name')).not.toContain("List saved filters");
+    // Enter while the catalog is read waits for it, and then takes the command.
+    await keyDown(query("input"), "Enter");
+    await act(async () => {
+      answer([listing("filter.list")] as never);
+      await Promise.resolve();
+    });
+    await flush();
+    expect(text("Modeline")).toContain("List saved filters");
+  });
 });
 
 describe("App, the overview (SR-118)", () => {
