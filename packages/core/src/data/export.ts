@@ -24,14 +24,16 @@
 //     narrowed export tells outdated links too.
 //   Not in it: the text, other incoming relations (each relation is at its source), the version
 //   date (D-013 is about display; Git history per element is too slow at N-036), the records.
-// - Header (A5): `reqseq-data` 2; `commit`, HEAD of the main repository, and `dirty`, false only when
+// - Header (A5): `reqseq-data` 4; `commit`, HEAD of the main repository, and `dirty`, false only when
 //   every available repository has a known commit and is known clean (the state data.store names
-//   its file after; both also on every line of the JSON Lines form, `$defs/line`, #319);
+//   its file after); these two, `repositories` and `incomplete` are also on every line of the JSON
+//   Lines form (`$defs/line`, #319, SR-062 AK1 and #1454);
 //   `generated` = the time of the call (UTC, seconds); `selection` as given;
 //   `repositories`: each of the workspace file with `available` and, when Git tells it, `commit`
 //   and `dirty` (SR-062, ThomasBirkmaier/ReqSeq-archive#531 Q2: uncommitted changes to the files the data is made of, by content);
-//   `incomplete` (SR-006 AK2): the selection is incomplete or an evidence location is in a repository
-//   that is not on this machine.
+//   `incomplete` (SR-006 AK2): the selection is incomplete (a repository of the workspace file is not
+//   on this machine, or a condition met a target in a repository it does not list) or an evidence
+//   location is in a repository that is not on this machine.
 // - Workspace problems (A6): the schema has no place for them. Element problems stay in
 //   `elements[].problems`; a repository or evidence location that is not here sets `incomplete`. A
 //   baselines folder that is not here holds no baseline, so `selection.baseline` is `input.invalid`
@@ -214,7 +216,7 @@ export const exportHeader = (input: {
 }): Omit<DataExportFile, "elements"> => {
   const commit = input.repositories.find((r) => r.name === input.main)?.commit;
   return {
-    "reqseq-data": 3,
+    "reqseq-data": 4,
     ...(commit === undefined ? {} : { commit }),
     dirty: !input.repositories.every((r) => !r.available || r.dirty === false),
     workspace: input.name,

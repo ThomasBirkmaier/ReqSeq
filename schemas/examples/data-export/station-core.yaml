@@ -3,7 +3,7 @@
 # and names its missing child in the variant; the need and one requirement have a validation status.
 # The emergent requirement has no own record, so it is open in each view, never indirect. A data-export
 # file has no place for records and test cases.
-reqseq-data: 3
+reqseq-data: 4
 commit: 0123456789abcdef0123456789abcdef01234567
 dirty: false
 workspace: Weather station
