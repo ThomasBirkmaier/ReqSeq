@@ -252,7 +252,7 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
     ).toBe("Search: wind · Need · status: draft");
   });
 
-  it("[SR-149/AK6] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {
+  it("[SR-149/AK6] [SR-075/AK4] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {
     const { context, choose } = start(searchBuffer("wind", [statusStep("draft")]), {
       "element.facets": FACETS,
       "metamodel.get": { meanings: { packages: ["packages"] } },

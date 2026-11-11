@@ -365,7 +365,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(module.readRecentWorkspaces).not.toHaveBeenCalled();
   });
 
-  it("a typed folder without a workspace answers no-workspace and leaves the running core process alone", async () => {
+  it("[SR-131/AK5] a typed folder without a workspace answers no-workspace and leaves the running core process alone", async () => {
     const { inside } = await workspaceOnDisk();
     await fs.rm(path.join(path.dirname(path.dirname(inside)), "reqseq-workspace.yaml"));
     const { typed, core, window } = setup();

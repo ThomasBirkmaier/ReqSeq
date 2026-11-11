@@ -82,4 +82,25 @@ test.describe("a grouped list", () => {
     await expect(ids).toHaveText(plain);
     expect(await snapshot(root)).toEqual(before);
   });
+
+  test("[SR-201/AK1] in a grouped list the folded section stands after the last group, collapsed with its count, and groups its elements by the same property", async () => {
+    const { window } = running;
+    await groupBy(window, "Status");
+    const outer = shownBuffer(window).locator(".group:not(.folded .group) h2");
+    await expect(outer).toHaveText(["Draft 6", "Approved 7"]);
+    const section = shownBuffer(window).locator(".folded");
+    await expect(section.locator(".row.fold-row")).toHaveText("▸ Folded statuses (1)");
+    await expect(section.locator(".row.fold-row")).toHaveAttribute("aria-expanded", "false");
+    await expect(section.locator(".row:not(.fold-row)")).toHaveCount(0);
+    // Nothing comes after it; the last group stands right before it.
+    expect(
+      await section.evaluate((folded) => ({
+        last: folded.nextElementSibling === null,
+        before: folded.previousElementSibling?.querySelector("h2")?.textContent,
+      })),
+    ).toEqual({ last: true, before: "Approved 7" });
+    await section.locator(".row.fold-row").click();
+    await expect(section.locator(".group h2")).toHaveText(["Obsolete 1"]);
+    await expect(section.locator(".group .row")).toHaveCount(1);
+  });
 });

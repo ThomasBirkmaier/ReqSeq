@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll, modifier } from "./support/app.js";
 
@@ -55,6 +55,81 @@ test.describe("the command prompt", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("flt");
     await expect(names(window).first()).toHaveText("Filter list by type");
+  });
+
+  test('[SR-121/AK1] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("lae");
+    await expect(names(window).first()).toHaveText("List all elements");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox", { name: "All elements" })).toBeVisible();
+    await expect(window.locator("label.prompt-label")).toHaveCount(0);
+  });
+
+  test("[SR-133/AK1] Bulk update elements, which needs the selection of a list, is found only on a list or a package page, and no write command is found while the tool refuses writes", async () => {
+    const input = (window: Page): Locator => window.locator("#prompt-input");
+    /** The prompt, with `typed` in it, offers `typed` as a candidate; the prompt closes again. */
+    const finds = async (window: Page, typed: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type(typed);
+      await expect(input(window)).toHaveValue(typed);
+      await expect(names(window).filter({ hasText: new RegExp(`^${typed}$`, "u") })).toHaveCount(1);
+      await window.keyboard.press("Escape");
+      await expect(window.locator("label.prompt-label")).toHaveCount(0);
+    };
+    /**
+     * The prompt finds nothing for `typed`: the list of candidates, open with everything before the text, has
+     * closed for it, so the check reads the result for the whole text and not the list before it.
+     */
+    const findsNothing = async (window: Page, typed: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await expect(input(window)).toHaveAttribute("aria-expanded", "true");
+      await window.keyboard.type(typed);
+      await expect(input(window)).toHaveValue(typed);
+      await expect(input(window)).toHaveAttribute("aria-expanded", "false");
+      await expect(names(window)).toHaveCount(0);
+      await window.keyboard.press("Escape");
+      await expect(window.locator("label.prompt-label")).toHaveCount(0);
+    };
+    running = await launchApp(FIXTURE);
+    let { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    // It needs the selection of a list: not on the overview, nor on an element, also not by search.
+    await finds(window, "Search elements");
+    await findsNothing(window, "Bulk update elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Measure wind speed");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Measure wind speed");
+    await finds(window, "Set status");
+    await findsNothing(window, "Bulk update elements");
+    // A list and a package page have a selection.
+    await listAll(window);
+    await finds(window, "Bulk update elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Sensors");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+    await expect(window.locator(".members .row").first()).toBeVisible();
+    await finds(window, "Bulk update elements");
+    await running.close();
+
+    // A metamodel file that is no YAML: the tool refuses writes (SR-011 AK3), so no write command is found.
+    running = await launchApp({ ...FIXTURE, files: { "metamodel/broken.yaml": "types: [\n" } });
+    ({ window } = running);
+    await listAll(window);
+    const status = await running.cli(["workspace", "status"]);
+    expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
+    // Reading still works.
+    await finds(window, "Show facets");
+    for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
+      await findsNothing(window, write);
+    }
   });
 
   test("a catalog read command asks its arguments in the minibuffer, with the kinds core allows, and shows its output", async () => {

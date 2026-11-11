@@ -1246,7 +1246,7 @@ describe("close all buffers", () => {
     expect(echoed.at(-1)).toBe("Closed 3 buffers");
   });
 
-  it("[SR-105/AK1] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
+  it("[SR-105/AK1] [SR-123/AK2] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
     const drafted = (key: string): boolean => key !== list.key;
     const saving: string[] = [];
     const all = setup([element, other, list], {}, true, {

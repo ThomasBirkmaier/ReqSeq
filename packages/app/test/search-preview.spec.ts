@@ -15,6 +15,21 @@ const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
+/** An element in the folded status obsolete that is the best hit for "gust" (SR-183 AK2, SR-201). */
+const GAUGE_FILE = "requirements/SR-00000000000a.md";
+const GAUGE = [
+  "---",
+  "id: 18300000-0000-4000-8000-00000000000a",
+  "type: system-requirement",
+  "status: obsolete",
+  "title: Gust gauge",
+  "spec-id: SR-310",
+  "---",
+  "",
+  "Gust after gust, the gauge counts each gust.",
+  "",
+].join("\n");
+
 /** The card's list of hits. */
 const card = (window: Page) => window.locator(".card:not(.card-leaving) .card-list");
 
@@ -86,6 +101,56 @@ test.describe("the hits of the search prompt", () => {
         ),
       );
     expect(shown).toEqual(rows.slice(0, 5));
+  });
+
+  test("[SR-183/AK2] the best hit in a folded status stands first, at its place by relevance; the search buffer shows it in the section at the end", async () => {
+    await running.close();
+    running = await launchApp({ fixture: "SR-183/preview", files: { [GAUGE_FILE]: GAUGE } });
+    const { window } = running;
+    await expect(window.locator(".overview .line").first()).toBeVisible();
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    // The CLI ranks the obsolete hit first.
+    const searched = await running.cli(["element", "search", "gust"]);
+    const hits = (JSON.parse(searched.stdout) as { hits: { title: string; status: string }[] }).hits;
+    expect(hits[0]).toMatchObject({ title: "Gust gauge", status: "obsolete" });
+    expect(hits).toHaveLength(9);
+    await preview(window, "gust", 5);
+    // The card shows the hits of the whole query: the input holds it, and every hit marks "gust".
+    await expect(window.locator("#prompt-input")).toHaveValue("gust");
+    await expect
+      .poll(() =>
+        card(window)
+          .getByRole("option")
+          .evaluateAll((options) =>
+            options.map((option) =>
+              [...option.querySelectorAll("mark")].some((mark) => mark.textContent.toLowerCase() === "gust"),
+            ),
+          ),
+      )
+      .toEqual([true, true, true, true, true]);
+    const shown = await names(window);
+    expect(shown[0]).toMatch(/ Gust gauge$/);
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: gust");
+    const section = window.locator(".row.fold-row");
+    await expect(section).toHaveText("▸ Folded statuses (1)");
+    const rows = window.locator(".row:not(.fold-row)");
+    await expect(rows).toHaveCount(8);
+    const rowNames = async (): Promise<string[]> =>
+      rows.evaluateAll((all) =>
+        all.map(
+          (row) =>
+            `${row.querySelector(".id")?.textContent ?? ""} ${row.querySelector(".title")?.textContent ?? ""}`,
+        ),
+      );
+    // Without the folded hit, the others are the first rows of the search buffer, in its order.
+    expect(shown.slice(1)).toEqual((await rowNames()).slice(0, 4));
+    // The folded hit stands in the section at the end.
+    await section.click();
+    await expect(rows).toHaveCount(9);
+    expect((await rowNames()).at(-1)).toBe(shown[0]);
   });
 
   test("[SR-183/AK3] a hit shows its title and, under it, the snippet around the match, as in the search buffer", async () => {
