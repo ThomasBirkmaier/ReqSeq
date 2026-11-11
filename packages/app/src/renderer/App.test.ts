@@ -674,6 +674,54 @@ describe("App", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
+  it("[SR-104/AK1] shows the filled properties as boxes below the text, the title as its heading, short ID, type and status only in the modeline, no UUID or version, and a relation group per kind, the incoming with ←", async () => {
+    const VERSION = "n2:0123456789abcdef";
+    const link = (kind: string, direction: "in" | "out", n: number) => ({
+      kind,
+      direction,
+      id: `uuid-${String(n)}`,
+      repository: "spec",
+      shortId: `SR-00000${String(n)}`,
+      title: `Title ${String(n)}`,
+      accessible: true,
+      targetState: "available",
+    });
+    const handlers = workspace();
+    handlers["element.get"] = () => ({
+      element: row(1, {
+        version: VERSION,
+        text: "Hello",
+        properties: { topic: "Wind", rationale: "", source: "  ", statement: [] },
+        relations: [
+          link("derives-from", "out", 2),
+          link("derives-from", "out", 3),
+          link("supersedes", "in", 2),
+        ],
+      }),
+    });
+    const { bridge } = fakeBridge(handlers);
+    await renderList(bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    const article = query("article");
+    expect(query("article h1").textContent).toBe("Title 1");
+    const fields = [...article.querySelectorAll<HTMLElement>("[data-field]")];
+    // In this order: the title, the text, the one filled property, then the relation groups.
+    expect(fields.map((field) => field.dataset["field"])).toEqual([
+      "Title",
+      "Text",
+      "topic",
+      "derives-from",
+      "← supersedes",
+    ]);
+    expect(texts("article .box .key")).toEqual(["topic"]);
+    expect(text("Modeline")).toMatch(/^SR-000001 · Need · draft/);
+    for (const shown of ["SR-000001", "Need", "draft", "uuid-1", VERSION]) {
+      expect([shown, article.textContent.includes(shown)]).toEqual([shown, false]);
+    }
+    expect(texts("article h2")).toEqual(["derives-from", "← supersedes"]);
+    expect(texts('article [data-field="derives-from"] .relation [role="link"]')).toHaveLength(2);
+  });
+
   it("shows the type key in the modeline when the metamodel cannot be read", async () => {
     const { bridge, handlers, change } = fakeBridge(workspace());
     await renderList(bridge);
@@ -1750,7 +1798,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
   });
 
-  it("saves with Ctrl+S or Cmd+S: element.update, Saved in the minibuffer, no modified", async () => {
+  it("[SR-105/AK4] saves with Ctrl+S or Cmd+S at once: element.update, Saved in the minibuffer, no modified", async () => {
     const { invoke, change } = await openElement();
     await typeText("!");
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
@@ -2456,7 +2504,7 @@ describe("App, the text editor", () => {
     const asked = (invoke: ReturnType<typeof fakeBridge>["invoke"], ref: string): unknown[] =>
       calls(invoke, "element.get").filter((input) => (input as { ref: string }).ref === ref);
 
-    it("follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
+    it("[SR-066/AK4] follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
       const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
@@ -2478,7 +2526,7 @@ describe("App, the text editor", () => {
       ]);
     });
 
-    it("says when there is no reference at the cursor", async () => {
+    it("[SR-066/AK4] says when there is no reference at the cursor", async () => {
       await openElement(withReference("plain text"));
       await keyDown(query("article"), "Enter", { metaKey: true });
       expect(text("Minibuffer")).toBe("No element reference at the cursor");

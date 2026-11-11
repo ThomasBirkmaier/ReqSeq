@@ -141,7 +141,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(lines.nth(1)).toContainText("Die Anzeige bleibt lesbar");
   });
 
-  test("[SR-127/AK3] an outdated reference in a criterion is marked like one in the text, and a click opens its element", async () => {
+  test("[SR-066/AK4] [SR-127/AK3] an outdated reference in a criterion is marked like one in the text, and a click opens its element", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     await expect(criteria.locator(".cm-lr-outdated")).toHaveCount(1);

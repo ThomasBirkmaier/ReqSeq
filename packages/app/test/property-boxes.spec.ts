@@ -68,6 +68,10 @@ const boxLabels = (window: Page): Promise<string[]> =>
 
 interface Got {
   readonly element: {
+    readonly id: string;
+    readonly shortId: string;
+    readonly status: string;
+    readonly version: string;
     readonly properties: Record<string, unknown>;
     readonly relations: readonly {
       readonly kind: string;
@@ -152,9 +156,19 @@ test.describe("property boxes of an element", () => {
     // A property the type does not know is shown, and not edited (D-012, spec question ThomasBirkmaier/ReqSeq-archive#469).
     await expect(field(window, "legacy")).toContainText("Altlast");
     await expect(field(window, "legacy").locator(".cm-editor")).toHaveCount(0);
+    // The title is the heading, short ID, type and status are named by the modeline, and neither they nor
+    // the UUID and the version are in the element.
+    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(modeline(window)).toContainText(
+      `${got.element.shortId} · System Requirement · ${got.element.status}`,
+    );
+    const shown = await window.locator("article").innerText();
+    for (const value of [got.element.shortId, got.element.id, got.element.version, "System Requirement"]) {
+      expect([value, shown.includes(value)]).toEqual([value, false]);
+    }
   });
 
-  test("saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else", async () => {
+  test("[SR-105/AK4] saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else", async () => {
     const { window } = running;
     const before = await readFile(running);
     const topic = field(window, "topic");
