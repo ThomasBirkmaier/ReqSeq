@@ -600,7 +600,7 @@ test.describe("property boxes of an element with many values", () => {
     await running.close();
   });
 
-  test("records the time to open the element and the time from a key to the paint in a box (numbers, no limit but a guard)", async () => {
+  test("records the time to open the element and the time from a key to the paint in a box (numbers, no limit)", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type(SR_TITLE);
@@ -656,7 +656,8 @@ test.describe("property boxes of an element with many values", () => {
     await field(window, "acceptance-criteria").scrollIntoViewIfNeeded();
     await expect.poll(() => lines.count()).toBeGreaterThanOrEqual(10);
     expect((await cliGet(running)).element.properties["acceptance-criteria"]).toHaveLength(MANY);
-    expect(await window.locator(".cm-editor").count()).toBeLessThanOrEqual(10);
+    const editors = await window.locator(".cm-editor").count();
+    expect(editors).toBeLessThanOrEqual(10);
     // Typing: from the keydown to the paint of the character, in the middle of the list.
     await lines.nth(8).click();
     await window.keyboard.press("End");
@@ -708,8 +709,11 @@ test.describe("property boxes of an element with many values", () => {
     console.log(`PERF property boxes ${JSON.stringify(record)}`);
     await fs.mkdir(RESULTS, { recursive: true });
     await fs.writeFile(path.join(RESULTS, "perf-property-boxes.json"), JSON.stringify(record, null, 2));
-    // A guard against a broken page, not a budget (SR-082 AK3 is about 50,000 elements).
-    expect(open).toBeLessThan(1000);
-    expect(worst).toBeLessThan(1000);
+    // The times are recorded, not bounded (SR-082 AK3 is about 50,000 elements): a wall-clock guard turned a slow
+    // runner red without a cause in the code (1022 ms against 1000 ms on macOS, #1438). A broken page shows in
+    // counts instead: at most 10 editors at the opening (above), each key in the box it was typed in, and no
+    // editor made again while typing.
+    await expect(field(window, "acceptance-criteria").locator(".cm-content")).toContainText("x".repeat(20));
+    expect(await window.locator(".cm-editor").count()).toBe(editors);
   });
 });
