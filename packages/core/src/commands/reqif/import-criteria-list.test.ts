@@ -79,8 +79,11 @@ const windFile = (imported: Imported): string => {
   return imported.files.find((f) => f.endsWith(`${id.slice(-12)}.md`)) ?? "";
 };
 
-/** The criteria texts of WIND after importing `text`, whose criteria list is replaced by `list`, into an empty workspace. */
-const importedTexts = async (text: string, list: string): Promise<unknown> => {
+/** WIND's criteria texts and the loss codes after importing `text`, its criteria list replaced by `list`, into an empty workspace. */
+const importedTexts = async (
+  text: string,
+  list: string,
+): Promise<{ readonly texts: unknown; readonly losses: readonly string[] }> => {
   const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": text.replace(LIST, list) });
   const imported = (await invoke(
     "reqif.import",
@@ -88,11 +91,25 @@ const importedTexts = async (text: string, list: string): Promise<unknown> => {
     { workspace },
   )) as Imported;
   expect(imported.problems?.map((p) => p.code)).toEqual(["reqif.edited-elsewhere"]);
-  return ((await criteriaIn(fixture, windFile(imported))) as { text: string }[]).map((c) => c.text);
+  const criteria = (await criteriaIn(fixture, windFile(imported))) as { text: string }[];
+  return { texts: criteria.map((c) => c.text), losses: imported.losses.map((l) => l.code) };
 };
 
 describe("acceptance criteria of a file of ReqSeq another tool edited (SR-204)", () => {
-  it("[SR-204/AK12] keeps the criterion keys of the unchanged criteria when another tool edited one between export and import", async () => {
+  it("[SR-204/AK12] keeps the criterion keys of a requirement exported and imported again", async () => {
+    const { fixture, workspace } = await open("SR-052/empty", { "in/1.reqif": await exported() });
+    const first = (await invoke(
+      "reqif.import",
+      { file: "in/1.reqif", delivery: "1" },
+      { workspace },
+    )) as Imported;
+    expect(await criteriaIn(fixture, windFile(first))).toEqual([
+      { key: "speed", text: SPEED },
+      { key: "peaks", text: PEAK },
+    ]);
+  });
+
+  it("[SR-204/AK4] a repeated import of a file of ReqSeq another tool edited keeps the keys of the unchanged criteria", async () => {
     const text = await exported();
     const edited = text.replace(
       `${PEAK}</xhtml:li>`,
@@ -106,10 +123,6 @@ describe("acceptance criteria of a file of ReqSeq another tool edited (SR-204)",
       { workspace },
     )) as Imported;
     const file = windFile(first);
-    expect(await criteriaIn(fixture, file)).toEqual([
-      { key: "speed", text: SPEED },
-      { key: "peaks", text: PEAK },
-    ]);
     const again = (await invoke(
       "reqif.import",
       { file: "in/2.reqif", delivery: "2" },
@@ -126,24 +139,64 @@ describe("acceptance criteria of a file of ReqSeq another tool edited (SR-204)",
     expect(["speed", "peaks"]).not.toContain(after[1]?.key);
   });
 
-  it("reads a list another tool wrote as its items, its formatting as Markdown, and any other value as one item", async () => {
+  it("reads a list in an edited file of ReqSeq as its items, its formatting as Markdown, and any other value as one item", async () => {
     const text = await exported();
     // An ordered list without div, white space between its items, one item formatted.
     expect(
-      await importedTexts(
-        text,
-        "<xhtml:ol>\n  <xhtml:li>Plain.</xhtml:li>\n  <xhtml:li>Very <xhtml:b>bold</xhtml:b>.</xhtml:li>\n  <xhtml:li/>\n</xhtml:ol>",
-      ),
+      (
+        await importedTexts(
+          text,
+          "<xhtml:ol>\n  <xhtml:li>Plain.</xhtml:li>\n  <xhtml:li>Very <xhtml:b>bold</xhtml:b>.</xhtml:li>\n  <xhtml:li/>\n</xhtml:ol>",
+        )
+      ).texts,
     ).toEqual(["Plain.", "Very **bold**.", ""]);
-    // Not exactly one list of items: text beside it, a second list, an item outside li, no list.
+    // Not exactly one list of items as the export writes it: text beside it, a second list, an item
+    // outside li, no list, an attribute on div, ul or li, a list outside the XHTML namespace.
     for (const value of [
       "<xhtml:div><xhtml:p>Intro</xhtml:p><xhtml:ul><xhtml:li>One.</xhtml:li></xhtml:ul></xhtml:div>",
       "<xhtml:div>Intro<xhtml:ul><xhtml:li>One.</xhtml:li></xhtml:ul></xhtml:div>",
       "<xhtml:ul><xhtml:li>One.</xhtml:li></xhtml:ul><xhtml:ul><xhtml:li>Two.</xhtml:li></xhtml:ul>",
       "<xhtml:ul><xhtml:li>One.</xhtml:li>Two.</xhtml:ul>",
       "<xhtml:div><xhtml:p>One.</xhtml:p></xhtml:div>",
+      '<xhtml:div title="t"><xhtml:ul><xhtml:li>One.</xhtml:li><xhtml:li>Two.</xhtml:li></xhtml:ul></xhtml:div>',
+      '<xhtml:ul title="t"><xhtml:li>One.</xhtml:li><xhtml:li>Two.</xhtml:li></xhtml:ul>',
+      '<o:ul xmlns:o="urn:other"><o:li>One.</o:li><o:li>Two.</o:li></o:ul>',
     ]) {
-      expect(await importedTexts(text, value)).toHaveLength(1);
+      expect((await importedTexts(text, value)).texts).toHaveLength(1);
     }
+  });
+
+  it("keeps the loss of a style on an item of an edited file of ReqSeq, the list one item (SR-095 AK3)", async () => {
+    const imported = await importedTexts(
+      await exported(),
+      '<xhtml:div><xhtml:ul><xhtml:li style="color:red">One.</xhtml:li><xhtml:li>Two.</xhtml:li></xhtml:ul></xhtml:div>',
+    );
+    expect(imported.texts).toEqual(["- One.\n- Two."]);
+    expect(imported.losses).toContain("xhtml-style");
+  });
+
+  it("keeps a list in a file of another tool as one item, its Markdown", async () => {
+    const own = await exported();
+    const other = own
+      .replace("<REQ-IF-TOOL-ID>reqseq</REQ-IF-TOOL-ID>", "<REQ-IF-TOOL-ID>other</REQ-IF-TOOL-ID>")
+      .replace(
+        LIST,
+        "<xhtml:div><xhtml:ul><xhtml:li>A</xhtml:li><xhtml:li>B</xhtml:li></xhtml:ul></xhtml:div>",
+      );
+    expect(other).toContain("<REQ-IF-TOOL-ID>other</REQ-IF-TOOL-ID>");
+    const { fixture, workspace } = await open("SR-052/empty", { "in/1.reqif": own, "in/2.reqif": other });
+    // The import of the file of ReqSeq saves the mapping the file of the other tool is imported with.
+    const first = (await invoke(
+      "reqif.import",
+      { file: "in/1.reqif", delivery: "1" },
+      { workspace },
+    )) as Imported;
+    await invoke(
+      "reqif.import",
+      { file: "in/2.reqif", delivery: "2", mapping: "reqif/weather-station.yaml" },
+      { workspace },
+    );
+    const after = (await criteriaIn(fixture, windFile(first))) as { text: string }[];
+    expect(after.map((c) => c.text)).toEqual(["- A\n- B"]);
   });
 });

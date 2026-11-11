@@ -119,6 +119,7 @@ import type {
   XhtmlElement,
   XhtmlNode,
 } from "./model.js";
+import { XHTML_NAMESPACE } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
 import { ownAttributes, ownId, ownMapping, ownRelationKeys, readableValues } from "./own.js";
@@ -709,7 +710,10 @@ const propertyValue = async (
     : (await textsOf(context, draft, value, datatype, target, loss)).join(", ");
 };
 
-/** The items of a value for a text property with `many`: one per item of a list (`listItems`), else `textsOf`. */
+/**
+ * The items of a value for a text property with `many`: of a file of ReqSeq one per item of a list
+ * (`listItems`), else `textsOf`. A file of another tool keeps a list as one item (its Markdown).
+ */
 const manyTexts = async (
   context: Context,
   draft: Draft,
@@ -718,7 +722,7 @@ const manyTexts = async (
   target: Target,
   loss: Loss,
 ): Promise<string[]> => {
-  const items = value.kind === "xhtml" ? listItems(value.value) : undefined;
+  const items = context.own && value.kind === "xhtml" ? listItems(value.value) : undefined;
   if (items === undefined) {
     return textsOf(context, draft, value, datatype, target, loss);
   }
@@ -732,36 +736,42 @@ const manyTexts = async (
 /** Whether `node` is white space only, which XHTML lets stand between blocks. */
 const blank = (node: XhtmlNode): boolean => typeof node === "string" && node.trim() === "";
 
-/** The one element of `nodes` apart from white space, if there is exactly one. */
-const onlyElement = (nodes: readonly XhtmlNode[]): XhtmlElement | undefined => {
+/** Whether `node` is an XHTML element named one of `names`, without attributes, as the export writes it. */
+const bare = (node: XhtmlNode | undefined, names: readonly string[]): node is XhtmlElement =>
+  node !== undefined &&
+  typeof node !== "string" &&
+  node.namespace === XHTML_NAMESPACE &&
+  node.attributes.length === 0 &&
+  names.includes(node.name);
+
+/** The one node of `nodes` apart from white space, if there is exactly one. */
+const onlyNode = (nodes: readonly XhtmlNode[]): XhtmlNode | undefined => {
   const rest = nodes.filter((node) => !blank(node));
-  const [first] = rest;
-  return rest.length === 1 && typeof first !== "string" ? first : undefined;
+  return rest.length === 1 ? rest[0] : undefined;
 };
 
 /**
- * The items of an XHTML value that is exactly one list (`ul` or `ol`, alone or in one `div`, white
- * space aside) of `li` elements, as the export writes a text property with `many` (own.ts); else
- * undefined, and the value is one item. So a list another tool edited reads back as its items, and
- * an unchanged item keeps its criterion key by its text (SR-204 AK4, AK12).
+ * The items of an XHTML value of a file of ReqSeq that is exactly one list (`ul` or `ol`, alone or
+ * in one `div`, white space aside) of `li` elements, each in the XHTML namespace and without
+ * attributes, as the export writes a text property with `many` (own.ts); else undefined, and the
+ * value is one item, its losses reported as before (SR-095 AK3). So a list another tool edited
+ * reads back as its items, and an unchanged item keeps its criterion key by its text (SR-204 AK4).
  */
 const listItems = (value: readonly XhtmlNode[]): readonly (readonly XhtmlNode[])[] | undefined => {
-  const outer = onlyElement(value);
-  const list = outer?.name === "div" ? onlyElement(outer.children) : outer;
-  if (list === undefined || (list.name !== "ul" && list.name !== "ol")) {
+  const outer = onlyNode(value);
+  const list = bare(outer, ["div"]) ? onlyNode(outer.children) : outer;
+  if (!bare(list, ["ul", "ol"])) {
     return undefined;
   }
   const nodes = list.children.filter((node) => !blank(node));
-  const items = nodes.flatMap((node) =>
-    typeof node !== "string" && node.name === "li" ? [node.children] : [],
-  );
+  const items = nodes.flatMap((node) => (bare(node, ["li"]) ? [node.children] : []));
   return items.length === nodes.length ? items : undefined;
 };
 
 /**
- * The text of one list item (`listItems`): of a file of ReqSeq, an item of text only as written,
- * since the export writes each item so (own.ts), like a STRING (`textsOf`); else its XHTML as
- * `textsOf` reads it.
+ * The text of one list item (`listItems`): an item of text only as written, since the export writes
+ * each item so (own.ts), like a STRING of a file of ReqSeq (`textsOf`); else its XHTML as `textsOf`
+ * reads it.
  */
 const itemText = async (
   context: Context,
@@ -772,7 +782,7 @@ const itemText = async (
   target: Target,
   loss: Loss,
 ): Promise<string> =>
-  context.own && item.every((node) => typeof node === "string")
+  item.every((node) => typeof node === "string")
     ? item.join("")
     : (
         await textsOf(context, draft, { kind: "xhtml", definition, value: item }, datatype, target, loss)
