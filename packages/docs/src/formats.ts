@@ -91,7 +91,7 @@ export async function readExamples(repoRoot: string): Promise<Readonly<Record<st
   return Object.fromEntries(entries);
 }
 
-const LANGUAGES: Readonly<Record<string, string>> = { ".md": "markdown", ".json": "json" };
+const LANGUAGES: Readonly<Record<string, string>> = { ".md": "markdown", ".json": "json", ".jsonl": "json" };
 
 const description = (schema: Schema): string =>
   typeof schema["description"] === "string" ? inline(schema["description"]) : "";

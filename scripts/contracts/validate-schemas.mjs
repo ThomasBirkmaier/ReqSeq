@@ -64,7 +64,7 @@ if (entriesValid) {
 }
 
 // Each example with a general parser of its format and no extensions (SR-009 AK3): JSON.parse for .json,
-// YAML 1.2 core schema for .yaml and for the frontmatter of .md.
+// YAML 1.2 core schema for .yaml and for the frontmatter of .md. A .jsonl example is read line by line elsewhere.
 function parseExample(f, text) {
   if (f.endsWith(".json")) {
     const data = JSON.parse(text);
@@ -198,7 +198,28 @@ function checkVersionVectors(dir) {
   return n;
 }
 
-// Examples: schemas/examples/<schema base name>/<file>.yaml|.md|.json
+// The lines of a JSON Lines example (SR-009 AK3), each read with JSON.parse and checked against `#/$defs/line`
+// of its schema; an empty file or an empty line is an error.
+function checkJsonLines(where, text, schemaName) {
+  const validate = ajv.getSchema(`${BASE}${schemaName}.schema.json#/$defs/line`);
+  if (!validate) {
+    return [`${where}: no $defs/line in ${schemaName}.schema.json`];
+  }
+  const lines = text.endsWith("\n") ? text.slice(0, -1).split("\n") : text.split("\n");
+  return lines.flatMap((line, index) => {
+    let data;
+    try {
+      data = JSON.parse(line);
+      // JSON.parse keeps the last of two equal keys; JSON is YAML 1.2, whose parser rejects them.
+      YAML.parse(line, { version: "1.2", schema: "core", uniqueKeys: true });
+    } catch (e) {
+      return [`${where}:${index + 1}: ${e.message}`];
+    }
+    return validate(data) ? [] : [`${where}:${index + 1}: ${ajv.errorsText(validate.errors)}`];
+  });
+}
+
+// Examples: schemas/examples/<schema base name>/<file>.yaml|.md|.json|.jsonl
 const examplesDir = path.join(schemasDir, "examples");
 let count = 0;
 for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
@@ -219,6 +240,11 @@ for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d
   }
   for (const f of fs.readdirSync(path.join(examplesDir, dir.name))) {
     const text = fs.readFileSync(path.join(examplesDir, dir.name, f), "utf8");
+    if (f.endsWith(".jsonl")) {
+      count++;
+      errors.push(...checkJsonLines(`examples/${dir.name}/${f}`, text, dir.name));
+      continue;
+    }
     if (![".md", ".yaml", ".json"].some((ext) => f.endsWith(ext))) {
       continue;
     }

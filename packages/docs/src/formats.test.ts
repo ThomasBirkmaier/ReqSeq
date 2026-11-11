@@ -57,11 +57,12 @@ describe("formats", () => {
     expect(bare).toContain("## Fields\n\nType: `string`.\n");
     expect(bare).not.toContain("## Definitions");
     expect(bare).not.toContain("## Examples");
-    const files = ["a.md", "b.json", "c.yaml"].map((file) => ({ file, text: "x\n" }));
+    const files = ["a.md", "b.json", "c.yaml", "d.jsonl"].map((file) => ({ file, text: `${file}\n` }));
     const page = formatPage(schema("baseline", { title: "Baseline" }), files, { schemas: [] }, 1);
-    expect(page).toContain("```markdown\nx\n```");
-    expect(page).toContain("```json\nx\n```");
-    expect(page).toContain("```yaml\nx\n```");
+    expect(page).toContain("```markdown\na.md\n```");
+    expect(page).toContain("```json\nb.json\n```");
+    expect(page).toContain("```yaml\nc.yaml\n```");
+    expect(page).toContain("```json\nd.jsonl\n```");
   });
 
   it("gives every common definition an anchor and lists every format", () => {
