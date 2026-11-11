@@ -253,6 +253,12 @@ const filesOf = async (top: string): Promise<Record<string, string>> => {
   ) as Record<string, string>;
 };
 
+/** The files that differ between two snapshots of a copy, except the tool's own under any `.reqseq/` folder. */
+const changedBetween = (before: Record<string, string>, after: Record<string, string>): string[] =>
+  [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((file) => !file.split("/").includes(".reqseq") && before[file] !== after[file])
+    .sort();
+
 /**
  * Every fixture a scenario uses, each once: building one spawns `git` several times, and many scenarios
  * share a fixture (a list with repeats built over a hundred, which ran past the hook timeout on Windows, #304).
@@ -396,6 +402,7 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
   for (const access of ACCESSES) {
     const { top, root } = shared ?? (await copy(scenario));
     await scenario.prepare?.({ top, root });
+    const before = await filesOf(top);
     const input = { ...scenario.input };
     const start = Date.now();
     const called =
@@ -412,12 +419,15 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
-    const result = withoutDate(access, normalized({ outcome, files }, top) as Result, start, end);
+    const changed = changedBetween(before, files);
+    const result = withoutDate(access, normalized({ outcome, files, changed }, top) as Result, start, end);
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }
     const masked = masks(result, scenario.masks ?? []);
-    results[access] = scenario.newElement === true ? maskNewElement(masked) : masked;
+    const named = scenario.newElement === true ? maskNewElement(masked) : masked;
+    // Sorted again: the order of new files followed their random UUIDs before the mask.
+    results[access] = { ...named, changed: [...named.changed].sort() };
   }
   return results;
 };

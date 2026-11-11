@@ -1,8 +1,31 @@
 // Cross-access scenarios of element.create, in addition to the default one (cross-access.test.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
+import type { FixtureOptions } from "@reqseq/testkit";
+import type { Result } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { FILTER, NESTED, NESTED_A, requiredKey } from "../../fixtures.js";
+import { FILTER, NESTED, NESTED_A, changedFiles, requiredKey } from "../../fixtures.js";
+
+/** SR-013/own-meanings with an abstract type and a type that inherits from it without the mark (SR-012 AK4). */
+const ABSTRACT: FixtureOptions = {
+  fixture: "SR-013/own-meanings",
+  git: true,
+  files: {
+    "model/abstract.yaml":
+      "reqseq-metamodel: 1\ntypes:\n  - { key: base, name: Base, prefix: B, abstract: true, properties: [label] }\n" +
+      "  - { key: derived, name: Derived, prefix: DV, extends: base }\n",
+  },
+};
+/** Statuses per type: draft is the initial status, which decisions do not have (SR-064 AK4). */
+const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git: true };
+/** Two repositories, system the main one (SR-064 AK5). */
+const TWO_REPOSITORIES: FixtureOptions = { fixture: "SR-021/targets", git: ["system", "sensor"] };
+/** A list property with max-items 3 (SR-171 AK4). */
+const MAX_ITEMS: FixtureOptions = { fixture: "SR-171/max-items", git: true };
+
+/** The error core gives, as far as these checks read it. */
+const errorOf = (result: Result | undefined): { code?: string; details?: Record<string, unknown> } =>
+  (result?.outcome as { error: { code?: string; details?: Record<string, unknown> } }).error;
 
 scenariosOf("element.create", [
   {
@@ -40,6 +63,7 @@ scenariosOf("element.create", [
   },
   {
     name: "new element in a new folder",
+    tag: "[SR-064/AK5]",
     input: {
       type: "system-requirement",
       title: "Show gusts",
@@ -52,8 +76,107 @@ scenariosOf("element.create", [
     },
     expect: "output",
     newElement: true,
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: Written }).output.files).toEqual([
+        "requirements/new/SR-<tail12>.md",
+      ]);
+    },
+  },
+  {
+    name: "without repository and folder, the file is in the main repository in the folder of the type key",
+    tag: "[SR-064/AK5]",
+    fixture: TWO_REPOSITORIES,
+    root: "system",
+    input: { type: "system-requirement", title: "Show gusts" },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: Written }).output.files).toEqual([
+        "system-requirement/SR-<tail12>.md",
+      ]);
+      expect(changedFiles(results["core"])).toEqual(["system/system-requirement/SR-<tail12>.md"]);
+    },
   },
   { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
+  {
+    name: "an abstract type is refused, nothing is written",
+    tag: "[SR-012/AK4]",
+    fixture: ABSTRACT,
+    input: { type: "base", title: "x" },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "abstract" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a type that inherits from an abstract one without the mark is not abstract",
+    tag: "[SR-012/AK4]",
+    fixture: ABSTRACT,
+    input: { type: "derived", title: "x" },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: Written }).output.files).toEqual([
+        "derived/DV-<tail12>.md",
+      ]);
+    },
+  },
+  {
+    name: "a property the type does not have is refused, nothing is written",
+    tag: "[SR-016/AK4]",
+    input: { type: "system-requirement", title: "Show gusts", properties: { colour: "red" } },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).code).toBe("input.invalid");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a relation the metamodel does not allow for the type is refused, nothing is written",
+    tag: "[SR-067/AK4]",
+    fixture: FILTER,
+    input: { type: "system-requirement", title: "Show gusts", relations: { "based-on": ["SR-0000b1"] } },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).code).toBe("relation.not-allowed");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a type without the initial status gets its first valid status in metamodel order",
+    tag: "[SR-064/AK4]",
+    fixture: STATUSES,
+    input: { type: "decision", title: "Use knots" },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: Written }).output;
+      expect(output.files).toEqual(["decision/D-<tail12>.md"]);
+      expect(results["core"]?.files["decision/D-<tail12>.md"]).toBe(
+        "---\nid: <id>\ntype: decision\nstatus: accepted\ntitle: Use knots\n---\n",
+      );
+    },
+  },
+  {
+    name: "more acceptance criteria than max-items are saved, with the hint",
+    tag: "[SR-171/AK4]",
+    fixture: MAX_ITEMS,
+    input: {
+      type: "system-requirement",
+      title: "Four criteria",
+      properties: { "acceptance-criteria": ["One.", "Two.", "Three.", "Four."] },
+    },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: Written }).output;
+      expect(output.element.properties["acceptance-criteria"]).toEqual(["One.", "Two.", "Three.", "Four."]);
+      expect(
+        output.problems.filter((p) => p.code === "element.too-many-items").map((p) => p.severity),
+      ).toEqual(["warning"]);
+    },
+  },
   {
     name: "required properties empty: saved, with the hint",
     input: { type: "system-requirement", title: "Show gusts" },

@@ -352,7 +352,7 @@ describe("outdated relations and references (SR-025)", () => {
     );
   });
 
-  it("names a later change of the metamodel when the stored version has no date (#252, P-2-09)", async () => {
+  it("[SR-015/AK4] names a later change of the metamodel when the stored version has no date (#252, P-2-09)", async () => {
     // N has a rationale from the start; the stored versions are those without it counting.
     const ws = await fixture({
       git: true,
@@ -383,6 +383,26 @@ describe("outdated relations and references (SR-025)", () => {
     expect(problems[0]?.message).toContain(
       `stored version from no date, current version from ${String(problems[0]?.currentDate)} (${fileStart.slice(0, 12)}) (not committed, or Git cannot tell; the metamodel changed on ${changeDate} (${change.slice(0, 12)}), and older commits are read with today's metamodel)`,
     );
+  });
+
+  it("[SR-004/AK6] reads and writes the elements of a repository without Git, gives no dates, and the outdated hint says Git cannot read it", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    const problems = outdated(await check(workspace));
+    expect(problems.map((p) => p.targetId)).toEqual([V, N, N]);
+    for (const problem of problems) {
+      expect([problem.storedDate, problem.currentDate]).toEqual([null, null]);
+      expect(problem.message).toMatch(/: neither version has a date \(Git cannot read the repository\)$/);
+    }
+    await invoke(
+      "element.update",
+      await readStored({ ref: B, text: "Refines it, written without Git." }, workspace),
+      {
+        workspace,
+      },
+    );
+    expect(await readFile(path.join(ws.root, B_FILE), "utf8")).toContain("Refines it, written without Git.");
   });
 
   it("[SR-025/AK2] gives no dates without Git", async () => {

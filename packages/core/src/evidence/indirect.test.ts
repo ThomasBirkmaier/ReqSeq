@@ -266,7 +266,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual({ status: "verified" });
   });
 
-  it("a validation record of the parent does not block the indirect verification (D-007)", () => {
+  it("[SR-034/AK1] a validation record of the parent does not block the indirect verification (D-007)", () => {
     const [parent, child] = [element(), element()];
     const evaluate = evaluator({
       children: new Map([[parent, [child]]]),
@@ -275,7 +275,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual(indirect);
   });
 
-  it("a record of a variant does not block in the core, and a child counts only in the views it applies in (SR-047, SR-040)", () => {
+  it("[SR-034/AK1] a record of a variant does not block in the core, and a child counts only in the views it applies in (SR-047, SR-040)", () => {
     const parent = element();
     const both = element();
     const onlyV = element({ validity: [{ id: V }] });
@@ -305,7 +305,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluator({})(element(), CORE)).toEqual({ status: "open" });
   });
 
-  it("a child whose type has no meaning requirement does not count (ThomasBirkmaier/ReqSeq-archive#526 Q2)", () => {
+  it("[SR-034/AK1] a child whose type has no meaning requirement does not count (ThomasBirkmaier/ReqSeq-archive#526 Q2)", () => {
     const [parent, child, useCase] = [element(), element(), element({}, "use-case")];
     const evaluate = evaluator({
       children: new Map([[parent, [useCase, child]]]),

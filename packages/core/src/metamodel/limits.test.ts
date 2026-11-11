@@ -211,7 +211,7 @@ relations:
 });
 
 describe("max-items in the metamodel (SR-171)", () => {
-  it("reports max-items on a single value and on kind relation, and gives the others by key", async () => {
+  it("[SR-171/AK3] reports max-items on a single value and on kind relation, and gives the others by key", async () => {
     const metamodel = await load({
       "metamodel/z-more.yaml": `reqseq-metamodel: 1
 properties:

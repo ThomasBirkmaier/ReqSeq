@@ -74,6 +74,45 @@ const BY_TITLE = [{ by: "title", order: "asc" }];
 
 scenariosOf("element.list", [
   {
+    name: "a folder without a workspace file: workspace.not-found with the file, no element read",
+    tag: "[SR-004/AK5]",
+    fixture: {
+      files: {
+        "README.md": "no workspace\n",
+        "needs/N-000000000001.md":
+          "---\nid: 40040040-0000-4000-8000-000000000001\ntype: need\nstatus: draft\ntitle: Gusts\n---\n",
+      },
+      git: true,
+    },
+    input: {},
+    expect: "error",
+    check: (results) => {
+      expect((results["core"]?.outcome as { error: unknown }).error).toMatchObject({
+        code: "workspace.not-found",
+        details: { file: "reqseq-workspace.yaml" },
+      });
+    },
+  },
+  {
+    name: "a workspace file that cannot be read: file.faulty with the file and the reason, no element read",
+    tag: "[SR-004/AK5]",
+    fixture: {
+      files: {
+        "reqseq-workspace.yaml": "reqseq-workspace: 1\nname: [unclosed\n",
+        "needs/N-000000000001.md":
+          "---\nid: 40040040-0000-4000-8000-000000000001\ntype: need\nstatus: draft\ntitle: Gusts\n---\n",
+      },
+      git: true,
+    },
+    input: {},
+    expect: "error",
+    check: (results) => {
+      const { error } = results["core"]?.outcome as { error: { code: string; message: string } };
+      expect(error.code).toBe("file.faulty");
+      expect(error.message).toMatch(/^reqseq-workspace\.yaml is faulty: Invalid YAML at line/);
+    },
+  },
+  {
     name: "a selection by baseline: the elements it lists, as they are now (SR-101, #1353)",
     fixture: EXPORT,
     root: "system",

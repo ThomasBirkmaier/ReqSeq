@@ -326,9 +326,13 @@ describe("duplicate identifiers (ThomasBirkmaier/ReqSeq-archive#305)", () => {
     `---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: ${specId}\nderives-from:\n  - { id: ${N001.id}, version: n1:ef8aec5dd4656003 }\n---\n`;
   const TWIN_FILE = "requirements/SR-0000000b0038.md";
 
-  it("reports each element of a type whose identifier another one has, in any case", async () => {
+  it("[SR-088/AK4] reports each element of a type whose identifier another one has, in any case, and changes no file", async () => {
     const opened = await open({ [TWIN_FILE]: twin("sr-036") });
+    const files = (): Promise<string[]> =>
+      Promise.all([SR036.file, TWIN_FILE].map((file) => readFile(opened.fixture.path(file), "utf8")));
+    const before = await files();
     const problems = await problemsOf(opened);
+    expect(await files()).toEqual(before);
     expect(problems).toEqual([
       {
         code: "element.duplicate-identifier",

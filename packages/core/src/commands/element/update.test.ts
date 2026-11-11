@@ -541,7 +541,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
-  it("removes a property the type does not know with unset, and nothing else, but refuses to set it (#189)", async () => {
+  it("[SR-016/AK4] removes a property the type does not know with unset, and nothing else, but refuses to set it (#189)", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     expect((await updateError(opened, { ref: GUSTS.id, set: { "customer-id": "1" } })).details).toMatchObject(
@@ -603,7 +603,7 @@ describe("element.update", () => {
     expect(out.problems?.filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
-  it("refuses a file that changed on disk since it was read and works again on the next call", async () => {
+  it("[SR-166/AK3] refuses a file that changed on disk since it was read and works again on the next call", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     const changed = (await read(opened, WIND.file)).replace("Show wind speed", "Changed elsewhere");

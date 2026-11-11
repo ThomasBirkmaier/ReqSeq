@@ -680,7 +680,7 @@ describe("a reference written by the [[ search (SR-066)", () => {
     expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${saved}`)).toBe(true);
   });
 
-  it("[SR-066/AK2] (save part) element.update fills the empty version= of a reference to another repository in its place, before the repository", async () => {
+  it("[SR-066/AK2] [SR-005/AK3] (save part) element.update fills the empty version= of a reference to another repository in its place, before the repository", async () => {
     const opened = await open();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,

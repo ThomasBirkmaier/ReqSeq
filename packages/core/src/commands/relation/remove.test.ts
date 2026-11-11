@@ -83,7 +83,7 @@ const read = (opened: Opened, file: string): Promise<string> =>
   fs.readFile(opened.fixture.path(file), "utf8");
 
 describe("relation.remove removes a relation from the source file only (D-045, SR-102)", () => {
-  it("[SR-102/AK1] removes the relation's lines and the key with its last item; the target and its file stay", async () => {
+  it("[SR-102/AK1] [SR-067/AK5] removes the relation's lines and the key with its last item; the target and its file stay", async () => {
     const opened = await open();
     const [before, target] = [await read(opened, GUSTS.file), await read(opened, WIND.file)];
     const out = await remove(opened, { source: GUSTS.id, kind: "derives-from", target: "SR-e88fb3" });

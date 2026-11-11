@@ -132,7 +132,7 @@ describe("read-only workspace", () => {
     });
   });
 
-  it("names a missing metamodel folder as the reason", async () => {
+  it("[SR-011/AK4] names a missing metamodel folder as the reason", async () => {
     const ws = await fixture();
     await fs.rm(ws.path("model"), { recursive: true });
     expect(await workspaceAccess(open(ws.root))).toEqual({

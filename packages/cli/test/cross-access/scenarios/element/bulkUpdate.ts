@@ -1,6 +1,7 @@
 // Cross-access scenarios of element.bulkUpdate, in addition to the default one (cross-access.test.ts).
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { FILTER, NESTED, NESTED_A } from "../../fixtures.js";
+import { FILTER, NESTED, NESTED_A, changedFiles } from "../../fixtures.js";
 
 /** The plan of the preview of `topic remove` on SR-0000b1 and SR-0000b2 of FILTER (#158). */
 const PLAN = "p1:f77058b6376ff78f9f9febef65e53aa6f03c87562777d572ddb121ac6840c29c";
@@ -121,9 +122,14 @@ scenariosOf("element.bulkUpdate", [
     expect: "error",
   },
   {
-    name: "the status is never a bulk change (D-030)",
+    name: "the status is never a bulk change (D-030), nothing is written",
+    tag: "[SR-071/AK4]",
     fixture: FILTER,
     input: { selection: {}, property: "status", operation: "set", value: "approved", confirm: true },
     expect: "error",
+    check: (results) => {
+      expect((results["core"]?.outcome as { error: { code: string } }).error.code).toBe("input.invalid");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
   },
 ]);

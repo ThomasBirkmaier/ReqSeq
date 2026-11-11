@@ -1,6 +1,11 @@
 // Cross-access scenarios of relation.add, in addition to the default one (cross-access.test.ts).
 import { expect } from "vitest";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
+import { changedFiles } from "../../fixtures.js";
+
+/** Requirements A, B, C in a cycle, D deriving from A, and a need (SR-090). */
+const CYCLE: FixtureOptions = { fixture: "SR-090/cycle", git: true };
 
 scenariosOf("relation.add", [
   {
@@ -25,10 +30,35 @@ scenariosOf("relation.add", [
     expect: "output",
   },
   {
-    name: "a relation the metamodel does not allow",
-    fixture: { fixture: "SR-090/cycle", git: true },
+    name: "a relation the metamodel does not allow, with source, target and kind, nothing is written",
+    tag: "[SR-067/AK4]",
+    fixture: CYCLE,
     input: { source: "N-a0000000001", kind: "derives-from", target: "SR-b0000000001" },
     expect: "error",
+    check: (results) => {
+      const { error } = results["core"]?.outcome as {
+        error: { code: string; message: string; details: Record<string, unknown> };
+      };
+      expect([error.code, error.details]).toEqual([
+        "relation.not-allowed",
+        { relation: "derives-from", sourceType: "need", targetType: "system-requirement" },
+      ]);
+      expect(error.message).toMatch(/ from Need N-\w+ to System Requirement SR-\w+ is not allowed/);
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a relation is written into the source file only",
+    tag: "[SR-067/AK6]",
+    fixture: CYCLE,
+    input: { source: "SR-b0000000004", kind: "derives-from", target: "N-a0000000001" },
+    expect: "output",
+    check: (results) => {
+      expect(changedFiles(results["core"])).toEqual(["requirements/SR-0b0000000004.md"]);
+      expect(results["core"]?.files["requirements/SR-0b0000000004.md"]).toContain(
+        "  - { id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001,",
+      );
+    },
   },
   {
     name: "a stored relation without version gets its current version (ThomasBirkmaier/ReqSeq-archive#302)",

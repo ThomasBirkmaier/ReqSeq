@@ -4,7 +4,15 @@ import { readFileSync } from "node:fs";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { AFFECTED, FILTER, NESTED, VARIANT_VIEWS, requiredKey, supersededHintFiles } from "../../fixtures.js";
+import {
+  AFFECTED,
+  FILTER,
+  NESTED,
+  VARIANT_VIEWS,
+  changedFiles,
+  requiredKey,
+  supersededHintFiles,
+} from "../../fixtures.js";
 
 /** The SHA-256 of a file's bytes, as element.get gives it (`fileSha256`, SR-106). */
 const sha256 = (bytes: string | Buffer): string => createHash("sha256").update(bytes).digest("hex");
@@ -90,6 +98,17 @@ scenariosOf("element.update", [
     fixture: FILTER,
     input: { ref: "SWR-0000f1", set: { priority: "3" } },
     expect: "error",
+  },
+  {
+    name: "a property the type does not have is refused, the file stays",
+    tag: "[SR-016/AK4]",
+    fixture: FILTER,
+    input: { ref: "SR-0000b1", set: { colour: "red" } },
+    expect: "error",
+    check: (results) => {
+      expect((results["core"]?.outcome as { error: { code: string } }).error.code).toBe("input.invalid");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
   },
   {
     name: "relations added and removed by short ID in the same write as a property (#175)",

@@ -177,7 +177,7 @@ describe("workspace.check", () => {
     });
   });
 
-  it("[SR-019/AK2] shows only problems at or above the given severity, and ok stays about all findings", async () => {
+  it("[SR-019/AK5] shows only problems at or above the given severity, and ok stays about all findings", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const errors = await check(workspace, { severity: "error" });

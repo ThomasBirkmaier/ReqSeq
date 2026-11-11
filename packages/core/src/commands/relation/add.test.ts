@@ -116,7 +116,7 @@ const lineDiff = (before: string, after: string): { added: string[]; removed: st
 };
 
 describe("relation.add stores UUID and current version of the target in the source file (SR-021, SR-005, SR-041)", () => {
-  it("[SR-021/AK1] writes UUID, current version and title of a target in the same repository; the target file stays", async () => {
+  it("[SR-021/AK1] [SR-067/AK6] writes UUID, current version and title of a target in the same repository; the target file stays", async () => {
     const opened = await open({ fixture: "SR-021/targets" }, "system");
     const [before, target] = await readAll(opened, [SR.file, SYSTEM_NEED.file]);
     const version = await versionOf(opened, SYSTEM_NEED.id);
@@ -239,8 +239,8 @@ describe("relation.add stores UUID and current version of the target in the sour
   });
 });
 
-describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-086)", () => {
-  it("[SR-067/AK1] refuses a relation from a source type the kind does not allow, with source, target and kind", async () => {
+describe("relation.add sets only relations the metamodel allows (SR-067 AK4, SR-086)", () => {
+  it("[SR-067/AK4] refuses a relation from a source type the kind does not allow, with source, target and kind, and writes nothing", async () => {
     const opened = await open();
     const before = await read(opened, NEED.file);
     const error = await addError(opened, { source: NEED.id, kind: "derives-from", target: WIND.id });
@@ -254,9 +254,11 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-
     expect(await read(opened, NEED.file)).toBe(before);
   });
 
-  it("refuses a relation to a target type the kind does not allow", async () => {
+  it("[SR-067/AK4] refuses a relation to a target type the kind does not allow, and writes nothing", async () => {
     const opened = await open();
+    const before = await read(opened, WIND.file);
     const error = await addError(opened, { source: WIND.id, kind: "based-on", target: GUSTS.id });
+    expect(await read(opened, WIND.file)).toBe(before);
     expect([error.code, error.details]).toEqual([
       "relation.not-allowed",
       { relation: "based-on", sourceType: "system-requirement", targetType: "system-requirement" },
@@ -342,7 +344,7 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-
     expect(await read(opened, NEED2.file)).toBe(before);
   });
 
-  it("refuses to write a file that changed on disk since it was read", async () => {
+  it("[SR-166/AK3] refuses to write a file that changed on disk since it was read", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     const changed = `${await read(opened, WIND.file)}More.\n`;
