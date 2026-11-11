@@ -575,12 +575,12 @@ export interface ReqifUnmapped {
 }
 
 /**
- * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
+ * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). */
-  readonly "reqseq-data": 3;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). */
+  readonly "reqseq-data": 4;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -592,20 +592,26 @@ export interface DataExportFile {
   /** The selection as given; left out when none was given (every element). */
   readonly selection?: ElementSelection;
   /** The repositories of the workspace file, in its order. */
-  readonly repositories: readonly {
-    /** Workspace name of the repository. */
-    readonly name: string;
-    /** The repository is on this machine. */
-    readonly available: boolean;
-    /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
-    readonly commit?: Commit;
-    /** Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell. */
-    readonly dirty?: boolean;
-  }[];
-  /** A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
-  readonly incomplete?: Incomplete;
+  readonly repositories: readonly DataExportRepository[];
+  /** The data may lack elements or records (SR-006 AK2): a repository of the workspace is not on this machine (its entry in `repositories` has `available: false`), so its elements and the records of its evidence locations are missing, or a condition of the selection met a target in a repository the workspace file does not list. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
+  readonly incomplete: Incomplete;
   /** Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`. */
   readonly elements: readonly DataExportElement[];
+}
+
+/**
+ * One repository of the workspace file with its state, in `repositories` of the JSON form and of every line.
+ * Schema: `schemas/data-export.schema.json#/$defs/repository`.
+ */
+export interface DataExportRepository {
+  /** Workspace name of the repository. */
+  readonly name: string;
+  /** The repository is on this machine. */
+  readonly available: boolean;
+  /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
+  readonly commit?: Commit;
+  /** Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell. */
+  readonly dirty?: boolean;
 }
 
 /**
@@ -651,7 +657,7 @@ export interface DataExportElement {
   readonly properties: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status (SR-038 AK5). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
@@ -703,7 +709,7 @@ export interface DataExportElementPart {
   readonly properties?: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations?: readonly DataExportRelation[];
-  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status (SR-038 AK5). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
@@ -713,7 +719,7 @@ export interface DataExportElementPart {
 }
 
 /**
- * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
+ * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
  * Schema: `schemas/data-export.schema.json#/$defs/line`.
  */
 export interface DataExportLine {
@@ -755,7 +761,7 @@ export interface DataExportLine {
   readonly properties: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status (SR-038 AK5). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
@@ -763,11 +769,15 @@ export interface DataExportLine {
   readonly validationReason?: string;
   readonly problems?: readonly Problem[];
   /** Version of this file format. */
-  readonly "reqseq-data": 3;
+  readonly "reqseq-data": 4;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
   readonly dirty: boolean;
+  /** As `repositories` of the JSON form: the commit of each available repository, and which repository is not on this machine (SR-062 AK1). */
+  readonly repositories: readonly DataExportRepository[];
+  /** As `incomplete` of the JSON form. */
+  readonly incomplete: Incomplete;
 }
 
 /**
@@ -813,7 +823,7 @@ export interface DataExportElementFields {
   readonly properties?: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations?: readonly DataExportRelation[];
-  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status (SR-038 AK5). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
@@ -928,7 +938,7 @@ export interface DataExportRowVerification {
 }
 
 /**
- * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).
+ * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view it lists (none for a variant whose status the metamodel marks invalid, SR-047 AK6), `trace.matrix` one for its view (SR-126).
  * Schema: `schemas/data-export.schema.json#/$defs/verificationEntry`.
  */
 export interface DataExportVerificationEntry {
@@ -3236,7 +3246,7 @@ export interface EvidenceListOutput {
       readonly criterion?: number;
       /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
       readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
-      /** Verification only: the status of the criterion in each view the element applies in (SR-031, SR-047; with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
+      /** Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
       readonly views?: readonly {
         /** `core` or the variant's UUID. */
         readonly view: string;
@@ -3379,7 +3389,7 @@ export interface EvidenceStatusInput {
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
-  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
+  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
   readonly total: number;
@@ -3636,7 +3646,7 @@ export interface BaselineListOutput {
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in, except a variant whose status the metamodel marks invalid (SR-047 AK6; only the variant's view when the stored selection has one, also when its status is invalid, SR-094 AK5), and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
@@ -3686,21 +3696,21 @@ export interface BaselineGetOutput {
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
-    /** With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
+    /** With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3), none for a variant whose status the metamodel marks invalid now (SR-047 AK6); with a variant in the stored selection only that variant's row, also when its status is invalid (SR-094 AK5, SR-047 AK6). Empty when it applies in no view shown. Own records only, never indirect (SR-094 AK6). Left out when the stored view cannot be resolved. */
     readonly verification?: readonly {
       readonly view: ViewId;
-      /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
+      /** From the records of the view that count for the baseline: dated at or before it (SR-094 AK2); outdated with records of other versions only, open without (SR-094 AK3). */
       readonly status: "open" | "verified" | "failed" | "outdated";
       /** How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5): 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it. */
       readonly criteria?: DataExportCriteriaCount;
-      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
+      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (SR-094 AK2). Left out when there is none. */
       readonly later?: readonly DataExportEvidenceRecord[];
     }[];
     /** With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record (SR-038 AK5, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
     readonly validation?: ValidationStatus;
     /** With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2). */
     readonly validationReason?: string;
-    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none. */
+    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (SR-094 AK2). Left out when there is none. */
     readonly validationLater?: readonly DataExportEvidenceRecord[];
   }[];
   /** Elements per state over all pages. */

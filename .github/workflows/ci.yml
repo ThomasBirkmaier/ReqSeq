@@ -193,6 +193,7 @@ jobs:
             git fetch --unshallow --no-tags origin "$(git rev-parse HEAD)"
           fi
       # The spec is a ReqSeq workspace (D-064, ThomasBirkmaier/ReqSeq-archive#326): ReqSeq checks it like any other (exit 1 on errors).
+      # It also fails when an element that is not a draft lacks a relation the metamodel requires (#1306).
       - name: Check the spec with ReqSeq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: pnpm spec:check

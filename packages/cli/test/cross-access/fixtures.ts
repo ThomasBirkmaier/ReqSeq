@@ -129,6 +129,11 @@ export const NESTED_A = "39039039-0000-4000-8000-0000000000a1";
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
 export const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
 
+/** SR-0000b8 of IN_CRITERIA with `status`: only a criterion that references a need, in an outdated version. */
+const gustsRequirement = (status: string): string =>
+  `---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: ${status}\ntitle: Show gusts\nrequirement-type: functional\n` +
+  "acceptance-criteria:\n  - Given a gust, then [the other need](reqseq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n";
+
 /**
  * HINTS with the standard model as shipped, which marks the acceptance criteria and the rationale as
  * Markdown, and links in acceptance criteria (SR-127, ThomasBirkmaier/ReqSeq-archive#444): SR-0000b1 holds one to a changed need
@@ -148,9 +153,16 @@ export const IN_CRITERIA: FixtureOptions = {
       "then the station shows it.",
       "then [the need](reqseq:26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000) shows it.",
     ),
-    "requirements/SR-0000000000b8.md":
-      "---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\n" +
-      "acceptance-criteria:\n  - Given a gust, then [the other need](reqseq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n",
+    "requirements/SR-0000000000b8.md": gustsRequirement("draft"),
+  },
+};
+
+/** IN_CRITERIA with SR-0000b8 obsolete (D-044): its outdated reference is no hint (SR-025 AK5), the one of SR-0000b1 is. */
+export const OBSOLETE_SOURCE: FixtureOptions = {
+  ...IN_CRITERIA,
+  files: {
+    ...IN_CRITERIA.files,
+    "requirements/SR-0000000000b8.md": gustsRequirement("obsolete"),
   },
 };
 
@@ -204,6 +216,12 @@ export const SINCE_BASELINE: FixtureOptions = {
   },
 };
 
+/** The workspace file of the example of SR-043 with the evidence location `evidence`. */
+const EXAMPLE_WORKSPACE =
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+  "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n";
+
 /** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
 const exampleRecord = (tail: string, result: string, variant?: string): string =>
   `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
@@ -214,13 +232,22 @@ const exampleRecord = (tail: string, result: string, variant?: string): string =
 export const VARIANT_EVIDENCE: FixtureOptions = {
   fixture: "SR-043/example",
   files: {
-    "reqseq-workspace.yaml":
-      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
-      '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
-      "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
+    "reqseq-workspace.yaml": EXAMPLE_WORKSPACE,
     "evidence/k2-core.md": exampleRecord("a2", "passed"),
     "evidence/k2-b.md": exampleRecord("a2", "failed", "c2"),
     "evidence/k1-a.md": exampleRecord("a1", "passed", "c1"),
+  },
+  git: true,
+};
+
+/** The example of SR-043 with variant C obsolete, an invalid status, and K3 passed for C (SR-047 AK6). */
+export const VARIANT_INVALID: FixtureOptions = {
+  fixture: "SR-043/example",
+  files: {
+    "reqseq-workspace.yaml": EXAMPLE_WORKSPACE,
+    "variants/VAR-0000000000c3.md":
+      "---\nid: 43043043-0000-4000-8000-0000000000c3\ntype: variant\nstatus: obsolete\ntitle: Desert\n---\n",
+    "evidence/k3-c.md": exampleRecord("a3", "passed", "c3"),
   },
   git: true,
 };

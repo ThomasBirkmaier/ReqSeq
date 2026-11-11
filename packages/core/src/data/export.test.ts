@@ -202,7 +202,7 @@ describe("the header of an export", () => {
     };
     const out = exportHeader({ ...header, selection: { package: "PKG-0000d1" } });
     expect(out).toEqual({
-      "reqseq-data": 3,
+      "reqseq-data": 4,
       commit: "0123456789abcdef0123456789abcdef01234567",
       dirty: true,
       workspace: "Weather station",

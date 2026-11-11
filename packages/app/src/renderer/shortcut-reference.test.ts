@@ -25,10 +25,12 @@ import {
   LIST_MOVES,
   PROMPT_MOVES,
   MOD_CLICK,
+  CLICK,
   ctrlStep,
   historyStep,
   leavesPart,
   isModClick,
+  isPlainClick,
   keySpecLabel,
   listStep,
   matches,
@@ -180,6 +182,18 @@ describe("the key tables follow their handlers", () => {
     }
     expect(keySpecLabel({ shortcut: MOD_CLICK }, false)).toBe("Ctrl+Click");
     expect(keySpecLabel({ shortcut: MOD_CLICK }, true)).toBe("⌘Click");
+  });
+
+  it("lists the plain click on the value of a choice box (isPlainClick) as Click", () => {
+    expect(
+      ELEMENT_MORE_KEYS.some((row) => row.keys.some((spec) => "shortcut" in spec && spec.shortcut === CLICK)),
+    ).toBe(true);
+    for (const mac of [false, true]) {
+      const click = { ...eventOf({ shortcut: CLICK }, mac), button: 0 };
+      expect(isPlainClick(click)).toBe(true);
+      expect(isModClick(click, mac)).toBe(false);
+      expect(keySpecLabel({ shortcut: CLICK }, mac)).toBe("Click");
+    }
   });
 
   it("writes the slash menu's keys as CodeMirror names them", () => {

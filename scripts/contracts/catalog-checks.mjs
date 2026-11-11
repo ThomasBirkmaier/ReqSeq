@@ -251,15 +251,10 @@ function propertiesOf(schema, file, schemas, seen = new Set()) {
   return found;
 }
 
-/** The type of a property, after one `$ref`. */
-function typeOf(property, file, schemas) {
-  const resolved = property.$ref === undefined ? undefined : resolveRef(property.$ref, file, schemas);
-  return property.type ?? resolved?.schema.type;
-}
-
 /**
  * `jsonLines` (#319): `items` is a top-level array of the output, every field a top-level property that
- * is no array and no property of the item schema, so a line never holds a key twice.
+ * is not `items` itself and no property of the item schema, so a line never holds a key twice. A field
+ * may be another array: the lines of data.export carry `repositories` (SR-062 AK1).
  */
 function checkJsonLines(cmd, schemas) {
   if (cmd.jsonLines === undefined) {
@@ -279,8 +274,8 @@ function checkJsonLines(cmd, schemas) {
     if (property === undefined) {
       return [`jsonLines: "${field}" is not a top-level field of the output`];
     }
-    if (typeOf(property, outputFile, schemas) === "array") {
-      return [`jsonLines: "${field}" is an array`];
+    if (field === items) {
+      return [`jsonLines: "${field}" is the array of the lines`];
     }
     return item.has(field) ? [`jsonLines: "${field}" is also a property of the items of "${items}"`] : [];
   });

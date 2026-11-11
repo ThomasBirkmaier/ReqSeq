@@ -15,7 +15,9 @@
 //   `baselineEvidence` of the evidence block over the views of `verificationState` (the same as
 //   `evidence.status`, SR-080) and the records that count for the baseline (`countsFor`, AK2). The
 //   rows: with a variant in the stored selection only that variant's (AK5), else the core and every
-//   variant the requirement applies in (AK4, a stored `view: core` included). When the stored
+//   variant the requirement applies in (AK4, a stored `view: core` included), as `evidence.status`
+//   shows them (SR-047 AK3), so none for a variant whose status is invalid now (SR-047 AK6; a
+//   baseline over that variant's view keeps its rows, AK5). When the stored
 //   selection cannot be resolved, its `view` alone is resolved for this; a view that is gone leaves
 //   the verification out, with a warning, and keeps the validation status, which has no view (AK7).
 //   While the metamodel is not valid there are no records: every row is `open`. Page only; one
@@ -89,11 +91,11 @@ const CORE: View = { kind: "core" };
 
 /**
  * The views of the rows of `holders` for the view `shown` (see the file comment): a variant's view
- * alone, every view for the core.
+ * alone, also when its status is invalid; for the core every view but those of invalid variants.
  */
 const rowViews = (holders: readonly ViewHolder[], shown: View): readonly ViewHolder[] =>
   shown.kind === "core"
-    ? holders
+    ? holders.filter(({ invalid }) => !invalid)
     : holders.filter(
         ({ view }) =>
           view.kind === "variant" &&

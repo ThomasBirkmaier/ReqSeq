@@ -3,7 +3,14 @@ import fs from "node:fs/promises";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf, templateSetup } from "../../scenario.js";
-import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, VARIANT_EVIDENCE } from "../../fixtures.js";
+import {
+  EVIDENCE,
+  IDENTIFIERS,
+  MISSING_TARGETS,
+  OBSOLETE_SOURCE,
+  ORPHANED_CHAIN,
+  VARIANT_EVIDENCE,
+} from "../../fixtures.js";
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -55,6 +62,21 @@ scenariosOf("workspace.check", [
           .filter((p) => p.code === "relation.cross-repository-title")
           .map((p) => [p.file, p.line]),
       ).toEqual([["requirements/SR-1a3c5e7b9d0f.md", 10]]);
+    },
+  },
+  {
+    name: "an outdated reference of an obsolete source is no finding (SR-025 AK5)",
+    fixture: OBSOLETE_SOURCE,
+    input: {},
+    tag: "[SR-025/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { problems: { code: string; elementId?: string }[] } }
+      ).output;
+      const sources = output.problems.filter((p) => p.code === "relation.outdated").map((p) => p.elementId);
+      expect(sources).toContain("26a0b000-0000-4000-8000-0000000000b1");
+      expect(sources).not.toContain("26a0b000-0000-4000-8000-0000000000b8");
     },
   },
   {
