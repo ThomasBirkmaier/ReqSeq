@@ -2,7 +2,7 @@
 // change the schema or the catalog and run `pnpm contracts:generate`.
 
 /**
- * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is internal and private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
+ * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
  * Schema: `schemas/activity.schema.json#`.
  */
 export interface ActivityFile {
@@ -1432,7 +1432,7 @@ export interface MetamodelStatus {
 }
 
 /**
- * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {

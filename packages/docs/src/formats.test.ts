@@ -77,6 +77,6 @@ describe("formats", () => {
     expect(index).toContain("- [baseline](/reference/formats/baseline/)");
     expect(index).toContain("- [activity](/reference/formats/activity/)");
     expect(index).toContain("- [recent-workspaces](/reference/formats/recent-workspaces/)");
-    expect(index).not.toContain("cache folder");
+    expect(index).not.toContain("not meant to be read");
   });
 });
