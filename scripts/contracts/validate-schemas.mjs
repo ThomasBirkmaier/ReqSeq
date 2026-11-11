@@ -67,7 +67,10 @@ if (entriesValid) {
 // YAML 1.2 core schema for .yaml and for the frontmatter of .md.
 function parseExample(f, text) {
   if (f.endsWith(".json")) {
-    return JSON.parse(text);
+    const data = JSON.parse(text);
+    // JSON.parse keeps the last of two equal keys; JSON is YAML 1.2, whose parser rejects them.
+    YAML.parse(text, { version: "1.2", schema: "core", uniqueKeys: true });
+    return data;
   }
   if (!f.endsWith(".md")) {
     return YAML.parse(text, { version: "1.2", schema: "core" });
