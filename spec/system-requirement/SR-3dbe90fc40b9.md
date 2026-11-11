@@ -9,6 +9,7 @@ acceptance-criteria:
   - "Gegeben eine Markdown-Datei, die mit einem Kopf beginnt, der sich nicht als YAML lesen lässt oder nicht geschlossen ist, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool Datei, Zeile und Grund als Fehler."
   - "Gegeben eine Datei mit Konfliktmarkern von Git, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool die Datei als ungelösten Konflikt mit dem Schweregrad Fehler."
   - "Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst."
+  - "Gegeben eine Datei des Tools mit einer Formatnummer, die das Tool nicht kennt, zum Beispiel `reqseq-filter: 2`, wenn das Tool sie liest, dann meldet es die Datei als fehlerhaft und verwendet ihren Inhalt nicht."
 verification-method: test
 packages:
   - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
@@ -17,6 +18,7 @@ derives-from:
   - { id: 6adc6938-6661-4f39-a0dd-ad97bb9e8f97, version: n1:398de7f02fc9e503, title: Von außen geänderte Dateien }
 based-on:
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:bc790e5fb52a4b70, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+rationale: "Unbekannte Formatnummer (AK4): Entscheidung des Produktverantwortlichen, 2026-11-11: Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut."
 ---
 
 Wenn eine Datei nicht gelesen werden kann, muss das Tool sie mit Grund melden und mit allen anderen Elementen weiterarbeiten.

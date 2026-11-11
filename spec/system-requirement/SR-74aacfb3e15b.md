@@ -8,8 +8,8 @@ rationale: "Entscheidung des Produktverantwortlichen, 2026-10-26: Es fehlt ein B
 requirement-type: functional
 acceptance-criteria:
   - Gegeben mehrere offene Buffer, wenn der Befehl „Close all buffers“ ausgeführt wird, dann sind alle Buffer außer der Übersicht geschlossen.
-  - Gegeben ein Buffer mit ungespeicherten Änderungen, wenn alle Buffer geschlossen werden, dann fragt die App in der Befehlszeile nach und öffnet keinen modalen Dialog.
-  - Gegeben die Befehlszeile mit den Befehlen, wenn „cab“ getippt wird, dann steht „Close all buffers“ an erster Stelle.
+  - Gegeben ein Buffer mit Eingaben, die noch nicht in der Datei stehen, wenn alle Buffer geschlossen werden, dann schreibt die App sie zuerst in die Datei (SR-105 AK1); lassen sich Eingaben nicht schreiben (SR-105 AK5, SR-106 AK2), fragt sie in der Befehlszeile und nicht in einem modalen Dialog, ob alle Buffer außer diesen geschlossen werden oder alle und ihre Eingaben verworfen werden; Enter wählt das Erste, und Escape schließt keinen Buffer.
+  - Gegeben die Befehlszeile mit den Befehlen und mindestens ein offener Buffer außer der Übersicht, wenn „cab“ getippt wird, dann steht „Close all buffers“ an erster Stelle.
 verification-method: test
 packages:
   - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
@@ -18,7 +18,7 @@ derives-from:
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:c5695d0a131580e0, title: In Buffern arbeiten }
+  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:8db21e7aaeb96d22, title: In Buffern arbeiten }
 ---
 
 Die App muss alle offenen Buffer mit einem Befehl schließen lassen.
