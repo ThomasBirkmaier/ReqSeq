@@ -140,7 +140,7 @@ describe("the values of an element that open a list (SR-132)", () => {
       "type: system-requirement",
       "topic: Bearbeiten und Finden",
       "requirement-type: functional",
-      "packages: Stufe-3 Stufe 3: Oberfläche",
+      "packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche",
       "labels: Timing",
       "labels: Safety",
       "verification-method: test",
@@ -175,7 +175,7 @@ describe("the values of an element that open a list (SR-132)", () => {
   });
 
   it("[SR-132/AK3] a relation target opens the step of its short ID, labelled with its title", () => {
-    expect(named("packages: Stufe-3 Stufe 3: Oberfläche").step).toEqual(
+    expect(named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche").step).toEqual(
       propertyStep("packages", "Stufe 3: Oberfläche", "PKG-089f89"),
     );
   });
@@ -224,13 +224,13 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
     expect(pointedValue(values, pointer, relations)).toEqual({
       kind: "open",
-      value: named("packages: Stufe-3 Stufe 3: Oberfläche"),
+      value: named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche"),
     });
   });
 
   it("[SR-132/AK3] a target that the element does not name as that property asks among the values of the box", () => {
     const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
-    const ask = { kind: "ask", values: [named("packages: Stufe-3 Stufe 3: Oberfläche")] };
+    const ask = { kind: "ask", values: [named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche")] };
     expect(pointedValue(values, pointer, [without(relation(), "property")])).toEqual(ask);
     expect(pointedValue(values, pointer, [relation({ direction: "in" })])).toEqual(ask);
     expect(pointedValue(values, pointer, [relation({ kind: "validity" })])).toEqual(ask);
@@ -240,7 +240,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     const unnamed = box("packages", { target: { id: "uuid-p", repository: "" } });
     expect(pointedValue(values, unnamed, [without(relation(), "repository")])).toEqual({
       kind: "open",
-      value: named("packages: Stufe-3 Stufe 3: Oberfläche"),
+      value: named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche"),
     });
   });
 
@@ -269,7 +269,7 @@ describe("what Ctrl/Cmd+click does on a value (SR-132)", () => {
     const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
     expect(clickedValue(values, pointer, relations)).toEqual({
       kind: "open",
-      value: named("packages: Stufe-3 Stufe 3: Oberfläche"),
+      value: named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche"),
     });
   });
 

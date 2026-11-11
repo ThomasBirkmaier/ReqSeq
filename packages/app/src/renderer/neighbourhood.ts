@@ -5,6 +5,7 @@
 import type { TraceNeighbourhoodInput, TraceNeighbourhoodOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
+import { shownId } from "./id-title.js";
 import { rowOf } from "./rows.js";
 import type { Row } from "./rows.js";
 
@@ -56,12 +57,13 @@ const nodesByKey = (output: TraceNeighbourhoodOutput): ReadonlyMap<string, Node>
   new Map(output.nodes.map((node) => [keyOf(node.repository, node.id), node]));
 
 /** The label of an element: its title, else its ID. */
-const nameOf = (node: Node): string => (node.title === "" ? (node.identifier ?? node.shortId) : node.title);
+const nameOf = (node: Node): string =>
+  node.title === "" ? shownId(node.shortId, node.identifier) : node.title;
 
-/** The ID of an end of an edge, as the rows show it: its identifier, else its short ID. */
+/** The ID of an end of an edge, as the rows show it: its short ID with the identifier (SR-084 AK4). */
 const idOf = (nodes: ReadonlyMap<string, Node>, repository: string, id: string): string => {
   const node = nodes.get(keyOf(repository, id));
-  return node === undefined ? id : (node.identifier ?? node.shortId);
+  return node === undefined ? id : shownId(node.shortId, node.identifier);
 };
 
 /**
@@ -120,7 +122,7 @@ export const parentLevels = (output: TraceNeighbourhoodOutput): Parents => {
     level.push({
       open: elementBufferOf(node),
       name: nameOf(node),
-      label: node.identifier ?? node.shortId,
+      label: shownId(node.shortId, node.identifier),
       outdated: outdated.get(keyOf(node.repository, node.id)),
     });
     byDepth.set(node.depth, level);

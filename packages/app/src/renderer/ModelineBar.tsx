@@ -51,7 +51,7 @@ export const ModelineBar = ({
                     <CopySymbol
                       label="ID"
                       onCopy={() => {
-                        onCopy("ID", head.id);
+                        onCopy("ID", head.shortId);
                       }}
                     />
                   </span>

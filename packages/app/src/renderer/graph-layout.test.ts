@@ -319,21 +319,21 @@ describe("layoutGraph", () => {
   });
 
   it("keeps the layout of a graph of up to 200 nodes that needs no invisible link, as before ThomasBirkmaier/ReqSeq-archive#500 and ThomasBirkmaier/ReqSeq-archive#519", () => {
-    // The places of main before this change (dagre 3.1.1 is pinned): a change here moves the graphs of
+    // The places of main before this change (dagre 3.1.1 is pinned; nodes 288 px wide since SR-084 AK4): a change here moves the graphs of
     // spec/, which must stay as they are (an upgrade of dagre makes it visible on purpose, ADR-0015).
     const layout = layoutGraph(S1_GRAPH);
-    expect([layout.width, layout.height]).toEqual([1246, 512]);
+    expect([layout.width, layout.height]).toEqual([1566, 512]);
     expect(layout.nodes.map((placed) => [placed.node.identifier ?? "PKG", placed.x, placed.y])).toEqual([
-      ["S1", 526, 142],
-      ["N1", 1022, 0],
-      ["D1", 248, 0],
-      ["PKG", 774, 0],
-      ["O1", 526, 0],
+      ["S1", 654, 142],
+      ["N1", 1278, 0],
+      ["D1", 312, 0],
+      ["PKG", 966, 0],
+      ["O1", 654, 0],
       ["D2", 0, 0],
-      ["C1", 144, 284],
-      ["C2", 392, 284],
-      ["C3", 335, 426],
-      ["E", 804, 284],
+      ["C1", 176, 284],
+      ["C2", 488, 284],
+      ["C3", 415, 426],
+      ["E", 996, 284],
     ]);
   });
 

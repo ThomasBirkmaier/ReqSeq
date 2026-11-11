@@ -90,6 +90,7 @@ describe("the view the window shows (SR-043 AK1)", () => {
 
   it("names the view in the prompt and the modeline", () => {
     expect([viewName(CORE_VIEW), viewName(COAST)]).toEqual(["Core", "VAR-0000c1 Coast"]);
+    expect(viewName({ ...COAST, identifier: "VAR-001" })).toBe("VAR-0000c1 (VAR-001) Coast");
     expect([viewMark(undefined), viewMark(COAST)]).toEqual([undefined, "view: Coast"]);
   });
 });

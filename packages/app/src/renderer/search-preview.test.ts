@@ -76,28 +76,44 @@ describe("the hits that fit the card", () => {
 
   it("[SR-183/AK1] takes as many hits as the card's lines hold: two for a hit with a snippet, one without", () => {
     const ten = Array.from({ length: CARD_LINES }, (_, at) => hit(at + 1));
-    expect(fittingRows(rows(ten)).map((row) => row.label)).toEqual(["SR-1", "SR-2", "SR-3", "SR-4", "SR-5"]);
+    expect(fittingRows(rows(ten)).map((row) => row.label)).toEqual([
+      "SR-000001 (SR-1)",
+      "SR-000002 (SR-2)",
+      "SR-000003 (SR-3)",
+      "SR-000004 (SR-4)",
+      "SR-000005 (SR-5)",
+    ]);
     const plain = Array.from({ length: CARD_LINES + 2 }, (_, at) => hit(at + 1, {}, false));
     expect(fittingRows(rows(plain))).toHaveLength(CARD_LINES);
     // A hit of two lines that would pass the last line is left out, with the hits after it.
     const mixed = [hit(1, {}, false), hit(2), hit(3), hit(4), hit(5), hit(6, {}, false)];
-    expect(fittingRows(rows(mixed), 8).map((row) => row.label)).toEqual(["SR-1", "SR-2", "SR-3", "SR-4"]);
+    expect(fittingRows(rows(mixed), 8).map((row) => row.label)).toEqual([
+      "SR-000001 (SR-1)",
+      "SR-000002 (SR-2)",
+      "SR-000003 (SR-3)",
+      "SR-000004 (SR-4)",
+    ]);
     // Fewer hits: all of them.
     expect(fittingRows(rows([hit(1), hit(2)]))).toHaveLength(2);
   });
 
   it("[SR-183/AK3] marks the ID when it matched and the title's words where core marked them", () => {
     const [row] = rows([hit(7, { fields: ["id", "title"], titleMarks: [{ start: 0, end: 4 }] })]);
-    expect(row === undefined ? [] : nameMarks(row)).toEqual([
-      [0, 4],
-      [5, 9],
+    // Only the part of the ID that matched (SR-084 AK4): the identifier, or the short ID.
+    expect(row === undefined ? [] : nameMarks(row, "SR-7 gust")).toEqual([
+      [11, 15],
+      [17, 21],
+    ]);
+    expect(row === undefined ? [] : nameMarks(row, "000007")).toEqual([
+      [0, 9],
+      [17, 21],
     ]);
     // A title with spaces before it: core marks the title as it is, the name shows it without them.
     const [spaced] = rows([hit(8, { title: "  Gust", titleMarks: [{ start: 2, end: 6 }] })]);
-    expect(spaced === undefined ? [] : nameMarks(spaced)).toEqual([[5, 9]]);
+    expect(spaced === undefined ? [] : nameMarks(spaced, "gust")).toEqual([[17, 21]]);
     // A title that is the ID: the name is the ID alone, and no title mark.
     const [same] = rows([hit(9, { identifier: "Later", title: "Later", fields: ["id"], titleMarks: [] })]);
-    expect(same === undefined ? [] : nameMarks(same)).toEqual([[0, 5]]);
+    expect(same === undefined ? [] : nameMarks(same, "later")).toEqual([[11, 16]]);
   });
 });
 
@@ -113,9 +129,9 @@ describe("the search prompt", () => {
     expect(call).toHaveBeenCalledWith("element.search", { query: "gust", limit: CARD_LINES });
     expect(searchBuffer("gust").query).toBe("gust");
     expect(found.map((choice) => [choice.name, choice.hint, choice.snippet?.text])).toEqual([
-      ["SR-3 Gust 3", "draft", "The gust 3 blows."],
-      ["SR-1 Gust 1", "draft", undefined],
-      ["SR-2 Gust 2", "draft", "The gust 2 blows."],
+      ["SR-000003 (SR-3) Gust 3", "draft", "The gust 3 blows."],
+      ["SR-000001 (SR-1) Gust 1", "draft", undefined],
+      ["SR-000002 (SR-2) Gust 2", "draft", "The gust 2 blows."],
     ]);
     found[0]?.run();
     expect(dispatched).toEqual([{ type: "open", buffer: elementBufferOf(hit(3)) }]);
@@ -219,7 +235,7 @@ describe("the search prompt in the minibuffer", () => {
     // Each hit is a row of two lines in the card; Up from the first row chooses none again.
     expect(options().every((option) => option.className === "hit snipped")).toBe(true);
     await press("n", { ctrlKey: true });
-    expect(chosen()).toEqual(["SR-1 Gust 1"]);
+    expect(chosen()).toEqual(["SR-000001 (SR-1) Gust 1"]);
     await press("ArrowUp");
     expect(chosen()).toEqual([]);
     await press("ArrowUp");
@@ -239,7 +255,7 @@ describe("the search prompt in the minibuffer", () => {
       described: option.getAttribute("aria-describedby"),
     }));
     expect(first).toEqual({
-      name: "SR-1 Gust 1",
+      name: "SR-000001 (SR-1) Gust 1",
       marks: ["Gust"],
       hint: "draft",
       snippet: "text: The gust 1 blows.",
@@ -249,8 +265,8 @@ describe("the search prompt in the minibuffer", () => {
     });
     // A hit in the title or ID only: one line, no snippet.
     expect(second).toEqual({
-      name: "SR-2 Gust 2",
-      marks: ["SR-2", "Gust"],
+      name: "SR-000002 (SR-2) Gust 2",
+      marks: ["SR-000002", "Gust"],
       hint: "draft",
       snippet: undefined,
       snippetMark: undefined,
@@ -327,7 +343,7 @@ describe("the search prompt in the minibuffer", () => {
     await type("gusts");
     await press("ArrowDown");
     await press("ArrowDown");
-    expect(chosen()).toEqual(["SR-2 Gust 2"]);
+    expect(chosen()).toEqual(["SR-000002 (SR-2) Gust 2"]);
     hits = [hit(3)];
     await act(async () => {
       release();

@@ -154,7 +154,7 @@ describe("buffer session (SR-115 AK4)", () => {
     const [search, element, overview, list, neighbourhood, graph, metamodel, result] = restored.buffers;
     expect(search).toEqual(searchBuffer("wind"));
     expect(element).toEqual({
-      ...elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"),
+      ...elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Secret title 1"),
       memberSort: [{ by: "title", order: "desc" }],
       memberSteps: [step("status: draft", { status: ["draft"] })],
     });
@@ -170,11 +170,11 @@ describe("buffer session (SR-115 AK4)", () => {
       ),
     );
     expect(neighbourhood).toEqual({
-      ...neighbourhoodBuffer("uuid-2", "spec", "SR-2 Secret title 2"),
+      ...neighbourhoodBuffer("uuid-2", "spec", "SR-000002 (SR-2) Secret title 2"),
       open: ["spec:uuid-2"],
     });
     expect(graph).toEqual({
-      ...graphBuffer("uuid-3", "other", "SR-3 Secret title 3"),
+      ...graphBuffer("uuid-3", "other", "SR-000003 (SR-3) Secret title 3"),
       depth: "all",
       kinds: ["refines"],
       meanings: ["derivation"],
@@ -189,9 +189,9 @@ describe("buffer session (SR-115 AK4)", () => {
     // (SR-044 AK2) comes back read-only.
     const plain = [
       filteredList([]),
-      elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"),
-      readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Secret title 1")),
-      graphBuffer("uuid-3", "other", "SR-3 Secret title 3"),
+      elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Secret title 1"),
+      readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Secret title 1")),
+      graphBuffer("uuid-3", "other", "SR-000003 (SR-3) Secret title 3"),
     ];
     saveSession(() => storage, "plain", sessionText(plain));
     const again = await restoreSession(

@@ -3,14 +3,14 @@
 // have values to choose (`element.facets`); the app lays out what it gives (ADR-0002).
 import type { ElementFacetsOutput, ElementListOutput } from "@reqseq/core";
 import type { Choice } from "./actions.js";
-import { idTitle } from "./id-title.js";
+import { shownIdTitle } from "./id-title.js";
 import { choosableProperties } from "./list-filters.js";
 
 export type ListGroup = NonNullable<ElementListOutput["groups"]>[number];
 
 /**
  * What the heading of a group names: the display name of a type, status or choice, a package or another
- * target by identifier or short ID and title, else the value as written; "(no value)" for the last group.
+ * target by short ID with identifier (SR-084 AK4) and title, else the value as written; "(no value)" for the last group.
  */
 export const groupName = (group: ListGroup): string => {
   if (group.value === undefined) {
@@ -18,7 +18,7 @@ export const groupName = (group: ListGroup): string => {
   }
   const value = String(group.value);
   if (group.title !== undefined || group.identifier !== undefined) {
-    return idTitle(group.identifier ?? value, group.title);
+    return shownIdTitle(value, group.identifier, group.title);
   }
   return group.name ?? value;
 };

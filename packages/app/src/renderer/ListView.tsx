@@ -30,7 +30,7 @@ import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
-import { highlightRanges, highlightTerms, trimLead } from "./highlight.js";
+import { highlightRanges, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
 import { groupCount, groupName, groupSections } from "./list-groups.js";
 import type { Part } from "./highlight.js";
@@ -52,6 +52,7 @@ import {
   SEARCH_PAGE,
   activeRow,
   firstLimit,
+  labelMarks,
   listRows,
   searchRows,
 } from "./rows.js";
@@ -843,7 +844,9 @@ export const ListView = ({
         }}
       >
         <span className="id" id={`${id}-id`} title={row.label}>
-          <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
+          <Marked
+            parts={highlightRanges(row.label, labelMarks(row, buffer.kind === "search" ? buffer.query : ""))}
+          />
         </span>
         <span className="title" id={`${id}-title`} style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
           <Marked parts={highlightRanges(row.title, row.titleMarks)} />

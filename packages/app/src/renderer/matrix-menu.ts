@@ -7,6 +7,7 @@
 import type { CommandTypes, DataExportRelation } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";
+import { refIdTitle } from "./id-title.js";
 import type { MatrixColumn, MatrixRow, Target } from "./matrix.js";
 
 /** The mark of a cell of a relation property's column: no relation kind, so no relation is created or removed there. */
@@ -56,7 +57,7 @@ export const relationSpot = (
   other: {
     id: relation.id,
     ...(relation.repository === undefined ? {} : { repository: relation.repository }),
-    label: relation.identifier ?? relation.shortId ?? relation.id,
+    label: refIdTitle({ ...relation, title: undefined }),
   },
 });
 

@@ -4,6 +4,7 @@
 import type { DataExportElement } from "@reqseq/core";
 import type { PropertyBox } from "./element-view.js";
 import { TITLE_FIELD, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
+import { shownId } from "./id-title.js";
 
 /** One field of the element buffer: the name the status line gives, and its value as text. */
 export interface Field {
@@ -21,11 +22,11 @@ export const STATUS_FIELD = "Status";
 export const fieldText = (values: readonly string[]): string => values.join("\n");
 
 /**
- * The heading of the buffer: the title, else (empty or only spaces, as `title-box.ts` shows it) the identifier
- * or short ID the element is named by.
+ * The heading of the buffer: the title, else (empty or only spaces, as `title-box.ts` shows it) the short ID
+ * with the identifier the element is named by (SR-084 AK4); "Copy field" on the title copies this shown text.
  */
 export const heading = (element: DataExportElement): string =>
-  element.title.trim() === "" ? (element.identifier ?? element.shortId) : element.title;
+  element.title.trim() === "" ? shownId(element.shortId, element.identifier) : element.title;
 
 /** What the status line says about a copy that worked or failed. */
 export const copyNotice = (label: string, copied: boolean): string =>
@@ -90,10 +91,10 @@ export const statusField = (element: Pick<DataExportElement, "status">): Field |
   return status === undefined ? undefined : { label: STATUS_FIELD, text: () => status };
 };
 
-/** The ID field of the element: what the modeline shows first. */
+/** The ID field of the element: what the modeline shows first; "Copy field" copies the short ID (SR-084 AK4). */
 export const idField = (element: DataExportElement): Field => ({
   label: "ID",
-  text: () => element.identifier ?? element.shortId,
+  text: () => element.shortId,
 });
 
 /** The id of the input of the command prompt (Minibuffer.tsx). */

@@ -385,7 +385,7 @@ interface Names {
 }
 
 /**
- * The names of `elements` ("<identifier or short ID> <title>"), by repository and UUID: one
+ * The names of `elements` ("<short ID> (<identifier>) <title>", SR-084 AK4), by repository and UUID: one
  * `element.list` with their UUIDs. That call fails as a whole when one UUID is unknown (an element deleted
  * since) or in two repositories; then each is read with `element.get` and its repository. An element not
  * found has no name; one whose read failed otherwise has none either, and makes the names incomplete.

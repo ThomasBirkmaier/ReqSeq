@@ -6,7 +6,7 @@ describe("the groups of a list (SR-149)", () => {
   it("names a group by its display name, a package by ID and title, else by its value, the last one as no value", () => {
     expect(groupName({ value: "draft", name: "Draft", count: 2, offset: 0 })).toBe("Draft");
     expect(groupName({ value: "PKG-0000d1", title: "Wind", identifier: "R1", count: 1, offset: 2 })).toBe(
-      "R1 Wind",
+      "PKG-0000d1 (R1) Wind",
     );
     expect(groupName({ value: "PKG-0000d2", title: "Sun", count: 1, offset: 3 })).toBe("PKG-0000d2 Sun");
     expect(groupName({ value: 3, count: 1, offset: 4 })).toBe("3");

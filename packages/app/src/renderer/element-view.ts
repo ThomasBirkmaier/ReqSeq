@@ -7,7 +7,7 @@ import type {
   MetamodelProperty,
 } from "@reqseq/core";
 import { outdatedKey } from "./editor/references.js";
-import { idTitle } from "./id-title.js";
+import { refIdTitle } from "./id-title.js";
 import type { OutdatedMark } from "./editor/references.js";
 import { OUTDATED_WORD, isOutdatedCode } from "./outdated-codes.js";
 
@@ -29,9 +29,8 @@ export const propertyLines = (value: unknown): string[] => {
   return typeof title === "string" && title !== "" ? [title] : [JSON.stringify(value)];
 };
 
-/** The label of a relation as the buffer shows it: the identifier or short ID, then the title. */
-export const relationLabel = (relation: DataExportRelation): string =>
-  idTitle(relation.identifier ?? relation.shortId ?? relation.id, relation.title);
+/** The label of a relation as the buffer shows it: the short ID with the identifier (SR-084 AK4), then the title. */
+export const relationLabel = (relation: DataExportRelation): string => refIdTitle(relation);
 
 /** A relation that is the value of a property of kind `relation` (ADR-0004), not a relation kind. */
 export const isPropertyTarget = (relation: DataExportRelation): boolean =>

@@ -234,9 +234,11 @@ body,
   font-weight: 400;
 }
 
+/* A row outside a list (search card, neighbourhood): an 11rem ID column holds a short ID with its
+   identifier (SR-084 AK4); a longer one ends in "…" and shows in full on hover. */
 .row {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  grid-template-columns: 11rem minmax(0, 1fr) auto;
   gap: 0 1rem;
   align-items: baseline;
   padding: 0.1rem 0.75rem;
@@ -276,22 +278,20 @@ body,
    text and the ring of the element's node in the graph, in the same greys; empty for an element without
    them. The rows of a list share one grid: each group, the folded section and each row is a subgrid of
    `.rows` across all its columns, so the ID, status, verification status and ring stand in one line in
-   every row, however wide their text is (#1275). The ID column is as wide as the longest ID up to 10rem
-   (a cut ID shows in full on hover), so a short ID ("SR-83308a") leaves the room to the title; the ring's
+   every row, however wide their text is (#1275). The ID column is as wide as the longest ID up to 16rem
+   (a cut ID shows in full on hover), so a short ID with its identifier ("SR-83308a (SR-036)", SR-084 AK4)
+   fits and a bare short ID leaves the room to the title; the ring's
    text stands right-aligned in a column at least as wide as "10 of 10" before the ring, so the rings
    stand in one line also across lists whose ring texts fit in it. */
 .list .rows {
   display: grid;
   /* The first track holds the row's padding too: in a subgrid it is a margin of the edge cells. */
-  grid-template-columns: fit-content(calc(10rem + 0.75rem)) minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: fit-content(calc(16rem + 0.75rem)) minmax(0, 1fr) auto auto auto auto;
   column-gap: 1rem;
 }
 
 .list .rows .row .id {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The title keeps a wider distance to the ID than the columns right of it keep to each other. */
@@ -375,6 +375,12 @@ body,
   color: var(--accent-gap);
 }
 
+.row .id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .row .id,
 .row .verification,
 .row .status {
@@ -413,9 +419,12 @@ body,
   background: var(--select);
 }
 
+/* Each recent element is a grid of its own, so the ID column has one fixed width, the same in every line:
+   11rem holds a short ID with a usual identifier ("SR-ae0093 (SR-001)", SR-084 AK4); a longer one ends in
+   "…" and shows in full on hover. */
 .overview .recent {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr);
+  grid-template-columns: 11rem minmax(0, 1fr);
   gap: 1rem;
   align-items: baseline;
 }
@@ -427,6 +436,9 @@ body,
 }
 
 .overview .recent .id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -1474,7 +1486,7 @@ mark {
 }
 
 /* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no
-   controls. A box has the size `graph-layout.ts` places it with (224 × 86 px): a line with the ID and the
+   controls. A box has the size `graph-layout.ts` places it with (288 × 86 px): a line with the ID and the
    type, the title on at most two lines, and a line with the marks at the bottom, so neither the ID nor
    the type is ever cut. The element has a dark border (AK1), the selected box the background of a
    selected row and, when it is not the element, a grey border. Links are grey (`--edge`, visible on the
@@ -1598,11 +1610,24 @@ mark {
   white-space: nowrap;
 }
 
+/* The ID and the type: the ID gives way with an ellipsis, so an identifier too long for the box never cuts
+   the type (SR-111 AK4); the whole ID is in the box's hover text. */
 .graph-id {
-  display: block;
+  gap: 0;
   margin-bottom: 2px;
-  text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
+}
+
+.graph-id-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `pre` keeps the space before the dot, which a flex item would drop. */
+.graph-id-type {
+  flex: none;
+  white-space: pre;
 }
 
 .graph-marks {
@@ -1667,7 +1692,7 @@ mark {
 }
 
 /* An evidence box (SR-111 AK3): the summary of the evidence below a node, muted and dashed, so it reads
-   as no element; 224 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
+   as no element; 288 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
 .graph-evidence {
   position: absolute;
   display: -webkit-box;

@@ -30,8 +30,11 @@ import { layoutGraphOf, runLayout } from "./dagre.js";
 import type { GraphEdge, GraphEvidence, GraphNode } from "./graph.js";
 import { keyOfNode, nodeKey } from "./graph.js";
 
-/** The size of a node in CSS pixels; `styles.css` gives `.graph-node` the same, so no node is measured. */
-export const NODE_WIDTH = 224;
+/**
+ * The size of a node in CSS pixels; `styles.css` gives `.graph-node` the same, so no node is measured. The
+ * width holds the line `SR-3c90b0 (SR-036) · System Requirement` uncut (SR-084 AK4, SR-111 AK4).
+ */
+export const NODE_WIDTH = 288;
 export const NODE_HEIGHT = 86;
 /** The height of an evidence box (`.graph-evidence` in `styles.css`): up to three lines of muted text. */
 export const EVIDENCE_HEIGHT = 64;

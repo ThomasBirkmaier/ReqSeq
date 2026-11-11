@@ -228,10 +228,10 @@ describe("MatrixView", () => {
       offset: 0,
     });
     expect(texts("tbody tr td.element")).toEqual([
-      "SR-1 Requirement 1",
-      "SR-2 Requirement 2",
-      "SR-3 Requirement 3",
-      "SR-4 Requirement 4",
+      "SR-000001 (SR-1) Requirement 1",
+      "SR-000002 (SR-2) Requirement 2",
+      "SR-000003 (SR-3) Requirement 3",
+      "SR-000004 (SR-4) Requirement 4",
     ]);
     expect(query("table").getAttribute("aria-label")).toBe("type: system-requirement · matrix");
     expect(query("table").hasAttribute("data-buffer")).toBe(true);
@@ -243,9 +243,12 @@ describe("MatrixView", () => {
   it("[SR-125/AK2] has a column for each relation kind and direction of the answer, named, with the other ends in the cells", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("thead th .name")).toEqual(["Derives from", "Derived by"]);
-    expect(texts("tbody tr:nth-child(1) td.cell")).toEqual(["N-1 See the wind", "SR-2 Requirement 2"]);
+    expect(texts("tbody tr:nth-child(1) td.cell")).toEqual([
+      "N-000001 (N-1) See the wind",
+      "SR-000002 (SR-2) Requirement 2",
+    ]);
     expect(texts("tbody tr:nth-child(2) td.cell:nth-child(2) .relation")).toEqual([
-      "N-2 See the rain link outdated",
+      "N-000001 (N-2) See the rain link outdated",
     ]);
   });
 
@@ -272,7 +275,7 @@ describe("MatrixView", () => {
     await mount(asCall(fakeCall()));
     expect(texts("td.cell .outdated")).toEqual([" link outdated"]);
     expect(query("tbody tr:nth-child(2) .outdated").closest("td")?.textContent).toBe(
-      "N-2 See the rain link outdated",
+      "N-000001 (N-2) See the rain link outdated",
     );
     expect(texts("td.cell .state")).toEqual([" missing"]);
     expect(query("tbody tr:nth-child(3) .state").closest(".relation")?.textContent).toBe("UNKNOWN-1 missing");
@@ -286,7 +289,7 @@ describe("MatrixView", () => {
     expect(current()).toBeUndefined();
     await press("ArrowDown");
     expect(selectedRows()).toEqual(["matrix-row-0"]);
-    expect(current()).toContain("SR-1 Requirement 1");
+    expect(current()).toContain("SR-000001 (SR-1) Requirement 1");
     await press("ArrowDown");
     await press("ArrowDown");
     await press("ArrowUp");
@@ -299,7 +302,7 @@ describe("MatrixView", () => {
         kind: "element",
         id: "uuid-s2",
         repository: "spec",
-        name: "SR-2 Requirement 2",
+        name: "SR-000002 (SR-2) Requirement 2",
       }),
     });
   });
@@ -309,16 +312,16 @@ describe("MatrixView", () => {
     await press("ArrowLeft");
     expect(current()).toContain("SR-1");
     await press("ArrowRight");
-    expect(current()).toBe("N-1 See the wind");
+    expect(current()).toBe("N-000001 (N-1) See the wind");
     await press("ArrowRight");
-    expect(current()).toBe("SR-2 Requirement 2");
+    expect(current()).toBe("SR-000002 (SR-2) Requirement 2");
     await press("ArrowRight");
-    expect(current()).toBe("SR-2 Requirement 2");
+    expect(current()).toBe("SR-000002 (SR-2) Requirement 2");
     await press("ArrowLeft");
-    expect(current()).toBe("N-1 See the wind");
+    expect(current()).toBe("N-000001 (N-1) See the wind");
     // Another row starts at its element again.
     await press("ArrowDown");
-    expect(current()).toContain("SR-2 Requirement 2");
+    expect(current()).toContain("SR-000002 (SR-2) Requirement 2");
     expect(container.querySelectorAll(".current")).toHaveLength(1);
   });
 
@@ -326,9 +329,9 @@ describe("MatrixView", () => {
     const { actions, show } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     await press("ArrowRight");
-    expect(current()).toBe("N-1 See the wind");
+    expect(current()).toBe("N-000001 (N-1) See the wind");
     await show(1);
-    expect(current()).toContain("SR-1 Requirement 1");
+    expect(current()).toContain("SR-000001 (SR-1) Requirement 1");
     await press("Enter");
     expect(actions.at(-1)).toEqual({ type: "open", buffer: objectWith({ id: "uuid-s1" }) });
   });
@@ -346,7 +349,7 @@ describe("MatrixView", () => {
         kind: "element",
         id: "uuid-s2",
         repository: "spec",
-        name: "SR-2 Requirement 2",
+        name: "SR-000002 (SR-2) Requirement 2",
       }),
     });
   });
@@ -375,7 +378,7 @@ describe("MatrixView", () => {
     await click(query("tbody tr:nth-child(1) td.cell [role=link]"));
     expect(actions.at(-1)).toEqual({
       type: "open",
-      buffer: objectWith({ id: "uuid-n1", name: "N-1 See the wind" }),
+      buffer: objectWith({ id: "uuid-n1", name: "N-000001 (N-1) See the wind" }),
     });
   });
 
@@ -402,7 +405,7 @@ describe("MatrixView", () => {
     expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(true);
     expect(selectedRows()).toEqual(["matrix-row-0"]);
     expect(query("table").getAttribute("aria-activedescendant")).toBe("matrix-row-0");
-    expect(current()).toContain("SR-1 Requirement 1");
+    expect(current()).toContain("SR-000001 (SR-1) Requirement 1");
     await press("n", { ctrlKey: true });
     await press("n", { ctrlKey: true });
     expect(selectedRows()).toEqual(["matrix-row-2"]);
@@ -443,13 +446,13 @@ describe("MatrixView", () => {
     await mount(asCall(fakeCall()));
     await press("ArrowRight");
     expect(selectedRows()).toEqual(["matrix-row-0"]);
-    expect(current()).toContain("SR-1 Requirement 1");
+    expect(current()).toContain("SR-000001 (SR-1) Requirement 1");
     await press("ArrowRight");
-    expect(current()).toBe("N-1 See the wind");
+    expect(current()).toBe("N-000001 (N-1) See the wind");
     await mount(asCall(fakeCall()));
     await press("ArrowLeft");
     expect(selectedRows()).toEqual(["matrix-row-0"]);
-    expect(current()).toContain("SR-1 Requirement 1");
+    expect(current()).toContain("SR-000001 (SR-1) Requirement 1");
   });
 
   it("moves with Page, Home and End, and does nothing on Enter without a row", async () => {
@@ -586,7 +589,7 @@ describe("MatrixView", () => {
     expect(container.querySelector("thead")).toBeNull();
     await mount(asCall(fakeCall(() => matrixAnswer([element(1, [])], { columns: [] }))));
     expect(query(".quiet").textContent).toBe("No element of this list has a relation");
-    expect(texts("tbody tr td.element")).toEqual(["SR-1 Requirement 1"]);
+    expect(texts("tbody tr td.element")).toEqual(["SR-000001 (SR-1) Requirement 1"]);
   });
 
   it("passes on that the answer is incomplete, and asks again when the workspace changed", async () => {

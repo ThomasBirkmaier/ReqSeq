@@ -160,7 +160,7 @@ test.describe("the place of a search hit", () => {
     await shot(window, "search-snippets-long");
     // The option is named by ID, title and status; the snippet describes it.
     await expect(
-      window.getByRole("option", { name: "SR-204 Log the station draft" }),
+      window.getByRole("option", { name: "SR-0000a4 (SR-204) Log the station draft" }),
     ).toHaveAccessibleDescription(`text: ${text.slice("text: ".length)}`);
   });
 
