@@ -128,6 +128,27 @@ describe("workspace.init", () => {
     await expect(fs.lstat(ws.path("new/.git"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("[SR-083/AK3] creates no workspace inside a .git folder, in any case and through a linked folder (#1449)", async () => {
+    const ws = await createFixtureWorkspace({ files: { ".git/hooks/keep": "" } });
+    onTestFinished(() => ws.cleanup());
+    await fs.symlink(ws.path(".git"), ws.path("linked"), "junction");
+    const refused = { code: "input.invalid", details: { reason: "git-folder" } };
+    for (const folder of [".git", ".git/hooks", ".GIT", "linked/new"]) {
+      await expect(init(open(ws.root), { path: folder, name: "W" })).rejects.toMatchObject(refused);
+    }
+    // The metamodel folder too: named in `.git`, or the default folder linked into it.
+    for (const folder of ["a", "b"]) {
+      await fs.mkdir(ws.path(folder));
+    }
+    await expect(
+      init(open(ws.root), { path: "a", name: "W", metamodel: { path: ".git/x" } }),
+    ).rejects.toMatchObject(refused);
+    await fs.symlink(ws.path(".git/hooks"), ws.path("b/metamodel"), "junction");
+    await expect(init(open(ws.root), { path: "b", name: "W" })).rejects.toMatchObject(refused);
+    expect(await listFiles(ws.path(".git"))).toEqual(["hooks/keep"]);
+    expect(await listFiles(ws.path("a"))).toEqual([]);
+  });
+
   it("writes the metamodel into the folder the caller names, also the repository root", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });

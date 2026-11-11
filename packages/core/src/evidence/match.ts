@@ -35,8 +35,10 @@
 //   version dates (`model/version-date.ts`), asked per call by `workspace.check`
 //   (`olderCriterionProblems`, since Git changes without a file change); without Git, or when Git
 //   does not have the version, the record is not checked.
+// - `evidence.counts-in-no-view` (warning, SR-047 AK5) for a verification record that counts in no
+//   view, unless another record of its test case counts for the element (`no-view.ts`).
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in
-//   their order. Only the kind and criterion checks need the metamodel; the other findings show while
+//   their order. Only the kind, criterion and view checks need the metamodel; the other findings show while
 //   it is not valid.
 // - A JUnit test case for several views gives one record per view (SR-093 AK5) with the same place
 //   and element, so the findings of the records are given once per code, place, target and message
@@ -52,13 +54,16 @@ import {
   currentFormsOf,
   currentVersionsState,
   elementStoreState,
+  shortIdState,
 } from "../model/index.js";
 import { versionValues } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
-import { workspaceLayoutState } from "../workspace/index.js";
+import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceRecord } from "./record.js";
+import { recordViewContext } from "./in-variant.js";
+import { noViewProblems } from "./no-view.js";
 import { criterionLineOf } from "./record.js";
 import { evidenceReadState, evidenceRecordsState } from "./state.js";
 
@@ -317,6 +322,13 @@ export const evidenceProblemsState = defineWorkspaceState(
       ...distinctFindings([
         ...recordElementProblems(records, store, layout),
         ...recordKindProblems(records, store, metamodel),
+        ...noViewProblems(
+          recordViewContext(
+            { workspace, store, metamodel, shortIds: await workspace.get(shortIdState) },
+            variantIndependentOf(layout),
+          ),
+          records,
+        ),
         ...(criteria === undefined
           ? []
           : criterionProblems(
@@ -333,6 +345,7 @@ export const evidenceProblemsState = defineWorkspaceState(
       evidenceReadState,
       evidenceRecordsState,
       currentVersionsState,
+      shortIdState,
     ],
   },
 );

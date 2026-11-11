@@ -25,7 +25,10 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
     does: "In “Find in element”: the next or the previous hit, the prompt stays open; in “Replace … with”: replace the current hit and go to the next, or go to the next without replacing",
   },
   { keys: [{ press: press("Backspace") }], does: "In an empty input: back one argument" },
-  { keys: [{ press: press("Escape") }], does: "Close the prompt" },
+  {
+    keys: [{ press: press("Escape") }],
+    does: "In a later step of a command: back one step, the prompt stays open; in the first step: close the prompt",
+  },
   {
     keys: [{ press: press(HELP_KEY) }],
     does: "In the command prompt: open the reference page of the chosen command in the browser, or without one the start page of the documentation",

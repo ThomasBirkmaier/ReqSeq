@@ -83,20 +83,6 @@ export const reqseq = (args: readonly string[], options: RunOptions): Promise<Ru
   });
 
 /**
- * Starts `reqseq --version` once in `cacheHome`, which fills Node's compile cache of the CLI (#178) for
- * the later starts of this test process that use `cacheHome`; a start with its own HOME or LOCALAPPDATA
- * (`RunOptions.env`) has its own cache and is not covered. Without it the first start of a file runs
- * with an empty cache and writes it, which on the Windows runner took a test past its timeout (#1290).
- * For a `beforeAll` with its own timeout.
- */
-export const warmCli = async (): Promise<void> => {
-  const out = await reqseq(["--version"], { cwd: cacheHome });
-  if (out.code !== 0) {
-    throw new Error(`reqseq --version failed with exit code ${String(out.code)}: ${out.stderr}`);
-  }
-};
-
-/**
  * The `fileSha256` that `reqseq element get <ref>` gives: the write precondition a change of the text or
  * the title needs (`--expected-file-sha256`, SR-106, #269).
  */

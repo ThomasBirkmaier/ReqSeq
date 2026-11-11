@@ -12,7 +12,8 @@
 // - Refused before anything is written: two selected elements with one UUID (`ref.ambiguous`,
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
 //   refuses (`reqif.invalid` naming each problem), an element or image file changed since it was
-//   read (`file.changed-on-disk`), an output that is no XML file (`file.faulty`), an output
+//   read (`file.changed-on-disk`), an output in a `.git` folder, in any case and through links
+//   (`input.invalid`, D-036), an output that is no XML file (`file.faulty`), an output
 //   folder that does not exist (`file.folder-missing`, checked before any image is copied).
 // - Statements (SR-058): with `statements` and `mapping`, the elements whose `source` is the
 //   mapping's source, narrowed by `selection`, in the order of the list, each by its source
@@ -59,7 +60,7 @@ import type { ReqifWritable } from "../../reqif/index.js";
 import type { StatementsPlan } from "../../reqif/statements.js";
 import { planStatements } from "../../reqif/statements.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
-import { workspaceLayoutState } from "../../workspace/index.js";
+import { refuseGitAt, workspaceLayoutState } from "../../workspace/index.js";
 
 /** An image copy: its source file and SHA-256 when it was read, and its path relative to the output folder. */
 interface ImageCopy {
@@ -259,7 +260,8 @@ const statementsOf = async (
 
 /**
  * Writes `file` to `absolute` with the image `copies` before it: refused before anything is written
- * when the writer refuses the content (`reqif.invalid`) or the output is no file it may replace.
+ * when the writer refuses the content (`reqif.invalid`), the output lies in a `.git` folder
+ * (`input.invalid`, D-036) or is no file it may replace.
  */
 const writeOutput = async (
   absolute: string,
@@ -275,6 +277,14 @@ const writeOutput = async (
       "reqif.invalid",
       `Not exported: ${written.problems.slice(0, 5).map(problemText).join("; ")}${written.problems.length > 5 ? `; and ${String(written.problems.length - 5)} more` : ""}`,
       { command, problems: written.problems },
+    );
+  }
+  // D-036: neither the file nor an image copy goes into a `.git` folder, also through a link (#1449).
+  await refuseGitAt(outputFolder, absolute);
+  for (const copy of copies) {
+    await refuseGitAt(
+      path.join(outputFolder, path.dirname(copy.target)),
+      path.join(outputFolder, copy.target),
     );
   }
   const before = await readFileSnapshot(outputFolder, name);

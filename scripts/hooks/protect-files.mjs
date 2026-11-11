@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse hook (.claude/settings.json): blocks Edit and Write on files that only tools write.
-// Generated files come from `pnpm contracts:generate`, spec elements from the ReqSeq CLI or MCP (D-064).
+// Generated files come from `pnpm contracts:generate`, spec elements from the ReqSeq CLI or MCP.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

@@ -60,4 +60,5 @@ export {
 } from "./layout.js";
 export type { LocatedFolder, MetamodelLocation, RepositoryLocation, WorkspaceLayout } from "./layout.js";
 export { isWritableFolder } from "./writable.js";
-export { refuseGit, shownPath } from "./shown-path.js";
+export { refuseGit, refuseGitAt } from "./git-folder.js";
+export { shownPath } from "./shown-path.js";

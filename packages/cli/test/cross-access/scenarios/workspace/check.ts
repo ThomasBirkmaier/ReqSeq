@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf, templateSetup } from "../../scenario.js";
-import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN } from "../../fixtures.js";
+import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, VARIANT_EVIDENCE } from "../../fixtures.js";
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -14,6 +14,25 @@ templateSetup(SECOND_COMMIT, async (ws) => {
 });
 
 scenariosOf("workspace.check", [
+  {
+    name: "a record for a variant that replaces its requirement counts in no view and is a finding (SR-047 AK5)",
+    fixture: VARIANT_EVIDENCE,
+    input: {},
+    tag: "[SR-047/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as {
+          output: { problems: { code: string; file?: string; targetId?: string }[] };
+        }
+      ).output;
+      expect(
+        output.problems
+          .filter((p) => p.code === "evidence.counts-in-no-view")
+          .map((p) => [p.file, p.targetId]),
+      ).toEqual([["evidence/k1-a.md", "43043043-0000-4000-8000-0000000000a1"]]);
+    },
+  },
   {
     name: "a validation record of a use case, neither need nor requirement, is a finding (SR-038 AK5)",
     fixture: { fixture: "SR-038/validation", git: true },

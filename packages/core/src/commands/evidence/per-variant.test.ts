@@ -38,6 +38,8 @@ const FILES: Readonly<Record<string, string>> = {
   // AK3: K1 (replaced in A by A1) with a hand-written record for A that counts nowhere; A1 failed in A.
   "evidence/k1-a.md": recordFile("a1", "passed", A),
   "evidence/a1-a.md": recordFile("b1", "failed", A),
+  // AK5: A1 (valid in A only) passed without variant, which counts nowhere.
+  "evidence/a1-core.md": recordFile("b1", "passed"),
 };
 
 const open = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
@@ -75,14 +77,17 @@ const refused = async (
   fixture: FixtureWorkspace,
   workspace: Workspace,
   ref: string,
-  variant: string,
+  variant: string | undefined,
   kind: "verification" | "validation" = "verification",
 ): Promise<CommandError> => {
   const before = await fs.readdir(path.join(fixture.root, "evidence"));
-  const input =
-    kind === "verification"
-      ? { ref, kind, method: "test", item: "build-47", result: "passed", variant }
-      : { ref, kind, result: "passed", variant };
+  const input = {
+    ref,
+    kind,
+    ...(kind === "verification" ? { method: "test", item: "build-47" } : {}),
+    result: "passed",
+    ...(variant === undefined ? {} : { variant }),
+  };
   const error = await invoke("evidence.record", input, { workspace }).then(
     () => undefined,
     (e: unknown) => e,
@@ -177,5 +182,44 @@ describe("verification status per variant (SR-047)", () => {
       { workspace },
     )) as CommandOutput<"evidence.record">;
     expect(written.record.variant).toBe(B);
+  });
+
+  it("[SR-047/AK5] workspace.check reports a record that counts in no view with record, requirement and view, and evidence.record refuses one", async () => {
+    const { fixture, workspace } = await open();
+    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(
+      checked.problems
+        .filter((p) => p.code === "evidence.counts-in-no-view")
+        .map((p) => [p.severity, p.file, p.line, p.targetId, p.message]),
+    ).toEqual([
+      [
+        "warning",
+        "evidence/a1-core.md",
+        1,
+        `${P}b1`,
+        "The verification record of SR-0000b1 for the core counts in no view: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)",
+      ],
+      [
+        "warning",
+        "evidence/k1-a.md",
+        1,
+        `${P}a1`,
+        "The verification record of SR-0000a1 for the variant VAR-0000c1 counts in no view: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)",
+      ],
+    ]);
+    // Without a variant the record is for the core, which does not hold A1.
+    const core = await refused(fixture, workspace, "SR-0000b1", undefined);
+    expect([core.code, core.message, core.details]).toEqual([
+      "input.invalid",
+      "SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040); give a variant whose view holds it (SR-047)",
+      { command: "evidence.record", fields: ["variant"], reason: "counts-in-no-view" },
+    ]);
+    // A validation counts per element, in no view: written without variant.
+    const validation = (await invoke(
+      "evidence.record",
+      { ref: "SR-0000b1", kind: "validation", result: "passed" },
+      { workspace },
+    )) as CommandOutput<"evidence.record">;
+    expect(validation.record.variant).toBeUndefined();
   });
 });

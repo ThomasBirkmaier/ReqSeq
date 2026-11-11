@@ -484,11 +484,11 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
 
   it("names a variant's record by the element's and the variant's short ID, apart from the core's (#647)", async () => {
     const { workspace } = await variants();
-    const files = async (variant?: string): Promise<readonly string[]> =>
-      (await record(workspace, { ref: "SR-000ab2", ...TEST, ...(variant === undefined ? {} : { variant }) }))
-        .files;
+    const files = async (variant?: string, ref = "SR-000ab2"): Promise<readonly string[]> =>
+      (await record(workspace, { ref, ...TEST, ...(variant === undefined ? {} : { variant }) })).files;
     const day = DATE.slice(0, 10);
-    expect(await files()).toEqual([`evidence/${day}-SR-000ab2-test.md`]);
+    // SR-000ab2 does not apply in the core, so its core record would count nowhere (SR-047 AK5).
+    expect(await files(undefined, "SR-000a11")).toEqual([`evidence/${day}-SR-000a11-test.md`]);
     expect(await files("VAR-a1a1a1")).toEqual([`evidence/${day}-SR-000ab2-VAR-a1a1a1-test.md`]);
     // Given by UUID, as the app gives it: the name has the short ID all the same.
     expect(await files(COAST)).toEqual([`evidence/${day}-SR-000ab2-VAR-a1a1a1-test-2.md`]);

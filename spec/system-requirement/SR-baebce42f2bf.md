@@ -14,7 +14,7 @@ packages:
   - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
 verification-method: test
 refines:
-  - { id: e6faea96-23af-4d19-bbf0-622baef7e5aa, version: n2:530d7568d5378175, title: Einstieg und Anleitungen mit geprüften Beispielen }
+  - { id: e6faea96-23af-4d19-bbf0-622baef7e5aa, version: n2:f1a9d708c7963ffb, title: Einstieg und Anleitungen mit geprüften Beispielen }
 derives-from:
   - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n2:5d1ea5ad9235c416, title: Das Tool ohne fremde Hilfe benutzen lernen }
 based-on:

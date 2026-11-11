@@ -296,9 +296,9 @@ test.describe("the command prompt", () => {
       await expect(label(window)).toHaveText("Bulk update elements Requirement Type set · value:");
       const choices = model.properties.find((property) => property.key === "requirement-type")?.choices ?? [];
       await expect(names(window)).toHaveText(choices.map((choice) => choice.name));
-      // Escape: nothing is written.
+      // Escape: one argument back (SR-134 AK1), and nothing is written.
       await window.keyboard.press("Escape");
-      await expect(label(window)).toHaveCount(0);
+      await expect(label(window)).toHaveText("Bulk update elements Requirement Type · operation:");
     });
 
     test("Bulk update on the list of all elements takes every element (#856)", async () => {

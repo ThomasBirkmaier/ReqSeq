@@ -244,6 +244,35 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(rule.addedOf().map((e) => name(e.id))).toEqual(["A2"]);
   });
 
+  it("excludes in a variant only what the variant excludes, not what its twin in another repository does (SR-088, D-058)", async () => {
+    // The twin of A in `supplier` excludes K3 of `system`; A itself excludes K2.
+    const ws = await open({
+      "reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+        '  - { name: supplier, url: "git@git.example.com:ws/supplier.git", path: supplier }\n' +
+        "metamodel: { repository: system, path: metamodel }\n",
+      "supplier/variants/VAR-0000000000c1.md": `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes: [{ id: ${P}a3, version: ${V}, repository: system }]\n---\n`,
+    });
+    const store = await ws.get(elementStoreState);
+    const metamodel = await ws.get(metamodelState);
+    const ruleIn = (repository: string) =>
+      viewRuleOf(
+        { workspace: ws, store, metamodel },
+        { kind: "variant", variant: { id: `${P}c1`, repository } },
+      );
+    const [k3] = store.byId.get(`${P}a3`) ?? [];
+    // [repository of the variant, what it excludes, whether it excludes K3, whether its view holds K3]
+    for (const [repository, excluded, excludesK3, holdsK3] of [
+      ["system", ["K2"], false, true],
+      ["supplier", ["K3"], true, false],
+    ] as const) {
+      const rule = ruleIn(repository);
+      expect(rule.excludedOf().map((e) => name(e.id))).toEqual(excluded);
+      expect(k3 && [rule.excludes(k3), rule.includes(k3)]).toEqual([excludesK3, holdsK3]);
+    }
+  });
+
   it("an excluded and replaced core requirement is excluded only, and its replacement is added", async () => {
     const ws = await open(requirement("b3", `validity: [${A}]\nreplaces: [${to("a2")}]\n`));
     const store = await ws.get(elementStoreState);

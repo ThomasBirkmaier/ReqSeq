@@ -4,11 +4,11 @@ type: system-requirement
 status: approved
 title: Einstieg und Anleitungen mit geprüften Beispielen
 spec-id: SR-140
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Entscheidung des Produktverantwortlichen, 2026-11-11: Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
-  - Gegeben ein Beispiel im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel verhindert den Bau.
+  - Gegeben ein Beispiel der Kommandozeile im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel oder eine abweichende Ausgabe verhindert den Bau; in den Abläufen für App, API und MCP prüft der Bau, dass die genannten Befehle, API-Pfade und MCP-Werkzeuge in dieser Version existieren.
   - Gegeben eine Anleitung zu einer Aufgabe, die in App, Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
 verification-method: test
 derives-from:
@@ -19,4 +19,4 @@ packages:
   - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
 ---
 
-Das Tool muss einen Einstieg und für häufige Aufgaben je eine knappe Anleitung mitliefern, deren Beispiele mit der Version laufen, zu der die Dokumentation gehört.
+Das Tool muss einen Einstieg und für häufige Aufgaben je eine knappe Anleitung mitliefern, deren Beispiele der Kommandozeile mit der Version laufen, zu der die Dokumentation gehört, und deren übrige Abläufe nur Befehle, API-Pfade und MCP-Werkzeuge dieser Version nennen.
