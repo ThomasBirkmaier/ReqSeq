@@ -15,7 +15,7 @@ export interface SpecEntry {
   readonly criteria: number;
 }
 
-/** The elements of the spec by their spec ID in upper case. */
+/** The elements of the spec by their spec ID. */
 export type SpecIndex = ReadonlyMap<string, SpecEntry>;
 
 /** A text that may cite spec IDs, with the file it comes from relative to the repository. */
@@ -30,7 +30,10 @@ export interface Citation {
   readonly criteria: readonly number[];
 }
 
-/** The keys of a schema or catalog file whose texts reach a reader: those of `userTexts`, and the code texts. */
+/**
+ * The keys of a schema or catalog file whose texts reach a reader: those of `userTexts`, the code texts, and the
+ * reason a command page gives for a command that does not run on a read-only workspace.
+ */
 export const TEXT_KEYS: ReadonlySet<string> = new Set([
   "description",
   "summary",
@@ -38,10 +41,14 @@ export const TEXT_KEYS: ReadonlySet<string> = new Set([
   "title",
   "cause",
   "remedy",
+  "whileReadOnlyReason",
 ]);
 
 /** The folders of `schemas/` that hold no texts of the reference: derived files and example data. */
 const SKIPPED: readonly string[] = ["generated", "examples"];
+
+/** The one example file whose texts the reference shows: the standard model (`standard-model.ts`). */
+const STANDARD_MODEL = join("examples", "metamodel", "standard-model.yaml");
 
 const CITATION = /\b((?:SR|N|D)-\d{3})\b((?:\s+|\/)AK\d+(?:\s*(?:,|and)\s*AK\d+)*)?/g;
 
@@ -58,7 +65,7 @@ export function citationProblems(texts: readonly CitedText[], spec: SpecIndex): 
   const problems = new Set<string>();
   for (const { source, text } of texts) {
     for (const { id, criteria } of citations(text)) {
-      const entry = spec.get(id.toUpperCase());
+      const entry = spec.get(id);
       if (entry === undefined) {
         problems.add(`${source}: ${id} is not in spec/`);
         continue;
@@ -94,7 +101,10 @@ export async function readSchemaTexts(repoRoot: string): Promise<CitedText[]> {
   const files = entries
     .filter((entry) => entry.isFile() && /\.(json|yaml)$/.test(entry.name))
     .map((entry) => join(entry.parentPath, entry.name))
-    .filter((file) => !SKIPPED.some((dir) => relative(folder, file).startsWith(`${dir}${sep}`)))
+    .filter((file) => {
+      const path = relative(folder, file);
+      return path === STANDARD_MODEL || !SKIPPED.some((dir) => path.startsWith(`${dir}${sep}`));
+    })
     .sort();
   const texts: CitedText[] = [];
   for (const file of files) {
@@ -137,7 +147,7 @@ export async function readSpecIndex(
           continue;
         }
         const criteria = element.properties?.["acceptance-criteria"];
-        index.set(element.identifier.toUpperCase(), {
+        index.set(element.identifier, {
           invalid: element.status !== undefined && invalid.has(element.status),
           criteria: Array.isArray(criteria) ? criteria.length : 0,
         });

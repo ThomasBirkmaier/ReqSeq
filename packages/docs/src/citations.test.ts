@@ -37,7 +37,7 @@ describe("citations", () => {
 describe("citationProblems", () => {
   it("names each cited ID that is missing, invalid, or lacks the AK, once per file", () => {
     const texts = [
-      { source: "docs/guide/a.md", text: "As D-045 and sr-018 AK3 say; see N-404 and N-404." },
+      { source: "docs/guide/a.md", text: "As D-045 and SR-018 AK3 say; see N-404 and N-404." },
       { source: "schemas/x.json", text: "(D-052, SR-018 AK4, SR-018 AK0)" },
     ];
     expect(citationProblems(texts, spec)).toEqual([
@@ -66,11 +66,11 @@ describe("schemaTexts", () => {
       schemaTexts({
         description: "One (SR-018).",
         examples: ["SR-999"],
-        properties: { a: { title: "A", cause: "C", remedy: "R", const: "D-999" } },
+        properties: { a: { title: "A", cause: "C", remedy: "R", whileReadOnlyReason: "W", const: "D-999" } },
         list: [{ summary: "S" }, { details: "T" }, 3, null],
         description2: "x",
       }),
-    ).toEqual(["One (SR-018).", "A", "C", "R", "S", "T"]);
+    ).toEqual(["One (SR-018).", "A", "C", "R", "W", "S", "T"]);
   });
 });
 
@@ -82,11 +82,15 @@ describe("readSchemaTexts", () => {
     }
   });
 
-  it("reads the JSON and YAML files of schemas/ without generated/ and examples/", async () => {
+  it("reads the JSON and YAML files of schemas/ without generated/ and examples/, but with the standard model", async () => {
     root = await mkdtemp(join(tmpdir(), "reqseq-citations-"));
     await mkdir(join(root, "schemas", "commands"), { recursive: true });
     await mkdir(join(root, "schemas", "generated"), { recursive: true });
-    await mkdir(join(root, "schemas", "examples"), { recursive: true });
+    await mkdir(join(root, "schemas", "examples", "metamodel"), { recursive: true });
+    await writeFile(
+      join(root, "schemas", "examples", "metamodel", "standard-model.yaml"),
+      "description: M\n",
+    );
     await writeFile(join(root, "schemas", "a.schema.json"), '{ "description": "A (D-045)." }');
     await writeFile(join(root, "schemas", "commands", "b.json"), '{ "summary": "B" }');
     await writeFile(join(root, "schemas", "codes.yaml"), "problems:\n  x:\n    cause: C\n");
@@ -97,6 +101,7 @@ describe("readSchemaTexts", () => {
       { source: "schemas/a.schema.json", text: "A (D-045)." },
       { source: "schemas/codes.yaml", text: "C" },
       { source: "schemas/commands/b.json", text: "B" },
+      { source: "schemas/examples/metamodel/standard-model.yaml", text: "M" },
     ]);
   });
 });
