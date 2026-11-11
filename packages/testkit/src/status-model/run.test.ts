@@ -35,6 +35,6 @@ describe("status model runner", () => {
         },
         { numRuns: 50, seed: 3 },
       );
-    }).toThrow("replay with STATUS_MODEL_SEED=3");
+    }).toThrow(/replay with STATUS_MODEL_SEED=3 STATUS_MODEL_RUNS=50\n.*Counterexample/s);
   });
 });

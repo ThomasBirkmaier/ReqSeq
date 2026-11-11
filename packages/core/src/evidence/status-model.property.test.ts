@@ -22,6 +22,7 @@ import {
 } from "@reqseq/testkit/status-model";
 import { describe, expect, it } from "vitest";
 import type { CriterionRef, VersionForms } from "../model/index.js";
+import { compareCriterionRefs } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { elementCriteria } from "./criteria.js";
 import type { EvidenceRecord } from "./record.js";
@@ -42,11 +43,11 @@ function itemsOf(criteria: readonly ModelCriterion[]): unknown[] {
   );
 }
 
-/** The refs as the readers hold them: each once, numbers ascending, then keys in code-unit order. */
+/** The refs as the readers hold them: each once, in the readers' order (`compareCriterionRefs`). */
 function refsOf(refs: readonly ModelCriterionRef[]): CriterionRef[] {
-  const numbers = [...new Set(refs.flatMap((ref) => (ref.by === "number" ? [ref.number] : [])))];
-  const keys = [...new Set(refs.flatMap((ref) => (ref.by === "key" ? [ref.key] : [])))];
-  return [...numbers.sort((a, b) => a - b), ...keys.sort((a, b) => Number(a > b) - Number(a < b))];
+  return [...new Set(refs.map((ref) => (ref.by === "number" ? ref.number : ref.key)))].sort(
+    compareCriterionRefs,
+  );
 }
 
 /**
@@ -104,33 +105,22 @@ function coreInput(element: ModelElement) {
 }
 
 describe("status model level 1: core against the reference model", () => {
-  it("gives the verification status and the verified count of the model", () => {
+  // One pass per element checks all three functions, so the generation and the adapter run once per input.
+  it("gives the verification status, the criteria count, every criterion's status and the validation of the model", () => {
     forAllElements((generated) => {
       const element = inIndexOrder(generated);
       const { records, criteria } = coreInput(element);
       const expected = modelVerificationOf(element);
-      const actual = ownVerificationOf(records, CURRENT_FORMS, CORE, false, criteria);
-      expect({ status: actual.status, verified: actual.criteria?.verified ?? 0 }).toEqual({
+      const own = ownVerificationOf(records, CURRENT_FORMS, CORE, false, criteria);
+      const count = element.criteria.length;
+      expect({ status: own.status, verified: own.criteria?.verified, total: own.criteria?.total }).toEqual({
         status: expected.status,
-        verified: expected.verified,
+        verified: count === 0 ? undefined : expected.verified,
+        total: count === 0 ? undefined : count,
       });
-    }, parameters);
-  });
-
-  it("gives the status of every criterion of the model", () => {
-    forAllElements((generated) => {
-      const element = inIndexOrder(generated);
-      const { records, criteria } = coreInput(element);
-      const expected = modelVerificationOf(element);
-      const actual = criterionStatusesOf(records, CURRENT_FORMS, CORE, false, criteria);
-      expect(actual).toEqual(expected.criteria.length === 0 ? [expected.status] : expected.criteria);
-    }, parameters);
-  });
-
-  it("gives the validation status and reason of the model", () => {
-    forAllElements((generated) => {
-      const element = inIndexOrder(generated);
-      const { records } = coreInput(element);
+      expect(criterionStatusesOf(records, CURRENT_FORMS, CORE, false, criteria)).toEqual(
+        count === 0 ? [expected.status] : expected.criteria,
+      );
       expect(validationOf(records, CURRENT_FORMS)).toEqual(modelValidationOf(element));
     }, parameters);
   });

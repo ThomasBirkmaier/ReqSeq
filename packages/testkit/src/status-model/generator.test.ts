@@ -22,6 +22,26 @@ function elementFeatures(element: ModelElement): string[] {
   return features;
 }
 
+function refFeatures(record: ModelRecord, element: ModelElement, version: string): string[] {
+  const features: string[] = [];
+  const keys = new Set(element.criteria.map((criterion) => criterion.key));
+  const older = element.olderVersions.find((version) => version.id === record.version);
+  for (const ref of record.criteria ?? []) {
+    if (ref.by === "key" && element.criteria.filter((criterion) => criterion.key === ref.key).length > 1) {
+      features.push(`${version} names a duplicate key`);
+    }
+    if (version === "older" && ref.by === "number") {
+      const key = older?.criteria?.[ref.number - 1]?.key;
+      if (key !== undefined && keys.has(key)) {
+        features.push("older number resolves through its key");
+      }
+    }
+    const known = ref.by === "key" ? keys.has(ref.key) : ref.number <= element.criteria.length;
+    features.push(`${version} ${ref.by} ${known ? "known" : "unknown"}`);
+  }
+  return features;
+}
+
 function recordFeatures(record: ModelRecord, element: ModelElement): string[] {
   const version = record.version === CURRENT ? "current" : "older";
   const features = [record.kind, version, `${record.kind} ${record.result}`];
@@ -36,11 +56,7 @@ function recordFeatures(record: ModelRecord, element: ModelElement): string[] {
   if (record.criteria === undefined) {
     features.push("names no criterion");
   }
-  const keys = new Set(element.criteria.map((criterion) => criterion.key));
-  for (const ref of record.criteria ?? []) {
-    const known = ref.by === "key" ? keys.has(ref.key) : ref.number <= element.criteria.length;
-    features.push(`${version} ${ref.by} ${known ? "known" : "unknown"}`);
-  }
+  features.push(...refFeatures(record, element, version));
   return features;
 }
 
@@ -93,6 +109,9 @@ describe("status model generator", () => {
       ...["current", "older"].flatMap((version) =>
         ["key", "number"].flatMap((by) => [`${version} ${by} known`, `${version} ${by} unknown`]),
       ),
+      "current names a duplicate key",
+      "older names a duplicate key",
+      "older number resolves through its key",
       "tie in two offsets",
       "tie in one text",
     ];

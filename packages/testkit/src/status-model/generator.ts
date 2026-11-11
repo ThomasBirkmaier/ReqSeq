@@ -1,7 +1,8 @@
 // Generator of small abstract inputs for the status model (#1394): one element with 0 to 4 acceptance criteria and
 // criterion keys (some missing, some carried twice), older versions with known or unknown criteria, and records of
-// both kinds with dates that tie on purpose. It produces only records the reader accepts (refused ones are level 2, #1396). Everything here is a pure
-// function of fast-check's random source, so a seed replays a case and shrinking works.
+// both kinds with dates that tie on purpose. It produces only records the reader accepts (refused ones are level 2,
+// #1396). Everything here is a pure function of fast-check's random source, so a seed replays a case and shrinking
+// works.
 import fc from "fast-check";
 import {
   CURRENT,
@@ -45,16 +46,22 @@ function criteriaArbitrary(): fc.Arbitrary<ModelCriterion[]> {
         fc.array(fc.integer({ min: 0, max: 7 }), { minLength: count, maxLength: count }),
       ),
     )
-    .map(([keys, shape]) =>
-      // shape 0: no key; shape 1 (after the first): the key of the criterion before it, a duplicate (SR-204 AK10).
-      keys.map((key, index) => {
+    .map(([keys, shape]) => {
+      // shape 0: no key; shape 1: the key of the last criterion before it that has one, a duplicate (SR-204 AK10).
+      const criteria: ModelCriterion[] = [];
+      let last: string | undefined;
+      keys.forEach((key, index) => {
         if (shape[index] === 0) {
-          return {};
+          criteria.push({});
+        } else if (shape[index] === 1 && last !== undefined) {
+          criteria.push({ key: last });
+        } else {
+          criteria.push({ key });
+          last = key;
         }
-        const before = keys[index - 1];
-        return shape[index] === 1 && before !== undefined ? { key: before } : { key };
-      }),
-    );
+      });
+      return criteria;
+    });
 }
 
 const refArbitrary: fc.Arbitrary<ModelCriterionRef> = fc.oneof(

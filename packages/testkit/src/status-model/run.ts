@@ -38,11 +38,14 @@ export function forAllElements(check: (element: ModelElement) => void, parameter
       seed: parameters.seed,
     });
   } catch (error) {
+    // fast-check's message holds the seed, the replay path and the shrunk counterexample; keep it in the message, as
+    // a short reporter may not print the cause.
+    // fc.assert always throws an Error.
+    const detail = (error as Error).message;
     throw new Error(
-      `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)}`,
-      {
-        cause: error,
-      },
+      `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)} ` +
+        `STATUS_MODEL_RUNS=${String(parameters.numRuns)}\n${detail}`,
+      { cause: error },
     );
   }
 }
