@@ -3,7 +3,9 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
 import {
@@ -432,6 +434,51 @@ describe("loadWorkspaceLayout", () => {
       ["workspace.invalid", "error", "filters names repository f, which is not in repositories"],
       ["metamodel.invalid", "error", "Metamodel repository nope is not in repositories"],
     ]);
+  });
+
+  it("[SR-083/AK3] warns once per filters, baselines or mappings folder that lies in .git, also through a link, and workspace.check shows it", async () => {
+    const ws = await setup(
+      yaml(
+        MAIN,
+        "metamodel: { repository: main, path: metamodel }\n" +
+          "evidence:\n  - { repository: main, path: .git/evidence }\n" +
+          "baselines: { repository: main, path: .GIT/baselines }\n" +
+          "filters: { repository: main, path: .git/filters }\n" +
+          "mappings: { repository: main, path: linked/reqif }\n",
+      ),
+      { folders: ["main/.git"] },
+    );
+    await fs.symlink(ws.path("main/.git"), ws.path("main/linked"), "junction");
+    const warning = (setting: string, at: string): readonly string[] => [
+      "workspace.invalid",
+      "warning",
+      `${setting}: ${at} in repository main lies in a .git folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+    ];
+    const expected = [
+      warning("baselines", ".GIT/baselines"),
+      warning("filters", ".git/filters"),
+      warning("mappings", "linked/reqif"),
+    ];
+    const layout = await loadWorkspaceLayout(ws.path("main"));
+    expect(layout.problems.map((p) => [p.code, p.severity, p.message])).toEqual(expected);
+    const workspace = new Workspace(ws.path("main"));
+    onTestFinished(() => workspace.close());
+    const checked = (await invoke("workspace.check", {}, { workspace })) as { problems: readonly Problem[] };
+    expect(
+      checked.problems
+        .filter((p) => p.message.includes("git-folder"))
+        .map((p) => [p.code, p.severity, p.message]),
+    ).toEqual(expected);
+  });
+
+  it("takes no name that only starts with .git for a .git folder", async () => {
+    const ws = await setup(
+      yaml(
+        MAIN,
+        "metamodel: { repository: main, path: metamodel }\nfilters: { repository: main, path: gitfilters/.gitkeep-not }\n",
+      ),
+    );
+    expect((await loadWorkspaceLayout(ws.path("main"))).problems).toEqual([]);
   });
 
   it("reports a missing metamodel folder in an available repository", async () => {

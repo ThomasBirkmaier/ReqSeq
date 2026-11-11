@@ -9,6 +9,7 @@ import { linksStayInside } from "../files/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { CheckedWorkspaceFile } from "./config.js";
 import { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
+import { liesInGit } from "./git-folder.js";
 
 export interface RepositoryLocation {
   /** Name in the workspace file. */
@@ -299,6 +300,30 @@ const unknownLocationRepositories = (
     );
 };
 
+/**
+ * A warning per filters, baselines or mappings folder of the workspace file that lies in a `.git`
+ * folder, also through a link: ReqSeq never writes there (D-036), so saving there is refused.
+ */
+const gitFolderLocations = async (
+  file: CheckedWorkspaceFile,
+  repositories: readonly RepositoryLocation[],
+): Promise<Problem[]> => {
+  const problems: Problem[] = [];
+  for (const [setting, location] of settingLocations(file)) {
+    const { folder } = locate({ repositories }, location);
+    if (setting !== "evidence" && folder !== undefined && (await liesInGit(folder))) {
+      problems.push(
+        invalid(
+          "warning",
+          WORKSPACE_FILE,
+          `${setting}: ${location.path} in repository ${location.repository} lies in a .git folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+        ),
+      );
+    }
+  }
+  return problems;
+};
+
 /** Names the repository only: the configured path may be absolute and differ per machine. */
 const missingRepository = (repository: RepositoryLocation): Problem => ({
   code: "workspace.repository-missing",
@@ -374,6 +399,7 @@ export const loadWorkspaceLayout = async (root: string): Promise<WorkspaceLayout
   const repositories = resolveOverlaps(located, problems);
   problems.push(...unknownOverrides(entries, local), ...unknownLocationRepositories(file, entries));
   problems.push(...repositories.filter((r) => !r.available).map(missingRepository));
+  problems.push(...(await gitFolderLocations(file, repositories)));
   const metamodel = await locateMetamodel(file.metamodel, repositories, problems);
   return { root, name: file.name, main: main.name, file, repositories, metamodel, problems };
 };
