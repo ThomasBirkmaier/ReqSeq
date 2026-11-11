@@ -21,7 +21,7 @@ flowchart LR
 
 ## Dependency check
 
-Every spec change and every bug fix starts with a check of what it touches; trace finds relations and inline references, the text search finds the words (product owner decision, 2026-11-09).
+Every spec change and every fix of a bug against an AK starts with a check of what it touches; trace finds relations and inline references, the text search finds the words (product owner decision, 2026-11-09).
 
 | Path | Check | Then |
 | --- | --- | --- |
