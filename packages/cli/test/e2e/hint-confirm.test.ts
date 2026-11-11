@@ -8,7 +8,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Run } from "../support/reqseq.js";
-import { reqseq as run, requireBuiltCli, warmCli } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
@@ -31,11 +31,9 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
 });
 
-// The first start fills the compile cache outside the tests' timeout (#1290); the bound only ends a hang.
-beforeAll(async () => {
+beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
-  await warmCli();
-}, 60_000);
+});
 
 const A_FILE = "requirements/SR-0b0000000001.md";
 

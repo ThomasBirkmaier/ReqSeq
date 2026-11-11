@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     include: ["packages/*/test/e2e/**/*.test.ts"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
+    // One compile cache for all spawned CLIs, filled before the first file runs (#1448).
+    globalSetup: ["./packages/cli/test/support/compile-cache.ts"],
     env: { REQSEQ_VALIDATE_OUTPUT: "1" },
     // Each test spawns node a few times; slow CI machines need more than the default 5 s.
     testTimeout: 30_000,
