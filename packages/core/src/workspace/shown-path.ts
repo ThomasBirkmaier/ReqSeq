@@ -1,20 +1,8 @@
 // Paths of files ReqSeq writes outside the ReqSeq files (ADR-0002 rule 5): how `files` and problems
-// show them, and the refusal of a `.git` folder. Used by `evidence.enrichJunit` (SR-029) and
-// `data.store` (SR-062). Pure path code: nothing is read.
+// show them. Used by `evidence.enrichJunit` (SR-029) and `data.store` (SR-062). Pure path code:
+// nothing is read. The refusal of a `.git` folder is in git-folder.ts.
 import path from "node:path";
-import { CommandError } from "../catalog.js";
 import type { WorkspaceLayout } from "./layout.js";
-
-/** Refuses a file in a `.git` folder, in any case and through links (D-036): `real` is its real folder. */
-export const refuseGit = (real: string, file: string): void => {
-  if (real.split(path.sep).some((segment) => segment.toLowerCase() === ".git")) {
-    throw new CommandError(
-      "input.invalid",
-      `${path.basename(file)} lies in a .git folder; ReqSeq never writes to Git`,
-      { file: path.basename(file), reason: "git-folder" },
-    );
-  }
-};
 
 /**
  * `file` (absolute, in the real folder `real`) as `files` and problems give it: relative to the

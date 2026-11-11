@@ -398,13 +398,18 @@ describe("reqif.export (SR-052)", () => {
   it("[SR-083/AK3] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
     const { fixture, workspace } = await open(undefined, { ".git/hooks/keep": "", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("linked"), "junction");
-    // WIND embeds an image, TEMPERATURE none.
-    for (const output of [".git/hooks/x.reqif", ".GIT/x/x.reqif", "linked/x.reqif"]) {
+    await fs.symlink(fixture.path(".git/hooks"), fixture.path("y-images"), "junction");
+    // WIND embeds an image, TEMPERATURE none; `.git/new` does not exist.
+    for (const output of [".git/hooks/x.reqif", ".GIT/x/x.reqif", "linked/x.reqif", ".git/new/x.reqif"]) {
       for (const ids of [[WIND], [TEMPERATURE]]) {
         const refused = await failure(workspace, { output, selection: { ids } });
         expect([refused.code, refused.details?.["reason"]]).toEqual(["input.invalid", "git-folder"]);
       }
     }
+    // The image folder of y.reqif links into `.git`: refused before the file is written.
+    const copy = await failure(workspace, { output: "y.reqif", selection: { ids: [WIND] } });
+    expect([copy.code, copy.details?.["reason"]]).toEqual(["input.invalid", "git-folder"]);
+    await expect(fs.access(fixture.path("y.reqif"))).rejects.toThrow();
     // On a case-insensitive file system (macOS, Windows) `.GIT/x` is the folder `x` inside `.git`.
     expect((await fs.readdir(fixture.path(".git"))).filter((name) => name !== "x")).toEqual(["hooks"]);
     expect(await fs.readdir(fixture.path(".git/hooks"))).toEqual(["keep"]);

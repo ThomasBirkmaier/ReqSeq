@@ -28,7 +28,6 @@
 // - Not yet: `profile` (SR-101 profiles of a mapping); `omitProperties` with `statements`, which carry
 //   no properties. Each refuses with `input.invalid` naming itself.
 import { randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -61,7 +60,7 @@ import type { ReqifWritable } from "../../reqif/index.js";
 import type { StatementsPlan } from "../../reqif/statements.js";
 import { planStatements } from "../../reqif/statements.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
-import { refuseGit, workspaceLayoutState } from "../../workspace/index.js";
+import { refuseGitAt, workspaceLayoutState } from "../../workspace/index.js";
 
 /** An image copy: its source file and SHA-256 when it was read, and its path relative to the output folder. */
 interface ImageCopy {
@@ -280,10 +279,13 @@ const writeOutput = async (
       { command, problems: written.problems },
     );
   }
-  // D-036: no file and no image copy goes into a `.git` folder, also through a link (#1449).
-  const real = await fs.realpath(outputFolder).catch(() => undefined);
-  if (real !== undefined) {
-    refuseGit(real, absolute);
+  // D-036: neither the file nor an image copy goes into a `.git` folder, also through a link (#1449).
+  await refuseGitAt(outputFolder, absolute);
+  for (const copy of copies) {
+    await refuseGitAt(
+      path.join(outputFolder, path.dirname(copy.target)),
+      path.join(outputFolder, copy.target),
+    );
   }
   const before = await readFileSnapshot(outputFolder, name);
   if (before.kind === "problem" && !before.missing) {

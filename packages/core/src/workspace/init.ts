@@ -9,7 +9,7 @@ import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.
 import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { WORKSPACE_FILE } from "./config.js";
-import { refuseGit } from "./shown-path.js";
+import { refuseGitAt } from "./git-folder.js";
 
 /** The metamodel folder of a new workspace when the caller names none. */
 export const DEFAULT_METAMODEL_FOLDER = "metamodel";
@@ -125,8 +125,8 @@ const checkFolder = async (root: string): Promise<{ readonly create: boolean }> 
  * Creates a workspace in the folder `root`, which is created when only it is missing (#637): the
  * metamodel file in the metamodel folder of the main repository (created when missing), then `reqseq-workspace.yaml`, which makes the folder
  * a workspace. The folder may hold other files (a fresh clone has `.git`). Before anything is
- * written it refuses a folder whose parent is missing too (`file.folder-missing`), a folder in a
- * `.git` folder (`input.invalid`, D-036), a path that is no folder or input
+ * written it refuses a folder whose parent is missing too (`file.folder-missing`), a folder or
+ * metamodel folder in a `.git` folder (`input.invalid`, D-036), a path that is no folder or input
  * that gives an invalid workspace file (`input.invalid`), and a workspace file or metamodel file
  * that exists already (`file.changed-on-disk`). Returns the written files relative to `root`. When
  * the workspace file cannot be written after the metamodel file was, the error keeps its code and
@@ -134,11 +134,6 @@ const checkFolder = async (root: string): Promise<{ readonly create: boolean }> 
  */
 export const createWorkspace = async (root: string, input: NewWorkspace): Promise<readonly string[]> => {
   const { create } = await checkFolder(root);
-  // D-036: no workspace inside a `.git` folder, also through a link (#1449).
-  const real = create
-    ? path.join(await fs.realpath(path.dirname(root)), path.basename(root))
-    : await fs.realpath(root);
-  refuseGit(real, path.join(root, WORKSPACE_FILE));
   const main = repositoryNameFor(root);
   const file = workspaceFileFor(main, input);
   // `.` or "" is the root of the repository, as the layout reads it (path.resolve).
@@ -153,6 +148,11 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
         { file: target },
       );
     }
+  }
+  // D-036: neither file goes into a `.git` folder, also through a link (#1449).
+  await refuseGitAt(root, path.join(root, WORKSPACE_FILE));
+  if (metamodelFile !== undefined) {
+    await refuseGitAt(path.join(root, folder), path.join(root, metamodelFile));
   }
   if (create) {
     await createFolder(path.dirname(root), path.basename(root));
