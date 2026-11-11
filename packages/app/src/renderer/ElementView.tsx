@@ -200,6 +200,15 @@ const clickedBox = (target: Element): string | undefined => {
     : undefined;
 };
 
+/** Whether text is selected in the value `target` is in: the click ended a drag that selected it. */
+const selectedIn = (target: Element): boolean => {
+  const value = target.closest(".value");
+  const selection = target.ownerDocument.getSelection();
+  return (
+    value !== null && selection !== null && !selection.isCollapsed && selection.containsNode(value, true)
+  );
+};
+
 /** What a click on `target` in the box `key` points at: a target link, a line of a text or choice box, else the box. */
 const clickedIn = (key: string, target: Element): Pointer => {
   const link = target.closest<HTMLElement>('[role="link"][data-target-id]');
@@ -1719,11 +1728,14 @@ export const ElementView = ({
       : { kind: "box", key: label };
   };
   // What a click on `target` points at (SR-132 AK1): a value of a property box, or nothing.
-  const clickPointer = (target: Element): Pointer => {
+  // The property box whose value `target` is in, when it is one of the boxes shown.
+  const clickedLabel = (target: Element): string | undefined => {
     const label = clickedBox(target);
-    return label === undefined || !now.current.boxKeys.includes(label)
-      ? NO_POINTER
-      : clickedIn(label, target);
+    return label !== undefined && now.current.boxKeys.includes(label) ? label : undefined;
+  };
+  const clickPointer = (target: Element): Pointer => {
+    const label = clickedLabel(target);
+    return label === undefined ? NO_POINTER : clickedIn(label, target);
   };
   // The list of the elements with the value the cursor is on, or the value `clicked` (SR-132): the input is
   // saved first, so the value typed is the one listed (the list reads the files); then `element.facets` of
@@ -1767,14 +1779,12 @@ export const ElementView = ({
   };
   // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
   // on its copy symbol is outside the value.
+  // A selection made by dragging over the value is no click on it.
   const clickChoice = (target: Element): void => {
-    const label = clickedBox(target);
-    const box = label === undefined ? undefined : now.current.boxes.get(label);
-    if (label === undefined || box?.info.kind !== "choice" || !now.current.boxKeys.includes(label)) {
-      return;
+    const label = clickedLabel(target);
+    if (label !== undefined && now.current.boxes.get(label)?.info.kind === "choice" && !selectedIn(target)) {
+      enterField(label);
     }
-    fieldOf(label)?.focus();
-    enterField(label);
   };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({

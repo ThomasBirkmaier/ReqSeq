@@ -344,7 +344,7 @@ test.describe("property boxes of an element", () => {
     expect(await readFile(running)).toContain("legacy: Altlast");
   });
 
-  test("[SR-156/AK1] a click on the value of a choice box opens the prompt Enter opens; a click on its copy symbol does not", async () => {
+  test("[SR-156/AK1] a click on the value of a choice box, also an empty one, opens the prompt Enter opens; a click on its copy symbol does not", async () => {
     const { window } = running;
     const box = field(window, "requirement-type");
     // The copy symbol shows while the pointer is over the box.
@@ -364,6 +364,28 @@ test.describe("property boxes of an element", () => {
     await expect(promptLabel(window)).toHaveText("Requirement Type");
     expect(await candidates(window)).toEqual(clicked);
     expect(clicked).toEqual(["Performance", "Functional", "Quality", "Interface", "Constraint"]);
+    await window.keyboard.press("Escape");
+    // A double click and a drag that selects the value leave the prompt closed.
+    await box.locator(".value").dblclick();
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    const line = await box.locator(".value .line").boundingBox();
+    if (line !== null) {
+      await window.mouse.move(line.x + 1, line.y + line.height / 2);
+      await window.mouse.down();
+      await window.mouse.move(line.x + line.width - 1, line.y + line.height / 2, { steps: 5 });
+      await window.mouse.up();
+    }
+    expect(await window.evaluate(() => document.getSelection()?.toString() ?? "")).not.toBe("");
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    // An empty choice box, added and left with Escape, opens its prompt on a click into its value as well.
+    await window.keyboard.press("ControlOrMeta+Alt+A");
+    await window.keyboard.type("verification");
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Verification Method");
+    await window.keyboard.press("Escape");
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    await field(window, "verification-method").locator(".value").click();
+    await expect(promptLabel(window)).toHaveText("Verification Method");
   });
 
   test("[SR-156/AK2] a click on a value of the prompt opened by a click sets it as the keys do", async () => {

@@ -149,13 +149,15 @@ describe("keys", () => {
     expect(isModClick({ ...click, ctrlKey: true, button: 1 }, false)).toBe(false);
   });
 
-  it("knows a plain click: the main button without a modifier", () => {
+  it("knows a plain click: a single click of the main button without a modifier", () => {
     const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
     expect(isPlainClick(click)).toBe(true);
     for (const modifier of ["ctrlKey", "metaKey", "altKey", "shiftKey"] as const) {
       expect(isPlainClick({ ...click, [modifier]: true })).toBe(false);
     }
     expect(isPlainClick({ ...click, button: 1 })).toBe(false);
+    expect(isPlainClick({ ...click, detail: 1 })).toBe(true);
+    expect(isPlainClick({ ...click, detail: 2 })).toBe(false);
   });
 
   it("writes a shortcut the way the platform does", () => {
