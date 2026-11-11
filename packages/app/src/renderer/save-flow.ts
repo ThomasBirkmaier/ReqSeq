@@ -96,8 +96,8 @@ export interface Speech {
 
 /**
  * After a save that wrote: `Saved <name>` (with the number of directly affected elements and the hint of
- * core, `savedLine`) when asked; when quiet only a hint or a number above 0 that was not said last time. The
- * error is said no more; the hint and the number are what was said now.
+ * core, `savedLine`) when asked; when quiet only a hint or a number that was not said last time (also a
+ * number back at 0). The error is said no more; the hint and the number are what was said now.
  */
 export const savedSpeech = (
   said: Said,
@@ -112,16 +112,18 @@ export const savedSpeech = (
     return { echo, said: now };
   }
   // Autosave is silent (D-062); a hint of core or the number of directly affected elements is said once,
-  // not after every pause.
-  const news =
-    (hint !== undefined && hint !== said.hint) ||
-    (now.affected !== undefined && now.affected !== said.affected);
+  // not after every pause. A number that was said and is 0 now is replaced by `Saved <name>`, so the
+  // minibuffer does not keep it after a change of only the title or status (AK3).
+  const news = (hint !== undefined && hint !== said.hint) || now.affected !== said.affected;
   return news ? { echo, said: now } : { said: now };
 };
 
-/** A save that went wrong (`notWritten`): its message when asked, or when it is not the error said last. */
+/**
+ * A save that went wrong (`notWritten`): its message when asked, or when it is not the error said last. The
+ * message replaces a number of affected elements said before, so the next save that writes says it again.
+ */
 export const failedSpeech = (said: Said, mode: SaveMode, message: string): Speech => {
-  const now: Said = { ...said, error: message };
+  const now: Said = { ...said, error: message, affected: undefined };
   return mode === "asked" || said.error !== message ? { echo: message, said: now } : { said: now };
 };
 

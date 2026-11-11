@@ -71,6 +71,7 @@ import {
   saveDrafts,
   saveOne,
 } from "./switch.js";
+import { savedLine } from "./save-flow.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
@@ -573,6 +574,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       );
       if (!result.ok) {
         setEcho(leftUnsaved(result));
+      } else if (result.affected !== undefined) {
+        // The minibuffer names the element that was left with its directly affected elements (SR-024 AK2).
+        setEcho(savedLine(result.affected.name, undefined, result.affected.count));
       }
       return result.ok;
     });

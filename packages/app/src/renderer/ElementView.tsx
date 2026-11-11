@@ -101,6 +101,7 @@ import {
   failedSpeech,
   leftDraft,
   saveStep,
+  savedLine,
   savedSpeech,
   staleRead,
 } from "./save-flow.js";
@@ -519,10 +520,14 @@ export const ElementView = ({
   // app keeps, not the editors that are gone.
   const mounted = useRef(true);
   const memory = useUndoMemory(keep);
-  // The last save failed (`not saved` in the modeline), and what was said last about saves: an error or a
-  // hint is echoed once while it stays the same, not after every pause (D-062).
+  // The last save failed (`not saved` in the modeline), and what was said last about saves: an error, a
+  // hint or the number of directly affected elements (SR-024 AK2) is echoed once while it stays the same,
+  // not after every pause (D-062).
   const [notSaved, setNotSaved] = useState(false);
   const said = useRef<Said>({});
+  // The number of directly affected elements of the last write that answered, for "Save element" asked
+  // while that write ran (#563).
+  const wrote = useRef(0);
   // Saves the input one second after the last change, and at once when asked (`autosave.ts`).
   const autosave = useRef<Autosave | undefined>(undefined);
   // Autosave lives as long as the buffer is shown. Leaving the buffer (another buffer shown, closed) saves
@@ -1250,6 +1255,7 @@ export const ElementView = ({
     const named = renameAction(element);
     rename(named);
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
+    wrote.current = output.affected ?? 0;
     const speech = savedSpeech(said.current, mode, named.name, hint, output.affected);
     if (speech.echo !== undefined) {
       echo(speech.echo);
@@ -1266,7 +1272,7 @@ export const ElementView = ({
   const saveInput = async (mode: SaveMode, afterSave = false): Promise<boolean> => {
     const { handle: editor, onEcho: echo, buffer: shown } = now.current;
     const afterWrite = afterSave
-      ? { name: shown.name, hint: said.current.hint, affected: said.current.affected }
+      ? { name: shown.name, hint: said.current.hint, affected: wrote.current }
       : undefined;
     const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode, afterWrite });
     if (step.kind === "done") {
@@ -1314,7 +1320,12 @@ export const ElementView = ({
       if (!answer.ok) {
         return false;
       }
-      const { element, fileSha256: sha } = answer.output;
+      const { element, fileSha256: sha, affected } = answer.output;
+      // The minibuffer stays: it names the element that was left with its directly affected elements
+      // (SR-024 AK2); 0 says nothing, as leaving says nothing.
+      if (affected > 0) {
+        now.current.onEcho(savedLine(renameAction(element).name, undefined, affected));
+      }
       // Input typed while the save ran stays in the draft: then input is left unsaved.
       let rest: Draft | undefined;
       now.current.keep?.update((draft) => {
