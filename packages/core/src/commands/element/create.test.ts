@@ -729,7 +729,7 @@ describe("element.create", () => {
       expect(await treeBelow(opened.root)).toEqual(before);
     };
 
-    it("never writes below .git, at the top or in any folder (D-036: ReqSeq never writes to Git)", async () => {
+    it("[SR-083/AK4] never writes below .git, at the top or in any folder (D-036: ReqSeq never writes to Git)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       await refused(opened, [
         ...inFolder("skipped-name", ".git"),
@@ -741,7 +741,7 @@ describe("element.create", () => {
       expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
     });
 
-    it("never writes below a name that Windows or macOS take for .git or node_modules (D-036)", async () => {
+    it("[SR-083/AK4] never writes below a name that Windows or macOS take for .git or node_modules (D-036)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       await refused(opened, [
         [{ folder: ".GIT/objects" }, "skipped-name", ".GIT"],

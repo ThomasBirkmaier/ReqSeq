@@ -302,7 +302,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("ignores an absolute path in the committed workspace file with a warning", async () => {
+  it("[SR-004/AK7] ignores an absolute path in the committed workspace file with a warning", async () => {
     const ws = await setup(undefined, { folders: ["a", "elsewhere"] });
     for (const absolute of [ws.path("elsewhere"), "/abs/a", "C:/abs/a"]) {
       await ws.write(
@@ -317,7 +317,7 @@ describe("loadWorkspaceLayout", () => {
     }
   });
 
-  it("ignores a committed path out of the folder of the main repository or through a link out of a repository (#294)", async () => {
+  it("[SR-004/AK7] ignores a committed path out of the folder of the main repository or through a link out of a repository (#294)", async () => {
     const ws = await setup(undefined, { folders: ["a", "outside/a", "clone"] });
     await fs.symlink(ws.path("outside"), ws.path("main/vendor"), "junction");
     await fs.symlink(ws.path("outside"), ws.path("clone/x"), "junction");

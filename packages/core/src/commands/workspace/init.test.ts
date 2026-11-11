@@ -129,7 +129,7 @@ describe("workspace.init", () => {
     await expect(fs.lstat(ws.path("new/.git"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("[SR-083/AK3] creates no workspace inside a .git folder, in any case and through a linked folder (#1449)", async () => {
+  it("[SR-083/AK3] [SR-083/AK4] creates no workspace inside a .git folder, in any case and through a linked folder (#1449)", async () => {
     const ws = await createFixtureWorkspace({ files: { ".git/hooks/keep": "" } });
     onTestFinished(() => ws.cleanup());
     await fs.symlink(ws.path(".git"), ws.path("linked"), "junction");
