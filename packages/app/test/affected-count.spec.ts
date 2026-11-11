@@ -39,7 +39,12 @@ test.describe("affected elements after a save", () => {
     // Autosave says it once, without a save command.
     await expect(minibuffer).toHaveText(`Saved ${SPEED} ${TITLE}: 2 elements directly affected`);
     await window.screenshot({ path: path.join(OUT, "sr-024-affected-light.png") });
-    // The CLI gives the same number for the next change of the content.
+    // The CLI gives the same number for the next change of the content, once the app has saved every key (a
+    // slow runner may save the typed text in two writes, and a second one would meet the CLI's change).
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified");
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED])).stdout, { timeout: 5000 })
+      .toContain("In knots.");
     const got = await running.cli(["element", "get", SPEED]);
     const { fileSha256 } = JSON.parse(got.stdout) as { fileSha256: string };
     const cli = await running.cli([
@@ -53,5 +58,8 @@ test.describe("affected elements after a save", () => {
     ]);
     expect(cli.code).toBe(0);
     expect(JSON.parse(cli.stdout)).toMatchObject({ affected: 2 });
+    // The window follows the CLI's change without input left, so it closes without asking.
+    await expect(window.locator('article [data-field="Text"] .cm-content')).toHaveText("In knots.");
+    await expect(window.getByLabel("Modeline")).not.toContainText(/modified|on disk/);
   });
 });
