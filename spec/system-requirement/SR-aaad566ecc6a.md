@@ -8,6 +8,7 @@ requirement-type: quality
 acceptance-criteria:
   - Gegeben die App, wenn sie startet, dann folgt sie der Einstellung des Betriebssystems.
   - Gegeben die App, wenn die Darstellung per Befehl gewechselt wird, dann wechselt sie ohne Neustart.
+  - Gegeben keine Darstellung ist per Befehl gewählt, wenn sich die Einstellung des Betriebssystems ändert, während die App läuft, dann folgt die App ihr ohne Neustart; wurde die Darstellung per Befehl gewählt, bleibt sie, bis „Follow system light or dark mode“ gewählt wird, und nach einem Neustart folgt die App wieder dem Betriebssystem.
 packages:
   - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
 verification-method: test
