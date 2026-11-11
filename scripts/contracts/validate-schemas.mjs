@@ -63,7 +63,12 @@ if (entriesValid) {
   errors.push(...checkCatalog(catalog, schemas));
 }
 
+// Each example with a general parser of its format and no extensions (SR-009 AK3): JSON.parse for .json,
+// YAML 1.2 core schema for .yaml and for the frontmatter of .md.
 function parseExample(f, text) {
+  if (f.endsWith(".json")) {
+    return JSON.parse(text);
+  }
   if (!f.endsWith(".md")) {
     return YAML.parse(text, { version: "1.2", schema: "core" });
   }
@@ -190,7 +195,7 @@ function checkVersionVectors(dir) {
   return n;
 }
 
-// Examples: schemas/examples/<schema base name>/<file>.yaml|.md
+// Examples: schemas/examples/<schema base name>/<file>.yaml|.md|.json
 const examplesDir = path.join(schemasDir, "examples");
 let count = 0;
 for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
@@ -211,7 +216,7 @@ for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d
   }
   for (const f of fs.readdirSync(path.join(examplesDir, dir.name))) {
     const text = fs.readFileSync(path.join(examplesDir, dir.name, f), "utf8");
-    if (!f.endsWith(".md") && !f.endsWith(".yaml")) {
+    if (![".md", ".yaml", ".json"].some((ext) => f.endsWith(ext))) {
       continue;
     }
     let data;
