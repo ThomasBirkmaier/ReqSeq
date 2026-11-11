@@ -194,6 +194,16 @@ describe("reqif.saveMapping (SR-054)", () => {
     await expect(fs.readdir(fixture.path("metamodel"))).resolves.toEqual(["standard-model.yaml"]);
   });
 
+  it("[SR-083/AK4] writes no mapping below .git, also when the workspace file places the mapping folder there", async () => {
+    const { fixture, workspace } = await open({
+      ...withSetting("mappings: { repository: system, path: .git/reqif }"),
+      ".git/reqif/keep": "",
+    });
+    const error = await failure(workspace, { mapping: MAPPING });
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "not-listed"]);
+    expect(await fs.readdir(fixture.path(".git/reqif"))).toEqual(["keep"]);
+  });
+
   it("is file.folder-missing when the mapping folder's repository is not on this machine", async () => {
     const { workspace } = await open({
       "reqseq-workspace.yaml": [

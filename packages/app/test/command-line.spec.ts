@@ -3,9 +3,10 @@
 // command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With REQSEQ_SCREENSHOTS set, the argument
 // entry is also saved as a screenshot there.
+import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll, modifier } from "./support/app.js";
 
@@ -56,6 +57,81 @@ test.describe("the command prompt", () => {
     await expect(names(window).first()).toHaveText("Filter list by type");
   });
 
+  test('[SR-121/AK1] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("lae");
+    await expect(names(window).first()).toHaveText("List all elements");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox", { name: "All elements" })).toBeVisible();
+    await expect(window.locator("label.prompt-label")).toHaveCount(0);
+  });
+
+  test("[SR-133/AK1] Bulk update elements, which needs the selection of a list, is found only on a list or a package page, and no write command is found while the tool refuses writes", async () => {
+    const input = (window: Page): Locator => window.locator("#prompt-input");
+    /** The prompt, with `typed` in it, offers `typed` as a candidate; the prompt closes again. */
+    const finds = async (window: Page, typed: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type(typed);
+      await expect(input(window)).toHaveValue(typed);
+      await expect(names(window).filter({ hasText: new RegExp(`^${typed}$`, "u") })).toHaveCount(1);
+      await window.keyboard.press("Escape");
+      await expect(window.locator("label.prompt-label")).toHaveCount(0);
+    };
+    /**
+     * The prompt finds nothing for `typed`: the list of candidates, open with everything before the text, has
+     * closed for it, so the check reads the result for the whole text and not the list before it.
+     */
+    const findsNothing = async (window: Page, typed: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await expect(input(window)).toHaveAttribute("aria-expanded", "true");
+      await window.keyboard.type(typed);
+      await expect(input(window)).toHaveValue(typed);
+      await expect(input(window)).toHaveAttribute("aria-expanded", "false");
+      await expect(names(window)).toHaveCount(0);
+      await window.keyboard.press("Escape");
+      await expect(window.locator("label.prompt-label")).toHaveCount(0);
+    };
+    running = await launchApp(FIXTURE);
+    let { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    // It needs the selection of a list: not on the overview, nor on an element, also not by search.
+    await finds(window, "Search elements");
+    await findsNothing(window, "Bulk update elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Measure wind speed");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Measure wind speed");
+    await finds(window, "Set status");
+    await findsNothing(window, "Bulk update elements");
+    // A list and a package page have a selection.
+    await listAll(window);
+    await finds(window, "Bulk update elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Sensors");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+    await expect(window.locator(".members .row").first()).toBeVisible();
+    await finds(window, "Bulk update elements");
+    await running.close();
+
+    // A metamodel file that is no YAML: the tool refuses writes (SR-011 AK3), so no write command is found.
+    running = await launchApp({ ...FIXTURE, files: { "metamodel/broken.yaml": "types: [\n" } });
+    ({ window } = running);
+    await listAll(window);
+    const status = await running.cli(["workspace", "status"]);
+    expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
+    // Reading still works.
+    await finds(window, "Show facets");
+    for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
+      await findsNothing(window, write);
+    }
+  });
+
   test("a catalog read command asks its arguments in the minibuffer, with the kinds core allows, and shows its output", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
@@ -94,6 +170,56 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".modeline")).toContainText("Show relation options SR-0000b1 Derives from");
     await expect(window.locator(".result .line").first()).toHaveText("kinds1");
     await expect(window.locator(".result")).toContainText("derives-from");
+  });
+
+  test("[SR-067/AK6] Create relation with the target open writes only the file of the source", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const root = running.workspace?.root ?? "";
+    const label = window.locator("label.prompt-label");
+    /** Every file of the workspace with its text. */
+    const files = async (): Promise<Map<string, string>> => {
+      const entries = await fs.readdir(root, { recursive: true, withFileTypes: true });
+      const texts = new Map<string, string>();
+      for (const entry of entries.filter((found) => found.isFile())) {
+        const file = path.join(entry.parentPath, entry.name);
+        texts.set(path.relative(root, file), await fs.readFile(file, "utf8"));
+      }
+      return texts;
+    };
+    // The target is open in the app; the source is another element.
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("See the wind");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("See the wind");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("See the wind");
+    const before = await files();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Create relation");
+    await expect(names(window).first()).toHaveText("Create relation");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Create relation · source:");
+    await window.keyboard.type("Send data");
+    await expect(names(window).first()).toHaveText("SR-0000b5 Send data to the cloud");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Create relation SR-0000b5 · kind:");
+    await window.keyboard.type("derives");
+    await expect(names(window).first()).toHaveText("Derives from");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("See the wind");
+    await expect(names(window).first()).toHaveText("N-0000a1 See the wind");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".result")).toBeVisible();
+    const source = path.join("requirements", "SR-0000000000b5.md");
+    await expect
+      .poll(async () => (await fs.readFile(path.join(root, source), "utf8")).includes("0000000000a1"))
+      .toBe(true);
+    const after = await files();
+    expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
+    expect([...after].filter(([file, text]) => before.get(file) !== text).map(([file]) => file)).toEqual([
+      source,
+    ]);
   });
 
   test("[SR-133/AK1] in an element, the commands with an element argument come before the others when nothing is typed", async () => {

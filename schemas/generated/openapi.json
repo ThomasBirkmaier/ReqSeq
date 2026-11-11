@@ -725,6 +725,7 @@
         "x-reqseq-effect": "read",
         "x-reqseq-stage": 1,
         "x-reqseq-implements": [
+          "SR-005",
           "SR-008",
           "SR-015",
           "SR-016",
@@ -10770,7 +10771,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}); git.unavailable when a repository involved is not under Git or has no commit (details.repository); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter; file.faulty when the baselines folder cannot be listed (details.repository, details.file). The baseline is never replaced afterwards.",
+                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}); git.unavailable when a repository involved is not under Git or has no commit (details.repository); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter; file.faulty when the baselines folder cannot be listed (details.repository, details.file); input.invalid with details.reason git-folder (details.repository, details.file, details.rule, details.path) when the baselines folder meets Git: a name taken for .git, a folder with a .git entry or a link into .git, also where the workspace file places it. The baseline is never replaced afterwards.",
                   "properties": {
                     "files": {
                       "type": "array",
@@ -13198,7 +13199,7 @@
               },
               "key": {
                 "$ref": "#/components/schemas/common/$defs/key",
-                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
+                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
               },
               "place": {
                 "type": "object",
@@ -13268,6 +13269,7 @@
               "element.too-many-items",
               "element.text-emptied",
               "relation.missing-target",
+              "relation.cross-repository-title",
               "relation.unresolved-link",
               "relation.not-a-link",
               "relation.reference-style",
@@ -15686,7 +15688,7 @@
       },
       "workspace-local": {
         "title": "Local workspace overrides",
-        "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.",
+        "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. A file Git tracks or has staged is ignored with a warning, and the places of the workspace file apply; `workspace.init` adds `.reqseq/local.yaml` to `.gitignore`. It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.",
         "type": "object",
         "required": [
           "reqseq-local"

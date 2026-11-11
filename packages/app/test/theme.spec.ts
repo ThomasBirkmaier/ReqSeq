@@ -25,6 +25,9 @@ const textColour = (window: Page): Promise<string> =>
   window.evaluate(() => getComputedStyle(document.body).color);
 const chosen = (window: Page): Promise<string | undefined> =>
   window.evaluate(() => document.documentElement.dataset["theme"]);
+/** Whether the page hears the system as dark (the media query the theme follows). */
+const systemDark = (window: Page): Promise<boolean> =>
+  window.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches);
 
 const opened = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");
@@ -119,5 +122,60 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
     expect(await chosen(window)).toBeUndefined();
   } finally {
     await running.close();
+  }
+});
+
+test("[SR-113/AK3] a scheme chosen by command stays when the system changes, until Follow system light or dark mode; after a restart the app follows the system again", async () => {
+  const running = await launchApp(FIXTURE, { colorScheme: null });
+  const { window } = running;
+  try {
+    await listAll(window);
+    await running.app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "light";
+    });
+    await expect.poll(() => sheet(window)).toBe(LIGHT.sheet);
+    await runCommand(window, "toggle dark");
+    await expect(window.getByLabel("Minibuffer")).toContainText("Dark mode until the app quits");
+    expect(await sheet(window)).toBe(DARK.sheet);
+    // The system turns dark: the chosen scheme stays, also when the system turns light again.
+    await running.app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "dark";
+    });
+    await expect.poll(() => systemDark(window)).toBe(true);
+    expect(await sheet(window)).toBe(DARK.sheet);
+    await running.app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "light";
+    });
+    await expect.poll(() => systemDark(window)).toBe(false);
+    expect(await sheet(window)).toBe(DARK.sheet);
+    expect(await chosen(window)).toBe("dark");
+    // Following the system again: light now, and dark as soon as the system is.
+    await runCommand(window, "follow system");
+    await expect(window.getByLabel("Minibuffer")).toContainText("Light or dark as the system says");
+    expect(await sheet(window)).toBe(LIGHT.sheet);
+    await running.app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "dark";
+    });
+    await expect.poll(() => sheet(window)).toBe(DARK.sheet);
+  } finally {
+    await running.close({ keep: true });
+  }
+  // A choice that differs from the system, then a restart on the same user data: the system decides again.
+  const { kept } = running;
+  const chose = await launchApp(undefined, { kept, colorScheme: "light" });
+  try {
+    await listAll(chose.window);
+    await runCommand(chose.window, "toggle dark");
+    await expect.poll(() => sheet(chose.window)).toBe(DARK.sheet);
+  } finally {
+    await chose.close({ keep: true });
+  }
+  const again = await launchApp(undefined, { kept, colorScheme: "light" });
+  try {
+    await listAll(again.window);
+    expect(await sheet(again.window)).toBe(LIGHT.sheet);
+    expect(await chosen(again.window)).toBeUndefined();
+  } finally {
+    await again.close();
   }
 });

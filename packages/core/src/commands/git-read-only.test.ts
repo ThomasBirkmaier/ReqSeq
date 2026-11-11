@@ -164,6 +164,30 @@ describe("Git only read (SR-083, D-036)", () => {
     ).resolves.toBeDefined();
   });
 
+  it("[SR-083/AK1] asks the index whether a local file is tracked without writing to the Git folder (#1456)", async () => {
+    const local = "reqseq-local: 1\n";
+    const repository = await fixture({
+      fixture: "SR-001/two-elements",
+      files: { ...FILES, ".reqseq/local.yaml": local },
+      git: true,
+    });
+    // A stat-dirty tracked file: a refresh of the index would write it.
+    const later = new Date(Date.now() + 60_000);
+    fs.utimesSync(repository.path("reqseq-workspace.yaml"), later, later);
+    const before = gitFolder(repository.root);
+    const workspace = open(repository.root);
+    recordProcesses();
+    const out = (await runtime.invoke("workspace.status", {}, { workspace })) as {
+      problems?: readonly { file?: string; message: string }[];
+    };
+    expect(out.problems?.filter((p) => p.file === ".reqseq/local.yaml").map((p) => p.message)).toEqual([
+      expect.stringContaining(".reqseq/local.yaml is tracked by Git"),
+    ]);
+    expect(gitFolder(repository.root)).toEqual(before);
+    expect(processes().map(([, sub]) => sub)).toEqual(expect.arrayContaining(["cat-file", "ls-files"]));
+    expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
+  });
+
   it("[SR-083/AK3] starts processes only in the git reader: no other product module imports node:child_process", () => {
     const packages = path.resolve(import.meta.dirname, "../../..");
     const importers: string[] = [];

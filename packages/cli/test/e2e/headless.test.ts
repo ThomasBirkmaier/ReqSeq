@@ -1,6 +1,7 @@
 // The command line without a graphical interface (SR-080 AK3): the built binary with no display set
 // reads, writes and checks a fixture workspace, and nothing it loads depends on the app's interface.
-// Every catalog command runs through the CLI in the cross-access suite, which needs no display either.
+// Every catalog command runs through the CLI in the cross-access suite, which needs no display either; the API and
+// the MCP server run with no display in servers.test.ts.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import { readFileSync } from "node:fs";
 import path from "node:path";

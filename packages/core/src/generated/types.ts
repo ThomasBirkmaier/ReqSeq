@@ -311,7 +311,7 @@ export interface Problem {
   readonly currentCommit?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
+  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
   readonly key?: Key;
   /** Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names. */
   readonly place?: {
@@ -357,6 +357,7 @@ export type ProblemCode =
   | "element.too-many-items"
   | "element.text-emptied"
   | "relation.missing-target"
+  | "relation.cross-repository-title"
   | "relation.unresolved-link"
   | "relation.not-a-link"
   | "relation.reference-style"
@@ -1602,7 +1603,7 @@ export interface ReqifMappingFileWithDefaults {
 }
 
 /**
- * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.
+ * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. A file Git tracks or has staged is ignored with a warning, and the places of the workspace file apply (SR-004 AK8); `workspace.init` adds `.reqseq/local.yaml` to `.gitignore` (SR-014 AK1). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.
  * Schema: `schemas/workspace-local.schema.json#`.
  */
 export interface WorkspaceLocalFile {

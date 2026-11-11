@@ -58,6 +58,7 @@ import {
   duplicateIdentifierProblemsState,
   elementStoreState,
   itemLimitProblemsState,
+  crossRepositoryTitleProblemsState,
   missingTargetProblemsState,
   relationLimitProblemsState,
   relationTypeProblemsState,
@@ -112,6 +113,7 @@ export const FINDING_STATES = [
   duplicateIdProblemsState, // SR-088
   duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
   missingTargetProblemsState, // SR-089
+  crossRepositoryTitleProblemsState, // SR-005 AK4
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
   noParentProblemsState, // SR-022 AK6

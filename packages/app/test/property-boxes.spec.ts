@@ -68,6 +68,10 @@ const boxLabels = (window: Page): Promise<string[]> =>
 
 interface Got {
   readonly element: {
+    readonly id: string;
+    readonly shortId: string;
+    readonly status: string;
+    readonly version: string;
     readonly properties: Record<string, unknown>;
     readonly relations: readonly {
       readonly kind: string;
@@ -152,6 +156,22 @@ test.describe("property boxes of an element", () => {
     // A property the type does not know is shown, and not edited (D-012, spec question ThomasBirkmaier/ReqSeq-archive#469).
     await expect(field(window, "legacy")).toContainText("Altlast");
     await expect(field(window, "legacy").locator(".cm-editor")).toHaveCount(0);
+    // The title is the heading, short ID, type and status are named by the modeline, and neither they nor
+    // the UUID and the version are in the element.
+    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(modeline(window)).toContainText(
+      `${got.element.shortId} · System Requirement · ${got.element.status}`,
+    );
+    const shown = await window.locator("article").innerText();
+    for (const value of [
+      got.element.shortId,
+      got.element.id,
+      got.element.version,
+      "System Requirement",
+      got.element.status,
+    ]) {
+      expect([value, shown.includes(value)]).toEqual([value, false]);
+    }
   });
 
   test("saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else", async () => {
@@ -681,7 +701,7 @@ test.describe("property boxes of an element with many values", () => {
     await running.close();
   });
 
-  test("records the time to open the element and the time from a key to the paint in a box (numbers, no limit but a guard)", async () => {
+  test("records the time to open the element and the time from a key to the paint in a box (numbers, no limit)", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type(SR_TITLE);
@@ -737,7 +757,8 @@ test.describe("property boxes of an element with many values", () => {
     await field(window, "acceptance-criteria").scrollIntoViewIfNeeded();
     await expect.poll(() => lines.count()).toBeGreaterThanOrEqual(10);
     expect((await cliGet(running)).element.properties["acceptance-criteria"]).toHaveLength(MANY);
-    expect(await window.locator(".cm-editor").count()).toBeLessThanOrEqual(10);
+    const editors = await window.locator(".cm-editor").count();
+    expect(editors).toBeLessThanOrEqual(10);
     // Typing: from the keydown to the paint of the character, in the middle of the list.
     await lines.nth(8).click();
     await window.keyboard.press("End");
@@ -789,8 +810,14 @@ test.describe("property boxes of an element with many values", () => {
     console.log(`PERF property boxes ${JSON.stringify(record)}`);
     await fs.mkdir(RESULTS, { recursive: true });
     await fs.writeFile(path.join(RESULTS, "perf-property-boxes.json"), JSON.stringify(record, null, 2));
-    // A guard against a broken page, not a budget (SR-082 AK3 is about 50,000 elements).
-    expect(open).toBeLessThan(1000);
-    expect(worst).toBeLessThan(1000);
+    // The times are recorded, not a budget (SR-082 AK3 is about 50,000 elements): a 1 s guard turned a slow runner
+    // red without a cause in the code (1022 ms on macOS, #1438). A broken page is caught by counts: at most 10
+    // editors for the 50 values (above), every typed key in the box, the editors not more after typing, and a
+    // paint for most keys on the box's own content (`latencies`, which a remade editor no longer gets). The loose
+    // time bounds catch only a page that hangs, far above what any runner takes.
+    await expect(field(window, "acceptance-criteria").locator(".cm-content")).toContainText("x".repeat(20));
+    expect(await window.locator(".cm-editor").count()).toBe(editors);
+    expect(open).toBeLessThan(10_000);
+    expect(worst).toBeLessThan(5000);
   });
 });

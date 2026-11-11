@@ -183,7 +183,7 @@ describe("baseline.create", () => {
     );
   });
 
-  it("[SR-050/AK3] a baseline through a variant view names the variant", async () => {
+  it("[SR-050/AK3] a baseline through a view, a variant or the core, names that view", async () => {
     const ws = await fixture();
     const out = await create(ws, "Coast", { view: "VAR-0000c1" });
     expect(read(ws, out.baseline.file)).toContain(
@@ -323,6 +323,36 @@ describe("baseline.create", () => {
     fs.rmSync(ws.path("sensor"), { recursive: true });
     const missing = await failure(ws, "H", PACKAGE);
     expect([missing.code, missing.details]).toEqual(["file.folder-missing", { repository: "sensor" }]);
+  });
+
+  it("[SR-083/AK4] writes no baseline below .git, also when the workspace file places the baselines folder there", async () => {
+    const ws = await fixture();
+    const settings = read(ws, "reqseq-workspace.yaml");
+    const inGit = (): string[] => fs.readdirSync(ws.path("system/.git")).sort();
+    const before = inGit();
+    for (const folder of [
+      ".git/baselines",
+      ".GIT/baselines",
+      ".git./baselines",
+      // The NTFS stream form, and an invisible character HFS+ ignores (zero-width non-joiner).
+      ".git::$INDEX_ALLOCATION/baselines",
+      ".g\u200cit/baselines",
+      "requirements/.git",
+    ]) {
+      await ws.write(
+        "system/reqseq-workspace.yaml",
+        `${settings}baselines: { repository: system, path: ${JSON.stringify(folder)} }\n`,
+      );
+      const error = await failure(ws, "Release 1", PACKAGE);
+      expect([folder, error.code, error.details?.["reason"]]).toEqual([
+        folder,
+        "input.invalid",
+        "git-folder",
+      ]);
+    }
+    expect(inGit()).toEqual(before);
+    expect(fs.existsSync(ws.path("system/requirements/.git"))).toBe(false);
+    expect(fs.existsSync(ws.path("system/.git."))).toBe(false);
   });
 
   it("says when a repository is not here and stores a package without title with an empty one", async () => {

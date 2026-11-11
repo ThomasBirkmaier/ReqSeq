@@ -394,3 +394,23 @@ describe("App, no tab bar (SR-115 AK2)", () => {
     expect(candidates()).toEqual(["Search: wind", "SR-000001 Title 1", "All elements", "Overview"]);
   });
 });
+
+describe("App, Close all buffers in the command prompt (SR-123 AK3)", () => {
+  it('[SR-123/AK3] "cab" puts Close all buffers first with one buffer beside the overview; with the overview alone it is not offered', async () => {
+    await render();
+    // The lone overview: the prompt lists its commands, without Close all buffers, and "cab" finds it not.
+    await press(window, { key: "P", ctrlKey: true, shiftKey: true });
+    expect(candidates()).toContain("List all elements");
+    expect(candidates()).not.toContain("Close all buffers");
+    await type("cab");
+    expect(candidates()).not.toContain("Close all buffers");
+    await press(query("input"), { key: "Escape" });
+    await runCommand("List all elements");
+    expect(shown()).toBe("All elements");
+    await press(window, { key: "P", ctrlKey: true, shiftKey: true });
+    await type("cab");
+    expect(candidates()[0]).toBe("Close all buffers");
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("Overview");
+  });
+});

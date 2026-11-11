@@ -368,6 +368,21 @@ describe("loadMetamodel", () => {
     ]);
   });
 
+  it("[SR-008/AK4] reports a metamodel file of an unknown format number as invalid and uses none of its content", async () => {
+    const ws = await fixture({
+      files: {
+        "model/future.yaml": "reqseq-metamodel: 2\nstatuses:\n  - key: later\n    name: Later\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.statuses.map((s) => s.key)).not.toContain("later");
+    expect(
+      metamodel.problems
+        .filter((p) => p.file === "model/future.yaml")
+        .map((p) => [p.code, p.line, p.message]),
+    ).toEqual([["metamodel.invalid", 1, "Invalid model/future.yaml: reqseq-metamodel 2 is not 1"]]);
+  });
+
   it("reports an empty metamodel file without a line", async () => {
     const ws = await fixture({ files: { "model/statuses.yaml": "# nothing yet\n" } });
     const metamodel = await load(ws.root);

@@ -13,6 +13,17 @@ type Row = NonNullable<ListOutput["rowVerification"]>[number];
 
 const U = (tail: string): string => `37373737-3737-4737-8737-00000000${tail}`;
 
+/** fixtures/SR-136/graph with a variant f001 and a requirement b099 valid only in it, deriving from a001. */
+const IN_VARIANT_ONLY: Readonly<Record<string, string>> = {
+  "variants/VAR-00000000f001.md":
+    "---\nid: 37373737-3737-4737-8737-00000000f001\ntype: variant\nstatus: draft\ntitle: Coast\n---\n",
+  "requirements/SR-00000000b099.md":
+    "---\nid: 37373737-3737-4737-8737-00000000b099\ntype: system-requirement\nstatus: draft\n" +
+    "title: Show the tide\nrequirement-type: functional\nacceptance-criteria:\n  - Given the tide, then it shows.\n" +
+    "validity:\n  - { id: 37373737-3737-4737-8737-00000000f001, version: n1:0000000000000000 }\n" +
+    "derives-from:\n  - { id: 37373737-3737-4737-8737-00000000a001, version: n1:0000000000000000 }\n---\n",
+};
+
 const open = async (fixture = "SR-136/graph"): Promise<Workspace> => {
   const made = await createFixtureWorkspace({ fixture });
   onTestFinished(() => made.cleanup());
@@ -81,6 +92,28 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     const inV1 = await list(workspace, { selection: { view: V1 } });
     expect(at(inV1)?.verification?.[0]?.view).toBe(V1);
     expect(at(inV1)).toEqual(await nodeOf(workspace, GG1, V1));
+  });
+
+  it("[SR-137/AK4] without a variant each row shows the status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
+    const made = await createFixtureWorkspace({ fixture: "SR-136/graph", files: IN_VARIANT_ONLY });
+    onTestFinished(() => made.cleanup());
+    const workspace = new Workspace(made.root);
+    onTestFinished(() => workspace.close());
+    const [b001, b099, coast] = [U("b001"), U("b099"), U("f001")];
+    const rowOf = (output: ListOutput, id: string): Row | undefined =>
+      output.rowVerification?.[(output.elements ?? []).findIndex((element) => element.id === id)];
+    const core = await list(workspace, {});
+    expect([rowOf(core, b001)?.verification?.map((v) => v.view), rowOf(core, b001)?.criteria]).toEqual([
+      ["core"],
+      { verified: 1, total: 1 },
+    ]);
+    expect(rowOf(core, b099)).toEqual({});
+    const inCoast = await list(workspace, { selection: { view: coast } });
+    expect(rowOf(inCoast, b001)?.verification?.map((v) => v.view)).toEqual([coast]);
+    expect(rowOf(inCoast, b099)).toEqual({
+      verification: [{ view: coast, status: "open" }],
+      criteria: { verified: 0, total: 1, notVerified: [1] },
+    });
   });
 
   it("[SR-137/AK2] the statuses of a package's requirement rows count as its verification degree", async () => {

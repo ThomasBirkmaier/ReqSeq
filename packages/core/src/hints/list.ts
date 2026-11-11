@@ -69,6 +69,7 @@ import {
   unknownProblemsState,
   unresolvedLinkProblemsState,
   valueKindProblemsState,
+  crossRepositoryTitleProblemsState,
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { derivationCycleProblemsState, noParentProblemsState } from "../trace/index.js";
@@ -112,6 +113,7 @@ export const HINT_STATES = [
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
+  crossRepositoryTitleProblemsState, // SR-005 AK4
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
   noParentProblemsState, // SR-022 AK6
@@ -136,6 +138,7 @@ const CHECK_ORDER: readonly (readonly string[])[] = [
   ["relation.not-allowed"],
   ["relation.too-few", "relation.too-many"],
   ["element.duplicate-identifier"],
+  ["relation.cross-repository-title"],
   ["relation.not-a-link", "relation.reference-style", "relation.unresolved-link"],
   ["trace.cycle"],
   ["trace.no-parent"],

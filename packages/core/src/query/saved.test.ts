@@ -60,17 +60,25 @@ describe("saved filter files (SR-070)", () => {
     });
   });
 
-  it("keeps every faulty file of a name, and reports an empty file", async () => {
+  it("[SR-008/AK4] reports a filter file of an unknown format number as faulty and uses none of it; keeps every faulty file of a name, and reports an empty file", async () => {
     const workspace = await open({
       fixture: "SR-069/filter",
       files: {
-        "filters/a.yaml": "reqseq-filter: 2\nname: Twice\nwhere: { all: [] }\n",
+        "filters/a.yaml": "reqseq-filter: 2\nname: Future\nwhere: { all: [] }\n",
         "filters/b.yaml": "reqseq-filter: 1\nname: Twice\n",
         "filters/c.yaml": "",
+        "filters/d.yaml": "reqseq-filter: 1\nname: Twice\n",
       },
     });
     const read = await readSavedFilters(await workspace.get(workspaceLayoutState));
-    expect(read.faultyNames).toEqual(new Map([["twice", ["filters/a.yaml", "filters/b.yaml"]]]));
+    expect(read.filters.map((f) => f.name)).not.toContain("Future");
+    expect(read.filters.map((f) => f.name)).not.toContain("Twice");
+    expect(read.faultyNames).toEqual(
+      new Map([
+        ["future", ["filters/a.yaml"]],
+        ["twice", ["filters/b.yaml", "filters/d.yaml"]],
+      ]),
+    );
     expect(read.problems.map((p) => [p.file, p.line, p.message])).toEqual([
       ["filters/a.yaml", 1, "Invalid saved filter filters/a.yaml: reqseq-filter 2 is not 1"],
       ["filters/b.yaml", 1, "Invalid saved filter filters/b.yaml: where is required"],
@@ -79,6 +87,7 @@ describe("saved filter files (SR-070)", () => {
         undefined,
         "Invalid saved filter filters/c.yaml: the file must be an object, not empty",
       ],
+      ["filters/d.yaml", 1, "Invalid saved filter filters/d.yaml: where is required"],
     ]);
   });
 

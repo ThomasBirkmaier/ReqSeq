@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
-import { PREFIX_BINDINGS, PREFIX_KEYS, prefixStep } from "./bindings.js";
+import { PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel, prefixStep } from "./bindings.js";
 import {
   ELEMENT_MORE_KEYS,
   FIELD_CTRL_KEYS,
@@ -37,6 +37,7 @@ import {
   press,
   pressLabel,
   rowTarget,
+  shortcutLabel,
 } from "./keys.js";
 import { MORE_SHORTCUT, PROMPT_KEYS } from "./prompt-keys.js";
 import { docsTopic } from "./docs-help.js";
@@ -287,7 +288,7 @@ describe("shortcutReference", () => {
     expect(actions.some((row) => row.does === "Close all buffers")).toBe(false);
   });
 
-  it("anchors each action at its first row, for F1 on it in the command prompt (SR-141 AK3)", () => {
+  it("[SR-139/AK6] [SR-141/AK3] anchors each action at its first row, a keyless one too, for F1 on it in the command prompt", () => {
     const sections = shortcutReference(COMMANDS);
     const anchors = sections.flatMap((section) => section.rows.flatMap((row) => row.actions ?? []));
     expect(new Set(anchors).size).toBe(anchors.length);
@@ -296,6 +297,21 @@ describe("shortcutReference", () => {
     expect(own.length).toBeGreaterThan(30);
     for (const candidate of own) {
       expect(anchors, candidate.id).toContain(candidate.id);
+    }
+    // The row of each such action names it, with its key where it has one (SR-139 AK6).
+    const rows = sections.flatMap((section) => section.rows);
+    for (const candidate of own) {
+      const at = rows.find((row) => row.actions?.includes(candidate.id) === true);
+      expect(at?.does, candidate.id).toContain(candidate.title);
+      // Its own key on Windows and Linux and on macOS: its shortcut, else its letter after the prefix key;
+      // none where it has neither.
+      const letter = PREFIX_BINDINGS.find((binding) => binding.id === candidate.id)?.key;
+      const own = (mac: boolean): string[] => [
+        ...(candidate.shortcut === undefined ? [] : [shortcutLabel(candidate.shortcut, mac)]),
+        ...(letter === undefined ? [] : [prefixLabel(letter, mac)]),
+      ];
+      expect(at?.keys, candidate.id).toEqual(own(false));
+      expect(at?.mac, candidate.id).toEqual(own(true));
     }
     const keyless = sections.at(-1)?.rows ?? [];
     expect(keyless.find((row) => row.actions?.includes("close-all") === true)).toEqual({

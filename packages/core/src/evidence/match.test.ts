@@ -142,7 +142,7 @@ describe("SR-028 findings of the evidence records", () => {
     expect(checked.ok).toBe(false);
   });
 
-  it("warns about a verification of a need, not about a validation of a need (#628)", async () => {
+  it("[SR-028/AK6] a verification record of a need counts for no status and is a finding, a validation of a need is not (#628)", async () => {
     const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
     const workspace = await open({
       "system/needs/N-0d00000000a1.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: Weigh the load\n---\n`,

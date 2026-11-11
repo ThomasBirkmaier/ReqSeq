@@ -266,7 +266,7 @@ const fetchDocs = (port: number, target: string): Promise<{ status: number | und
   });
 
 describe("reqseq serve docs", () => {
-  it("serves the documentation site without a workspace, prints its address, and stops with the signal", async () => {
+  it("[SR-141/AK4] serves the documentation site without a workspace, prints its address, and stops with the signal", async () => {
     await fs.mkdir(fixture.path("site"));
     await fs.writeFile(fixture.path("site/index.html"), "<title>ReqSeq</title>");
     const controller = new AbortController();

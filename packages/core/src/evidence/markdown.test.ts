@@ -294,8 +294,9 @@ describe("SR-028 reading Markdown records", () => {
     expect(read(validation.replace("---\n\nText", "reason: ' '\n---\n\nText")).records).toEqual([]);
   });
 
-  it("refuses an inconclusive verification; a reason on another result is a warning and ignored (#807 Q2, Q4)", () => {
+  it("[SR-172/AK3] refuses an inconclusive verification when read, naming the reason, so it counts for no status; a reason on another result is a warning and ignored (#807 Q2, Q4)", () => {
     const inconclusive = record("reason: no sample").replace("result: failed", "result: inconclusive");
+    expect(read(inconclusive).records).toEqual([]);
     expect(read(inconclusive).problems?.map((p) => [p.line, p.severity, p.message])).toEqual([
       [
         8,
@@ -320,6 +321,13 @@ describe("SR-028 reading Markdown records", () => {
         ["warning"],
       ]);
     }
+  });
+
+  it("[SR-008/AK4] a record of an unknown format number is faulty and not counted", () => {
+    expect(read(record().replace("reqseq-record: 1", "reqseq-record: 2"))).toMatchObject({
+      records: [],
+      problems: [{ code: "evidence.invalid-record", severity: "error", line: 2 }],
+    });
   });
 
   it("an invalid record gives evidence.invalid-record with the line of the failing key and no record", () => {

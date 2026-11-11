@@ -67,6 +67,9 @@ const largeOutput = (megabytes: number): { items: { n: number; text: string }[] 
   items: Array.from({ length: megabytes * 10_000 }, (_, n) => ({ n, text: `Größe ${"x".repeat(80)}` })),
 });
 
+/** Called each time test.echo runs, so a refusal can show that the command did not run. */
+const echoed = vi.fn();
+
 let aborted: ((reason: unknown) => void) | undefined;
 let started: (() => void) | undefined;
 
@@ -74,7 +77,13 @@ const runtime = createCommandRuntime({
   contracts: loadContracts({ catalog }),
   validateOutput: false,
   commands: [
-    defineTestCommand({ name: "test.echo", run: (_ctx, input: unknown) => Promise.resolve({ input }) }),
+    defineTestCommand({
+      name: "test.echo",
+      run: (_ctx, input: unknown) => {
+        echoed();
+        return Promise.resolve({ input });
+      },
+    }),
     defineTestCommand({
       name: "test.fail",
       run: (_ctx, input: { code: string }) =>
@@ -375,7 +384,7 @@ describe("listening", () => {
     expect(opened.every((s) => !s.listening)).toBe(true);
   });
 
-  it("writes api.json with port and token, readable by the owner only", async () => {
+  it("[SR-079/AK4] writes api.json with port and token, readable by the owner only", async () => {
     const api = await start();
     expect(api.endpointFile).toBe(path.join(dir, "api.json"));
     const endpoint = JSON.parse(await fs.readFile(api.endpointFile, "utf8")) as Record<string, unknown>;
@@ -637,6 +646,7 @@ describe("listening", () => {
 describe("refusals before a command runs", () => {
   beforeEach(async () => {
     await start();
+    echoed.mockClear();
   });
 
   it("accepts the loopback host names with the port", async () => {
@@ -644,17 +654,20 @@ describe("refusals before a command runs", () => {
       const reply = await request({ headers: { host: `${host}:${String(server?.port)}` } });
       expect(reply.status).toBe(200);
     }
+    // The spy sees an accepted request, so its silence below means the command did not run.
+    expect(echoed).toHaveBeenCalledTimes(4);
   });
 
-  it("refuses any other Host header (DNS rebinding)", async () => {
+  it("[SR-079/AK4] refuses any other Host header (DNS rebinding)", async () => {
     for (const host of ["evil.example", `evil.example:${String(server?.port)}`, "127.0.0.1", "127.0.0.1:1"]) {
       const reply = await request({ headers: { host } });
       expect(reply.status).toBe(403);
       expect(reply.body).toMatchObject({ code: "input.invalid" });
     }
+    expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("refuses a request without Host header", async () => {
+  it("[SR-079/AK4] refuses a request without Host header", async () => {
     const socket = net.connect(server?.port ?? 0, "127.0.0.1");
     socket.end(`POST /v1/commands/test.echo HTTP/1.0\r\nAuthorization: Bearer ${token}\r\n\r\n`);
     const chunks: Buffer[] = [];
@@ -662,14 +675,16 @@ describe("refusals before a command runs", () => {
       chunks.push(chunk as Buffer);
     }
     expect(Buffer.concat(chunks).toString("utf8")).toMatch(/^HTTP\/1\.1 403/);
+    expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("refuses requests with an Origin header (no browser access)", async () => {
+  it("[SR-079/AK4] refuses requests with an Origin header (no browser access)", async () => {
     const reply = await request({ headers: { origin: "http://127.0.0.1" } });
     expect(reply.status).toBe(403);
+    expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("refuses a missing or wrong token", async () => {
+  it("[SR-079/AK4] refuses a missing or wrong token", async () => {
     for (const authorization of [
       "",
       `Bearer ${token.replace(/^./, token.startsWith("a") ? "b" : "a")}`,
@@ -684,6 +699,7 @@ describe("refusals before a command runs", () => {
       expect(reply.status).toBe(401);
       expect(reply.headers["www-authenticate"]).toBe("Bearer");
     }
+    expect(echoed).not.toHaveBeenCalled();
   });
 
   it("takes the Bearer scheme in any case (RFC 9110)", async () => {
