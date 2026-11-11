@@ -404,6 +404,22 @@ describe("writeFileAtomic: review findings", () => {
     expect(await text("w.yaml")).toBe("name: other\n");
   });
 
+  it("replaces any unchanged file as a copy, and only an image as an image (SR-207 AK3)", async () => {
+    await put("c.txt", "anything");
+    await writeFileAtomic(root, "c.txt", "new", await forge("c.txt"), { kind: "copy" });
+    expect(await text("c.txt")).toBe("new");
+    await put("i.png", "GIF89a");
+    await writeFileAtomic(root, "i.png", "GIF87a", await forge("i.png"), { kind: "image" });
+    expect(await text("i.png")).toBe("GIF87a");
+    await put("n.png", "notes");
+    await expect(
+      writeFileAtomic(root, "n.png", "GIF87a", await forge("n.png"), { kind: "image" }),
+    ).rejects.toMatchObject({
+      code: "file.faulty",
+    });
+    expect(await text("n.png")).toBe("notes");
+  });
+
   it("replaces an XML file that the scanner still reads, and refuses one it does not (SR-029)", async () => {
     await put("r.xml", "<testsuites/>");
     await writeFileAtomic(root, "r.xml", "<testsuites></testsuites>", await forge("r.xml"), { kind: "xml" });
