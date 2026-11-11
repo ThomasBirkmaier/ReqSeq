@@ -36,7 +36,7 @@ import { evidenceRecordsState } from "./state.js";
 
 const lookupKey = (id: string, version: string): string => `${id}\n${version}`;
 
-/** The items behind each lookup `olderCriteriaOf` built, for `sameOlderCriteria`. */
+/** The items behind each lookup `olderCriteriaOf` built, for `changedOlderIds`. */
 const entriesOf = new WeakMap<OlderCriteria, ReadonlyMap<string, readonly unknown[]>>();
 
 /** No entries: the lookup `NO_OLDER_CRITERIA`, or one that was not built here. */
@@ -67,10 +67,6 @@ export const changedOlderIds = (a: OlderCriteria, b: OlderCriteria): ReadonlySet
   }
   return changed;
 };
-
-/** Whether two lookups give the same items for every UUID and version (a carried status stays valid). */
-export const sameOlderCriteria = (a: OlderCriteria, b: OlderCriteria): boolean =>
-  changedOlderIds(a, b).size === 0;
 
 /** The criterion keys of current items, one set per items array (N-036: asked per record). */
 const keySets = new WeakMap<readonly unknown[], ReadonlySet<string>>();
@@ -181,6 +177,6 @@ export const olderCriteriaState = defineWorkspaceState("older-criteria", build, 
   dependsOn: [metamodelState, elementStoreState, evidenceRecordsState, workspaceLayoutState],
   // Built again over a carried store or record (cheap where nothing names a number of an older
   // version), so the states that carry over the same change (`verificationState`) can carry too
-  // and compare the lookups (`sameOlderCriteria`).
+  // and compare the lookups (`changedOlderIds`).
   carry: (_value, _change, workspace) => build(workspace),
 });

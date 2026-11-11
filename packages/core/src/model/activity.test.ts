@@ -308,6 +308,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "element.setStatus": "written element",
       "element.supersede": "ref, else written element",
       "element.bulkUpdate": "written element",
+      "element.assignCriterionKeys": "written element",
       "element.addAttachment": "ref (repository), else written element",
       "relation.options": "ref",
       "relation.add": "source, else written element",

@@ -16,8 +16,9 @@
 //   on disk (`readAllUnchanged`), only the lines of the acceptance criteria are edited
 //   (`editElementFile`, SR-102), the write check of the caller sees each element as written
 //   (`checkedBefore`: a variant with validity entries, SR-039 AK2, refuses the call before any write),
-//   and the files are written atomically, several at a time, with a rollback on a failure
-//   (`writeElementFiles`), which also refreshes the stored titles of same-repository relation targets.
+//   a folder that is not writable refuses it too (`readOnlyFolders`, SR-018 AK2), and the files are
+//   written atomically, several at a time, with a rollback on a failure (`writeElementFiles`),
+//   which also refreshes the stored titles of same-repository relation targets.
 // - Cost (N-036): one pass over the selection, then only the files that change are read and
 //   written. A repeated call after a crash writes only the elements that still lack keys.
 import type { PropertyValue } from "../files/index.js";
@@ -29,10 +30,9 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type { RandomInt } from "./acceptance-criteria.js";
 import { acceptanceCriteriaKeyOf, newCriterionKey, seededRandom } from "./acceptance-criteria.js";
 import type { BulkSelection, NamedElement, SkippedElement } from "./bulk-update.js";
-import { isCriterionMapping } from "./criterion-items.js";
+import { readOnlyFolders, readOnlyRefusal } from "./bulk-update.js";
 import type { ElementRecord } from "./elements.js";
-import type { LocatableFinding } from "./locate.js";
-import type { ElementFileWrite, WriteCheck } from "./write.js";
+import type { WriteCheck } from "./write.js";
 import { checkedBefore, readAllUnchanged, writeElementFiles } from "./write.js";
 
 /** A changed element: how many of its acceptance criteria got a key. */
@@ -63,13 +63,16 @@ const missingKeys = (value: unknown): number =>
 
 /**
  * `items` with a new criterion key on every plain text (see the file comment); the other items as
- * they are. A new key differs from every key a mapping item carries, in its form or not.
+ * they are. A new key differs from every text `key` an item carries, in its form or not, also in an
+ * item of another form (SR-085 reports it).
  */
 export const withMissingKeys = (items: readonly unknown[], random: RandomInt): unknown[] => {
   const taken = new Set<string>();
   for (const item of items) {
-    if (isCriterionMapping(item) && typeof item.key === "string") {
-      taken.add(item.key);
+    const key: unknown =
+      typeof item === "object" && item !== null ? (item as { key?: unknown }).key : undefined;
+    if (typeof key === "string") {
+      taken.add(key);
     }
   }
   return items.map((item) => {
@@ -95,10 +98,15 @@ export const assignCriterionKeys = async (
   const key = acceptanceCriteriaKeyOf(metamodel);
   const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
   const skipped: UnknownTypeElement[] = [];
-  const candidates: { readonly record: ElementRecord; readonly type: MetamodelEffectiveType }[] = [];
+  const candidates: {
+    readonly record: ElementRecord;
+    readonly type: MetamodelEffectiveType;
+    readonly missing: number;
+  }[] = [];
   if (key !== undefined) {
     for (const record of selection.elements) {
-      if (missingKeys(record.data[key]) === 0) {
+      const missing = missingKeys(record.data[key]);
+      if (missing === 0) {
         continue;
       }
       const type = findType(metamodel, record.type);
@@ -109,7 +117,7 @@ export const assignCriterionKeys = async (
           message: `The metamodel has no type ${record.type}, so ReqSeq only reads ${record.file}`,
         });
       } else if (type.properties.includes(key)) {
-        candidates.push({ record, type });
+        candidates.push({ record, type, missing });
       }
     }
   }
@@ -117,30 +125,39 @@ export const assignCriterionKeys = async (
     return { changed: [], skipped, files: [] };
   }
   const layout = await workspace.get(workspaceLayoutState);
-  const planned: (ElementFileWrite & { readonly changed: KeyedElement })[] = [];
-  const refused: LocatableFinding[] = [];
-  for (const { record, type, repository, current } of await readAllUnchanged(workspace, layout, candidates)) {
-    const items = current.record.data[key] as unknown[];
-    const random = seededRandom(`${current.file.snapshot.sha256}\0${key}`);
-    const value = withMissingKeys(items, random) as PropertyValue;
-    const { bytes, parsed } = editElementFile(current.file, {
-      edits: [{ kind: "set", key, value }],
-      keyOrder: type.properties,
-    });
-    const found = await checkedBefore(
-      check,
-      repository.name,
-      bytes,
-      current.file.snapshot,
-      current.record.type,
-      parsed,
-    );
-    refused.push(...(found?.findings ?? []));
-    planned.push({ repository, current, bytes, changed: { ...named(record), assigned: missingKeys(items) } });
-  }
+  // `readAllUnchanged` gives the bytes the store read, so `missing` still holds.
+  const planned = (await readAllUnchanged(workspace, layout, candidates)).map(
+    ({ record, type, missing, repository, current }) => {
+      const random = seededRandom(`${current.file.snapshot.sha256}\0${key}`);
+      const value = withMissingKeys(current.record.data[key] as unknown[], random) as PropertyValue;
+      const { bytes, parsed } = editElementFile(current.file, {
+        edits: [{ kind: "set", key, value }],
+        keyOrder: type.properties,
+      });
+      return { repository, current, bytes, parsed, changed: { ...named(record), assigned: missing } };
+    },
+  );
   // The write check sees each element as it would be written: the call is refused as a whole.
+  const found = await Promise.all(
+    planned.map((p) =>
+      checkedBefore(
+        check,
+        p.repository.name,
+        p.bytes,
+        p.current.file.snapshot,
+        p.current.record.type,
+        p.parsed,
+      ),
+    ),
+  );
+  const refused = found.flatMap((c) => c?.findings ?? []);
   if (refused.length > 0 && check !== undefined) {
     throw check.refusal(refused);
+  }
+  // A folder this process cannot write is refused before the first write, as by element.bulkUpdate.
+  const [readOnly] = await readOnlyFolders(planned);
+  if (readOnly !== undefined) {
+    throw readOnlyRefusal(readOnly);
   }
   const written = await writeElementFiles(workspace, layout, planned, {
     concurrency: WRITE_CONCURRENCY,

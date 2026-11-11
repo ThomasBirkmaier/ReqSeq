@@ -172,13 +172,15 @@ describe("element.assignCriterionKeys (SR-204 AK3)", () => {
     expect(await opened.read(NESTED_SR)).toBe(NESTED_FILES[NESTED_SR]);
   });
 
-  it("draws a new key again while an item carries it", () => {
+  it("draws a new key again while an item carries it, also an item of another form", () => {
     const draws = [0, 0, 0, 0, 1, 0, 0, 0];
     const random = (): number => draws.shift() ?? 0;
-    expect(withMissingKeys([{ key: "bbbb", text: "Kept." }, "New.", 7], random)).toEqual([
-      { key: "bbbb", text: "Kept." },
+    const other = { key: "bbbb", text: "Kept.", note: "an item of another form" };
+    expect(withMissingKeys([other, "New.", 7, null], random)).toEqual([
+      other,
       { key: "cbbb", text: "New." },
       7,
+      null,
     ]);
   });
 });

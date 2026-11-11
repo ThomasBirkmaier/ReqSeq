@@ -12,7 +12,7 @@ import { currentVersionOf, currentVersionsState, elementStoreState } from "../mo
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { NO_OLDER_CRITERIA } from "./criteria.js";
-import { changedOlderIds, olderCriteriaOf, olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
+import { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceRecordsState } from "./state.js";
 import { verificationState } from "./verification.js";
@@ -104,10 +104,8 @@ describe("older criteria (SR-031 AK11)", () => {
     ]);
     expect(byNumber(A, "n1:0000000000000000")).toBeUndefined();
     // The same items from another build compare equal; other items or none do not.
-    expect(sameOlderCriteria(byNumber, await lookup([record({ criteria: ["ktwo"] })]))).toBe(true);
-    expect(sameOlderCriteria(byNumber, byNumber)).toBe(true);
-    expect(sameOlderCriteria(byNumber, NO_OLDER_CRITERIA)).toBe(false);
-    expect(sameOlderCriteria(NO_OLDER_CRITERIA, byNumber)).toBe(false);
+    expect([...changedOlderIds(byNumber, await lookup([record({ criteria: ["ktwo"] })]))]).toEqual([]);
+    expect([...changedOlderIds(byNumber, byNumber)]).toEqual([]);
     // The UUIDs whose entries differ, either way.
     expect([...changedOlderIds(byNumber, NO_OLDER_CRITERIA)]).toEqual([A]);
     expect([...changedOlderIds(NO_OLDER_CRITERIA, byNumber)]).toEqual([A]);

@@ -495,7 +495,7 @@ const hintsAt = (key: string, elements: readonly ReadElement[], selection: BulkS
   );
 
 /** The planned writes of one folder: its repository, its path in it (`/`) and how many files. */
-interface PlannedFolder {
+export interface PlannedFolder {
   readonly repository: RepositoryLocation;
   readonly folder: string;
   readonly files: number;
@@ -507,7 +507,7 @@ interface PlannedFolder {
  * refuses), in the order of their first file: every write there is refused with `file.read-only`.
  * One check per folder (N-036).
  */
-const readOnlyFolders = async (planned: readonly ElementFileWrite[]): Promise<PlannedFolder[]> => {
+export const readOnlyFolders = async (planned: readonly ElementFileWrite[]): Promise<PlannedFolder[]> => {
   const folders = new Map<string, PlannedFolder>();
   for (const { repository, current } of planned) {
     const folder = path.posix.dirname(current.record.file);
@@ -530,6 +530,17 @@ const folderName = ({ repository, folder }: PlannedFolder): string =>
   folder === "."
     ? `the folder of repository ${repository.name}`
     : `folder ${folder} of repository ${repository.name}`;
+
+/** The refusal of a write into `folder` (`readOnlyFolders`), before the first write. */
+export const readOnlyRefusal = (folder: PlannedFolder): CommandError =>
+  new CommandError(
+    "file.read-only",
+    `Not written: ${folderName(folder)} is not writable; nothing was written`,
+    {
+      repository: folder.repository.name,
+      folder: folder.folder,
+    },
+  );
 
 /**
  * `file.read-only` of a preview for a folder it would write into but cannot (`readOnlyFolders`): the
@@ -654,11 +665,7 @@ export const bulkUpdateElements = async (
   const [first] = readOnly;
   if (input.confirm && first !== undefined) {
     // Refused before the first write, rather than rolled back after it.
-    throw new CommandError(
-      "file.read-only",
-      `Not written: ${folderName(first)} is not writable; nothing was written`,
-      { repository: first.repository.name, folder: first.folder },
-    );
+    throw readOnlyRefusal(first);
   }
   const written = input.confirm
     ? await writeElementFiles(workspace, layout, planned, {
