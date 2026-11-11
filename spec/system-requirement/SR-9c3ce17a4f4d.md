@@ -8,15 +8,15 @@ rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an 
 requirement-type: interface
 acceptance-criteria:
   - Gegeben importierte Requirements einer Quelle und ihre gespeicherte Zuordnung, wenn sie im Modell der Quelle an die Quelle exportiert werden, dann tragen SPEC-OBJECT-TYPE, ATTRIBUTE-DEFINITION und Datentyp jeweils den IDENTIFIER und den LONG-NAME der Quelle und jedes Requirement seinen ursprünglichen IDENTIFIER.
-  - Gegeben eine Auswahl-Property, deren Werte die Zuordnung den Werten einer Aufzählung der Quelle zuordnet, wenn sie so exportiert wird, dann trägt die Datei die Aufzählungswerte der Quelle.
+  - Gegeben eine Property mit festen Werten, deren Werte die Zuordnung den Werten einer Aufzählung der Quelle zuordnet, wenn sie so exportiert wird, dann trägt die Datei die Aufzählungswerte der Quelle.
   - Gegeben importierte Requirements mit Stellungnahme, wenn sie so mit Stellungnahme exportiert werden (SR-058), dann steht die Stellungnahme im Attribut laut Zuordnung am SPEC-OBJECT-TYPE der Quelle.
   - Gegeben dieser Export, wenn er gegen das Schema von ReqIF 1.2 geprüft wird, dann ist er gültig.
-  - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058).
+  - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058, SR-054 AK2).
 verification-method: test
 packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
 refines:
-  - { id: 6adc6d25-0c38-4486-8849-02874ac41f76, version: n1:b316ca541885a2eb, title: Stellungnahme als ReqIF exportieren }
+  - { id: 6adc6d25-0c38-4486-8849-02874ac41f76, version: n2:1390184909e23837, title: Stellungnahme als ReqIF exportieren }
 derives-from:
   - { id: 6adc6159-80e0-4421-84c4-4055e6912b63, version: n1:5e594bd18b6129c8, title: Stellungnahme per ReqIF zurückgeben }
 based-on:

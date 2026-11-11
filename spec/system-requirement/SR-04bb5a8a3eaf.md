@@ -6,7 +6,7 @@ title: "Daten eines Stands als JSON liefern"
 spec-id: "SR-061"
 requirement-type: interface
 acceptance-criteria:
-  - "Gegeben ein Arbeitsbereich, wenn die Daten über API oder Kommandozeile abgefragt werden, dann liefert das Tool alle Elemente mit Properties, Beziehungen, Fassung, Nachweisstatus und Gültigkeit als JSON."
+  - "Gegeben ein Arbeitsbereich, wenn die Daten über Kommandozeile, API oder MCP-Server abgefragt werden, dann liefert das Tool alle Elemente mit Properties, Beziehungen, Fassung, Nachweisstatus für den Kern und je Variante, Validierungsstatus und Gültigkeit als JSON."
   - Gegeben eine Auswahl über Filter, Paket, Baseline oder Variante, wenn die Daten abgefragt werden, dann enthält das JSON nur diese Auswahl; bei einer Baseline sind das ihre Elemente im aktuellen Stand, die Fassung zum Zeitpunkt der Baseline zeigt die Baseline selbst (SR-051).
   - "Gegeben die Ausgabe, wenn sie geprüft wird, dann entspricht sie einem mitgelieferten JSON-Schema."
   - Gegeben die Kommandozeile oder die API, wenn die Daten im Format JSON Lines angefordert werden, dann liefern sie ein Element je Zeile.
@@ -19,6 +19,7 @@ based-on:
   - { id: 6ad4a03f-d7cf-4b85-98da-3f4431f33fe7, version: n2:84d08b2dbd1bf992, title: Auswertungen mit externen Werkzeugen }
   - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n2:d8bcd2a465d55357, title: Kommandozeile neben der App }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 12bb3e5a-c303-4774-9f3b-b61677923a73, version: n2:553793df52ec58b3, title: Werkzeuge nur über Dateien }
 ---
 
 Das Tool muss die Daten eines Stands als JSON nach einem dokumentierten Schema für externe Auswertungen liefern.
