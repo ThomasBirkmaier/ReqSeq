@@ -19,6 +19,7 @@
     "element.setStatus",
     "element.supersede",
     "element.bulkUpdate",
+    "element.assignCriterionKeys",
     "element.addAttachment",
     "relation.options",
     "relation.add",

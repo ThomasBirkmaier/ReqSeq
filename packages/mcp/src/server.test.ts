@@ -71,6 +71,8 @@ const SELECTION_TOOLS: readonly string[] = [
   "element_list",
   "element_facets",
   "element_bulkUpdate",
+  // Assigns the missing criterion keys of a selection (SR-204 AK3).
+  "element_assignCriterionKeys",
   "trace_matrix",
   "element_search",
   "filter_save",

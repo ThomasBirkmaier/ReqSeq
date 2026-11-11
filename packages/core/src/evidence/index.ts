@@ -22,7 +22,7 @@ export {
   plainCriteria,
 } from "./criteria.js";
 export type { ElementCriteria, OlderCriteria } from "./criteria.js";
-export { olderCriteriaOf, olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
+export { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
 export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { EnrichOptions, EnrichResult, RefResolution, UnknownRef, VersionLookup } from "./enrich.js";

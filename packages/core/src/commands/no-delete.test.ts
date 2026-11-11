@@ -67,6 +67,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/missing.png" },
   ],
+  "element.assignCriterionKeys": [
+    { selection: {} },
+    { selection: { ids: [GUSTS] } },
+    { selection: { baseline: "nope" } },
+  ],
   "element.bulkUpdate": [
     { selection: {}, property: "rationale", operation: "remove", confirm: true },
     { selection: {}, property: "acceptance-criteria", operation: "remove", value: "x", confirm: true },

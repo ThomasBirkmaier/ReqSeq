@@ -12,13 +12,16 @@ import { currentVersionOf, currentVersionsState, elementStoreState } from "../mo
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { NO_OLDER_CRITERIA } from "./criteria.js";
-import { olderCriteriaOf, olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
+import { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceRecordsState } from "./state.js";
+import { verificationState } from "./verification.js";
 
 const A = "3c3c3c3c-3333-4333-8333-0d0000000001";
 const UNKNOWN = "9f9f9f9f-9999-4999-8999-0d00000000ff";
 const FILE = "system/requirements/SR-0d0000000001.md";
+const PARENT = "3c3c3c3c-3333-4333-8333-0d00000000a1";
+const MODEL = "system/metamodel/standard-model.yaml";
 
 /** Element A with the acceptance criteria `criteria` (lines below the list item marker). */
 const elementA = (criteria: readonly string[]): string =>
@@ -101,10 +104,12 @@ describe("older criteria (SR-031 AK11)", () => {
     ]);
     expect(byNumber(A, "n1:0000000000000000")).toBeUndefined();
     // The same items from another build compare equal; other items or none do not.
-    expect(sameOlderCriteria(byNumber, await lookup([record({ criteria: ["ktwo"] })]))).toBe(true);
-    expect(sameOlderCriteria(byNumber, byNumber)).toBe(true);
-    expect(sameOlderCriteria(byNumber, NO_OLDER_CRITERIA)).toBe(false);
-    expect(sameOlderCriteria(NO_OLDER_CRITERIA, byNumber)).toBe(false);
+    expect([...changedOlderIds(byNumber, await lookup([record({ criteria: ["ktwo"] })]))]).toEqual([]);
+    expect([...changedOlderIds(byNumber, byNumber)]).toEqual([]);
+    // The UUIDs whose entries differ, either way.
+    expect([...changedOlderIds(byNumber, NO_OLDER_CRITERIA)]).toEqual([A]);
+    expect([...changedOlderIds(NO_OLDER_CRITERIA, byNumber)]).toEqual([A]);
+    expect([...changedOlderIds(NO_OLDER_CRITERIA, NO_OLDER_CRITERIA)]).toEqual([]);
     // A version Git does not have gives nothing (#1502).
     expect(await lookup([record({ version: "n1:0000000000000000", criteria: [2] })])).toBe(NO_OLDER_CRITERIA);
     // Nor for an element with two copies (SR-088).
@@ -145,6 +150,68 @@ describe("older criteria (SR-031 AK11)", () => {
     ]);
     expect(await rows(open(ws))).toEqual(carried);
     expect((await workspace.get(evidenceRecordsState)).length).toBe(2);
+  });
+
+  /**
+   * A below the requirement P, with one record by number of its committed version, opened with the status
+   * of P prepared (which reads A's version); then a new text of `kone` makes that version an older
+   * one. Gives the batches of versions the status read before and after the change; `model` edits
+   * the metamodel first.
+   */
+  const olderAfterSave = async (
+    model: (text: string) => string = (text) => text,
+  ): Promise<{ before: number; after: number }> => {
+    const derived = elementA(["key: kone\n    text: One.", "key: ktwo\n    text: Two."]).replace(
+      "requirement-type: functional\n",
+      `requirement-type: functional\nderives-from:\n  - { id: ${PARENT} }\n`,
+    );
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-028/records",
+      files: {
+        [FILE]: derived,
+        "system/requirements/SR-0d00000000a1.md": `---\nid: ${PARENT}\ntype: system-requirement\nstatus: draft\ntitle: Show the weather\n---\n`,
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    await fs.writeFile(ws.path(MODEL), model(await fs.readFile(ws.path(MODEL), "utf8")));
+    await fs.rm(ws.path("ci-results/evidence/2026-10-20-SR-000001-test.md"));
+    await ws.git(["init", "--quiet", "--initial-branch=main"], "system");
+    await ws.commit("system");
+    const first = new Workspace(ws.path("system"));
+    const version = await versionOf(first);
+    await first.close();
+    await ws.write("ci-results/evidence/2026-10-30-a-test.md", recordOf(version, "[2]"));
+    const workspace = open(ws);
+    const parent = async (w: Workspace): Promise<unknown> =>
+      ((await invoke("element.get", { ref: PARENT }, { workspace: w })) as CommandOutput<"element.get">)
+        .element.verification;
+    await parent(workspace);
+    const before = (await workspace.get(verificationState)).versionBatches();
+    await invoke(
+      "element.update",
+      { ref: A, set: { "acceptance-criteria": ["One, changed.", { key: "ktwo", text: "Two." }] } },
+      { workspace },
+    );
+    expect(await workspace.get(olderCriteriaState)).not.toBe(NO_OLDER_CRITERIA);
+    // The carried status gives what a fresh one gives.
+    expect(await rows(workspace)).toEqual([
+      [1, expect.any(String), "open"],
+      [2, "ktwo", "outdated"],
+    ]);
+    expect(await parent(workspace)).toEqual(await parent(open(ws)));
+    return { before, after: (await workspace.get(verificationState)).versionBatches() };
+  };
+
+  it("[SR-031/AK11] carries the status over a save that makes records older: only the saved element reads its version again (#1418)", async () => {
+    const { before, after } = await olderAfterSave();
+    // The versions read before are kept: one more batch for A, not a status built afresh.
+    expect([before, after]).toEqual([1, 2]);
+  });
+
+  it("[SR-031/AK11] builds the status afresh over such a save without derivation", async () => {
+    const { after } = await olderAfterSave((text) => text.replaceAll("meaning: derivation", ""));
+    // Nothing is walked without derivation, so no batch is read.
+    expect(after).toBe(0);
   });
 
   it("[SR-205/AK2] names a criterion a record of an older version names by number, without key there, with that number and that version's text, where Git has the version", async () => {
