@@ -709,11 +709,14 @@ test.describe("property boxes of an element with many values", () => {
     console.log(`PERF property boxes ${JSON.stringify(record)}`);
     await fs.mkdir(RESULTS, { recursive: true });
     await fs.writeFile(path.join(RESULTS, "perf-property-boxes.json"), JSON.stringify(record, null, 2));
-    // The times are recorded, not bounded (SR-082 AK3 is about 50,000 elements): a wall-clock guard turned a slow
-    // runner red without a cause in the code (1022 ms against 1000 ms on macOS, #1438). A broken page shows in
-    // counts instead: at most 10 editors at the opening (above), each key in the box it was typed in, and no
-    // editor made again while typing.
+    // The times are recorded, not a budget (SR-082 AK3 is about 50,000 elements): a 1 s guard turned a slow runner
+    // red without a cause in the code (1022 ms on macOS, #1438). A broken page is caught by counts: at most 10
+    // editors for the 50 values (above), every typed key in the box, the editors not more after typing, and a
+    // paint for most keys on the box's own content (`latencies`, which a remade editor no longer gets). The loose
+    // time bounds catch only a page that hangs, far above what any runner takes.
     await expect(field(window, "acceptance-criteria").locator(".cm-content")).toContainText("x".repeat(20));
     expect(await window.locator(".cm-editor").count()).toBe(editors);
+    expect(open).toBeLessThan(10_000);
+    expect(worst).toBeLessThan(5000);
   });
 });
