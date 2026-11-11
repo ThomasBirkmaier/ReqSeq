@@ -10,9 +10,16 @@ const windowsCi = process.platform === "win32" && process.env.CI === "true";
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
 // ADR-0016: coverage thresholds (100 % per file in core, 80 % per adapter package) are a required gate.
 export default defineConfig({
-  // Tests use the testkit sources directly, so they need no build of @reqseq/testkit first.
+  // Tests use the testkit sources directly, so they need no build of @reqseq/testkit first. The status model has its
+  // own entry, so that only the tests that use it load fast-check (#1394); Vite takes the first alias that matches,
+  // so the subpath comes first.
   resolve: {
-    alias: { "@reqseq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
+    alias: {
+      "@reqseq/testkit/status-model": fileURLToPath(
+        new URL("./packages/testkit/src/status-model/index.ts", import.meta.url),
+      ),
+      "@reqseq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)),
+    },
   },
   test: {
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],

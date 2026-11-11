@@ -4,6 +4,7 @@ A second, deliberately naive implementation of the status rules, written from th
 
 - `model.ts`: one small function per rule below, the rule's source in its comment.
 - `generator.ts`: fast-check arbitraries of small abstract inputs (one requirement, its acceptance criteria with criterion keys, older versions, records). Only records the reader accepts; refused ones belong to level 2 (#1396).
+- Level 1 (the core's pure functions against the model, in `packages/core`) follows once the criterion keys of #1417 are in the core.
 - Import it from `@reqseq/testkit/status-model`, not from `@reqseq/testkit`, so only the tests that use it load fast-check.
 
 Scope of this part: the own records of one element in one view. Views, variants, indirect verification and emergent elements follow in #1389's later parts. Not modelled: duplicate criterion keys (SR-204 AK10), records refused by the reader (SR-038 AK4, SR-172 AK1, AK3).
