@@ -7,7 +7,9 @@
 // with a checked commit ID after it; paths and object names go to git's standard input, one per
 // line. There is no way to pass another subcommand or argument. Add commands from ADR-0006's list
 // as SRs need them. `headFiles` reads the few small files of the Git folder that name HEAD itself,
-// so that opening an element needs no `rev-parse` (ADR-0006).
+// so that opening an element needs no `rev-parse` (ADR-0006). Object names are object IDs or
+// `<commit ID>:<path>`; only `trackedFile` also names index entries (`:<stage>:./<path>`), which
+// git reads from the index and never writes (SR-004 AK8).
 //
 // A repository folder may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377): a workspace in
 // `spec/` of a code repository. Every path in and out of this module is relative to the folder git
@@ -247,6 +249,8 @@ const unknownReason = (error: ExecError): GitUnknownReason => {
 const NO_GIT = { reason: "no-git", detail: "git was not found on PATH" } as const;
 
 interface RunOptions extends ReadOptions {
+  /** The short time limit of a `rev-parse` instead of the one of a read. */
+  readonly quick?: boolean;
   /** A commit ID after the command line (checked by the caller with `isObjectId`). */
   readonly revision?: string;
   /** Lines for standard input. */
@@ -273,7 +277,8 @@ const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): 
         env: gitEnv(),
         encoding: "buffer",
         maxBuffer: MAX_OUTPUT,
-        timeout: command === "head" || command === "prefix" ? TIMEOUT_MS : READ_TIMEOUT_MS,
+        timeout:
+          options.quick === true || command === "head" || command === "prefix" ? TIMEOUT_MS : READ_TIMEOUT_MS,
         killSignal: "SIGKILL",
         windowsHide: true,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -1138,6 +1143,57 @@ export const changedPaths = async (
     return unknown(untracked);
   }
   return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
+};
+
+/** Whether Git tracks a file (`trackedFile`), or why Git cannot tell. */
+export type TrackedFile = { readonly known: true; readonly tracked: boolean } | GitUnknown;
+
+/** The index entries of a path: stage 0 (staged) and the stages 1 to 3 of an unmerged path. */
+const INDEX_STAGES = ["", "1:", "2:", "3:"] as const;
+
+/**
+ * Whether Git tracks `file` (relative to `folder`, with `/`, as Git stores it) in the repository
+ * whose work tree holds `folder` (SR-004 AK8): the index has an entry for it (staged, also
+ * `git add -N` or unmerged in any stage) or `head`, when given, holds it. One `cat-file
+ * --batch-check` with the names on standard input, `:<stage>:./<file>` and `<head>:./<file>`, read
+ * from the index and the objects and never written (D-036), under the short time limit. Any object
+ * counts (a link too); a submodule entry is no file. Unknown when git fails, refuses the repository
+ * or does not answer in time. A programming error when `file` is no `isGitPath` or `head` no object ID.
+ */
+export const trackedFile = async (
+  folder: string,
+  file: string,
+  head: string | undefined,
+  options: ReadOptions = {},
+): Promise<TrackedFile> => {
+  if (!isGitPath(file) || (head !== undefined && !isObjectId(head))) {
+    throw new Error(`trackedFile cannot ask about ${JSON.stringify(file)} at ${String(head)}`);
+  }
+  const names = [
+    ...INDEX_STAGES.map((stage) => `:${stage}./${file}`),
+    ...(head === undefined ? [] : [`${head}:./${file}`]),
+  ];
+  const result = await run(folder, "objectInfo", {
+    ...options,
+    quick: true,
+    input: names.map((name) => `${name}\n`).join(""),
+  });
+  if (!result.ok) {
+    return unknown(result);
+  }
+  const output = result.stdout.toString("utf8");
+  const lines = output.split("\n");
+  try {
+    if (lines.length !== names.length + 1 || lines.at(-1) !== "") {
+      throw new Error(`unexpected output of git cat-file: ${output}`);
+    }
+    return {
+      known: true,
+      tracked: names.some((name, index) => parseHeader(name, String(lines[index])) !== null),
+    };
+  } catch (error) {
+    return { known: false, reason: "not-a-repository", detail: (error as Error).message };
+  }
 };
 
 /** The blob IDs a commit holds for some paths (`commitBlobs`), or why Git cannot tell. */

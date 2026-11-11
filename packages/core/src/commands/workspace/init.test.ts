@@ -44,7 +44,8 @@ describe("workspace.init", () => {
       problems: [],
     });
     expect(await listFiles(ws.root)).toEqual([".gitignore", "metamodel/standard-model.yaml", WORKSPACE_FILE]);
-    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n");
+    // The temp files and the local file stay out of Git (#271, #1456).
+    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n.reqseq/local.yaml\n");
     // The metamodel file is the shipped standard model, byte for byte.
     expect(await fs.readFile(ws.path("metamodel/standard-model.yaml"), "utf8")).toBe(STANDARD_MODEL_TEXT);
     const name = path.basename(ws.root);
@@ -200,26 +201,39 @@ describe("workspace.init", () => {
     expect(await fs.readFile(ws.path(WORKSPACE_FILE), "utf8")).toBe(before);
   });
 
-  it("adds the temp file pattern to an existing .gitignore once, with its line ending (#271)", async () => {
+  it("[SR-014/AK1] adds the missing lines for temp files and the local file to an existing .gitignore once, with its line ending (#271, #1456)", async () => {
     const ws = await createFixtureWorkspace({
       files: {
         "a/.gitignore": "node_modules/\r\ndist/",
-        "b/.gitignore": "x\n*.reqseq-tmp  \n",
+        "b/.gitignore": "x\n*.reqseq-tmp  \n.reqseq/local.yaml\n",
         "d/.gitignore": "  *.reqseq-tmp\n",
+        "e/.gitignore": "x\n*.reqseq-tmp\n",
+        "f/.gitignore": "*.reqseq-tmp\r\n.reqseq/local.yaml",
         "c/.keep": "",
       },
     });
     onTestFinished(() => ws.cleanup());
     const workspace = open(ws.root);
+    // A CRLF file whose last line has no line ending gets CRLF on both lines.
     expect((await init(workspace, { path: "a", name: "A" })).files).toContain(".gitignore");
     expect(await fs.readFile(ws.path("a/.gitignore"), "utf8")).toBe(
-      "node_modules/\r\ndist/\r\n*.reqseq-tmp\r\n",
+      "node_modules/\r\ndist/\r\n*.reqseq-tmp\r\n.reqseq/local.yaml\r\n",
     );
     expect((await init(workspace, { path: "b", name: "B" })).files).not.toContain(".gitignore");
-    expect(await fs.readFile(ws.path("b/.gitignore"), "utf8")).toBe("x\n*.reqseq-tmp  \n");
+    expect(await fs.readFile(ws.path("b/.gitignore"), "utf8")).toBe(
+      "x\n*.reqseq-tmp  \n.reqseq/local.yaml\n",
+    );
     // A leading space is part of a Git pattern, so that line does not count.
     await init(workspace, { path: "d", name: "D" });
-    expect(await fs.readFile(ws.path("d/.gitignore"), "utf8")).toBe("  *.reqseq-tmp\n*.reqseq-tmp\n");
+    expect(await fs.readFile(ws.path("d/.gitignore"), "utf8")).toBe(
+      "  *.reqseq-tmp\n*.reqseq-tmp\n.reqseq/local.yaml\n",
+    );
+    // Only the missing line is added.
+    await init(workspace, { path: "e", name: "E" });
+    expect(await fs.readFile(ws.path("e/.gitignore"), "utf8")).toBe("x\n*.reqseq-tmp\n.reqseq/local.yaml\n");
+    // Both there, the last without a line ending: left as it is.
+    expect((await init(workspace, { path: "f", name: "F" })).files).not.toContain(".gitignore");
+    expect(await fs.readFile(ws.path("f/.gitignore"), "utf8")).toBe("*.reqseq-tmp\r\n.reqseq/local.yaml");
     // A .gitignore that is a link is not followed and left alone.
     await fs.symlink(ws.path("a/.gitignore"), ws.path("c/.gitignore"), "file");
     expect((await init(workspace, { path: "c", name: "C" })).files).not.toContain(".gitignore");
@@ -233,7 +247,7 @@ describe("workspace.init", () => {
       0x62,
       0xfc,
       0x0a,
-      ...Buffer.from("*.reqseq-tmp\n"),
+      ...Buffer.from("*.reqseq-tmp\n.reqseq/local.yaml\n"),
     ]);
   });
 
@@ -241,7 +255,7 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({ files: { ".gitignore": "" } });
     onTestFinished(() => ws.cleanup());
     await init(open(ws.root), { path: ws.root, name: "W" });
-    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n");
+    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n.reqseq/local.yaml\n");
   });
 
   it("refuses an existing metamodel file before it writes anything", async () => {
