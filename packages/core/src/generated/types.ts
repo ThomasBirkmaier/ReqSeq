@@ -927,7 +927,7 @@ export interface DataExportRowVerification {
 }
 
 /**
- * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).
+ * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view it lists (none for a variant whose status the metamodel marks invalid, SR-047 AK6), `trace.matrix` one for its view (SR-126).
  * Schema: `schemas/data-export.schema.json#/$defs/verificationEntry`.
  */
 export interface DataExportVerificationEntry {
@@ -3635,7 +3635,7 @@ export interface BaselineListOutput {
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in, except a variant whose status the metamodel marks invalid (SR-047 AK6; only the variant's view when the stored selection has one, also when its status is invalid, SR-094 AK5), and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
@@ -3685,21 +3685,21 @@ export interface BaselineGetOutput {
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
-    /** With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3), none for a variant whose status the metamodel marks invalid now (SR-047 AK6); with a variant in the stored selection only that variant's row, also when its status is invalid (AK5, SR-047 AK6). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
+    /** With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3), none for a variant whose status the metamodel marks invalid now (SR-047 AK6); with a variant in the stored selection only that variant's row, also when its status is invalid (SR-094 AK5, SR-047 AK6). Empty when it applies in no view shown. Own records only, never indirect (SR-094 AK6). Left out when the stored view cannot be resolved. */
     readonly verification?: readonly {
       readonly view: ViewId;
-      /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
+      /** From the records of the view that count for the baseline: dated at or before it (SR-094 AK2); outdated with records of other versions only, open without (SR-094 AK3). */
       readonly status: "open" | "verified" | "failed" | "outdated";
       /** How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5): 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it. */
       readonly criteria?: DataExportCriteriaCount;
-      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
+      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (SR-094 AK2). Left out when there is none. */
       readonly later?: readonly DataExportEvidenceRecord[];
     }[];
     /** With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record (SR-038 AK5, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
     readonly validation?: ValidationStatus;
     /** With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2). */
     readonly validationReason?: string;
-    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none. */
+    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (SR-094 AK2). Left out when there is none. */
     readonly validationLater?: readonly DataExportEvidenceRecord[];
   }[];
   /** Elements per state over all pages. */
