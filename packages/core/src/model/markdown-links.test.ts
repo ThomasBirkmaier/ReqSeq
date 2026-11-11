@@ -447,3 +447,86 @@ describe("markdownBlocks (SR-174)", () => {
     expect(blocks("")).toEqual([]);
   });
 });
+
+// The expected values are what a CommonMark parser (micromark 4) gives for the same text (#1330),
+// except the limit of 32 nested parentheses, which CommonMark leaves to the implementation
+// (commonmark.js uses 32, see `MAX_PARENTHESES`).
+describe("block-level edge cases of the scan, with the CommonMark result (#1330)", () => {
+  const blocks = (text: string): [string, boolean][] =>
+    markdownBlocks(text).map((block) => [text.slice(block.start, block.end), block.fence]);
+
+  it("starts a new block at a block quote marker after paragraph text, so a definition may follow", () => {
+    expect(markdownImages("text\n> [r]: /r.png\n\n![a][r]")).toEqual(["/r.png"]);
+  });
+
+  it("reads a line with fewer block quote markers after quoted paragraph text as its lazy continuation", () => {
+    // The third line goes on with the same paragraph: no definition.
+    expect(markdownImages("> para\nlazy\n> [r]: /r.png\n\n![a][r]")).toEqual([]);
+  });
+
+  it("leaves a block quote at a line without its marker that continues no paragraph, or is a list item", () => {
+    // After a heading in a block quote, `text` ends the quote; the next `>` opens a new one.
+    expect(markdownImages("> # H\ntext\n> [r]: /r.png\n\n![a][r]")).toEqual(["/r.png"]);
+    // A list item interrupts the quoted paragraph; the next `>` opens a new block quote.
+    expect(markdownImages("> text\n- [r]: /r.png\n> [s]: /s.png\n\n![a][r] ![b][s]")).toEqual([
+      "/r.png",
+      "/s.png",
+    ]);
+  });
+
+  it("closes a fence only with a marker of its kind, at least as long, and nothing after it", () => {
+    for (const text of [
+      "````\n```\n[a](x)\n````\n[b](y)",
+      "```\n~~~\n[a](x)\n```\n[b](y)",
+      "```\n``` text\n[a](x)\n```\n[b](y)",
+    ]) {
+      expect(found(text)).toEqual(["y"]);
+    }
+    // A longer closing marker, with spaces after it, closes.
+    expect(found("~~~\n~~~~ \n[a](x)")).toEqual(["x"]);
+  });
+
+  it("keeps a fenced code block whole in markdownBlocks until a closing marker of its kind, at least as long, and nothing after it", () => {
+    expect(blocks("````\n```\n\nx\n````\nafter")).toEqual([
+      ["````\n```\n\nx\n````\n", true],
+      ["after", false],
+    ]);
+    expect(blocks("~~~\n```\n\n``` text\n~~~~ \nafter")).toEqual([
+      ["~~~\n```\n\n``` text\n~~~~ \n", true],
+      ["after", false],
+    ]);
+    expect(blocks("```\n``` text\n\nx\n```\nafter")).toEqual([
+      ["```\n``` text\n\nx\n```\n", true],
+      ["after", false],
+    ]);
+  });
+
+  it("reads no definition with unbalanced parentheses, nor one nested more than 32 deep (commonmark.js)", () => {
+    expect(markdownImages("[a]: a)(b\n\n[b]: (c)\n\n![x][a] ![y][b]")).toEqual(["(c)"]);
+    const nested = (depth: number, name: string): string => `${"(".repeat(depth)}${name}${")".repeat(depth)}`;
+    expect(markdownImages(`[a]: ${nested(33, "x")}\n\n[b]: ${nested(32, "y")}\n\n![x][a] ![y][b]`)).toEqual([
+      nested(32, "y"),
+    ]);
+  });
+
+  it("reads no definition with a blank label or one over 999 characters", () => {
+    const longest = "y".repeat(999);
+    expect(markdownDefinitions(`[ ]: e.png\n\n[${longest}y]: l.png\n\n[${longest}]: m.png`)).toEqual([
+      longest,
+    ]);
+  });
+
+  it("folds the case of labels as CommonMark does, also for a letter whose lower case differs (Kelvin sign)", () => {
+    expect(markdownImages("[K]: k.png\n\n![x][k]")).toEqual(["k.png"]);
+    expect(markdownImages("[a\tb]: t.png\n\n![x][a b] ![y][ a b ]")).toEqual(["t.png", "t.png"]);
+  });
+
+  it("splits blocks at lines that end with CR only, and with CR and LF mixed", () => {
+    expect(blocks("a\rb\r\rc\nd\r\n\re\r\n\nf").map(([text]) => text)).toEqual([
+      "a\rb\r",
+      "c\nd\r\n",
+      "e\r\n",
+      "f",
+    ]);
+  });
+});

@@ -20,8 +20,8 @@ derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:b98a6de8c51aee04, title: Fest eingebaute Bedeutungen des Metamodells }
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:59d1b195778616da, title: Oberfläche als weißes Blatt }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f, version: n2:d4e7ba49fc318ecc, title: Kette aufwärts und abwärts zeigen }
 ---

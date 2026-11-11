@@ -197,7 +197,8 @@ jobs:
           case "$KIND" in
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
               junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26-1
-              junit-electron-macos-26-2 junit-electron-windows-2025-1 junit-electron-windows-2025-2" ;;
+              junit-electron-macos-26-2 junit-electron-windows-2025-1 junit-electron-windows-2025-2
+              junit-electron-windows-2025-3" ;;
             perf) expected="perf-results" ;;
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac

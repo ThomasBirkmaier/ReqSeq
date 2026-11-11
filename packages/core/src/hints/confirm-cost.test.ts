@@ -1,8 +1,8 @@
-// The cost of confirming many hints in one call (SR-027 AK2, N-036): the files of a ring of inline
-// references are planned once more, and only they are; the other files of the call are planned
-// once. A confirmed version is no part of the n2 version of its source (ADR-0005), so one more
-// round settles the ring (#166). Counted as calls of the file writer (`editElementFile`), so
-// the check does not depend on the load of the machine.
+// The cost of confirming many hints in one call (SR-027 AK2, N-036): every file of the call, those
+// of a ring of inline references too, is planned once. A confirmed version is no part of the n2
+// version of its source (ADR-0005), so the current versions settle the ring (#166, #1328).
+// Counted as calls of the file writer (`editElementFile`), so the check does not depend on the
+// load of the machine.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../catalog.js";
@@ -27,7 +27,7 @@ const requirement = (id: string, extra: string, text = ""): string =>
   `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: R\nrequirement-type: functional\nacceptance-criteria: [R]\n${extra}---\n\n${text}\n`;
 
 describe("hint.confirm cost (SR-027 AK2, N-036)", () => {
-  it("[SR-027/AK2] plans the other files of a call once when a ring of references is planned again", async () => {
+  it("[SR-027/AK2] plans every file of a call once, a ring of references included", async () => {
     const others = Object.fromEntries(
       Array.from({ length: OTHERS }, (_, i) => {
         const tail = `d${String(i).padStart(10, "0")}`;
@@ -63,8 +63,8 @@ describe("hint.confirm cost (SR-027 AK2, N-036)", () => {
       { workspace },
     )) as CommandOutput<"hint.confirm">;
     expect(out.files).toHaveLength(OTHERS + 2);
-    // Once per file, then the two files of the ring once more.
-    expect(writer.mock.calls.length).toBe(OTHERS + 2 + 2);
+    // Once per file: the ring needs no second plan.
+    expect(writer.mock.calls.length).toBe(OTHERS + 2);
     expect(
       (
         (await invoke(

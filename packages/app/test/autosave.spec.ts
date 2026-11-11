@@ -137,9 +137,22 @@ test.describe("saving without a save command", () => {
     await window.locator("article").focus();
     await window.keyboard.press("Enter");
     await window.keyboard.type("Drei.");
+    // The input is in the editor before closing, so a file without it below is not keys that went
+    // elsewhere (#1336).
+    await expect(text(window)).toContainText("Drei.");
     await run(window, "Close buffer");
     await expect(window.locator("article h1")).toHaveCount(0);
-    expect(await read(running, SR_FILE)()).toContain("Drei.");
+    const atClose = await read(running, SR_FILE)();
+    if (!atClose.includes("Drei.")) {
+      // Whether the input comes later (Close buffer did not wait for its save) or never (it was lost).
+      let later = false;
+      for (const until = Date.now() + 5000; !later && Date.now() < until;) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        later = (await read(running, SR_FILE)()).includes("Drei.");
+      }
+      const late = later ? "written only after the buffer had closed" : "not written";
+      expect(atClose, `Close buffer: the input was ${late}`).toContain("Drei.");
+    }
     // Close all buffers, with input in two elements: nothing is asked, both files have it.
     await open(window, SR_TITLE);
     await window.keyboard.press("Enter");

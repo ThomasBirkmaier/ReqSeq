@@ -402,5 +402,13 @@ test.describe("diagrams in the editor", () => {
       await window.keyboard.press("ControlOrMeta+a");
       await window.keyboard.press("Backspace");
     }
+    // The empty text is in the file before the window closes, so the close has nothing to save. A save
+    // still waiting behind a drawing would hold the close past main's `CLOSE_SAVE_TIMEOUT_MS`, and the
+    // window would stay open (#1310).
+    const file = path.join((running.workspace as { root: string }).root, ...DEMO_FILE.split("/"));
+    await expect
+      .poll(async () => (await fs.readFile(file, "utf8")).trimEnd(), { timeout: 30_000 })
+      .toBe(DEMO_FRONT_MATTER.trimEnd());
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified");
   });
 });

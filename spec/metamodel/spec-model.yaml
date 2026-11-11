@@ -1,5 +1,5 @@
 # Metamodel of the ReqSeq specification (enabler ThomasBirkmaier/ReqSeq-archive#326). It is the standard model (D-037,
-# schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
+# schemas/examples/metamodel/standard-model.yaml) with the spec's own deviations, listed below (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
 # - property spec-id with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305): SR-036, D-047, N-001, Editor;
 # - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
@@ -16,6 +16,7 @@
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
 # - packages on every type: a package is a set of any elements (glossary „Paket“, D-040;
 #   product owner decision, 2026-11-09, #1293).
+# - verification-method counts to the version (`content: true`), unlike the standard model (D-057, #378).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
 

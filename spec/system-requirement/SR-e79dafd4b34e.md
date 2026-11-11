@@ -15,7 +15,7 @@ derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:b98a6de8c51aee04, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-10: Ein Zyklus ist eine Warnung und damit ein Hinweis (SR-022 AK4, SR-067 AK3), so wie das Tool es umsetzt; Exit-Code 1 gibt es nur, wenn die Prüfung schon bei Warnungen fehlschlagen soll."
 ---
 

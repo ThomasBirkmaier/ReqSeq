@@ -2,17 +2,15 @@
 // cache folder, and the CLI on the same workspace for comparisons (SR-080).
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
-
-const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
 // The Windows and macOS runners in CI stall under load (#753, playwright.config.ts): there the wait is three times as
@@ -41,6 +39,20 @@ const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url)
 const APP_FOLDER = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
+/**
+ * Node's compile cache of the CLI and MCP processes the tests start, shared by all launches of this test
+ * process and removed when it exits (#1356). With a new home per launch, the first CLI call of every test
+ * compiled ReqSeq from scratch, which on Windows took more than 15 s at times. It holds only compiled code
+ * (`compileCacheFolder`), so sharing it keeps the tests apart. The app itself does not get it: it runs as
+ * it ships, without a compile cache (ADR-0008). A NODE_COMPILE_CACHE that is set is kept.
+ */
+const COMPILE_CACHE =
+  process.env["NODE_COMPILE_CACHE"] ?? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-"));
+if (process.env["NODE_COMPILE_CACHE"] === undefined) {
+  process.once("exit", () => {
+    rmSync(COMPILE_CACHE, { recursive: true, force: true });
+  });
+}
 /** Fails every connection that leaves the machine in a spawned CLI, as in the CLI's end-to-end tests (SR-077). */
 const BLOCK_NETWORK = pathToFileURL(
   fileURLToPath(new URL("../../../../scripts/test-support/block-network.mjs", import.meta.url)),
@@ -132,8 +144,8 @@ const runner = (
   env: NodeJS.ProcessEnv,
 ): { readonly program: string; readonly env: NodeJS.ProcessEnv } =>
   runtime.electron === true
-    ? { program: ELECTRON, env: { ...env, ELECTRON_RUN_AS_NODE: "1" } }
-    : { program: process.execPath, env };
+    ? { program: ELECTRON, env: { ...env, NODE_COMPILE_CACHE: COMPILE_CACHE, ELECTRON_RUN_AS_NODE: "1" } }
+    : { program: process.execPath, env: { ...env, NODE_COMPILE_CACHE: COMPILE_CACHE } };
 
 /** An MCP client on a `reqseq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
 export interface McpSession {
@@ -328,6 +340,87 @@ export const fileSha256 = async (running: RunningApp, ref: string): Promise<stri
   return (JSON.parse(got.stdout) as { fileSha256: string }).fileSha256;
 };
 
+/**
+ * How long one CLI call of a test may take. On the Windows runner two graph tests hung until the test timeout
+ * (#1339, #1399) with no pending step named, which Playwright gives only for an await outside its own calls; of
+ * those, this call is the one both tests make, and nothing in the job log tells why it did not end. The bound
+ * fails such a call before the test timeout with what tells the cause apart: whether the CLI had written its
+ * answer, whether its process still ran or had ended while its output stayed open (another process holds
+ * the pipe), and its standard error so far. It leaves the test (120 s there, 60 s elsewhere) time for the
+ * rest, so that the error names the call instead of the test timeout.
+ */
+const CLI_WAIT_MS = SLOW_CI ? 90_000 : 40_000;
+/** A CLI call that takes longer is reported on the test's standard error with the same facts, also when it passes. */
+const CLI_SLOW_MS = 5000;
+
+/** Runs `program` with `args` (the CLI), bounded by `CLI_WAIT_MS`; `name` names the call in the reports. */
+const timedCli = (
+  program: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  name: string,
+  pending: Set<() => string>,
+): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const started = Date.now();
+    const since = (): string => `${String(Date.now() - started)} ms`;
+    let firstOutput: string | undefined;
+    let written = 0;
+    let ended: string | undefined;
+    let errors = "";
+    let settled = false;
+    /** Where the time of the call went, for a report. */
+    const facts = (): string =>
+      [
+        firstOutput === undefined
+          ? "no output"
+          : `first output after ${firstOutput}, ${String(written)} bytes`,
+        ended ?? "its process still ran",
+      ].join("; ");
+    const describe = (): string => `${name} after ${since()}: ${facts()}`;
+    pending.add(describe);
+    const child = execFile(program, args, { env }, (error, stdout, stderr) => {
+      clearTimeout(timer);
+      pending.delete(describe);
+      // After the bound the call has failed already: no second report of the killed process.
+      if (settled) {
+        return;
+      }
+      if (Date.now() - started > CLI_SLOW_MS) {
+        process.stderr.write(`${name} took ${since()}: ${facts()}\n`);
+      }
+      settled = true;
+      resolve({ code: error === null ? 0 : (error.code as number), stdout, stderr });
+    });
+    child.once("exit", (code, signal) => {
+      ended = `its process ended after ${since()} (${String(code ?? signal)})`;
+    });
+    child.stdout?.on("data", (chunk: unknown) => {
+      firstOutput ??= since();
+      written += typeof chunk === "string" ? Buffer.byteLength(chunk) : (chunk as Buffer).length;
+    });
+    child.stderr?.on("data", (chunk: unknown) => {
+      errors += String(chunk);
+    });
+    const timer = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      pending.delete(describe);
+      const held = ended === undefined ? "" : ", but its output stayed open: another process holds the pipe";
+      child.kill();
+      // An ended process whose pipes another process holds: let go of them, so the test can end.
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      reject(
+        new Error(
+          `${name} did not end within ${String(CLI_WAIT_MS)} ms: ${facts()}${held}. Standard error so far: ${JSON.stringify(errors.slice(-2000))}`,
+        ),
+      );
+    }, CLI_WAIT_MS);
+  });
+
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
@@ -380,6 +473,8 @@ export const launchApp = async (
   });
   let stderr = "";
   const sessions: McpSession[] = [];
+  /** The CLI calls still running, each with where its time went (`timedCli`). */
+  const pendingCli = new Set<() => string>();
   // The app's code has ended once Node waits for the debugger, even before its process has ended.
   let debuggerWait: (() => void) | undefined;
   const codeEnded = new Promise<void>((resolve) => {
@@ -425,14 +520,8 @@ export const launchApp = async (
         "--json",
         ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
       ];
-      try {
-        const spawned = runner(runtime, env);
-        const { stdout, stderr: err } = await execFileAsync(spawned.program, args, { env: spawned.env });
-        return { code: 0, stdout, stderr: err };
-      } catch (error) {
-        const failed = error as { code: number; stdout: string; stderr: string };
-        return { code: failed.code, stdout: failed.stdout, stderr: failed.stderr };
-      }
+      const spawned = runner(runtime, env);
+      return timedCli(spawned.program, args, spawned.env, `reqseq ${argv.slice(0, 2).join(" ")}`, pendingCli);
     },
     mcp: async (runtime) => {
       const session = await startMcp(
@@ -448,6 +537,11 @@ export const launchApp = async (
       discard = true;
     },
     close: async (options) => {
+      // A test that timed out while a CLI call ran ends here (afterEach): name the call, which the
+      // timeout does not (#1339, #1399).
+      for (const describe of pendingCli) {
+        process.stderr.write(`Still running at the close: ${describe()}\n`);
+      }
       await Promise.all(sessions.splice(0).map((session) => session.close()));
       let hung = false;
       if (options?.discard !== true && !discard && !ended) {

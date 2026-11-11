@@ -6,8 +6,8 @@ title: "Getrennte Kopien parallel bearbeiten"
 spec-id: "SR-081"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben fünf Agenten arbeiten auf fünf getrennten lokalen Kopien desselben Repositories auf einem Rechner, wenn sie gleichzeitig Kommandozeile oder MCP-Server nutzen, dann stören sie sich nicht."
-  - "Gegeben das Tool, wenn es Zwischenspeicher anlegt, dann liegen sie getrennt je Kopie."
+  - "Gegeben fünf Agenten arbeiten auf fünf getrennten lokalen Kopien desselben Repositories auf einem Rechner, wenn sie gleichzeitig Kommandozeile oder MCP-Server nutzen, dann enthält jede Kopie danach genau die Änderungen ihres Agenten, und kein Aufruf schlägt wegen eines anderen fehl."
+  - "Gegeben das Tool, wenn es Zwischenspeicher anlegt, dann liegt der jeder Kopie in einem eigenen Ordner außerhalb der Kopien."
   - "Gegeben zwei Kopien legen je 100 Elemente an und werden mit Git zusammengeführt, wenn geprüft wird, dann gibt es keine doppelten IDs und keine Befunde aus Zwischenspeichern."
 verification-method: test
 packages:
