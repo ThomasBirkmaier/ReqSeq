@@ -19,7 +19,6 @@ elements:
     status: draft
     title: Show wind speed
     version: n1:11335f109ffb1a19
-    versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: requirements/SR-6328cee88fb3.md
     properties: {}
@@ -34,6 +33,8 @@ elements:
         accessible: true
         targetState: available
         storedVersion: n1:5c1d0f2e8a7b6c43
+        currentVersion: n1:5c1d0f2e8a7b6c43
+        outdated: false
     verification:
       - { view: core, status: verified }
       - { view: VAR-0000c2, status: open }
@@ -44,7 +45,6 @@ elements:
     status: draft
     title: Show the wind
     version: n1:5c1d0f2e8a7b6c43
-    versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: requirements/SR-6328cee88fa0.md
     properties: {}
@@ -58,7 +58,6 @@ elements:
     status: approved
     title: Show the forecast
     version: n1:4509014875524d1c
-    versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: requirements/SR-6328cee88fe0.md
     emergent: true
@@ -73,7 +72,6 @@ elements:
     status: approved
     title: See the wind
     version: n1:0d9e8f7a6b5c4d3e
-    versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: needs/N-6328cee88f00.md
     properties: {}
