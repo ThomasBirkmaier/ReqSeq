@@ -1,7 +1,9 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type * as Assemble from "./assemble.js";
+import type * as Citations from "./citations.js";
 import type * as Codes from "./codes.js";
 import type * as CommandExamples from "./command-examples.js";
 import type * as Examples from "./examples.js";
@@ -38,6 +40,17 @@ vi.mock("./standard-model.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Model>()),
   readStandardModel,
 }));
+const schemaTexts = [{ source: "schemas/x.json", text: "A text (SR-036)." }];
+const readSchemaTexts = vi.fn(() => Promise.resolve(schemaTexts));
+const specIndex = new Map([["SR-036", { invalid: false, criteria: 3 }]]);
+const readSpecIndex = vi.fn(() => Promise.resolve(specIndex));
+const checkCitations = vi.fn();
+vi.mock("./citations.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Citations>()),
+  readSchemaTexts,
+  readSpecIndex,
+  checkCitations,
+}));
 vi.mock("./assemble.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Assemble>()),
   assembleContent,
@@ -73,6 +86,12 @@ describe("bin", () => {
     expect(readGuidePages).toHaveBeenCalledWith(paths.guideDir);
     expect(wordProblems).toHaveBeenCalledWith(guide);
     expect(checkExamples).toHaveBeenCalledWith(guide, runReqseq);
+    expect(readSchemaTexts).toHaveBeenCalledWith(paths.repoRoot);
+    expect(readSpecIndex).toHaveBeenCalledWith(getCommandRuntime(), join(paths.repoRoot, "spec"));
+    expect(checkCitations).toHaveBeenCalledWith(
+      [{ source: "docs/guide/index.md", text: "Index." }, ...schemaTexts],
+      specIndex,
+    );
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
     expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
     expect(readStandardModel).toHaveBeenCalledWith(paths.repoRoot);
