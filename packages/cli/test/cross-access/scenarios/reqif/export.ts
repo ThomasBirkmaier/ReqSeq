@@ -16,6 +16,9 @@ const SUPPLIER: FixtureOptions = { ...REQIF_EXPORT, files: { "reqif/zulieferer.y
 const STATEMENTS: FixtureOptions = { fixture: "SR-058/statements", git: true };
 /** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
 const EXPORT_MASKS: readonly RegExp[] = [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, /_hd-[0-9a-f-]{36}/g];
+/** A JUnit result at the output of an export (SR-207 AK1). */
+const JUNIT =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites><testsuite name="s" tests="0"/></testsuites>\n';
 
 scenariosOf("reqif.export", [
   {
@@ -33,6 +36,24 @@ scenariosOf("reqif.export", [
     input: { output: "back.reqif", mapping: "reqif/kunde-a.yaml", statements: true },
     expect: "output",
     masks: EXPORT_MASKS,
+  },
+  {
+    tag: "[SR-207/AK1]",
+    name: "an output that is an XML file but no ReqIF file is refused with the reason, and nothing is written",
+    fixture: { ...REQIF_EXPORT, files: { "results.xml": JUNIT } },
+    input: { output: "results.xml", selection: { ids: [WIND_S6] } },
+    expect: "error",
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        expect(result.changed).toEqual([]);
+        expect(result.files["results.xml"]).toBe(JUNIT);
+      }
+      const { error } = results["core"]?.outcome as { error: { code: string; message: string } };
+      expect([error.code, error.message]).toEqual([
+        "file.faulty",
+        "Not exported: results.xml is no ReqIF file (its root element is <testsuites>, not <REQ-IF>); ReqSeq replaces only a ReqIF file",
+      ]);
+    },
   },
   {
     name: "a profile is refused: not available yet",

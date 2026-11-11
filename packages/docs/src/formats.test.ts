@@ -17,23 +17,24 @@ const schema = (name: string, extra: Record<string, unknown> = {}): Record<strin
 });
 
 describe("formats", () => {
-  it("fails on a schema that is neither documented nor internal", () => {
+  it("fails on a schema that is not documented", () => {
     expect(() => {
-      checkFormats([schema("workspace"), schema("activity"), schema("common")]);
+      checkFormats([schema("workspace"), schema("activity"), schema("recent-workspaces"), schema("common")]);
     }).not.toThrow();
     expect(() => {
       checkFormats([schema("new-format")]);
-    }).toThrow("Schemas neither documented nor internal (packages/docs/src/formats.ts): new-format");
+    }).toThrow("Schemas not documented (packages/docs/src/formats.ts): new-format");
   });
 
-  it("links a type to its format page or the common types, never to an internal format", () => {
+  it("links a type to its format page or the common types, never to an undocumented schema", () => {
     const link = schemaLink("/ReqSeq/");
     const at = (ref: string): string | undefined =>
       link(new URL(ref, "https://reqseq.dev/schemas/x.schema.json"));
     expect(at("common.schema.json#/$defs/uuid")).toBe("/ReqSeq/reference/common-types/#uuid");
     expect(at("filter.schema.json#/$defs/sortKey")).toBe("/ReqSeq/reference/formats/filter/#sortKey");
     expect(at("data-export.schema.json")).toBe("/ReqSeq/reference/formats/data-export/");
-    expect(at("activity.schema.json#/$defs/access")).toBeUndefined();
+    expect(at("activity.schema.json#/$defs/access")).toBe("/ReqSeq/reference/formats/activity/#access");
+    expect(at("new-format.schema.json")).toBeUndefined();
   });
 
   it("reads no examples where a format has none", async () => {
@@ -63,7 +64,7 @@ describe("formats", () => {
     expect(page).toContain("```yaml\nx\n```");
   });
 
-  it("gives every common definition an anchor and lists internal formats by name", () => {
+  it("gives every common definition an anchor and lists every format", () => {
     const common = schema("common", {
       $defs: { uuid: { type: "string", description: "An ID." }, isFlag: {} },
     });
@@ -74,6 +75,8 @@ describe("formats", () => {
     const index = formatsIndex([schema("workspace", { title: "Workspace file" })], "/");
     expect(index).toContain("- [Workspace file](/reference/formats/workspace/)");
     expect(index).toContain("- [baseline](/reference/formats/baseline/)");
-    expect(index).toContain("activity (`activity`)");
+    expect(index).toContain("- [activity](/reference/formats/activity/)");
+    expect(index).toContain("- [recent-workspaces](/reference/formats/recent-workspaces/)");
+    expect(index).not.toContain("not meant to be read");
   });
 });

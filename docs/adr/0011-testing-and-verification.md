@@ -1,6 +1,6 @@
 # ADR-0011: Test tools, evidence and quality gates
 
-Status: Accepted · Based on: D-026, D-051, D-055 · SRs: SR-019, SR-020, SR-068, SR-076..SR-083
+Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-076..SR-083
 
 ## Decision
 
@@ -13,8 +13,7 @@ Status: Accepted · Based on: D-026, D-051, D-055 · SRs: SR-019, SR-020, SR-068
 
 **Fixtures and data**
 - Small fixtures per SR in `fixtures/<sr-id>/`, built as temporary Git repositories by a helper (`fixtures/README.md`).
-- Generator for large workspaces (50,000 elements, 200,000 relations, mixed types and repositories) with a fixed seed, in `packages/testkit` from stage 1 (D-055); from stage 4 with evidence records of that workspace (`withEvidenceRecords`: JUnit files of CI runs, Markdown verification and validation records, ThomasBirkmaier/ReqSeq-archive#583).
-- Realistic multi-repository scenarios come from `ReqSeq-testdata` (D-055), checked out in CI.
+- Generator for large workspaces (50,000 elements, 200,000 relations, mixed types and repositories) with a fixed seed, in `packages/testkit` from stage 1; from stage 4 with evidence records of that workspace (`withEvidenceRecords`: JUnit files of CI runs, Markdown verification and validation records, ThomasBirkmaier/ReqSeq-archive#583).
 
 **Product rules as tests**
 - *Offline:* every Vitest run loads `scripts/test-support/block-network.mjs`, which fails any connection that is not loopback (SR-077, SR-078). The Electron tests additionally assert that the session blocked all non-local requests. On Linux CI the CLI e2e suite also runs inside `unshare -rn` (no network namespace).

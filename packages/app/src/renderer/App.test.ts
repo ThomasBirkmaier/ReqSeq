@@ -2313,7 +2313,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe(
       "SR-000001 Title 1 has unsaved changes that were not saved: closing again discards them",
     );
-    expect(text("Modeline")).toContain("not saved");
+    expect(text("Modeline")).toContain("not saved (The element is read-only)");
     expect(query("article")).not.toBeNull();
     await runCommand("close buffer");
     expect(query('[role="listbox"]')).not.toBeNull();
