@@ -5,6 +5,7 @@ import type { InvokeResult } from "../shared/protocol.js";
 import { initHint } from "../shared/open-hint.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
+import { shownId } from "./id-title.js";
 import { depthLabel, filterLabel } from "./graph.js";
 import { isOutdatedCode } from "./outdated-codes.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
@@ -197,7 +198,10 @@ export const INCOMPLETE = "incomplete: a repository is missing";
 
 /** The first part of the modeline for an element: its ID, its type by name and its status (SR-114). */
 export interface ElementHead {
+  /** The short ID with the identifier (SR-084 AK4). */
   readonly id: string;
+  /** What "Copy field" at the ID copies (SR-084 AK4). */
+  readonly shortId: string;
   readonly type: string;
   readonly status?: string;
 }
@@ -207,7 +211,8 @@ export const elementHead = (
   element: Pick<DataExportElement, "identifier" | "shortId" | "type" | "status">,
   typeNames: ReadonlyMap<string, string>,
 ): ElementHead => ({
-  id: element.identifier ?? element.shortId,
+  id: shownId(element.shortId, element.identifier),
+  shortId: element.shortId,
   type: typeNames.get(element.type) ?? element.type,
   ...(element.status === undefined ? {} : { status: element.status }),
 });

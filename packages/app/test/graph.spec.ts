@@ -68,6 +68,10 @@ const traced = async (running: RunningApp, input: Record<string, unknown>): Prom
 
 const key = (repository: string, id: string): string => `${repository}:${id}`;
 
+/** The ID a node shows, as the CLI prints it: the short ID with the identifier in brackets (SR-084 AK4). */
+const shownId = (node: { readonly shortId: string; readonly identifier?: string }): string =>
+  node.identifier === undefined ? node.shortId : `${node.shortId} (${node.identifier})`;
+
 /** Opens an element: Ctrl+P, its short ID, Enter once its title is there. */
 const openElement = async (window: Page, shortId: string, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");
@@ -442,7 +446,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(shown).toEqual(
       output.nodes.map((node) => ({
         key: key(node.repository, node.id),
-        head: `${node.identifier ?? node.shortId} · ${types.get(node.type) ?? ""}`,
+        head: `${shownId(node)} · ${types.get(node.type) ?? ""}`,
         title: node.title,
         marks: node.marks.map((mark) => WORDS[mark]),
         fits: true,
@@ -490,7 +494,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(node.level).toBeLessThan(0);
     await window.keyboard.press("Enter");
     await expect(window.locator("article h1")).toHaveText(node.title);
-    await expect(window.getByLabel("Modeline")).toContainText(node.identifier ?? node.shortId);
+    await expect(window.getByLabel("Modeline")).toContainText(shownId(node));
     // Ctrl/Cmd+Shift+G shows its graph, and on the graph the element again.
     const its = await traced(running, { ref: node.id, maxDepth: 1 });
     await showGraph(window, its.nodes.length);
@@ -546,7 +550,7 @@ test.describe("the graph on the specification workspace", () => {
       await showGraph(window, (await traced(running, { ref: "SR-111", maxDepth: 1 })).nodes.length);
       await wholeChain(window, (await traced(running, { ref: "SR-111", allLevels: true })).nodes.length);
       expect(await cutLines(window)).toEqual([]);
-      expect(await window.locator(".graph-id", { hasText: "SR-111 · System Requirement" }).count()).toBe(1);
+      expect(await window.locator(".graph-id", { hasText: "(SR-111) · System Requirement" }).count()).toBe(1);
     } finally {
       await running.close();
     }
@@ -751,9 +755,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
       ...model.relations.map((kind) => [kind.key, kind.name] as const),
       ...model.properties.map((property) => [`property:${property.key}`, property.name] as const),
     ]);
-    const idOf = new Map(
-      output.nodes.map((node) => [key(node.repository, node.id), node.identifier ?? node.shortId]),
-    );
+    const idOf = new Map(output.nodes.map((node) => [key(node.repository, node.id), shownId(node)]));
     // The lines the text of a curve must show: each link of its pair, read along the arrow.
     const expected = (curve: string): string[] =>
       output.edges

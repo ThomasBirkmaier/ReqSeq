@@ -90,10 +90,10 @@ export const statusField = (element: Pick<DataExportElement, "status">): Field |
   return status === undefined ? undefined : { label: STATUS_FIELD, text: () => status };
 };
 
-/** The ID field of the element: what the modeline shows first. */
+/** The ID field of the element: what the modeline shows first; "Copy field" copies the short ID (SR-084 AK4). */
 export const idField = (element: DataExportElement): Field => ({
   label: "ID",
-  text: () => element.identifier ?? element.shortId,
+  text: () => element.shortId,
 });
 
 /** The id of the input of the command prompt (Minibuffer.tsx). */

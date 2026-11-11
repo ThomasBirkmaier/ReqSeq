@@ -1474,7 +1474,7 @@ mark {
 }
 
 /* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no
-   controls. A box has the size `graph-layout.ts` places it with (224 × 86 px): a line with the ID and the
+   controls. A box has the size `graph-layout.ts` places it with (288 × 86 px): a line with the ID and the
    type, the title on at most two lines, and a line with the marks at the bottom, so neither the ID nor
    the type is ever cut. The element has a dark border (AK1), the selected box the background of a
    selected row and, when it is not the element, a grey border. Links are grey (`--edge`, visible on the
@@ -1667,7 +1667,7 @@ mark {
 }
 
 /* An evidence box (SR-111 AK3): the summary of the evidence below a node, muted and dashed, so it reads
-   as no element; 224 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
+   as no element; 288 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
 .graph-evidence {
   position: absolute;
   display: -webkit-box;

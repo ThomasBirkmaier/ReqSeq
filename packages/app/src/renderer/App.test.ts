@@ -3017,10 +3017,10 @@ describe("App, copy field (SR-128)", () => {
     expect(container.querySelector(".modeline .copy")).toBeNull();
     await keyDown(query('[role="listbox"]'), "Enter");
     const field = query('.modeline [data-field="ID"]');
-    expect(field.textContent).toBe("SR-036");
+    expect(field.textContent).toBe("SR-000001 (SR-036)");
     expect(field.querySelector(".copy")?.getAttribute("aria-label")).toBe("Copy ID");
     // The rest of the first part, and the modeline's text, are as before.
-    expect(modeline()).toBe("SR-036 · Need · draftWeather stationread-only");
+    expect(modeline()).toBe("SR-000001 (SR-036) · Need · draftWeather stationread-only");
   });
 
   it("[SR-128/AK2] copies the ID with the symbol in the modeline, and the modeline says so for a few seconds", async () => {
@@ -3031,8 +3031,8 @@ describe("App, copy field (SR-128)", () => {
       symbol.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-036");
-    expect(modeline()).toBe("SR-036 · Need · draftCopied IDWeather stationread-only");
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-000001");
+    expect(modeline()).toBe("SR-000001 (SR-036) · Need · draftCopied IDWeather stationread-only");
     expect(query(".modeline .notice").getAttribute("role")).toBe("status");
     await act(async () => {
       await vi.advanceTimersByTimeAsync(NOTICE_MS - 1);
@@ -3041,7 +3041,7 @@ describe("App, copy field (SR-128)", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
-    expect(modeline()).toBe("SR-036 · Need · draftWeather stationread-only");
+    expect(modeline()).toBe("SR-000001 (SR-036) · Need · draftWeather stationread-only");
   });
 
   it("[SR-128/AK2] a second copy restarts the time of the confirmation", async () => {
@@ -3109,7 +3109,7 @@ describe("App, copy field (SR-128)", () => {
   it("[SR-128/AK3] copies the ID when the cursor is in no field", async () => {
     const { copyText } = await openElement();
     await keyDown(window, "C", copyKeys);
-    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-036");
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-000001");
     expect(modeline()).toContain("Copied ID");
   });
 

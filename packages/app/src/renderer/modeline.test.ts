@@ -125,11 +125,11 @@ describe("bufferView", () => {
       ...extra,
     }) as DataExportElement;
 
-  it("shows the identifier, type and status of an element, and only the marks that apply", () => {
+  it("shows the short ID with the identifier, type and status of an element, and only the marks that apply", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     expect(
       bufferView(buffer, { kind: "element", element: element({ identifier: "SR-036", status: "draft" }) }),
-    ).toEqual(["SR-036 · system-requirement · draft"]);
+    ).toEqual(["SR-000001 (SR-036) · system-requirement · draft"]);
     expect(bufferView(buffer, { kind: "element", element: element() })).toEqual([
       "SR-000001 · system-requirement",
     ]);
@@ -258,7 +258,7 @@ describe("bufferView", () => {
         { kind: "element", element: element({ identifier: "SR-036", status: "draft" }) },
         names,
       ),
-    ).toEqual(["SR-036 · System Requirement · draft"]);
+    ).toEqual(["SR-000001 (SR-036) · System Requirement · draft"]);
     expect(bufferView(buffer, { kind: "element", element: element() }, names)).toEqual([
       "SR-000001 · System Requirement",
     ]);

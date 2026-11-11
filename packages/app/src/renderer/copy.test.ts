@@ -68,7 +68,7 @@ describe("copy", () => {
       "Wind",
       "first\nsecond",
       "3",
-      "N-1 Need\nN-000002",
+      "N-000001 (N-1) Need\nN-000002",
       "SR-000009 Child",
     ]);
   });
@@ -86,7 +86,7 @@ describe("copy", () => {
       "Wind",
       "first\nsecond\nthird",
       "3",
-      "N-1 Need\nN-000002",
+      "N-000001 (N-1) Need\nN-000002",
       "SR-000009 Child",
     ]);
     docs.set("criteria", "");
@@ -151,9 +151,9 @@ describe("copy", () => {
 
   it("[SR-128/AK3] names the element by its identifier, else its short ID", () => {
     expect(idField(element()).label).toBe("ID");
-    expect(idField(element()).text()).toBe("SR-036");
+    expect(idField(element()).text()).toBe("SR-000001");
     expect(idField(element({ identifier: undefined })).text()).toBe("SR-000001");
-    expect(copyable(element(), () => "").id?.text()).toBe("SR-036");
+    expect(copyable(element(), () => "").id?.text()).toBe("SR-000001");
   });
 
   it("[SR-128/AK3] hands the field with this label to the copy, else the ID, else nothing", () => {
@@ -164,8 +164,8 @@ describe("copy", () => {
     copyField(from, "no such field", copy);
     expect(copy.mock.calls).toEqual([
       ["criteria", "first\nsecond"],
-      ["ID", "SR-036"],
-      ["ID", "SR-036"],
+      ["ID", "SR-000001"],
+      ["ID", "SR-000001"],
     ]);
     copyField(NOTHING, "criteria", copy);
     expect(copy).toHaveBeenCalledTimes(3);

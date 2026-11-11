@@ -145,7 +145,7 @@ describe("opening a relation (AK5)", () => {
         key: "element:spec:uuid-n1",
         id: "uuid-n1",
         repository: "spec",
-        name: "N-1 See the wind",
+        name: "N-000001 (N-1) See the wind",
       },
     });
   });
@@ -154,7 +154,7 @@ describe("opening a relation (AK5)", () => {
     for (const targetState of ["missing", "ambiguous", "inaccessible", "unknown-repository"] as const) {
       expect(opening(relation({ targetState, accessible: false, title: "Gone" }))).toEqual({
         ok: false,
-        message: `N-1 Gone is ${targetState}`,
+        message: `N-000001 (N-1) Gone is ${targetState}`,
       });
     }
   });

@@ -28,7 +28,7 @@ import {
 import type { Buffers, FilterStep } from "./buffers.js";
 import { exactTypeStep, savedStep, statusStep, typeStep } from "./list-filters.js";
 
-const a = elementBuffer("id-a", "repo", "SR-1 Alpha");
+const a = elementBuffer("id-a", "repo", "SR-000001 (SR-1) Alpha");
 const b = elementBuffer("id-b", "repo", "SR-2 Beta");
 const list = listBuffer("All elements");
 
@@ -88,7 +88,7 @@ describe("buffers", () => {
       bufferName(listBuffer("type: need", { where: { type: ["need"] } }, [{ by: "title", order: "asc" }])),
     ).toBe("type: need · sorted by title");
     expect(bufferName(searchBuffer("wind"))).toBe("Search: wind");
-    expect(bufferName(a)).toBe("SR-1 Alpha");
+    expect(bufferName(a)).toBe("SR-000001 (SR-1) Alpha");
   });
 
   it("describes the sort of a list", () => {
@@ -104,7 +104,7 @@ describe("buffers", () => {
   it("builds the buffer of an element from what a row shows", () => {
     expect(
       elementBufferOf({ id: "u", repository: "r", shortId: "SR-0000b1", identifier: "SR-036", title: "T" }),
-    ).toEqual(elementBuffer("u", "r", "SR-036 T"));
+    ).toEqual(elementBuffer("u", "r", "SR-0000b1 (SR-036) T"));
     expect(elementBufferOf({ id: "u", repository: "r", shortId: "SR-0000b1", title: "" }).name).toBe(
       "SR-0000b1",
     );
@@ -120,7 +120,7 @@ describe("buffers", () => {
         identifier: "N-001",
         title: "Need",
       }),
-    ).toEqual(elementBuffer("u", "platform", "N-001 Need"));
+    ).toEqual(elementBuffer("u", "platform", "N-0000b1 (N-001) Need"));
     expect(relationBuffer({ id: "u", repository: "platform", shortId: "N-0000b1" })).toEqual(
       elementBuffer("u", "platform", "N-0000b1"),
     );
@@ -368,12 +368,12 @@ describe("renaming the buffers of an element (#273)", () => {
     ];
     const renamed = reduceBuffers(open, renameAction(element));
     expect(renamed.map(bufferName)).toEqual([
-      "Graph: SR-1 Gamma",
+      "Graph: SR-000001 (SR-1) Gamma",
       "SR-2 Beta",
-      "Neighbourhood: SR-1 Gamma",
-      "SR-1 Gamma · read-only",
+      "Neighbourhood: SR-000001 (SR-1) Gamma",
+      "SR-000001 (SR-1) Gamma · read-only",
       "SR-1 Alpha",
-      "SR-1 Gamma",
+      "SR-000001 (SR-1) Gamma",
       "All elements",
     ]);
     expect(renamed.map((buffer) => buffer.key)).toEqual(open.map((buffer) => buffer.key));

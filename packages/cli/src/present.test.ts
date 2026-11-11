@@ -154,6 +154,18 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ total: 4 })).toBe(lines("total: 4"));
   });
 
+  it("[SR-084/AK4] prints the identifier in brackets behind the short ID, and the short ID alone without one", () => {
+    expect(
+      renderHuman({
+        elements: [
+          { shortId: "SR-3c90b0", identifier: "SR-036", status: "draft", title: "One" },
+          { shortId: "SR-3c90b1", status: "draft", title: "Two" },
+        ],
+        total: 2,
+      }),
+    ).toBe(lines("elements:", "  SR-3c90b0 (SR-036)  draft  One", "  SR-3c90b1  draft  Two", "total: 2"));
+  });
+
   it("shows a list with texts compactly: numbered criteria, relations one line each, no relation targets twice (#397)", () => {
     const pkg = {
       kind: "packages",

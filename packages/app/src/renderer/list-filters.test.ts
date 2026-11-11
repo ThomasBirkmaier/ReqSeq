@@ -147,7 +147,11 @@ describe("the property prompt (SR-124)", () => {
   it("names a relation target by identifier and title and filters by its short ID", () => {
     const { items, asked, ran } = use(facets);
     items[3]?.run();
-    expect(asked[0]?.items.map((item) => item.name)).toEqual(["P-1 Sensors", "PKG-0000d2", "(no value)"]);
+    expect(asked[0]?.items.map((item) => item.name)).toEqual([
+      "PKG-0000d1 (P-1) Sensors",
+      "PKG-0000d2",
+      "(no value)",
+    ]);
     asked[0]?.items[0]?.run();
     asked[0]?.items[1]?.run();
     expect(ran).toEqual([

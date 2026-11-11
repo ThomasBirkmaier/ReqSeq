@@ -66,7 +66,7 @@ const MODEL: PropertyModel = new Map([
   ],
 ]);
 
-const NAME = "SR-1 Measure wind";
+const NAME = "SR-000001 (SR-1) Measure wind";
 
 const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
 

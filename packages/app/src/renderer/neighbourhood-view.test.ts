@@ -615,7 +615,7 @@ describe("the parents line on the element page", () => {
       createElement(ElementView, {
         call,
         titles,
-        buffer: elementBuffer("uuid-C1", "spec", "C1 Title C1"),
+        buffer: elementBuffer("uuid-C1", "spec", "CR-1 (C1) Title C1"),
         revision: rev,
         onData: () => undefined,
         onEcho: (message) => echoed.push(message),

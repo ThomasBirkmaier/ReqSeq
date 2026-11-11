@@ -215,14 +215,16 @@ describe("the neighbourhood in the app", () => {
   it("[SR-119/AK2] shows the requirements of a need after Ctrl+P, its ID, Enter and Ctrl+J", async () => {
     await open();
     await toRequirements();
-    expect(query(".neighbourhood h1").textContent).toBe("N-001 See the wind");
+    expect(query(".neighbourhood h1").textContent).toBe("N-001 (N-001) See the wind");
     expect(
       [...container.querySelectorAll('[role="treeitem"] .title')].map((title) => title.textContent),
     ).toEqual(["Show wind speed", "Show wind direction"]);
     // No row is selected yet (SR-122): Ctrl+P stays "Go to"; the first Down selects the first row.
     expect(container.querySelector('[role="treeitem"][aria-selected="true"]')).toBeNull();
     expect(document.activeElement).toBe(query(".neighbourhood"));
-    expect(query('[aria-label="Modeline"]').textContent).toContain("Neighbourhood: N-001 See the wind");
+    expect(query('[aria-label="Modeline"]').textContent).toContain(
+      "Neighbourhood: N-001 (N-001) See the wind",
+    );
   });
 
   it("[SR-107/AK2] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
@@ -232,7 +234,7 @@ describe("the neighbourhood in the app", () => {
     expect(query("article h1").textContent).toBe("See the wind");
     await keyDown(window, "p", true);
     expect([...container.querySelectorAll('[role="option"]')].map((row) => row.textContent)).toContain(
-      "Neighbourhood: N-001 See the wind",
+      "Neighbourhood: N-001 (N-001) See the wind",
     );
   });
 
@@ -265,11 +267,11 @@ describe("the graph in the app", () => {
     });
     expect(document.activeElement).toBe(query(".graph"));
     expect([...container.querySelectorAll(".graph-node .graph-id")].map((id) => id.textContent)).toEqual([
-      "N-001 · Need",
-      "SR-001 · Need",
-      "SR-002 · Need",
+      "N-001 (N-001) · Need",
+      "SR-001 (SR-001) · Need",
+      "SR-002 (SR-002) · Need",
     ]);
-    expect(query('[aria-label="Modeline"]').textContent).toContain("Graph: N-001 See the wind");
+    expect(query('[aria-label="Modeline"]').textContent).toContain("Graph: N-001 (N-001) See the wind");
     expect(query('[aria-label="Modeline"]').textContent).toContain("3 nodes");
     await keyDown(window, "G", true, true);
     expect(query("article h1").textContent).toBe("See the wind");

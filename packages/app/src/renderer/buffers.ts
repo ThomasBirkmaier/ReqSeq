@@ -8,7 +8,7 @@ import type {
   FilterSortKeyWithDefaults,
   TraceGraphInput,
 } from "@reqseq/core";
-import { idTitle } from "./id-title.js";
+import { shownIdTitle } from "./id-title.js";
 import { hasSavedFilter } from "./list-filters.js";
 import type { ListQuery, QueryChange } from "./list-query.js";
 import { changeQuery, fitsView, queryIn } from "./list-query.js";
@@ -474,7 +474,7 @@ export const elementBufferOf = (element: {
   elementBuffer(
     element.id,
     element.repository,
-    idTitle(element.identifier ?? element.shortId, element.title),
+    shownIdTitle(element.shortId, element.identifier, element.title),
   );
 
 /**
@@ -501,7 +501,7 @@ export const relationBuffer = (
     : elementBuffer(
         relation.id,
         relation.repository,
-        idTitle(relation.identifier ?? relation.shortId ?? relation.id, relation.title),
+        shownIdTitle(relation.shortId ?? relation.id, relation.identifier, relation.title),
       );
 
 /**

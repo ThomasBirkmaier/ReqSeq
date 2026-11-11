@@ -540,7 +540,9 @@ describe("go to element or buffer", () => {
       ["element:spec:u2", "SR-000002 Windy", ["windy"]],
     ]);
     found?.[0]?.run();
-    expect(dispatched).toEqual([{ type: "open", buffer: elementBuffer("u1", "spec", "SR-036 Wind") }]);
+    expect(dispatched).toEqual([
+      { type: "open", buffer: elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind") },
+    ]);
   });
 
   it("[SR-115/AK1] Go to offers every open buffer but the shown one, the one used last first, then the elements shown last that are not open, and finds any element through element.search", async () => {

@@ -29,7 +29,7 @@ describe("listRows", () => {
     ]);
     expect(rows.map((row) => row.shortId)).toEqual(["SR-000001", "SR-000002"]);
     expect(rows[0]?.open.key).toBe("element:spec:uuid-1");
-    expect(rows[0]?.open.name).toBe("SR-036 Title 1");
+    expect(rows[0]?.open.name).toBe("SR-000001 (SR-036) Title 1");
     expect(rows[0]?.terms).toEqual([]);
     expect(rows[0]?.markLabel).toBe(false);
   });

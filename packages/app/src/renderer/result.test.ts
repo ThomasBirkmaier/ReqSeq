@@ -57,7 +57,7 @@ describe("result lines", () => {
       // `incomplete` goes to the modeline (#276).
       ["text", 0, "name", "Weather"],
     ]);
-    expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-1 Title 1"));
+    expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1"));
     expect(lines[4]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002"));
     expect(lines[5]?.open).toBeUndefined();
   });
@@ -126,7 +126,9 @@ describe("result lines", () => {
     ]);
     expect(lines.at(-1)?.open).toEqual(elementBuffer("uuid-4", "spec", "SR-000004 Title 4"));
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-3", "spec", "SR-000003 Title 3"));
-    expect(lines[3]?.open).toEqual(readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Title 1")));
+    expect(lines[3]?.open).toEqual(
+      readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1")),
+    );
     expect(lines[3]?.beside).toEqual(readOnlyBuffer(elementBuffer("uuid-2", "spec", "SR-000002 Title 2")));
     // Without `names`, a UUID is text and a record of two is an outline; `names` that is no list is shown.
     expect(resultLines({ pair: { a: "uuid-1", b: "uuid-2" }, names: "x" }).map((line) => line.text)).toEqual([
