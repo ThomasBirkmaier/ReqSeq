@@ -44,7 +44,10 @@
 //   text has as many images takes the title, the text byte for byte (its image links
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
-//   loss (`checkOwnRelations`). Otherwise another tool changed it, or a mapping differs: the
+//   loss (`checkOwnRelations`). The acceptance criteria keep the criterion keys stored there
+//   (SR-204 AK12) as stored items (`carriedCriteria`): a key not in its form, or one an earlier
+//   criterion holds, is dropped, so that criterion is matched by its text or gets a new key (AK1,
+//   AK4) instead of refusing the whole file. Otherwise another tool changed it, or a mapping differs: the
 //   readable attributes and SPEC-RELATIONs are imported through the mapping, with a warning
 //   `reqif.edited-elsewhere` for a changed object. A target of a relation or relation-valued
 //   property that is imported in this call becomes that element with its planned version (so the
@@ -61,7 +64,7 @@
 //   file, with a `reqif.replaces-local` warning (#575/3, #575/4). A conflict needs `take` or `keep`
 //   (`reqif.conflict` otherwise); `keep` writes only the origin with P as import version (#575/6).
 //   Relations to such an element carry P when the delivery is written into it, else C.
-import { withCriterionKeys } from "../model/acceptance-criteria.js";
+import { acceptanceCriteriaKeyOf, carriedCriteria, withCriterionKeys } from "../model/acceptance-criteria.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -1144,13 +1147,21 @@ const planOwnValues = async (
   }
   draft.title = scalarTitle(data[draft.base.titleKey]);
   draft.text = await ownImages(context, draft, channels.text, channels.images, loss);
+  const criteria = acceptanceCriteriaKeyOf(metamodel);
   for (const key of draft.base.type.properties) {
     const value = data[key];
     if (key === draft.base.titleKey || origin.has(key) || value === undefined || value === null) {
       continue;
     }
     const relation = metamodel.properties.find((p) => p.key === key)?.kind === "relation";
-    draft.properties.set(key, relation ? ownTargets(context, value) : (value as PropertyValue));
+    draft.properties.set(
+      key,
+      relation
+        ? ownTargets(context, value)
+        : key === criteria && Array.isArray(value)
+          ? (carriedCriteria(value) as PropertyValue)
+          : (value as PropertyValue),
+    );
   }
   draft.ownRelations = new Map(
     metamodel.relations.flatMap((r) =>

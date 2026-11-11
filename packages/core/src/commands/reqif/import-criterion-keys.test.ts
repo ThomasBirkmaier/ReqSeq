@@ -1,7 +1,9 @@
 // Criterion keys on reqif.import (SR-204): a new element gets a key for each acceptance criterion
-// (AK1), a repeated import keeps them (AK4), and a file of ReqSeq carries them in its own values.
-// Fixtures: what fixtures/SR-052/package exports of its requirement WIND, imported into
-// fixtures/SR-052/empty.
+// (AK1), a repeated import keeps them (AK4), and a file of ReqSeq carries them in its own values
+// (AK12). Fixtures: what fixtures/SR-052/package exports of its requirement WIND, imported into
+// fixtures/SR-052/empty; for another tool, the deliveries of fixtures/SR-056/delivery with two
+// criteria attributes on REQ-1, imported into fixtures/SR-004/one-repository.
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -19,17 +21,19 @@ const KEY = /^[a-z][a-z0-9]{3}$/u;
 
 const MODEL = "metamodel/standard-model.yaml";
 
-/** The metamodel of `fixture` with the meaning acceptance-criteria on its property (D-072). */
+/** The metamodel of `fixture` with the meaning acceptance-criteria on its property (D-072), if it lacks it. */
 const withMeaning = async (fixture: string): Promise<Record<string, string>> => {
   const text = await fs.readFile(
     new URL(`../../../../../fixtures/${fixture}/${MODEL}`, import.meta.url),
     "utf8",
   );
   return {
-    [MODEL]: text.replace(
-      "  - key: acceptance-criteria\n",
-      "  - key: acceptance-criteria\n    meaning: acceptance-criteria\n",
-    ),
+    [MODEL]: text.includes("meaning: acceptance-criteria")
+      ? text
+      : text.replace(
+          "  - key: acceptance-criteria\n",
+          "  - key: acceptance-criteria\n    meaning: acceptance-criteria\n",
+        ),
   };
 };
 
@@ -75,6 +79,42 @@ const criteriaOf = async (made: FixtureWorkspace, imported: Imported): Promise<u
 const written = async (made: FixtureWorkspace, imported: Imported): Promise<string[]> =>
   Promise.all(imported.files.filter((f) => f.endsWith(".md")).map((f) => fs.readFile(made.path(f), "utf8")));
 
+/** A delivery of fixtures/SR-056/delivery. */
+const sample = (name: string): string =>
+  readFileSync(new URL(`../../../../../fixtures/SR-056/delivery/${name}`, import.meta.url), "utf8");
+
+const CRITERIA = ["Alpha", "Beta", "Gamma"];
+
+/**
+ * `delivery` with a multi-valued enumeration Criteria on its requirement type, whose values `texts`
+ * REQ-1, its first object, holds: several criteria as another tool can give them, each by its name.
+ */
+const withCriteria = (delivery: string, texts: readonly string[]): string =>
+  delivery
+    .replace(
+      "</DATATYPES>",
+      `<DATATYPE-DEFINITION-ENUMERATION IDENTIFIER="dt-criteria"><SPECIFIED-VALUES>${CRITERIA.map(
+        (c, i) =>
+          `<ENUM-VALUE IDENTIFIER="ev-${c}" LONG-NAME="${c}"><PROPERTIES><EMBEDDED-VALUE KEY="${String(i)}" OTHER-CONTENT=""/></PROPERTIES></ENUM-VALUE>`,
+      ).join("")}</SPECIFIED-VALUES></DATATYPE-DEFINITION-ENUMERATION></DATATYPES>`,
+    )
+    .replace(
+      "</SPEC-ATTRIBUTES>",
+      '<ATTRIBUTE-DEFINITION-ENUMERATION IDENTIFIER="ad-criteria" LONG-NAME="Criteria" MULTI-VALUED="true"><TYPE><DATATYPE-DEFINITION-ENUMERATION-REF>dt-criteria</DATATYPE-DEFINITION-ENUMERATION-REF></TYPE></ATTRIBUTE-DEFINITION-ENUMERATION></SPEC-ATTRIBUTES>',
+    )
+    .replace(
+      "</ATTRIBUTE-VALUE-ENUMERATION>\n          </VALUES>",
+      `</ATTRIBUTE-VALUE-ENUMERATION><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>ad-criteria</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES>${texts
+        .map((t) => `<ENUM-VALUE-REF>ev-${t}</ENUM-VALUE-REF>`)
+        .join("")}</VALUES></ATTRIBUTE-VALUE-ENUMERATION>\n          </VALUES>`,
+    );
+
+/** The acceptance criteria in element file `file` of `made`. */
+const criteriaIn = async (made: FixtureWorkspace, file: string): Promise<unknown> => {
+  const text = await fs.readFile(made.path(file), "utf8");
+  return (parse(text.split("---\n")[1] ?? "") as Record<string, unknown>)["acceptance-criteria"];
+};
+
 describe("criterion keys on reqif.import (SR-204)", () => {
   it("[SR-204/AK1] gives each acceptance criterion of a new element a key, and [SR-204/AK4] a repeated import keeps them", async () => {
     const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": await exported() });
@@ -100,7 +140,7 @@ describe("criterion keys on reqif.import (SR-204)", () => {
     expect(await written(fixture, first)).toEqual(before);
   });
 
-  it("keeps the criterion keys of a file of ReqSeq", async () => {
+  it("[SR-204/AK12] keeps the criterion keys of a requirement exported and imported again", async () => {
     const text = await exported([
       "  - key: speed",
       '    text: "Given wind, when it blows, then the *speed* shows within 1 s."',
@@ -117,5 +157,53 @@ describe("criterion keys on reqif.import (SR-204)", () => {
       { key: "speed", text: "Given wind, when it blows, then the *speed* shows within 1 s." },
       { key: "peaks", text: "Given a gust, then the peak shows for 10 s." },
     ]);
+  });
+  it("takes a criterion key of a file of ReqSeq that is not in its form, or given twice, as a stored item (AK1)", async () => {
+    const text = await exported([
+      "  - key: speed",
+      "    text: First.",
+      "  - key: speed",
+      "    text: Second.",
+      "  - key: Peak1",
+      "    text: Third.",
+    ]);
+    const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": text });
+    const imported = (await invoke(
+      "reqif.import",
+      { file: "in/x.reqif", delivery: "1" },
+      { workspace },
+    )) as Imported;
+    const criteria = (await criteriaOf(fixture, imported)) as { key: string; text: string }[];
+    expect(criteria.map((c) => c.text)).toEqual(["First.", "Second.", "Third."]);
+    expect(criteria[0]?.key).toBe("speed");
+    expect(criteria.slice(1).every((c) => KEY.test(c.key) && c.key !== "speed")).toBe(true);
+    expect(new Set(criteria.map((c) => c.key)).size).toBe(3);
+  });
+
+  it("[SR-204/AK4] a repeated import from another tool keeps the keys of the same texts at other positions", async () => {
+    const { fixture, workspace } = await open("SR-004/one-repository", {
+      "in/1.reqif": withCriteria(sample("lieferung-1.reqif"), ["Alpha", "Beta"]),
+      "in/2.reqif": withCriteria(sample("lieferung-2.reqif"), ["Beta", "Gamma"]),
+      "reqif/kunde-a.yaml": sample("kunde-a.yaml").replace(
+        "relations:",
+        "  - { source: Criteria, property: acceptance-criteria }\nrelations:",
+      ),
+    });
+    const input = (n: number): Record<string, unknown> => ({
+      file: `in/${String(n)}.reqif`,
+      mapping: "reqif/kunde-a.yaml",
+      delivery: `D${String(n)}`,
+    });
+    const first = (await invoke("reqif.import", input(1), { workspace })) as Imported;
+    const id = String(first.created.find((c) => c.identifier === "REQ-1")?.id);
+    const file = first.files.find((f) => f.endsWith(`${id.slice(-12)}.md`)) ?? "";
+    const before = (await criteriaIn(fixture, file)) as { key: string; text: string }[];
+    expect(before.map((c) => c.text)).toEqual(["Alpha", "Beta"]);
+    await invoke("reqif.import", input(2), { workspace });
+    const after = (await criteriaIn(fixture, file)) as { key: string; text: string }[];
+    expect(after.map((c) => c.text)).toEqual(["Beta", "Gamma"]);
+    expect(after[0]?.key).toBe(before[1]?.key);
+    expect([before[0]?.key, before[1]?.key]).not.toContain(after[1]?.key);
+    expect(KEY.test(after[1]?.key ?? "")).toBe(true);
   });
 });
