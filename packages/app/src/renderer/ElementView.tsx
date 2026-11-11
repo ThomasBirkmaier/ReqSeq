@@ -142,7 +142,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
-import { ctrlStep, historyStep, isMac, isModClick } from "./keys.js";
+import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
@@ -198,6 +198,15 @@ const clickedBox = (target: Element): string | undefined => {
   return field !== null && value !== null && field.contains(value) && target.closest(".cm-lr-ref") === null
     ? field.dataset["field"]
     : undefined;
+};
+
+/** Whether text is selected in the value `target` is in: the click ended a drag that selected it. */
+const selectedIn = (target: Element): boolean => {
+  const value = target.closest(".value");
+  const selection = target.ownerDocument.getSelection();
+  return (
+    value !== null && selection !== null && !selection.isCollapsed && selection.containsNode(value, true)
+  );
 };
 
 /** What a click on `target` in the box `key` points at: a target link, a line of a text or choice box, else the box. */
@@ -1719,11 +1728,14 @@ export const ElementView = ({
       : { kind: "box", key: label };
   };
   // What a click on `target` points at (SR-132 AK1): a value of a property box, or nothing.
-  const clickPointer = (target: Element): Pointer => {
+  // The property box whose value `target` is in, when it is one of the boxes shown.
+  const clickedLabel = (target: Element): string | undefined => {
     const label = clickedBox(target);
-    return label === undefined || !now.current.boxKeys.includes(label)
-      ? NO_POINTER
-      : clickedIn(label, target);
+    return label !== undefined && now.current.boxKeys.includes(label) ? label : undefined;
+  };
+  const clickPointer = (target: Element): Pointer => {
+    const label = clickedLabel(target);
+    return label === undefined ? NO_POINTER : clickedIn(label, target);
   };
   // The list of the elements with the value the cursor is on, or the value `clicked` (SR-132): the input is
   // saved first, so the value typed is the one listed (the list reads the files); then `element.facets` of
@@ -1765,6 +1777,15 @@ export const ElementView = ({
       now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
     }
   };
+  // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
+  // on its copy symbol is outside the value.
+  // A selection made by dragging over the value is no click on it.
+  const clickChoice = (target: Element): void => {
+    const label = clickedLabel(target);
+    if (label !== undefined && now.current.boxes.get(label)?.info.kind === "choice" && !selectedIn(target)) {
+      enterField(label);
+    }
+  };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
     editTitle,
@@ -1781,6 +1802,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   });
   api.current = {
@@ -1798,6 +1820,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   };
 
@@ -1965,8 +1988,14 @@ export const ElementView = ({
       onKeyDown={onBufferKey}
       onClickCapture={(event) => {
         // Ctrl/Cmd+click on a value of a property box lists the elements with it (SR-132 AK1), before the
-        // link of a relation target opens it.
-        if (!isModClick(event, isMac(navigator.platform)) || !(event.target instanceof Element)) {
+        // link of a relation target opens it. A plain click on the value of a choice box asks for its value (SR-156).
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+        if (!isModClick(event, isMac(navigator.platform))) {
+          if (isPlainClick(event)) {
+            api.current.clickChoice(event.target);
+          }
           return;
         }
         const pointer = api.current.clickPointer(event.target);
