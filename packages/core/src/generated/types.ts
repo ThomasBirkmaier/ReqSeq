@@ -2852,9 +2852,9 @@ export interface TraceMatrixOutput {
       readonly className?: string;
       /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
       readonly executed: boolean;
-      /** The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
+      /** The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
-      /** How the cell is marked (AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
+      /** How the cell is marked (SR-126 AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them (SR-031). Left out otherwise, also when a newer execution of an older version is `last` (#201). */
       readonly mark?: "not-executed" | "outdated" | "failed";
     }[];
     /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */

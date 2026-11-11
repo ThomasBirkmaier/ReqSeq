@@ -1,5 +1,6 @@
 // Cross-access scenarios of trace.matrix, in addition to the default one (cross-access.test.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, MATRIX_EVIDENCE, STATUS } from "../../fixtures.js";
 
@@ -8,6 +9,22 @@ import { CRITERIA, MATRIX_EVIDENCE, STATUS } from "../../fixtures.js";
  * (SR-125), and a minimum: a system requirement derives from at least one need (SR-153).
  */
 const MATRIX: FixtureOptions = { fixture: "SR-125/matrix", git: true };
+
+/** The matrix with evidence of SR-126 and a failed run of SR-126b01's test case at the instant of its passed one. */
+const TIED: FixtureOptions = {
+  ...MATRIX_EVIDENCE,
+  files: {
+    ...MATRIX_EVIDENCE.files,
+    "evidence/ci/run-3.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" tests="1" failures="1">\n' +
+      '    <testcase classname="tests.test_wind" name="test_speed[SR-126b01]" time="0.010">\n      <properties>\n' +
+      '        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b01"/>\n' +
+      '        <property name="reqseq:version" value="n1:4b6860725d822fd9"/>\n' +
+      '        <property name="reqseq:item" value="build-603"/>\n' +
+      '        <property name="reqseq:date" value="2026-10-22T09:00:00Z"/>\n      </properties>\n' +
+      '      <failure message="too slow">AssertionError: too slow</failure>\n    </testcase>\n  </testsuite>\n</testsuites>\n',
+  },
+};
 const MX = "5e125a7d-2b4f-4c61-9d08-";
 
 scenariosOf("trace.matrix", [
@@ -82,6 +99,22 @@ scenariosOf("trace.matrix", [
     fixture: CRITERIA,
     input: { selection: { where: { type: ["system-requirement"] } } },
     expect: "output",
+  },
+  {
+    tag: "[SR-126/AK1]",
+    name: "of several equally new runs of a test case the cell shows the failed one (SR-126 AK1)",
+    fixture: TIED,
+    input: { selection: { ids: ["5c0e1d2a-0126-4126-8126-000000126b01"] } },
+    expect: "output",
+    check: (results) => {
+      const { rows } = (
+        results["core"]?.outcome as {
+          output: { rows: { testCases?: { last?: { item: string; result: string }; mark?: string }[] }[] };
+        }
+      ).output;
+      const [test] = rows[0]?.testCases ?? [];
+      expect([test?.last?.item, test?.last?.result, test?.mark]).toEqual(["build-603", "failed", "failed"]);
+    },
   },
   {
     name: "one page of the matrix of a selection with evidence (SR-126)",
