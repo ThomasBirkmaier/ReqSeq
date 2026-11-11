@@ -115,7 +115,7 @@ const refused = (
   });
 
 /** The keys the entries pass, checked (SR-204 AK5): each in its form and on one entry only. */
-const passedKeys = (property: string, next: readonly unknown[]): Set<string> => {
+export const passedKeys = (property: string, next: readonly unknown[]): Set<string> => {
   const passed = new Set<string>();
   next.forEach((entry, index) => {
     if (!isCriterionMapping(entry) || !Object.hasOwn(entry, "key")) {

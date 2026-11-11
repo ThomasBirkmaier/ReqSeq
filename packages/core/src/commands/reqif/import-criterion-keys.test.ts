@@ -1,6 +1,6 @@
 // Criterion keys on reqif.import (SR-204): a new element gets a key for each acceptance criterion
 // (AK1), a repeated import keeps them (AK4), and a file of ReqSeq carries them in its own values
-// (AK12). Fixtures: what fixtures/SR-052/package exports of its requirement WIND, imported into
+// (AK12), and a key there not in its form or given twice refuses the file (AK5). Fixtures: what fixtures/SR-052/package exports of its requirement WIND, imported into
 // fixtures/SR-052/empty; for another tool, the deliveries of fixtures/SR-056/delivery with two
 // criteria attributes on REQ-1, imported into fixtures/SR-004/one-repository.
 import { readFileSync } from "node:fs";
@@ -158,26 +158,22 @@ describe("criterion keys on reqif.import (SR-204)", () => {
       { key: "peaks", text: "Given a gust, then the peak shows for 10 s." },
     ]);
   });
-  it("takes a criterion key of a file of ReqSeq that is not in its form, or given twice, as a stored item (AK1)", async () => {
-    const text = await exported([
-      "  - key: speed",
-      "    text: First.",
-      "  - key: speed",
-      "    text: Second.",
-      "  - key: Peak1",
-      "    text: Third.",
-    ]);
-    const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": text });
-    const imported = (await invoke(
-      "reqif.import",
-      { file: "in/x.reqif", delivery: "1" },
-      { workspace },
-    )) as Imported;
-    const criteria = (await criteriaOf(fixture, imported)) as { key: string; text: string }[];
-    expect(criteria.map((c) => c.text)).toEqual(["First.", "Second.", "Third."]);
-    expect(criteria[0]?.key).toBe("speed");
-    expect(criteria.slice(1).every((c) => KEY.test(c.key) && c.key !== "speed")).toBe(true);
-    expect(new Set(criteria.map((c) => c.key)).size).toBe(3);
+  it("[SR-204/AK5] refuses a file of ReqSeq whose criterion key is not in its form, or given twice, naming the object", async () => {
+    for (const [items, reason] of [
+      [["  - key: speed", "    text: First.", "  - key: speed", "    text: Second."], "is given twice"],
+      [["  - key: Peak1", "    text: First."], "is no criterion key"],
+    ] as const) {
+      const text = await exported([...items]);
+      const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": text });
+      const before = await fs.readdir(fixture.root, { recursive: true });
+      await expect(
+        invoke("reqif.import", { file: "in/x.reqif", delivery: "1" }, { workspace }),
+      ).rejects.toMatchObject({
+        code: "reqif.invalid",
+        message: expect.stringMatching(new RegExp(`SPEC-OBJECT \\S+: .*${reason}`)),
+      });
+      expect(await fs.readdir(fixture.root, { recursive: true })).toEqual(before);
+    }
   });
 
   it("[SR-204/AK4] a repeated import from another tool keeps the keys of the same texts at other positions", async () => {
