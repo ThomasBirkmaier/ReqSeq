@@ -37,8 +37,10 @@ export { holdsIn } from "./holds.js";
 export { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
 export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } from "./indirect.js";
 export {
+  criterionStatusesOf,
   hasValidationRecord,
   hasValidationStatus,
+  ofVersion,
   validatesType,
   recordStatusOf,
   statusSource,
