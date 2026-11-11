@@ -4,7 +4,8 @@ A second, deliberately naive implementation of the status rules, written from th
 
 - `model.ts`: one small function per rule below, the rule's source in its comment.
 - `generator.ts`: fast-check arbitraries of small abstract inputs (one requirement, its acceptance criteria with criterion keys, older versions, records). Only records the reader accepts; refused ones belong to level 2 (#1396).
-- Level 1 (the core's pure functions against the model, in `packages/core`) follows once the criterion keys of #1417 are in the core.
+- `run.ts`: `forAllElements` runs a check over generated elements with `propertyParameters(process.env)`: `STATUS_MODEL_RUNS` (default 1000) and `STATUS_MODEL_SEED` (default 1394); a failure names the seed and the shrunk input.
+- Level 1, `packages/core/src/evidence/status-model.property.test.ts`: the core's pure functions (`ownVerificationOf`, `criterionStatusesOf`, `validationOf`) against the model, core view only; the file names what it does not check.
 - Import it from `@reqseq/testkit/status-model`, not from `@reqseq/testkit`, so only the tests that use it load fast-check.
 
 Scope of this part: the own records of one element in one view. Views, variants, indirect verification and emergent elements follow in #1389's later parts. Not modelled: records refused by the reader (SR-038 AK4, SR-172 AK1, AK3).

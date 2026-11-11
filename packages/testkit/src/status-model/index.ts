@@ -2,3 +2,4 @@
 // fast-check. Import it as `@reqseq/testkit/status-model`.
 export * from "./generator.js";
 export * from "./model.js";
+export * from "./run.js";
