@@ -13,7 +13,50 @@ templateSetup(SECOND_COMMIT, async (ws) => {
   await ws.commit();
 });
 
+/** The source of fixtures/SR-005/cross-repository, obsolete, with a title on its relation into `platform`. */
+const CROSS_REPOSITORY_TITLE: FixtureOptions = {
+  fixture: "SR-005/cross-repository",
+  files: {
+    "system/requirements/SR-1a3c5e7b9d0f.md": [
+      "---",
+      "id: 8f1e3d5c-7b9a-4c2e-a4f6-1a3c5e7b9d0f",
+      "type: system-requirement",
+      "status: obsolete",
+      "title: Show gusts in red",
+      "requirement-type: functional",
+      "acceptance-criteria:",
+      "  - Given a gust, when it is measured, then the display shows it in red.",
+      "derives-from:",
+      "  - { id: 4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e, version: n1:1111111111111111, repository: platform, title: Gusts stand out }",
+      "---",
+      "",
+      "The display shows gusts in red.",
+      "",
+    ].join("\n"),
+  },
+};
+
 scenariosOf("workspace.check", [
+  {
+    name: "a title on a relation into another repository is a warning with file and line, also from an obsolete source",
+    fixture: CROSS_REPOSITORY_TITLE,
+    root: "system",
+    input: {},
+    tag: "[SR-005/AK4]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as {
+          output: { problems: { code: string; file?: string; line?: number }[] };
+        }
+      ).output;
+      expect(
+        output.problems
+          .filter((p) => p.code === "relation.cross-repository-title")
+          .map((p) => [p.file, p.line]),
+      ).toEqual([["requirements/SR-1a3c5e7b9d0f.md", 10]]);
+    },
+  },
   {
     name: "a record for a variant that replaces its requirement counts in no view and is a finding (SR-047 AK5)",
     fixture: VARIANT_EVIDENCE,
