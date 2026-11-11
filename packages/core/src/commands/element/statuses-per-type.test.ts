@@ -76,7 +76,7 @@ const statusHints = async (opened: Opened): Promise<readonly string[]> =>
     .map((p) => `${p.code} ${p.file ?? ""}`);
 
 describe("element.create with statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
-  it("gives a new element the initial status when its type has it, also a type without a list", async () => {
+  it("[SR-064/AK4] gives a new element the initial status when its type has it, also a type without a list", async () => {
     const opened = await open();
     const need = await create(opened, "need");
     const requirement = await create(opened, "requirement");
@@ -86,14 +86,14 @@ describe("element.create with statuses per type (ThomasBirkmaier/ReqSeq-archive#
     );
   });
 
-  it("gives the first status of the type in metamodel order when the type does not have the initial one", async () => {
+  it("[SR-064/AK4] gives the first status of the type in metamodel order when the type does not have the initial one", async () => {
     const opened = await open();
     const decision = await create(opened, "decision");
     expect(decision.element.status).toBe("accepted");
     expect(decision.problems).toEqual([]);
   });
 
-  it("never gives a new element an invalid status: it skips them, and gives none to a type with only invalid ones", async () => {
+  it("[SR-064/AK4] never gives a new element an invalid status: it skips them, and gives none to a type with only invalid ones", async () => {
     // `superseded` (invalid) comes before `archived` in the metamodel's statuses.
     const opened = await open({
       "metamodel/model.yaml": (await fixtureModel())
@@ -121,7 +121,7 @@ describe("element.create with statuses per type (ThomasBirkmaier/ReqSeq-archive#
     );
   });
 
-  it("writes no status for a type without status and gives no hint", async () => {
+  it("[SR-064/AK4] writes no status for a type without status and gives no hint", async () => {
     const opened = await open();
     const term = await create(opened, "term");
     expect(term.element).not.toHaveProperty("status");
@@ -279,7 +279,7 @@ const openRetirable = async (): Promise<Opened> =>
   });
 
 describe("a type whose statuses are all marked invalid (ThomasBirkmaier/ReqSeq-archive#344, option 1)", () => {
-  it("is no metamodel problem but an info note metamodel.optional-status (ThomasBirkmaier/ReqSeq-archive#343, #451), and an element of it without status gets no hint", async () => {
+  it("[SR-017/AK3] is no metamodel problem but an info note metamodel.optional-status (ThomasBirkmaier/ReqSeq-archive#343, #451), and an element of it without status gets no hint", async () => {
     const opened = await openRetirable();
     expect(await metamodelProblems(opened)).toEqual([
       {

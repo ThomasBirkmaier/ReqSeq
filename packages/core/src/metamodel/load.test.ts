@@ -723,7 +723,7 @@ describe("loadMetamodel", () => {
     expect(metamodel.files).not.toContain("model/folder.yaml");
   });
 
-  it("reports a metamodel folder without .yaml files", async () => {
+  it("[SR-011/AK4] reports a metamodel folder without .yaml files", async () => {
     const ws = await fixture();
     await fs.rm(ws.path("model"), { recursive: true });
     await ws.write("model/readme.md", "# Model\n");

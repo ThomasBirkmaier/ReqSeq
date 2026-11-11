@@ -497,6 +497,31 @@ describe("element.bulkUpdate (SR-071)", () => {
     ]);
   });
 
+  it("[SR-071/AK4] refuses to set, add or remove ID, type or status, and writes nothing", async () => {
+    const { fixture, workspace } = await open();
+    const before = await texts(fixture.root);
+    for (const property of ["id", "type", "status"]) {
+      for (const change of [
+        { operation: "set", value: "approved" },
+        { operation: "add", value: "approved" },
+        { operation: "remove" },
+      ]) {
+        const error = await failure(workspace, {
+          selection: { where: { type: ["system-requirement"] } },
+          property,
+          ...change,
+          confirm: true,
+        });
+        // The input schema refuses the three keys before anything is read.
+        expect([error.code, error.message]).toEqual([
+          "input.invalid",
+          `Invalid input for element.bulkUpdate: property "${property}" is not allowed here`,
+        ]);
+      }
+    }
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+
   it("refuses an input that no element could take, before any file is read", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);

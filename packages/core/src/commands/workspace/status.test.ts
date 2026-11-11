@@ -8,6 +8,7 @@ import { headCommit } from "../../git/reader.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState } from "../../model/index.js";
 import { availableRepositories, workspaceLayoutState } from "../../workspace/index.js";
 import type { CommandOutput } from "../../catalog.js";
 
@@ -184,7 +185,7 @@ describe("workspace.status", () => {
     expect(out.repositories[2]).toEqual({ name: "sensor", available: false, path: "../sensor" });
   });
 
-  it("[SR-004/AK3] reports the metamodel as not valid when its repository is missing, without failing", async () => {
+  it("[SR-004/AK3] [SR-011/AK4] reports the metamodel as not valid when its repository is missing, without failing", async () => {
     const ws = await threeRepositories(["system", "product"]);
     await ws.write(
       "system/reqseq-workspace.yaml",
@@ -296,6 +297,29 @@ describe("workspace.status", () => {
       { repository: "elsewhere", path: "tests", available: false },
       ...(process.platform === "win32" ? [] : [{ repository: "system", path: "linked", available: false }]),
     ]);
+  });
+
+  it("[SR-004/AK5] names the file and the reason for a folder without a workspace file or with one that cannot be read, and reads no element", async () => {
+    const none = await fixture({
+      files: { "README.md": "no workspace\n", "needs/N-a.md": "---\nid: x\n---\n" },
+    });
+    const empty = open(none.root);
+    await expect(invoke("element.list", {}, { workspace: empty })).rejects.toMatchObject({
+      code: "workspace.not-found",
+      details: { file: "reqseq-workspace.yaml" },
+    });
+    expect(empty.peek(elementStoreState)).toBeUndefined();
+    const faulty = await fixture({
+      files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\nname: [unclosed\n" },
+    });
+    const broken = open(faulty.root);
+    const error = (await invoke("element.list", {}, { workspace: broken }).catch((e: unknown) => e)) as {
+      code: string;
+      message: string;
+    };
+    expect(error.code).toBe("file.faulty");
+    expect(error.message).toMatch(/^reqseq-workspace\.yaml is faulty: Invalid YAML at line/);
+    expect(broken.peek(elementStoreState)).toBeUndefined();
   });
 
   it("fails with workspace.not-found without a workspace file", async () => {

@@ -131,7 +131,7 @@ describe("element references in relation-valued properties (#169, #196, #287)", 
     }
   });
 
-  it("refuses a reference that names no element or several, and an item that is no reference, and writes nothing", async () => {
+  it("[SR-085/AK4] refuses a reference that names no element or several, and an item that is no reference, and writes nothing", async () => {
     // A copied file: two files share the UUID of the variant, so its short ID names both (SR-088).
     const opened = await open({
       "system/variants/copy-of-VAR.md": `---\nid: ${VAR.id}\ntype: variant\nstatus: draft\ntitle: Pro\n---\n`,

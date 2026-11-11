@@ -320,7 +320,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
   });
 
   // The reset stands for the watcher here: that it resets the metamodel on a save is AK1's test.
-  it("computes versions with the changed metamodel and changes no file (spec question ThomasBirkmaier/ReqSeq-archive#181, option 1)", async () => {
+  it("[SR-015/AK4] computes versions with the changed metamodel and changes no file (spec question ThomasBirkmaier/ReqSeq-archive#181, option 1)", async () => {
     const opened = await open();
     const before = await views(opened);
     const files = await elementFiles(opened.fixture);

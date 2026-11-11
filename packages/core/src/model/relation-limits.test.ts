@@ -125,7 +125,7 @@ describe("relation limits (SR-152)", () => {
     expect(await unlimited.get(relationLimitProblemsState)).toEqual([]);
   });
 
-  it("counts each item whose target is one element of the target type or a subtype, a duplicate twice", async () => {
+  it("[SR-152/AK5] counts each item whose target is one element of the target type or a subtype, a duplicate twice", async () => {
     expect(await countsOf([to(UC1), to(UC1)])).toEqual([
       ["relation.too-many", 2],
       ["relation.too-few", 0],
@@ -137,7 +137,7 @@ describe("relation limits (SR-152)", () => {
     expect(await countsOf("not a list")).toEqual([["relation.too-few", 0]]);
   });
 
-  it("gives no too-few while a target lies in a repository that is not here", async () => {
+  it("[SR-152/AK5] gives no too-few while a target lies in a repository that is not here", async () => {
     expect(await countsOf([to(UC1, { repository: "elsewhere" })])).toEqual([]);
     const layout = {
       repositories: [
@@ -148,7 +148,7 @@ describe("relation limits (SR-152)", () => {
     expect(await countsOf([to(UC1, { repository: "sensor" })], layout)).toEqual([]);
   });
 
-  it("gives none to an element of an unknown type, with a status marked invalid, or of a type without limits", async () => {
+  it("[SR-152/AK5] gives none to an element of an unknown type, with a status marked invalid, or of a type without limits", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const record = recordOf(context, SR2);
@@ -157,6 +157,32 @@ describe("relation limits (SR-152)", () => {
       relationLimitFindings({ ...record, data: { ...record.data, status: "rejected" } }, context),
     ).toEqual([]);
     expect(relationLimitFindings(recordOf(context, NEED), context)).toEqual([]);
+  });
+
+  it("[SR-152/AK5] counts a target whatever its status, and not one whose UUID several files share", async () => {
+    const UC2 = `${ID}b00002`;
+    const { fixture, workspace } = await open();
+    const uc1 = await fs.readFile(fixture.path("use-cases/UC-000000b00001.md"), "utf8");
+    const uc2 = await fs.readFile(fixture.path("use-cases/UC-000000b00002.md"), "utf8");
+    await fs.writeFile(
+      fixture.path("use-cases/UC-000000b00002.md"),
+      uc2.replace("status: draft", "status: rejected"),
+    );
+    await fs.mkdir(fixture.path("use-cases/copy"));
+    await fs.writeFile(fixture.path("use-cases/copy/UC-000000b00001.md"), uc1);
+    const context = await contextOf(workspace);
+    const record = recordOf(context, SR1);
+    const counts = (items: unknown): unknown[] =>
+      relationLimitFindings({ ...record, data: { ...record.data, "derives-from": items } }, context).map(
+        (f) => [f.problem.code, f.problem.count],
+      );
+    // Two relations to a rejected use case count: the maximum is 1.
+    expect(counts([to(UC2), to(UC2)])).toEqual([
+      ["relation.too-many", 2],
+      ["relation.too-few", 0],
+    ]);
+    // An ambiguous target counts nothing, also twice.
+    expect(counts([to(UC1), to(UC1)])).toEqual([["relation.too-few", 0]]);
   });
 
   it("says relation for a count of one", async () => {
