@@ -385,7 +385,7 @@ export const elementView = (
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...relationLimitFindings(record, { layout: input.layout, store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
-        ...crossRepositoryTitleFindings(record, { metamodel, shortIds }),
+        ...crossRepositoryTitleFindings(record, { store: input.store, metamodel, shortIds }),
         ...(input.extraFindings ?? []),
       ]
     : [];

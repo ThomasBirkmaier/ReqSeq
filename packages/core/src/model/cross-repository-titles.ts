@@ -12,8 +12,9 @@
 //   does not matter: the title is in the source's file either way. An item without `repository`,
 //   or with the source's own, lies in the same repository and stores the title (SR-010).
 // - Problem: code `relation.cross-repository-title`, severity `warning`, repository, file, line of
-//   the item, `elementId` (the source), `targetId`, `targetRepository` (as the item names it) and
-//   `key`. ReqSeq changes no file.
+//   the item, `elementId` (the source), `targetId` and `key`; `targetRepository` (and with it the
+//   target's short ID) only when the target resolves to one element (`resolveTarget`), as for the
+//   other relation findings. ReqSeq changes no file.
 // - Cost (N-036): one pass over the relation items of the store; only the files with a finding are
 //   read again for their lines (`findingLocator`).
 import type { Problem } from "../catalog.js";
@@ -27,11 +28,14 @@ import { locateFindings } from "./locate.js";
 import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
+import { resolveTarget } from "./relations.js";
+import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 import { elementLabel } from "./superseded.js";
 
 /** What the check needs: relation keys from the metamodel, short IDs for messages (SR-084). */
 export interface CrossRepositoryTitleContext {
+  readonly store: ElementStore;
   readonly metamodel: Metamodel;
   readonly shortIds: ShortIds;
 }
@@ -45,7 +49,7 @@ export const crossRepositoryTitleFindings = (
   element: ElementRecord,
   context: CrossRepositoryTitleContext,
 ): readonly LocatableFinding[] => {
-  const { metamodel } = context;
+  const { store, metamodel } = context;
   const out: LocatableFinding[] = [];
   for (const [key, value] of Object.entries(element.data)) {
     const relation = relationKey(metamodel, key);
@@ -64,6 +68,7 @@ export const crossRepositoryTitleFindings = (
       ) {
         continue;
       }
+      const resolved = resolveTarget(store, element.repository, item);
       out.push({
         element,
         path,
@@ -75,7 +80,7 @@ export const crossRepositoryTitleFindings = (
           file: element.file,
           elementId: element.id,
           targetId: item.id,
-          targetRepository: repository,
+          ...(resolved.kind === "found" ? { targetRepository: resolved.element.repository } : {}),
           key,
         },
       });
@@ -98,7 +103,7 @@ export const crossRepositoryTitleProblemsState = defineWorkspaceState(
       return [];
     }
     const store = await workspace.get(elementStoreState);
-    const context = { metamodel, shortIds: await workspace.get(shortIdState) };
+    const context = { store, metamodel, shortIds: await workspace.get(shortIdState) };
     const findings = store.elements.flatMap((element) => crossRepositoryTitleFindings(element, context));
     return locateFindings(await workspace.get(workspaceLayoutState), findings);
   },

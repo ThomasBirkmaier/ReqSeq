@@ -725,8 +725,8 @@
         "x-reqseq-effect": "read",
         "x-reqseq-stage": 1,
         "x-reqseq-implements": [
-          "SR-008",
           "SR-005",
+          "SR-008",
           "SR-015",
           "SR-016",
           "SR-019",

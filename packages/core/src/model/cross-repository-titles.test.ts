@@ -109,6 +109,27 @@ describe("titles stored across a repository boundary (SR-005 AK4)", () => {
     ).toEqual(checked);
   });
 
+  it("warns about a title also when the target is missing or its repository is unknown, then without targetRepository", async () => {
+    const missing = "4c1d9e7a-8b2f-4a3c-9d5e-000000000000";
+    const workspace = await open({
+      [`system/${SOURCE.file}`]: source(
+        "draft",
+        "derives-from:",
+        `  - { id: ${NEED}, version: ${VERSION}, repository: nowhere, title: Gusts stand out }`,
+        `  - { id: ${missing}, version: ${VERSION}, repository: platform, title: Gone }`,
+      ),
+    });
+    const found = await titles(workspace);
+    expect(found.map((p) => [p.targetId, p.line])).toEqual([
+      [NEED, 10],
+      [missing, 11],
+    ]);
+    for (const problem of found) {
+      expect(problem).not.toHaveProperty("targetRepository");
+      expect(problem).not.toHaveProperty("targetShortId");
+    }
+  });
+
   it("does not warn about a title within the source's repository, an entry without title, or a value that is no relation target", async () => {
     const workspace = await open({
       [`system/${SOURCE.file}`]: source(
