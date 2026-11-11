@@ -133,11 +133,13 @@ export interface Prompt {
   readonly help?: (choice: Choice | undefined) => void;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
-  /**
-   * Backspace in an empty input (catalog commands) and Escape (SR-134 AK1): one step back. Absent: Escape ends
-   * the prompt (the first step, AK2).
-   */
+  /** Backspace in an empty input and Escape (SR-134 AK1): one argument back (catalog commands). */
   readonly back?: () => void;
+  /**
+   * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
+   * Escape ends the prompt (the first step, AK2).
+   */
+  readonly previous?: () => void;
   /** Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments. */
   readonly more?: (text: string) => void;
   /** Enter on an empty input: end a list argument; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
@@ -1314,7 +1316,7 @@ export const ACTIONS: readonly Action[] = [
 
 /**
  * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
- * (`back`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
+ * (`previous`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
  * `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
  * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
  */
@@ -1322,7 +1324,7 @@ const steppedContext = (context: ActionContext, first?: () => void): ActionConte
   let shown: Prompt | undefined;
   const ask = (prompt: Prompt): void => {
     const before = shown;
-    const back =
+    const previous =
       before === undefined
         ? first
         : (): void => {
@@ -1330,9 +1332,9 @@ const steppedContext = (context: ActionContext, first?: () => void): ActionConte
             context.ask(before);
           };
     const next =
-      back === undefined || prompt.back !== undefined || prompt.step !== undefined
+      previous === undefined || prompt.back !== undefined || prompt.step !== undefined
         ? prompt
-        : { ...prompt, back };
+        : { ...prompt, previous };
     shown = next;
     context.ask(next);
   };
