@@ -261,7 +261,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("[SR-029/AK5] assigns test cases through a name pattern and enriches them as in AK1, which the reader reads back", async () => {
+  it("assigns test cases through a name pattern and enriches them as in AK1, which the reader reads back", async () => {
     const xml = suite(
       '<testcase classname="tests" name="tests::sr_46fb54_ak1_max_mass"/>' +
         '<testcase classname="tests" name="tests::SR_0B0036_AK2_and_sr_0c0037_ak1"/>' +
@@ -1405,7 +1405,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         r.criteria,
       ]);
 
-    it("[SR-029/AK10] writes the acceptance criterion a test case name gives", async () => {
+    it("writes the acceptance criterion a test case name gives", async () => {
       const result = await enrich(suite('<testcase name="[SR-46fb54/AK2] logs in"/>'));
       expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
       expect(properties(result.bytes)["[SR-46fb54/AK2] logs in"]).toEqual([

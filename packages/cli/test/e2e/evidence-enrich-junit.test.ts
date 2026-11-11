@@ -297,7 +297,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(run.stdout).toMatch(/testCases:\s*3\b/);
   });
 
-  it("[SR-029/AK5] reqseq evidence enrich-junit --name-pattern assigns Rust test cases and enriches them as in AK1", async () => {
+  it("reqseq evidence enrich-junit --name-pattern assigns Rust test cases and enriches them as in AK1", async () => {
     const ws = await open();
     const run = await enrich(ws, [
       "results/nextest.xml",
@@ -328,7 +328,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(props["tests::adds_two_numbers"]).toEqual({});
   });
 
-  it("[SR-029/AK10] reqseq evidence enrich-junit writes the acceptance criterion the test case name gives", async () => {
+  it("reqseq evidence enrich-junit writes the acceptance criterion the test case name gives", async () => {
     const ws = await open();
     await fs.writeFile(
       ws.path("results/criterion.xml"),

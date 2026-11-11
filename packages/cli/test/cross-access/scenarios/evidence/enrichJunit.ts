@@ -189,7 +189,6 @@ scenariosOf("evidence.enrichJunit", [
     name: "the acceptance criterion a test case name gives is written, a hand-written one kept",
     fixture: CRITERION_JUNIT,
     input: { file: "results/criterion.xml", item: "build-961", date: "2026-11-06T10:00:00Z" },
-    tag: "[SR-029/AK10]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 1, problems: [] });
@@ -215,7 +214,6 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       namePattern: "{prefix}_{id}_ak{ak}",
     },
-    tag: "[SR-029/AK5]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 1, unknown: [], problems: [] });
