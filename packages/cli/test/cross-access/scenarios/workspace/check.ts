@@ -1,11 +1,20 @@
 // Cross-access scenarios of workspace.check, in addition to the default one (cross-access.test.ts).
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";
+import { defaultFixturesDir } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf, templateSetup } from "../../scenario.js";
-import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, VARIANT_EVIDENCE } from "../../fixtures.js";
+import {
+  EVIDENCE,
+  IDENTIFIERS,
+  MISSING_TARGETS,
+  ORPHANED_CHAIN,
+  VARIANT_EVIDENCE,
+  replaceOnce,
+} from "../../fixtures.js";
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -21,21 +30,18 @@ const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git
 const RETIRABLE: FixtureOptions = {
   ...STATUSES,
   files: {
-    "metamodel/model.yaml": readFileSync(
-      new URL(
-        "../../../../../../fixtures/enabler-306/statuses-per-type/metamodel/model.yaml",
-        import.meta.url,
-      ),
-      "utf8",
-    )
-      .replace(
+    "metamodel/model.yaml": replaceOnce(
+      replaceOnce(
+        readFileSync(
+          path.join(defaultFixturesDir, "enabler-306/statuses-per-type/metamodel/model.yaml"),
+          "utf8",
+        ),
         "properties:\n  - key: title",
         "  - { key: glossary-term, name: Glossary Term, prefix: GT, properties: [title], statuses: [retired] }\n\nproperties:\n  - key: title",
-      )
-      .replace(
-        "  - { key: superseded, name: Superseded, invalid: true }\n",
-        "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: retired, name: Retired, invalid: true }\n",
       ),
+      "  - { key: superseded, name: Superseded, invalid: true }\n",
+      "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: retired, name: Retired, invalid: true }\n",
+    ),
     "elements/GT-000000fff001.md":
       "---\nid: 6f6f6f6f-6666-4666-8666-000000fff001\ntype: glossary-term\ntitle: Baseline\n---\n",
   },

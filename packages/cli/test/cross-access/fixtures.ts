@@ -1,9 +1,7 @@
 // Fixtures and helpers that scenarios of more than one command use, and what they are built from
 // (cross-access.test.ts). A fixture or helper that only one command uses lives in that command's module
 // under scenarios/, and so does the setup of its template (`templateSetup`).
-import { readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import type { FixtureOptions } from "@reqseq/testkit";
 import type { Result } from "./scenario.js";
 
@@ -257,29 +255,14 @@ export const supersededHintFiles = (result: Result): (string | undefined)[] =>
     .filter((p) => p.code === "relation.target-superseded")
     .map((p) => p.file);
 
-/**
- * The files of one access's copy that differ from the fixture as built (its case folder, then `files` on
- * top), added or changed, except the tool's own under `.reqseq/`: a write that changes nothing else leaves
- * only its source here, and a refused one none (SR-067 AK4 to AK6, SR-016 AK4).
- */
-export const changedFiles = (fixture: FixtureOptions, result: Result | undefined): string[] => {
-  const before: Record<string, string> = {};
-  if (fixture.fixture !== undefined) {
-    const folder = fileURLToPath(new URL(`../../../../fixtures/${fixture.fixture}/`, import.meta.url));
-    for (const entry of readdirSync(folder, { recursive: true, withFileTypes: true })) {
-      if (entry.isFile()) {
-        const file = path.join(entry.parentPath, entry.name);
-        before[path.relative(folder, file).split(path.sep).join("/")] = readFileSync(file, "utf8");
-      }
-    }
+/** The files one access changed (see `Result.changed`): only the source for a write, none for a refused one. */
+export const changedFiles = (result: Result | undefined): readonly string[] => result?.changed ?? [];
+
+/** `text` with `from` replaced by `to`; throws when `from` is not in it, so a fixture edit cannot go stale. */
+export const replaceOnce = (text: string, from: string | RegExp, to: string): string => {
+  const replaced = text.replace(from, to);
+  if (replaced === text) {
+    throw new Error(`Nothing to replace: ${String(from)}`);
   }
-  for (const [file, text] of Object.entries(fixture.files ?? {})) {
-    if (typeof text === "string") {
-      before[file] = text;
-    }
-  }
-  const after = result?.files ?? {};
-  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
-    .filter((file) => !file.startsWith(".reqseq/") && before[file] !== after[file])
-    .sort();
+  return replaced;
 };

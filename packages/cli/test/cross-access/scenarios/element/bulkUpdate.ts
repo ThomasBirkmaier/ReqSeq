@@ -129,7 +129,7 @@ scenariosOf("element.bulkUpdate", [
     expect: "error",
     check: (results) => {
       expect((results["core"]?.outcome as { error: { code: string } }).error.code).toBe("input.invalid");
-      expect(changedFiles(FILTER, results["core"])).toEqual([]);
+      expect(changedFiles(results["core"])).toEqual([]);
     },
   },
 ]);

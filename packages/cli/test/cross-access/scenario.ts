@@ -44,6 +44,12 @@ export interface Copy {
 export interface Result {
   readonly outcome: Outcome;
   readonly files: Record<string, string>;
+  /**
+   * The files the access added, changed or removed in its copy, against the copy as prepared just before
+   * the call (template setup and `prepare` included), except the tool's own under any `.reqseq/` folder.
+   * Taken before a new element is masked, so a mask never adds a file here (SR-016 AK4, SR-067 AK4 to AK6).
+   */
+  readonly changed: readonly string[];
 }
 
 /** The explicit scenarios by command, as the modules under scenarios/ register them. */

@@ -4,7 +4,7 @@ import { scenariosOf } from "../../scenario.js";
 import type { FixtureOptions } from "@reqseq/testkit";
 import type { Result } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { FILTER, NESTED, NESTED_A, ONE_REPOSITORY, changedFiles, requiredKey } from "../../fixtures.js";
+import { FILTER, NESTED, NESTED_A, changedFiles, requiredKey } from "../../fixtures.js";
 
 /** SR-013/own-meanings with an abstract type and a type that inherits from it without the mark (SR-012 AK4). */
 const ABSTRACT: FixtureOptions = {
@@ -94,9 +94,7 @@ scenariosOf("element.create", [
       expect((results["core"]?.outcome as { output: Written }).output.files).toEqual([
         "system-requirement/SR-<tail12>.md",
       ]);
-      expect(changedFiles(TWO_REPOSITORIES, results["core"])).toEqual([
-        "system/system-requirement/SR-<tail12>.md",
-      ]);
+      expect(changedFiles(results["core"])).toEqual(["system/system-requirement/SR-<tail12>.md"]);
     },
   },
   { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
@@ -108,7 +106,7 @@ scenariosOf("element.create", [
     expect: "error",
     check: (results) => {
       expect(errorOf(results["core"]).details).toMatchObject({ reason: "abstract" });
-      expect(changedFiles(ABSTRACT, results["core"])).toEqual([]);
+      expect(changedFiles(results["core"])).toEqual([]);
     },
   },
   {
@@ -131,7 +129,7 @@ scenariosOf("element.create", [
     expect: "error",
     check: (results) => {
       expect(errorOf(results["core"]).code).toBe("input.invalid");
-      expect(changedFiles(ONE_REPOSITORY, results["core"])).toEqual([]);
+      expect(changedFiles(results["core"])).toEqual([]);
     },
   },
   {
@@ -142,7 +140,7 @@ scenariosOf("element.create", [
     expect: "error",
     check: (results) => {
       expect(errorOf(results["core"]).code).toBe("relation.not-allowed");
-      expect(changedFiles(FILTER, results["core"])).toEqual([]);
+      expect(changedFiles(results["core"])).toEqual([]);
     },
   },
   {

@@ -44,7 +44,7 @@ scenariosOf("relation.add", [
         { relation: "derives-from", sourceType: "need", targetType: "system-requirement" },
       ]);
       expect(error.message).toMatch(/ from Need N-\w+ to System Requirement SR-\w+ is not allowed/);
-      expect(changedFiles(CYCLE, results["core"])).toEqual([]);
+      expect(changedFiles(results["core"])).toEqual([]);
     },
   },
   {
@@ -54,7 +54,7 @@ scenariosOf("relation.add", [
     input: { source: "SR-b0000000004", kind: "derives-from", target: "N-a0000000001" },
     expect: "output",
     check: (results) => {
-      expect(changedFiles(CYCLE, results["core"])).toEqual(["requirements/SR-0b0000000004.md"]);
+      expect(changedFiles(results["core"])).toEqual(["requirements/SR-0b0000000004.md"]);
       expect(results["core"]?.files["requirements/SR-0b0000000004.md"]).toContain(
         "  - { id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001,",
       );
