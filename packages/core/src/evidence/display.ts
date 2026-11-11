@@ -3,19 +3,19 @@
 // the command lists and the positions that bear the status (`bearingRecords`):
 // - `shared` (AK5): each of date, item, version and baselines that every record of the rows has, equal
 //   (the date as an instant, shown as the first record writes it; baselines as an ordered list).
-// - `rows` (AK4): with a verification record, one row per acceptance criterion 1..count, or one for
-//   the whole requirement without criteria; its status in each view the element applies in comes from
+// - `rows` (AK4): with a verification record, one row per acceptance criterion 1..count, with its
+//   number, key and text (SR-205 AK2), or one for the whole requirement without criteria; its status in each view the element applies in comes from
 //   `criterionStatusesOf`, the rule of the status itself (SR-031, SR-047, SR-173), so the row agrees
 //   with `evidence.status`, and the row's status is the worst of them. A criterion without record has
 //   a row too, open and without cases. With a validation record, one validation row with the validation
 //   status (SR-038, core only, D-026). The cases of a row are its bearing records (those naming its
-//   criterion or none, SR-031 AK6, and holding in a view the element applies in) by test case
+//   criterion, by key or number as `ElementCriteria` resolves it, or none, SR-031 AK6, and holding in a view the element applies in) by test case
 //   (`testCaseKeyOf`), a record without test case its own; two records of one execution in two views
 //   (one JUnit test case for core and variant) are both records of the case. Order: worst result
 //   first, then class name, then name, in code units; records without test case last, in their order.
 // - `older` (AK3): the records no row shows by run, the same instant and version (as written: one
 //   version in its two normal forms is two runs), newest first, then version. A record that names only
-//   criteria beyond the count bears nothing and lands here, as does a bearing record for a view the
+//   criteria the current version does not have bears nothing and lands here, as does a bearing record for a view the
 //   element does not apply in. Without views (no requirement) there are no verification rows.
 // Pure; O(records × (count + 1) × views).
 import type { EvidenceListOutput } from "../generated/types.js";
@@ -25,6 +25,8 @@ import { instantOf } from "./by-element.js";
 import { holdsIn } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
 import { testCaseKeyOf } from "./record.js";
+import type { ElementCriteria } from "./criteria.js";
+import { criteriaFrom, criterionNameAt } from "./criteria.js";
 import type { RecordVerificationStatus } from "./status.js";
 import { criterionStatusesOf, validationOf } from "./status.js";
 
@@ -37,8 +39,8 @@ export interface DisplayInput {
   /** The positions in `records` that bear the status (`bearingRecords`). */
   readonly bearing: readonly number[];
   readonly current: VersionForms | undefined;
-  /** The element's number of acceptance criteria (0 without). */
-  readonly count: number;
+  /** The element's acceptance criteria (`StatusSource.criteriaOf`; a count: without keys). */
+  readonly criteria: ElementCriteria | number;
   /** The views the element applies in, the core first (`verificationOf`'s holders). */
   readonly views: readonly View[];
   /** Its repository is marked `variant-independent` (SR-173). */
@@ -138,11 +140,13 @@ const verificationRows = (
   bearing: readonly Placed[],
   input: DisplayInput,
 ): Row[] => {
-  const { current, count, views, independent } = input;
+  const { current, views, independent } = input;
+  const criteria = criteriaFrom(input.criteria);
+  const { count } = criteria;
   // The statuses per row: for each criterion, its status in each view, the views in their order.
   const perRow: { view: string; status: RecordVerificationStatus }[][] = [];
   for (const view of views) {
-    for (const [i, status] of criterionStatusesOf(records, current, view, independent, count).entries()) {
+    for (const [i, status] of criterionStatusesOf(records, current, view, independent, criteria).entries()) {
       (perRow[i] ??= []).push({ view: viewName(view), status });
     }
   }
@@ -158,10 +162,10 @@ const verificationRows = (
     const mine =
       count === 0
         ? ofKind
-        : ofKind.filter(({ record }) => record.criteria === undefined || record.criteria.includes(criterion));
+        : ofKind.filter(({ record }) => criteria.positionsOf(record, current)?.includes(criterion) ?? true);
     return {
       kind: "verification",
-      ...(count === 0 ? {} : { criterion }),
+      ...(count === 0 ? {} : criterionNameAt(criteria.items, criterion)),
       status,
       views: statuses,
       cases: casesOf(mine),

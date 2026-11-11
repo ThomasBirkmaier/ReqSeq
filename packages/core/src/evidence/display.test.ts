@@ -5,6 +5,8 @@ import type { VersionForms } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { bearingRecords } from "./bearing.js";
 import { displayOf } from "./display.js";
+import type { ElementCriteria } from "./criteria.js";
+import { elementCriteria } from "./criteria.js";
 import type { EvidenceRecord } from "./record.js";
 import { ownVerificationOf } from "./status.js";
 
@@ -34,7 +36,7 @@ const withoutItem = (more: Partial<EvidenceRecord>): EvidenceRecord => {
 
 const display = (
   records: readonly EvidenceRecord[],
-  count: number,
+  count: ElementCriteria | number,
   views: readonly View[] = [CORE],
   independent = false,
   validates = true,
@@ -42,7 +44,7 @@ const display = (
   displayOf(records, {
     bearing: bearingRecords(records, CURRENT, count, independent),
     current: CURRENT,
-    count,
+    criteria: count,
     views,
     independent,
     validates,
@@ -133,7 +135,7 @@ describe("displayOf", () => {
         const statuses = rows.map((row) => row.views?.[0]?.status);
         expect(statuses.every((s) => s === "verified")).toBe(own.status === "verified");
         expect(statuses.includes("failed")).toBe(own.status === "failed");
-        expect(own.criteria?.notVerified ?? []).toEqual(
+        expect((own.criteria?.notVerified ?? []).map((c) => c.criterion)).toEqual(
           statuses.flatMap((s, i) => (s === "verified" ? [] : [i + 1])),
         );
       }
@@ -141,13 +143,19 @@ describe("displayOf", () => {
   });
 
   it("names a failed and an outdated view by the status rule, also mixed with current ones", () => {
+    // An older record names its criterion by key (by number it would count for none without Git, SR-031 AK11).
     const records = [
-      record({ criteria: [1], variant: "mac", version: OLD }),
+      record({ criteria: ["kone"], variant: "mac", version: OLD }),
       record({ criteria: [1], variant: "win" }),
-      record({ criteria: [1], version: OLD, result: "failed" }),
+      record({ criteria: ["kone"], version: OLD, result: "failed" }),
     ];
-    const [row] = display(records, 1, [CORE, MAC, WIN]).rows;
+    const [row] = display(records, elementCriteria("e", [{ key: "kone", text: "One" }]), [
+      CORE,
+      MAC,
+      WIN,
+    ]).rows;
     expect(row?.status).toBe("outdated");
+    expect([row?.criterion, row?.key, row?.text]).toEqual([1, "kone", "One"]);
     expect(row?.views).toEqual([
       { view: "core", status: "outdated" },
       { view: "mac", status: "outdated" },

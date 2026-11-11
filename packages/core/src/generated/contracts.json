@@ -314,6 +314,23 @@
       "title": "Shared definitions",
       "description": "Building blocks used by all ReqSeq file formats and commands. See docs/adr/0004 and 0005.",
       "$defs": {
+        "criterionKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{3,15}$",
+          "description": "A criterion key: a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits."
+        },
+        "criterionRef": {
+          "description": "An acceptance criterion as a record names it: its criterion key, or its number, the position in the version the record names, counted from 1.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "$ref": "#/$defs/criterionKey"
+            }
+          ]
+        },
         "textMarks": {
           "description": "Matched words in a text, to highlight: UTF-16 code-unit offsets into the text, `end` exclusive, sorted and not overlapping.",
           "type": "array",
@@ -1071,8 +1088,8 @@
       ],
       "properties": {
         "reqseq-data": {
-          "const": 4,
-          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement`. 4: every line of the JSON Lines form also carries `repositories` and `incomplete`."
+          "const": 5,
+          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement`. 4: every line of the JSON Lines form also carries `repositories` and `incomplete`. 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text."
         },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
@@ -1197,7 +1214,7 @@
           "properties": {
             "reqseq-data": {
               "description": "Version of this file format.",
-              "const": 4
+              "const": 5
             },
             "commit": {
               "$ref": "common.schema.json#/$defs/commit",
@@ -1538,12 +1555,18 @@
             "criteria": {
               "type": "array",
               "items": {
-                "type": "integer",
-                "minimum": 1
+                "$ref": "common.schema.json#/$defs/criterionRef"
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "The acceptance criteria the record holds for, by number counted from 1, ascending and each once: `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+              "description": "The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order: `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+            },
+            "criterionNames": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/criterionName"
+              },
+              "description": "Each item of `criteria`, in its order, named with number, key and text: the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and that version's text, without key. Only `evidence.list` fills it."
             },
             "baselines": {
               "type": "array",
@@ -1740,6 +1763,25 @@
           },
           "additionalProperties": false
         },
+        "criterionName": {
+          "type": "object",
+          "description": "An acceptance criterion as an output names it: number, criterion key and text, each left out where it does not apply.",
+          "properties": {
+            "criterion": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The number: the position in the version whose criteria are counted, counted from 1."
+            },
+            "key": {
+              "$ref": "common.schema.json#/$defs/criterionKey"
+            },
+            "text": {
+              "type": "string",
+              "description": "The text of the acceptance criterion."
+            }
+          },
+          "additionalProperties": false
+        },
         "criteriaCount": {
           "type": "object",
           "description": "How many acceptance criteria of a requirement are verified: a criterion is verified when the newest record for it of the current version passed (a record that names no criterion counts for every one).",
@@ -1761,12 +1803,10 @@
             "notVerified": {
               "type": "array",
               "minItems": 1,
-              "uniqueItems": true,
               "items": {
-                "type": "integer",
-                "minimum": 1
+                "$ref": "#/$defs/criterionName"
               },
-              "description": "The numbers of the criteria that are not verified (open, failed or outdated), counted from 1, ascending; left out when every criterion is verified."
+              "description": "The criteria that are not verified (open, failed or outdated), by number ascending, each with its key and text; left out when every criterion is verified."
             }
           },
           "additionalProperties": false
@@ -2050,12 +2090,11 @@
         "criteria": {
           "type": "array",
           "items": {
-            "type": "integer",
-            "minimum": 1
+            "$ref": "common.schema.json#/$defs/criterionRef"
           },
           "minItems": 1,
           "uniqueItems": true,
-          "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element, and reads the record without it. A number that the named version does not have is a finding of `workspace check` (`evidence.unknown-criterion`)."
+          "description": "The acceptance criteria the record holds for, each by its criterion key or by its number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. `evidence.record` writes keys. The record counts for the criterion of the current version with that key; a number of an older version counts through the key the criterion had in the newest commit with that version. Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element, and reads the record without it. A key that no criterion of the named version carries, or a number that version does not have, is a finding of `workspace check` (`evidence.unknown-criterion`)."
         }
       },
       "allOf": [
@@ -2763,7 +2802,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number; kind `text` with `many`, otherwise a warning and no criterion is read).",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read).",
           "enum": [
             "title",
             "validity",
@@ -8681,6 +8720,14 @@
                         "minimum": 1,
                         "description": "The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row."
                       },
+                      "key": {
+                        "$ref": "../common.schema.json#/$defs/criterionKey",
+                        "description": "The criterion key of the row's criterion; left out when it has none."
+                      },
+                      "text": {
+                        "type": "string",
+                        "description": "The text of the row's criterion; left out for a row without `criterion`."
+                      },
                       "status": {
                         "enum": [
                           "open",
@@ -8894,7 +8941,7 @@
           },
           {
             "field": "criteria",
-            "complete": "number"
+            "complete": "text"
           },
           {
             "field": "reason",
@@ -8964,13 +9011,22 @@
             "criteria": {
               "type": "array",
               "items": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[1-9][0-9]{0,15}|[a-z][a-z0-9]{3,15})$",
+                    "description": "A criterion key, or a number written as digits (the command line passes text)."
+                  }
+                ]
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1, at most 9007199254740991 (the largest whole number JSON readers keep exactly, so the file holds the number as given). Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element. A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems`."
+              "description": "The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key. The file gets their criterion keys, in the order of the criteria. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`), a key that several criteria carry (`criterion-key-duplicate`), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element."
             },
             "folder": {
               "type": "string",
@@ -8992,6 +9048,31 @@
               "items": {
                 "type": "string",
                 "description": "The written record file, relative to the workspace root as `workspacePath` gives it (with `/`)."
+              }
+            },
+            "criteria": {
+              "type": "array",
+              "description": "With `criteria`: each criterion the record holds for, in the order of the criteria, with its number, its criterion key and the first 60 characters of its text.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "key": {
+                    "$ref": "../common.schema.json#/$defs/criterionKey"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "key",
+                  "text"
+                ],
+                "additionalProperties": false
               }
             },
             "record": {

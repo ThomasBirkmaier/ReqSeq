@@ -5,7 +5,7 @@
 # validity and packages as UUIDs and the verification status per view. The derivation of SR-0000b2
 # stores an older version of the need, so it is outdated. The stored versions are in normal form n1,
 # the current ones in n2, the form the tool writes: a stored version is compared in its own form.
-reqseq-data: 4
+reqseq-data: 5
 commit: 61aa061aa061aa061aa061aa061aa061aa061aa0
 dirty: false
 workspace: Weather station

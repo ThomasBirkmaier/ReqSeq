@@ -737,11 +737,19 @@ describe("renderHuman: verification status (SR-031)", () => {
   it("[SR-031/AK5] shows how many acceptance criteria are verified and which are not", () => {
     const elements = [
       requirement("1", [
-        { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+        {
+          view: "core",
+          status: "open",
+          criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
+        },
         { view: "v1", status: "verified", criteria: { verified: 3, total: 3 } },
       ]),
       requirement("2", [
-        { view: "core", status: "failed", criteria: { verified: 0, total: 2, notVerified: [1, 2] } },
+        {
+          view: "core",
+          status: "failed",
+          criteria: { verified: 0, total: 2, notVerified: [{ criterion: 1 }, { criterion: 2 }] },
+        },
       ]),
       { id: "v1", shortId: "VAR-1", title: "Pro", status: "draft" },
     ];
@@ -1682,9 +1690,13 @@ describe("renderHuman: a graph with verification (SR-136)", () => {
           {
             ...node("a", "SR-00000a", 0),
             verification: [
-              { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+              {
+                view: "core",
+                status: "open",
+                criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
+              },
             ],
-            criteria: { verified: 2, total: 3, notVerified: [3] },
+            criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
           },
           {
             ...node("b", "N-00000b", 0),

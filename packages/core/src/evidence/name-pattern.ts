@@ -8,8 +8,11 @@
 // - `{id}`: 6 to 32 hex digits, the longest first, down to 6, until the rest of the pattern fits; so
 //   `{id}AK` reads `348143` from `348143AK1`. The digits end where a camel case word starts (an upper
 //   case letter after a lower case one, or before one), so `2f95e9Add` gives `2f95e9`.
-// - `{ak}`: 1 to 9 digits, all of the run (a longer run does not match). They are the acceptance
-//   criterion the match names, as written (`ak`); enrich refuses `0` and a leading zero (SR-029 AK10).
+// - `{ak}`: 1 to 9 digits, all of the run, or a criterion key (SR-204 AK5: a lower-case letter, then
+//   3 to 15 lower-case letters or digits), all of the run of lower-case letters and digits; a longer
+//   run does not match. They are the acceptance criterion the match names, as written (`ak`); enrich
+//   refuses `0` and a leading zero (SR-029 AK10). So `{prefix}_{id}_{ak}` reads `verify` from
+//   `sr_348143_verify` as a key, which then names no criterion.
 // - Anything else is literal text, ASCII case-insensitive; `{{` and `}}` are literal braces.
 // - A match starts and ends at a word boundary: the start or end of the name, a character that is
 //   not a letter or digit, or the start of a camel case word. Matches do not overlap.
@@ -34,7 +37,7 @@ export interface NameMatch {
   readonly shortId: string;
   /** The matched text as written. */
   readonly matched: string;
-  /** The digits `{ak}` read, as written; absent without `{ak}` (SR-029 AK10). */
+  /** The digits or the key `{ak}` read, as written; absent without `{ak}` (SR-029 AK10). */
   readonly ak?: string;
 }
 
@@ -42,6 +45,9 @@ const PLACEHOLDERS: readonly Placeholder[] = ["prefix", "id", "ak"];
 const ID_MIN = 6;
 const ID_MAX = 32;
 const AK_MAX = 9;
+/** The length of a criterion key `{ak}` reads (SR-204 AK5). */
+const KEY_MIN = 4;
+const KEY_MAX = 16;
 
 const refuse = (pattern: string, why: string): CommandError =>
   new CommandError("input.invalid", `The name pattern "${shown(pattern)}" ${why}`, {
@@ -99,7 +105,7 @@ const partsOf = (pattern: string): NamePatternPart[] => {
  * Checks `pattern` (see the file comment) and gives its parts. Throws `input.invalid` with
  * `details.reason: "name-pattern"` and one sentence per rule: a brace that is no placeholder,
  * `{prefix}` or `{id}` not exactly once, `{ak}` more than once, `{id}` and `{ak}` next to each other or
- * `{ak}` before a digit (where one ends would be unclear), or a square bracket.
+ * `{ak}` before a letter or digit (where one ends would be unclear), or a square bracket.
  */
 export const parseNamePattern = (pattern: string): NamePattern => {
   if (/[[\]]/.test(pattern)) {
@@ -123,8 +129,8 @@ export const parseNamePattern = (pattern: string): NamePattern => {
     if ((part.kind === "id" && next?.kind === "ak") || (part.kind === "ak" && next?.kind === "id")) {
       throw refuse(pattern, "has {id} and {ak} next to each other; put text between them");
     }
-    if (part.kind === "ak" && next?.kind === "literal" && /^[0-9]/.test(next.text)) {
-      throw refuse(pattern, "has a digit right after {ak}, which {ak} would read as its own");
+    if (part.kind === "ak" && next?.kind === "literal" && /^[0-9a-z]/.test(next.text)) {
+      throw refuse(pattern, "has a letter or digit right after {ak}, which {ak} would read as its own");
     }
   });
   return { parts };
@@ -162,6 +168,28 @@ const digitRun = (name: string, at: number): number => {
     n += 1;
   }
   return n;
+};
+
+/** The lower-case letters and digits from `at`, at most one more than `KEY_MAX` (a key, `{ak}`). */
+const keyRun = (name: string, at: number): number => {
+  let n = 0;
+  while (n <= KEY_MAX && (isLower(code(name, at + n)) || isDigit(code(name, at + n)))) {
+    n += 1;
+  }
+  return n;
+};
+
+/**
+ * The length of the criterion `{ak}` reads at `at` (possessive): a key (a lower-case letter first,
+ * `KEY_MIN` to `KEY_MAX`) or 1 to `AK_MAX` digits; -1 for none.
+ */
+const akRun = (name: string, at: number): number => {
+  if (isLower(code(name, at))) {
+    const n = keyRun(name, at);
+    return n < KEY_MIN || n > KEY_MAX ? -1 : n;
+  }
+  const n = digitRun(name, at);
+  return n < 1 || n > AK_MAX ? -1 : n;
 };
 
 /** Whether `text` (ASCII lower case) stands at `at`, ASCII case-insensitive. */
@@ -224,8 +252,8 @@ export const nameMatcher = (
           case "literal":
             return literalAt(name, at, part.text) ? step(k + 1, at + part.text.length) : -1;
           case "ak": {
-            const n = digitRun(name, at);
-            if (n < 1 || n > AK_MAX) {
+            const n = akRun(name, at);
+            if (n < 0) {
               return -1;
             }
             // `{ak}` occurs once at most, so the last value read is that of the match found.

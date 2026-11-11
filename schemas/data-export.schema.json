@@ -7,8 +7,8 @@
   "required": ["reqseq-data", "dirty", "workspace", "generated", "repositories", "incomplete", "elements"],
   "properties": {
     "reqseq-data": {
-      "const": 4,
-      "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1)."
+      "const": 5,
+      "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text (SR-205 AK2)."
     },
     "commit": {
       "$ref": "common.schema.json#/$defs/commit",
@@ -105,7 +105,7 @@
         "relations"
       ],
       "properties": {
-        "reqseq-data": { "description": "Version of this file format.", "const": 4 },
+        "reqseq-data": { "description": "Version of this file format.", "const": 5 },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
           "description": "As `commit` of the JSON form."
@@ -376,10 +376,15 @@
         },
         "criteria": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1 },
+          "items": { "$ref": "common.schema.json#/$defs/criterionRef" },
           "minItems": 1,
           "uniqueItems": true,
-          "description": "The acceptance criteria the record holds for, by number counted from 1, ascending and each once (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+          "description": "The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+        },
+        "criterionNames": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/criterionName" },
+          "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and that version's text, without key. Only `evidence.list` fills it."
         },
         "baselines": {
           "type": "array",
@@ -492,6 +497,20 @@
       },
       "additionalProperties": false
     },
+    "criterionName": {
+      "type": "object",
+      "description": "An acceptance criterion as an output names it (SR-205 AK2): number, criterion key and text, each left out where it does not apply.",
+      "properties": {
+        "criterion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The number: the position in the version whose criteria are counted, counted from 1."
+        },
+        "key": { "$ref": "common.schema.json#/$defs/criterionKey" },
+        "text": { "type": "string", "description": "The text of the acceptance criterion." }
+      },
+      "additionalProperties": false
+    },
     "criteriaCount": {
       "type": "object",
       "description": "How many acceptance criteria of a requirement are verified (SR-031 AK5, D-072): a criterion is verified when the newest record for it of the current version passed (a record that names no criterion counts for every one, AK6).",
@@ -506,9 +525,8 @@
         "notVerified": {
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
-          "items": { "type": "integer", "minimum": 1 },
-          "description": "The numbers of the criteria that are not verified (open, failed or outdated), counted from 1, ascending; left out when every criterion is verified."
+          "items": { "$ref": "#/$defs/criterionName" },
+          "description": "The criteria that are not verified (open, failed or outdated), by number ascending, each with its key and text (SR-205 AK2); left out when every criterion is verified."
         }
       },
       "additionalProperties": false

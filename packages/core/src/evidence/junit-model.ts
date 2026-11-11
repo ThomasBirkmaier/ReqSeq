@@ -4,6 +4,7 @@
 // in at those offsets and keeps every other byte (BOM, CRLF, non-ASCII text, formatting) unchanged.
 import type { XmlAttribute, XmlElement, XmlRefusalReason } from "../files/index.js";
 import { scanXml, xmlAttribute } from "../files/index.js";
+import { isCriterionKey } from "../model/criterion-items.js";
 import type { NameMatch } from "./name-pattern.js";
 
 /**
@@ -330,37 +331,55 @@ export const elementRefsOf = (
 export interface CriterionRef {
   /** As written (trimmed): the `<ref>` of a bracket token, or the short ID a name pattern built. */
   readonly ref: string;
-  /** The criterion it names (1 or more); absent for a reference that names the whole requirement. */
-  readonly criterion?: number;
+  /**
+   * The criterion it names: a number (1 or more) or a criterion key; absent for a reference that
+   * names the whole requirement.
+   */
+  readonly criterion?: number | string;
   /** The text as written when it tries to name a criterion but names none (`[SR-036/AK0]`, `[SR-036/AK]`). */
   readonly malformed?: string;
 }
 
 /** `[<ref>]` or `[<ref>/<suffix>]` in a test case name: the tokens of `NAME_TOKEN`, with the suffix. */
 const BRACKET = /\[[^[\]/]*(?:\/[^[\]]*)?\]/g;
-/** A suffix that tries to name an acceptance criterion: `AK` alone or before a digit, ASCII case-insensitive. */
-const AK_LIKE = /^AK(?:[0-9]|$)/i;
-/** The suffix that names one: `AK<n>`, n from 1 without leading zero, at most 9 digits (as `{ak}`). */
+/**
+ * A suffix that tries to name an acceptance criterion: `AK` alone, before a digit or before `-`,
+ * ASCII case-insensitive.
+ */
+const AK_LIKE = /^AK(?:[0-9-]|$)/i;
+/** The suffix that names one by number: `AK<n>`, n from 1 without leading zero, at most 9 digits (as `{ak}`). */
 const AK_SUFFIX = /^AK[1-9][0-9]{0,8}$/i;
+/** The suffix that names one by key: `AK-<key>` (SR-029 AK10), the key in its form (SR-204 AK5). */
+const AK_KEY_SUFFIX = /^AK-[a-z][a-z0-9]{3,15}$/i;
 /** The digits of `{ak}` that name a criterion. */
 const AK_DIGITS = /^[1-9][0-9]*$/;
 
-/** Criterion `digits` when `ok`, else `text` as malformed. */
-const criterionOf = (
-  ok: boolean,
-  digits: string,
-  text: string,
-): Pick<CriterionRef, "criterion" | "malformed"> =>
-  ok ? { criterion: Number(digits) } : { malformed: text };
+/** The criterion of a suffix (`AK<n>` or `AK-<key>`), else `text` as malformed. */
+const suffixCriterion = (suffix: string, text: string): Pick<CriterionRef, "criterion" | "malformed"> => {
+  if (AK_SUFFIX.test(suffix)) {
+    return { criterion: Number(suffix.slice(2)) };
+  }
+  const key = suffix.slice(3);
+  return AK_KEY_SUFFIX.test(suffix) && isCriterionKey(key) ? { criterion: key } : { malformed: text };
+};
+
+/** The criterion `{ak}` read: a number from 1 without leading zero, or a criterion key; else `text` as malformed. */
+const akCriterion = (ak: string, text: string): Pick<CriterionRef, "criterion" | "malformed"> => {
+  if (isCriterionKey(ak)) {
+    return { criterion: ak };
+  }
+  return AK_DIGITS.test(ak) ? { criterion: Number(ak) } : { malformed: text };
+};
 
 /**
  * Every reference of the name of a test case with the acceptance criterion it names (SR-029 AK10), in
- * name order and not deduplicated: `[<ref>/AK<n>]` names criterion n, and with `pattern` a match
- * with `{ak}` names that one; n is a number from 1 without leading zero. A suffix `AK` alone or before
- * a digit that is no such `AK<n>` (`AK0`, `AK02`, `AK`, `AK2a`), and `{ak}` that is none (`0`, `03`),
- * are `malformed`. A token without suffix or with another one (`[SR-036]`, `[SR-036/slow]`) and a
- * match of a pattern without `{ak}` name the whole requirement. The caller resolves the references,
- * as for `elementRefsOf`.
+ * name order and not deduplicated: `[<ref>/AK-<key>]` names the criterion with that key and
+ * `[<ref>/AK<n>]` criterion n, and with `pattern` a match with `{ak}` names the key or number it read;
+ * n is a number from 1 without leading zero. A suffix `AK` alone or before a digit or `-` that is no
+ * such suffix (`AK0`, `AK02`, `AK`, `AK2a`, `AK-x`), and `{ak}` that is none (`0`, `03`), are
+ * `malformed`. A token without suffix or with another one (`[SR-036]`, `[SR-036/slow]`) and a match
+ * of a pattern without `{ak}` name the whole requirement. The caller resolves the references, as for
+ * `elementRefsOf`.
  */
 export const criterionRefsOf = (
   name: string,
@@ -374,11 +393,11 @@ export const criterionRefsOf = (
     const suffix = slash < 0 ? "" : inner.slice(slash + 1).trim();
     refs.push({
       ref: ref.trim(),
-      ...(AK_LIKE.test(suffix) ? criterionOf(AK_SUFFIX.test(suffix), suffix.slice(2), token) : {}),
+      ...(AK_LIKE.test(suffix) ? suffixCriterion(suffix, token) : {}),
     });
   }
   for (const { shortId, matched, ak } of pattern?.(name) ?? []) {
-    refs.push({ ref: shortId, ...(ak === undefined ? {} : criterionOf(AK_DIGITS.test(ak), ak, matched)) });
+    refs.push({ ref: shortId, ...(ak === undefined ? {} : akCriterion(ak, matched)) });
   }
   return refs;
 };

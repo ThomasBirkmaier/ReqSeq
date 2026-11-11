@@ -6,6 +6,8 @@ import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE, VARIANT_INVALID } from "../../fixtures.js";
 
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
+/** The criterion of SR-0000e3 with records of an older version only, as outputs name it (SR-205 AK2). */
+const FROST = { criterion: 3, key: "kfro", text: "Given frost, then a mark shows." };
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 
 /** A repository marked variant-independent next to an unmarked one, with records with and without variant (SR-173). */
@@ -118,16 +120,36 @@ scenariosOf("evidence.status", [
       expect(elements.map((e) => [e["shortId"], e["verification"]])).toEqual([
         [
           "SR-0000e1",
-          [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+          [
+            {
+              view: "core",
+              status: "open",
+              criteria: {
+                verified: 2,
+                total: 3,
+                notVerified: [{ criterion: 3, text: "Given a gust, then the peak shows." }],
+              },
+            },
+          ],
         ],
         ["SR-0000e2", [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }]],
         [
           "SR-0000e3",
-          [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+          [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [FROST] } }],
         ],
         [
           "SR-0000e4",
-          [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+          [
+            {
+              view: "core",
+              status: "failed",
+              criteria: {
+                verified: 1,
+                total: 2,
+                notVerified: [{ criterion: 2, text: "Given no reading, then a dash shows." }],
+              },
+            },
+          ],
         ],
         ["SR-0000e5", [{ view: "core", status: "verified" }]],
       ]);
@@ -163,7 +185,7 @@ scenariosOf("evidence.status", [
     expect: "output",
     check: (results) => {
       expect(verificationOf(results)).toEqual([
-        [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [FROST] } }],
       ]);
     },
   },

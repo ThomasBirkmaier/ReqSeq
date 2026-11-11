@@ -1,6 +1,6 @@
 // Cross-access scenarios of evidence.list, in addition to the default one (cross-access.test.ts).
 import { scenariosOf } from "../../scenario.js";
-import { EVIDENCE } from "../../fixtures.js";
+import { CRITERIA, EVIDENCE } from "../../fixtures.js";
 
 scenariosOf("evidence.list", [
   {
@@ -22,6 +22,14 @@ scenariosOf("evidence.list", [
     name: "the records of the core of a requirement and its baselines (SR-032 AK2)",
     fixture: { fixture: "SR-032/baselines", git: true },
     input: { ref: "SR-0032a1", view: "core" },
+    expect: "output",
+  },
+  {
+    // E3: records by number of the current version and by key of an older one (SR-031 AK11).
+    name: "the records of a requirement name each criterion with number, key and text (SR-205 AK2)",
+    fixture: CRITERIA,
+    input: { ref: "SR-0000e3" },
+    tag: "[SR-205/AK2]",
     expect: "output",
   },
   {

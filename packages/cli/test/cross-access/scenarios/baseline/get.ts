@@ -61,7 +61,15 @@ scenariosOf("baseline.get", [
     expect: "output",
     check: (results) => {
       expect(baselineEntries(results)["e1"]?.verification).toEqual([
-        { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+        {
+          view: "core",
+          status: "open",
+          criteria: {
+            verified: 2,
+            total: 3,
+            notVerified: [{ criterion: 3, text: "Given a gust, then the peak shows." }],
+          },
+        },
       ]);
     },
   },

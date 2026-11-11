@@ -39,3 +39,20 @@ export const criterionText = (item: unknown): unknown => (isCriterionMapping(ite
 /** The criterion key a file stores for an item (`isKeyedCriterion`), else undefined. */
 export const criterionKey = (item: unknown): string | undefined =>
   isKeyedCriterion(item) ? item.key : undefined;
+
+/**
+ * A criterion as a message names it (SR-205 AK2): `AK2 (k7f3)` with number and key, `AK2` without
+ * key, `AK-k7f3` without number (the key form of a test name, SR-029 AK10).
+ */
+export const criterionLabel = ({
+  criterion,
+  key,
+}: {
+  readonly criterion?: number;
+  readonly key?: string;
+}): string => {
+  if (criterion === undefined) {
+    return `AK-${key ?? ""}`;
+  }
+  return key === undefined ? `AK${String(criterion)}` : `AK${String(criterion)} (${key})`;
+};

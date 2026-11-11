@@ -113,15 +113,15 @@ test.describe("the verification badges", () => {
     expect(wrapped.lines).toBeGreaterThan(1);
     expect(wrapped).toMatchObject({ clipped: false, inside: true, radius: true, corners: true });
     await running.close();
-    // S3 has two criteria; one record proves the first.
+    // S3 has two criteria with keys; one record proves the first, named by its number (SR-030 AK4).
     running = await launchApp({
       fixture: "SR-030/record",
       files: {
         "requirements/SR-00000000c003.md":
           "---\nid: 30303030-3030-4030-8030-00000000c003\ntype: system-requirement\nstatus: draft\n" +
           "title: Show gust speed\nrequirement-type: functional\nacceptance-criteria:\n" +
-          "  - Given the station runs, when a gust comes, then it shows its speed.\n" +
-          "  - Given the station runs, when two gusts come, then it shows the faster.\n" +
+          '  - { key: kgst, text: "Given the station runs, when a gust comes, then it shows its speed." }\n' +
+          '  - { key: kfst, text: "Given the station runs, when two gusts come, then it shows the faster." }\n' +
           "derives-from:\n" +
           "  - { id: 30303030-3030-4030-8030-00000000a001, version: n1:0bb580565f4c2d88, title: Know the wind }\n" +
           "---\n",
@@ -135,7 +135,7 @@ test.describe("the verification badges", () => {
     await openElement(running.window, "Show gust speed");
     await expect(verification(running.window).locator(".badge-name")).toHaveText(["Core"]);
     await expect(verification(running.window).locator(".badge-status")).toHaveText([
-      "open (1 of 2 criteria, AK2 not verified)",
+      "open (1 of 2 criteria, AK2 (kfst) not verified)",
     ]);
   });
 

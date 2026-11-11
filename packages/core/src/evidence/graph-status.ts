@@ -25,6 +25,7 @@ import type { View } from "../variants/index.js";
 import type { VerificationDegree } from "./degree.js";
 import { countedIn, degreeOf, viewIdOf } from "./degree.js";
 import type { VerificationResult } from "./indirect.js";
+import { criterionNameAt } from "./criteria.js";
 import type { CriteriaCount, StatusSource, VerificationEntries } from "./status.js";
 import { entryOf, verificationState } from "./verification.js";
 
@@ -49,10 +50,14 @@ export const shownCriteria = (
   if (result.criteria !== undefined) {
     return result.criteria;
   }
-  const total = source.criteriaOf(element);
+  const { count: total, items } = source.criteriaOf(element);
   return result.status === "indirect" || total === 0
     ? undefined
-    : { verified: 0, total, notVerified: Array.from({ length: total }, (_, i) => i + 1) };
+    : {
+        verified: 0,
+        total,
+        notVerified: Array.from({ length: total }, (_, i) => criterionNameAt(items, i + 1)),
+      };
 };
 
 const NOTHING: NodeVerification = Object.freeze({});

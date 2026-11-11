@@ -2,6 +2,7 @@
 // status source made by hand: which records are a passed test execution, and which elements are listed.
 // The command (`evidence.withoutPassedTest`) on record files is tested in
 // commands/evidence/withoutPassedTest.test.ts.
+import { plainCriteria } from "./criteria.js";
 import { describe, expect, it } from "vitest";
 import type { ElementRecord } from "../model/index.js";
 import type { View } from "../variants/index.js";
@@ -58,7 +59,7 @@ const sourceOf = (records: readonly EvidenceRecord[], independent = false): Stat
   recordsOf: (id) => records.filter((r) => r.element === id),
   emergent: () => false,
   independent: () => independent,
-  criteriaOf: () => 0,
+  criteriaOf: () => plainCriteria(0),
 });
 
 /** The views by validity alone, as the view rule without replacements and exclusions. */

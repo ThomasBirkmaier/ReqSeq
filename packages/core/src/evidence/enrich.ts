@@ -11,17 +11,22 @@
 //   element. Elements named twice count once.
 // - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
-// - Acceptance criteria (SR-029 AK10, D-072): a name token `[<ref>/AK<n>]` and a name pattern match
-//   whose `{ak}` is n (from 1, no leading zero) give a `reqseq:criterion`
-//   `<UUID>:<n>` for the element the reference names (`criterionRefsOf`). An element the name also
-//   names without a criterion (`[SR-x] [SR-x/AK2]`) gets none from the name: the test holds for all
-//   its criteria; another suffix (`/slow`) names the whole requirement too. A suffix `AK` that is no
-//   such number (`AK0`, `AK02`, `AK`, `AK2a`), and `{ak}` that is none, leave the test case unchanged
-//   as `evidence.invalid-record`: enriched without it, it would hold for every criterion. A hand-written `reqseq:criterion` `<ref>:<n>` (short ID, UUID or identifier) is
-//   kept, with its reference replaced by the UUID in place; the criteria of the name that no property
-//   names yet are appended, each once. One that is malformed, or names no element of the test case,
-//   leaves the test case unchanged and is `evidence.invalid-record`. The read-back compares the
-//   criteria per element.
+// - Acceptance criteria (SR-029 AK10, D-072): a name token `[<ref>/AK-<key>]` and a name pattern
+//   match whose `{ak}` is a criterion key give a `reqseq:criterion` `<UUID>:<key>` for the element the
+//   reference names (`criterionRefsOf`). Until the switch-over to key tags (#1419; SR-029 AK13 comes
+//   with it), `[<ref>/AK<n>]` and `{ak}` = n (from 1, no leading zero) are still read, and written as
+//   the key of the criterion at position n of the current version where it has one, else as
+//   `<UUID>:<n>`, because every test name of this repository still names criteria by number
+//   (product owner decision, 2026-11-10: the switch-over runs after the code). An element the name
+//   also names without a criterion (`[SR-x] [SR-x/AK-k7f3]`) gets none from the name: the test holds
+//   for all its criteria; another suffix (`/slow`) names the whole requirement too. A suffix `AK`
+//   that is no such key or number (`AK0`, `AK02`, `AK`, `AK2a`, `AK-x`), and `{ak}` that is none,
+//   leave the test case unchanged as `evidence.invalid-record`: enriched without it, it would hold
+//   for every criterion. A hand-written `reqseq:criterion` `<ref>:<key>` or `<ref>:<n>` (short ID,
+//   UUID or identifier) is kept, with its reference replaced by the UUID in place; the criteria of
+//   the name that no property names yet are appended, each once. One that is malformed, or names no
+//   element of the test case, leaves the test case unchanged and is `evidence.invalid-record`. The
+//   read-back compares the criteria per element.
 // - A test case that names no element (no property, no token that names one) counts in
 //   `withoutReference` (AK4); kept, reported and refused test cases do not.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question ThomasBirkmaier/ReqSeq-archive#529 Q1);
@@ -61,9 +66,15 @@ import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput, ViewId } from "../generated/types.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
+import type { CriterionRef as CriterionValue } from "../model/index.js";
 import {
+  acceptanceCriteriaKeyOf,
+  compareCriterionRefs,
+  criteriaItemsOf,
+  criterionKey,
   currentVersionsOf,
   elementStoreState,
+  isCriterionKey,
   NORMAL_FORM,
   ownEvidenceWrite,
   resolveRef,
@@ -176,6 +187,11 @@ export interface EnrichOptions {
   readonly notRequirement?: ((id: string) => NotRequirement | undefined) | undefined;
   /** The compiled name pattern (AK5, `nameMatcher`); absent: brackets and properties only. */
   readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
+  /**
+   * The acceptance criteria items of the current version of the element `id` (a found one), so a
+   * number tag is written as its criterion's key (see the file comment); absent: numbers as named.
+   */
+  readonly criteriaOf?: ((id: string) => readonly unknown[]) | undefined;
 }
 
 /** An element a verification record cannot name (`notRequirement`). */
@@ -492,38 +508,50 @@ const nameElements = (
 };
 
 /**
- * Criteria by element (the numbers of `criteriaOf`, or a set), as a text to compare with the read-back:
- * the elements by UUID, the numbers ascending, so the order of the properties plays no part.
+ * Criteria by element (the criteria of `criteriaOf`, or a set), as a text to compare with the
+ * read-back: the elements by UUID, the criteria in the reader's order (`compareCriterionRefs`), so the
+ * order of the properties plays no part.
  */
 const criteriaText = (
-  criteria: ReadonlyMap<string, ReadonlyMap<number, unknown> | ReadonlySet<number>>,
+  criteria: ReadonlyMap<string, ReadonlyMap<CriterionValue, unknown> | ReadonlySet<CriterionValue>>,
 ): string =>
   JSON.stringify(
     [...criteria]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([element, numbers]) => [element, [...numbers.keys()].sort((x, y) => x - y)]),
+      .map(([element, named]) => [element, [...named.keys()].sort(compareCriterionRefs)]),
   );
 
 /** A criterion number as the property writes it: a whole number from 1, no sign, no leading zero. */
 const CRITERION_NUMBER = /^[1-9][0-9]*$/;
 
+/** The criterion of a `reqseq:criterion` value after its colon: a number or a key; undefined for another form. */
+const criterionValueOf = (text: string): CriterionValue | undefined => {
+  if (isCriterionKey(text)) {
+    return text;
+  }
+  const n = Number(text);
+  return CRITERION_NUMBER.test(text) && Number.isSafeInteger(n) ? n : undefined;
+};
+
 /**
- * The element and number of a hand-written `reqseq:criterion` `<ref>:<n>` of a test case to enrich
- * that names the elements `elements`, or why it is refused (SR-029 AK10, see the file comment).
+ * The element and criterion of a hand-written `reqseq:criterion` `<ref>:<n>` or `<ref>:<key>` of a
+ * test case to enrich that names the elements `elements`, or why it is refused (SR-029 AK10, see the
+ * file comment).
  */
 const handCriterion = (
   property: JunitProperty,
   elements: ReadonlySet<string>,
   options: EnrichOptions,
-): { readonly id: string; readonly n: number; readonly ref: string } | { readonly error: string } => {
+): { readonly id: string; readonly n: CriterionValue; readonly ref: string } | { readonly error: string } => {
   const text = property.value.trim();
-  // The last colon: an identifier may hold one, a number never.
+  // The last colon: an identifier may hold one, a number or key never.
   const colon = text.lastIndexOf(":");
   const ref = colon < 0 ? "" : text.slice(0, colon).trim();
-  const digits = text.slice(colon + 1);
-  const n = Number(digits);
-  if (ref === "" || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(n)) {
-    return { error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element reference>:<number from 1>` };
+  const n = criterionValueOf(text.slice(colon + 1));
+  if (ref === "" || n === undefined) {
+    return {
+      error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element reference>:<number from 1 or criterion key>`,
+    };
   }
   const resolution = options.resolve(ref);
   if (resolution.kind === "found" && elements.has(resolution.id)) {
@@ -539,6 +567,18 @@ const handCriterion = (
 };
 
 /**
+ * The criterion a name tag writes (SR-029 AK10): a key as named; a number as the key of the criterion
+ * at that position of the current `items` where it has one, else the number. The number form is kept
+ * only until the switch-over to key tags (#1419), because every test name of this repository still
+ * names criteria by number (product owner decision, 2026-11-10: the switch-over runs after the code).
+ */
+const writtenCriterion = (
+  criterion: CriterionValue,
+  items: readonly unknown[] | undefined,
+): CriterionValue =>
+  typeof criterion === "number" ? (criterionKey(items?.[criterion - 1]) ?? criterion) : criterion;
+
+/**
  * The criteria the name of a test case gives for the elements `elements` (`criterionRefsOf`), in name
  * order, without those of an element the name also names without a criterion (all of them); or why
  * it is not enriched: a malformed criterion of one of them.
@@ -547,8 +587,8 @@ const nameCriteria = (
   testCase: JunitTestCase,
   elements: ReadonlySet<string>,
   options: EnrichOptions,
-): [string, number][] | { readonly error: string } => {
-  const found: [string, number][] = [];
+): [string, CriterionValue][] | { readonly error: string } => {
+  const found: [string, CriterionValue][] = [];
   const whole = new Set<string>();
   for (const { ref, criterion, malformed } of criterionRefsOf(testCase.name, options.namePattern)) {
     const resolution = ref === "" ? undefined : options.resolve(ref);
@@ -558,13 +598,13 @@ const nameCriteria = (
     if (malformed !== undefined) {
       // Enriched without it, the test case would hold for every criterion of the element (D-072).
       return {
-        error: `"${shown(malformed)}" names no acceptance criterion: write AK and a number from 1 without leading zero`,
+        error: `"${shown(malformed)}" names no acceptance criterion: write AK- and its criterion key, or AK and a number from 1 without leading zero`,
       };
     }
     if (criterion === undefined) {
       whole.add(resolution.id);
     } else {
-      found.push([resolution.id, criterion]);
+      found.push([resolution.id, writtenCriterion(criterion, options.criteriaOf?.(resolution.id))]);
     }
   }
   return found.filter(([id]) => !whole.has(id));
@@ -584,10 +624,10 @@ const criteriaPlanOf = (
   options: EnrichOptions,
 ): CriteriaPlan | { readonly error: string } => {
   const elements = new Set(ids);
-  const numbers = new Map<string, Set<number>>();
+  const numbers = new Map<string, Set<CriterionValue>>();
   /** Adds `n` for `id`; false when it was there. */
-  const put = (id: string, n: number): boolean => {
-    const set = numbers.get(id) ?? new Set<number>();
+  const put = (id: string, n: CriterionValue): boolean => {
+    const set = numbers.get(id) ?? new Set<CriterionValue>();
     numbers.set(id, set);
     const added = !set.has(n);
     set.add(n);
@@ -1675,6 +1715,8 @@ export const enrichJunitFile = async (
         : { type: record.type, repository: record.repository };
     },
     namePattern: pattern === undefined ? undefined : nameMatcher(pattern, typePrefixes),
+    // Asked only for an element `resolve` found, which `resolverOf` put into `found`.
+    criteriaOf: (id) => criteriaItemsOf(found.get(id)?.data, acceptanceCriteriaKeyOf(metamodel)),
   });
   const output = {
     testCases: result.testCases,

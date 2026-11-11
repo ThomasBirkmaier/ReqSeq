@@ -101,7 +101,7 @@ total: 1
 
 The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without evidence.
 
-For a check that is no automated test, such as an inspection, write a record by hand. When the check proves only some acceptance criteria, give their numbers, counted from 1; without `--criteria` the record holds for all of them:
+For a check that is no automated test, such as an inspection, write a record by hand. When the check proves only some acceptance criteria, give their criterion keys or their numbers, counted from 1; the record holds their keys, and a criterion without key, or with a key another one carries too, is refused. Without `--criteria` the record holds for all of them:
 
 ```sh
 reqseq evidence record SR-c67baa verification passed --method inspection --item build-1 --criteria 2 --criteria 3

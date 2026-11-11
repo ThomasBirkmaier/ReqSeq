@@ -13,6 +13,16 @@ export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
 export { bearingRecords } from "./bearing.js";
 export type { Display, DisplayInput } from "./display.js";
 export { displayOf } from "./display.js";
+export {
+  criterionLabel,
+  criterionNameAt,
+  elementCriteria,
+  namedCriterion,
+  NO_OLDER_CRITERIA,
+  plainCriteria,
+} from "./criteria.js";
+export type { ElementCriteria, OlderCriteria } from "./criteria.js";
+export { olderCriteriaOf, olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
 export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { EnrichOptions, EnrichResult, RefResolution, UnknownRef, VersionLookup } from "./enrich.js";

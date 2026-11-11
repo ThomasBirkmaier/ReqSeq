@@ -26,6 +26,29 @@ const S1 = U("c001");
 const S2 = U("c002");
 const DATE = "2026-10-27T10:00:00Z";
 
+/** S2 with three criteria: its own text with key `kdir`, one with key `kcal`, one without key. */
+const S2_FILE = "requirements/SR-00000000c002.md";
+const S2_TEXT = "Given the station runs, when it is checked, then it does this - show wind direction.";
+const s2With = (criteria: string): string => `---
+id: 30303030-3030-4030-8030-00000000c002
+type: system-requirement
+status: draft
+title: Show wind direction
+requirement-type: functional
+acceptance-criteria:
+${criteria}
+derives-from:
+  - { id: 30303030-3030-4030-8030-00000000a001, version: n1:0bb580565f4c2d88, title: Know the wind }
+---
+
+No records.
+`;
+const S2_KEYED = s2With(`  - { key: kdir, text: "${S2_TEXT}" }
+  - Shown in knots.
+  - { key: kcal, text: Calibrated }`);
+const S2_DOUBLE = s2With(`  - { key: kdup, text: "${S2_TEXT}" }
+  - { key: kdup, text: Shown in knots. }`);
+
 const open = async (
   files: Readonly<Record<string, string>> = {},
 ): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
@@ -210,50 +233,75 @@ describe("evidence.record (SR-030)", () => {
     expect(withEvidence.elements.map((e) => e.id)).not.toContain(N1);
   });
 
-  it("a record with the number of an acceptance criterion has the number in its file", async () => {
-    const { fixture, workspace } = await open();
-    const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: [1] });
+  it("[SR-030/AK4] takes criteria by number or key, writes their keys and names number, key and the start of the text", async () => {
+    const { fixture, workspace } = await open({ [S2_FILE]: S2_KEYED });
+    const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: ["3", "kdir"] });
     const file = "evidence/2026-10-27-SR-00c002-inspection.md";
     expect(output.files).toEqual([file]);
     const frontmatter = await frontmatterOf(fixture, file);
-    expect(frontmatter).toMatchObject({ element: S2, criteria: [1] });
+    expect(frontmatter).toMatchObject({ element: S2, criteria: ["kcal", "kdir"] });
     expect(fileSchemaValidator("evidence-record.schema.json")(frontmatter)).toBe(true);
-    expect(output.record.criteria).toEqual([1]);
+    expect(output.record.criteria).toEqual(["kcal", "kdir"]);
+    expect(output.criteria).toEqual([
+      { criterion: 1, key: "kdir", text: S2_TEXT.slice(0, 60) },
+      { criterion: 3, key: "kcal", text: "Calibrated" },
+    ]);
     expect(output.problems).toEqual([]);
     const listed = (await invoke(
       "evidence.list",
       { ref: "SR-00c002" },
       { workspace },
     )) as CommandOutput<"evidence.list">;
-    expect(listed.records).toEqual([{ ...output.record, baselines: [] }]);
-  });
-
-  it("writes no criteria without a number (the record holds for every criterion, D-072) and the numbers in ascending order", async () => {
-    const { fixture, workspace } = await open();
-    const all = await record(workspace, { ref: "SR-00c002", ...INSPECTION });
+    expect(listed.records).toEqual([
+      {
+        ...output.record,
+        baselines: [],
+        // In the order of `criteria` (SR-205 AK2).
+        criterionNames: [
+          { criterion: 3, key: "kcal", text: "Calibrated" },
+          { criterion: 1, key: "kdir", text: S2_TEXT },
+        ],
+      },
+    ]);
+    // Without criteria the record holds for every criterion (D-072) and the file names none.
+    const all = await record(workspace, { ref: "SR-00c001", ...INSPECTION });
     expect(all.record.criteria).toBeUndefined();
+    expect(all.criteria).toBeUndefined();
     expect(await frontmatterOf(fixture, all.files[0] ?? "")).not.toHaveProperty("criteria");
-    const two = await record(workspace, { ref: "SR-00c001", ...INSPECTION, criteria: [3, 1] });
-    expect(await frontmatterOf(fixture, two.files[0] ?? "")).toMatchObject({ criteria: [1, 3] });
-    expect(two.record.criteria).toEqual([1, 3]);
   });
 
-  it("writes a number the current version does not have, with evidence.unknown-criterion at the line of criteria as workspace.check gives it (SR-028 AK5)", async () => {
-    const { workspace } = await open();
-    const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: [1, 2, 4] });
-    const file = "evidence/2026-10-27-SR-00c002-inspection.md";
-    const problem = {
-      code: "evidence.unknown-criterion",
-      severity: "warning",
-      repository: "system",
-      file,
-      line: 10,
-      targetId: S2,
-    };
-    expect(output.problems).toEqual([expect.objectContaining(problem)]);
-    expect(output.problems?.[0]?.message).toMatch(/criteria 2, 4 of element .* has 1; they count/);
-    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(checked.problems.filter((p) => p.code === "evidence.unknown-criterion")).toEqual(output.problems);
+  it("[SR-030/AK4] refuses a criterion without key, a number or key the current version lacks, and malformed criteria, and writes nothing", async () => {
+    const { fixture, workspace } = await open({ [S2_FILE]: S2_KEYED });
+    const before = await filesOf(fixture);
+    const refusals: [readonly unknown[], string][] = [
+      [[2], "criterion-without-key"],
+      [["kdir", 4], "unknown-criterion"],
+      [["kxyz"], "unknown-criterion"],
+    ];
+    for (const [criteria, reason] of refusals) {
+      const error = await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria });
+      expect([error.code, error.details]).toEqual([
+        "input.invalid",
+        expect.objectContaining({ command: "evidence.record", fields: ["criteria"], reason }),
+      ]);
+    }
+    expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: [2] })).message).toBe(
+      "Not written: acceptance criterion 2 has no criterion key; give the criteria their keys first (SR-204)",
+    );
+    expect(await filesOf(fixture)).toEqual(before);
+  });
+
+  it("[SR-030/AK5] refuses a criterion whose key another criterion of the current version carries too, and writes nothing", async () => {
+    const { fixture, workspace } = await open({ [S2_FILE]: S2_DOUBLE });
+    const before = await filesOf(fixture);
+    for (const criteria of [["kdup"], [1], [2]]) {
+      const error = await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria });
+      expect([error.code, error.details]).toEqual([
+        "input.invalid",
+        expect.objectContaining({ fields: ["criteria"], reason: "criterion-key-duplicate" }),
+      ]);
+    }
+    expect(await filesOf(fixture)).toEqual(before);
   });
 
   it("refuses criteria on a validation record (it counts per element, SR-030 AK3) and malformed or oversized numbers, and writes nothing", async () => {
@@ -270,7 +318,17 @@ describe("evidence.record (SR-030)", () => {
       "input.invalid",
       { command: "evidence.record", fields: ["criteria"], reason: "validation-with-criteria" },
     ]);
-    for (const criteria of [[], [0], [1, 1], [1.5], ["1"], [Number.MAX_SAFE_INTEGER + 1], [1e21]]) {
+    for (const criteria of [
+      [],
+      [0],
+      [1, 1],
+      [1.5],
+      ["01"],
+      ["K1"],
+      ["abc"],
+      [Number.MAX_SAFE_INTEGER + 1],
+      [1e21],
+    ]) {
       expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria })).code).toBe(
         "input.invalid",
       );

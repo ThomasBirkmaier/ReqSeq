@@ -663,17 +663,21 @@ describe("JUnit reader (SR-093)", () => {
         `${property("reqseq:version", V1)}${property("reqseq:version", V2)}`,
         `${property("reqseq:item", "b")}${property("reqseq:date", DATE)}`,
         property("reqseq:criterion", `${REPORT.toUpperCase()}:3`),
+        property("reqseq:criterion", ` ${REPORT}:m2x9 `),
         property("reqseq:criterion", ` ${REPORT}:1 `),
+        property("reqseq:criterion", `${REPORT}:k7f3`),
         property("reqseq:criterion", `${REPORT}:3`),
+        property("reqseq:criterion", `${REPORT}:k7f3`),
         "</properties></testcase>",
       ].join("\n"),
     );
     const read = readJunitRecords(AT, bytes);
     expect(read.problems).toBeUndefined();
-    // LOGIN has no criterion property: it holds for all its criteria. A number named twice counts once.
+    // LOGIN has no criterion property: it holds for all its criteria. A criterion named twice counts
+    // once; keys and numbers mix, numbers first, then keys (D-072).
     expect(read.records.map((r) => [r.element, r.criteria])).toEqual([
       [LOGIN, undefined],
-      [REPORT, [1, 3]],
+      [REPORT, [1, 3, "k7f3", "m2x9"]],
     ]);
     expect(read.records[0]).not.toHaveProperty("criteria");
   });
@@ -687,15 +691,19 @@ describe("JUnit reader (SR-093)", () => {
         ),
       );
     for (const [value, reason] of [
-      [`${LOGIN}:0`, "is not <element UUID>:<number from 1>"],
-      [`${LOGIN}:02`, "is not <element UUID>:<number from 1>"],
-      [`${LOGIN}:+2`, "is not <element UUID>:<number from 1>"],
-      [`${LOGIN}:`, "is not <element UUID>:<number from 1>"],
-      [`${LOGIN}:99999999999999999999`, "is not <element UUID>:<number from 1>"],
-      ["2", "is not <element UUID>:<number from 1>"],
+      [`${LOGIN}:0`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:02`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:+2`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:99999999999999999999`, "is not <element UUID>:<number from 1 or criterion key>"],
+      ["2", "is not <element UUID>:<number from 1 or criterion key>"],
       [`${REPORT}:2`, "names no reqseq:element of the test case"],
-      ["SR-46fb54:2", "is not <element UUID>:<number from 1>"],
-      [`${LOGIN} :2`, "is not <element UUID>:<number from 1>"],
+      ["SR-46fb54:2", "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN} :2`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:AK2`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:2a`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:k7f`, "is not <element UUID>:<number from 1 or criterion key>"],
+      [`${LOGIN}:K7F3`, "is not <element UUID>:<number from 1 or criterion key>"],
     ] as const) {
       const read = readJunitRecords(AT, at(value));
       expect(read.records, value).toEqual([]);

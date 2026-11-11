@@ -7,7 +7,8 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
+// `evidenceSource` (#821) and, where it names criteria, their numbers, keys and texts
+// (`criterionNames`, SR-205 AK2). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
 // app (AK3 to AK5, `displayOf`, over the views the element applies in, without that of a variant
 // whose status is invalid unless `view` names it, SR-047 AK6). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
@@ -19,17 +20,18 @@ import {
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
+  namedCriterion,
+  plainCriteria,
   testCaseWithEvidenceSource,
   testCasesIn,
   validatesType,
   verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
-import type { ViewHolder } from "../../evidence/index.js";
+import type { ElementCriteria, EvidenceRecord, ViewHolder } from "../../evidence/index.js";
+import type { VersionForms } from "../../model/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
-  acceptanceCriteriaKeyOf,
-  criteriaCount,
   currentVersionsOf,
   elementStoreState,
   formsOfEntry,
@@ -51,6 +53,26 @@ const shownView = ({ view: holder, invalid }: ViewHolder, asked: View | undefine
     : holder.kind === "core"
       ? asked.kind === "core"
       : asked.kind === "variant" && asked.variant.id === holder.variant.id;
+
+/**
+ * `record` with `criterionNames`: each criterion it names with number, key and text (SR-205 AK2,
+ * `namedCriterion`), the number that of the current version.
+ */
+const withCriterionNames = (
+  record: EvidenceRecord,
+  criteria: ElementCriteria,
+  current: VersionForms | undefined,
+): EvidenceRecord => {
+  const resolved = criteria.resolve(record, current);
+  if (resolved === undefined) {
+    return record;
+  }
+  const named = criteria.namedItems(record, current);
+  return {
+    ...record,
+    criterionNames: resolved.map((r) => namedCriterion(r, criteria.items, named)),
+  };
+};
 
 export default defineCommand({
   name: "evidence.list",
@@ -85,15 +107,14 @@ export default defineCommand({
     const listed = listedRecords(records, view, independent, (id, version) =>
       baselinesContaining(baselines, id, storedForms(version, current)),
     ).map(withEvidenceSource);
-    const count =
-      listed.length === 0
-        ? 0
-        : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
-    const bearing = bearingRecords(listed, current, count, independent);
     // The views the element applies in (the view rule of the status, as `verificationOf`), with
     // `view` that one alone, as `listed` holds only its records; none for an element that is no
     // requirement. Read only for an element with records.
     const status = listed.length === 0 ? undefined : await ctx.workspace.get(verificationState);
+    // Its criteria as the status counts them (key or number, older versions through Git, SR-031 AK11).
+    const criteria = status === undefined ? plainCriteria(0) : status.source.criteriaOf(element);
+    const named = listed.map((record) => withCriterionNames(record, criteria, current));
+    const bearing = bearingRecords(named, current, criteria, independent);
     const views =
       status?.source.requirements.has(element.type) !== true
         ? []
@@ -101,12 +122,12 @@ export default defineCommand({
             .filter((holder) => holder.includes(element) && shownView(holder, view))
             .map(({ view: holder }) => holder);
     return {
-      records: listed,
+      records: named,
       bearing,
-      display: displayOf(listed, {
+      display: displayOf(named, {
         bearing,
         current,
-        count,
+        criteria,
         views,
         independent,
         validates: status !== undefined && validatesType(status.source, element.type),

@@ -560,7 +560,7 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     expect(nodeIn(inCoast, b001)?.verification?.map((v) => v.view)).toEqual([coast]);
     expect([nodeIn(inCoast, b099)?.verification, nodeIn(inCoast, b099)?.criteria]).toEqual([
       [{ view: coast, status: "open" }],
-      { verified: 0, total: 1, notVerified: [1] },
+      { verified: 0, total: 1, notVerified: [{ criterion: 1, text: expect.any(String) as string }] },
     ]);
   });
 
@@ -569,12 +569,12 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     const r11 = await nodeOf(workspace, U("b011"));
     expect([r11.verification?.[0]?.status, r11.criteria]).toEqual([
       "open",
-      { verified: 2, total: 3, notVerified: [3] },
+      { verified: 2, total: 3, notVerified: [{ criterion: 3, text: expect.any(String) as string }] },
     ]);
     const r09 = await nodeOf(workspace, U("b009"));
     expect([r09.verification?.[0]?.status, r09.criteria]).toEqual([
       "open",
-      { verified: 0, total: 1, notVerified: [1] },
+      { verified: 0, total: 1, notVerified: [{ criterion: 1, text: expect.any(String) as string }] },
     ]);
     expect((await nodeOf(workspace, U("b001"))).criteria).toEqual({ verified: 1, total: 1 });
   });
