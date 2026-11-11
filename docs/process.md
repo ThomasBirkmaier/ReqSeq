@@ -38,7 +38,8 @@ Every spec change and every fix of a bug against an AK starts with a check of wh
 | Scope | One task that one PR finishes. Several PRs: an `epic` with sub-issues. |
 | Title | English, what is different afterwards or what is wrong, keyword first, about 70 characters, no prefix. |
 | Body | Opens with 1–3 sentences without jargon. `SR: SR-112 (AK1, AK2)` when it implements or breaks an AK. |
-| Milestone | Only when version x.y needs it. |
+| Milestone | Every open issue: the open version x.y whose goal it serves, a bug or flake the next one. |
+| Epic | A step of an open epic becomes its sub-issue. |
 | Closing | The merged PR, with `Closes #`. Without a PR only with the product owner's approval. |
 
 ## Labels

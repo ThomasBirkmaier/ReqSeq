@@ -29,7 +29,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|mcp__github__issue_write",
         "hooks": [
           {
             "type": "command",
