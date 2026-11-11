@@ -25,9 +25,12 @@
 //     read in pieces under its snapshot and the `jsonl` guard, which checks the same way; anything else
 //     is `input.invalid` and stays as it is. Old `<commit>.json` files are neither read nor replaced.
 // - The content is the JSON Lines of `data export --jsonl` (`jsonLines` with `DATA_LINES`, the
-//   catalog's `jsonLines` of data.export): per element `reqseq-data`, `commit` and `dirty`, then the
-//   element; compact, LF, UTF-8 without BOM (K5). It is written in chunks, never as one string, which
-//   V8 cannot hold at N-036 (#277).
+//   catalog's `jsonLines` of data.export): per element `reqseq-data`, `commit`, `dirty`,
+//   `repositories` (the commit of each available repository, and `available: false` for one that is
+//   not on this machine) and `incomplete`, then the element (SR-062 AK1, #1454); compact, LF, UTF-8
+//   without BOM (K5). It is written in chunks, never as one string, which V8 cannot hold at N-036
+//   (#277). A selection without elements gives an empty file, which names only the main commit, by
+//   its name (assumption of the open question #1461).
 // - `files` is relative to the workspace root when the file lies in a repository, else absolute.
 // - No status is read for writing or written (D-030), Git is only read (D-036), nothing is deleted
 //   (D-045); the replaced file is a data file, never an element.
@@ -58,7 +61,10 @@ export const dataFileName = (commit: string, clean: boolean): string =>
   `${commit}${clean ? "" : "-dirty"}.jsonl`;
 
 /** The lines of the file: the catalog's `jsonLines` of data.export (a test keeps them equal). */
-export const DATA_LINES: JsonLinesSpec = { items: "elements", fields: ["reqseq-data", "commit", "dirty"] };
+export const DATA_LINES: JsonLinesSpec = {
+  items: "elements",
+  fields: ["reqseq-data", "commit", "dirty", "repositories", "incomplete"],
+};
 
 /** How `storeData` reads what it does not get from the workspace (tests). */
 export interface StoreOptions extends ExportOptions {

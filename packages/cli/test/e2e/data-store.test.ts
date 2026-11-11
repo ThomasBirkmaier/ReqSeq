@@ -67,6 +67,13 @@ interface StoredLine {
   readonly "reqseq-data": number;
   readonly commit?: string;
   readonly dirty: boolean;
+  readonly repositories: readonly {
+    readonly name: string;
+    readonly available: boolean;
+    readonly commit?: string;
+    readonly dirty?: boolean;
+  }[];
+  readonly incomplete: boolean;
   readonly id: string;
   readonly shortId: string;
   readonly title: string;
@@ -112,12 +119,39 @@ describe("reqseq data store (SR-062)", () => {
     expect(text).toBe(lines.stdout);
     const stored = linesOf(text);
     expect(stored.map((l) => l.shortId)).toHaveLength(9);
+    // Every line names the commit of each repository and that none is missing (#1454).
+    const repositories = [
+      { name: "system", available: true, commit, dirty: false },
+      { name: "sensor", available: true, commit: await ws.head("sensor"), dirty: false },
+    ];
     for (const line of stored) {
       expect([line.shortId, line["reqseq-data"], line.commit, line.dirty]).toEqual([
         line.shortId,
-        3,
+        4,
         commit,
         false,
+      ]);
+      expect([line.shortId, line.repositories, line.incomplete]).toEqual([line.shortId, repositories, false]);
+    }
+  });
+
+  it("[SR-062/AK1] with a repository of the workspace missing, every line of out/<commit>.jsonl marks it", async () => {
+    const ws = await fixture();
+    await fs.rm(ws.path("sensor"), { recursive: true });
+    const commit = await ws.head("system");
+    const result = await inSystem(ws, ["data", "store", "--folder", "out"]);
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    expect(await fs.readdir(ws.path("system/out"))).toEqual([`${commit}.jsonl`]);
+    const stored = linesOf(await fs.readFile(ws.path(`system/out/${commit}.jsonl`), "utf8"));
+    expect(stored.length).toBeGreaterThan(0);
+    for (const line of stored) {
+      expect([line.shortId, line.repositories, line.incomplete]).toEqual([
+        line.shortId,
+        [
+          { name: "system", available: true, commit, dirty: false },
+          { name: "sensor", available: false },
+        ],
+        true,
       ]);
     }
   });

@@ -239,6 +239,8 @@ describe("catalog checks (jsonLines, #319)", () => {
     };
     expect(lines({ items: "rows", fields: [] })).toEqual([]);
     expect(lines({ items: "rows", fields: ["mark"] }, inline)).toEqual([]);
+    // Another array is a value every line carries (data.export: `repositories`, SR-062 AK1).
+    expect(lines({ items: "rows", fields: ["names"] })).toEqual([]);
   });
 
   it("refuses items that are no top-level array", () => {
@@ -250,10 +252,10 @@ describe("catalog checks (jsonLines, #319)", () => {
     ]);
   });
 
-  it("refuses fields that are missing, arrays, or also keys of an item", () => {
-    expect(lines({ items: "rows", fields: ["missing", "names", "version"] })).toEqual([
+  it("refuses fields that are missing, the array of the lines, or also keys of an item", () => {
+    expect(lines({ items: "rows", fields: ["missing", "rows", "version"] })).toEqual([
       'schemas/commands/test.one.json: jsonLines: "missing" is not a top-level field of the output',
-      'schemas/commands/test.one.json: jsonLines: "names" is an array',
+      'schemas/commands/test.one.json: jsonLines: "rows" is the array of the lines',
       'schemas/commands/test.one.json: jsonLines: "version" is also a property of the items of "rows"',
     ]);
   });

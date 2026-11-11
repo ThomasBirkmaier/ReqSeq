@@ -11,6 +11,7 @@ import {
   EVIDENCE,
   IDENTIFIERS,
   MISSING_TARGETS,
+  OBSOLETE_SOURCE,
   ORPHANED_CHAIN,
   VARIANT_EVIDENCE,
   replaceOnce,
@@ -60,6 +61,21 @@ const statusFindings = (result: Result | undefined): (string | undefined)[][] =>
     .map((p) => [p.code, p.severity, p.elementShortId, p.file]);
 
 scenariosOf("workspace.check", [
+  {
+    name: "an outdated reference of an obsolete source is no finding (SR-025 AK5)",
+    fixture: OBSOLETE_SOURCE,
+    input: {},
+    tag: "[SR-025/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { problems: { code: string; elementId?: string }[] } }
+      ).output;
+      const sources = output.problems.filter((p) => p.code === "relation.outdated").map((p) => p.elementId);
+      expect(sources).toContain("26a0b000-0000-4000-8000-0000000000b1");
+      expect(sources).not.toContain("26a0b000-0000-4000-8000-0000000000b8");
+    },
+  },
   {
     name: "a record for a variant that replaces its requirement counts in no view and is a finding (SR-047 AK5)",
     fixture: VARIANT_EVIDENCE,

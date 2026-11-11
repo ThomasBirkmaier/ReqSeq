@@ -562,6 +562,43 @@ describe("outdated relations and references (SR-025)", () => {
     ]);
   });
 
+  it("[SR-025/AK5] reports no outdated relation or reference of a source with an invalid status, in the check, hint.list, element.get and hint.confirm; trace.graph keeps them visible", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    const before = outdated(await check(workspace)).filter((p) => p.elementId === A);
+    expect(before.map((p) => p.targetId)).toEqual([V, N, N]);
+    // A becomes obsolete (D-044) while the workspace is open: the state is carried over the write.
+    await invoke("element.setStatus", { refs: [A], status: "obsolete" }, { workspace });
+    const fromA = (problems: readonly Problem[]): Problem[] =>
+      problems.filter((p) => p.elementId === A && p.code === "relation.outdated");
+    expect(fromA((await check(workspace)).problems)).toEqual([]);
+    expect(fromA((await check(open(ws.root))).problems)).toEqual([]);
+    const listed = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;
+    expect(listed.hints.filter((h) => h.elementId === A && h.code === "relation.outdated")).toEqual([]);
+    const shown = (await invoke("element.get", { ref: A }, { workspace })) as CommandOutput<"element.get">;
+    expect(fromA(shown.element.problems ?? [])).toEqual([]);
+    const confirmed = (await invoke(
+      "hint.confirm",
+      { hintIds: [defined(before[1]).hintId] },
+      { workspace },
+    )) as CommandOutput<"hint.confirm">;
+    expect((confirmed.problems ?? []).map((p) => p.code)).toEqual(["hint.not-found"]);
+    // In the chain the relations stay visible: outdated edges, and A carries both marks.
+    const graph = (await invoke("trace.graph", { ref: A }, { workspace })) as CommandOutput<"trace.graph">;
+    expect(graph.edges.filter((e) => e.source === A && e.outdated).map((e) => [e.target, e.link])).toEqual([
+      [V, "relation"],
+      [N, "relation"],
+      [N, "reference"],
+    ]);
+    expect(graph.nodes.find((n) => n.id === A)?.marks).toEqual(["outdated", "superseded"]);
+    // Back to a valid status, the hints are reported again.
+    await invoke("element.setStatus", { refs: [A], status: "draft" }, { workspace });
+    expect(fromA((await check(workspace)).problems).map((p) => p.hintId)).toEqual(
+      before.map((p) => p.hintId),
+    );
+  });
+
   it("is carried over a save as a fresh build gives it, looking again at the sources of relations to the saved element", async () => {
     const ws = await fixture();
     await changeTargets(ws);

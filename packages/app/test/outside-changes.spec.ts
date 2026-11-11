@@ -13,6 +13,8 @@ const FIXTURE = { fixture: "SR-069/filter" };
 /** SR-0000b1 "Measure wind speed" and the text of its file. */
 const ELEMENT = "SR-0000b1";
 const TITLE = "Measure wind speed";
+/** What a save of its text adds to "Saved <name>": two elements point at it (SR-024 AK2). */
+const AFFECTED = ": 2 elements directly affected";
 const TEXT = "b1: derives from N1, in package P1.";
 const FILE = path.join("requirements", "SR-0000000000b1.md");
 /** The caret after "derives" in the text. */
@@ -171,7 +173,7 @@ test.describe("changes from outside the app", () => {
     // Typing goes where the caret was, after the same word, and saving writes it there.
     await window.keyboard.type("X");
     await window.keyboard.press("ControlOrMeta+S");
-    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}`);
+    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}${AFFECTED}`);
     const file = await fs.readFile(path.join(running.workspace?.root ?? "", FILE), "utf8");
     expect(file).toContain("Now: b1: derivesX from N1, in package P1.");
   });
@@ -182,10 +184,10 @@ test.describe("changes from outside the app", () => {
     await window.keyboard.press("Enter");
     await window.keyboard.type(" Saved here.");
     await window.keyboard.press("ControlOrMeta+S");
-    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}`);
+    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}${AFFECTED}`);
     // Longer than a batch of the watcher takes (at most 1 s).
     await window.waitForTimeout(1500);
     await expect(window.locator(".outside-change")).toHaveCount(0);
-    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}`);
+    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}${AFFECTED}`);
   });
 });

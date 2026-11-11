@@ -128,6 +128,85 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
+  it("[SR-025/AK4] reports a criterion with records of older versions only while the others are verified (SR-031 AK8)", async () => {
+    // fixtures/SR-031/criteria: SR-0000e3 has AK1 and AK2 passed at its current version, AK3 only at
+    // an older one, so its status is outdated (SR-031 AK8); the other requirements are not outdated.
+    const fixture = await createFixtureWorkspace({ fixture: "SR-031/criteria" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const E3 = "31313131-0000-4000-8000-3131310000e3";
+    const status = (await invoke(
+      "evidence.status",
+      { selection: { ids: [E3] } },
+      { workspace },
+    )) as CommandOutput<"evidence.status">;
+    expect(status.elements[0]?.verification?.[0]?.status).toBe("outdated");
+    const out = (await invoke("workspace.check", { failOn: "warning" }, { workspace })) as Output;
+    expect(out.ok).toBe(false);
+    expect(out.problems.filter((p) => p.code === "evidence.outdated")).toEqual([
+      {
+        code: "evidence.outdated",
+        severity: "warning",
+        message:
+          "The verification of System Requirement SR-0000e3 is outdated: AK3 only has records of older versions, the newest from 2026-11-02T10:00:00Z",
+        repository: "system",
+        file: "evidence/e3-ak3-older.md",
+        line: 1,
+        elementId: E3,
+        elementShortId: "SR-0000e3",
+        elementRepository: "system",
+        elementFile: "requirements/SR-3131310000e3.md",
+        storedVersion: "n2:0000000000000000",
+        currentVersion: "n2:de10890cdf8c6167",
+      },
+    ]);
+  });
+
+  it("[SR-025/AK4] names every criterion with records of older versions only, and none once all are verified", () => {
+    const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
+    const findings = (records: readonly EvidenceRecord[]): string[] =>
+      outdatedEvidenceFindings(
+        [element],
+        records,
+        () => forms(A_VERSION),
+        () => "B",
+        () => false,
+        () => 3,
+      ).map((p) => p.message);
+    const two = [
+      record(B, A_VERSION, "2026-01-02T00:00:00Z", { criteria: [1] }),
+      record(B, OLD, "2026-01-01T00:00:00Z", { criteria: [2] }),
+      record(B, OLD, "2026-01-01T01:00:00Z", { criteria: [3] }),
+    ];
+    expect(findings(two)).toEqual([
+      "The verification of B is outdated: AK2, AK3 only have records of older versions, the newest from 2026-01-01T01:00:00Z",
+    ]);
+    expect(findings([...two, record(B, A_VERSION, "2026-01-03T00:00:00Z")])).toEqual([]);
+    // The named record is one of an outdated criterion, not a newer older record of a verified one.
+    const hints = outdatedEvidenceFindings(
+      [element],
+      [
+        record(B, A_VERSION, "2026-01-03T00:00:00Z", { criteria: [1] }),
+        record(B, OLD, "2026-01-02T00:00:00Z", { criteria: [1], file: "evidence/ak1-old.md" }),
+        record(B, OLD, "2026-01-01T00:00:00Z", { criteria: [2], file: "evidence/ak2-old.md" }),
+      ],
+      () => forms(A_VERSION),
+      () => "B",
+      () => false,
+      () => 2,
+    );
+    expect(hints.map((p) => [p.message, p.file])).toEqual([
+      [
+        "The verification of B is outdated: AK2 only has records of older versions, the newest from 2026-01-01T00:00:00Z",
+        "evidence/ak2-old.md",
+      ],
+    ]);
+    // A verification record of the current version that is inconclusive decides nothing, so the
+    // status is outdated, but it is not of an older version: there is no record to name.
+    expect(findings([record(B, A_VERSION, "2026-01-01T00:00:00Z", { result: "inconclusive" })])).toEqual([]);
+  });
+
   it("[SR-025/AK4] takes the newest record per kind and variant", async () => {
     const workspace = await withRecords([
       record(A, A_VERSION, "2026-01-03T00:00:00Z"),
@@ -252,6 +331,29 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(
       findings([forV, record(B, A_VERSION, "2026-01-01T00:00:00Z", { kind: "validation" })], marked),
     ).toHaveLength(1);
+    // The variant passes AK1 at the current version, the core AK2, and AK3 has only an older record
+    // without variant: the core is open (AK1 has none there), the pooled variant outdated, and its
+    // hint names the variant and the core's record of AK3.
+    const located = { repository: "supplier", file: "evidence/ak3.md", line: 1 };
+    const pooledHints = outdatedEvidenceFindings(
+      [element],
+      [
+        record(B, A_VERSION, "2026-01-02T00:00:00Z", { variant: V, criteria: [1] }),
+        record(B, A_VERSION, "2026-01-02T00:00:00Z", { criteria: [2] }),
+        record(B, OLD, "2026-01-01T00:00:00Z", { criteria: [3], ...located }),
+      ],
+      () => forms(A_VERSION),
+      label,
+      marked,
+      () => 3,
+    );
+    expect(pooledHints.map((p) => [p.message, p.file, p.storedVersion])).toEqual([
+      [
+        `The verification of B for variant ${V} is outdated: AK3 only has records of older versions, the newest from 2026-01-01T00:00:00Z`,
+        "evidence/ak3.md",
+        OLD,
+      ],
+    ]);
   });
 
   it("is computed again when the workspace file marks the repository (SR-173)", async () => {

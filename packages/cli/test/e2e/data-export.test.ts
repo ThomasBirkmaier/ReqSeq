@@ -168,11 +168,23 @@ describe("reqseq data export --jsonl (SR-061 AK4, #319)", () => {
       const lines = await exportIn(ws, [...args, "--jsonl"]);
       expect([args, lines.code, lines.stderr]).toEqual([args, 0, ""]);
       const out = JSON.parse(json.stdout) as Exported & Readonly<Record<string, unknown>>;
-      const state = { "reqseq-data": 3, commit: await ws.head("system"), dirty: false };
-      expect([args, out["reqseq-data"], out["commit"], out["dirty"]]).toEqual([args, 3, state.commit, false]);
+      const state = {
+        "reqseq-data": 4,
+        commit: await ws.head("system"),
+        dirty: false,
+        repositories: out.repositories,
+        incomplete: false,
+      };
+      expect([args, out["reqseq-data"], out["commit"], out["dirty"], out["incomplete"]]).toEqual([
+        args,
+        4,
+        state.commit,
+        false,
+        false,
+      ]);
       expect([args, linesOf(lines.stdout)]).toEqual([args, out.elements.map((e) => ({ ...state, ...e }))]);
       for (const line of lines.stdout.slice(0, -1).split("\n")) {
-        expect(line.startsWith('{"reqseq-data":3,"commit":')).toBe(true);
+        expect(line.startsWith('{"reqseq-data":4,"commit":')).toBe(true);
       }
     }
   });

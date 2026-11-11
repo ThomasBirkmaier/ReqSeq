@@ -101,6 +101,7 @@ import {
   failedSpeech,
   leftDraft,
   saveStep,
+  savedLine,
   savedSpeech,
   staleRead,
 } from "./save-flow.js";
@@ -142,7 +143,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
-import { ctrlStep, historyStep, isMac, isModClick } from "./keys.js";
+import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
@@ -198,6 +199,15 @@ const clickedBox = (target: Element): string | undefined => {
   return field !== null && value !== null && field.contains(value) && target.closest(".cm-lr-ref") === null
     ? field.dataset["field"]
     : undefined;
+};
+
+/** Whether text is selected in the value `target` is in: the click ended a drag that selected it. */
+const selectedIn = (target: Element): boolean => {
+  const value = target.closest(".value");
+  const selection = target.ownerDocument.getSelection();
+  return (
+    value !== null && selection !== null && !selection.isCollapsed && selection.containsNode(value, true)
+  );
 };
 
 /** What a click on `target` in the box `key` points at: a target link, a line of a text or choice box, else the box. */
@@ -519,10 +529,14 @@ export const ElementView = ({
   // app keeps, not the editors that are gone.
   const mounted = useRef(true);
   const memory = useUndoMemory(keep);
-  // The last save failed (`not saved` in the modeline), and what was said last about saves: an error or a
-  // hint is echoed once while it stays the same, not after every pause (D-062).
+  // The last save failed (`not saved` in the modeline), and what was said last about saves: an error, a
+  // hint or the number of directly affected elements (SR-024 AK2) is echoed once while it stays the same,
+  // not after every pause (D-062).
   const [notSaved, setNotSaved] = useState(false);
   const said = useRef<Said>({});
+  // The number of directly affected elements of the last write that answered, for "Save element" asked
+  // while that write ran (#563).
+  const wrote = useRef(0);
   // Saves the input one second after the last change, and at once when asked (`autosave.ts`).
   const autosave = useRef<Autosave | undefined>(undefined);
   // Autosave lives as long as the buffer is shown. Leaving the buffer (another buffer shown, closed) saves
@@ -1193,6 +1207,8 @@ export const ElementView = ({
       readonly element: DataExportElement;
       readonly fileSha256: string;
       readonly problems?: readonly { message: string }[];
+      /** The number of directly affected elements (SR-024 AK2), said after the save. */
+      readonly affected?: number;
     },
     sent: SentWrite,
     editor: EditorHandle,
@@ -1248,7 +1264,8 @@ export const ElementView = ({
     const named = renameAction(element);
     rename(named);
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    const speech = savedSpeech(said.current, mode, named.name, hint);
+    wrote.current = output.affected ?? 0;
+    const speech = savedSpeech(said.current, mode, named.name, hint, output.affected);
     if (speech.echo !== undefined) {
       echo(speech.echo);
     }
@@ -1263,7 +1280,9 @@ export const ElementView = ({
   // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
   const saveInput = async (mode: SaveMode, afterSave = false): Promise<boolean> => {
     const { handle: editor, onEcho: echo, buffer: shown } = now.current;
-    const afterWrite = afterSave ? { name: shown.name, hint: said.current.hint } : undefined;
+    const afterWrite = afterSave
+      ? { name: shown.name, hint: said.current.hint, affected: wrote.current }
+      : undefined;
     const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode, afterWrite });
     if (step.kind === "done") {
       if (step.echo !== undefined) {
@@ -1310,7 +1329,12 @@ export const ElementView = ({
       if (!answer.ok) {
         return false;
       }
-      const { element, fileSha256: sha } = answer.output;
+      const { element, fileSha256: sha, affected } = answer.output;
+      // The minibuffer stays: it names the element that was left with its directly affected elements
+      // (SR-024 AK2); 0 says nothing, as leaving says nothing.
+      if (affected > 0) {
+        now.current.onEcho(savedLine(renameAction(element).name, undefined, affected));
+      }
       // Input typed while the save ran stays in the draft: then input is left unsaved.
       let rest: Draft | undefined;
       now.current.keep?.update((draft) => {
@@ -1719,11 +1743,14 @@ export const ElementView = ({
       : { kind: "box", key: label };
   };
   // What a click on `target` points at (SR-132 AK1): a value of a property box, or nothing.
-  const clickPointer = (target: Element): Pointer => {
+  // The property box whose value `target` is in, when it is one of the boxes shown.
+  const clickedLabel = (target: Element): string | undefined => {
     const label = clickedBox(target);
-    return label === undefined || !now.current.boxKeys.includes(label)
-      ? NO_POINTER
-      : clickedIn(label, target);
+    return label !== undefined && now.current.boxKeys.includes(label) ? label : undefined;
+  };
+  const clickPointer = (target: Element): Pointer => {
+    const label = clickedLabel(target);
+    return label === undefined ? NO_POINTER : clickedIn(label, target);
   };
   // The list of the elements with the value the cursor is on, or the value `clicked` (SR-132): the input is
   // saved first, so the value typed is the one listed (the list reads the files); then `element.facets` of
@@ -1765,6 +1792,15 @@ export const ElementView = ({
       now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
     }
   };
+  // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
+  // on its copy symbol is outside the value.
+  // A selection made by dragging over the value is no click on it.
+  const clickChoice = (target: Element): void => {
+    const label = clickedLabel(target);
+    if (label !== undefined && now.current.boxes.get(label)?.info.kind === "choice" && !selectedIn(target)) {
+      enterField(label);
+    }
+  };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
     editTitle,
@@ -1781,6 +1817,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   });
   api.current = {
@@ -1798,6 +1835,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   };
 
@@ -1965,8 +2003,14 @@ export const ElementView = ({
       onKeyDown={onBufferKey}
       onClickCapture={(event) => {
         // Ctrl/Cmd+click on a value of a property box lists the elements with it (SR-132 AK1), before the
-        // link of a relation target opens it.
-        if (!isModClick(event, isMac(navigator.platform)) || !(event.target instanceof Element)) {
+        // link of a relation target opens it. A plain click on the value of a choice box asks for its value (SR-156).
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+        if (!isModClick(event, isMac(navigator.platform))) {
+          if (isPlainClick(event)) {
+            api.current.clickChoice(event.target);
+          }
           return;
         }
         const pointer = api.current.clickPointer(event.target);

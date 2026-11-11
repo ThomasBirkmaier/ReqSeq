@@ -4,8 +4,10 @@
 // relation of a relation kind of the metamodel whose target is such an element gets one hint
 // `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), except the
 // successor's own relation with the meaning `succession` (`isSuccession`): it records the
-// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170). The
-// hint names the successors: the sources of `succession` relations to the same element.
+// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170), and
+// except a relation whose source has an invalid status itself: nobody reviews that source again
+// (SR-072 AK2, D-044). Such a source still counts as a successor. The hint names the successors:
+// the sources of `succession` relations to the same element.
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
 // superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
 // variants/superseded-validity.ts).
@@ -127,7 +129,8 @@ export const elementLabel = (
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
- * Whether a hit is a successor's own relation to the element it superseded: a relation kind with
+ * Whether a hit is a successor's own relation to the element it superseded (whatever the successor's
+ * status: an obsolete successor is still named): a relation kind with
  * the meaning `succession` (from the metamodel, whatever the kind's key or name) from another
  * element. An element that replaces itself is no successor of itself, as in the view
  * (`successionsOf`). The one rule for both: such a hit names a successor and gives no hint
@@ -156,16 +159,18 @@ const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly Elemen
 };
 
 /**
- * The hint of each hit but a successor's own relation (`isSuccession`, SR-072 AK2); it names the
- * target's successors other than the hit's source.
+ * The hint of each hit but a successor's own relation (`isSuccession`) and a relation from a source
+ * with an invalid status (SR-072 AK2, D-044); it names the target's successors other than the hit's
+ * source.
  */
 const findingsOf = (
   context: SupersededContext,
   hits: readonly Hit[],
   successors: ReadonlyMap<string, readonly ElementRecord[]>,
-): LocatableFinding[] =>
-  hits
-    .filter((hit) => !isSuccession(hit))
+): LocatableFinding[] => {
+  const invalid = invalidStatuses(context.metamodel);
+  return hits
+    .filter((hit) => !isSuccession(hit) && !invalid.has(String(hit.source.data["status"])))
     .map(({ source, kind, index, target, status }): LocatableFinding => {
       const others = (successors.get(placeOf(target)) ?? []).filter((s) => placeOf(s) !== placeOf(source));
       const successorText =
@@ -185,6 +190,7 @@ const findingsOf = (
       };
       return { element: source, path: [kind.key, index], problem };
     });
+};
 
 /**
  * The hints `relation.target-superseded` (SR-072 AK2), one per relation to a superseded element,
@@ -246,7 +252,7 @@ const sourcesFromIndex = (
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
  * like `unknownFindings`, by the rules of the whole workspace: none on a relation with the meaning
  * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`; product
- * owner decision, 2026-10-29, #170). `source` need not be in the store as it is (a new or just written
+ * owner decision, 2026-10-29, #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as it is (a new or just written
  * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store

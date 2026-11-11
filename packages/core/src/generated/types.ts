@@ -574,12 +574,12 @@ export interface ReqifUnmapped {
 }
 
 /**
- * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
+ * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). */
-  readonly "reqseq-data": 3;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). */
+  readonly "reqseq-data": 4;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -591,20 +591,26 @@ export interface DataExportFile {
   /** The selection as given; left out when none was given (every element). */
   readonly selection?: ElementSelection;
   /** The repositories of the workspace file, in its order. */
-  readonly repositories: readonly {
-    /** Workspace name of the repository. */
-    readonly name: string;
-    /** The repository is on this machine. */
-    readonly available: boolean;
-    /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
-    readonly commit?: Commit;
-    /** Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell. */
-    readonly dirty?: boolean;
-  }[];
-  /** A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
-  readonly incomplete?: Incomplete;
+  readonly repositories: readonly DataExportRepository[];
+  /** The data may lack elements or records (SR-006 AK2): a repository of the workspace is not on this machine (its entry in `repositories` has `available: false`), so its elements and the records of its evidence locations are missing, or a condition of the selection met a target in a repository the workspace file does not list. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
+  readonly incomplete: Incomplete;
   /** Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`. */
   readonly elements: readonly DataExportElement[];
+}
+
+/**
+ * One repository of the workspace file with its state, in `repositories` of the JSON form and of every line.
+ * Schema: `schemas/data-export.schema.json#/$defs/repository`.
+ */
+export interface DataExportRepository {
+  /** Workspace name of the repository. */
+  readonly name: string;
+  /** The repository is on this machine. */
+  readonly available: boolean;
+  /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
+  readonly commit?: Commit;
+  /** Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell. */
+  readonly dirty?: boolean;
 }
 
 /**
@@ -712,7 +718,7 @@ export interface DataExportElementPart {
 }
 
 /**
- * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
+ * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
  * Schema: `schemas/data-export.schema.json#/$defs/line`.
  */
 export interface DataExportLine {
@@ -762,11 +768,15 @@ export interface DataExportLine {
   readonly validationReason?: string;
   readonly problems?: readonly Problem[];
   /** Version of this file format. */
-  readonly "reqseq-data": 3;
+  readonly "reqseq-data": 4;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
   readonly dirty: boolean;
+  /** As `repositories` of the JSON form: the commit of each available repository, and which repository is not on this machine (SR-062 AK1). */
+  readonly repositories: readonly DataExportRepository[];
+  /** As `incomplete` of the JSON form. */
+  readonly incomplete: Incomplete;
 }
 
 /**
@@ -909,7 +919,7 @@ export interface DataExportTestCase {
   readonly executed: boolean;
   /** The records of this element from this test case, newest first (by `date`, then repository, file and line); empty when `executed` is false. */
   readonly executions: readonly DataExportEvidenceRecord[];
-  /** The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false. */
+  /** The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false. */
   readonly last?: DataExportEvidenceRecord;
 }
 
@@ -2852,9 +2862,9 @@ export interface TraceMatrixOutput {
       readonly className?: string;
       /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
       readonly executed: boolean;
-      /** The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
+      /** The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
-      /** How the cell is marked (AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
+      /** How the cell is marked (SR-126 AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them (SR-031). Left out otherwise, also when a newer execution of an older version is `last` (#201). */
       readonly mark?: "not-executed" | "outdated" | "failed";
     }[];
     /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */

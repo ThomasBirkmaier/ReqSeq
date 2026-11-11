@@ -115,7 +115,7 @@ problems:
     cause: An element of a type with the meaning `requirement` names no parent through a relation kind with the meaning `derivation`, so its chain ends without a parent. In the standard model `based-on` has no meaning, so a decision is no parent.
     remedy: Give the element a parent with a relation of a deriving kind such as `derives-from`. To let a relation kind of your own count as derivation, give it the meaning `derivation` in your metamodel.
   variant.core-changed:
-    cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version. It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. A superseded core requirement keeps the usual hints of a relation instead, `relation.target-superseded` and, when its content changed too, `relation.outdated`.
+    cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version. It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. A superseded core requirement keeps the usual hints of a relation instead, `relation.target-superseded` and, when its content changed too, `relation.outdated`; a replacing requirement whose own status is marked invalid gets no `relation.target-superseded`.
     remedy: Check the replacing requirement against the change, then confirm the hint (`hint.confirm`). It stores the core requirement's current version, and its title when both are in one repository; a variant in its own repository gets the version only.
   variant.superseded-in-validity:
     cause: The validity of an element lists a variant element that is superseded.
@@ -139,7 +139,7 @@ problems:
     cause: An evidence record or a JUnit file does not match its format.
     remedy: Fix the record at the place the message gives.
   evidence.outdated:
-    cause: The newest evidence record of the element is for an older version of it.
+    cause: The verification or validation status of the element is outdated, because its records are only for older versions of it, or because at least one acceptance criterion has records of older versions only, while none failed and the rest are verified.
     remedy: Verify the current version again, for example by running the test, so that a new record is written.
   evidence.not-enriched:
     cause: Test cases of a JUnit file name a requirement but carry no element version, so they give no evidence record.
