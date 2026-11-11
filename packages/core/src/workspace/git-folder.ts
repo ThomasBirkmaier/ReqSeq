@@ -4,7 +4,8 @@
 //
 // Inside a repository (`gitPlaceOf`, #1487): a folder of the workspace file that ReqSeq writes into
 // (filters, baselines, mappings, evidence) meets Git when a name below the repository folder is one
-// that Windows or macOS take for `.git` (any case, trailing dots and spaces, the short name `GIT~1`),
+// that some system takes for `.git` (`isTakenForGit`: any case, trailing dots and spaces, invisible
+// format characters, an NTFS stream suffix, the short name `GIT~1`),
 // when an existing folder below it holds a `.git` entry (a repository of its own), or when the real
 // path of an existing folder, links resolved, has such a name below the real repository folder.
 // Judged relative to the repository, so a repository that itself lies below a `.git` folder (a
@@ -13,14 +14,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
-import { linksStayInside } from "../files/index.js";
+import { isTakenForGit, linksStayInside } from "../files/index.js";
 
 /** Whether a name of `folder` is `.git`, in any case. */
 const namesGit = (folder: string): boolean =>
   folder.split(path.sep).some((segment) => segment.toLowerCase() === ".git");
-
-/** Whether Windows or macOS take the name for `.git`: any case, trailing dots and spaces dropped, or `GIT~n`. */
-const takenForGit = (name: string): boolean => /^\.git[. ]*$/iu.test(name) || /^git~\d{1,6}$/iu.test(name);
 
 /** Where a folder inside a repository meets Git (see the file comment); `path` is relative, with `/`. */
 export interface GitPlace {
@@ -46,7 +44,7 @@ export const gitPlaceOf = async (root: string, folder: string): Promise<GitPlace
     .relative(root, folder)
     .split(path.sep)
     .filter((name) => name !== "");
-  const named = names.findIndex(takenForGit);
+  const named = names.findIndex(isTakenForGit);
   if (named !== -1) {
     return { rule: "git-folder", path: names.slice(0, named + 1).join("/") };
   }
@@ -60,7 +58,7 @@ export const gitPlaceOf = async (root: string, folder: string): Promise<GitPlace
       return undefined;
     }
     const shown = names.slice(0, n).join("/");
-    if (path.relative(realRoot, real).split(path.sep).some(takenForGit)) {
+    if (path.relative(realRoot, real).split(path.sep).some(isTakenForGit)) {
       return { rule: "git-folder", path: shown };
     }
     if (await exists(path.join(at, ".git"))) {

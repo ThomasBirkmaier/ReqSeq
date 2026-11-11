@@ -328,7 +328,7 @@ const gitFolderLocations = async (
         invalid(
           "warning",
           WORKSPACE_FILE,
-          `${setting}: ${location.path} in repository ${location.repository}: ${place.path} ${GIT_PLACE[place.rule]} (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+          `${setting}: ${location.path} in repository ${location.repository}: ${place.path} ${GIT_PLACE[place.rule]} (${place.rule}); ReqSeq never writes to Git, so it saves nothing there`,
         ),
       );
     }

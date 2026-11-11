@@ -492,7 +492,7 @@ describe("loadWorkspaceLayout", () => {
     await fs.symlink(ws.path("outer/.git"), ws.path("outer/.git/wt/main/away"), "junction");
     const layout = await loadWorkspaceLayout(ws.path("outer/.git/wt/main"));
     expect(layout.problems.map((p) => p.message)).toEqual([
-      "baselines: own/baselines in repository main: own holds a .git entry, so it is a repository of its own (git-folder); ReqSeq never writes to Git, so it saves nothing there",
+      "baselines: own/baselines in repository main: own holds a .git entry, so it is a repository of its own (git-entry); ReqSeq never writes to Git, so it saves nothing there",
     ]);
   });
 
