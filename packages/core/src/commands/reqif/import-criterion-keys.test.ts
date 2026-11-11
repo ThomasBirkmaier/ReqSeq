@@ -166,12 +166,12 @@ describe("criterion keys on reqif.import (SR-204)", () => {
       const text = await exported([...items]);
       const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": text });
       const before = await fs.readdir(fixture.root, { recursive: true });
-      await expect(
-        invoke("reqif.import", { file: "in/x.reqif", delivery: "1" }, { workspace }),
-      ).rejects.toMatchObject({
-        code: "reqif.invalid",
-        message: expect.stringMatching(new RegExp(`SPEC-OBJECT \\S+: .*${reason}`)),
-      });
+      const error = await invoke("reqif.import", { file: "in/x.reqif", delivery: "1" }, { workspace }).then(
+        () => undefined,
+        (e: unknown) => e as { code: string; message: string },
+      );
+      expect(error?.code).toBe("reqif.invalid");
+      expect(error?.message).toMatch(new RegExp(`SPEC-OBJECT \\S+: .*${reason}`, "u"));
       expect(await fs.readdir(fixture.root, { recursive: true })).toEqual(before);
     }
   });

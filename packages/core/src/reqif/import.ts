@@ -1045,16 +1045,7 @@ const ownChannels = (
         object.line,
       );
     }
-    // Its acceptance criteria are passed with their keys (SR-204 AK5): refused here, naming the object.
-    const criteria = acceptanceCriteriaKeyOf(metamodel);
-    const items = criteria !== undefined && taken.includes(criteria) ? data[criteria] : undefined;
-    if (criteria !== undefined && Array.isArray(items)) {
-      try {
-        passedKeys(criteria, items);
-      } catch (error) {
-        throw invalidFile(`SPEC-OBJECT ${object.identifier}: ${(error as Error).message}`, object.line);
-      }
-    }
+    checkOwnCriterionKeys(metamodel, taken, data, object);
     return { data, text, images };
   }
   if (data !== undefined) {
@@ -1125,6 +1116,28 @@ const ownImages = async (
     }
   }
   return out;
+};
+
+/**
+ * The acceptance criteria `reqseq-values` passes with their keys, checked as on any save (SR-204
+ * AK5): a key not in its form, or on two criteria, is `reqif.invalid` naming the SPEC-OBJECT.
+ */
+const checkOwnCriterionKeys = (
+  metamodel: Metamodel,
+  taken: readonly string[],
+  data: Record<string, unknown>,
+  object: ReqifSpecObject,
+): void => {
+  const criteria = acceptanceCriteriaKeyOf(metamodel);
+  const items = criteria !== undefined && taken.includes(criteria) ? data[criteria] : undefined;
+  if (criteria === undefined || !Array.isArray(items)) {
+    return;
+  }
+  try {
+    passedKeys(criteria, items);
+  } catch (error) {
+    throw invalidFile(`SPEC-OBJECT ${object.identifier}: ${(error as Error).message}`, object.line);
+  }
 };
 
 /** A stored scalar as text, as the export writes the title; anything else is none. */
