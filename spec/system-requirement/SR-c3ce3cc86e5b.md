@@ -9,7 +9,8 @@ acceptance-criteria:
   - "Gegeben ein Requirement, wenn dafür ein Datensatz erfasst wird, dann sind ID und aktuelle Fassung schon eingetragen."
   - "Gegeben ein erfasster Datensatz mit Art, Methode, Ergebnis, Prüfling, Datum und Verweis auf einen Beleg, wenn er gespeichert wird, dann entsteht eine Datei im offenen Format in der gewählten Ablage."
   - "Gegeben ein Datensatz der Art Validierung, wenn er gespeichert wird, dann zählt er für den Validierungsstatus und nicht für den Nachweisstatus."
-  - "Gegeben ein Datensatz wird mit den Nummern eines oder mehrerer Akzeptanzkriterien erfasst, wenn er gespeichert wird, dann stehen diese Nummern in der Datei."
+  - "Gegeben ein Datensatz wird für eines oder mehrere Akzeptanzkriterien erfasst, über ihre Nummer oder ihren Kriterienschlüssel in der aktuellen Fassung, wenn er gespeichert wird, dann stehen ihre Kriterienschlüssel in der Datei, und das Tool nennt zu jedem Nummer, Kriterienschlüssel und den Anfang des Texts; hat eines von ihnen keinen Kriterienschlüssel, lehnt das Tool den Datensatz ab und schreibt nichts."
+  - "Gegeben ein Datensatz wird für einen Kriterienschlüssel erfasst, den in der aktuellen Fassung mehr als ein Akzeptanzkriterium des Requirements trägt, wenn er gespeichert werden soll, dann lehnt das Tool ihn ab und schreibt nichts."
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
@@ -19,7 +20,7 @@ derives-from:
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n2:1b2559391ba2c4a7, title: Nachweise und Validierungen als Datensätze }
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:7ad54b00f062ca52, title: Ein offenes Format für Nachweis-Datensätze }
-  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:6ee1dcf2cf64f9cc, title: Nachweisstatus je Akzeptanzkriterium }
+  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:2b83f2d600f6b5fc, title: Nachweisstatus je Akzeptanzkriterium }
 ---
 
 Das Tool muss Datensätze für manuelle Tests, Inspektionen, Analysen, Demonstrationen und Validierungen erfassen lassen.

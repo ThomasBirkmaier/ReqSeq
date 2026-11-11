@@ -3,7 +3,14 @@ import fs from "node:fs/promises";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf, templateSetup } from "../../scenario.js";
-import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, VARIANT_EVIDENCE } from "../../fixtures.js";
+import {
+  EVIDENCE,
+  IDENTIFIERS,
+  MISSING_TARGETS,
+  OBSOLETE_SOURCE,
+  ORPHANED_CHAIN,
+  VARIANT_EVIDENCE,
+} from "../../fixtures.js";
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -13,7 +20,65 @@ templateSetup(SECOND_COMMIT, async (ws) => {
   await ws.commit();
 });
 
+/** The source of fixtures/SR-005/cross-repository, obsolete, with a title on its relation into `platform`. */
+const CROSS_REPOSITORY_TITLE: FixtureOptions = {
+  fixture: "SR-005/cross-repository",
+  files: {
+    "system/requirements/SR-1a3c5e7b9d0f.md": [
+      "---",
+      "id: 8f1e3d5c-7b9a-4c2e-a4f6-1a3c5e7b9d0f",
+      "type: system-requirement",
+      "status: obsolete",
+      "title: Show gusts in red",
+      "requirement-type: functional",
+      "acceptance-criteria:",
+      "  - Given a gust, when it is measured, then the display shows it in red.",
+      "derives-from:",
+      "  - { id: 4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e, version: n1:1111111111111111, repository: platform, title: Gusts stand out }",
+      "---",
+      "",
+      "The display shows gusts in red.",
+      "",
+    ].join("\n"),
+  },
+};
+
 scenariosOf("workspace.check", [
+  {
+    name: "a title on a relation into another repository is a warning with file and line, also from an obsolete source",
+    fixture: CROSS_REPOSITORY_TITLE,
+    root: "system",
+    input: {},
+    tag: "[SR-005/AK4]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as {
+          output: { problems: { code: string; file?: string; line?: number }[] };
+        }
+      ).output;
+      expect(
+        output.problems
+          .filter((p) => p.code === "relation.cross-repository-title")
+          .map((p) => [p.file, p.line]),
+      ).toEqual([["requirements/SR-1a3c5e7b9d0f.md", 10]]);
+    },
+  },
+  {
+    name: "an outdated reference of an obsolete source is no finding (SR-025 AK5)",
+    fixture: OBSOLETE_SOURCE,
+    input: {},
+    tag: "[SR-025/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { problems: { code: string; elementId?: string }[] } }
+      ).output;
+      const sources = output.problems.filter((p) => p.code === "relation.outdated").map((p) => p.elementId);
+      expect(sources).toContain("26a0b000-0000-4000-8000-0000000000b1");
+      expect(sources).not.toContain("26a0b000-0000-4000-8000-0000000000b8");
+    },
+  },
   {
     name: "a record for a variant that replaces its requirement counts in no view and is a finding (SR-047 AK5)",
     fixture: VARIANT_EVIDENCE,

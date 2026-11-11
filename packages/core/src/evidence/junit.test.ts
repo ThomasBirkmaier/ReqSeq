@@ -464,12 +464,22 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("an error counts as failed, as a failure does", () => {
+  it("[SR-093/AK7] a test case that is not skipped failed with failure or error, else passed", () => {
     const read = readJunitRecords(
       AT,
-      suite([testCase("e", enriched(), "<error/>"), testCase("f", enriched(), "<failure/>")].join("\n")),
+      suite(
+        [
+          testCase("e", enriched(), "<error/>"),
+          testCase("f", enriched(), "<failure/>"),
+          testCase("p", enriched()),
+        ].join("\n"),
+      ),
     );
-    expect(read.records.map((r) => r.result)).toEqual(["failed", "failed"]);
+    expect(read.records.map((r) => [r.testCase, r.result])).toEqual([
+      ["e", "failed"],
+      ["f", "failed"],
+      ["p", "passed"],
+    ]);
   });
 
   it("a test case without class name gives a record without className", () => {
@@ -485,7 +495,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(read.records[0]?.testCase).toBe("t");
   });
 
-  it("reports a file that names requirements but is not enriched once, with the number of test cases", () => {
+  it("[SR-093/AK8] reports a file that names requirements but is not enriched once, with the number of test cases", () => {
     // The samples as the tools wrote them: a reqseq:element property and short IDs in the names.
     expect(readJunitRecords(AT, sample("pytest.xml"))).toEqual({
       records: [],
@@ -505,6 +515,15 @@ describe("JUnit reader (SR-093)", () => {
     expect(vitest.records).toEqual([]);
     expect(vitest.problems?.map((p) => [p.code, p.line, p.message.slice(0, 13)])).toEqual([
       ["evidence.not-enriched", 4, "1 test case(s"],
+    ]);
+    // A UUID in the name and a short ID in the name count as well, once per file.
+    const named = readJunitRecords(
+      AT,
+      suite([testCase(`[${LOGIN}] by UUID`, []), testCase("[SR-46fb54] by short ID", [])].join("\n")),
+    );
+    expect(named.records).toEqual([]);
+    expect(named.problems?.map((p) => [p.code, p.message.slice(0, 13)])).toEqual([
+      ["evidence.not-enriched", "2 test case(s"],
     ]);
   });
 

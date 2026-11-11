@@ -640,7 +640,7 @@
             },
             "key": {
               "$ref": "#/$defs/key",
-              "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
+              "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
             },
             "place": {
               "type": "object",
@@ -710,6 +710,7 @@
             "element.too-many-items",
             "element.text-emptied",
             "relation.missing-target",
+            "relation.cross-repository-title",
             "relation.unresolved-link",
             "relation.not-a-link",
             "relation.reference-style",
@@ -1054,7 +1055,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/data-export.schema.json",
       "title": "Data of a state as JSON",
-      "description": "Output of `data.export` for external evaluation tools such as Grafana or DuckDB. The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
+      "description": "Output of `data.export` for external evaluation tools such as Grafana or DuckDB. The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.",
       "type": "object",
       "required": [
         "reqseq-data",
@@ -1062,12 +1063,13 @@
         "workspace",
         "generated",
         "repositories",
+        "incomplete",
         "elements"
       ],
       "properties": {
         "reqseq-data": {
-          "const": 3,
-          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement`."
+          "const": 4,
+          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement`. 4: every line of the JSON Lines form also carries `repositories` and `incomplete`."
         },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
@@ -1093,35 +1095,12 @@
           "description": "The repositories of the workspace file, in its order.",
           "type": "array",
           "items": {
-            "type": "object",
-            "required": [
-              "name",
-              "available"
-            ],
-            "properties": {
-              "name": {
-                "description": "Workspace name of the repository.",
-                "type": "string"
-              },
-              "available": {
-                "description": "The repository is on this machine.",
-                "type": "boolean"
-              },
-              "commit": {
-                "$ref": "common.schema.json#/$defs/commit",
-                "description": "HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell."
-              },
-              "dirty": {
-                "type": "boolean",
-                "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell."
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/$defs/repository"
           }
         },
         "incomplete": {
           "$ref": "common.schema.json#/$defs/incomplete",
-          "description": "A repository of the workspace is not on this machine: its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`."
+          "description": "The data may lack elements or records: a repository of the workspace is not on this machine (its entry in `repositories` has `available: false`), so its elements and the records of its evidence locations are missing, or a condition of the selection met a target in a repository the workspace file does not list. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`."
         },
         "elements": {
           "type": "array",
@@ -1133,6 +1112,33 @@
       },
       "additionalProperties": false,
       "$defs": {
+        "repository": {
+          "type": "object",
+          "description": "One repository of the workspace file with its state, in `repositories` of the JSON form and of every line.",
+          "required": [
+            "name",
+            "available"
+          ],
+          "properties": {
+            "name": {
+              "description": "Workspace name of the repository.",
+              "type": "string"
+            },
+            "available": {
+              "description": "The repository is on this machine.",
+              "type": "boolean"
+            },
+            "commit": {
+              "$ref": "common.schema.json#/$defs/commit",
+              "description": "HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell."
+            },
+            "dirty": {
+              "type": "boolean",
+              "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell."
+            }
+          },
+          "additionalProperties": false
+        },
         "element": {
           "type": "object",
           "description": "An element as the commands give it: the fields of `$defs/elementFields`, and no others.",
@@ -1170,10 +1176,12 @@
         },
         "line": {
           "type": "object",
-          "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged.",
+          "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged.",
           "required": [
             "reqseq-data",
             "dirty",
+            "repositories",
+            "incomplete",
             "id",
             "shortId",
             "type",
@@ -1186,7 +1194,7 @@
           "properties": {
             "reqseq-data": {
               "description": "Version of this file format.",
-              "const": 3
+              "const": 4
             },
             "commit": {
               "$ref": "common.schema.json#/$defs/commit",
@@ -1195,6 +1203,17 @@
             "dirty": {
               "type": "boolean",
               "description": "As `dirty` of the JSON form."
+            },
+            "repositories": {
+              "type": "array",
+              "description": "As `repositories` of the JSON form: the commit of each available repository, and which repository is not on this machine.",
+              "items": {
+                "$ref": "#/$defs/repository"
+              }
+            },
+            "incomplete": {
+              "$ref": "common.schema.json#/$defs/incomplete",
+              "description": "As `incomplete` of the JSON form."
             }
           },
           "allOf": [
@@ -1316,7 +1335,7 @@
             },
             "verification": {
               "type": "array",
-              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it.",
+              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid.",
               "items": {
                 "$ref": "#/$defs/verificationEntry"
               }
@@ -1632,7 +1651,7 @@
             },
             "last": {
               "$ref": "#/$defs/evidenceRecord",
-              "description": "The newest execution, `executions[0]`; left out when `executed` is false."
+              "description": "The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false."
             }
           },
           "if": {
@@ -1692,7 +1711,7 @@
         },
         "verificationEntry": {
           "type": "object",
-          "description": "The verification status of a requirement in one view: `element` `verification` gives one per view, `trace.matrix` one for its view.",
+          "description": "The verification status of a requirement in one view: `element` `verification` gives one per view it lists (none for a variant whose status the metamodel marks invalid), `trace.matrix` one for its view.",
           "required": [
             "view",
             "status"
@@ -3759,10 +3778,11 @@
         "name": "workspace.check",
         "title": "Check workspace",
         "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
-        "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
+        "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
         "stage": 1,
         "implements": [
+          "SR-005",
           "SR-008",
           "SR-015",
           "SR-016",
@@ -7296,7 +7316,7 @@
                         },
                         "last": {
                           "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
-                          "description": "The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
+                          "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
                         },
                         "mark": {
                           "enum": [
@@ -7304,7 +7324,7 @@
                             "outdated",
                             "failed"
                           ],
-                          "description": "How the cell is marked, the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version."
+                          "description": "How the cell is marked, the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them. Left out otherwise, also when a newer execution of an older version is `last`."
                         }
                       },
                       "additionalProperties": false,
@@ -8625,7 +8645,7 @@
                       },
                       "views": {
                         "type": "array",
-                        "description": "Verification only: the status of the criterion in each view the element applies in (with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                        "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                         "items": {
                           "type": "object",
                           "properties": {
@@ -9163,7 +9183,7 @@
           "properties": {
             "elements": {
               "type": "array",
-              "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+              "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/element"
               }
@@ -9479,7 +9499,9 @@
           "fields": [
             "reqseq-data",
             "commit",
-            "dirty"
+            "dirty",
+            "repositories",
+            "incomplete"
           ]
         },
         "output": {
@@ -9491,7 +9513,7 @@
         "name": "data.store",
         "title": "Store data",
         "summary": "Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.",
-        "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection.",
+        "details": "One element per line, as data export gives it; `-dirty` with uncommitted ReqSeq files; replaces the file of the same commit; an old `<commit>.json` stays as it is. The files are grouped by `commit` and `dirty`; each line also names the commit of every repository and a missing one. One folder per selection: the name is the same for every selection.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Stores the data of the current state with the versions of its elements, which depend on the metamodel (which properties count).",
@@ -9939,7 +9961,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart. Only each requirement's own records count, never indirect evidence: a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
+              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in, except a variant whose status the metamodel marks invalid (only the variant's view when the stored selection has one, also when its status is invalid), and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart. Only each requirement's own records count, never indirect evidence: a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
             },
             "limit": {
               "type": "integer",
@@ -10051,7 +10073,7 @@
                   },
                   "verification": {
                     "type": "array",
-                    "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order; with a variant in the stored selection only that variant's row. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
+                    "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order, none for a variant whose status the metamodel marks invalid now; with a variant in the stored selection only that variant's row, also when its status is invalid. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
                     "items": {
                       "type": "object",
                       "properties": {

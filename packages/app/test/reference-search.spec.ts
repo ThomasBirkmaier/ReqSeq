@@ -133,7 +133,7 @@ test.describe("the [[ search with a second repository", () => {
     await running.close();
   });
 
-  test("[SR-066/AK2] a local target in another repository is saved with its short ID and shown with its title", async () => {
+  test("[SR-005/AK3] [SR-066/AK2] a local target in another repository is saved with its short ID and shown with its title", async () => {
     const { window } = running;
     const file = await insertAndSave(
       running,

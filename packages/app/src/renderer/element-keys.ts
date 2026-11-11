@@ -2,7 +2,7 @@
 // event target: the field a key is for, whether the buffer takes it, the keys it handles on a field, and the
 // keys that take back an "Edit text" still waiting for its editor. `ElementView` routes the keys with them.
 import type { KeyPress, KeyRow } from "./keys.js";
-import { MOD_CLICK, press } from "./keys.js";
+import { CLICK, MOD_CLICK, press } from "./keys.js";
 
 /** The field a key press is for: none on the buffer itself. */
 export const fieldLabel = (target: EventTarget, buffer: EventTarget): string | undefined =>
@@ -99,7 +99,8 @@ export const onDiskKey = (event: KeyPress): "resolve" | "leave" | undefined => {
 
 /**
  * The keys of the block "On disk" (`onDiskKey`), of the links to parents, variants and relation targets
- * (`ParentsLine`, `VariantLines`, `RelationLink`), and the click on a value (`isModClick`, in `ElementView`).
+ * (`ParentsLine`, `VariantLines`, `RelationLink`), and the clicks on a value (`isModClick`, `isPlainClick`, in
+ * `ElementView`).
  */
 export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   {
@@ -118,5 +119,9 @@ export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   {
     keys: [{ shortcut: MOD_CLICK }],
     does: "Click on a value in a property box: list the elements with that value",
+  },
+  {
+    keys: [{ shortcut: CLICK }],
+    does: "Click on the value of a choice box: the prompt for its value, as Enter on the box",
   },
 ];

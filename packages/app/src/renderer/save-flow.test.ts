@@ -167,6 +167,52 @@ describe("what a save says (D-062)", () => {
     });
   });
 
+  it("[SR-024/AK2] [SR-024/AK3] says the number of directly affected elements above 0, when quiet once while it stays the same", () => {
+    expect(savedSpeech({}, "asked", "SR-036", undefined, 1)).toEqual({
+      echo: "Saved SR-036: 1 element directly affected",
+      said: { error: undefined, hint: undefined, affected: 1 },
+    });
+    expect(savedSpeech({}, "asked", "SR-036", "topic is required", 3).echo).toBe(
+      "Saved SR-036: 3 elements directly affected. topic is required",
+    );
+    expect(savedSpeech({}, "quiet", "SR-036", undefined, 2).echo).toBe(
+      "Saved SR-036: 2 elements directly affected",
+    );
+    expect(savedSpeech({ affected: 2 }, "quiet", "SR-036", undefined, 2)).toEqual({
+      said: { error: undefined, hint: undefined, affected: 2 },
+    });
+    expect(savedSpeech({ affected: 2 }, "quiet", "SR-036", undefined, 3).echo).toBe(
+      "Saved SR-036: 3 elements directly affected",
+    );
+    // 0 after a number replaces it with `Saved <name>` (AK3: a change of only status or title), 0 again says
+    // nothing, and the next number above 0 is said again.
+    const none = savedSpeech({ affected: 2 }, "quiet", "SR-036", undefined, 0);
+    expect(none).toEqual({
+      echo: "Saved SR-036",
+      said: { error: undefined, hint: undefined, affected: undefined },
+    });
+    expect(savedSpeech(none.said, "quiet", "SR-036", undefined, 0)).toEqual({ said: none.said });
+    expect(savedSpeech(none.said, "quiet", "SR-036", undefined, 2).echo).toBe(
+      "Saved SR-036: 2 elements directly affected",
+    );
+    // A failed save replaces the number: the next save with the same number says it again.
+    const failed = failedSpeech({ affected: 2 }, "quiet", "boom");
+    expect(failed.said.affected).toBeUndefined();
+    expect(savedSpeech(failed.said, "quiet", "SR-036", undefined, 2).echo).toBe(
+      "Saved SR-036: 2 elements directly affected",
+    );
+    // "Save element" after a write that left no input says it as that write did (#563).
+    expect(
+      saveStep({
+        editor: EDITOR,
+        input: false,
+        note: undefined,
+        mode: "asked",
+        afterWrite: { name: "SR-036", hint: undefined, affected: 2 },
+      }),
+    ).toEqual({ kind: "done", result: true, echo: "Saved SR-036: 2 elements directly affected" });
+  });
+
   it("says a failed save when asked or when its error is new, and keeps the hint", () => {
     expect(failedSpeech({ hint: "h" }, "quiet", "boom")).toEqual({
       echo: "boom",

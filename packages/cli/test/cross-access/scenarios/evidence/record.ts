@@ -32,7 +32,6 @@ scenariosOf("evidence.record", [
       date: "2026-10-27T10:00:00Z",
       criteria: [2, 1],
     },
-    tag: "[SR-030/AK4]",
     expect: "output",
   },
   {

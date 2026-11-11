@@ -71,6 +71,7 @@ import {
   saveDrafts,
   saveOne,
 } from "./switch.js";
+import { savedLine } from "./save-flow.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
@@ -573,6 +574,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       );
       if (!result.ok) {
         setEcho(leftUnsaved(result));
+      } else if (result.affected !== undefined) {
+        // The minibuffer names the element that was left with its directly affected elements (SR-024 AK2).
+        setEcho(savedLine(result.affected.name, undefined, result.affected.count));
       }
       return result.ok;
     });
@@ -835,23 +839,34 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, [bridge, call]);
   // The catalog, read once (it is the same for every workspace), and the revision now, read when a command runs.
   const catalog = useRef<readonly CommandListing[]>([]);
+  // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
+  // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
+  const catalogRead = useRef<Promise<void> | undefined>(undefined);
   // What a view that shows several elements reads again on: any change of the workspace, also from outside.
   const seen = revision + outside.seq;
   const revisionNow = useRef(seen);
   revisionNow.current = seen;
   useEffect(() => {
     const load = (): void => {
-      bridge.commands().then(
-        (commands) => {
-          catalog.current = commands;
-          setMeanings(graphMeanings(commands));
-          setEvidence(graphTakesEvidence(commands));
-        },
-        (error: unknown) => {
-          // Without the catalog the command prompt has the app's actions only; say why.
-          setEcho(String(error));
-        },
-      );
+      const read = bridge
+        .commands()
+        .then(
+          (commands) => {
+            catalog.current = commands;
+            setMeanings(graphMeanings(commands));
+            setEvidence(graphTakesEvidence(commands));
+          },
+          (error: unknown) => {
+            // Without the catalog the command prompt has the app's actions only; say why.
+            setEcho(String(error));
+          },
+        )
+        .finally(() => {
+          if (catalogRead.current === read) {
+            catalogRead.current = undefined;
+          }
+        });
+      catalogRead.current = read;
     };
     load();
     // After a start without a workspace there was no core process to ask: ask the one just opened.
@@ -865,24 +880,35 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`). `shown`: the
   // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
   // entries run from the prefix key or the context menu have no command prompt to go back to.
+  // While the catalog is read, the prompt opens with the actions and takes keys, and its entries are built
+  // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them, also on an
+  // action (the read is short: core answers at once, or the bridge gives none without a connection).
   const commands = useCallback(
     (shown = true): Prompt => {
-      const now = latest.current;
       // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
       // chosen here (SR-134 AK1), open the command prompt again.
       const reopen = (): void => {
         ask(commands());
       };
-      const items = catalogItems(
-        { ...now, revision: () => revisionNow.current, reopen },
-        catalog.current,
-        ACTIONS,
-      );
-      return withHelp(
-        commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
-        now,
-        catalog.current,
-      );
+      const build = (): Prompt => {
+        const now = latest.current;
+        const items = catalogItems(
+          { ...now, revision: () => revisionNow.current, reopen },
+          catalog.current,
+          ACTIONS,
+        );
+        return withHelp(
+          commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+          now,
+          catalog.current,
+        );
+      };
+      const prompt = build();
+      const reading = catalogRead.current;
+      // Only a shown prompt: the prefix key and the context menu take the entries as they are now.
+      return reading === undefined || !shown
+        ? prompt
+        : { ...prompt, fill: reading.then(() => ({ items: build().items })) };
     },
     [ask],
   );

@@ -4,7 +4,6 @@
 // reads; the list of all open hints (`hint.list`, SR-026) and the hints at one element in its view.
 // Stage 5: the changed core requirements at their replacements (SR-045) and at a variant since its
 // newest baseline (SR-103), which are not confirmed but go with a new baseline.
-export type { EvidenceVersion } from "./evidence.js";
 export { outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
 export type { ConfirmableCode, HintTarget } from "./hint-id.js";
 export {

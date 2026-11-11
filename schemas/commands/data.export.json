@@ -16,7 +16,10 @@
     },
     "additionalProperties": false
   },
-  "jsonLines": { "items": "elements", "fields": ["reqseq-data", "commit", "dirty"] },
+  "jsonLines": {
+    "items": "elements",
+    "fields": ["reqseq-data", "commit", "dirty", "repositories", "incomplete"]
+  },
   "output": {
     "type": "object",
     "$ref": "../data-export.schema.json"

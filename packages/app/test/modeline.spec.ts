@@ -2,14 +2,30 @@
 // element's outdated references and open hints as `element get` gives them (AK2), and the kind and
 // number of the elements of a list, a graph and a package page (AK3). Keys use ControlOrMeta, so the
 // same tests run on Linux and macOS.
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 import { REFERENCE_FILES, REFERENCE_SOURCE_ID, REFERENCE_SOURCE_TITLE } from "./support/demo.js";
 
-/** 14 elements (fixtures/README.md) and a need with an outdated inline reference. */
-const FIXTURE = { fixture: "SR-069/filter", files: REFERENCE_FILES };
+const B5 = "requirements/SR-0000000000b5.md";
+
+/**
+ * 14 elements (fixtures/README.md) and a need with an outdated inline reference; SR-0000b5 (approved,
+ * one outdated relation) gets a property the metamodel does not know, its other hint. The obsolete
+ * SR-0000b4 has neither (SR-025 AK5, SR-022 AK6) but that property.
+ */
+const FIXTURE = {
+  fixture: "SR-069/filter",
+  files: {
+    ...REFERENCE_FILES,
+    [B5]: readFileSync(new URL(`../../../fixtures/SR-069/filter/${B5}`, import.meta.url), "utf8").replace(
+      "source: Supplier A\n",
+      "source: Supplier A\nowner: Dana\n",
+    ),
+  },
+};
 
 /** The parts of the modeline for the shown buffer, left of the workspace. */
 const parts = (window: Page) => window.locator('[aria-label="Modeline"] .parts > .segment');
@@ -43,8 +59,10 @@ test.describe("the counts of the modeline", () => {
 
   test("[SR-114/AK2] the modeline names the outdated references and the open hints of an element as element get counts them, and nothing for an element without", async () => {
     const { window } = running;
-    // An element with outdated relations and another hint, one with an outdated inline reference, one without.
+    // An element with an outdated relation and another hint, one with another hint only, one with an
+    // outdated inline reference, one without.
     for (const [ref, title] of [
+      ["SR-0000b5", "Send data to the cloud"],
       ["SR-0000b4", "Show a dial"],
       [REFERENCE_SOURCE_ID, REFERENCE_SOURCE_TITLE],
       ["N-0000a1", "See the wind"],
@@ -65,11 +83,13 @@ test.describe("the counts of the modeline", () => {
       // The first part is ID, type and status (SR-114 AK1); the counts follow, and only those.
       await expect(parts(window)).toHaveText([/ · /, ...counts]);
     }
-    // The fixture has each case once: outdated and other hints, an outdated inline reference only, none.
+    // The fixture has each case once: outdated and other hints, other hints only, an outdated inline
+    // reference only, none.
+    await goTo(window, "Send data to the cloud");
+    await expect(parts(window)).toHaveText([/ · /, "1 outdated", "1 hint"]);
+    // Obsolete: its outdated relation (SR-025 AK5) and its missing parent (SR-022 AK6) are no hints.
     await goTo(window, "Show a dial");
-    await expect(parts(window).nth(1)).toHaveText("1 outdated");
-    // Its other hint; it is obsolete, so its missing parent is no hint (SR-022 AK6).
-    await expect(parts(window).nth(2)).toHaveText("1 hint");
+    await expect(parts(window)).toHaveText([/ · /, "1 hint"]);
     await goTo(window, REFERENCE_SOURCE_TITLE);
     await expect(parts(window)).toHaveCount(2);
     await expect(parts(window).nth(1)).toHaveText("1 outdated");

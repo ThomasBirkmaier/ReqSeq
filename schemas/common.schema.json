@@ -23,7 +23,7 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "shortId": {
-      "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-002 AK3). The file name uses 12 (D-056).",
+      "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-084 AK1, AK2). The file name uses 12 (D-056).",
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
     },
@@ -235,7 +235,7 @@
         },
         "elementShortId": {
           "$ref": "#/$defs/shortId",
-          "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements."
+          "description": "Short ID of the element `elementId` names, for display (SR-084); given on every problem that names an element of the workspace, by every command that has read the elements."
         },
         "elementIdentifier": {
           "type": "string",
@@ -288,7 +288,7 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none."
+          "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none."
         },
         "place": {
           "type": "object",
@@ -353,6 +353,7 @@
         "element.too-many-items",
         "element.text-emptied",
         "relation.missing-target",
+        "relation.cross-repository-title",
         "relation.unresolved-link",
         "relation.not-a-link",
         "relation.reference-style",

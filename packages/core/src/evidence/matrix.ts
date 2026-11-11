@@ -12,7 +12,8 @@
 // - Test cases (AK1): `verificationTestCasesIn`, so the matrix shows the test cases the chain shows
 //   in the same view. Records without a test case count only for the status (ThomasBirkmaier/ReqSeq-archive#528 Q3). Each item is
 //   compact: name, class name, `executed`, the last execution (`last`, the newest in the view, of any
-//   version) and the mark (AK2, `testCaseMark`).
+//   version; of several equally new ones the worst, a failed one, AK1: „bei mehreren gleich neuen
+//   die schlechteste“, `worstOfNewest`) and the mark (AK2, `testCaseMark`).
 // - The status (AK1, AK3): one entry of `$defs/verificationEntry` from the shared evaluator
 //   (`verificationState`), measured against the version the matrix read for the row, as element.get
 //   measures against the version it shows; `indirect` for a requirement verified through its children.
@@ -24,9 +25,10 @@ import type { ElementRecord, VersionForms } from "../model/index.js";
 import { sameVersion } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
+import { instantOf } from "./by-element.js";
 import { viewIdOf } from "./degree.js";
 import { withEvidenceSource } from "./evidence-source.js";
-import type { TestCase } from "./record.js";
+import type { EvidenceRecord, TestCase } from "./record.js";
 import type { StatusSource } from "./status.js";
 import type { WorkspaceStatus } from "./verification.js";
 import { entryOf } from "./verification.js";
@@ -44,14 +46,43 @@ export type MatrixTestCase = NonNullable<MatrixRow["testCases"]>[number];
 export type MatrixTestCaseMark = NonNullable<MatrixTestCase["mark"]>;
 
 /**
+ * Of the `executions` that `counts` takes (newest first, as a test case holds them), the newest; of
+ * several at the same instant the first failed one, else the first (SR-126 AK1). Undefined for none.
+ * Stops at the first older instant, without a copy (N-036).
+ */
+const worstOfNewest = (
+  executions: readonly EvidenceRecord[],
+  counts: (execution: EvidenceRecord) => boolean = () => true,
+): EvidenceRecord | undefined => {
+  let first: EvidenceRecord | undefined;
+  let newest = 0;
+  for (const execution of executions) {
+    if (!counts(execution)) {
+      continue;
+    }
+    if (first === undefined) {
+      first = execution;
+      newest = instantOf(execution.date);
+    } else if (instantOf(execution.date) !== newest) {
+      break;
+    }
+    if (execution.result === "failed") {
+      return execution;
+    }
+  }
+  return first;
+};
+
+/**
  * The mark of `test` for an element whose current version is `current` (assumptions, spec questions
  * ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` without an execution; `outdated`
  * when no execution is of the current version, or the current version is not known (ThomasBirkmaier/ReqSeq-archive#276), the
  * version test of `recordStatusOf`; `failed` when the newest execution of the current version failed.
  * Undefined when it passed. A newer execution of an older version does not mark the test case
  * outdated, as the status then follows the current one (#201, product owner decision, 2026-10-29:
- * the mark follows the status). Records of one instant may tie: the first in index order is taken,
- * while the status counts a failed one among them (ThomasBirkmaier/ReqSeq-archive#525 Q2).
+ * the mark follows the status). Executions of the current version at one instant may tie: a failed
+ * one among them marks it `failed`, as the status counts it (ThomasBirkmaier/ReqSeq-archive#525 Q2,
+ * SR-126 AK1).
  */
 export const testCaseMark = (
   test: TestCase,
@@ -61,7 +92,9 @@ export const testCaseMark = (
     return "not-executed";
   }
   const ofCurrent =
-    current === undefined ? undefined : test.executions.find((e) => sameVersion(e.version, current));
+    current === undefined
+      ? undefined
+      : worstOfNewest(test.executions, (e) => sameVersion(e.version, current));
   if (ofCurrent === undefined) {
     return "outdated";
   }
@@ -83,11 +116,12 @@ export const matrixTestCases = (
 ): MatrixTestCase[] =>
   verificationTestCasesIn(index, id, view, independent).map((test): MatrixTestCase => {
     const mark = testCaseMark(test, current);
+    const last = worstOfNewest(test.executions);
     return {
       name: test.name,
       ...(test.className === undefined ? {} : { className: test.className }),
       executed: test.executed,
-      ...(test.last === undefined ? {} : { last: withEvidenceSource(test.last) }),
+      ...(last === undefined ? {} : { last: withEvidenceSource(last) }),
       ...(mark === undefined ? {} : { mark }),
     };
   });

@@ -1,6 +1,8 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { assembleContent, contentPaths } from "./assemble.js";
+import { checkCitations, readSchemaTexts, readSpecIndex } from "./citations.js";
 import { commandExamples, readExampleInputs } from "./command-examples.js";
 import { readProblemCodes } from "./codes.js";
 import { checkExamples, readGuidePages, runReqseq, wordProblems } from "./examples.js";
@@ -11,6 +13,7 @@ import { readStandardModel } from "./standard-model.js";
 
 // `pnpm docs:generate`: runs the examples of the guide (SR-140 AK2) and of every command page (#1250), checks that every how-to shows its task in each
 // access with names that exist (SR-140 AK3), fails on pages above the word budget (#1254), and
+// fails on a cited spec ID that is not in spec/ or not valid (#1307), and
 // fills packages/docs/site/src/content/docs/ before the site is built (ADR-0017). A failing example rejects, so
 // the process ends with a non-zero exit code and the build stops. The base path must be the one the site is
 // built with (packages/docs/site/astro.config.mjs, same variables and default): `/` for the offline build.
@@ -22,8 +25,15 @@ const tooLong = wordProblems(guide);
 if (tooLong.length > 0) {
   throw new Error(`docs: split or shorten the pages above the word budget:\n${tooLong.join("\n")}`);
 }
-const examples = await checkExamples(guide, runReqseq);
 const runtime = getCommandRuntime();
+checkCitations(
+  [
+    ...guide.map((page) => ({ source: `docs/guide/${page.path}`, text: page.text })),
+    ...(await readSchemaTexts(paths.repoRoot)),
+  ],
+  await readSpecIndex(runtime, join(paths.repoRoot, "spec")),
+);
+const examples = await checkExamples(guide, runReqseq);
 const generated = await readGeneratedContracts(paths.repoRoot);
 checkHowTos(guide, accessNames(runtime.contracts.commands, generated));
 const sources = {

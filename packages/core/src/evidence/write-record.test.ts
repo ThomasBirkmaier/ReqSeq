@@ -266,7 +266,7 @@ describe("evidence.record (SR-030)", () => {
     });
   });
 
-  it("refuses a verification of a need and any record of a use case (D-012), writing nothing", async () => {
+  it("[SR-028/AK6] refuses a verification of a need and any record of a use case (D-012), writing nothing", async () => {
     const { fixture, workspace } = await open();
     const need = await refusedLeavingNothing(
       fixture,
@@ -549,7 +549,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     ]);
   });
 
-  it("refuses a variant the element does not apply in, and an element that is no variant", async () => {
+  it("[SR-047/AK4] refuses a variant not in the element's validity, naming the reason, and an element that is no variant", async () => {
     const { fixture, workspace } = await variants();
     // Given by UUID, as the app gives it: the message names short IDs, the details the variant (SR-047 AK4).
     const desert = await refusedLeavingNothing(
@@ -745,7 +745,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
     });
   });
 
-  it("refuses an inconclusive verification and a reason with another result, naming the field (#807 Q2, Q4)", async () => {
+  it("[SR-172/AK3] refuses an inconclusive verification and a reason with another result, naming the field (#807 Q2, Q4)", async () => {
     const { fixture, workspace } = await open();
     const verification = await refusedLeavingNothing(fixture, () =>
       record(workspace, { ...INSPECTION, ref: "SR-00c002", result: "inconclusive", reason: "no sample" }),
