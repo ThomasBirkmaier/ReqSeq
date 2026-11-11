@@ -90,3 +90,23 @@ vectors:
     n2:
       canonical: SR-00000000a2b2.n2.canonical.txt
       version: n2:c8072066502ad01b
+  # Criterion keys (D-027, D-072, SR-091 AK6): SR-825b7146fb54 with a criterion key for each acceptance criterion,
+  # the second as a block scalar, so its text is the same after the normal form; and the same with the two keys
+  # swapped. A list item that is a mapping of exactly `key` and `text`, the text a string, counts as its text, so
+  # both have the canonical bytes and versions of SR-825b7146fb54 (only the id differs, which never counts).
+  - element: SR-825b7146fb55.md
+    files: [SR-825b7146fb54/layout.png]
+    missing: []
+    canonical: SR-825b7146fb54.canonical.txt
+    version: n1:e386ab40f7f71d31
+    n2:
+      canonical: SR-825b7146fb54.n2.canonical.txt
+      version: n2:872e1eaf7d9d4d4b
+  - element: SR-825b7146fb56.md
+    files: [SR-825b7146fb54/layout.png]
+    missing: []
+    canonical: SR-825b7146fb54.canonical.txt
+    version: n1:e386ab40f7f71d31
+    n2:
+      canonical: SR-825b7146fb54.n2.canonical.txt
+      version: n2:872e1eaf7d9d4d4b

@@ -83,6 +83,18 @@ describe("reqseq workspace check (SR-019)", () => {
       "\nderives-from:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7, version: n1:35c6eb1777c77824 }\n---\n",
     );
     await fs.writeFile(successor, derived);
+    // Its acceptance criteria get their criterion keys (SR-204 AK10).
+    for (const file of ["SR-c3d4e5f6a7b8.md", "SR-d4e5f6a7b8c9.md", "SR-e5f6a7b8c9d0.md"]) {
+      const path = ws.path(`requirements/${file}`);
+      const text = await fs.readFile(path, "utf8");
+      await fs.writeFile(
+        path,
+        text.replace(
+          /acceptance-criteria:\n {2}- (.*)\n/u,
+          "acceptance-criteria:\n  - key: wind1\n    text: $1\n",
+        ),
+      );
+    }
     const { human, json, output } = await checkBoth(ws.root);
     expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 5\nNo problems.\n", stderr: "" });
     expect(json.code).toBe(0);

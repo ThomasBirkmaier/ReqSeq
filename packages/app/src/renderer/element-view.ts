@@ -6,15 +6,19 @@ import type {
   MetamodelGetOutput,
   MetamodelProperty,
 } from "@reqseq/core";
+import { criterionText } from "@reqseq/core/criterion-items";
 import { outdatedKey } from "./editor/references.js";
 import { refIdTitle } from "./id-title.js";
 import type { OutdatedMark } from "./editor/references.js";
 import { OUTDATED_WORD, isOutdatedCode } from "./outdated-codes.js";
 
-/** The lines of a property value: one per array item; an object with a `title` shows the title. */
+/**
+ * The lines of a property value: one per array item; an acceptance criterion with its criterion key
+ * shows its text (SR-204), another object with a `title` the title.
+ */
 export const propertyLines = (value: unknown): string[] => {
   if (Array.isArray(value)) {
-    return value.flatMap(propertyLines);
+    return value.flatMap((item) => propertyLines(criterionText(item)));
   }
   if (typeof value === "string") {
     return value.trim() === "" ? [] : [value];

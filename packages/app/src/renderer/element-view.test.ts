@@ -35,6 +35,8 @@ describe("propertyLines", () => {
   it("gives one line per item, a title for an object, and nothing for an empty value", () => {
     expect(propertyLines("quality")).toEqual(["quality"]);
     expect(propertyLines(["a", "b"])).toEqual(["a", "b"]);
+    // An acceptance criterion with its criterion key shows its text (SR-204).
+    expect(propertyLines([{ key: "abcd", text: "Given a gust." }, "b"])).toEqual(["Given a gust.", "b"]);
     expect(propertyLines(3)).toEqual(["3"]);
     expect(propertyLines(false)).toEqual(["false"]);
     expect(propertyLines([{ id: "x", title: "Stufe 3" }, { id: "y", title: "" }, [], "  ", ""])).toEqual([

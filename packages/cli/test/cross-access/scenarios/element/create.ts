@@ -4,7 +4,7 @@ import { scenariosOf } from "../../scenario.js";
 import type { FixtureOptions } from "@reqseq/testkit";
 import type { Result } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { FILTER, NESTED, NESTED_A, changedFiles, requiredKey } from "../../fixtures.js";
+import { FILTER, NESTED, NESTED_A, NEW_CRITERION_KEYS, changedFiles, requiredKey } from "../../fixtures.js";
 
 /** SR-013/own-meanings with an abstract type and a type that inherits from it without the mark (SR-012 AK4). */
 const ABSTRACT: FixtureOptions = {
@@ -76,10 +76,37 @@ scenariosOf("element.create", [
     },
     expect: "output",
     newElement: true,
+    masks: NEW_CRITERION_KEYS,
     check: (results) => {
       expect((results["core"]?.outcome as { output: Written }).output.files).toEqual([
         "requirements/new/SR-<tail12>.md",
       ]);
+    },
+  },
+  {
+    name: "a new element's criterion gets a criterion key",
+    input: {
+      type: "system-requirement",
+      title: "Show gusts",
+      text: "The station shows gusts.\n",
+      folder: "requirements/new",
+      properties: {
+        "requirement-type": "functional",
+        "acceptance-criteria": ["Given a gust, then it is shown."],
+      },
+    },
+    tag: "[SR-204/AK1]",
+    expect: "output",
+    newElement: true,
+    masks: NEW_CRITERION_KEYS,
+    // Each access gives the criterion a criterion key of its own (SR-204 AK1).
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        const output = (result.outcome as { output: Written }).output;
+        expect(output.element.properties["acceptance-criteria"]).toEqual([
+          { key: "<masked>", text: "Given a gust, then it is shown." },
+        ]);
+      }
     },
   },
   {

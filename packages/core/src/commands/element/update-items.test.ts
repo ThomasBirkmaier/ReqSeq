@@ -1,5 +1,6 @@
 // element.update `setItems` (#177): one item of a list property changed or appended by its position
-// from 1, every other item keeping its bytes and a replaced text its quoting.
+// from 1, every other item keeping its bytes and a replaced text its quoting. The acceptance criteria
+// carry their criterion keys (SR-204), which a replaced criterion keeps (AK6).
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -22,9 +23,12 @@ const ITEMS_FILE = [
   "status: draft",
   "title: Many criteria",
   "acceptance-criteria:",
-  '  - "Given a quoted first, then it stays."',
-  "  - Given a plain second, when it is read, then it is shown. # kept",
-  "  - 'Given a single third, then it stays.'",
+  "  - key: qfst",
+  '    text: "Given a quoted first, then it stays."',
+  "  - key: psnd",
+  "    text: Given a plain second, when it is read, then it is shown. # kept",
+  "  - key: sthd",
+  "    text: 'Given a single third, then it stays.'",
   "scores:",
   "  - 1",
   "methods: [test]",
@@ -90,11 +94,16 @@ const refusal = async (opened: Opened, input: Record<string, unknown>): Promise<
 
 const fileOf = (opened: Opened): Promise<string> => fs.readFile(opened.path(ITEMS.file), "utf8");
 
-const criteria = (text: string): string[] =>
-  text
-    .split("\n")
-    .filter((line) => line.startsWith("  - ") && !/^ {2}- \d/.test(line))
-    .slice(0, 10);
+/** The lines of the acceptance criteria, without the key line. */
+const criteria = (text: string): string[] => {
+  const lines = text.split("\n");
+  const from = lines.indexOf("acceptance-criteria:") + 1;
+  const to = lines.findIndex((line, i) => i >= from && !line.startsWith(" "));
+  return lines.slice(from, to);
+};
+
+/** The block of the acceptance criteria of ITEMS_FILE, with the line of its key. */
+const CRITERIA_BLOCK = /acceptance-criteria:\n( {2}- key: .*\n {4}text: .*\n){3}/u;
 
 describe("element.update setItems (#177)", () => {
   it("replaces one item by position; the others keep their bytes, the replaced one its quoting and comment", async () => {
@@ -110,14 +119,15 @@ describe("element.update setItems (#177)", () => {
     expect(out.files).toEqual([ITEMS.file]);
     const text = await fileOf(opened);
     expect(criteria(text)).toEqual([
-      '  - "Given a quoted first, then it stays."',
-      // Plain stays plain, also with commas.
-      "  - Given a plain second, when it changes, then it is shown again. # kept",
-      "  - 'Given a single third, then it changed.'",
+      "  - key: qfst",
+      '    text: "Given a quoted first, then it stays."',
+      // Plain stays plain, also with commas; each keeps its criterion key (SR-204 AK6).
+      "  - key: psnd",
+      "    text: Given a plain second, when it changes, then it is shown again. # kept",
+      "  - key: sthd",
+      "    text: 'Given a single third, then it changed.'",
     ]);
-    expect(text.replace(/acceptance-criteria:\n( {2}- .*\n){3}/u, "")).toBe(
-      ITEMS_FILE.replace(/acceptance-criteria:\n( {2}- .*\n){3}/u, ""),
-    );
+    expect(text.replace(CRITERIA_BLOCK, "")).toBe(ITEMS_FILE.replace(CRITERIA_BLOCK, ""));
   });
 
   it("appends after the last item without a gap, in the quoting of the last text, also to an absent key", async () => {
@@ -127,9 +137,15 @@ describe("element.update setItems (#177)", () => {
         "acceptance-criteria": { "5": "Fifth, then it is there.", "4": "Fourth, then it is there." },
       },
     });
-    expect(criteria(await fileOf(opened)).slice(3)).toEqual([
-      "  - 'Fourth, then it is there.'",
-      "  - 'Fifth, then it is there.'",
+    const appended = criteria(await fileOf(opened)).slice(6);
+    expect(appended.filter((_, i) => i % 2 === 1)).toEqual([
+      "    text: 'Fourth, then it is there.'",
+      "    text: 'Fifth, then it is there.'",
+    ]);
+    // Each new criterion gets a new criterion key (SR-204 AK1).
+    expect(appended.filter((_, i) => i % 2 === 0)).toEqual([
+      expect.stringMatching(/^ {2}- key: [a-z][a-z0-9]{3}$/u),
+      expect.stringMatching(/^ {2}- key: [a-z][a-z0-9]{3}$/u),
     ]);
     const wind = await invoke(
       "element.update",
@@ -148,8 +164,8 @@ describe("element.update setItems (#177)", () => {
       { ref: WIND, expectedFileSha256: hash, setItems: { "acceptance-criteria": { "1": "First" } } },
       { workspace: opened.workspace },
     );
-    expect(await fs.readFile(opened.path("requirements/SR-6328cee88fb3.md"), "utf8")).toContain(
-      "acceptance-criteria:\n  - First\n",
+    expect(await fs.readFile(opened.path("requirements/SR-6328cee88fb3.md"), "utf8")).toMatch(
+      /acceptance-criteria:\n {2}- key: [a-z][a-z0-9]{3}\n {4}text: First\n/u,
     );
   });
 
@@ -243,9 +259,9 @@ describe("element.update setItems (#177)", () => {
         },
       },
     });
-    expect(criteria(await fileOf(opened))[0]).toMatch(
+    expect(criteria(await fileOf(opened))[1]).toMatch(
       new RegExp(
-        `^ {2}- "Given \\[the wind\\]\\(reqseq:e8df96ea-a168-4d90-8d65-6328cee88fb3\\?version=${WRITTEN_VERSION_SOURCE}\\), then it is shown\\."$`,
+        `^ {4}text: "Given \\[the wind\\]\\(reqseq:e8df96ea-a168-4d90-8d65-6328cee88fb3\\?version=${WRITTEN_VERSION_SOURCE}\\), then it is shown\\."$`,
         "u",
       ),
     );

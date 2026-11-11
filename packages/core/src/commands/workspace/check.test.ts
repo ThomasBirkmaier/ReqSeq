@@ -33,10 +33,21 @@ const kinds = (out: Output): (readonly [string, string | undefined, string | und
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
 
-/** fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6): a workspace without findings. */
+/** A requirement file of fixtures/SR-072/supersede with its one acceptance criterion under `key` (SR-204 AK10). */
+const keyed = (file: string, key: string): string =>
+  fs
+    .readFileSync(new URL(`../../../../../fixtures/SR-072/supersede/${file}`, import.meta.url), "utf8")
+    .replace(/^acceptance-criteria:\n {2}- (.*)$/m, `acceptance-criteria:\n  - key: ${key}\n    text: $1`);
+
+/**
+ * fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6) and a
+ * criterion key for each acceptance criterion (SR-204 AK10): a workspace without findings.
+ */
 const CLEAN = {
   fixture: "SR-072/supersede",
   files: {
+    "requirements/SR-e5f6a7b8c9d0.md": keyed("requirements/SR-e5f6a7b8c9d0.md", "bwnd"),
+    "requirements/SR-c3d4e5f6a7b8.md": keyed("requirements/SR-c3d4e5f6a7b8.md", "cwnd"),
     "requirements/SR-d4e5f6a7b8c9.md": [
       "---",
       "id: 7a1e0c2b-4d3f-4a5b-8c6d-d4e5f6a7b8c9",
@@ -44,7 +55,9 @@ const CLEAN = {
       "status: draft",
       "title: Show wind speed and gusts",
       "requirement-type: functional",
-      "acceptance-criteria: [Given wind, when it is measured, then the display shows it with its gusts.]",
+      "acceptance-criteria:",
+      "  - key: dwnd",
+      "    text: Given wind, when it is measured, then the display shows it with its gusts.",
       "derives-from:",
       "  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7, version: n1:35c6eb1777c77824, title: See wind and gusts }",
       "---",

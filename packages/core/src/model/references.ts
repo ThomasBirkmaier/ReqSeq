@@ -12,6 +12,7 @@
 // each of their values, with the same rules: the store keeps them as `propertyReferences`, and
 // `referencesOf` gives the ones that count for a metamodel (text and marked properties), so every
 // check reads one list. Images in such a value are no embedded images (ADR-0005).
+import { criterionText } from "./criterion-items.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { markdownKeysOf } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -367,8 +368,9 @@ export const elementLinks = (
     };
     for (const [key, value] of Object.entries(data)) {
       if (Array.isArray(value)) {
+        // The text of an acceptance criterion with its key holds links as any text (SR-204).
         value.forEach((v: unknown, i) => {
-          scan(key, i, v);
+          scan(key, i, criterionText(v));
         });
       } else {
         scan(key, undefined, value);

@@ -66,7 +66,8 @@ import { isDeepStrictEqual } from "node:util";
 import { Scalar, isScalar } from "yaml";
 import type { CommandName, Problem } from "../catalog.js";
 import { CommandError, commandErrorOrThrow } from "../catalog.js";
-import type { FrontmatterEdit, ParsedFile } from "../files/index.js";
+import type { FrontmatterEdit, ParsedFile, ScalarValue } from "../files/index.js";
+import { criterionText, isCriterionMapping } from "../model/criterion-items.js";
 import { editElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
@@ -324,18 +325,29 @@ const propertyEdits = (file: ParsedFile, found: readonly Found[]): PropertyEdits
     const value = data[key];
     const list = Array.isArray(value);
     const seen = new Map<string, number>();
-    ((list ? value : [value]) as unknown[]).forEach((item, index) => {
+    const items = (list ? value : [value]) as unknown[];
+    items.forEach((item, index) => {
       const counted = new Map(seen);
-      const text = typeof item === "string" ? confirmedReferences(item, current, seen) : item;
-      if (text === item) {
+      const keyed = isCriterionMapping(item);
+      const old = criterionText(item);
+      const text = typeof old === "string" ? confirmedReferences(old, current, seen) : old;
+      if (text === old) {
         return;
       }
-      const path = list ? [key, index] : [key];
-      const place = list ? [index] : [];
+      // The text of a criterion with its key is the scalar at `text` in its mapping (SR-204).
+      const path = [...(list ? [key, index] : [key]), ...(keyed ? ["text"] : [])];
+      const place = [...(list ? [index] : []), ...(keyed ? ["text"] : [])];
       if (isBlockScalar(file, path)) {
         fallback.push(
           list
-            ? { kind: "replace-item", key, index, value: text as string }
+            ? {
+                kind: "replace-item",
+                key,
+                index,
+                value: keyed
+                  ? { ...(item as Record<string, ScalarValue>), text: text as string }
+                  : (text as string),
+              }
             : { kind: "set", key, value: text as string },
         );
         return;

@@ -390,6 +390,7 @@ describe("cycles in the derivations (SR-090)", () => {
     ]);
     const out = await check(workspace);
     expect(out.ok).toBe(true);
-    expect(out.problems).toEqual(problems);
+    // The acceptance criteria of the requirements have no criterion keys (SR-204 AK10).
+    expect(out.problems.filter((p) => p.code !== "element.criterion-key-missing")).toEqual(problems);
   });
 });

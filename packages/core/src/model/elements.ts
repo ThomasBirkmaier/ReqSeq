@@ -149,13 +149,18 @@ export const keyLinesOf = (
  */
 export const keyLineOf = (file: ParsedFile, key: string): number | undefined => keyLinesOf(file).get(key);
 
-/** The line of the value at `key` (and list position `item`) and whether it is a block scalar. */
+/**
+ * The line of the value at `key` (and list position `item`; of the text of a criterion with its key)
+ * and whether it is a block scalar.
+ */
 const placeOf = (
   file: ParsedFile,
   key: string,
   item: number | undefined,
 ): { line: number; block: boolean } | undefined => {
-  const path = item === undefined ? [key] : [key, item];
+  const at = item === undefined ? [key] : [key, item];
+  // The text of an acceptance criterion with its key is on the line of its `text` (SR-204).
+  const path = isMap(file.document.getIn(at, true)) ? [...at, "text"] : at;
   const line = lineOf(file, path);
   if (line === undefined) {
     return undefined;

@@ -16,8 +16,11 @@ const CRITERIA = [
   "status: draft",
   "title: Criteria",
   "acceptance-criteria:",
-  '  - "Given a quoted first, then it stays."',
-  "  - Given a plain second, then it is shown.",
+  // With their criterion keys (SR-204), so the lines of a criterion that does not change stay.
+  "  - key: first",
+  '    text: "Given a quoted first, then it stays."',
+  "  - key: secnd",
+  "    text: Given a plain second, then it is shown.",
   "---",
   "",
 ].join("\n");
@@ -54,10 +57,14 @@ describe("reqseq element update --set-items (#177)", () => {
     );
     expect([out.code, out.stderr]).toEqual([0, ""]);
     // The last value of a key counts, and the flag wins over the same key of --input.
-    expect(await fs.readFile(ws.path(FILE), "utf8")).toBe(
+    // The changed criterion keeps its key, the appended one gets a new key (SR-204 AK1, AK6).
+    const written = await fs.readFile(ws.path(FILE), "utf8");
+    const key = /- key: ([a-z][a-z0-9]{3})\n {4}text: Third\n/u.exec(written)?.[1] ?? "";
+    expect(key).toMatch(/^[a-z][a-z0-9]{3}$/u);
+    expect(written).toBe(
       CRITERIA.replace(
-        "  - Given a plain second, then it is shown.\n",
-        "  - Given a plain second, when it changed, then it is shown.\n  - Third\n",
+        "    text: Given a plain second, then it is shown.\n",
+        `    text: Given a plain second, when it changed, then it is shown.\n  - key: ${key}\n    text: Third\n`,
       ),
     );
     const refused = await run(

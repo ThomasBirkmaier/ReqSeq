@@ -8,6 +8,7 @@ import {
   AFFECTED,
   FILTER,
   NESTED,
+  NEW_CRITERION_KEYS,
   VARIANT_VIEWS,
   changedFiles,
   requiredKey,
@@ -39,7 +40,10 @@ const SEE_THE_WIND =
 const SEE_WIND_AND_GUSTS =
   "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n";
 
-/** An element with three acceptance criteria in three quotings, for setItems (#177). */
+/**
+ * An element with three acceptance criteria in three quotings, each with its criterion key, for
+ * setItems (#177) and the criterion keys (SR-204).
+ */
 const CRITERIA = [
   "---",
   "id: 17700000-0000-4000-8000-000000000177",
@@ -47,9 +51,12 @@ const CRITERIA = [
   "status: draft",
   "title: Criteria",
   "acceptance-criteria:",
-  '  - "Given a quoted first, then it stays."',
-  "  - Given a plain second, when it is read, then it is shown.",
-  "  - 'Given a single third, then it stays.'",
+  "  - key: first",
+  '    text: "Given a quoted first, then it stays."',
+  "  - key: secnd",
+  "    text: Given a plain second, when it is read, then it is shown.",
+  "  - key: third",
+  "    text: 'Given a single third, then it stays.'",
   "---",
   "",
 ].join("\n");
@@ -74,7 +81,46 @@ scenariosOf("element.update", [
       },
       expectedFileSha256: sha256(CRITERIA),
     },
+    // The replaced criterion keeps its criterion key; the appended one gets a new key (masked), and
+    // so the file another hash.
+    tag: "[SR-204/AK6]",
     expect: "output",
+    masks: [...NEW_CRITERION_KEYS, /(?<="fileSha256":")[0-9a-f]{64}/g],
+  },
+  {
+    name: "set takes the criterion keys it is given and keeps the others by text (SR-204)",
+    fixture: CRITERIA_FIXTURE,
+    input: {
+      ref: "SR-000177",
+      set: {
+        "acceptance-criteria": [
+          "Given a single third, then it stays.",
+          { key: "fresh", text: "Given a new one, then it is there." },
+          "Given a quoted first, then it stays.",
+        ],
+      },
+    },
+    tag: "[SR-204/AK5]",
+    expect: "output",
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: Written }).output;
+      // Moved criteria keep their keys (AK4); the given key is stored (AK5).
+      expect(output.element.properties["acceptance-criteria"]).toEqual([
+        { key: "third", text: "Given a single third, then it stays." },
+        { key: "fresh", text: "Given a new one, then it is there." },
+        { key: "first", text: "Given a quoted first, then it stays." },
+      ]);
+    },
+  },
+  {
+    name: "set with a criterion key in a wrong form is refused, nothing is written (SR-204)",
+    fixture: CRITERIA_FIXTURE,
+    input: {
+      ref: "SR-000177",
+      set: { "acceptance-criteria": [{ key: "Bad-Key", text: "Given a key, then it is refused." }] },
+    },
+    tag: "[SR-204/AK5]",
+    expect: "error",
   },
   {
     name: "setItems without expectedFileSha256 is refused (#177)",

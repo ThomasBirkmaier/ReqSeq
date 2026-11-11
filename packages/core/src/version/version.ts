@@ -83,13 +83,26 @@ const isRecord = (value: VersionValue): value is Readonly<Record<string, Version
  */
 type NonFinite = "throw" | "write";
 
+/**
+ * A list item that is a mapping with exactly the keys `key` and `text`, its text a string, counts as
+ * its text: the criterion key of an acceptance criterion never counts, in any normal form, whatever
+ * meaning the metamodel gives the list (D-027, D-072, SR-091 AK6). Any other item counts as it is.
+ */
+const listItem = (value: VersionValue): VersionValue => {
+  if (!isRecord(value) || typeof value["text"] !== "string") {
+    return value;
+  }
+  const keys = Object.keys(value);
+  return keys.length === 2 && keys.includes("key") ? value["text"] : value;
+};
+
 /** Canonical JSON: no whitespace, object keys sorted by code point, every string in normal form. */
 function canonicalJson(value: VersionValue, nonFinite: NonFinite): string {
   if (typeof value === "string") {
     return JSON.stringify(normalizeText(value));
   }
   if (Array.isArray(value)) {
-    return `[${value.map((v: VersionValue) => canonicalJson(v, nonFinite)).join(",")}]`;
+    return `[${value.map((v: VersionValue) => canonicalJson(listItem(v), nonFinite)).join(",")}]`;
   }
   if (isRecord(value)) {
     const entries = Object.entries(value).sort(([a], [b]) => byCodePoint(a, b));

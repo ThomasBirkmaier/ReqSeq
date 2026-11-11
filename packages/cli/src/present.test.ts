@@ -184,7 +184,8 @@ describe("renderHuman: values", () => {
         id: "u1",
         file: "sr/SR-1.md",
         properties: {
-          "acceptance-criteria": ["Given a, then b.", "Given c, then d."],
+          // A criterion with its criterion key shows its text only (SR-204).
+          "acceptance-criteria": ["Given a, then b.", { key: "keyc", text: "Given c, then d." }],
           packages: [{ id: "p" }],
         },
         relations: [

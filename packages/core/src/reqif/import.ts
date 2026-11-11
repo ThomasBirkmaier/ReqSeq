@@ -61,6 +61,7 @@
 //   file, with a `reqif.replaces-local` warning (#575/3, #575/4). A conflict needs `take` or `keep`
 //   (`reqif.conflict` otherwise); `keep` writes only the origin with P as import version (#575/6).
 //   Relations to such an element carry P when the delivery is written into it, else C.
+import { withCriterionKeys } from "../model/acceptance-criteria.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -712,11 +713,21 @@ const propertyValue = async (
   return definition.many === true ? texts : texts.join(", ");
 };
 
-/** The file of a draft, with its relations or without them (for its planned version). */
-const fileOf = (draft: Draft, folder: string, withRelations: boolean): NewElementFile => ({
+/**
+ * The file of a draft, with its relations or without them (for its planned version); each
+ * acceptance criterion with its criterion key (SR-204 AK1).
+ */
+const fileOf = (
+  metamodel: Metamodel,
+  draft: Draft,
+  folder: string,
+  withRelations: boolean,
+): NewElementFile => ({
   file: path.posix.join(folder, fileNameFor({ prefix: draft.base.type.prefix, id: draft.id })),
   bytes: newElementBytes(draft.base, draft.id, draft.title, draft.text, [
-    ...draft.properties,
+    ...[...draft.properties].map(
+      ([key, value]) => [key, withCriterionKeys(metamodel, key, undefined, value)] as const,
+    ),
     ...(withRelations ? [...draft.relations, ...(draft.ownRelations ?? [])] : []),
   ]),
 });
@@ -753,9 +764,12 @@ const targetVersion = (draft: Draft): string => (draft.deliveryWins ? draft.vers
 
 /**
  * The file of an existing element with the delivery's title, text, mapped properties and origin
- * (`omit`: origin keys left as they are), plus `extra` edits; only changed keys are rewritten.
+ * (`omit`: origin keys left as they are), plus `extra` edits; only changed keys are rewritten. The
+ * acceptance criteria keep their criterion keys by text, and unchanged texts change nothing
+ * (`reconcileCriteria`, SR-204 AK4).
  */
 const updatedFile = (
+  metamodel: Metamodel,
   draft: Draft,
   existing: ExistingElement,
   extra: readonly FrontmatterEdit[],
@@ -768,7 +782,11 @@ const updatedFile = (
       { kind: "set", key: draft.base.titleKey, value: draft.title },
       ...[...draft.properties]
         .filter(([key]) => !omit.includes(key))
-        .map(([key, value]): FrontmatterEdit => ({ kind: "set", key, value })),
+        .map(([key, value]): FrontmatterEdit => ({
+          kind: "set",
+          key,
+          value: withCriterionKeys(metamodel, key, existing.record.data[key], value),
+        })),
       ...removed
         .filter((key) => existing.record.data[key] !== undefined)
         .map((key): FrontmatterEdit => ({ kind: "remove", key })),
@@ -1291,8 +1309,8 @@ const versionOf = async (
     context.layout,
     existing?.repository ?? repository,
     existing === undefined
-      ? fileOf(draft, folder, false)
-      : { file: existing.record.file, bytes: updatedFile(draft, existing, []).bytes },
+      ? fileOf(context.metamodel, draft, folder, false)
+      : { file: existing.record.file, bytes: updatedFile(context.metamodel, draft, existing, []).bytes },
     draft.textImages,
   );
 };
@@ -1773,7 +1791,7 @@ export const planImport = async (
   return {
     repository,
     folder: relative,
-    files: all.map((d) => fileOf(d, relative, true)),
+    files: all.map((d) => fileOf(context.metamodel, d, relative, true)),
     images: all.flatMap((d) => d.images.files.map(({ name, file }) => ({ stem: d.stem, name, file }))),
     created: all.map((d) => ({ identifier: d.identifier, id: d.id })),
     losses: context.losses,
@@ -1915,7 +1933,7 @@ const planUpdates = (
     if (
       draft.case === "same" &&
       // The import version too: "same" may hold an I of another normal form than P is written in.
-      !updatedFile(draft, existing, extra, [
+      !updatedFile(context.metamodel, draft, existing, extra, [
         keys.delivery,
         keys["import-date"],
         keys["import-version"],
@@ -1945,7 +1963,7 @@ const planUpdates = (
         elementId: id,
       });
     }
-    write("updated", updatedFile(draft, existing, extra).bytes);
+    write("updated", updatedFile(context.metamodel, draft, existing, extra).bytes);
     const folder = path.posix.dirname(existing.record.file);
     for (const { name, file } of draft.images.files) {
       updateImages.push({

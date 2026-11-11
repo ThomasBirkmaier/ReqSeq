@@ -31,6 +31,10 @@
       "types": "./dist/evidence/degree-text.d.ts",
       "default": "./dist/evidence/degree-text.js"
     },
+    "./criterion-items": {
+      "types": "./dist/model/criterion-items.d.ts",
+      "default": "./dist/model/criterion-items.js"
+    },
     "./pasted-markdown": {
       "types": "./dist/reqif/pasted-markdown.d.ts",
       "default": "./dist/reqif/pasted-markdown.js"

@@ -610,7 +610,8 @@ describe("a superseded element names its successor without a relation of its own
       { workspace: opened.workspace },
     );
     const element = await get(opened, { ref: "7a1e0c2b-4d3f-4a5b-8c6d-c3d4e5f6a7b8" });
-    expect(hints(element)).toEqual([
+    // The fixture's acceptance criteria have no criterion keys yet (SR-204 AK10).
+    expect(hints(element).filter((p) => p.code !== "element.criterion-key-missing")).toEqual([
       expect.objectContaining({
         code: "relation.target-superseded",
         targetId: "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6",

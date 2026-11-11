@@ -341,6 +341,10 @@ describe("editElementFile: values", () => {
     expect(edit(text, { edits: [{ kind: "append-item", key: "l", value: { id: "b" } }] })).toBe(
       "---\nl:\n- id: a\n  v: 1\n-\n- |\n  text\n- { id: b }\nn: 1\n---\n",
     );
+    // A mapping appended after a text on one line is written as itself, not in the text's quoting.
+    expect(
+      edit("---\nl:\n- 'a'\n---\n", { edits: [{ kind: "append-item", key: "l", value: { id: "b" } }] }),
+    ).toBe("---\nl:\n- 'a'\n- { id: b }\n---\n");
     expect(edit(text, { edits: [{ kind: "remove-item", key: "l", index: 0 }] })).toBe(
       "---\nl:\n-\n- |\n  text\nn: 1\n---\n",
     );
@@ -827,5 +831,89 @@ describe("editElementFile: the new bytes as read back (#836)", () => {
       bytes: new TextEncoder().encode(text),
       changed: false,
     });
+  });
+});
+
+describe("editElementFile: acceptance criteria with their keys (SR-204)", () => {
+  const AK =
+    "---\ntitle: T\nacceptance-criteria:\n  - 'Given A, then B.'\n  - key: keyb\n    text: \"Given C.\" # kept\n---\n";
+
+  it("[SR-204/AK11] writes a criterion with its key as a block mapping, key first, its text as a top-level value", () => {
+    const text = edit("---\ntitle: T\n---\n", {
+      edits: [
+        set("acceptance-criteria", [
+          { key: "keya", text: "Given A, then B." },
+          { text: "Given: C", key: "keyc" },
+        ]),
+      ],
+    });
+    expect(text).toBe(
+      '---\ntitle: T\nacceptance-criteria:\n  - key: keya\n    text: Given A, then B.\n  - key: keyc\n    text: "Given: C"\n---\n',
+    );
+  });
+
+  it("replaces a text by a criterion, and a criterion by another, in the quoting of the old text", () => {
+    const text = edit(AK, {
+      edits: [
+        {
+          kind: "replace-item",
+          key: "acceptance-criteria",
+          index: 0,
+          value: { key: "keya", text: "Given A, then D." },
+        },
+        {
+          kind: "replace-item",
+          key: "acceptance-criteria",
+          index: 1,
+          value: { key: "keyb", text: "Given E." },
+        },
+      ],
+    });
+    expect(text).toBe(
+      "---\ntitle: T\nacceptance-criteria:\n  - key: keya\n    text: 'Given A, then D.'\n  - key: keyb\n    text: \"Given E.\" # kept\n---\n",
+    );
+  });
+
+  it("replaces the text of a criterion written as a flow mapping in the quoting a flow mapping needs", () => {
+    const flow = "---\nacceptance-criteria:\n  - { key: keya, text: old } # kept\n---\n";
+    expect(
+      edit(flow, {
+        edits: [
+          {
+            kind: "replace-item",
+            key: "acceptance-criteria",
+            index: 0,
+            value: { key: "keya", text: "a, b" },
+          },
+        ],
+      }),
+    ).toBe('---\nacceptance-criteria:\n  - { key: keya, text: "a, b" } # kept\n---\n');
+  });
+
+  it("writes a mapping of another shape anew, and an appended criterion in the quoting of the last text", () => {
+    const odd = "---\nacceptance-criteria:\n  - { key: keya, text: A, note: x }\n  - |\n    Block\n---\n";
+    expect(
+      edit(odd, {
+        edits: [
+          { kind: "replace-item", key: "acceptance-criteria", index: 0, value: { key: "keya", text: "B" } },
+        ],
+      }),
+    ).toBe("---\nacceptance-criteria:\n  - key: keya\n    text: B\n  - |\n    Block\n---\n");
+    // The last text is a block scalar: the appended criterion is written in the fixed style.
+    expect(
+      edit(odd, {
+        edits: [{ kind: "append-item", key: "acceptance-criteria", value: { key: "keyz", text: "Z" } }],
+      }),
+    ).toBe(
+      "---\nacceptance-criteria:\n  - { key: keya, text: A, note: x }\n  - |\n    Block\n  - key: keyz\n    text: Z\n---\n",
+    );
+    expect(
+      edit(AK, {
+        edits: [
+          { kind: "append-item", key: "acceptance-criteria", value: { key: "keyz", text: "Z" } },
+          { kind: "append-item", key: "acceptance-criteria", value: "Y" },
+        ],
+      }),
+    ).toBe(`${AK.slice(0, -4)}  - key: keyz\n    text: "Z"\n  - "Y"\n---\n`);
   });
 });

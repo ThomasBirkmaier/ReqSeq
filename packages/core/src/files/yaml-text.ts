@@ -5,6 +5,9 @@
 // - Nothing is ever folded or wrapped (the effect of `lineWidth: 0`): one value, one line.
 // - Lists are block sequences; a mapping item (a relation target) is one flow mapping per line,
 //   `- { id: \u2026, version: \u2026, title: \u2026 }`, so a Git diff shows one line per relation (SR-102).
+// - An acceptance criterion with its criterion key (`{ key, text }`, SR-204) is a block mapping, key
+//   first, so its text reads as plain Markdown text at its key (AK11):
+//   `- key: k7f3` and `  text: Gegeben …` on the next line.
 import { isMap, isScalar, isSeq, parseDocument, Scalar } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { LineEnding } from "./frontmatter.js";
@@ -201,13 +204,32 @@ export const renderKey = (key: string): string => renderScalar(key, "key");
 const isFlowMapping = (value: PropertyValue): value is FlowMappingValue =>
   typeof value === "object" && value !== null;
 
+/** Whether `value` is an acceptance criterion with its key: exactly `key` and `text`, both strings (SR-204). */
+export const isCriterionItem = (
+  value: ItemValue,
+): value is { readonly key: string; readonly text: string } => {
+  if (!isFlowMapping(value)) {
+    return false;
+  }
+  const keys = Object.keys(value);
+  return keys.length === 2 && typeof value["key"] === "string" && typeof value["text"] === "string";
+};
+
+/** The `text:` line of a criterion item without its indent: as a top-level value is written. */
+export const renderCriterionText = (text: string): string => `text: ${renderScalar(text, "value")}`;
+
 /**
  * One list item without the `- `: a scalar, or a relation target as one flow mapping. Keys are
- * written in `Object.entries` order, so callers build `{ id, version, title }` in that order.
+ * written in `Object.entries` order, so callers build `{ id, version, title }` in that order. With
+ * `column`, the column the item's content starts in, an acceptance criterion with its key is a block
+ * mapping on two lines (`isCriterionItem`, SR-204 AK11), joined by `eol`.
  */
-export const renderItem = (value: ItemValue): string => {
+export const renderItem = (value: ItemValue, column?: number, eol: LineEnding = "\n"): string => {
   if (!isFlowMapping(value)) {
     return renderScalar(value, "item");
+  }
+  if (column !== undefined && isCriterionItem(value)) {
+    return `key: ${renderScalar(value.key, "value")}${eol}${" ".repeat(column)}${renderCriterionText(value.text)}`;
   }
   const entries = Object.entries(value).map(
     ([k, v]) => `${renderScalar(k, "flow-key")}: ${renderScalar(v, "flow-value")}`,
@@ -217,7 +239,7 @@ export const renderItem = (value: ItemValue): string => {
 
 /** Lines of a block sequence at `indent`, joined by `eol`, without a final line ending. */
 export const renderItemLines = (items: readonly ItemValue[], indent: string, eol: LineEnding): string =>
-  items.map((item) => `${indent}- ${renderItem(item)}`).join(eol);
+  items.map((item) => `${indent}- ${renderItem(item, indent.length + 2, eol)}`).join(eol);
 
 /**
  * Text of a value after `key:`. A scalar, one relation target (one flow mapping) or an empty list

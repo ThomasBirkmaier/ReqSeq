@@ -211,11 +211,12 @@ describe("relation.add stores UUID and current version of the target in the sour
       NEED.id,
       NEED2.id,
     ]);
-    // Only the hints the hand-written fixture has anyway: an unknown property (SR-016) and the
-    // made-up version it stores for WIND (SR-025, shown at the element, SR-026 AK3); the merged file
-    // reads cleanly.
+    // Only the hints the hand-written fixture has anyway: an unknown property (SR-016), its acceptance
+    // criteria without criterion keys (SR-204 AK10) and the made-up version it stores for WIND
+    // (SR-025, shown at the element, SR-026 AK3); the merged file reads cleanly.
     expect(shown.element.problems?.map((p) => [p.code, p.targetId])).toEqual([
       ["element.unknown-property", undefined],
+      ["element.criterion-key-missing", undefined],
       ["relation.outdated", WIND.id],
     ]);
   });

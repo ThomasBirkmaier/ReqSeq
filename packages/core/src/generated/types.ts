@@ -311,7 +311,7 @@ export interface Problem {
   readonly currentCommit?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
+  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
   readonly key?: Key;
   /** Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names. */
   readonly place?: {
@@ -324,7 +324,7 @@ export interface Problem {
   };
   /** The target type of the limit a count hint is about (SR-152). */
   readonly targetType?: Key;
-  /** How many relations the element has that the limit counts (SR-152), or how many entries its list property has (SR-171). */
+  /** How many relations the element has that the limit counts (SR-152), how many entries its list property has (SR-171), or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`, SR-204). */
   readonly count?: number;
   /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
@@ -355,6 +355,9 @@ export type ProblemCode =
   | "element.missing-status"
   | "element.statement-without-text"
   | "element.too-many-items"
+  | "element.criterion-key-missing"
+  | "element.criterion-key-duplicate"
+  | "element.criterion-key-invalid"
   | "element.text-emptied"
   | "relation.missing-target"
   | "relation.cross-repository-title"
@@ -1006,15 +1009,33 @@ export interface ElementFile {
 export type ElementScalar = string | number | boolean;
 
 /**
- * Property value as a caller gives it to element.create, element.update or element.bulkUpdate: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).
+ * An acceptance criterion with its criterion key, as the element file stores it (D-072, SR-204, ADR-0004): a block mapping, key first. Only in the list of the property with the meaning acceptance-criteria; the key never counts to the version (D-027).
+ * Schema: `schemas/element.schema.json#/$defs/criterion`.
+ */
+export interface ElementCriterion {
+  /** The criterion key: a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits (SR-204 AK5); unique in the requirement and kept while the criterion exists. */
+  readonly key: string;
+  /** The text of the acceptance criterion, Markdown. */
+  readonly text: string;
+}
+
+/** Schema: `schemas/element.schema.json#/$defs/criterionInput`. */
+export interface ElementCriterionInput {
+  /** Its key (SR-204). */
+  readonly key?: unknown;
+  /** Its text. */
+  readonly text: string;
+}
+
+/**
+ * Property value of a write command: like `value`, but a relation target is an element reference (UUID, short ID or identifier, alone or as `{ id, repository? }`) whose version the tool sets (SR-021).
  * Schema: `schemas/element.schema.json#/$defs/inputValue`.
  */
 export type ElementInputValue =
   | ElementScalar
   | null
-  | readonly ElementScalar[]
   | RelationTargetInput
-  | readonly RelationTargetInput[];
+  | readonly (ElementScalar | ElementCriterionInput | RelationTargetInput)[];
 
 /**
  * Property value (text, number, date as YYYY-MM-DD, choice key, list) or relation targets. Which one is expected comes from the metamodel; a mismatch is a hint, not a parse error (SR-012 AK3).
@@ -1023,7 +1044,7 @@ export type ElementInputValue =
 export type ElementValue =
   | ElementScalar
   | null
-  | readonly ElementScalar[]
+  | readonly (ElementScalar | ElementCriterion)[]
   | RelationTarget
   | readonly RelationTarget[];
 
@@ -2280,15 +2301,15 @@ export interface ElementUpdateInput {
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   /** Keys to remove. */
   readonly unset?: readonly Key[];
-  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256. */
+  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). Needs expectedFileSha256. */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
   /** Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept. */
   readonly addRelations?: RelationRefs;
   /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 

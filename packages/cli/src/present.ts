@@ -73,7 +73,7 @@
 // - hints and problems show their severity first, coloured by it; the line after them is faint.
 // No style is keyed to a status: statuses come from the metamodel. A matrix, a chain, a graph and the
 // comparisons keep the plain layout on a terminal.
-import { degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
+import { criterionText, degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 import type { Style, Terminal } from "./style.js";
@@ -365,15 +365,18 @@ const relationLine = (r: Rec): string => {
 
 /**
  * Properties with every list of texts as a map from its item number, counted from 1, to the item, so
- * the YAML shows `1: ...` (#401); other values as they are.
+ * the YAML shows `1: ...` (#401), an acceptance criterion with its key as its text (SR-204); other
+ * values as they are.
  */
 const numberedProperties = (properties: unknown): unknown =>
   isRecord(properties)
     ? Object.fromEntries(
         Object.entries(properties).map(([key, value]) => [
           key,
-          Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string")
-            ? new Map(value.map((item, i) => [i + 1, item]))
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.map(criterionText).every((item) => typeof item === "string")
+            ? new Map(value.map((item, i) => [i + 1, criterionText(item)]))
             : value,
         ]),
       )

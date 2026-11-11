@@ -63,6 +63,15 @@ problems:
   element.too-many-items:
     cause: An element has more entries in a list property than the `max-items` of the property in the metamodel allows. The entries are kept; the hint only shows it.
     remedy: Remove the entries that are too many, or raise or remove `max-items` in the metamodel.
+  element.criterion-key-missing:
+    cause: A requirement has acceptance criteria without criterion key, which a test or verification record would name it by; the warning gives their count.
+    remedy: Change the acceptance criteria, with element.update or in the app; then every acceptance criterion of the requirement gets a criterion key. Saving them unchanged changes nothing.
+  element.criterion-key-duplicate:
+    cause: Two acceptance criteria of one requirement have the same criterion key, usually because a line was copied by hand.
+    remedy: Give the later one another criterion key in the file; or change the acceptance criteria with element.update, which leaves the key with the earlier one and gives the later one a new key.
+  element.criterion-key-invalid:
+    cause: An acceptance criterion has a criterion key written by hand in another form than a lower-case letter a to z followed by 3 to 15 lower-case letters a to z or digits.
+    remedy: Correct the key in the file; or change the acceptance criteria with element.update, which gives this one a new criterion key.
   element.text-emptied:
     cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed, or an element.update or element.bulkUpdate left a Markdown property or a list property (such as the acceptance criteria) without a value that had one; `key` names that property. The save is done (a preview of element.bulkUpdate writes nothing and says the change would empty it); the warning only shows it, since an empty value is mostly a broken shell substitution. A required property emptied this way also gets `element.missing-required`. Multi-choice and relation lists (such as `packages`) count as lists.
     remedy: If the text or the property was emptied by mistake, restore it from Git or give it again with element.update.
