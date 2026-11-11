@@ -207,8 +207,13 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
         stale,
       ),
       "baselines/S6.yaml": baseline("S6", "2026-11-10T10:00:00Z", "  package: PKG-1\n", stale),
-      // A filter beside the view: no baseline of Coast either.
-      "baselines/S7.yaml": baseline("S7", "2026-11-10T10:00:00Z", `${OF_COAST}  filter: Open ones\n`, stale),
+      // A filter beside the view, as baseline.create writes it: no baseline of Coast either.
+      "baselines/S7.yaml": baseline(
+        "S7",
+        "2026-11-10T10:00:00Z",
+        `${OF_COAST}  where:\n    property: status\n    op: eq\n    value: draft\n`,
+        stale,
+      ),
     };
     const { workspace, fixture } = await open(files);
     expect(await listed(workspace)).toEqual([]);

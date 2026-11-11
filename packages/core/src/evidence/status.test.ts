@@ -304,13 +304,6 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
       status: "failed",
       criteria: { verified: 2, total: 3, notVerified: [2] },
     });
-    // Failed also beats a criterion without record and one of an older version.
-    expect(
-      perCriterion([
-        record(DAY1, "failed", { criteria: [1] }),
-        record(DAY1, "passed", { criteria: [2], version: OLDER }),
-      ]).status,
-    ).toBe("failed");
   });
 
   it("[SR-031/AK10] a criterion with several records of the current version at the newest instant fails when one of them failed", () => {

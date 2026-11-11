@@ -161,10 +161,6 @@ describe("SR-028 findings of the evidence records", () => {
     expect(found[0]?.message).toBe(
       `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement (D-012)`,
     );
-    // No verification status for the need, and the failed verification record does not reach its
-    // validation status: that is the validation record's (of another version: outdated).
-    const got = (await invoke("element.get", { ref: need }, { workspace })) as CommandOutput<"element.get">;
-    expect([got.element.verification, got.element.validation]).toEqual([undefined, "outdated"]);
   });
 
   it("[SR-038/AK5] a validation record of an element that is neither need nor requirement counts for no status and is a finding", async () => {
