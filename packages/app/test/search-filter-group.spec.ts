@@ -78,7 +78,7 @@ test.describe("search hits filtered and grouped", () => {
     await expect(ids(window)).toHaveText(filtered);
   });
 
-  test("[SR-149/AK6] grouped by status, the hits stand under their headings, each group in the order of the search", async () => {
+  test("[SR-149/AK6] [SR-075/AK4] grouped by status, the hits stand under their headings, each group in the order of the search, and the search offers no sort", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     const before = await snapshot(root);
