@@ -159,6 +159,58 @@ describe("criterion keys (SR-204)", () => {
     }
   });
 
+  it("[SR-204/AK1] bulkUpdate confirms add, set and remove with the plan of its preview, which gives the same keys", async () => {
+    const values = {
+      add: ["Added.", "Also added."],
+      set: ["Given a gust, then it is shown.", "New."],
+      remove: ["Given no gust, then nothing is shown."],
+    } as const;
+    for (const operation of ["add", "set", "remove"] as const) {
+      const bulk = await open(UNKEYED);
+      const input = {
+        selection: { ids: [SR.id] },
+        property: "acceptance-criteria",
+        operation,
+        value: values[operation],
+      };
+      const preview = await run<CommandOutput<"element.bulkUpdate">>(bulk, "element.bulkUpdate", input);
+      const again = await run<CommandOutput<"element.bulkUpdate">>(bulk, "element.bulkUpdate", input);
+      expect(again.plan).toBe(preview.plan);
+      const done = await run<CommandOutput<"element.bulkUpdate">>(bulk, "element.bulkUpdate", {
+        ...input,
+        plan: preview.plan,
+        confirm: true,
+      });
+      expect([done.applied, done.count]).toEqual([true, 1]);
+      expect(keysOf(await bulk.read()).every((k) => KEY.test(k))).toBe(true);
+    }
+  });
+
+  it("[SR-204/AK5] bulkUpdate add names the refused criterion by its place in the given items", async () => {
+    const opened = await open(KEYED);
+    const error = await refusal(
+      run(opened, "element.bulkUpdate", {
+        selection: { ids: [SR.id] },
+        property: "acceptance-criteria",
+        operation: "add",
+        value: ["Given a gust, then it is shown.", "Added.", { key: "gust1", text: "Also added." }],
+        confirm: true,
+      }),
+    );
+    expect([error.code, error.message.startsWith("acceptance-criteria item 3:"), error.details]).toEqual([
+      "input.invalid",
+      true,
+      {
+        key: "acceptance-criteria",
+        index: 2,
+        position: 3,
+        reason: "criterion-key-duplicate",
+        criterionKey: "gust1",
+      },
+    ]);
+    expect(await opened.read()).toBe(KEYED);
+  });
+
   it("[SR-204/AK1] of two criteria with the same key the earlier one keeps it, also when the change moves them", async () => {
     const opened = await open(
       requirement(["  - key: twice", "    text: First.", "  - key: twice", "    text: Second."]),
@@ -250,7 +302,13 @@ describe("criterion keys (SR-204)", () => {
       );
       expect([error.code, error.details]).toEqual([
         "input.invalid",
-        { index: 1, position: 2, reason, ...(typeof key === "string" ? { criterionKey: key } : {}) },
+        {
+          key: "acceptance-criteria",
+          index: 1,
+          position: 2,
+          reason,
+          ...(typeof key === "string" ? { criterionKey: key } : {}),
+        },
       ]);
     }
     const twice = await refusal(

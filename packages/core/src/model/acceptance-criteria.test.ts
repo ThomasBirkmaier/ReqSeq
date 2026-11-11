@@ -10,6 +10,7 @@ import {
   criteriaCount,
   newCriterionKey,
   reconcileCriteria,
+  seededRandom,
   withCriterionKeys,
 } from "./acceptance-criteria.js";
 
@@ -52,6 +53,16 @@ describe("criterion keys (SR-204)", () => {
     const key = newCriterionKey(new Set(["bbbb"]), sequence(0, 0, 0, 0, 1, 0, 0, 0));
     expect(key).toBe("cbbb");
     expect(newCriterionKey(new Set())).toMatch(/^[bcdfghjkmnpqrstvwxyz][bcdfghjkmnpqrstvwxyz0-9]{3}$/u);
+  });
+
+  it("draws the same keys from the same seed and other keys from another seed", () => {
+    const keys = (seed: string): string[] => {
+      const random = seededRandom(seed);
+      return [newCriterionKey(new Set(), random), newCriterionKey(new Set(), random)];
+    };
+    expect(keys("a")).toEqual(keys("a"));
+    expect(keys("a")[0]).not.toBe(keys("a")[1]);
+    expect(keys("a")).not.toEqual(keys("b"));
   });
 
   it("[SR-204/AK1] carries the keys of stored criteria, each at its first item only, and a key in a wrong form as its text", () => {
@@ -99,7 +110,7 @@ describe("criterion keys (SR-204)", () => {
     };
     expect(refused(["A", { key: undefined, text: "B" }])).toEqual([
       "input.invalid",
-      { index: 1, position: 2, reason: "criterion-key-invalid" },
+      { key: "ak", index: 1, position: 2, reason: "criterion-key-invalid" },
     ]);
     expect(
       refused([
@@ -108,7 +119,7 @@ describe("criterion keys (SR-204)", () => {
       ]),
     ).toEqual([
       "input.invalid",
-      { index: 1, position: 2, reason: "criterion-key-duplicate", criterionKey: "abcd" },
+      { key: "ak", index: 1, position: 2, reason: "criterion-key-duplicate", criterionKey: "abcd" },
     ]);
   });
 

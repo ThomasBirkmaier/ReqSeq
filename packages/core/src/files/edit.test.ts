@@ -874,6 +874,22 @@ describe("editElementFile: acceptance criteria with their keys (SR-204)", () => 
     );
   });
 
+  it("replaces the text of a criterion written as a flow mapping in the quoting a flow mapping needs", () => {
+    const flow = "---\nacceptance-criteria:\n  - { key: keya, text: old } # kept\n---\n";
+    expect(
+      edit(flow, {
+        edits: [
+          {
+            kind: "replace-item",
+            key: "acceptance-criteria",
+            index: 0,
+            value: { key: "keya", text: "a, b" },
+          },
+        ],
+      }),
+    ).toBe('---\nacceptance-criteria:\n  - { key: keya, text: "a, b" } # kept\n---\n');
+  });
+
   it("writes a mapping of another shape anew, and an appended criterion in the quoting of the last text", () => {
     const odd = "---\nacceptance-criteria:\n  - { key: keya, text: A, note: x }\n  - |\n    Block\n---\n";
     expect(

@@ -2301,15 +2301,15 @@ export interface ElementUpdateInput {
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   /** Keys to remove. */
   readonly unset?: readonly Key[];
-  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256. */
+  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). Needs expectedFileSha256. */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
   /** Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept. */
   readonly addRelations?: RelationRefs;
   /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it. Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 

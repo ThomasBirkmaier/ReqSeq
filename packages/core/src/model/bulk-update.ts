@@ -35,7 +35,12 @@
 //   writes only the remaining elements.
 // - `id`, `type` and `status` are refused by the input schema (ADR-0002 rule 6, D-030); nothing is
 //   deleted (D-045): a removed key or item is a change of the element's file only.
-import { acceptanceCriteriaKeyOf, carriedCriteria, withCriterionKeys } from "./acceptance-criteria.js";
+import {
+  acceptanceCriteriaKeyOf,
+  carriedCriteria,
+  seededRandom,
+  withCriterionKeys,
+} from "./acceptance-criteria.js";
 import { criterionText } from "./criterion-items.js";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -301,6 +306,7 @@ const removeEdits = (
   stored: unknown,
   given: readonly unknown[],
   repository: string,
+  seed: string,
 ): FrontmatterEdit[] => {
   const { key } = plan.property;
   if (!Array.isArray(stored)) {
@@ -317,7 +323,7 @@ const removeEdits = (
   }
   if (indexes.length > 0 && isCriteria(plan)) {
     const left = carriedCriteria(stored).filter((_, i) => !indexes.includes(i));
-    return [{ kind: "set", key, value: criteriaValue(plan, stored, left) }];
+    return [{ kind: "set", key, value: criteriaValue(plan, stored, left, seed) }];
   }
   // From the last item, so each index still names its item.
   return indexes.toReversed().map((index): FrontmatterEdit => ({ kind: "remove-item", key, index }));
@@ -329,6 +335,7 @@ const addEdits = async (
   record: ElementRecord,
   stored: unknown,
   given: readonly unknown[],
+  seed: string,
 ): Promise<FrontmatterEdit[]> => {
   const { key } = plan.property;
   // A blank scalar (`isEmptyValue`, e.g. `key: ""`) holds no item.
@@ -338,11 +345,14 @@ const addEdits = async (
       ? []
       : [stored];
   const fresh: unknown[] = [];
-  for (const item of given) {
+  // The index in `given` of each fresh item, for a refusal that names the caller's item (SR-204 AK5).
+  const origin: number[] = [];
+  given.forEach((item, index) => {
     if (![...held, ...fresh].some((h) => sameItem(h, item, record.repository))) {
       fresh.push(item);
+      origin.push(index);
     }
-  }
+  });
   if (fresh.length === 0) {
     return [];
   }
@@ -363,7 +373,15 @@ const addEdits = async (
   if (isCriteria(plan)) {
     // The whole list, so every acceptance criterion has its key (SR-204 AK1).
     const kept = Array.isArray(stored) ? carriedCriteria(stored) : held;
-    return [{ kind: "set", key, value: criteriaValue(plan, stored, [...kept, ...added]) }];
+    const value = criteriaValue(
+      plan,
+      stored,
+      [...kept, ...added],
+      seed,
+      // A kept criterion carries a key in its form, held once, so only a fresh one is refused.
+      (index) => Number(origin[index - kept.length]),
+    );
+    return [{ kind: "set", key, value }];
   }
   if (!Array.isArray(stored) && !isAbsent(stored)) {
     // One value where a list belongs: the key becomes the list of it (none when it is blank) and the
@@ -379,12 +397,49 @@ const isAbsent = (value: unknown): boolean => value === undefined || value === n
 const isCriteria = (plan: Plan): boolean =>
   acceptanceCriteriaKeyOf(plan.context.metamodel) === plan.property.key;
 
-/** The acceptance criteria `next` as stored, against the items `stored` now (`reconcileCriteria`, SR-204). */
-const criteriaValue = (plan: Plan, stored: unknown, next: readonly unknown[]): PropertyValue =>
-  withCriterionKeys(plan.context.metamodel, plan.property.key, stored, next) as PropertyValue;
+/**
+ * The acceptance criteria `next` as stored, against the items `stored` now (`reconcileCriteria`,
+ * SR-204). New keys come from `seed`, the SHA-256 of the file as read, and the property key, so a
+ * preview and its confirmation plan the same keys (SR-071, #1493). `inputOf` maps the index of a
+ * refused entry back to the caller's item.
+ */
+const criteriaValue = (
+  plan: Plan,
+  stored: unknown,
+  next: readonly unknown[],
+  seed: string,
+  inputOf?: (index: number) => number,
+): PropertyValue => {
+  const { key } = plan.property;
+  try {
+    return withCriterionKeys(
+      plan.context.metamodel,
+      key,
+      stored,
+      next,
+      seededRandom(`${seed}\0${key}`),
+    ) as PropertyValue;
+  } catch (error) {
+    if (inputOf === undefined) {
+      throw error;
+    }
+    // Every refusal of `reconcileCriteria` names the entry by its index.
+    const { code, message, details } = error as CommandError & { details: { index: number } };
+    const at = inputOf(details.index);
+    throw new CommandError(
+      code,
+      message.replace(`item ${String(details.index + 1)}:`, `item ${String(at + 1)}:`),
+      {
+        ...details,
+        index: at,
+        position: at + 1,
+      },
+    );
+  }
+};
 
 /** The edits of the operation for one element as read now (`record`); none when it has the result already. */
-const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterEdit[]> => {
+const editsFor = async (plan: Plan, record: ElementRecord, seed: string): Promise<FrontmatterEdit[]> => {
   const { property, operation, value } = plan;
   const { key } = property;
   const stored = record.data[key];
@@ -408,14 +463,17 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
         {
           kind: "set",
           key,
-          value: withCriterionKeys(plan.context.metamodel, key, stored, set) as PropertyValue,
+          value:
+            Array.isArray(set) && isCriteria(plan)
+              ? criteriaValue(plan, stored, set, seed)
+              : (set as PropertyValue),
         },
       ];
     }
     case "remove":
-      return removeEdits(plan, stored, itemsOf(value), record.repository);
+      return removeEdits(plan, stored, itemsOf(value), record.repository, seed);
     case "add":
-      return addEdits(plan, record, stored, itemsOf(value));
+      return addEdits(plan, record, stored, itemsOf(value), seed);
   }
 };
 
@@ -554,7 +612,7 @@ export const bulkUpdateElements = async (
   })[] = [];
   let unchanged = 0;
   for (const { record, type, repository, current } of await readAllUnchanged(workspace, layout, candidates)) {
-    const edits = await editsFor(plan, current.record);
+    const edits = await editsFor(plan, current.record, current.file.snapshot.sha256);
     const { bytes, changed, parsed } = editElementFile(current.file, { edits, keyOrder: type.properties });
     if (changed) {
       planned.push({ repository, current, bytes, named: named(record), parsed });

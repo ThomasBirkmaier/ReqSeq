@@ -80,7 +80,7 @@
       "setItems": {
         "type": "object",
         "minProperties": 1,
-        "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256.",
+        "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). Needs expectedFileSha256.",
         "additionalProperties": {
           "type": "object",
           "propertyNames": {
@@ -107,11 +107,11 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it. Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+        "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates."
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+        "description": "Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change."
       }
     },
     "additionalProperties": false,

@@ -417,17 +417,19 @@ const replacedItem = (
   const before = textNodeOf(old.node);
   // A criterion that replaces one with its key changes the scalars of key and text only, so the
   // spacing and a comment of the mapping stay.
-  const keyNode: unknown =
-    isMap(old.node) && old.node.items.length === 2 ? old.node.get("key", true) : undefined;
+  const map = isMap(old.node) && old.node.items.length === 2 ? old.node : undefined;
+  const keyNode: unknown = map?.get("key", true);
   if (isCriterionItem(value) && isOneLineText(before) && isOneLineText(keyNode)) {
     const scalars: [Scalar, string][] = [
       [keyNode, value.key],
       [before, value.text],
     ];
+    // Inside a flow mapping `{ key: …, text: … }` a text is quoted for that context, e.g. `a, b`.
+    const context = map?.flow === true ? "flow-value" : "value";
     let out = old.text;
     for (const [node, scalar] of scalars.sort(([a], [b]) => rangeOf(b)[0] - rangeOf(a)[0])) {
       const [start, end] = rangeOf(node);
-      out = `${out.slice(0, start - old.start)}${requoted(node, scalar, "value")}${out.slice(end - old.start)}`;
+      out = `${out.slice(0, start - old.start)}${requoted(node, scalar, context)}${out.slice(end - old.start)}`;
     }
     return out;
   }

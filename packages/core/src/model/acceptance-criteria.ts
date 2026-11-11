@@ -5,7 +5,7 @@
 // criteria; a value that is no list holds none (the value kind check reports it, SR-085). Each
 // criterion carries a criterion key (SR-204): the writers give and keep them (`reconcileCriteria`);
 // the form of an item is `criterion-items.ts`.
-import { randomInt } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -60,6 +60,25 @@ export const newCriterionKey = (taken: ReadonlySet<string>, random: RandomInt = 
 };
 
 /**
+ * A random integer stream determined by `seed` (SR-204 AK1, #1493): draw n is taken from the SHA-256
+ * of the seed and n. The bulk update seeds it with the file's SHA-256 and the property key, so its
+ * preview and its confirmation give the same new keys and the same plan (SR-071); the draws follow
+ * the entries in their order, so an entry's key depends on its index too.
+ */
+export const seededRandom = (seed: string): RandomInt => {
+  let draw = 0;
+  return (below) => {
+    draw += 1;
+    return (
+      createHash("sha256")
+        .update(`${seed}\0${String(draw)}`)
+        .digest()
+        .readUInt32BE(0) % below
+    );
+  };
+};
+
+/**
  * The stored items as entries of a new list that keeps their keys: an item with a key in its form
  * keeps it at its first occurrence; an item with a key in another form, or one an earlier item
  * holds already, becomes its text, so it is matched by its text or gets a new key (SR-204 AK1).
@@ -80,8 +99,15 @@ export const carriedCriteria = (stored: unknown): unknown[] => {
   });
 };
 
-const refused = (message: string, index: number, reason: string, key: unknown): CommandError =>
+const refused = (
+  property: string,
+  message: string,
+  index: number,
+  reason: string,
+  key: unknown,
+): CommandError =>
   new CommandError("input.invalid", message, {
+    key: property,
     index,
     position: index + 1,
     reason,
@@ -98,6 +124,7 @@ const passedKeys = (property: string, next: readonly unknown[]): Set<string> => 
     const { key } = entry;
     if (!isCriterionKey(key)) {
       throw refused(
+        property,
         `${property} item ${String(index + 1)}: ${key === undefined ? "the key" : JSON.stringify(key)} is no criterion key; a criterion key is a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits`,
         index,
         "criterion-key-invalid",
@@ -106,6 +133,7 @@ const passedKeys = (property: string, next: readonly unknown[]): Set<string> => 
     }
     if (passed.has(key)) {
       throw refused(
+        property,
         `${property} item ${String(index + 1)}: the criterion key ${key} is given twice; each acceptance criterion needs its own`,
         index,
         "criterion-key-duplicate",
@@ -178,9 +206,16 @@ export const reconcileCriteria = (
 
 /**
  * `value` as stored when it is the value of the acceptance criteria `key` of `metamodel`
- * (`reconcileCriteria` with the items `previous` the file holds now); any other value as it is.
+ * (`reconcileCriteria` with the items `previous` the file holds now and `random` for new keys); any
+ * other value as it is.
  */
-export const withCriterionKeys = <T>(metamodel: Metamodel, key: string, previous: unknown, value: T): T =>
+export const withCriterionKeys = <T>(
+  metamodel: Metamodel,
+  key: string,
+  previous: unknown,
+  value: T,
+  random: RandomInt = randomInt,
+): T =>
   Array.isArray(value) && acceptanceCriteriaKeyOf(metamodel) === key
-    ? (reconcileCriteria(key, previous, value as unknown[]) as T)
+    ? (reconcileCriteria(key, previous, value as unknown[], random) as T)
     : value;
