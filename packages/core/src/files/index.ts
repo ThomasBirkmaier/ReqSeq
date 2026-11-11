@@ -5,7 +5,7 @@
 export { findConflictMarker } from "./conflict-markers.js";
 export { createFolder } from "./folder.js";
 export { linksStayInside } from "./links.js";
-export { errorCode, resolveInRoot } from "./paths.js";
+export { errorCode, isTakenForGit, resolveInRoot, systemForm } from "./paths.js";
 export { TRANSIENT_CODES } from "./retry.js";
 export { splitFrontmatter } from "./frontmatter.js";
 export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";

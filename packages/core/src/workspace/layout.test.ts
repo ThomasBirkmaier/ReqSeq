@@ -3,7 +3,9 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
 import {
@@ -431,6 +433,66 @@ describe("loadWorkspaceLayout", () => {
       ["workspace.invalid", "error", "baselines names repository b, which is not in repositories"],
       ["workspace.invalid", "error", "filters names repository f, which is not in repositories"],
       ["metamodel.invalid", "error", "Metamodel repository nope is not in repositories"],
+    ]);
+  });
+
+  it("warns once per folder ReqSeq writes into that meets Git, also a default one through a link, and workspace.check shows it", async () => {
+    const ws = await setup(
+      yaml(
+        MAIN,
+        "metamodel: { repository: main, path: metamodel }\n" +
+          "evidence:\n  - { repository: main, path: .git/evidence }\n" +
+          "baselines: { repository: main, path: .git./baselines }\n" +
+          "mappings: { repository: main, path: GIT~1/reqif }\n",
+      ),
+      { folders: ["main/.git/x"] },
+    );
+    // The default filters folder is a link into .git.
+    await fs.symlink(ws.path("main/.git/x"), ws.path("main/filters"), "junction");
+    const warning = (setting: string, at: string, place: string): readonly string[] => [
+      "workspace.invalid",
+      "warning",
+      `${setting}: ${at} in repository main: ${place} is .git or a name Windows or macOS take for it, or a link into such a folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+    ];
+    const expected = [
+      warning("evidence", ".git/evidence", ".git"),
+      warning("baselines", ".git./baselines", ".git."),
+      warning("filters", "filters", "filters"),
+      warning("mappings", "GIT~1/reqif", "GIT~1"),
+    ];
+    const layout = await loadWorkspaceLayout(ws.path("main"));
+    expect(layout.problems.map((p) => [p.code, p.severity, p.message])).toEqual(expected);
+    const workspace = new Workspace(ws.path("main"));
+    onTestFinished(() => workspace.close());
+    const checked = (await invoke("workspace.check", {}, { workspace })) as { problems: readonly Problem[] };
+    expect(
+      checked.problems
+        .filter((p) => p.message.includes("git-folder"))
+        .map((p) => [p.code, p.severity, p.message]),
+    ).toEqual(expected);
+  });
+
+  it("warns about a folder of a repository of its own, but not about a repository below .git, a name that only starts with .git, a loop or a link out of the repository", async () => {
+    const ws = await createFixtureWorkspace({
+      files: {
+        [`outer/.git/wt/main/${WORKSPACE_FILE}`]: yaml(
+          MAIN,
+          "metamodel: { repository: main, path: metamodel }\nfilters: { repository: main, path: gitfilters/.gitkeep }\n" +
+            "baselines: { repository: main, path: own/baselines }\n" +
+            "mappings: { repository: main, path: loop/reqif }\n" +
+            "evidence:\n  - { repository: main, path: away/evidence }\n",
+        ),
+        "outer/.git/wt/main/metamodel/types.yaml": "types: {}\n",
+        "outer/.git/wt/main/own/.git": "gitdir: elsewhere\n",
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    // A loop of links is not judged, and a link out of the repository is not followed (#294).
+    await fs.symlink("loop", ws.path("outer/.git/wt/main/loop"), "dir");
+    await fs.symlink(ws.path("outer/.git"), ws.path("outer/.git/wt/main/away"), "junction");
+    const layout = await loadWorkspaceLayout(ws.path("outer/.git/wt/main"));
+    expect(layout.problems.map((p) => p.message)).toEqual([
+      "baselines: own/baselines in repository main: own holds a .git entry, so it is a repository of its own (git-entry); ReqSeq never writes to Git, so it saves nothing there",
     ]);
   });
 

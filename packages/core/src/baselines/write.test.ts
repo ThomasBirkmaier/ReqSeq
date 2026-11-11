@@ -12,10 +12,10 @@ vi.mock("../files/index.js", async (importOriginal) => {
   return { ...original, writeFileAtomic: vi.fn(original.writeFileAtomic) };
 });
 
-const repository = async (): Promise<{ folder: string; read: (file: string) => string }> => {
+const repository = async (): Promise<{ name: string; folder: string; read: (file: string) => string }> => {
   const fixture = await createFixtureWorkspace({ files: { "baselines/release-1.yaml": "old\n" } });
   onTestFinished(() => fixture.cleanup());
-  return { folder: fixture.root, read: (file) => fs.readFileSync(fixture.path(file), "utf8") };
+  return { name: "main", folder: fixture.root, read: (file) => fs.readFileSync(fixture.path(file), "utf8") };
 };
 
 describe("writeNewBaseline", () => {

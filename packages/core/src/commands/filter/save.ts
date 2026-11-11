@@ -12,6 +12,8 @@
 //   the file. Nothing changed: nothing is written and `files` is empty. The file must be unchanged
 //   since it was read (`file.changed-on-disk`). A name only a faulty file holds is `file.faulty`.
 // - Filters are not elements (D-056); nothing is ever deleted or renamed, and no status is touched.
+// - Never into Git, also when the workspace file places the filters folder there: the file to write
+//   is checked right before each write (`refuseGitPlace`, D-036, SR-083 AK4).
 import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
@@ -33,7 +35,7 @@ import {
   sortElements,
 } from "../../query/index.js";
 import { resolveView } from "../../variants/index.js";
-import { workspaceLayoutState } from "../../workspace/index.js";
+import { refuseGitPlace, workspaceLayoutState } from "../../workspace/index.js";
 
 /** The keys of a filter file, in the order a new file has them. */
 const KEYS = ["reqseq-filter", "name", "description", "view", "where", "sort"] as const;
@@ -96,16 +98,20 @@ export default defineCommand({
       if (edits.length === 0) {
         return { files: [], problems: [] };
       }
+      await refuseGitPlace(repository, filter.path);
       const edited = editYamlDocument(filter.yaml, edits);
       await writeFileAtomic(repository.folder, filter.path, edited.bytes, filter.yaml.snapshot, {
         kind: "yaml",
       });
       return { files: [filter.file], problems: [] };
     }
+    const file = path.posix.join(saved.folder, newFilterFile(input.name, saved.entries));
+    await refuseGitPlace(repository, file);
     if (!saved.exists && saved.folder !== "") {
       await createFolder(repository.folder, saved.folder);
+      // Again with the folder there, so a link or `.git` entry put there meanwhile is not written into.
+      await refuseGitPlace(repository, file);
     }
-    const file = path.posix.join(saved.folder, newFilterFile(input.name, saved.entries));
     await writeFileAtomic(repository.folder, file, renderYamlDocument(data), null, { kind: "yaml" });
     return { files: [workspacePath(layout, repository, file)], problems: [] };
   },
