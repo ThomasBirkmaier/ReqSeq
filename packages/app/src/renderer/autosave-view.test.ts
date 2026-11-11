@@ -82,6 +82,8 @@ const disk = (readOnly = false, text = "first") => {
     refuse: undefined as Error | undefined,
     /** Problems the next answers give. */
     problems: undefined as { message: string; key?: string }[] | undefined,
+    /** The number of directly affected elements the next answers give (SR-024 AK2). */
+    affected: 0,
   };
   const element = (): DataExportElement =>
     ({
@@ -127,7 +129,7 @@ const disk = (readOnly = false, text = "first") => {
         element: element(),
         fileSha256: file.sha,
         files: ["a.md"],
-        affected: 0,
+        affected: file.affected,
         ...(file.problems === undefined ? {} : { problems: file.problems }),
       };
     },
@@ -405,6 +407,30 @@ describe("autosave in the element buffer (SR-105)", () => {
     await typeAt(viewIn('[data-field="topic"]'), "y");
     await settle(AUTOSAVE_MS);
     expect(echoed).toEqual([`Saved ${NAME}. topic: the value is unusual`]);
+  });
+
+  it("[SR-024/AK2] says the number of directly affected elements after a save: once while it stays the same, and on Ctrl+S", async () => {
+    const { echoed, file, controls } = await mountView();
+    file.affected = 2;
+    await typeAt(textView(), "!");
+    await settle(AUTOSAVE_MS);
+    await typeAt(textView(), "?");
+    await settle(AUTOSAVE_MS);
+    expect(echoed).toEqual([`Saved ${NAME}: 2 elements directly affected`]);
+    await typeAt(textView(), ".");
+    await act(async () => {
+      controls().save();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(echoed.at(-1)).toBe(`Saved ${NAME}: 2 elements directly affected`);
+    // A save core counts 0 for (only the title or status changed, AK3) says nothing of affected elements.
+    file.affected = 0;
+    await typeAt(textView(), "!");
+    await act(async () => {
+      controls().save();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(echoed.at(-1)).toBe(`Saved ${NAME}`);
   });
 
   it("waits while an input method composes, and saves when it ends", async () => {

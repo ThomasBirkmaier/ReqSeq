@@ -12,6 +12,7 @@ import type { DataExportElement } from "@reqseq/core";
 import type { BoxEdit } from "./property-edit.js";
 import { fieldBoxes, isUnknownInfo, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
+import { elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
 import { makeDraft, withShown } from "./drafts.js";
@@ -36,9 +37,14 @@ export interface SaveContext {
   readonly rebased: (key: string, draft: Draft | undefined) => void;
 }
 
-/** Everything is saved, or the element that could not be, and why. */
+/**
+ * Everything is saved, or the element that could not be, and why. `affected` is the number of directly
+ * affected elements, above 0, that `element.update` gave for a draft `saveOne` wrote (SR-024 AK2), with the
+ * `name` of the element as it was saved.
+ */
 export type SaveResult =
-  { readonly ok: true } | { readonly ok: false; readonly name: string; readonly message: string };
+  | { readonly ok: true; readonly affected?: { readonly name: string; readonly count: number } }
+  | { readonly ok: false; readonly name: string; readonly message: string };
 
 /** What the minibuffer says when input could not be saved before a switch. */
 export const notSaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
@@ -115,6 +121,12 @@ const settle = (context: SaveContext, buffer: ElementBuffer, kept: Draft, file: 
   return { ok: true };
 };
 
+/** A saved draft with the number of directly affected elements of its write, when above 0 (SR-024 AK2). */
+const withAffected = (result: SaveResult, file: SavedFile, affected: number): SaveResult =>
+  result.ok && affected > 0
+    ? { ok: true, affected: { name: elementBufferOf(file.element).name, count: affected } }
+    : result;
+
 /**
  * What a box of a draft is saved as: none when the type has no such property, or when the property is one
  * the type does not know and the input is not its removal (core only removes such a property, #189).
@@ -160,6 +172,7 @@ export const saveOne = async (
   // The text when it was typed in and the file does not hold it yet.
   const text = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
   let file: SavedFile = read.output;
+  let affected = 0;
   if (text !== undefined || edits.length > 0) {
     const written = await context.call("element.update", {
       ...updateInput(buffer.id, text, edits),
@@ -169,8 +182,9 @@ export const saveOne = async (
       return failed(buffer, written.message);
     }
     file = written.output;
+    affected = written.output.affected;
   }
-  return settle(context, buffer, kept, file);
+  return withAffected(settle(context, buffer, kept, file), file, affected);
 };
 
 /**
