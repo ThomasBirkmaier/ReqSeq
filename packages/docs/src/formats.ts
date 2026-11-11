@@ -174,7 +174,7 @@ export function formatsIndex(schemas: readonly JsonSchema[], base: string): stri
   const root = `${base.replace(/\/$/, "")}/${FORMATS_FOLDER}`;
   return [
     ...frontmatter("File formats", "Every file format of ReqSeq.", 0),
-    "The files of a workspace and of the cache folder are plain text: YAML, Markdown with YAML frontmatter, and JSON. Each page lists the fields of one format, its types and examples.",
+    "The files of a workspace and of the cache folder are plain text: YAML, Markdown with YAML frontmatter, JSON and JSON Lines. Each page lists the fields of one format, its types and examples.",
     "",
     ...FORMATS.map((name) => `- [${inline(titled(name))}](${root}/${name}/)`),
     "",

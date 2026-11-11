@@ -199,11 +199,15 @@ function checkVersionVectors(dir) {
 }
 
 // The lines of a JSON Lines example (SR-009 AK3), each read with JSON.parse and checked against `#/$defs/line`
-// of its schema; an empty file or an empty line is an error.
+// of its schema. An empty file has no lines (data.store writes one for an empty selection); an empty line is
+// an error.
 function checkJsonLines(where, text, schemaName) {
   const validate = ajv.getSchema(`${BASE}${schemaName}.schema.json#/$defs/line`);
   if (!validate) {
     return [`${where}: no $defs/line in ${schemaName}.schema.json`];
+  }
+  if (text === "") {
+    return [];
   }
   const lines = text.endsWith("\n") ? text.slice(0, -1).split("\n") : text.split("\n");
   return lines.flatMap((line, index) => {
