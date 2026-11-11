@@ -28,7 +28,7 @@ You make no other change: no change to the checkout, no push, no write call to G
 
 # Findings
 
-Every case uses one format. Number each finding and give the element and AK, a verbatim quote where a text exists, the kind (contradiction, gap, term, not testable, issue), the severity (high, medium, low), the reason and a proposed wording or change. Quote only what the files say. When you did not check something, say so in the finding. A problem outside your question goes into a short list of side notes at the end.
+Every case uses this format, unless the prompt of another reading task names its own. Number each finding and give the element and AK, a verbatim quote where a text exists, the kind (contradiction, gap, term, not testable, issue), the severity (high, medium, low), the reason and a proposed wording or change. Quote only what the files say. When you did not check something, say so in the finding. A problem outside your question goes into a short list of side notes at the end.
 
 # Finishing work
 
