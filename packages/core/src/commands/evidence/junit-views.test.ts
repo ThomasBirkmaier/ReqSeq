@@ -136,14 +136,16 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
         .filter((p) => p.code === "evidence.counts-in-no-view")
         .map((p) => [p.severity, p.file, p.targetId, p.message]),
     ).toEqual(
-      [
-        "for the core counts in no view: it does not apply in the core",
-        "for the variant VAR-0000c2 counts in no view: it does not apply in the variant VAR-0000c2",
-      ].map((text) => [
+      (
+        [
+          ["the core", "core"],
+          ["the variant VAR-0000c2", "VAR-0000c2"],
+        ] as const
+      ).map(([view, short]) => [
         "warning",
         "evidence/ci/views.xml",
         `${P}a2`,
-        `The verification record of SR-0000a2 ${text}; record it for a view that holds it (SR-047)`,
+        `The verification record of SR-0000a2 for ${view} counts in no view: SR-0000a2 does not apply in ${short}, so a record for it there would count nowhere (SR-040)`,
       ]),
     );
   });

@@ -154,7 +154,7 @@ problems:
     cause: A verification record names an element whose type is no requirement, for example a test case of a JUnit file that names a need. A verification names a requirement; the record counts for no status.
     remedy: Name a requirement in the test case, or record the validation of the need with `evidence record` and kind validation.
   evidence.counts-in-no-view:
-    cause: A verification record counts in no view. Its view, the variant it names or the core without one, does not hold its requirement (the requirement does not apply there, or the variant excludes or replaces it), and no variant holds it through a repository marked `variant-independent`. No other record of the same test case counts for the requirement.
+    cause: A verification record counts in no view. Its view, the variant it names or the core without one, does not hold its requirement (the requirement does not apply there, or the variant excludes or replaces it); for a record without variant, no variant holds it through a repository marked `variant-independent` either. No other record of the same test case counts for the requirement.
     remedy: Record the test for a view that holds the requirement, for example with `--variant` of `evidence enrich-junit` or `evidence record`.
   evidence.unknown-criterion:
     cause: An evidence record names an acceptance criterion by a number that the version of the requirement it names does not have. That number counts for no criterion, and for a requirement without acceptance criteria the record counts for the whole requirement; the record stays readable.

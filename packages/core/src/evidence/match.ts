@@ -38,7 +38,7 @@
 // - `evidence.counts-in-no-view` (warning, SR-047 AK5) for a verification record that counts in no
 //   view, unless another record of its test case counts for the element (`no-view.ts`).
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in
-//   their order. Only the kind and criterion checks need the metamodel; the other findings show while
+//   their order. Only the kind, criterion and view checks need the metamodel; the other findings show while
 //   it is not valid.
 // - A JUnit test case for several views gives one record per view (SR-093 AK5) with the same place
 //   and element, so the findings of the records are given once per code, place, target and message
@@ -62,6 +62,7 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceRecord } from "./record.js";
+import { recordViewContext } from "./in-variant.js";
 import { noViewProblems } from "./no-view.js";
 import { criterionLineOf } from "./record.js";
 import { evidenceReadState, evidenceRecordsState } from "./state.js";
@@ -322,13 +323,10 @@ export const evidenceProblemsState = defineWorkspaceState(
         ...recordElementProblems(records, store, layout),
         ...recordKindProblems(records, store, metamodel),
         ...noViewProblems(
-          {
-            workspace,
-            store,
-            metamodel,
-            shortIds: await workspace.get(shortIdState),
-            independent: variantIndependentOf(layout),
-          },
+          recordViewContext(
+            { workspace, store, metamodel, shortIds: await workspace.get(shortIdState) },
+            variantIndependentOf(layout),
+          ),
           records,
         ),
         ...(criteria === undefined

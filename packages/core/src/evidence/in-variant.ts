@@ -67,7 +67,19 @@ export const outOfView = (
 /** What `recordOutOfView` reads: also the repositories marked `variant-independent` (SR-173). */
 export interface RecordViewContext extends ViewContext {
   readonly independent: ReadonlySet<string>;
+  /** The variants of the workspace (`variantsOf`), listed once per call (N-036). */
+  readonly variants: readonly ElementRecord[];
 }
+
+/** `context` with the variants of its store and the repositories `independent` names. */
+export const recordViewContext = (
+  context: ViewContext,
+  independent: ReadonlySet<string>,
+): RecordViewContext => ({
+  ...context,
+  independent,
+  variants: variantsOf(context.store, context.metamodel),
+});
 
 /**
  * Why a verification record of `element` for `view` would count in no view (SR-047 AK5), or undefined
@@ -84,7 +96,7 @@ export const recordOutOfView = (
   if (out === undefined || view.kind !== "core" || !context.independent.has(element.repository)) {
     return out;
   }
-  const holds = variantsOf(context.store, context.metamodel).some((variant) =>
+  const holds = context.variants.some((variant) =>
     viewRuleOf(context, { kind: "variant", variant }).includes(element),
   );
   return holds ? undefined : out;

@@ -953,6 +953,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       store: await workspace.get(elementStoreState),
       shortIds: await workspace.get(shortIdState),
       independent: new Set<string>(),
+      variants: [],
     };
     const check = outOfVariantOf(views, new Map(), new Map());
     expect(check(uuid43("a2"), COAST)).toBeUndefined();

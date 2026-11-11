@@ -26,7 +26,7 @@ export const holdsIn = (
  * two views share it. Place alone is not enough: pytest writes a whole file on line 1, so the test
  * case (name and class name) is part of it, and the date keeps two runs at the same place apart.
  */
-const executionOf = (record: EvidenceRecord): string =>
+export const executionOf = (record: EvidenceRecord): string =>
   JSON.stringify([
     record.repository,
     record.file,

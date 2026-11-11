@@ -81,7 +81,7 @@ import { CRITERION_PROPERTY, criterionRefsOf, elementRefsOf, junitTestCases } fr
 import type { NameMatch } from "./name-pattern.js";
 import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 import type { RecordViewContext, ViewContext } from "./in-variant.js";
-import { recordOutOfView } from "./in-variant.js";
+import { recordOutOfView, recordViewContext } from "./in-variant.js";
 import { evidenceReadState } from "./state.js";
 
 const COMMAND = "evidence.enrichJunit";
@@ -1636,13 +1636,7 @@ export const enrichJunitFile = async (
   const shortIds = await workspace.get(shortIdState);
   const metamodel = await workspace.get(metamodelState);
   const found = new Map<string, ElementRecord>();
-  const views: RecordViewContext = {
-    workspace,
-    metamodel,
-    store,
-    shortIds,
-    independent: variantIndependentOf(layout),
-  };
+  const views = recordViewContext({ workspace, metamodel, store, shortIds }, variantIndependentOf(layout));
   const variants = new Map<string, ElementRecord>();
   const given = givenViews(views, input.variant, variants);
   // The metamodel is valid here: a write is refused while it is not (`workspace.read-only`).

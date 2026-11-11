@@ -18,6 +18,7 @@ import type { ResolvedView } from "../variants/index.js";
 import { variantTypes } from "../variants/index.js";
 import type { OutOfView, RecordViewContext } from "./in-variant.js";
 import { recordOutOfView } from "./in-variant.js";
+import { executionOf } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
 
 /** The one copy of `id` in the store, or undefined. */
@@ -26,18 +27,6 @@ const onlyCopy = (context: RecordViewContext, id: string): ElementRecord | undef
   return others.length > 0 ? undefined : element;
 };
 
-/** The execution of a record and its element, as `withoutShadowedCore` (`holds.ts`) keys it. */
-const executionOf = (record: EvidenceRecord): string =>
-  JSON.stringify([
-    record.repository,
-    record.file,
-    record.line,
-    record.testCase,
-    record.className,
-    record.element,
-    record.date,
-  ]);
-
 /** A checked record: its element, its view and why it counts nowhere (undefined: it counts). */
 interface Checked {
   readonly record: EvidenceRecord;
@@ -45,13 +34,6 @@ interface Checked {
   readonly view: ResolvedView;
   readonly out: OutOfView | undefined;
 }
-
-/** How the message names why a view does not hold the element (`OutOfView.reason`). */
-const REASONS: Readonly<Record<OutOfView["reason"], string>> = {
-  "not-valid-in-variant": "does not apply in",
-  "excluded-in-variant": "is excluded in",
-  "replaced-in-variant": "is replaced in",
-};
 
 /** `the core`, or `the variant <short ID>`. */
 const viewName = (context: RecordViewContext, view: ResolvedView): string =>
@@ -86,7 +68,7 @@ export const noViewProblems = (context: RecordViewContext, records: readonly Evi
           {
             code: "evidence.counts-in-no-view",
             severity: "warning",
-            message: `The verification record of ${shortIds.of(element)} for ${viewName(context, view)} counts in no view: it ${REASONS[out.reason]} ${viewName(context, view)}; record it for a view that holds it (SR-047)`,
+            message: `The verification record of ${shortIds.of(element)} for ${viewName(context, view)} counts in no view: ${shortIds.of(element)} ${out.why}`,
             ...(record.repository === undefined ? {} : { repository: record.repository }),
             ...(record.file === undefined ? {} : { file: record.file }),
             ...(record.line === undefined ? {} : { line: record.line }),

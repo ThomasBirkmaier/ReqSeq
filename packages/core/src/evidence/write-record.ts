@@ -70,7 +70,7 @@ import { resolveView } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { RecordViewContext } from "./in-variant.js";
-import { outOfView, recordOutOfView } from "./in-variant.js";
+import { outOfView, recordOutOfView, recordViewContext } from "./in-variant.js";
 import {
   CRITERIA_VERIFICATION_ONLY,
   INCONCLUSIVE_REASON_REQUIRED,
@@ -474,10 +474,10 @@ const coreOutOfView = (
   if (out === undefined) {
     return;
   }
-  throw invalid(
-    `${context.shortIds.of(element)} does not apply in core, so a record for it without variant would count in no view; give a variant it applies in (SR-047)`,
-    { fields: ["variant"], reason: "counts-in-no-view" },
-  );
+  throw invalid(`${context.shortIds.of(element)} ${out.why}; give a variant whose view holds it (SR-047)`, {
+    fields: ["variant"],
+    reason: "counts-in-no-view",
+  });
 };
 
 /**
@@ -554,7 +554,11 @@ const prepare = async (
     new Set(typesWithMeaning(metamodel, meaning).map((t) => t.key));
   checkKind({ requirements: keys("requirement"), needs: keys("need") }, element, input.kind, input.ref);
   const independent = variantIndependentOf(await workspace.get(workspaceLayoutState));
-  const variant = variantOf({ workspace, metamodel, store, shortIds, independent }, element, input);
+  const variant = variantOf(
+    recordViewContext({ workspace, metamodel, store, shortIds }, independent),
+    element,
+    input,
+  );
   const criteria = criteriaFields(input);
   // AK1: `currentVersionsOf` gives an entry for every record it is given.
   const entry = (await currentVersionsOf(workspace, [element])).get(element);

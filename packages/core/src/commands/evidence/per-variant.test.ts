@@ -197,21 +197,21 @@ describe("verification status per variant (SR-047)", () => {
         "evidence/a1-core.md",
         1,
         `${P}b1`,
-        "The verification record of SR-0000b1 for the core counts in no view: it does not apply in the core; record it for a view that holds it (SR-047)",
+        "The verification record of SR-0000b1 for the core counts in no view: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)",
       ],
       [
         "warning",
         "evidence/k1-a.md",
         1,
         `${P}a1`,
-        "The verification record of SR-0000a1 for the variant VAR-0000c1 counts in no view: it is replaced in the variant VAR-0000c1; record it for a view that holds it (SR-047)",
+        "The verification record of SR-0000a1 for the variant VAR-0000c1 counts in no view: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)",
       ],
     ]);
     // Without a variant the record is for the core, which does not hold A1.
     const core = await refused(fixture, workspace, "SR-0000b1", undefined);
     expect([core.code, core.message, core.details]).toEqual([
       "input.invalid",
-      "SR-0000b1 does not apply in core, so a record for it without variant would count in no view; give a variant it applies in (SR-047)",
+      "SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040); give a variant whose view holds it (SR-047)",
       { command: "evidence.record", fields: ["variant"], reason: "counts-in-no-view" },
     ]);
     // A validation counts per element, in no view: written without variant.
