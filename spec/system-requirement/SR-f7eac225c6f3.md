@@ -19,7 +19,7 @@ derives-from:
   - { id: 6ad49bf3-78bf-4ed8-9311-04142d2988ac, version: n2:3c28eb663e715c27, title: Nachweisstatus aus anderen Werkzeugen }
   - { id: 6ad39e3f-89cc-42d3-9499-8cfa89caf73c, version: n2:b6a8d4281d1101b3, title: Wenig Aufwand für Werkzeuganbindung }
 based-on:
-  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:8afb7e3ce662d05f, title: Nachweisstatus je Akzeptanzkriterium }
+  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:d40b454f58436587, title: Nachweisstatus je Akzeptanzkriterium }
 ---
 
 Das Tool muss zu jedem Akzeptanzkriterium Kriterienschlüssel, Nummer und Text ausgeben und einen Bezug für Testnamen liefern, der auf das Akzeptanzkriterium zeigt, auch wenn sich seine Nummer ändert.
