@@ -4,16 +4,20 @@
 // (ThomasBirkmaier/ReqSeq-archive#105). The check of AK4 is tested at core level with records given through it (decision on ThomasBirkmaier/ReqSeq-archive#127,
 // option 1) and end to end on record files (`packages/cli/test/e2e/evidence-records.test.ts`).
 //
-// - Per element, kind (verification, validation) and variant (none: the core, SR-047) the evidence
-//   is outdated when no record belongs to the current version of the element (SR-025 AK4: „dessen
-//   Datensätze nur zu älteren Fassungen gehören“); the hint names the newest record by `date`.
-//   A newer record of an older version next to one of the current version gives no hint, as the
-//   status (SR-031, evidence/status.ts) then follows the current one (#201, product owner decision,
-//   2026-10-29: the hint follows the status).
+// - Per element, kind (verification, validation) and variant (none: the core, SR-047) of its records,
+//   the evidence is outdated when the status of that kind in that view is `outdated` (SR-025 AK4:
+//   „dessen Nachweisstatus im Kern oder in einer Variante veraltet ist (SR-031)“; #201, product
+//   owner decision, 2026-10-29: the hint follows the status). The status is that of
+//   evidence/status.ts over the element's records: `verificationStatusOf` with its acceptance
+//   criteria, so one criterion with records of older versions only and the others verified is
+//   outdated too (SR-031 AK8), and `recordStatusOf` for validation. A newer record of an older
+//   version next to one of the current version gives no hint when the status follows the current one.
+// - The hint names the newest record of the group (by `date`) of an older version. When the group
+//   has none of the current version, the message says its newest record is for an older version;
+//   otherwise it names the criteria whose status is outdated (SR-031 AK8).
 // - For an element whose repository the workspace file marks `variant-independent` (SR-173) the
-//   records without variant hold in every variant too, so a variant's group is outdated only when
-//   neither its own records nor those without variant (of the same kind) have the current version
-//   (spec question #817 Q10, assumption; the hint follows the status, #201).
+//   records without variant hold in every variant too (`holdsIn`), as the status pools them, so a
+//   variant's group is outdated only when the pooled status is (spec question #817 Q10, assumption).
 // - Problem `evidence.outdated`, severity `warning` (as `relation.outdated`: SR-019 AK2 ends the
 //   check with exit code 1 for it), with the record's repository, file and line when it has them,
 //   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
@@ -25,7 +29,15 @@
 // - Order: by element in store order, then kind, then variant as the records give them.
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecord } from "../evidence/index.js";
-import { evidenceIndexState, evidenceRecordsState, instantOf } from "../evidence/index.js";
+import {
+  criterionStatusesOf,
+  evidenceIndexState,
+  evidenceRecordsState,
+  instantOf,
+  ofVersion,
+  recordStatusOf,
+  verificationStatusOf,
+} from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type {
@@ -36,6 +48,8 @@ import type {
   VersionForms,
 } from "../model/index.js";
 import {
+  acceptanceCriteriaKeyOf,
+  criteriaCount,
   currentFormsOf,
   currentVersionsOf,
   currentVersionsState,
@@ -44,87 +58,121 @@ import {
   NORMAL_FORM,
 } from "../model/index.js";
 import { settledValue } from "../runtime/settled.js";
+import type { View } from "../variants/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 
-/** One evidence record as far as the check needs it (ADR-0012), and where it lies when it says so. */
-export type EvidenceVersion = Pick<
-  EvidenceRecord,
-  "kind" | "element" | "version" | "date" | "variant" | "repository" | "file" | "line"
->;
-
-/** The records of one element, kind and variant: the newest (`date` compared as an instant) and every version. */
+/** The records of one element, kind and variant, in the order the records give them. */
 interface RecordGroup {
-  readonly newest: EvidenceVersion;
-  readonly versions: Set<string>;
+  readonly kind: EvidenceRecord["kind"];
+  readonly variant: string | undefined;
+  readonly records: EvidenceRecord[];
 }
 
-/** The record groups of each element by UUID, in the order the records give them. */
-const recordGroups = (records: readonly EvidenceVersion[]): Map<string, RecordGroup[]> => {
-  const groups = new Map<string, { newest: EvidenceVersion; versions: Set<string> }>();
+/** The records of each element by UUID, and their groups by kind and variant in the order the records give them. */
+const recordGroups = (
+  records: readonly EvidenceRecord[],
+): Map<string, { readonly records: EvidenceRecord[]; readonly groups: RecordGroup[] }> => {
+  const groups = new Map<string, RecordGroup>();
+  const byElement = new Map<string, { records: EvidenceRecord[]; groups: RecordGroup[] }>();
   for (const record of records) {
+    const ofElement = byElement.get(record.element) ?? { records: [], groups: [] };
+    byElement.set(record.element, ofElement);
+    ofElement.records.push(record);
     const key = `${record.element}\n${record.kind}\n${record.variant ?? ""}`;
     const group = groups.get(key);
     if (group === undefined) {
-      groups.set(key, { newest: record, versions: new Set([record.version]) });
+      const created: RecordGroup = { kind: record.kind, variant: record.variant, records: [record] };
+      groups.set(key, created);
+      ofElement.groups.push(created);
       continue;
     }
-    group.versions.add(record.version);
-    if (instantOf(record.date) > instantOf(group.newest.date)) {
-      group.newest = record;
-    }
-  }
-  const byElement = new Map<string, RecordGroup[]>();
-  for (const group of groups.values()) {
-    const id = group.newest.element;
-    byElement.set(id, [...(byElement.get(id) ?? []), group]);
+    group.records.push(record);
   }
   return byElement;
 };
 
+/** The newest of `records` (`date` compared as an instant; the first on a tie), undefined for none. */
+const newestOf = (records: readonly EvidenceRecord[]): EvidenceRecord | undefined =>
+  records.reduce<EvidenceRecord | undefined>(
+    (newest, record) =>
+      newest === undefined || instantOf(record.date) > instantOf(newest.date) ? record : newest,
+    undefined,
+  );
+
+const CORE: View = { kind: "core" };
+
+/**
+ * The message of an outdated status named by `record`, the newest record of its group of an older
+ * version: with `criteria` (the group has a record of the current version) the criteria whose status
+ * is outdated (SR-031 AK8), else that the group's newest record is for an older version.
+ */
+const messageOf = (
+  record: EvidenceRecord,
+  label: string,
+  criteria: readonly string[] | undefined,
+): string => {
+  const variant = record.variant === undefined ? "" : ` for variant ${record.variant}`;
+  return criteria === undefined
+    ? `The newest ${record.kind} record of ${label}${variant}, from ${record.date}, is for an older version`
+    : `The ${record.kind} of ${label}${variant} is outdated: ${criteria.join(", ")} only ${criteria.length === 1 ? "has" : "have"} records of older versions, the newest from ${record.date}`;
+};
+
 /**
  * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, per kind
- * and variant with no record of the version `currentOf` gives for that element (each copy of a UUID
- * against its own, SR-088), the newest record. For an element `independent` names (its repository is
- * marked `variant-independent`, SR-173) a variant's group counts the versions of the group without
- * variant of the same kind too.
+ * and variant of its records whose status in that view is `outdated` against the version `currentOf`
+ * gives for that element (each copy of a UUID against its own, SR-088), the newest record of the
+ * group of an older version. `independent` names the elements whose repository is marked
+ * `variant-independent` (SR-173), `criteriaOf` gives an element's number of acceptance criteria
+ * (SR-031 AK5 to AK8; 0 without).
  */
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
-  records: readonly EvidenceVersion[],
+  records: readonly EvidenceRecord[],
   currentOf: (element: ElementRecord) => VersionForms | undefined,
   label: (element: ElementRecord) => string,
   independent: (element: ElementRecord) => boolean,
+  criteriaOf: (element: ElementRecord) => number = () => 0,
 ): Problem[] => {
-  const groups = recordGroups(records);
+  const byElement = recordGroups(records);
   const problems: Problem[] = [];
   for (const element of elements) {
     const version = currentOf(element);
-    const own = groups.get(element.id) ?? [];
+    const own = byElement.get(element.id);
+    if (version === undefined || own === undefined) {
+      continue;
+    }
     const pooled = independent(element);
-    // A record of either normal form of the current version counts (ADR-0005 "Normal form 2").
-    const ofCurrent = (versions: ReadonlySet<string>): boolean =>
-      version !== undefined && (versions.has(version.n1) || versions.has(version.n2));
-    for (const { newest: record, versions } of own) {
-      if (version === undefined || ofCurrent(versions)) {
+    const count = criteriaOf(element);
+    for (const group of own.groups) {
+      const view: View =
+        group.variant === undefined
+          ? CORE
+          : { kind: "variant", variant: { id: group.variant, repository: element.repository } };
+      const status =
+        group.kind === "verification"
+          ? verificationStatusOf(own.records, version, view, pooled, count)
+          : recordStatusOf(own.records, group.kind, version, view, pooled);
+      // An outdated status has a counted record of an older version: of the group's, or, pooled,
+      // of the core's, which then has its own hint.
+      const record = newestOf(group.records.filter((r) => !ofVersion(r, group.kind, version)));
+      if (status !== "outdated" || record === undefined) {
         continue;
       }
-      if (
-        pooled &&
-        record.variant !== undefined &&
-        own.some(
-          (g) => g.newest.variant === undefined && g.newest.kind === record.kind && ofCurrent(g.versions),
-        )
-      ) {
-        continue;
-      }
-      const variant = record.variant === undefined ? "" : ` for variant ${record.variant}`;
       problems.push({
         code: "evidence.outdated",
         severity: "warning",
-        message: `The newest ${record.kind} record of ${label(element)}${variant}, from ${record.date}, is for an older version`,
+        message: messageOf(
+          record,
+          label(element),
+          group.records.some((r) => ofVersion(r, group.kind, version))
+            ? criterionStatusesOf(own.records, version, view, pooled, count).flatMap((s, i) =>
+                s === "outdated" ? [`AK${String(i + 1)}`] : [],
+              )
+            : undefined,
+        ),
         ...(record.repository === undefined ? {} : { repository: record.repository }),
         ...(record.file === undefined ? {} : { file: record.file }),
         ...(record.line === undefined ? {} : { line: record.line }),
@@ -158,6 +206,7 @@ export const outdatedEvidenceProblemsState = defineWorkspaceState(
       (element) => currentFormsOf(versions, element),
       (element) => elementLabel({ metamodel, shortIds }, element),
       (element) => marked.has(element.repository),
+      (element) => criteriaCount(element.data, acceptanceCriteriaKeyOf(metamodel)),
     );
   },
   {
@@ -230,5 +279,6 @@ export const elementEvidenceFindings = async (
     (r) => currentFormsOf(versions, r),
     (r) => elementLabel({ metamodel, shortIds }, r),
     (r) => variantIndependentOf(layout).has(r.repository),
+    (r) => criteriaCount(r.data, acceptanceCriteriaKeyOf(metamodel)),
   ).map(toFinding);
 };

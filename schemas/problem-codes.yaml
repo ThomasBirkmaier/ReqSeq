@@ -139,7 +139,7 @@ problems:
     cause: An evidence record or a JUnit file does not match its format.
     remedy: Fix the record at the place the message gives.
   evidence.outdated:
-    cause: The newest evidence record of the element is for an older version of it.
+    cause: The verification or validation status of the element is outdated (SR-025 AK4), because its records, or those of one acceptance criterion while the others are verified, are only for older versions of it.
     remedy: Verify the current version again, for example by running the test, so that a new record is written.
   evidence.not-enriched:
     cause: Test cases of a JUnit file name a requirement but carry no element version, so they give no evidence record.
