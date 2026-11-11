@@ -298,6 +298,28 @@ test.describe("saving without a save command", () => {
     expect(after).not.toContain("Meins.");
   });
 
+  test("[SR-105/AK5] a file that cannot be written keeps the input, the modeline names the reason, and the first close keeps the window open", async () => {
+    const { app, window } = running;
+    // The file, not its folder: Windows ignores the read-only attribute of a folder.
+    const file = path.join(running.workspace?.root ?? "", ...SR_FILE.split("/"));
+    try {
+      await fs.chmod(file, 0o444);
+      await window.keyboard.press("Enter");
+      await window.keyboard.type(" Meins.");
+      await expect(modeline(window)).toContainText(/not saved \(.+read-only\)/, { timeout: 5000 });
+      await expect(text(window)).toContainText("Meins.");
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.close();
+      });
+      await expect(minibuffer(window)).toHaveText(/close the window again to discard the unsaved input$/);
+      expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+      await expect(text(window)).toContainText("Meins.");
+      await expect(modeline(window)).toContainText(/not saved \(.+read-only\)/);
+    } finally {
+      await fs.chmod(file, 0o644);
+    }
+  });
+
   test("[SR-105/AK3] there is no button and no dialog to save, when typing, leaving or closing", async () => {
     const { app, window } = running;
     // Electron's own dialogs: none to save, and no message box (counted in the main process).

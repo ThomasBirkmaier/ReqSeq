@@ -530,10 +530,10 @@ export const ElementView = ({
   // app keeps, not the editors that are gone.
   const mounted = useRef(true);
   const memory = useUndoMemory(keep);
-  // The last save failed (`not saved` in the modeline), and what was said last about saves: an error, a
-  // hint or the number of directly affected elements (SR-024 AK2) is echoed once while it stays the same,
-  // not after every pause (D-062).
-  const [notSaved, setNotSaved] = useState(false);
+  // Why the last save failed (`not saved` with the reason in the modeline, SR-105 AK5), and what was said
+  // last about saves: an error, a hint or the number of directly affected elements (SR-024 AK2) is echoed
+  // once while it stays the same, not after every pause (D-062).
+  const [notSaved, setNotSaved] = useState<string | undefined>(undefined);
   const said = useRef<Said>({});
   // The number of directly affected elements of the last write that answered, for "Save element" asked
   // while that write ran (#563).
@@ -756,7 +756,7 @@ export const ElementView = ({
   // The app keeps the draft of the buffer, with the element it shows. Without input nothing is unsaved.
   const keepDraft = (kept: Draft | undefined): void => {
     if (kept === undefined) {
-      setNotSaved(false);
+      setNotSaved(undefined);
     }
     now.current.onDraft(now.current.buffer.key, withShown(kept, shownFile.current));
   };
@@ -1193,7 +1193,7 @@ export const ElementView = ({
         kind: "element",
         element: loadedElement,
         ...(disk === undefined ? {} : { disk }),
-        ...(notSaved ? { notSaved } : {}),
+        ...(notSaved === undefined ? {} : { notSaved }),
         ...(members === undefined || !isPackage ? {} : { members }),
         ...(markedEntry === undefined || !isPackage ? {} : { marked: markedEntry }),
       });
@@ -1260,7 +1260,7 @@ export const ElementView = ({
     setValues(result.values);
     keepDraft(currentDraft());
     setView({ status: "ok", element });
-    setNotSaved(false);
+    setNotSaved(undefined);
     // The buffers of the element take the title it was saved with (#273), and so does "Saved <name>".
     const named = renameAction(element);
     rename(named);
@@ -1300,10 +1300,10 @@ export const ElementView = ({
     const afterSave = autosave.current?.running() === true || saving.current;
     void autosave.current?.now(() => saveInput("asked", afterSave));
   };
-  // A save that went wrong: the modeline says `not saved`, and the minibuffer the reason, once while it
-  // stays the same (autosave tries again on the next input, never in a loop).
+  // A save that went wrong: the modeline says `not saved` with the reason while it holds (SR-105 AK5), and
+  // the minibuffer the reason, once while it stays the same (autosave tries again on the next input, never in a loop).
   const notWritten = (message: string, mode: SaveMode): void => {
-    setNotSaved(true);
+    setNotSaved(message);
     const speech = failedSpeech(said.current, mode, message);
     if (speech.echo !== undefined) {
       now.current.onEcho(speech.echo);

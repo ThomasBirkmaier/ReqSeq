@@ -119,8 +119,11 @@ export type BufferData =
        * (SR-106 AK2, AK3): something to notice (D-062), after the counts.
        */
       readonly disk?: "changed" | "deleted";
-      /** The last save of the input failed (SR-105): something to notice, after the counts. */
-      readonly notSaved?: boolean;
+      /**
+       * The last save of the input failed: why, as core's error said it (SR-105 AK5). Something to notice,
+       * after the counts.
+       */
+      readonly notSaved?: string;
       /**
        * A package page (SR-112): how many elements its list found (`element.list` with `where.package`),
        * and whether a repository was missing for the answer; not set while they load or for any other
@@ -246,7 +249,7 @@ const elementParts = (
     ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
     ...(hints > 0 ? [plural(hints, "hint")] : []),
     ...(data.disk === undefined ? [] : [`${data.disk} on disk`]),
-    ...(data.notSaved === true ? ["not saved"] : []),
+    ...(data.notSaved === undefined ? [] : [`not saved (${data.notSaved})`]),
   ];
 };
 
