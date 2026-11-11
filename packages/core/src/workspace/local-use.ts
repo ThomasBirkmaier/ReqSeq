@@ -9,9 +9,10 @@
 //   cannot be listed, or when `.reqseq` lies in another work tree (a submodule or any nested
 //   repository, tracked or not, whose files the main repository does not list). A link as the last
 //   name is refused by the reader itself.
-// - Then Git is asked about the index (all stages, also case-folded) and HEAD. Tracked: not used. No
-//   git program: the file applies (SR-004 AK6). Git refuses the repository, fails or does not answer
-//   in time: not used, since a `.git` entry is there (assumption of the open question #1475).
+// - Then Git is asked about the index (all stages, also an entry that names the same file by another
+//   spelling) and HEAD. Tracked: not used. No git program: the file applies (SR-004 AK6). Git
+//   refuses the repository, fails or does not answer in time: not used, since a `.git` entry is
+//   there (assumption of the open question #1475).
 // The warnings are constant texts without git's own message, so a layout loaded again compares equal.
 // The disk can change between these checks and the read; a person who can change `.reqseq` there
 // can also change the workspace file.

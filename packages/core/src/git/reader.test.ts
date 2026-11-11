@@ -1641,12 +1641,51 @@ describe("whether Git tracks a file (SR-004 AK8, #1456)", () => {
     ]);
   });
 
-  it("[SR-004/AK8] finds an index entry spelled otherwise, as a case-insensitive file system checks it out", async () => {
+  it("[SR-004/AK8] finds an index entry under another name for the same file on disk, and no other file", async () => {
     const ws = await fixture(["repo"]);
-    // Git of a case-insensitive file system can write `.REQSEQ/local.yaml` into an existing `.reqseq`.
+    const folder = ws.path("repo");
+    await ws.write(`repo/${FILE}`, "reqseq-local: 1\n");
+    await ws.write("repo/.reqseq/other.yaml", "another file\n");
     const blob = (await ws.git(["hash-object", "-w", "--stdin"], "repo", Buffer.from("x\n"))).trim();
-    await ws.git(["update-index", "--add", "--cacheinfo", `100644,${blob},.REQSEQ/Local.yaml`], "repo");
-    expect(await trackedFile(ws.path("repo"), FILE)).toEqual({ known: true, tracked: true });
+    const real = await fs.stat(ws.path(`repo/${FILE}`), { bigint: true });
+    /** `trackedFile` with the index entry `name` added for the call, and whether `name` opens the same file here. */
+    const withEntry = async (name: string): Promise<readonly [boolean, boolean]> => {
+      await ws.git(["update-index", "--add", "--cacheinfo", `100644,${blob},${name}`], "repo");
+      const tracked = await trackedFile(folder, FILE);
+      await ws.git(["update-index", "--force-remove", name], "repo");
+      const here = await fs
+        .stat(path.join(folder, ...name.split("/")), { bigint: true })
+        .catch(() => undefined);
+      return [tracked.known && tracked.tracked, here?.dev === real.dev && here.ino === real.ino];
+    };
+    // Spellings a case-insensitive file system, Unicode folding or 8.3 names may map onto the file:
+    // tracked exactly where this file system opens them as the same file. The container's file system
+    // is case-sensitive, so here none is; macOS and Windows in CI open some of them as the file.
+    for (const name of [
+      ".REQSEQ/local.yaml",
+      ".reqseq/LOCAL.yaml",
+      ".req\u017fseq/local.yaml",
+      "REQSEQ~1/local.yaml",
+    ]) {
+      const [tracked, same] = await withEntry(name);
+      expect([name, tracked]).toEqual([name, same]);
+    }
+    // Another file, and a name that is no file: not tracked on any file system.
+    expect(await withEntry(".reqseq/other.yaml")).toEqual([false, false]);
+    expect(await withEntry(".reqseq-old/local.yaml")).toEqual([false, false]);
+    // The same file under other names on every file system: a linked folder (a junction on Windows)
+    // and a hard link.
+    await fs.symlink(ws.path("repo/.reqseq"), ws.path("repo/alias"), "junction");
+    expect(await withEntry("alias/local.yaml")).toEqual([true, true]);
+    await fs.link(ws.path(`repo/${FILE}`), ws.path("repo/.reqseq/copy.yaml"));
+    expect(await withEntry(".reqseq/copy.yaml")).toEqual([true, true]);
+  });
+
+  it("finds no aliased entry when the file is not on disk", async () => {
+    const ws = await fixture(["repo"]);
+    const blob = (await ws.git(["hash-object", "-w", "--stdin"], "repo", Buffer.from("x\n"))).trim();
+    await ws.git(["update-index", "--add", "--cacheinfo", `100644,${blob},.REQSEQ/local.yaml`], "repo");
+    expect(await trackedFile(ws.path("repo"), FILE)).toEqual({ known: true, tracked: false });
   });
 
   it("[SR-004/AK8] asks a repository without commits about its index", async () => {

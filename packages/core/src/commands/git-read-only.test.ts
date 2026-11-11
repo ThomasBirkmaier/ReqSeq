@@ -184,7 +184,7 @@ describe("Git only read (SR-083, D-036)", () => {
       expect.stringContaining(".reqseq/local.yaml is tracked by Git"),
     ]);
     expect(gitFolder(repository.root)).toEqual(before);
-    expect(processes().map(([, sub]) => sub)).toContain("cat-file");
+    expect(processes().map(([, sub]) => sub)).toEqual(expect.arrayContaining(["cat-file", "ls-files"]));
     expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
   });
 

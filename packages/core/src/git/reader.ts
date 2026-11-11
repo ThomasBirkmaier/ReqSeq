@@ -1156,8 +1156,44 @@ export type TrackedFile = { readonly known: true; readonly tracked: boolean } | 
 /** The index entries of a path: stage 0 (staged) and the stages 1 to 3 of an unmerged path. */
 const INDEX_STAGES = ["", "1:", "2:", "3:"] as const;
 
-/** A path as a case-insensitive file system compares it: NFC, lower case. */
-const folded = (file: string): string => file.normalize("NFC").toLowerCase();
+/** Device and inode of `file`, links followed; undefined when it cannot be looked at. */
+const identityOf = async (
+  file: string,
+): Promise<{ readonly dev: bigint; readonly ino: bigint } | undefined> =>
+  fs.stat(file, { bigint: true }).then(
+    (stats) => ({ dev: stats.dev, ino: stats.ino }),
+    () => undefined,
+  );
+
+/**
+ * Whether one of the index `entries` (relative to `folder`, with `/`) names the file that `file`
+ * names on this file system: the same device and inode, compared name by name from the first, so
+ * only the entries below a matching folder are looked at. This catches every spelling the file
+ * system maps onto the same file (another case, Unicode folding or ignorable code points, a short
+ * 8.3 name, a linked folder) and nothing that is another file.
+ */
+const namesSameFile = async (folder: string, file: string, entries: readonly string[]): Promise<boolean> => {
+  const parts = file.split("/");
+  let candidates = entries.map((entry) => entry.split("/")).filter((entry) => entry.length === parts.length);
+  for (let depth = 1; depth <= parts.length && candidates.length > 0; depth += 1) {
+    const wanted = await identityOf(path.join(folder, ...parts.slice(0, depth)));
+    if (wanted === undefined) {
+      return false;
+    }
+    const prefixes = [...new Set(candidates.map((entry) => entry.slice(0, depth).join("/")))];
+    const same = new Set<string>();
+    await Promise.all(
+      prefixes.map(async (prefix) => {
+        const found = await identityOf(path.join(folder, ...prefix.split("/")));
+        if (found?.dev === wanted.dev && found.ino === wanted.ino) {
+          same.add(prefix);
+        }
+      }),
+    );
+    candidates = candidates.filter((entry) => same.has(entry.slice(0, depth).join("/")));
+  }
+  return candidates.length > 0;
+};
 
 /**
  * Whether Git tracks `file` (relative to `folder`, with `/`) in the repository whose work tree holds
@@ -1166,10 +1202,10 @@ const folded = (file: string): string => file.normalize("NFC").toLowerCase();
  * - one `cat-file --batch-check` with `:<stage>:./<file>` and `HEAD:./<file>` on standard input: an
  *   index entry in any stage (staged, also `git add -N`, or unmerged) or the file in HEAD (also
  *   with its index entry removed); without a commit `HEAD` names nothing;
- * - `ls-files --cached -z`, the index entries below `folder`, compared in NFC and lower case: on a
- *   case-insensitive file system Git may check out a committed `.REQSEQ/local.yaml` into an existing
- *   `.reqseq` folder, where the exact names of `cat-file` find nothing. On a case-sensitive one an
- *   entry spelled otherwise counts too (stricter, never looser).
+ * - `ls-files --cached -z`, the index entries below `folder`, compared with the file on disk by
+ *   device and inode (`namesSameFile`): on a case-insensitive file system Git may check out a
+ *   committed `.REQSEQ/local.yaml` (or a name that folds or shortens to it) into an existing
+ *   `.reqseq` folder, where the exact names of `cat-file` find nothing.
  * Any object counts (a link too); a submodule entry is no file. Unknown when git fails, refuses the
  * repository or does not answer in time. A programming error when `file` is no `isGitPath`.
  */
@@ -1199,8 +1235,7 @@ export const trackedFile = async (
       throw new Error(`unexpected output of git cat-file: ${output}`);
     }
     const found = names.some((name, i) => parseHeader(name, String(lines[i])) !== null);
-    const wanted = folded(file);
-    return { known: true, tracked: found || zList(index.stdout).some((entry) => folded(entry) === wanted) };
+    return { known: true, tracked: found || (await namesSameFile(folder, file, zList(index.stdout))) };
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }
