@@ -9,13 +9,15 @@ CI runs on GitHub's hosted runners on three systems, and a red run costs about t
 
 ## First: pnpm 12
 
-The repository pins pnpm 12 (`packageManager`). Corepack 0.34, which Node 22 brings, cannot start it (`Cannot find module .../pnpm/12.x/bin/pnpm.cjs`). In a cloud session the SessionStart hook (`scripts/hooks/session-start.mjs`) does this. Otherwise, if `pnpm --version` fails, run once per container:
+The repository pins pnpm 12 (`packageManager`). Corepack 0.34, which Node 22 brings, cannot start it (`Cannot find module .../pnpm/12.x/bin/pnpm.cjs`). In a cloud session the environment's setup script installs it when the container is built, and the SessionStart hook (`scripts/hooks/session-start.mjs`) in a session that starts in this checkout. Otherwise, if `pnpm --version` fails, run once per container:
 
 ```sh
 npm install -g pnpm@12.14.0 --force
 ```
 
 This replaces corepack's `pnpm` shim. pnpm then switches to the version a checkout pins, so an older branch still gets its own pnpm.
+
+A cloud session that resumes a cached container does not run the setup script again and keeps the `node_modules` of the container's build, while its checkout is updated. So run `pnpm install --frozen-lockfile` once before the first check; it takes seconds when the lockfile did not change.
 
 ## While you work
 
