@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
-import { PREFIX_BINDINGS, PREFIX_KEYS, prefixStep } from "./bindings.js";
+import { PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel, prefixStep } from "./bindings.js";
 import {
   ELEMENT_MORE_KEYS,
   FIELD_CTRL_KEYS,
@@ -35,6 +35,7 @@ import {
   press,
   pressLabel,
   rowTarget,
+  shortcutLabel,
 } from "./keys.js";
 import { MORE_SHORTCUT, PROMPT_KEYS } from "./prompt-keys.js";
 import { docsTopic } from "./docs-help.js";
@@ -288,9 +289,15 @@ describe("shortcutReference", () => {
     for (const candidate of own) {
       const at = rows.find((row) => row.actions?.includes(candidate.id) === true);
       expect(at?.does, candidate.id).toContain(candidate.title);
-      if (candidate.shortcut !== undefined) {
-        expect(at?.keys.length, candidate.id).toBeGreaterThan(0);
-      }
+      // Its own key on Windows and Linux and on macOS: its shortcut, else its letter after the prefix key;
+      // none where it has neither.
+      const letter = PREFIX_BINDINGS.find((binding) => binding.id === candidate.id)?.key;
+      const own = (mac: boolean): string[] => [
+        ...(candidate.shortcut === undefined ? [] : [shortcutLabel(candidate.shortcut, mac)]),
+        ...(letter === undefined ? [] : [prefixLabel(letter, mac)]),
+      ];
+      expect(at?.keys, candidate.id).toEqual(own(false));
+      expect(at?.mac, candidate.id).toEqual(own(true));
     }
     const keyless = sections.at(-1)?.rows ?? [];
     expect(keyless.find((row) => row.actions?.includes("close-all") === true)).toEqual({

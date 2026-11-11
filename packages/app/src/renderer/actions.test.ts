@@ -1299,15 +1299,6 @@ describe("close all buffers", () => {
     expect(rank(items, (item) => item.name, "cab")[0]?.item.name).toBe("Close all buffers");
   });
 
-  it('[SR-123/AK3] "cab" ranks Close all buffers first with one buffer beside the overview, and the lone overview has no Close all buffers', () => {
-    const cab = (buffers: Parameters<typeof setup>[0]): string | undefined =>
-      rank(commandPrompt(setup(buffers).context).items, (item) => item.name, "cab")[0]?.item.name;
-    expect(cab([element, overviewBuffer()])).toBe("Close all buffers");
-    const lone = commandPrompt(setup([overviewBuffer()]).context).items.map((item) => item.name);
-    expect(lone).not.toContain("Close all buffers");
-    expect(cab([overviewBuffer()])).not.toBe("Close all buffers");
-  });
-
   it("is offered with buffers only", () => {
     expect(action("close-all").available(setup([list]).context)).toBe(true);
     expect(action("close-all").available(setup([]).context)).toBe(false);

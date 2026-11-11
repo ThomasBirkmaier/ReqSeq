@@ -532,6 +532,11 @@ describe("App, Open to the right and follow (SR-150)", () => {
     await runCommand("Open to the left");
     expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
     expect(query('[data-area="right"]').contains(document.activeElement)).toBe(true);
+    // A preview: it follows the row marked next, and back.
+    await press(query('[data-area="right"] [role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual(["SR-000003 Title 3", `${list}*`]);
+    await press(query('[data-area="right"] [role="listbox"]'), { key: "ArrowUp" });
+    expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
     // The active area is on the right: the marked element opens there, in place of the list, as Enter opens
     // it. The left area entered again first, so that it keeps its element.
     await press(window, { key: "o", code: "KeyO", altKey: true });

@@ -117,6 +117,19 @@ test.describe("the hits of the search prompt", () => {
     expect(hits[0]).toMatchObject({ title: "Gust gauge", status: "obsolete" });
     expect(hits).toHaveLength(9);
     await preview(window, "gust", 5);
+    // The card shows the hits of the whole query: the input holds it, and every hit marks "gust".
+    await expect(window.locator("#prompt-input")).toHaveValue("gust");
+    await expect
+      .poll(() =>
+        card(window)
+          .getByRole("option")
+          .evaluateAll((options) =>
+            options.map((option) =>
+              [...option.querySelectorAll("mark")].some((mark) => mark.textContent.toLowerCase() === "gust"),
+            ),
+          ),
+      )
+      .toEqual([true, true, true, true, true]);
     const shown = await names(window);
     expect(shown[0]).toMatch(/ Gust gauge$/);
     await window.keyboard.press("Enter");

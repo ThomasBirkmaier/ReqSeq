@@ -95,11 +95,16 @@ test.describe("search hits filtered and grouped", () => {
     await fs.mkdir(OUT, { recursive: true });
     await window.screenshot({ path: path.join(OUT, "search-grouped-light.png") });
     // Not sortable: a search keeps the order of relevance.
+    // A list of candidates first, then none for the whole text: the check reads the result for "Sort list".
+    const input = window.locator("#prompt-input");
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("Sort list");
     await expect(
-      window.locator('.candidates [role="option"] .name').filter({ hasText: /^Sort list$/u }),
-    ).toHaveCount(0);
+      window.locator('.candidates [role="option"] .name').filter({ hasText: /^Group list$/u }),
+    ).toHaveCount(1);
+    await window.keyboard.type("Sort list");
+    await expect(input).toHaveValue("Sort list");
+    await expect(input).toHaveAttribute("aria-expanded", "false");
+    await expect(window.locator('.candidates [role="option"] .name')).toHaveCount(0);
     await window.keyboard.press("Escape");
     expect(await snapshot(root)).toEqual(before);
   });

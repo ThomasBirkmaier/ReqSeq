@@ -1676,6 +1676,11 @@ describe("ListView, a list", () => {
       asCall(call),
       listBuffer("All elements", undefined, [{ by: "hierarchy", order: "asc" }]),
     );
+    // The tree is core's: the list asks for the hierarchy and draws the depths core gives.
+    expect(call).toHaveBeenCalledWith(
+      "element.list",
+      expect.objectContaining({ sort: [{ by: "hierarchy", order: "asc" }] }),
+    );
     expect(
       [...container.querySelectorAll<HTMLElement>(".row .title")].map((title) => title.style.paddingLeft),
     ).toEqual(["0rem", "1.25rem", "2.5rem"]);

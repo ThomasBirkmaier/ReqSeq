@@ -218,10 +218,38 @@ test.describe("the context menu on a field", () => {
     const head = (await window.locator(".modeline .parts > .segment").first().textContent()) ?? "";
     const type = head.split(" · ")[1] ?? "";
     expect(type).not.toBe("");
-    for (const text of [type, "Weather station"]) {
+    // Counts the `contextmenu` events that reach the window, so the test knows each right-click arrived.
+    await window.evaluate(() => {
+      const seen = { count: 0 };
+      Object.assign(globalThis, { reqseqContextMenus: seen });
+      globalThis.addEventListener(
+        "contextmenu",
+        () => {
+          seen.count += 1;
+        },
+        { capture: true },
+      );
+    });
+    const arrived = (): Promise<number> =>
+      window.evaluate(
+        () => (globalThis as { reqseqContextMenus?: { count: number } }).reqseqContextMenus?.count ?? 0,
+      );
+    /** Two frames: what the app renders for an event is painted by then. */
+    const painted = (): Promise<void> =>
+      window.evaluate(
+        () =>
+          new Promise<void>((resolve) => {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                resolve();
+              });
+            });
+          }),
+      );
+    for (const [at, text] of [type, "Weather station"].entries()) {
       await rightClickText(text);
-      // A menu that opens shows at once; wait a moment, so that a late one fails the test too.
-      await window.waitForTimeout(300);
+      await expect.poll(arrived).toBe(at + 1);
+      await painted();
       await expect(menu(window), text).toHaveCount(0);
     }
     // The short ID next to the type still has its menu.
