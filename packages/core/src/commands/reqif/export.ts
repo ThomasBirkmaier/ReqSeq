@@ -1,8 +1,8 @@
 // reqif.export (SR-052; ADR-0013 "Export"): the elements of a selection (query/selection.ts,
 // SR-101) as one ReqIF 1.2 file at `output`, in the order of the list (`orderedSelection`), planned
-// by reqif/export.ts and written by `writeReqif` in chunks. The file is new, or replaces a file that
-// still parses as XML and is unchanged since it was read (`writeFileAtomic`); no status is changed
-// (D-030).
+// by reqif/export.ts and written by `writeReqif` in chunks. The file is new, or replaces a ReqIF file,
+// an XML file whose root element is `REQ-IF` (SR-207 AK1), that is unchanged since it was read
+// (`writeFileAtomic`, SR-207 AK2); no status is changed (D-030).
 //
 // - Images (ADR-0013 "Export"): each image a text embeds that is there (`imageLinks`) is copied to
 //   `<output stem>-images/<element file stem>/<name>` next to the output, a name taken twice in one
@@ -13,7 +13,7 @@
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
 //   refuses (`reqif.invalid` naming each problem), an element or image file changed since it was
 //   read (`file.changed-on-disk`), an output in a `.git` folder, in any case and through links
-//   (`input.invalid`, D-036), an output that is no XML file (`file.faulty`), an output
+//   (`input.invalid`, D-036), an output that is no ReqIF file (`file.faulty` naming why), an output
 //   folder that does not exist (`file.folder-missing`, checked before any image is copied).
 // - Statements (SR-058): with `statements` and `mapping`, the elements whose `source` is the
 //   mapping's source, narrowed by `selection`, in the order of the list, each by its source
@@ -36,6 +36,7 @@ import {
   listFolderFiles,
   readElementText,
   readFileSnapshot,
+  replaceRefusal,
   sha256,
   writeFileAtomic,
 } from "../../files/index.js";
@@ -261,7 +262,8 @@ const statementsOf = async (
 /**
  * Writes `file` to `absolute` with the image `copies` before it: refused before anything is written
  * when the writer refuses the content (`reqif.invalid`), the output lies in a `.git` folder
- * (`input.invalid`, D-036) or is no file it may replace.
+ * (`input.invalid`, D-036) or is no file it may replace, such as an XML file that is no ReqIF file
+ * (`file.faulty`, SR-207 AK1).
  */
 const writeOutput = async (
   absolute: string,
@@ -294,6 +296,15 @@ const writeOutput = async (
       fields: ["output"],
     });
   }
+  // SR-207 AK1: only a ReqIF file is replaced; checked here, before any image copy is written, and
+  // again by `writeFileAtomic` right before the replace.
+  const refusal = before.kind === "read" ? replaceRefusal("reqif", name, before.bytes) : undefined;
+  if (refusal !== undefined) {
+    throw new CommandError("file.faulty", `Not exported: ${name} ${refusal}`, {
+      command,
+      fields: ["output"],
+    });
+  }
   // Checked before any image copy, whose folders would be created below a folder that is not there.
   if ((await listFolderFiles(outputFolder)).kind === "missing") {
     throw new CommandError("file.folder-missing", `Not exported: the folder of ${name} does not exist`, {
@@ -306,7 +317,7 @@ const writeOutput = async (
   }
   const { chunks } = written;
   await writeFileAtomic(outputFolder, name, () => chunks, before.kind === "read" ? before.snapshot : null, {
-    kind: "xml",
+    kind: "reqif",
   });
 };
 
