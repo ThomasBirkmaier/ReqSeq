@@ -383,11 +383,13 @@ describe("criterion keys (D-027, D-072)", () => {
         ]),
       ),
     ).toEqual(plain);
-    expect(both(criteria([{ key: "efgh", text: "Given A, when B, then C." }, "Given D, when E, then F."]))).toEqual(
-      plain,
-    );
+    expect(
+      both(criteria([{ key: "efgh", text: "Given A, when B, then C." }, "Given D, when E, then F."])),
+    ).toEqual(plain);
     // The key may have any value; it never counts.
-    expect(both(criteria([{ key: 7, text: "Given A, when B, then C." }, "Given D, when E, then F."]))).toEqual(plain);
+    expect(
+      both(criteria([{ key: 7, text: "Given A, when B, then C." }, "Given D, when E, then F."])),
+    ).toEqual(plain);
   });
 
   it("counts any other mapping in a list as it is", () => {

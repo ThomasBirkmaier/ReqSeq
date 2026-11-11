@@ -55,7 +55,10 @@ interface Opened {
 }
 
 const open = async (text: string): Promise<Opened> => {
-  const fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements", files: { [SR.file]: text } });
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-001/two-elements",
+    files: { [SR.file]: text },
+  });
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.root);
   onTestFinished(() => workspace.close());
@@ -70,8 +73,10 @@ const sha256 = async (opened: Opened): Promise<string> =>
     .update(await opened.read())
     .digest("hex");
 
-const update = async (opened: Opened, input: Record<string, unknown>): Promise<CommandOutput<"element.update">> =>
-  run(opened, "element.update", { ref: SR.id, ...input });
+const update = async (
+  opened: Opened,
+  input: Record<string, unknown>,
+): Promise<CommandOutput<"element.update">> => run(opened, "element.update", { ref: SR.id, ...input });
 
 const refusal = async (promise: Promise<unknown>): Promise<CommandError> => {
   try {
@@ -90,8 +95,7 @@ const criteriaOf = (text: string): unknown =>
   (parse(text.split("---\n")[1] ?? "") as Record<string, unknown>)["acceptance-criteria"];
 
 /** The criterion keys of the file, in order. */
-const keysOf = (text: string): string[] =>
-  (criteriaOf(text) as { key: string }[]).map((c) => c.key);
+const keysOf = (text: string): string[] => (criteriaOf(text) as { key: string }[]).map((c) => c.key);
 
 const versionOf = async (opened: Opened): Promise<string | undefined> =>
   (await run<Got>(opened, "element.get", { ref: SR.id })).element.version;
@@ -105,7 +109,11 @@ describe("criterion keys (SR-204)", () => {
       folder: "requirements",
       properties: {
         "requirement-type": "functional",
-        "acceptance-criteria": ["Given a peak, then it is shown.", "Given a peak, then it is shown.", "Third."],
+        "acceptance-criteria": [
+          "Given a peak, then it is shown.",
+          "Given a peak, then it is shown.",
+          "Third.",
+        ],
       },
     });
     const [file = ""] = out.files;
@@ -140,22 +148,20 @@ describe("criterion keys (SR-204)", () => {
         selection: { ids: [SR.id] },
         property: "acceptance-criteria",
         operation,
-        value: operation === "add" ? ["Added."] : ['Given no gust, then nothing is shown.'],
+        value: operation === "add" ? ["Added."] : ["Given no gust, then nothing is shown."],
         confirm: true,
       });
       const keys = keysOf(await bulk.read());
-      expect([keys.length, new Set(keys).size]).toEqual([operation === "add" ? 4 : 2, operation === "add" ? 4 : 2]);
+      expect([keys.length, new Set(keys).size]).toEqual([
+        operation === "add" ? 4 : 2,
+        operation === "add" ? 4 : 2,
+      ]);
     }
   });
 
   it("[SR-204/AK1] of two criteria with the same key the earlier one keeps it, also when the change moves them", async () => {
     const opened = await open(
-      requirement([
-        "  - key: twice",
-        "    text: First.",
-        "  - key: twice",
-        "    text: Second.",
-      ]),
+      requirement(["  - key: twice", "    text: First.", "  - key: twice", "    text: Second."]),
     );
     await update(opened, { set: { "acceptance-criteria": ["Second.", "First.", "Third."] } });
     const criteria = criteriaOf(await opened.read()) as { key: string; text: string }[];
@@ -238,7 +244,9 @@ describe("criterion keys (SR-204)", () => {
       [null, "criterion-key-invalid"],
     ] as const) {
       const error = await refusal(
-        update(opened, { set: { "acceptance-criteria": ["Given a gust, then it is shown.", { key, text: "x" }] } }),
+        update(opened, {
+          set: { "acceptance-criteria": ["Given a gust, then it is shown.", { key, text: "x" }] },
+        }),
       );
       expect([error.code, error.details]).toEqual([
         "input.invalid",
@@ -247,7 +255,12 @@ describe("criterion keys (SR-204)", () => {
     }
     const twice = await refusal(
       update(opened, {
-        set: { "acceptance-criteria": [{ key: "same1", text: "a" }, { key: "same1", text: "b" }] },
+        set: {
+          "acceptance-criteria": [
+            { key: "same1", text: "a" },
+            { key: "same1", text: "b" },
+          ],
+        },
       }),
     );
     expect([twice.code, (twice.details as { reason?: string }).reason]).toEqual([
@@ -267,7 +280,9 @@ describe("criterion keys (SR-204)", () => {
     expect(await opened.read()).toBe(KEYED);
     // A key in its form, the longest one too, is stored as given.
     const long = "z234567890123456";
-    await update(opened, { set: { "acceptance-criteria": [{ key: long, text: "Given a gust, then it is shown." }] } });
+    await update(opened, {
+      set: { "acceptance-criteria": [{ key: long, text: "Given a gust, then it is shown." }] },
+    });
     expect(keysOf(await opened.read())).toEqual([long]);
   });
 
@@ -287,11 +302,16 @@ describe("criterion keys (SR-204)", () => {
   it("[SR-204/AK11] the file is valid YAML with each criterion as readable Markdown text at its key", async () => {
     const opened = await open(UNKEYED);
     await update(opened, {
-      set: { "acceptance-criteria": ["**Given** a *gust*, then `gust` is shown.", "Given calm, then nothing."] },
+      set: {
+        "acceptance-criteria": ["**Given** a *gust*, then `gust` is shown.", "Given calm, then nothing."],
+      },
     });
     const text = await opened.read();
     const criteria = criteriaOf(text) as { key: string; text: string }[];
-    expect(criteria.map((c) => c.text)).toEqual(["**Given** a *gust*, then `gust` is shown.", "Given calm, then nothing."]);
+    expect(criteria.map((c) => c.text)).toEqual([
+      "**Given** a *gust*, then `gust` is shown.",
+      "Given calm, then nothing.",
+    ]);
     const [first, second] = criteria;
     expect(text).toContain(
       `acceptance-criteria:\n  - key: ${first?.key ?? ""}\n    text: "**Given** a *gust*, then \`gust\` is shown."\n  - key: ${second?.key ?? ""}\n    text: Given calm, then nothing.\n`,
@@ -362,7 +382,11 @@ describe("criterion key findings (SR-204 AK10)", () => {
     expect(out.ok).toBe(false);
     // The same findings at the element (element.get).
     const got = await run<Got>(opened, "element.get", { ref: SR.id });
-    expect((got.element.problems ?? []).filter((p) => p.code.startsWith("element.criterion-key")).map((p) => p.code)).toEqual([
+    expect(
+      (got.element.problems ?? [])
+        .filter((p) => p.code.startsWith("element.criterion-key"))
+        .map((p) => p.code),
+    ).toEqual([
       "element.criterion-key-missing",
       "element.criterion-key-invalid",
       "element.criterion-key-duplicate",
@@ -372,7 +396,9 @@ describe("criterion key findings (SR-204 AK10)", () => {
   it("reports nothing for criteria with keys; a criterion mapping with another key is a value of the wrong kind", async () => {
     const opened = await open(KEYED);
     expect(codes(await check(opened))).toEqual([]);
-    const other = await open(requirement(["  - key: 1234", "    text: Numbered.", "  - { text: Alone, note: x }"]));
+    const other = await open(
+      requirement(["  - key: 1234", "    text: Numbered.", "  - { text: Alone, note: x }"]),
+    );
     const out = await check(other);
     expect(codes(out)).toEqual([]);
     expect(out.problems.filter((p) => p.code === "element.wrong-value-kind")).toHaveLength(2);

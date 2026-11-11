@@ -404,7 +404,13 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
             : given;
       // Relation targets are plain string records (`toPropertyValue` in write.ts); the acceptance
       // criteria keep and get their criterion keys (SR-204 AK1, AK4).
-      return [{ kind: "set", key, value: withCriterionKeys(plan.context.metamodel, key, stored, set) as PropertyValue }];
+      return [
+        {
+          kind: "set",
+          key,
+          value: withCriterionKeys(plan.context.metamodel, key, stored, set) as PropertyValue,
+        },
+      ];
     }
     case "remove":
       return removeEdits(plan, stored, itemsOf(value), record.repository);

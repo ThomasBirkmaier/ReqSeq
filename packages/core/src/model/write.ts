@@ -922,7 +922,10 @@ const checkedSetItems = (
     }
     const items = [checked]
       .flat()
-      .map((item, index): [number, ElementInputValue] => [Number(positions[index]), item as ElementInputValue]);
+      .map((item, index): [number, ElementInputValue] => [
+        Number(positions[index]),
+        item as ElementInputValue,
+      ]);
     return { key, items };
   });
 };

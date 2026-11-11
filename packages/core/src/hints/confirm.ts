@@ -344,7 +344,9 @@ const propertyEdits = (file: ParsedFile, found: readonly Found[]): PropertyEdits
                 kind: "replace-item",
                 key,
                 index,
-                value: keyed ? { ...(item as Record<string, ScalarValue>), text: text as string } : (text as string),
+                value: keyed
+                  ? { ...(item as Record<string, ScalarValue>), text: text as string }
+                  : (text as string),
               }
             : { kind: "set", key, value: text as string },
         );

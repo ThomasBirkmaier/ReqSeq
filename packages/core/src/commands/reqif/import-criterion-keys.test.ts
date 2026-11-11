@@ -21,15 +21,26 @@ const MODEL = "metamodel/standard-model.yaml";
 
 /** The metamodel of `fixture` with the meaning acceptance-criteria on its property (D-072). */
 const withMeaning = async (fixture: string): Promise<Record<string, string>> => {
-  const text = await fs.readFile(new URL(`../../../../../fixtures/${fixture}/${MODEL}`, import.meta.url), "utf8");
-  return { [MODEL]: text.replace("  - key: acceptance-criteria\n", "  - key: acceptance-criteria\n    meaning: acceptance-criteria\n") };
+  const text = await fs.readFile(
+    new URL(`../../../../../fixtures/${fixture}/${MODEL}`, import.meta.url),
+    "utf8",
+  );
+  return {
+    [MODEL]: text.replace(
+      "  - key: acceptance-criteria\n",
+      "  - key: acceptance-criteria\n    meaning: acceptance-criteria\n",
+    ),
+  };
 };
 
 const open = async (
   fixture: string,
   files: Readonly<Record<string, string>> = {},
 ): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
-  const made = await createFixtureWorkspace({ fixture, files: { ...(await withMeaning(fixture)), ...files } });
+  const made = await createFixtureWorkspace({
+    fixture,
+    files: { ...(await withMeaning(fixture)), ...files },
+  });
   onTestFinished(() => made.cleanup());
   const workspace = new Workspace(made.root);
   onTestFinished(() => workspace.close());

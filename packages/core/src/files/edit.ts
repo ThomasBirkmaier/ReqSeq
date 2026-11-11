@@ -395,6 +395,51 @@ const pairSpans = (text: string, original: Original, key: string): PairSpans => 
   };
 };
 
+/** An item of a block sequence: its node, and the text of its lines, which start at `start`. */
+interface ItemPart {
+  readonly node: unknown;
+  readonly start: number;
+  readonly text: string;
+}
+
+/** The lines of a replaced item with `value` as its content. */
+const replacedItem = (
+  old: ItemPart,
+  content: readonly [number, number],
+  value: ItemValue,
+  eol: LineEnding,
+): string => {
+  // A replaced item changes only its content: the dash, its spacing and a trailing comment stay.
+  // A text that replaces a text on one line keeps its quoting (#177), also as the text of a
+  // criterion with its key (SR-204), which is a block mapping at the column of the content.
+  const [from, to] = content;
+  const column = from - (old.text.lastIndexOf("\n", from - 1) + 1);
+  const before = textNodeOf(old.node);
+  // A criterion that replaces one with its key changes the scalars of key and text only, so the
+  // spacing and a comment of the mapping stay.
+  const keyNode: unknown =
+    isMap(old.node) && old.node.items.length === 2 ? old.node.get("key", true) : undefined;
+  if (isCriterionItem(value) && isOneLineText(before) && isOneLineText(keyNode)) {
+    const scalars: [Scalar, string][] = [
+      [keyNode, value.key],
+      [before, value.text],
+    ];
+    let out = old.text;
+    for (const [node, scalar] of scalars.sort(([a], [b]) => rangeOf(b)[0] - rangeOf(a)[0])) {
+      const [start, end] = rangeOf(node);
+      out = `${out.slice(0, start - old.start)}${requoted(node, scalar, "value")}${out.slice(end - old.start)}`;
+    }
+    return out;
+  }
+  const rendered =
+    typeof value === "string" && isOneLineText(old.node)
+      ? requoted(old.node, value, "item")
+      : isCriterionItem(value) && isOneLineText(before)
+        ? `key: ${renderScalar(value.key, "value")}${eol}${" ".repeat(column)}text: ${requoted(before, value.text, "value")}`
+        : renderItem(value, column, eol);
+  return `${old.text.slice(0, from)}${rendered}${old.text.slice(to)}`;
+};
+
 /** Rebuilds the items of a block sequence; kept items keep their lines byte for byte. */
 const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[], eol: LineEnding): Splice => {
   const token = seq.srcToken as CST.BlockSequence;
@@ -441,34 +486,7 @@ const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[],
       }
       return `${renderItemLines([slot.value], indent, eol)}${eol}`;
     }
-    // A replaced item changes only its content: the dash, its spacing and a trailing comment stay.
-    // A text that replaces a text on one line keeps its quoting (#177), also as the text of a
-    // criterion with its key (SR-204), which is a block mapping at the column of the content.
-    const [from, to] = old.content as [number, number];
-    const column = from - (old.text.lastIndexOf("\n", from - 1) + 1);
-    const before = textNodeOf(old.node);
-    // A criterion that replaces one with its key changes the scalars of key and text only, so the
-    // spacing and a comment of the mapping stay.
-    const keyNode: unknown = isMap(old.node) && old.node.items.length === 2 ? old.node.get("key", true) : undefined;
-    if (isCriterionItem(slot.value) && isOneLineText(before) && isOneLineText(keyNode)) {
-      const scalars: [Scalar, string][] = [
-        [keyNode, slot.value.key],
-        [before, slot.value.text],
-      ];
-      let out = old.text;
-      for (const [node, value] of scalars.sort(([a], [b]) => rangeOf(b)[0] - rangeOf(a)[0])) {
-        const [start, end] = rangeOf(node);
-        out = `${out.slice(0, start - old.start)}${requoted(node, value, "value")}${out.slice(end - old.start)}`;
-      }
-      return out;
-    }
-    const content =
-      typeof slot.value === "string" && isOneLineText(old.node)
-        ? requoted(old.node, slot.value, "item")
-        : isCriterionItem(slot.value) && isOneLineText(before)
-          ? `key: ${renderScalar(slot.value.key, "value")}${eol}${" ".repeat(column)}text: ${requoted(before, slot.value.text, "value")}`
-          : renderItem(slot.value, column, eol);
-    return `${old.text.slice(0, from)}${content}${old.text.slice(to)}`;
+    return replacedItem(old, old.content as [number, number], slot.value, eol);
   });
   return {
     start: Math.min(...chunks.map((c) => c.start)),

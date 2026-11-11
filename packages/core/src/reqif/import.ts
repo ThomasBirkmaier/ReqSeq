@@ -717,7 +717,12 @@ const propertyValue = async (
  * The file of a draft, with its relations or without them (for its planned version); each
  * acceptance criterion with its criterion key (SR-204 AK1).
  */
-const fileOf = (metamodel: Metamodel, draft: Draft, folder: string, withRelations: boolean): NewElementFile => ({
+const fileOf = (
+  metamodel: Metamodel,
+  draft: Draft,
+  folder: string,
+  withRelations: boolean,
+): NewElementFile => ({
   file: path.posix.join(folder, fileNameFor({ prefix: draft.base.type.prefix, id: draft.id })),
   bytes: newElementBytes(draft.base, draft.id, draft.title, draft.text, [
     ...[...draft.properties].map(
@@ -777,13 +782,11 @@ const updatedFile = (
       { kind: "set", key: draft.base.titleKey, value: draft.title },
       ...[...draft.properties]
         .filter(([key]) => !omit.includes(key))
-        .map(
-          ([key, value]): FrontmatterEdit => ({
-            kind: "set",
-            key,
-            value: withCriterionKeys(metamodel, key, existing.record.data[key], value),
-          }),
-        ),
+        .map(([key, value]): FrontmatterEdit => ({
+          kind: "set",
+          key,
+          value: withCriterionKeys(metamodel, key, existing.record.data[key], value),
+        })),
       ...removed
         .filter((key) => existing.record.data[key] !== undefined)
         .map((key): FrontmatterEdit => ({ kind: "remove", key })),

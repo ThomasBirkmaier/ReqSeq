@@ -98,7 +98,7 @@ const passedKeys = (property: string, next: readonly unknown[]): Set<string> => 
     const { key } = entry;
     if (!isCriterionKey(key)) {
       throw refused(
-        `${property} item ${String(index + 1)}: ${JSON.stringify(key) ?? "the key"} is no criterion key; a criterion key is a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits`,
+        `${property} item ${String(index + 1)}: ${key === undefined ? "the key" : JSON.stringify(key)} is no criterion key; a criterion key is a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits`,
         index,
         "criterion-key-invalid",
         key,
@@ -180,12 +180,7 @@ export const reconcileCriteria = (
  * `value` as stored when it is the value of the acceptance criteria `key` of `metamodel`
  * (`reconcileCriteria` with the items `previous` the file holds now); any other value as it is.
  */
-export const withCriterionKeys = <T>(
-  metamodel: Metamodel,
-  key: string,
-  previous: unknown,
-  value: T,
-): T =>
+export const withCriterionKeys = <T>(metamodel: Metamodel, key: string, previous: unknown, value: T): T =>
   Array.isArray(value) && acceptanceCriteriaKeyOf(metamodel) === key
     ? (reconcileCriteria(key, previous, value as unknown[]) as T)
     : value;

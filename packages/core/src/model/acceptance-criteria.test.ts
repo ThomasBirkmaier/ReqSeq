@@ -42,7 +42,10 @@ describe("acceptance criteria (D-072)", () => {
 
 describe("criterion keys (SR-204)", () => {
   /** A random source that gives `values` in turn, then 0. */
-  const sequence = (...values: number[]): RandomInt => () => values.shift() ?? 0;
+  const sequence =
+    (...values: number[]): RandomInt =>
+    () =>
+      values.shift() ?? 0;
 
   it("[SR-204/AK1] makes a new key of a consonant and three letters or digits, retried until no criterion has it", () => {
     // b, then b, b, b: "bbbb" is taken, so the next draw gives "cbbb".
@@ -98,7 +101,12 @@ describe("criterion keys (SR-204)", () => {
       "input.invalid",
       { index: 1, position: 2, reason: "criterion-key-invalid" },
     ]);
-    expect(refused([{ key: "abcd", text: "A" }, { key: "abcd", text: "B" }])).toEqual([
+    expect(
+      refused([
+        { key: "abcd", text: "A" },
+        { key: "abcd", text: "B" },
+      ]),
+    ).toEqual([
       "input.invalid",
       { index: 1, position: 2, reason: "criterion-key-duplicate", criterionKey: "abcd" },
     ]);
@@ -108,6 +116,8 @@ describe("criterion keys (SR-204)", () => {
     const model = metamodel([{ key: "ak", kind: "text", many: true, meaning: "acceptance-criteria" }]);
     expect(withCriterionKeys(model, "other", undefined, ["A"])).toEqual(["A"]);
     expect(withCriterionKeys(model, "ak", undefined, "A")).toBe("A");
-    expect(withCriterionKeys(model, "ak", [{ key: "abcd", text: "A" }], ["A"])).toEqual([{ key: "abcd", text: "A" }]);
+    expect(withCriterionKeys(model, "ak", [{ key: "abcd", text: "A" }], ["A"])).toEqual([
+      { key: "abcd", text: "A" },
+    ]);
   });
 });

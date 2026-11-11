@@ -205,14 +205,14 @@ const isFlowMapping = (value: PropertyValue): value is FlowMappingValue =>
   typeof value === "object" && value !== null;
 
 /** Whether `value` is an acceptance criterion with its key: exactly `key` and `text`, both strings (SR-204). */
-export const isCriterionItem = (value: ItemValue): value is { readonly key: string; readonly text: string } => {
+export const isCriterionItem = (
+  value: ItemValue,
+): value is { readonly key: string; readonly text: string } => {
   if (!isFlowMapping(value)) {
     return false;
   }
   const keys = Object.keys(value);
-  return (
-    keys.length === 2 && typeof value["key"] === "string" && typeof value["text"] === "string"
-  );
+  return keys.length === 2 && typeof value["key"] === "string" && typeof value["text"] === "string";
 };
 
 /** The `text:` line of a criterion item without its indent: as a top-level value is written. */
