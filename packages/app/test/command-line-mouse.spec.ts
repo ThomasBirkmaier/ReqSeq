@@ -17,6 +17,21 @@ const options = (window: Page): Locator => window.locator('.candidates [role="op
 const names = (window: Page): Promise<string[]> => options(window).locator(".name").allTextContents();
 const card = (window: Page): Locator => window.locator(".candidates.card-list");
 
+/**
+ * The ID, title and status of each row of the list: what a filter decides. The verification column fills in
+ * after the rows appear (#1505), so it is left out.
+ */
+const rowCells = (window: Page): Promise<string[]> =>
+  window
+    .locator(".row")
+    .evaluateAll((rows) =>
+      rows.map((row) =>
+        [".id", ".title", ":scope > .status"]
+          .map((cell) => row.querySelector(cell)?.textContent ?? "")
+          .join(" | "),
+      ),
+    );
+
 /** Where `locator` is on the page; it must be visible. */
 const boxOf = async (locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> => {
   const box = await locator.boundingBox();
@@ -158,7 +173,7 @@ test.describe("the command line by mouse", () => {
     await expect.poll(() => window.locator(".row").count()).toBeGreaterThan(0);
     const clicked = {
       modeline: (await modeline.textContent()) ?? "",
-      rows: await window.locator(".row").allTextContents(),
+      rows: await rowCells(window),
     };
     await listAll(window);
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
@@ -169,7 +184,7 @@ test.describe("the command line by mouse", () => {
     await window.keyboard.press("Enter");
     await expect(input(window)).toHaveCount(0);
     await expect(modeline).toHaveText(clicked.modeline);
-    await expect(window.locator(".row")).toHaveText(clicked.rows);
+    await expect.poll(() => rowCells(window)).toEqual(clicked.rows);
     // A command that runs at once: its result buffer by a click is the one Enter gives.
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
     await options(window)
