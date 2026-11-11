@@ -420,12 +420,12 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(echoed).toEqual([`Saved SR-000001 (SR-1). ${MISSING}`]);
     expect(data.at(-1)).toMatchObject({ element: { problems: [{ message: MISSING }] } });
     // The editor shows the ID, muted, where the title is.
-    expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-1");
+    expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-000001 (SR-1)");
   });
 
   it("an empty title shows the ID muted while it is not edited", async () => {
     await mountView({ title: "" });
-    expect(heading().textContent).toBe("SR-1");
+    expect(heading().textContent).toBe("SR-000001 (SR-1)");
     expect(heading().className).toBe("untitled");
   });
 

@@ -1,7 +1,16 @@
 import type { ElementListOutput, ElementSearchOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { NO_ROW } from "./buffers.js";
-import { LIST_MAX, LIST_PAGE, SEARCH_MAX, SEARCH_PAGE, firstLimit, listRows, searchRows } from "./rows.js";
+import {
+  LIST_MAX,
+  LIST_PAGE,
+  SEARCH_MAX,
+  SEARCH_PAGE,
+  firstLimit,
+  listRows,
+  rowName,
+  searchRows,
+} from "./rows.js";
 
 const element = (n: number, extra: object = {}) => ({
   id: `uuid-${String(n)}`,
@@ -17,17 +26,22 @@ const element = (n: number, extra: object = {}) => ({
 });
 
 describe("listRows", () => {
-  it("shows the identifier, else the short ID, with title and status as given", () => {
+  it("[SR-084/AK4] shows the short ID with the identifier in brackets, else the short ID, with title and status as given", () => {
     const output: ElementListOutput = {
       elements: [element(1, { identifier: "SR-036" }), element(2, { status: undefined })] as never,
       total: 2,
     };
     const rows = listRows(output);
     expect(rows.map((row) => [row.label, row.title, row.status, row.depth])).toEqual([
-      ["SR-036", "Title 1", "draft", 0],
+      ["SR-000001 (SR-036)", "Title 1", "draft", 0],
       ["SR-000002", "Title 2", undefined, 0],
     ]);
     expect(rows.map((row) => row.shortId)).toEqual(["SR-000001", "SR-000002"]);
+    // The prompt names a row by the shown ID and the title, the title left out when it is the identifier (#545).
+    expect(rows.map(rowName)).toEqual(["SR-000001 (SR-036) Title 1", "SR-000002 Title 2"]);
+    expect(rowName({ shortId: "PKG-000003", identifier: "Später", title: "Später" })).toBe(
+      "PKG-000003 (Später)",
+    );
     expect(rows[0]?.open.key).toBe("element:spec:uuid-1");
     expect(rows[0]?.open.name).toBe("SR-000001 (SR-036) Title 1");
     expect(rows[0]?.terms).toEqual([]);
@@ -60,7 +74,7 @@ describe("searchRows", () => {
     const rows = searchRows(output);
     expect(rows.map((row) => [row.label, row.terms, row.markLabel])).toEqual([
       ["SR-000001", ["title"], false],
-      ["SR-2", [], true],
+      ["SR-000002 (SR-2)", [], true],
     ]);
   });
 });

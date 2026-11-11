@@ -243,7 +243,7 @@ describe("the neighbourhood in the app", () => {
     await toRequirements();
     await keyDown(query(".neighbourhood"), "ArrowDown");
     expect(container.querySelector('[role="treeitem"][aria-selected="true"] .id')?.textContent).toBe(
-      "SR-001",
+      "SR-000002 (SR-001)",
     );
     await keyDown(query(".neighbourhood"), "ArrowDown");
     await keyDown(query(".neighbourhood"), "Enter");

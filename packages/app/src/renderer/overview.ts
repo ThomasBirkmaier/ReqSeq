@@ -16,7 +16,7 @@ export interface TypeCount {
 /** An element opened last, as the overview shows it. */
 export interface RecentRow {
   readonly buffer: ElementBuffer;
-  /** The identifier, else the short ID. */
+  /** The short ID with the identifier in brackets (SR-084 AK4). */
   readonly label: string;
   readonly title: string;
 }

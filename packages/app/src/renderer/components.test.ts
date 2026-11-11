@@ -1468,7 +1468,7 @@ describe("ListView, a list", () => {
     });
     const { data } = await listHarness(asCall(call), listBuffer("All elements"));
     expect(call).toHaveBeenCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 0 });
-    expect(texts(".row .id")).toEqual(["SR-036", "SR-000002"]);
+    expect(texts(".row .id")).toEqual(["SR-000001 (SR-036)", "SR-000002"]);
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
     expect(texts(".row .status")).toEqual(["draft", ""]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
@@ -2837,7 +2837,7 @@ describe("ListView, a search", () => {
     const { data } = await listHarness(asCall(call), searchBuffer("wind"));
     expect(call).toHaveBeenCalledWith("element.search", { query: "wind", limit: 50, offset: 0 });
     expect(texts(".row .title")).toEqual(["Wind speed", "Rewind"]);
-    expect(texts("mark")).toEqual(["Wind", "SR-2"]);
+    expect(texts("mark")).toEqual(["Wind", "SR-000002 (SR-2)"]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Search: wind");
     expect(data).toEqual([
       ["search:wind", undefined],
@@ -2947,7 +2947,7 @@ describe("ListView, a search", () => {
     await listHarness(asCall(call), searchBuffer("icing"));
     expect(container.querySelectorAll(".row .snippet")).toHaveLength(0);
     expect(texts(".row .title mark")).toEqual(["icing"]);
-    expect(texts(".row .id mark")).toEqual(["SR-4"]);
+    expect(texts(".row .id mark")).toEqual(["SR-000004 (SR-4)"]);
   });
 
   it("says why the search failed", async () => {
@@ -3297,7 +3297,7 @@ describe("ElementView", () => {
     it("[SR-128/AK2] copies the heading that is shown when the element has no title", async () => {
       const { copies } = await mountRead({ title: "" });
       await click(copySymbol("Title"));
-      expect(copies).toEqual([["Title", "SR-036"]]);
+      expect(copies).toEqual([["Title", "SR-000001 (SR-036)"]]);
     });
 
     it("[SR-128/AK4] leaves the focus where it is when the symbol is pressed, so the editor keeps its cursor", async () => {
@@ -3454,7 +3454,7 @@ describe("ElementView", () => {
         }),
       ),
     );
-    expect(query("h1").textContent).toBe("SR-036");
+    expect(query("h1").textContent).toBe("SR-000001 (SR-036)");
     expect(editorView().state.doc.toString()).toBe("");
     expect(container.querySelector(".box")).toBeNull();
     expect(container.querySelector("section")).toBeNull();

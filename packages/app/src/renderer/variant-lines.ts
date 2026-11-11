@@ -16,7 +16,7 @@
 import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
-import { idTitle } from "./id-title.js";
+import { shownId, shownIdTitle } from "./id-title.js";
 import { CORE_VIEW } from "./views.js";
 
 /** A piece of a line: text, or an element named by its title that opens it. */
@@ -115,8 +115,8 @@ const named = (
 };
 
 const titleOf = (name: ElementName): string => name.title;
-const idTitleOf = (name: ElementName): string => idTitle(name.identifier ?? name.shortId, name.title);
-const idOf = (name: ElementName): string => name.identifier ?? name.shortId;
+const idTitleOf = (name: ElementName): string => shownIdTitle(name.shortId, name.identifier, name.title);
+const idOf = (name: ElementName): string => shownId(name.shortId, name.identifier);
 
 /** `groups` joined by " · ". */
 export const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>

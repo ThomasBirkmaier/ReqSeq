@@ -122,3 +122,40 @@ test("[SR-084/AK4] an identifier too long for a graph box gives way with an elli
     await running.close();
   }
 });
+
+test("[SR-084/AK4] a list and the overview show the short ID with the identifier, uncut", async () => {
+  const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
+  const { window } = running;
+  try {
+    await fs.mkdir(OUT, { recursive: true });
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    await expect(window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
+    // Opened once, SR-084 is among the recent elements of the overview.
+    const { element } = JSON.parse((await running.cli(["element", "get", "SR-084"])).stdout) as Got;
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("SR-084");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("SR-084");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText(element.title);
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Overview");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Overview");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".overview .recent .id").first()).toHaveText(`${element.shortId} (SR-084)`);
+    // The list of the system requirements: every ID with its identifier, none cut.
+    await window.getByRole("option", { name: /^System Requirement \d+$/ }).click();
+    await expect(window.getByLabel("Modeline")).toContainText("type: system-requirement");
+    const ids = window.locator(".row .id");
+    await expect(ids.first()).toBeVisible();
+    const shown = await ids.evaluateAll((all) =>
+      all.map((id) => ({ text: id.textContent, cut: id.scrollWidth > id.clientWidth })),
+    );
+    expect(shown.length).toBeGreaterThan(0);
+    expect(shown.filter((id) => !/^SR-[0-9a-f]{6,} \(SR-\d{3}\)$/.test(id.text) || id.cut)).toEqual([]);
+    await window.screenshot({ path: path.join(OUT, "sr-084-list-light.png") });
+  } finally {
+    await running.close();
+  }
+});

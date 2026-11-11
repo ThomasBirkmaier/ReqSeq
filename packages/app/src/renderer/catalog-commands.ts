@@ -57,11 +57,12 @@ import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
-import { idTitle } from "./id-title.js";
+import { refIdTitle, shownId } from "./id-title.js";
 import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
+import { rowName } from "./rows.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
 
@@ -473,7 +474,7 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
           .filter((relation) => relation.kind === of)
           .map((relation) => ({
             value: relation.id,
-            name: [relation.shortId ?? relation.id, relation.title ?? ""].join(" ").trim(),
+            name: refIdTitle(relation),
           })),
       };
     }
@@ -505,7 +506,7 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
                       name:
                         hint.targetShortId === undefined
                           ? hint.message
-                          : `${hint.targetShortId} · ${hint.message}`,
+                          : `${shownId(hint.targetShortId, hint.targetIdentifier)} · ${hint.message}`,
                     },
                   ],
             ),
@@ -1003,7 +1004,7 @@ const giveProperty = (
 
 /** The target a found element is, for a relation property. */
 const targetOf = (row: Row): { readonly value: PropertyAnswer; readonly label: string } => {
-  const label = idTitle(row.label, row.title);
+  const label = rowName(row);
   return { value: { ...relationTargetOf(row), label }, label: row.label };
 };
 

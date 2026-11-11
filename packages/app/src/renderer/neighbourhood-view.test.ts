@@ -235,9 +235,11 @@ describe("NeighbourhoodView", () => {
     expect(query("article, .neighbourhood").getAttribute("aria-label")).toBe("Neighbourhood: N1 Title N1");
     expect(query("h1").textContent).toBe("N1 Title N1");
     expect(texts("h2")).toEqual(["Children", "← excludes", "← inline reference"]);
-    expect(rows()).toEqual(["S1 ▸Title S1", "S2 ▸Title S2"]);
-    expect(rows('[aria-label="← excludes"] [role="option"]')).toEqual(["V1 Title V1"]);
-    expect(rows('[aria-label="← inline reference"] [role="option"]')).toEqual(["E Title E link outdated"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▸Title S1", "X-S2 (S2) ▸Title S2"]);
+    expect(rows('[aria-label="← excludes"] [role="option"]')).toEqual(["X-V1 (V1) Title V1"]);
+    expect(rows('[aria-label="← inline reference"] [role="option"]')).toEqual([
+      "X-E (E) Title E link outdated",
+    ]);
     expect(
       [...container.querySelectorAll('[role="treeitem"]')].map((row) => row.getAttribute("aria-expanded")),
     ).toEqual(["false", "false"]);
@@ -260,16 +262,16 @@ describe("NeighbourhoodView", () => {
     await press(query(".neighbourhood"), "ArrowRight");
     expect(actions.at(-1)).toMatchObject({ type: "open", buffer: { open: ["spec:uuid-S1"], cursor: 0 } });
     expect(asked(call, "down", true).map(([, input]) => input["maxDepth"])).toEqual([2, 3]);
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 ▸Title C1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▾Title S1", "X-C1 (C1) ▸Title C1", "X-S2 (S2) ▸Title S2"]);
     expect(query('[role="tree"] [role="treeitem"]:nth-child(2)').getAttribute("aria-level")).toBe("2");
     // Right on an open row, and Left on a row of the first level, do nothing.
     await press(query(".neighbourhood"), "ArrowRight");
     expect(asked(call, "down", true)).toHaveLength(2);
     await press(query(".neighbourhood"), "ArrowDown");
     await press(query(".neighbourhood"), "ArrowLeft");
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     await press(query(".neighbourhood"), "ArrowLeft");
-    expect(rows()).toEqual(["S1 ▸Title S1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▸Title S1", "X-S2 (S2) ▸Title S2"]);
     // Closed again: asking once more is not needed, and opening it again is quick.
     await press(query(".neighbourhood"), "ArrowRight");
     expect(asked(call, "down", true)).toHaveLength(2);
@@ -282,7 +284,12 @@ describe("NeighbourhoodView", () => {
     await press(query(".neighbourhood"), "ArrowRight");
     await press(query(".neighbourhood"), "ArrowDown");
     await press(query(".neighbourhood"), "ArrowRight");
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 ▾Title C1", "G1 Title G1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual([
+      "X-S1 (S1) ▾Title S1",
+      "X-C1 (C1) ▾Title C1",
+      "X-G1 (G1) Title G1",
+      "X-S2 (S2) ▸Title S2",
+    ]);
     expect(asked(call, "down", true).map(([, input]) => input["maxDepth"])).toEqual([2, 3, 4]);
     // G1 is at the last level asked for: whether it has children is not known, so it has no state.
     expect(query('[role="tree"] [role="treeitem"]:nth-child(3)').hasAttribute("aria-expanded")).toBe(false);
@@ -291,7 +298,12 @@ describe("NeighbourhoodView", () => {
   it("[SR-107/AK3] shows C1 under both parents and marks the second as repeated", async () => {
     const both = { ...N1, open: ["spec:uuid-S1", "spec:uuid-S2"] };
     await mount(asCall(fakeCall()), both);
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 ▸Title C1", "S2 ▾Title S2", "C1 Title C1 repeated"]);
+    expect(rows()).toEqual([
+      "X-S1 (S1) ▾Title S1",
+      "X-C1 (C1) ▸Title C1",
+      "X-S2 (S2) ▾Title S2",
+      "X-C1 (C1) Title C1 repeated",
+    ]);
     expect(texts(".repeated")).toEqual([" repeated"]);
   });
 
@@ -303,7 +315,7 @@ describe("NeighbourhoodView", () => {
     };
     await mount(asCall(fakeCall({ tree })));
     expect(texts('[role="tree"] .outdated')).toEqual([" link outdated"]);
-    expect(rows('[role="tree"] [role="treeitem"]')[0]).toBe("S1 ▸Title S1 link outdated");
+    expect(rows('[role="tree"] [role="treeitem"]')[0]).toBe("X-S1 (S1) ▸Title S1 link outdated");
     expect(texts('[role="listbox"] .outdated')).toEqual([" link outdated"]);
     // The hover text says which end points to an older version of which (#513).
     expect(query('[role="tree"] .outdated').getAttribute("title")).toBe(
@@ -328,22 +340,22 @@ describe("NeighbourhoodView", () => {
     const { actions } = await mount(asCall(fakeCall()));
     const sheet = query(".neighbourhood");
     await press(sheet, "ArrowDown");
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     await press(sheet, "ArrowDown");
-    expect(selected()).toEqual(["S2"]);
+    expect(selected()).toEqual(["X-S2 (S2)"]);
     await press(sheet, "ArrowDown");
-    expect(selected()).toEqual(["V1"]);
+    expect(selected()).toEqual(["X-V1 (V1)"]);
     await press(sheet, "End");
-    expect(selected()).toEqual(["E"]);
+    expect(selected()).toEqual(["X-E (E)"]);
     await press(sheet, "ArrowDown");
-    expect(selected()).toEqual(["E"]);
+    expect(selected()).toEqual(["X-E (E)"]);
     await press(sheet, "PageUp");
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     await press(sheet, "PageDown");
-    expect(selected()).toEqual(["E"]);
+    expect(selected()).toEqual(["X-E (E)"]);
     await press(sheet, "ArrowUp");
     await press(sheet, "Home");
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     expect(actions.filter((action) => action.type === "cursor")).toHaveLength(9);
     await press(sheet, "a");
     expect(actions).toHaveLength(9);
@@ -355,20 +367,20 @@ describe("NeighbourhoodView", () => {
     const ctrl = { ctrlKey: true };
     expect(selected()).toEqual([]);
     expect((await press(sheet, "n", ctrl)).defaultPrevented).toBe(true);
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     await press(sheet, "n", ctrl);
-    expect(selected()).toEqual(["S2"]);
+    expect(selected()).toEqual(["X-S2 (S2)"]);
     // After the last row of the tree, the first incoming link.
     await press(sheet, "n", ctrl);
-    expect(selected()).toEqual(["V1"]);
+    expect(selected()).toEqual(["X-V1 (V1)"]);
     await press(sheet, "p", ctrl);
-    expect(selected()).toEqual(["S2"]);
+    expect(selected()).toEqual(["X-S2 (S2)"]);
     await press(sheet, "p", ctrl);
     expect((await press(sheet, "p", ctrl)).defaultPrevented).toBe(true);
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     await press(sheet, "End");
     expect((await press(sheet, "n", ctrl)).defaultPrevented).toBe(true);
-    expect(selected()).toEqual(["E"]);
+    expect(selected()).toEqual(["X-E (E)"]);
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
@@ -383,7 +395,7 @@ describe("NeighbourhoodView", () => {
       expect((await press(sheet, "p", { ctrlKey: true })).defaultPrevented).toBe(true);
       expect((await press(sheet, "p", { metaKey: true })).defaultPrevented).toBe(false);
       expect((await press(sheet, "n", { metaKey: true })).defaultPrevented).toBe(false);
-      expect(selected()).toEqual(["S1"]);
+      expect(selected()).toEqual(["X-S1 (S1)"]);
     },
   );
 
@@ -392,18 +404,18 @@ describe("NeighbourhoodView", () => {
     const first = await mount(asCall(fakeCall()), opened);
     // Right on a row that is open already only selects it.
     await press(query(".neighbourhood"), "ArrowRight");
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     expect(first.actions).toEqual([{ type: "cursor", key: N1.key, cursor: 0 }]);
     // Left closes it, with the row selected.
     const second = await mount(asCall(fakeCall()), opened);
     await press(query(".neighbourhood"), "ArrowLeft");
     expect(second.actions.at(-1)).toMatchObject({ type: "open", buffer: { open: [], cursor: 0 } });
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
     // Left on a closed row of the first level only selects it.
     const third = await mount(asCall(fakeCall()));
     await press(query(".neighbourhood"), "ArrowLeft");
     expect(third.actions).toEqual([{ type: "cursor", key: N1.key, cursor: 0 }]);
-    expect(selected()).toEqual(["S1"]);
+    expect(selected()).toEqual(["X-S1 (S1)"]);
   });
 
   it("[SR-107/AK2] Enter opens the element of a tree row and of an incoming row, keeping the row as the cursor", async () => {
@@ -448,7 +460,7 @@ describe("NeighbourhoodView", () => {
       type: "open",
       buffer: { kind: "neighbourhood", open: ["spec:uuid-S2"], cursor: 1 },
     });
-    expect(selected()).toEqual(["S2"]);
+    expect(selected()).toEqual(["X-S2 (S2)"]);
     expect(call.mock.calls.filter(([, input]) => input["maxDepth"] === 3)).toHaveLength(1);
   });
 
@@ -478,7 +490,7 @@ describe("NeighbourhoodView", () => {
     expect(texts("h2")).toEqual(["← excludes", "← inline reference"]);
     const second = await mount(asCall(fakeCall({ incoming: () => broken })));
     expect(second.echoed).toEqual(["The workspace is not valid"]);
-    expect(rows()).toEqual(["S1 ▸Title S1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▸Title S1", "X-S2 (S2) ▸Title S2"]);
   });
 
   it("keeps the tree and says why a deeper level could not be read", async () => {
@@ -491,7 +503,7 @@ describe("NeighbourhoodView", () => {
     expect(echoed).toEqual(["busy"]);
     expect(texts(".quiet")).toEqual(["busy"]);
     // C1 was in the first answer: it is shown, and whether it has children is not known.
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 Title C1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▾Title S1", "X-C1 (C1) Title C1", "X-S2 (S2) ▸Title S2"]);
   });
 
   it("asks deep enough at once for rows that were open when the buffer was shown again", async () => {
@@ -499,7 +511,12 @@ describe("NeighbourhoodView", () => {
     const deep = { ...N1, open: ["spec:uuid-S1", "spec:uuid-C1"] };
     await mount(asCall(call), deep);
     expect(asked(call, "down", true).map(([, input]) => input["maxDepth"])).toEqual([2, 4]);
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 ▾Title C1", "G1 Title G1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual([
+      "X-S1 (S1) ▾Title S1",
+      "X-C1 (C1) ▾Title C1",
+      "X-G1 (G1) Title G1",
+      "X-S2 (S2) ▸Title S2",
+    ]);
   });
 
   it("asks again when the workspace changed, keeps the rows until the answer is there, and asks for as many levels", async () => {
@@ -515,7 +532,7 @@ describe("NeighbourhoodView", () => {
         ["down", 1],
       ],
     );
-    expect(rows()).toEqual(["S1 ▾Title S1", "C1 ▸Title C1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▾Title S1", "X-C1 (C1) ▸Title C1", "X-S2 (S2) ▸Title S2"]);
   });
 
   it("drops an answer that comes after a later question or after the buffer is gone", async () => {
@@ -545,7 +562,7 @@ describe("NeighbourhoodView", () => {
     await give(secondIncoming, incomingOf());
     await give(firstTree, answer("N1", [node("N1", 0)], []));
     await give(firstIncoming, answer("N1", [node("N1", 0)], []));
-    expect(rows()).toEqual(["S1 ▸Title S1", "S2 ▸Title S2"]);
+    expect(rows()).toEqual(["X-S1 (S1) ▸Title S1", "X-S2 (S2) ▸Title S2"]);
     expect(texts("h2")).toEqual(["Children", "← excludes", "← inline reference"]);
   });
 

@@ -45,7 +45,7 @@ describe("result lines", () => {
       name: "Weather",
     });
     expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
-      ["element", 0, "SR-1", "Title 1"],
+      ["element", 0, "SR-000001 (SR-1)", "Title 1"],
       ["text", 0, "nodes", "1"],
       ["element", 1, "SR-000002", "Title 2"],
       ["text", 0, "problems", "2"],
@@ -120,12 +120,12 @@ describe("result lines", () => {
       ["text", 0, "added", "1"],
       ["element", 1, "SR-000003", "Title 3"],
       ["text", 0, "replaced", "1"],
-      ["pair", 1, "SR-1", "Title 1 · replacement: SR-000002 Title 2"],
+      ["pair", 1, "SR-000001 (SR-1)", "Title 1 · replacement: SR-000002 Title 2"],
       ["text", 0, "excluded", "2"],
       ["element", 1, "SR-000004", "Title 4"],
       ["text", 1, "", "uuid-9"],
       ["text", 0, "other", ""],
-      ["element", 1, "core: SR-1", "Title 1"],
+      ["element", 1, "core: SR-000001 (SR-1)", "Title 1"],
       ["text", 1, "replacement", "uuid-9"],
       // A named UUID under a key keeps the key; it opens like any element row.
       ["element", 0, "variant: SR-000004", "Title 4"],

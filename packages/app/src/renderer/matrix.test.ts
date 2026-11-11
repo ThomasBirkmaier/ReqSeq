@@ -110,7 +110,7 @@ describe("rows and targets", () => {
   it("[SR-125/AK1] has one row per element in the order of the answer, the depth of a tree", () => {
     const rows = matrixRows(output);
     expect(rows.map((row) => [row.element.label, row.element.title, row.element.depth])).toEqual([
-      ["SR-1", "Show wind speed", 2],
+      ["SR-000001 (SR-1)", "Show wind speed", 2],
       ["SR-000002", "Show rain", 0],
     ]);
     expect(rows[0]?.element.open.key).toBe("element:spec:uuid-s1");

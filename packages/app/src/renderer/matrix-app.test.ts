@@ -218,7 +218,7 @@ describe("the matrix in the app", () => {
     await keyDown(window, "t", { ctrlKey: true });
     expect(container.querySelector("table")).toBeNull();
     expect(container.querySelectorAll(".row")).toHaveLength(2);
-    expect(container.querySelector('.row[aria-selected="true"] .id')?.textContent).toBe("N-002");
+    expect(container.querySelector('.row[aria-selected="true"] .id')?.textContent).toBe("N-002 (N-002)");
     expect(document.activeElement).toBe(query(".list"));
     expect(modeline()).not.toContain("matrix");
   });
@@ -246,7 +246,7 @@ describe("the matrix in the app", () => {
     await keyDown(window, "t", { ctrlKey: true });
     expect(query("tbody tr .outdated").textContent).toBe(" link outdated");
     await keyDown(query("table"), "ArrowRight");
-    expect(query(".current").textContent).toBe("N-001 See the wind");
+    expect(query(".current").textContent).toBe("N-001 (N-001) See the wind");
     await keyDown(query("table"), "Enter");
     expect(query("article h1").textContent).toBe("See the wind");
   });

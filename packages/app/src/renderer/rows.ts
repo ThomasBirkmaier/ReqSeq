@@ -3,6 +3,7 @@
 import type { ElementListOutput, ElementSearchOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
+import { shownId, shownIdTitle } from "./id-title.js";
 
 /** Rows of a list page (the command's default); the next page is asked for when the end is reached. */
 export const LIST_PAGE = 200;
@@ -15,10 +16,12 @@ export const SEARCH_MAX = 500;
 export interface Row {
   /** The element: for opening its buffer. */
   readonly open: ElementBuffer;
-  /** ID shown muted at the left: the identifier, else the short ID. */
+  /** ID shown muted at the left: the short ID with the identifier in brackets (SR-084 AK4). */
   readonly label: string;
   /** The short ID, for a reference into another repository (D-058). */
   readonly shortId: string;
+  /** The identifier, for `rowName`. */
+  readonly identifier?: string | undefined;
   readonly title: string;
   readonly status: string | undefined;
   /** 0 for a root; a list that is not a tree has 0 everywhere. */
@@ -69,11 +72,12 @@ export const rowOf = (
   markLabel: boolean,
   found: Pick<Row, "titleMarks" | "snippet"> = { titleMarks: [] },
 ): Row => {
-  const label = element.identifier ?? element.shortId;
+  const label = shownId(element.shortId, element.identifier);
   return {
     open: elementBufferOf(element),
     label,
     shortId: element.shortId,
+    identifier: element.identifier,
     title: element.title,
     status: element.status,
     depth,
@@ -109,3 +113,7 @@ export const activeRow = (prefix: string, cursor: number, length: number): strin
  */
 export const firstLimit = (cursor: number, page: number, max: number): number =>
   Math.min(max, (Math.floor(Math.max(0, cursor) / page) + 1) * page);
+
+/** A row as the prompt names it: the shown ID, then the title unless it is the identifier's text (#545). */
+export const rowName = (row: Pick<Row, "shortId" | "identifier" | "title">): string =>
+  shownIdTitle(row.shortId, row.identifier, row.title);

@@ -47,7 +47,7 @@ describe("the lines of a requirement's variants", () => {
       ),
     );
     expect(text(lines.use)).toBe(
-      "Replaced in Coast by SR-900 Response time at most 20 ms · Excluded in Mountain, Desert",
+      "Replaced in Coast by SR-0000b1 (SR-900) Response time at most 20 ms · Excluded in Mountain, Desert",
     );
     expect(lines.use?.find((part) => part.text === "Coast")).toEqual({
       text: "Coast",
@@ -95,9 +95,12 @@ describe("the lines of a requirement's variants", () => {
         [one, COAST],
       ),
     );
-    expect(halves(lines.verification)).toEqual(["Core | open (missing SR-121, uuid-2)", "Coast | indirect"]);
-    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-121")).toEqual({
-      text: "SR-121",
+    expect(halves(lines.verification)).toEqual([
+      "Core | open (missing SR-00b121 (SR-121), uuid-2)",
+      "Coast | indirect",
+    ]);
+    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-00b121 (SR-121)")).toEqual({
+      text: "SR-00b121 (SR-121)",
       id: "uuid-1",
       open: elementBuffer("uuid-1", "system", "SR-00b121 (SR-121) Log wind"),
     });

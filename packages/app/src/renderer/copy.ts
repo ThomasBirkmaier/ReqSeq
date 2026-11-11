@@ -4,6 +4,7 @@
 import type { DataExportElement } from "@reqseq/core";
 import type { PropertyBox } from "./element-view.js";
 import { TITLE_FIELD, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
+import { shownId } from "./id-title.js";
 
 /** One field of the element buffer: the name the status line gives, and its value as text. */
 export interface Field {
@@ -25,7 +26,7 @@ export const fieldText = (values: readonly string[]): string => values.join("\n"
  * or short ID the element is named by.
  */
 export const heading = (element: DataExportElement): string =>
-  element.title.trim() === "" ? (element.identifier ?? element.shortId) : element.title;
+  element.title.trim() === "" ? shownId(element.shortId, element.identifier) : element.title;
 
 /** What the status line says about a copy that worked or failed. */
 export const copyNotice = (label: string, copied: boolean): string =>

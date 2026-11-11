@@ -199,15 +199,15 @@ describe("treeRows", () => {
   it("[SR-107/AK2] shows the direct children, and the next level only below an opened row, indented by level", () => {
     const closed = treeRows(children(), []);
     expect(summary(closed.rows)).toEqual([
-      ["S1", 1, 0, false, true, false, undefined],
-      ["S2", 1, 0, false, true, false, undefined],
+      ["X-S1 (S1)", 1, 0, false, true, false, undefined],
+      ["X-S2 (S2)", 1, 0, false, true, false, undefined],
     ]);
     const opened = treeRows(children(), ["spec:uuid-S1"]);
     expect(summary(opened.rows)).toEqual([
-      ["S1", 1, 0, false, true, true, undefined],
+      ["X-S1 (S1)", 1, 0, false, true, true, undefined],
       // The tree was cut below this level: whether C1 has children is not known yet.
-      ["C1", 2, 1, false, undefined, false, 0],
-      ["S2", 1, 0, false, true, false, undefined],
+      ["X-C1 (C1)", 2, 1, false, undefined, false, 0],
+      ["X-S2 (S2)", 1, 0, false, true, false, undefined],
     ]);
     expect(opened.rows[1]?.row.open).toEqual(elementBuffer("uuid-C1", "spec", "X-C1 (C1) Title C1"));
     expect(opened.cut).toBe(false);
@@ -216,10 +216,10 @@ describe("treeRows", () => {
   it("[SR-107/AK3] shows a child under each parent, marks the second one repeated and never opens it", () => {
     const both = treeRows(children(), ["spec:uuid-S1", "spec:uuid-S2", "spec:uuid-C1"]);
     expect(summary(both.rows)).toEqual([
-      ["S1", 1, 0, false, true, true, undefined],
-      ["C1", 2, 1, false, undefined, true, 0],
-      ["S2", 1, 0, false, true, true, undefined],
-      ["C1", 2, 1, true, false, false, 2],
+      ["X-S1 (S1)", 1, 0, false, true, true, undefined],
+      ["X-C1 (C1)", 2, 1, false, undefined, true, 0],
+      ["X-S2 (S2)", 1, 0, false, true, true, undefined],
+      ["X-C1 (C1)", 2, 1, true, false, false, 2],
     ]);
   });
 
@@ -250,7 +250,11 @@ describe("treeRows", () => {
       ],
       [edge("S9", "N1"), edge("S1", "N1"), edge("S5", "N1")],
     );
-    expect(treeRows(output, []).rows.map((row) => row.row.label)).toEqual(["S9", "S1", "S5"]);
+    expect(treeRows(output, []).rows.map((row) => row.row.label)).toEqual([
+      "X-S9 (S9)",
+      "X-S1 (S1)",
+      "X-S5 (S5)",
+    ]);
   });
 
   it("says when the answer holds only the first nodes, and skips an edge whose node is not on the page", () => {
@@ -261,7 +265,7 @@ describe("treeRows", () => {
     );
     const tree = treeRows(output, []);
     expect(tree.cut).toBe(true);
-    expect(tree.rows.map((row) => row.row.label)).toEqual(["S1"]);
+    expect(tree.rows.map((row) => row.row.label)).toEqual(["X-S1 (S1)"]);
   });
 });
 
@@ -298,8 +302,8 @@ describe("incomingGroups", () => {
   it("[SR-107/AK2] groups the incoming relations and references by kind and leaves out the derivations", () => {
     const { groups, cut } = incomingGroups(incoming());
     expect(groups.map((group) => [group.heading, group.entries.map((entry) => entry.row.label)])).toEqual([
-      ["← excludes", ["V1", "E"]],
-      ["← inline reference", ["E"]],
+      ["← excludes", ["X-V1 (V1)", "X-E (E)"]],
+      ["← inline reference", ["X-E (E)"]],
     ]);
     expect(cut).toBe(false);
   });
@@ -314,7 +318,7 @@ describe("incomingGroups", () => {
     );
     const { groups } = incomingGroups(output);
     expect(groups.map((group) => [group.heading, group.entries.map((entry) => entry.row.label)])).toEqual([
-      ["← packages", ["S1", "S2"]],
+      ["← packages", ["X-S1 (S1)", "X-S2 (S2)"]],
     ]);
   });
 

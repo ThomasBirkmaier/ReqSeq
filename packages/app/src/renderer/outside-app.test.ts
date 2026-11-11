@@ -560,7 +560,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     await outside("uuid-2", { title: "Show gust speed" });
     expect(calls("element.list")).toHaveLength(lists + 1);
     expect(container.querySelectorAll(".row")).toHaveLength(3);
-    expect(query('.row[aria-selected="true"] .id').textContent).toBe("SR-001");
+    expect(query('.row[aria-selected="true"] .id').textContent).toBe("SR-000002 (SR-001)");
     expect(query('[aria-label="Modeline"]').textContent).toContain("3");
     await act(async () => {
       answer();
@@ -568,7 +568,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     });
     await flush();
     expect(query('.row[aria-selected="true"] .title').textContent).toBe("Show gust speed");
-    expect(marked()).toEqual(["SR-001"]);
+    expect(marked()).toEqual(["SR-000002 (SR-001)"]);
   });
 
   it("opens the selected row with Enter while the list is asked again after a change from outside", async () => {
@@ -599,7 +599,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     query(".matrix");
     await outside("uuid-3", { title: "Show the wind direction" });
     expect([...container.querySelectorAll(`td.${OUTSIDE_CHANGE} .id`)].map((id) => id.textContent)).toEqual([
-      "SR-002",
+      "SR-000003 (SR-002)",
     ]);
     await keyDown(query("table"), "t", { ctrlKey: true });
     await openRow(0);
@@ -607,7 +607,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     query(".neighbourhood");
     await outside("uuid-2", { title: "Show the wind speed" });
     // SR-002 changed less than 2 s ago and is shown now: it is highlighted too.
-    expect(marked()).toEqual(["SR-001", "SR-002"]);
+    expect(marked()).toEqual(["SR-000002 (SR-001)", "SR-000003 (SR-002)"]);
   });
 
   it("highlights the elements of a package page and a recent element of the overview", async () => {
@@ -615,12 +615,12 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     await keyDown(window, "p", { ctrlKey: true });
     await type("Stage");
     await keyDown(query("input"), "Enter");
-    expect(query(".members .row .id").textContent).toBe("SR-001");
+    expect(query(".members .row .id").textContent).toBe("SR-000002 (SR-001)");
     await outside("uuid-2", { title: "Show the gust speed" });
-    expect(marked()).toEqual(["SR-001"]);
+    expect(marked()).toEqual(["SR-000002 (SR-001)"]);
     await runCommand("Show overview");
     await outside("uuid-9", { title: "Stage three" });
-    expect(marked()).toEqual(["PKG-1"]);
+    expect(marked()).toEqual(["PKG-000009 (PKG-1)"]);
   });
 
   it("highlights an element that is shown within 2 s of its change, as the follow mode opens it, and not later", async () => {

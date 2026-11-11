@@ -127,7 +127,10 @@ describe("copy", () => {
     let doc = "saved";
     const from = copyable(element({ title: "" }), () => doc);
     doc = "saved and typed";
-    expect(from.fields.map((field) => field.text()).slice(0, 2)).toEqual(["SR-036", "saved and typed"]);
+    expect(from.fields.map((field) => field.text()).slice(0, 2)).toEqual([
+      "SR-000001 (SR-036)",
+      "saved and typed",
+    ]);
     expect(heading(element({ title: "", identifier: undefined }))).toBe("SR-000001");
     expect(heading(element({ title: "  ", identifier: undefined }))).toBe("SR-000001");
     expect(heading(element())).toBe("Measure wind");

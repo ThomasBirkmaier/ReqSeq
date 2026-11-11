@@ -24,7 +24,7 @@ const PLAIN: never[] = [];
 export interface TitleBoxProps {
   /** The title as loaded or saved. */
   readonly text: string;
-  /** What the element is named by without a title (identifier or short ID): shown, muted, for an empty one. */
+  /** What the element is named by without a title (the short ID with the identifier, SR-084 AK4): shown, muted, for an empty one. */
   readonly id: string;
   /** The editor is in the heading (the title was entered, or the buffer came back with title input). */
   readonly open: boolean;

@@ -5,6 +5,7 @@
 // (`metamodel.get`, `element.list`), the same source as a `view` argument of the command prompt (#285).
 import type { CommandTypes, MetamodelGetOutput } from "@reqseq/core";
 import type { Call } from "./call.js";
+import { shownIdTitle } from "./id-title.js";
 
 /** A view the window can show: `core` or a variant's UUID, with the title the modeline gives it. */
 export interface ShownView {
@@ -12,14 +13,16 @@ export interface ShownView {
   readonly title: string;
   /** The variant's short ID, which the prompt shows before the title; none for the core. */
   readonly shortId?: string;
+  /** The variant's identifier, in brackets behind the short ID (SR-084 AK4). */
+  readonly identifier?: string;
 }
 
 /** The view of the core requirements (SR-043 AK9). */
 export const CORE_VIEW: ShownView = { view: "core", title: "Core" };
 
-/** How the prompt lists a view: the short ID and the title of a variant, "Core" for the core. */
+/** How the prompt lists a view: the short ID with the identifier and the title of a variant, "Core" for the core. */
 export const viewName = (shown: ShownView): string =>
-  shown.shortId === undefined ? shown.title : `${shown.shortId} ${shown.title}`;
+  shown.shortId === undefined ? shown.title : shownIdTitle(shown.shortId, shown.identifier, shown.title);
 
 /** The part of the modeline that names the view shown; none while all elements are shown. */
 export const viewMark = (shown: ShownView | undefined): string | undefined =>
@@ -123,6 +126,7 @@ export const viewsOf = async (
         view: variant.id,
         title: variant.title,
         shortId: variant.shortId,
+        ...(variant.identifier === undefined ? {} : { identifier: variant.identifier }),
       })),
     ],
   };

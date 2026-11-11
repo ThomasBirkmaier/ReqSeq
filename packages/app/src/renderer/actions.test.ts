@@ -536,7 +536,7 @@ describe("go to element or buffer", () => {
       limit: 20,
     });
     expect(found?.map((choice) => [choice.id, choice.name, choice.terms])).toEqual([
-      ["element:spec:u1", "SR-036 Wind", ["wind", "sr-036"]],
+      ["element:spec:u1", "SR-000001 (SR-036) Wind", ["wind", "sr-000001 (sr-036)"]],
       ["element:spec:u2", "SR-000002 Windy", ["windy"]],
     ]);
     found?.[0]?.run();
@@ -637,7 +637,7 @@ describe("insert reference (SR-129)", () => {
       fields: ["id", "title"],
       limit: 20,
     });
-    expect(found?.map((choice) => choice.name)).toEqual(["SR-036 Wind"]);
+    expect(found?.map((choice) => choice.name)).toEqual(["SR-000001 (SR-036) Wind"]);
     found?.[0]?.run();
     expect(request.insert).toHaveBeenCalledExactlyOnceWith({
       id: "u1",

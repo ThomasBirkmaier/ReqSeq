@@ -60,7 +60,9 @@ const Cells = ({
   readonly after?: React.ReactNode;
 }): React.JSX.Element => (
   <>
-    <span className="id">{row.label}</span>
+    <span className="id" title={row.label}>
+      {row.label}
+    </span>
     <span className="title" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
       {before}
       {row.title}

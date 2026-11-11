@@ -32,7 +32,6 @@ import {
 import type { Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
-import { idTitle } from "./id-title.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
@@ -54,7 +53,7 @@ import type { GivenArguments, MatrixSpot } from "./matrix-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
-import { searchRows } from "./rows.js";
+import { rowName, searchRows } from "./rows.js";
 import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
 import type { Side } from "./window-layout.js";
@@ -572,7 +571,7 @@ export const findElements =
     }
     return searchRows(answer.output).map((row) => ({
       id: row.open.key,
-      name: idTitle(row.label, row.title),
+      name: rowName(row),
       title: row.title,
       terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
       run: () => {
@@ -630,7 +629,8 @@ export const referencePrompt = (context: ActionContext, request: ReferenceReques
     request.insert({
       id: row.open.id,
       title: row.title,
-      label: row.label,
+      // The link text of an untitled element stays what the file stored before SR-084 AK4: its identifier.
+      label: row.identifier ?? row.shortId,
       shortId: row.shortId,
       repository: row.open.repository,
     });
@@ -659,11 +659,11 @@ export const fittingRows = (rows: readonly Row[], lines = CARD_LINES): Row[] => 
 };
 
 /**
- * The marks of a hit's name, `idTitle(label, title)`: the ID when it matched, and the words core marked in
+ * The marks of a hit's name, `rowName(row)`: the ID when it matched, and the words core marked in
  * the title, as the search buffer marks them (SR-183 AK3).
  */
 export const nameMarks = (row: Row): Range[] => {
-  const name = idTitle(row.label, row.title);
+  const name = rowName(row);
   const label: Range[] = row.markLabel ? [[0, row.label.length]] : [];
   if (name === row.label.trim()) {
     return label;
@@ -691,7 +691,7 @@ const searchPrompt = (context: ActionContext): Prompt => ({
     }
     return fittingRows(searchRows(answer.output)).map((row) => ({
       id: row.open.key,
-      name: idTitle(row.label, row.title),
+      name: rowName(row),
       marks: nameMarks(row),
       ...(row.status === undefined ? {} : { hint: row.status }),
       ...(row.snippet === undefined ? {} : { snippet: row.snippet }),

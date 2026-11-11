@@ -11,7 +11,7 @@
 // answer and go to the modeline (#276). Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
-import { idTitle, shownId } from "./id-title.js";
+import { shownId, shownIdTitle } from "./id-title.js";
 import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
 
 /**
@@ -122,7 +122,7 @@ const withStatus = (line: ResultLine, record: Rec): ResultLine => {
 const elementLine = (element: Element, depth: number): ResultLine => ({
   kind: "element",
   depth,
-  label: element.identifier ?? element.shortId,
+  label: shownId(element.shortId, element.identifier),
   text: element.title,
   open: elementBufferOf(element),
 });
@@ -158,8 +158,8 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): 
   return {
     kind: "pair",
     depth,
-    label: first.identifier ?? first.shortId,
-    text: `${first.title} · ${key}: ${idTitle(second.identifier ?? second.shortId, second.title)}`,
+    label: shownId(first.shortId, first.identifier),
+    text: `${first.title} · ${key}: ${shownIdTitle(second.shortId, second.identifier, second.title)}`,
     open: readOnlyBuffer(elementBufferOf(first)),
     beside: readOnlyBuffer(elementBufferOf(second)),
   };
