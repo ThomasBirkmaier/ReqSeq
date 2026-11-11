@@ -323,6 +323,13 @@ describe("SR-028 reading Markdown records", () => {
     }
   });
 
+  it("[SR-008/AK4] a record of an unknown format number is faulty and not counted", () => {
+    expect(read(record().replace("reqseq-record: 1", "reqseq-record: 2"))).toMatchObject({
+      records: [],
+      problems: [{ code: "evidence.invalid-record", severity: "error", line: 2 }],
+    });
+  });
+
   it("an invalid record gives evidence.invalid-record with the line of the failing key and no record", () => {
     const text = record().replace("result: failed", "result: maybe").replace("item: model v3\n", "");
     expect(read(text)).toEqual({

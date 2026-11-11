@@ -171,7 +171,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     );
   });
 
-  it("[SR-102/AK3] two branches that add different relations to one element each add their own line; Git merges them", async () => {
+  it("[SR-102/AK3] two branches that add different relations to one element each add one line; the conflict has one line per side, and keeping both reads the element with both relations", async () => {
     const opened = await open({ ...TWO, git: true });
     const { fixture } = opened;
     const base = await read(opened, GUSTS.file);

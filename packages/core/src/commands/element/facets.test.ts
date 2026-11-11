@@ -204,6 +204,32 @@ describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
     ]);
   });
 
+  it("[SR-124/AK2] offers a text property with at most 30 distinct values in the whole workspace, one of them shared", async () => {
+    // 28 more topics next to Timing and Wind: 30 distinct values, Timing shared.
+    const topics = Object.fromEntries(
+      Array.from({ length: 28 }, (_, i) => {
+        const tail = (0x40 + i).toString(16);
+        return [
+          `requirements/SR-0000000000${tail}.md`,
+          sr(tail, `status: draft\ntopic: Topic ${String(i)}\n`),
+        ];
+      }),
+    );
+    const thirty = facet(
+      await facets(await open({ ...FILTER, files: { ...EXTRA, ...topics } }), SYSTEM),
+      "topic",
+    );
+    expect([thirty.distinct, thirty.values?.length]).toEqual([30, 30]);
+    // A 31st value anywhere in the workspace, here on a package outside the list: no values offered.
+    const elsewhere = `---\nid: ${P}d5\ntype: package\nstatus: approved\ntitle: Elsewhere\ntopic: Elsewhere\n---\n`;
+    const more = await open({
+      ...FILTER,
+      files: { ...EXTRA, ...topics, "packages/PKG-0000000000d5.md": elsewhere },
+    });
+    const thirtyOne = facet(await facets(more, SYSTEM), "topic");
+    expect(thirtyOne.values).toBeUndefined();
+  });
+
   it("[SR-124/AK3] leaves out the values of free text: too many distinct values, or none shared", async () => {
     const ws = await open(WITH_EXTRA);
     const out = await facets(ws, SYSTEM);

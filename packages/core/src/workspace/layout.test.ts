@@ -171,6 +171,18 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
+  it("[SR-008/AK4] ignores a local file of an unknown format number with a warning", async () => {
+    const ws = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), {
+      local: "reqseq-local: 2\nrepositories:\n  a: { path: ../elsewhere }\n",
+      folders: ["a", "elsewhere"],
+    });
+    const layout = await loadWorkspaceLayout(ws.path("main"));
+    expect(layout.repositories.find((r) => r.name === "a")?.path).toBe("../a");
+    expect(layout.problems.map((p) => [p.code, p.severity, p.file])).toEqual([
+      ["workspace.invalid", "warning", LOCAL_FILE],
+    ]);
+  });
+
   it("ignores a faulty local file with a warning", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), {
       local: "reqseq-local: 1\nrepositories:\n  a: [unclosed\n",
@@ -608,7 +620,7 @@ describe("loadWorkspaceLayout", () => {
     expect(error.message).toMatch(/^reqseq-workspace\.yaml is faulty: Invalid YAML at line/);
   });
 
-  it("fails with file.faulty for a workspace file that does not match its schema", async () => {
+  it("[SR-008/AK4] fails with file.faulty for a workspace file that does not match its schema, also one of an unknown format number", async () => {
     const ws = await setup("reqseq-workspace: 2\nname: W\nrepositories: []\n");
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.code).toBe("file.faulty");
