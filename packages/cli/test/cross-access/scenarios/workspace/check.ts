@@ -1,7 +1,9 @@
 // Cross-access scenarios of workspace.check, in addition to the default one (cross-access.test.ts).
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
+import type { Result } from "../../scenario.js";
 import { scenariosOf, templateSetup } from "../../scenario.js";
 import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, VARIANT_EVIDENCE } from "../../fixtures.js";
 
@@ -12,6 +14,44 @@ templateSetup(SECOND_COMMIT, async (ws) => {
   await fs.appendFile(file, "Changed in a second commit.\n");
   await ws.commit();
 });
+
+/** Statuses per type (#306): a status outside the type, one on a type without statuses, a missing one. */
+const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git: true };
+/** STATUSES with a glossary term type whose only status is invalid, and a term without status (SR-017 AK3). */
+const RETIRABLE: FixtureOptions = {
+  ...STATUSES,
+  files: {
+    "metamodel/model.yaml": readFileSync(
+      new URL(
+        "../../../../../../fixtures/enabler-306/statuses-per-type/metamodel/model.yaml",
+        import.meta.url,
+      ),
+      "utf8",
+    )
+      .replace(
+        "properties:\n  - key: title",
+        "  - { key: glossary-term, name: Glossary Term, prefix: GT, properties: [title], statuses: [retired] }\n\nproperties:\n  - key: title",
+      )
+      .replace(
+        "  - { key: superseded, name: Superseded, invalid: true }\n",
+        "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: retired, name: Retired, invalid: true }\n",
+      ),
+    "elements/GT-000000fff001.md":
+      "---\nid: 6f6f6f6f-6666-4666-8666-000000fff001\ntype: glossary-term\ntitle: Baseline\n---\n",
+  },
+};
+
+/** The status findings of one access's output, as code, severity, short ID and file. */
+const statusFindings = (result: Result | undefined): (string | undefined)[][] =>
+  (
+    result?.outcome as {
+      output: { problems: { code: string; severity: string; elementShortId?: string; file?: string }[] };
+    }
+  ).output.problems
+    .filter((p) =>
+      ["element.status-not-allowed", "element.missing-status", "metamodel.optional-status"].includes(p.code),
+    )
+    .map((p) => [p.code, p.severity, p.elementShortId, p.file]);
 
 scenariosOf("workspace.check", [
   {
@@ -141,16 +181,63 @@ scenariosOf("workspace.check", [
     expect: "output",
   },
   {
-    name: "duplicate identifiers within a type, with the identifier of each element (ThomasBirkmaier/ReqSeq-archive#305)",
+    name: "duplicate identifiers within a type, also in another case, a warning at each element naming the other file (ThomasBirkmaier/ReqSeq-archive#305)",
+    tag: "[SR-088/AK4]",
     fixture: {
       ...IDENTIFIERS,
       files: {
         "requirements/SR-0000000b0038.md":
-          "---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: SR-036\n---\n",
+          "---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: sr-036\n---\n",
       },
     },
     input: {},
     expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as {
+          output: { problems: { code: string; severity: string; file?: string; message: string }[] };
+        }
+      ).output;
+      expect(
+        output.problems
+          .filter((p) => p.code === "element.duplicate-identifier")
+          .map((p) => [p.severity, p.file, /is also on System Requirement (\S+)/.exec(p.message)?.[1]]),
+      ).toEqual([
+        ["warning", "requirements/SR-0000000b0036.md", "requirements/SR-0000000b0038.md"],
+        ["warning", "requirements/SR-0000000b0038.md", "requirements/SR-0000000b0036.md"],
+      ]);
+    },
+  },
+  {
+    name: "a status the type does not have is a warning with element and status, the file stays",
+    tag: "[SR-017/AK2]",
+    fixture: STATUSES,
+    input: {},
+    expect: "output",
+    check: (results) => {
+      expect(
+        statusFindings(results["core"]).filter(([code]) => code === "element.status-not-allowed"),
+      ).toEqual([
+        ["element.status-not-allowed", "warning", "D-ddd002", "elements/D-000000ddd002.md"],
+        ["element.status-not-allowed", "warning", "SR-bbb002", "elements/SR-000000bbb002.md"],
+        ["element.status-not-allowed", "warning", "T-eee002", "elements/T-000000eee002.md"],
+      ]);
+    },
+  },
+  {
+    name: "an element without status is a warning, except of a type with only invalid statuses, which gets one info",
+    tag: "[SR-017/AK3]",
+    fixture: RETIRABLE,
+    input: {},
+    expect: "output",
+    check: (results) => {
+      expect(
+        statusFindings(results["core"]).filter(([code]) => code !== "element.status-not-allowed"),
+      ).toEqual([
+        ["metamodel.optional-status", "info", undefined, "metamodel/model.yaml"],
+        ["element.missing-status", "warning", "SR-bbb003", "elements/SR-000000bbb003.md"],
+      ]);
+    },
   },
   {
     name: "reqseq: links whose target is no UUID, with the element they name (#176)",

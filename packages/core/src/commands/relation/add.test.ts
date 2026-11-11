@@ -239,7 +239,7 @@ describe("relation.add stores UUID and current version of the target in the sour
   });
 });
 
-describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-086)", () => {
+describe("relation.add sets only relations the metamodel allows (SR-067 AK4, SR-086)", () => {
   it("[SR-067/AK4] refuses a relation from a source type the kind does not allow, with source, target and kind, and writes nothing", async () => {
     const opened = await open();
     const before = await read(opened, NEED.file);
@@ -254,9 +254,11 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-
     expect(await read(opened, NEED.file)).toBe(before);
   });
 
-  it("[SR-067/AK4] refuses a relation to a target type the kind does not allow", async () => {
+  it("[SR-067/AK4] refuses a relation to a target type the kind does not allow, and writes nothing", async () => {
     const opened = await open();
+    const before = await read(opened, WIND.file);
     const error = await addError(opened, { source: WIND.id, kind: "based-on", target: GUSTS.id });
+    expect(await read(opened, WIND.file)).toBe(before);
     expect([error.code, error.details]).toEqual([
       "relation.not-allowed",
       { relation: "based-on", sourceType: "system-requirement", targetType: "system-requirement" },
