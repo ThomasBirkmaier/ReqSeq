@@ -7,3 +7,6 @@ overrides:
   mermaid>katex: 0.19.0
   # GHSA-g3hv-75wg-m249 (DoS via globparts amplification) is fixed only in minimatch 11; eslint and typescript-eslint still ask for ^10. Dev-only.
   minimatch@^10: ^11.0.3
+  # Four moderate qs advisories (GHSA-q8mj-m7cp-5q26, GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g, GHSA-6pq8-jhm2-2vcw);
+  # typed-rest-client 2.3.1, which only Stryker brings, pins qs 6.15.1 exactly. Dev-only, never used by `pnpm mutate` (#1506).
+  typed-rest-client>qs: ^6.17.1
