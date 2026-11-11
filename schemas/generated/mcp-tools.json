@@ -1622,7 +1622,7 @@
             },
             "last": {
               "$ref": "#/$defs/data-export/$defs/evidenceRecord",
-              "description": "The newest execution, `executions[0]`; left out when `executed` is false."
+              "description": "The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false."
             }
           },
           "if": {

@@ -46,16 +46,31 @@ export type MatrixTestCase = NonNullable<MatrixRow["testCases"]>[number];
 export type MatrixTestCaseMark = NonNullable<MatrixTestCase["mark"]>;
 
 /**
- * Of `executions` (newest first, as a test case holds them), the newest; of several at the same
- * instant the first failed one, else the first (SR-126 AK1). Undefined for none.
+ * Of the `executions` that `counts` takes (newest first, as a test case holds them), the newest; of
+ * several at the same instant the first failed one, else the first (SR-126 AK1). Undefined for none.
+ * Stops at the first older instant, without a copy (N-036).
  */
-const worstOfNewest = (executions: readonly EvidenceRecord[]): EvidenceRecord | undefined => {
-  const [first] = executions;
-  if (first === undefined) {
-    return undefined;
+const worstOfNewest = (
+  executions: readonly EvidenceRecord[],
+  counts: (execution: EvidenceRecord) => boolean = () => true,
+): EvidenceRecord | undefined => {
+  let first: EvidenceRecord | undefined;
+  let newest = 0;
+  for (const execution of executions) {
+    if (!counts(execution)) {
+      continue;
+    }
+    if (first === undefined) {
+      first = execution;
+      newest = instantOf(execution.date);
+    } else if (instantOf(execution.date) !== newest) {
+      break;
+    }
+    if (execution.result === "failed") {
+      return execution;
+    }
   }
-  const newest = instantOf(first.date);
-  return executions.find((e) => instantOf(e.date) === newest && e.result === "failed") ?? first;
+  return first;
 };
 
 /**
@@ -79,7 +94,7 @@ export const testCaseMark = (
   const ofCurrent =
     current === undefined
       ? undefined
-      : worstOfNewest(test.executions.filter((e) => sameVersion(e.version, current)));
+      : worstOfNewest(test.executions, (e) => sameVersion(e.version, current));
   if (ofCurrent === undefined) {
     return "outdated";
   }

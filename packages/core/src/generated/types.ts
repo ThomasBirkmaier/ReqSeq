@@ -909,7 +909,7 @@ export interface DataExportTestCase {
   readonly executed: boolean;
   /** The records of this element from this test case, newest first (by `date`, then repository, file and line); empty when `executed` is false. */
   readonly executions: readonly DataExportEvidenceRecord[];
-  /** The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false. */
+  /** The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false. */
   readonly last?: DataExportEvidenceRecord;
 }
 
