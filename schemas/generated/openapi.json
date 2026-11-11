@@ -13618,6 +13618,7 @@
           "workspace",
           "generated",
           "repositories",
+          "incomplete",
           "elements"
         ],
         "properties": {

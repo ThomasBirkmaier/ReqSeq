@@ -11,6 +11,7 @@ generated: 2026-10-27T08:00:00Z
 selection: { ids: [SR-e88fb3, SR-e88fa0, SR-e88fe0, N-e88f00] }
 repositories:
   - { name: system, available: true, commit: 0123456789abcdef0123456789abcdef01234567, dirty: false }
+incomplete: false
 elements:
   - id: e8df96ea-a168-4d90-8d65-6328cee88fb3
     shortId: SR-e88fb3

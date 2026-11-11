@@ -593,7 +593,7 @@ export interface DataExportFile {
   /** The repositories of the workspace file, in its order. */
   readonly repositories: readonly DataExportRepository[];
   /** The data may lack elements or records (SR-006 AK2): a repository of the workspace is not on this machine (its entry in `repositories` has `available: false`), so its elements and the records of its evidence locations are missing, or a condition of the selection met a target in a repository the workspace file does not list. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
-  readonly incomplete?: Incomplete;
+  readonly incomplete: Incomplete;
   /** Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`. */
   readonly elements: readonly DataExportElement[];
 }

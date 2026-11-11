@@ -114,7 +114,7 @@ const linesOf = (data: Data): Line[] =>
     ...(data.commit === undefined ? {} : { commit: data.commit }),
     dirty: data.dirty,
     repositories: data.repositories,
-    incomplete: data.incomplete ?? false,
+    incomplete: data.incomplete,
     ...element,
   }));
 
