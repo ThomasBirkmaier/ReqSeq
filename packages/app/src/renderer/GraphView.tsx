@@ -376,7 +376,10 @@ export const GraphView = ({
                     select(placed.key);
                   }}
                 >
-                  <div className="graph-id">{`${nodeId(placed.node)} · ${typeName}`}</div>
+                  <div className="graph-id">
+                    <span className="graph-id-name">{nodeId(placed.node)}</span>
+                    <span className="graph-id-type">{` · ${typeName}`}</span>
+                  </div>
                   <div className="graph-title">{placed.node.title}</div>
                   <div className="graph-marks">
                     {placed.node.marks.map((mark) => (

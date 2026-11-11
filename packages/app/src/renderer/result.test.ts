@@ -45,7 +45,7 @@ describe("result lines", () => {
       name: "Weather",
     });
     expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
-      ["element", 0, "SR-1", "Title 1"],
+      ["element", 0, "SR-000001 (SR-1)", "Title 1"],
       ["text", 0, "nodes", "1"],
       ["element", 1, "SR-000002", "Title 2"],
       ["text", 0, "problems", "2"],
@@ -57,7 +57,7 @@ describe("result lines", () => {
       // `incomplete` goes to the modeline (#276).
       ["text", 0, "name", "Weather"],
     ]);
-    expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-1 Title 1"));
+    expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1"));
     expect(lines[4]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002"));
     expect(lines[5]?.open).toBeUndefined();
   });
@@ -67,6 +67,12 @@ describe("result lines", () => {
       { ...hint, elementShortId: undefined, repository: "meta", elementRepository: "spec" },
     ]);
     expect(line?.open).toEqual(elementBuffer("uuid-2", "spec", "uuid-2"));
+    // With an identifier, the short ID and the identifier name it before it is read (SR-084 AK4).
+    const [named] = resultLines([{ ...hint, elementIdentifier: "SR-2" }]);
+    expect(named?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 (SR-2)"));
+    expect(named?.text).toBe("warning  relation.outdated  SR-000002 (SR-2)  The target changed");
+    const [identified] = resultLines([{ ...hint, elementShortId: undefined, elementIdentifier: "SR-2" }]);
+    expect(identified?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-2"));
   });
 
   it("[SR-037/AK1] shows the share of a verification degree as a percentage, rounded down as on every access", () => {
@@ -114,19 +120,21 @@ describe("result lines", () => {
       ["text", 0, "added", "1"],
       ["element", 1, "SR-000003", "Title 3"],
       ["text", 0, "replaced", "1"],
-      ["pair", 1, "SR-1", "Title 1 · replacement: SR-000002 Title 2"],
+      ["pair", 1, "SR-000001 (SR-1)", "Title 1 · replacement: SR-000002 Title 2"],
       ["text", 0, "excluded", "2"],
       ["element", 1, "SR-000004", "Title 4"],
       ["text", 1, "", "uuid-9"],
       ["text", 0, "other", ""],
-      ["element", 1, "core: SR-1", "Title 1"],
+      ["element", 1, "core: SR-000001 (SR-1)", "Title 1"],
       ["text", 1, "replacement", "uuid-9"],
       // A named UUID under a key keeps the key; it opens like any element row.
       ["element", 0, "variant: SR-000004", "Title 4"],
     ]);
     expect(lines.at(-1)?.open).toEqual(elementBuffer("uuid-4", "spec", "SR-000004 Title 4"));
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-3", "spec", "SR-000003 Title 3"));
-    expect(lines[3]?.open).toEqual(readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Title 1")));
+    expect(lines[3]?.open).toEqual(
+      readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1")),
+    );
     expect(lines[3]?.beside).toEqual(readOnlyBuffer(elementBuffer("uuid-2", "spec", "SR-000002 Title 2")));
     // Without `names`, a UUID is text and a record of two is an outline; `names` that is no list is shown.
     expect(resultLines({ pair: { a: "uuid-1", b: "uuid-2" }, names: "x" }).map((line) => line.text)).toEqual([

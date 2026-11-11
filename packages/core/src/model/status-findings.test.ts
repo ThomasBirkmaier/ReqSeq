@@ -74,16 +74,24 @@ const statusHints = async (opened: Opened): Promise<readonly Problem[]> =>
   (await check(opened)).problems.filter((p) => CODES.has(p.code));
 
 describe("status hints of elements against the statuses of their type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
-  it("reports a status outside the type, a status on a type without status and a missing status as warnings", async () => {
+  it("[SR-017/AK2] [SR-017/AK3] reports a status outside the type, a status on a type without status and a missing status as warnings, and changes no file", async () => {
     const opened = await open();
+    const files = (): Promise<string[]> =>
+      Promise.all(
+        [UNKNOWN, OTHER_TYPE, MISSING, NO_STATUS].map((h) =>
+          fs.readFile(opened.fixture.path(h.file ?? ""), "utf8"),
+        ),
+      );
+    const before = await files();
     const out = await check(opened);
+    expect(await files()).toEqual(before);
     // Every other element is fine: a need has every status, a safety requirement its own and its parent's.
     expect(out.problems).toEqual([UNKNOWN, OTHER_TYPE, MISSING, NO_STATUS]);
     // Hints are warnings: they block nothing, so the check passes by default (failOn: error, ThomasBirkmaier/ReqSeq-archive#304).
     expect(out.ok).toBe(true);
   });
 
-  it("lists them as hints", async () => {
+  it("[SR-017/AK2] lists them as hints", async () => {
     const opened = await open();
     const out = (await invoke(
       "hint.list",

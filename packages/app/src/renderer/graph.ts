@@ -5,6 +5,7 @@ import type { TraceGraphInput, TraceGraphOutput } from "@reqseq/core";
 import { degreePercent } from "@reqseq/core/verification-degree";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
+import { shownId } from "./id-title.js";
 
 /** The most nodes a graph asks for: the size SR-111 AK6 lays out within a second. */
 export const GRAPH_LIMIT = 500;
@@ -124,8 +125,8 @@ const verificationWords = (node: GraphNode): string[] => {
   return parts.length === 0 ? [] : ["verification", ...parts];
 };
 
-/** What a node is called: its identifier, else its short ID. */
-export const nodeId = (node: GraphNode): string => node.identifier ?? node.shortId;
+/** What a node is called: its short ID with the identifier (SR-084 AK4). */
+export const nodeId = (node: GraphNode): string => shownId(node.shortId, node.identifier);
 
 /** `n thing`, `n things`. */
 const counted = (n: number, thing: string): string => `${String(n)} ${thing}${n === 1 ? "" : "s"}`;

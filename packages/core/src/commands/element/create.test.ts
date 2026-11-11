@@ -246,7 +246,7 @@ describe("element.create", () => {
     }
   });
 
-  it("puts the file into the type folder by default, creating it, or into the given folder", async () => {
+  it("[SR-064/AK5] puts the file into the type folder by default, creating it, or into the given folder", async () => {
     const opened = await standard();
     const inType = await create(opened, { type: "decision", title: "Use YAML" });
     expect(inType.files).toEqual([`decision/D-${tail12(inType.element.id)}.md`]);
@@ -268,7 +268,7 @@ describe("element.create", () => {
     expect(await filesBelow(path.dirname(opened.root))).toEqual(before);
   });
 
-  it("writes into another repository of the workspace and refuses unknown or missing ones", async () => {
+  it("[SR-064/AK5] writes into another repository of the workspace and refuses unknown or missing ones", async () => {
     const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
     const out = await create(opened, {
       type: "system-requirement",
@@ -281,6 +281,12 @@ describe("element.create", () => {
       file: `anemometer/SR-${tail12(out.element.id)}.md`,
     });
     expect(out.files).toEqual([`../sensor/anemometer/SR-${tail12(out.element.id)}.md`]);
+    // Without repository and folder: the main repository, in the folder named like the type key.
+    const main = await create(opened, { type: "system-requirement", title: "Main" });
+    expect(main.element).toMatchObject({
+      repository: "system",
+      file: `system-requirement/SR-${tail12(main.element.id)}.md`,
+    });
     const unknown = await createError(opened, { type: "need", title: "x", repository: "nope" });
     expect([unknown.code, unknown.details]).toEqual([
       "input.invalid",
@@ -307,7 +313,7 @@ describe("element.create", () => {
     ]);
   });
 
-  it("refuses properties the type does not have, structural keys, relation kinds and the title key", async () => {
+  it("[SR-016/AK4] refuses properties the type does not have, structural keys, relation kinds and the title key", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     const cases: [Record<string, unknown>, string][] = [
@@ -482,7 +488,7 @@ describe("element.create", () => {
     expect((out.problems ?? []).filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
-  it("refuses a choice value that names no choice and writes no file (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
+  it("[SR-085/AK4] refuses a choice value that names no choice and writes no file (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     for (const value of ["sometimes", 5, ["functional", "Sometimes"]]) {
@@ -552,7 +558,7 @@ describe("element.create", () => {
     ]);
   });
 
-  it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
+  it("[SR-085/AK4] stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
     const opened = await standard();
     // A number where the metamodel wants a text in a list of texts (one text where it wants the list is
     // stored as a list of one, #1209); a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309).
@@ -575,20 +581,24 @@ describe("element.create", () => {
     expect(out.element.problems).toEqual(out.problems);
   });
 
-  it("refuses unknown and abstract types", async () => {
+  it("[SR-012/AK4] refuses unknown and abstract types and writes nothing; a type that inherits from an abstract one is not abstract", async () => {
     const opened = await open({
       fixture: "SR-013/own-meanings",
       files: {
         "model/abstract.yaml":
-          "reqseq-metamodel: 1\ntypes:\n  - { key: base, name: Base, prefix: B, abstract: true, properties: [label] }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: base, name: Base, prefix: B, abstract: true, properties: [label] }\n  - { key: derived, name: Derived, prefix: DV, extends: base }\n",
       },
     });
+    const before = await filesBelow(opened.root);
     expect((await createError(opened, { type: "nope", title: "x" })).details).toMatchObject({
       reason: "unknown",
     });
     expect((await createError(opened, { type: "base", title: "x" })).details).toMatchObject({
       reason: "abstract",
     });
+    expect(await filesBelow(opened.root)).toEqual(before);
+    const derived = await create(opened, { type: "derived", title: "x" });
+    expect(derived.element.type).toBe("derived");
   });
 
   it("needs a property with the meaning title, and the type must have it", async () => {

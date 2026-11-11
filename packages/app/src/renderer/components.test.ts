@@ -1468,7 +1468,7 @@ describe("ListView, a list", () => {
     });
     const { data } = await listHarness(asCall(call), listBuffer("All elements"));
     expect(call).toHaveBeenCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 0 });
-    expect(texts(".row .id")).toEqual(["SR-036", "SR-000002"]);
+    expect(texts(".row .id")).toEqual(["SR-000001 (SR-036)", "SR-000002"]);
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
     expect(texts(".row .status")).toEqual(["draft", ""]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
@@ -1483,7 +1483,7 @@ describe("ListView, a list", () => {
           total: 2,
           incomplete: false,
           rows: [
-            elementBuffer("uuid-1", "spec", "SR-036 Title 1"),
+            elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Title 1"),
             elementBuffer("uuid-2", "spec", "SR-000002 Title 2"),
           ],
         },
@@ -1561,7 +1561,7 @@ describe("ListView, a list", () => {
         offset: 0,
       });
       expect(headings()).toEqual([
-        "R1 Wind 2",
+        "PKG-000001 (R1) Wind 2",
         "PKG-000002 Sun 1",
         "(no value) 1 · 1 with targets not available",
       ]);
@@ -2842,7 +2842,7 @@ describe("ListView, a search", () => {
     const { data } = await listHarness(asCall(call), searchBuffer("wind"));
     expect(call).toHaveBeenCalledWith("element.search", { query: "wind", limit: 50, offset: 0 });
     expect(texts(".row .title")).toEqual(["Wind speed", "Rewind"]);
-    expect(texts("mark")).toEqual(["Wind", "SR-2"]);
+    expect(texts("mark")).toEqual(["Wind", "SR-000002"]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Search: wind");
     expect(data).toEqual([
       ["search:wind", undefined],
@@ -2952,7 +2952,7 @@ describe("ListView, a search", () => {
     await listHarness(asCall(call), searchBuffer("icing"));
     expect(container.querySelectorAll(".row .snippet")).toHaveLength(0);
     expect(texts(".row .title mark")).toEqual(["icing"]);
-    expect(texts(".row .id mark")).toEqual(["SR-4"]);
+    expect(texts(".row .id mark")).toEqual(["SR-000004"]);
   });
 
   it("says why the search failed", async () => {
@@ -3148,7 +3148,7 @@ describe("ElementView", () => {
       createElement(ElementView, {
         call,
         titles,
-        buffer: extra.buffer ?? elementBuffer("uuid-1", "spec", "SR-036 Measure wind"),
+        buffer: extra.buffer ?? elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Measure wind"),
         revision: rev,
         onData: (key, loaded) => data.push([key, loaded]),
         onEcho: (message) => echoed.push(message),
@@ -3223,7 +3223,7 @@ describe("ElementView", () => {
     const call = fakeCall({ "element.get": () => ({ element: read() }) });
     const { data } = await mount(asCall(call));
     expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-1", repository: "spec" });
-    expect(query("article").getAttribute("aria-label")).toBe("SR-036 Measure wind");
+    expect(query("article").getAttribute("aria-label")).toBe("SR-000001 (SR-036) Measure wind");
     expect(query("h1").textContent).toBe("Measure wind");
     expect(data).toEqual([
       ["element:spec:uuid-1", undefined],
@@ -3293,7 +3293,7 @@ describe("ElementView", () => {
       expect(copies).toEqual([
         ["Title", "Measure wind"],
         ["Text", "Line one\n<b>not bold</b>!"],
-        ["derives-from", "N-1 Need\nN-000002"],
+        ["derives-from", "N-000001 (N-1) Need\nN-000002"],
         ["← derives-from", "SR-000009 Child"],
         ["packages", "p Stage 3"],
       ]);
@@ -3302,7 +3302,7 @@ describe("ElementView", () => {
     it("[SR-128/AK2] copies the heading that is shown when the element has no title", async () => {
       const { copies } = await mountRead({ title: "" });
       await click(copySymbol("Title"));
-      expect(copies).toEqual([["Title", "SR-036"]]);
+      expect(copies).toEqual([["Title", "SR-000001 (SR-036)"]]);
     });
 
     it("[SR-128/AK4] leaves the focus where it is when the symbol is pressed, so the editor keeps its cursor", async () => {
@@ -3357,7 +3357,7 @@ describe("ElementView", () => {
         ["criteria", "first\nsecond"],
         ["Title", "Measure wind"],
         ["Text", "Line one\n<b>not bold</b>"],
-        ["derives-from", "N-1 Need\nN-000002"],
+        ["derives-from", "N-000001 (N-1) Need\nN-000002"],
       ]);
     });
 
@@ -3397,7 +3397,7 @@ describe("ElementView", () => {
         controls().copy();
       });
       other.remove();
-      expect(copies).toEqual([["ID", "SR-036"]]);
+      expect(copies).toEqual([["ID", "SR-000001"]]);
     });
 
     it("Enter on the focused title or box edits the text, like Enter on the buffer; with a modifier it does not", async () => {
@@ -3430,8 +3430,8 @@ describe("ElementView", () => {
         controls().copy();
       });
       expect(copies).toEqual([
-        ["ID", "SR-036"],
-        ["ID", "SR-036"],
+        ["ID", "SR-000001"],
+        ["ID", "SR-000001"],
       ]);
     });
 
@@ -3459,7 +3459,7 @@ describe("ElementView", () => {
         }),
       ),
     );
-    expect(query("h1").textContent).toBe("SR-036");
+    expect(query("h1").textContent).toBe("SR-000001 (SR-036)");
     expect(editorView().state.doc.toString()).toBe("");
     expect(container.querySelector(".box")).toBeNull();
     expect(container.querySelector("section")).toBeNull();
@@ -3491,7 +3491,7 @@ describe("ElementView", () => {
   });
 
   it("[SR-044/AK2] shows an element read-only in a buffer shown read-only, and tells the modeline so", async () => {
-    const buffer = readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-036 Measure wind"));
+    const buffer = readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Measure wind"));
     const { data } = await mount(
       asCall(fakeCall({ "element.get": () => ({ element: read() }) })),
       0,
@@ -3550,7 +3550,7 @@ describe("ElementView", () => {
     ]);
     // Core added the final line break, so the editor shows what the file holds.
     expect(editorView().state.doc.toString()).toBe("Line one\n<b>not bold</b>!\n");
-    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
     expect(data.at(-1)?.[1]?.kind).toBe("element");
     await act(async () => {
@@ -3577,7 +3577,7 @@ describe("ElementView", () => {
     });
     await flush();
     expect(call).toHaveBeenCalledWith("element.update", { ref: "uuid-1", text: "" });
-    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
     expect(editorView().state.doc.toString()).toBe("");
   });
 
@@ -3610,7 +3610,7 @@ describe("ElementView", () => {
     await flush();
     expect(editorView().state.doc.toString()).toBe("base!?");
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "base!?", base: "base!" }]);
-    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
   });
 
   it("waits with a Ctrl+S pressed while a save runs, then saves what is left and says so (#563)", async () => {
@@ -3649,7 +3649,7 @@ describe("ElementView", () => {
     await flush();
     // That save left nothing: the second says Saved, not "No changes to save", and writes nothing.
     expect(updates()).toBe(1);
-    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
     // Typed while a save runs: the waiting Ctrl+S writes it after that save.
     await typeInto("?");
     await act(async () => {
@@ -3674,7 +3674,7 @@ describe("ElementView", () => {
     await flush();
     expect(editorView().state.doc.toString()).toBe("base!?#");
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
-    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
   });
 
   it("echoes why a save failed and keeps the text as a draft", async () => {
@@ -3702,7 +3702,7 @@ describe("ElementView", () => {
       controls().save();
       await Promise.resolve();
     });
-    expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+    expect(echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
     expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([]);
   });
 
@@ -3922,7 +3922,9 @@ describe("ElementView", () => {
     expect(editorView().state.doc.toString()).toBe("first!");
     expect(query('[data-on-disk="Text"]').textContent).toBe("On diskchanged");
     expect(query('[data-on-disk="Text"] mark').textContent).toBe("changed");
-    expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+    expect(echoed).toEqual([
+      'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
+    ]);
     // The draft keeps the bytes it was typed on, so the conflict comes back with the buffer.
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "first!", base: "changed", sha: "sha-1" }]);
     expect(data.at(-1)?.[1]).toMatchObject({ kind: "element", disk: "changed" });
@@ -3939,7 +3941,9 @@ describe("ElementView", () => {
       sha: "old",
     });
     expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+    expect(echoed).toEqual([
+      'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
+    ]);
     expect(query('[data-on-disk="Text"]').textContent).toBe("On diskHello");
     expect(controls().resolve).toBeDefined();
     // The draft is on the new file text, typed on the old bytes.
@@ -3992,9 +3996,9 @@ describe("ElementView", () => {
   });
 
   describe("a file changed outside under the input (SR-106)", () => {
-    const CHANGED = 'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"';
+    const CHANGED = 'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"';
     const DELETED =
-      "SR-036 Measure wind was deleted on disk; its content stays here until you close the buffer";
+      "SR-000001 (SR-036) Measure wind was deleted on disk; its content stays here until you close the buffer";
     /** An error of a command with its code. */
     const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
     /**
@@ -4117,7 +4121,7 @@ describe("ElementView", () => {
       await choose("Keep my input");
       expect(updates()).toEqual([{ ref: "uuid-1", text: "first!", expectedFileSha256: "sha-outside-0" }]);
       expect(disk).toMatchObject({ text: "first!", properties: { topic: "Gusts" } });
-      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+      expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
       expect(blocks()).toEqual([]);
       expect(controls().resolve).toBeUndefined();
       expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
@@ -4247,7 +4251,7 @@ describe("ElementView", () => {
       await flush();
       expect(updates()).toHaveLength(2);
       expect(disk.text).toBe("first!");
-      expect(echoed).toEqual(["Saved SR-036 Measure wind"]);
+      expect(echoed).toEqual(["Saved SR-000001 (SR-036) Measure wind"]);
     });
 
     it("says why when the second write is refused too, and keeps the input", async () => {
@@ -5002,7 +5006,7 @@ describe("ElementView", () => {
       await save(controls);
       expect(updates(call)).toHaveLength(1);
       expect(container.querySelector(`[data-field="${KEY}"]`)).toBeNull();
-      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+      expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind");
       expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
     });
 
@@ -5108,7 +5112,7 @@ describe("ElementView", () => {
       }));
       await replaceIn("topic", " ");
       await save(controls);
-      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind. topic has no value");
+      expect(echoed.at(-1)).toBe("Saved SR-000001 (SR-036) Measure wind. topic has no value");
     });
 
     it("keeps input typed while the save ran as a draft, and shows the saved value in a box that was not touched", async () => {
@@ -5149,7 +5153,7 @@ describe("ElementView", () => {
         controls().save();
         await Promise.resolve();
       });
-      expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+      expect(echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
       await mountBoxes({ topic: "Wind", unknown: "x" });
       expect(field("unknown").querySelector(".cm-editor")).toBeNull();
       expect(texts('[data-field="unknown"] .line')).toEqual(["x"]);
@@ -5203,7 +5207,7 @@ describe("ElementView", () => {
       const other = await mountBoxes({ topic: "Gust" }, {}, { ...draft, sha: "sha-0" });
       expect(viewOf("topic").state.doc.toString()).toBe("Mine");
       expect(other.echoed.at(-1)).toBe(
-        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
+        'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
       expect(query('[data-on-disk="topic"]').textContent).toBe("On diskGust");
       expect(other.drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Mine", base: "Gust" });
@@ -5221,7 +5225,7 @@ describe("ElementView", () => {
       expect(viewOf(KEY).state.doc.toString()).toBe("b");
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
       expect(echoed.at(-1)).toBe(
-        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
+        'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
       expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "Gust" });
       // Only the field with input has a block; the one that followed the file has none.
@@ -5276,7 +5280,7 @@ describe("ElementView", () => {
       expect(editorView().state.doc.toString()).toBe("Mine");
       expect(drafts.at(-1)?.[1]).toEqual({ text: "Mine", base: "Changed on disk", sha: "sha-0" });
       expect(echoed.at(-1)).toBe(
-        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
+        'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
     });
 
@@ -5289,7 +5293,9 @@ describe("ElementView", () => {
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
       // Spec question ThomasBirkmaier/ReqSeq-archive#488 (1): any change of the file while there is input asks; the block shows the
       // file's value of the box with input, which the change did not touch.
-      expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+      expect(echoed).toEqual([
+        'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
+      ]);
       expect(query('[data-on-disk="topic"]').textContent).toBe("On diskWind");
       expect(drafts.at(-1)?.[1]).toEqual({
         text: "Changed on disk",
@@ -5306,7 +5312,7 @@ describe("ElementView", () => {
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
       expect(query('[data-on-disk="topic"]').textContent).toBe("On disk(empty)");
       expect(echoed.at(-1)).toBe(
-        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
+        'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
       expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "" });
     });
@@ -5682,7 +5688,7 @@ describe("ElementView", () => {
         act(() => {
           read.controls().addProperty();
         });
-        expect(read.echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+        expect(read.echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
         expect(read.asked).toEqual([]);
         const none = await mountValues({ topic: "Wind" }, { type: "other" });
         act(() => {
@@ -5741,7 +5747,7 @@ describe("ElementView", () => {
         focusField("area");
         await press(field("area"), "Enter");
         expect(asked).toEqual([]);
-        expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+        expect(echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
       });
 
       it("Enter on a relation box asks with the targets that are set and the elements of the allowed types", async () => {
@@ -6006,7 +6012,7 @@ describe("ElementView", () => {
         act(() => {
           locked.controls().clearProperty();
         });
-        expect(locked.echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+        expect(locked.echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
       });
 
       it("[SR-104/AK4] Clear property empties a property the type does not know, which has no editor; Ctrl/Cmd+Z brings it back, and the save removes it with unset (#189)", async () => {
@@ -6105,7 +6111,7 @@ describe("ElementView", () => {
         expect(lines("area")).toEqual(["quality"]);
         expect(lines("tags")).toEqual(["b"]);
         expect(echoed.at(-1)).toBe(
-          'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
+          'SR-000001 (SR-036) Measure wind changed on disk. Resolve with "Resolve change on disk"',
         );
         // The block shows the name of the file's choice, in heavier weight: the input lacks it.
         expect(query('[data-on-disk="area"] mark').textContent).toBe("Interface");
@@ -6421,7 +6427,7 @@ describe("ElementView", () => {
           "synonyms: breeze",
           "area: quality",
           "packages: PKG-p1 Stufe 3",
-          "packages: Stufe-4 Stufe 4",
+          "packages: PKG-p2 (Stufe-4) Stufe 4",
         ]);
         expect(prompt?.items.map((item) => item.hint)).toEqual([
           undefined,
@@ -6529,7 +6535,7 @@ describe("ElementView", () => {
           incomplete: false,
         }));
         await listValue(none.controls);
-        expect(none.echoed.at(-1)).toBe("No value of SR-036 Measure wind lists elements");
+        expect(none.echoed.at(-1)).toBe("No value of SR-000001 (SR-036) Measure wind lists elements");
         expect(none.dispatched).toEqual([]);
       });
     });
@@ -6563,7 +6569,11 @@ describe("ElementView", () => {
   it("opens a relation target that is available, on a click and on Enter", async () => {
     const { targets } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
     const links = [...container.querySelectorAll<HTMLElement>('[role="link"]')];
-    expect(links.map((link) => link.textContent)).toEqual(["p Stage 3", "N-1 Need", "SR-000009 Child"]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      "p Stage 3",
+      "N-000001 (N-1) Need",
+      "SR-000009 Child",
+    ]);
     await click(nth(links, 1));
     await press(nth(links, 2), "Enter");
     await press(nth(links, 2), "x");

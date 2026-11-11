@@ -2,6 +2,19 @@ import { realpathSync } from "node:fs";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 
+/** `name` as Windows and macOS compare it: lower case, trailing dots and spaces dropped. */
+export const systemForm = (name: string): string => name.toLowerCase().replace(/[. ]+$/, "");
+
+/**
+ * Whether some system takes `name` for `.git` (D-036): as `isSkippedOnSomeSystem` of the walk does
+ * (`systemForm`), and also without invisible format characters (HFS+ ignores some, `.g\u200cit`),
+ * without an NTFS stream suffix (`.git::$INDEX_ALLOCATION`), and as the short name `GIT~1`.
+ */
+export const isTakenForGit = (name: string): boolean => {
+  const visible = name.replace(/\p{Cf}/gu, "").replace(/:.*$/su, "");
+  return systemForm(visible) === ".git" || /^git~\d{1,6}$/iu.test(visible);
+};
+
 /** `relativePath` with `/` as separator, as used in problems and snapshots on every OS (N2). */
 export const toPosix = (relativePath: string): string => relativePath.split(path.sep).join("/");
 

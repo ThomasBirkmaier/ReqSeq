@@ -180,7 +180,7 @@ describe("reqseq workspace check (SR-019)", () => {
     ).toHaveLength(3);
   });
 
-  it("[SR-019/AK2] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
+  it("[SR-019/AK5] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
     const ws = await fixture("SR-085/value-kinds");
     const args = ["workspace", "check", "--severity", "error", ...FAIL_ON_WARNING];
     const result = await reqseq([...args, "--json"], ws.path("system"));

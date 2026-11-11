@@ -386,7 +386,7 @@ export const applyEntry = (
 export interface ReferenceTarget {
   readonly id: string;
   readonly title: string;
-  /** The identifier, else the short ID. */
+  /** The identifier, else the short ID: the link text of an untitled element in the file. */
   readonly label: string;
   readonly shortId: string;
   /** The repository of the target. */

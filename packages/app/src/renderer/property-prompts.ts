@@ -4,10 +4,10 @@
 // builds `element.update` from it (`property-edit.ts`, ADR-0002).
 import type { Choice, Prompt } from "./actions.js";
 import { elementBuffer } from "./buffers.js";
-import { idTitle } from "./id-title.js";
 import type { PropertyInfo } from "./element-view.js";
 import type { RelationTarget } from "./property-edit.js";
 import { choiceItems, chooseKey, chooseTarget } from "./property-edit.js";
+import { rowName } from "./rows.js";
 import type { Row } from "./rows.js";
 
 /** The prompt "Add property": the properties the element lacks, by name, the key as hint. */
@@ -55,7 +55,7 @@ export const choicePrompt = (
 const targetOfRow = (row: Row): RelationTarget => ({
   id: row.open.id,
   repository: row.open.repository,
-  label: idTitle(row.label, row.title),
+  label: rowName(row),
 });
 
 /**

@@ -102,14 +102,14 @@ describe("depth and filter", () => {
 });
 
 describe("what a node shows", () => {
-  it("[SR-111/AK4] is named by its identifier, else its short ID, with its type, title and marks", () => {
+  it("[SR-111/AK4] is named by its short ID with the identifier, with its type, title and marks", () => {
     const [s1, , , pkg, o1] = S1_GRAPH.nodes;
     expect(nodeKey("spec", "uuid-S1")).toBe("spec:uuid-S1");
     expect(keyOfNode(graphNode("C1", 1))).toBe("spec:uuid-C1");
-    expect(s1 === undefined ? "" : nodeId(s1)).toBe("S1");
+    expect(s1 === undefined ? "" : nodeId(s1)).toBe("X-S1 (S1)");
     expect(pkg === undefined ? "" : nodeId(pkg)).toBe("PKG-1");
     expect(o1 === undefined ? "" : nodeLabel(o1, "System Requirement")).toBe(
-      "O1 System Requirement Title O1 superseded",
+      "X-O1 (O1) System Requirement Title O1 superseded",
     );
   });
 
@@ -129,7 +129,7 @@ describe("what a node shows", () => {
     expect(evidenceText({ ...summary, testCases: 0, records: 2, results: {} })).toBe("evidence · 2 records");
     const [s1] = S1_GRAPH.nodes;
     expect(s1 === undefined ? "" : nodeLabel(s1, "System Requirement", summary)).toBe(
-      "S1 System Requirement Title S1 outdated evidence · 2 test cases, 1 record · 2 passed, 1 failed",
+      "X-S1 (S1) System Requirement Title S1 outdated evidence · 2 test cases, 1 record · 2 passed, 1 failed",
     );
   });
 
@@ -231,7 +231,7 @@ describe("the verification of a node", () => {
       true,
     ]);
     expect(nodeLabel(node("R11"), "System Requirement")).toBe(
-      "R11 System Requirement Title R11 verification open 2 of 3",
+      "X-R11 (R11) System Requirement Title R11 verification open 2 of 3",
     );
   });
 });

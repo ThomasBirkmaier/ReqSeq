@@ -536,11 +536,13 @@ describe("go to element or buffer", () => {
       limit: 20,
     });
     expect(found?.map((choice) => [choice.id, choice.name, choice.terms])).toEqual([
-      ["element:spec:u1", "SR-036 Wind", ["wind", "sr-036"]],
+      ["element:spec:u1", "SR-000001 (SR-036) Wind", ["wind", "sr-000001"]],
       ["element:spec:u2", "SR-000002 Windy", ["windy"]],
     ]);
     found?.[0]?.run();
-    expect(dispatched).toEqual([{ type: "open", buffer: elementBuffer("u1", "spec", "SR-036 Wind") }]);
+    expect(dispatched).toEqual([
+      { type: "open", buffer: elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind") },
+    ]);
   });
 
   it("[SR-115/AK1] Go to offers every open buffer but the shown one, the one used last first, then the elements shown last that are not open, and finds any element through element.search", async () => {
@@ -635,7 +637,7 @@ describe("insert reference (SR-129)", () => {
       fields: ["id", "title"],
       limit: 20,
     });
-    expect(found?.map((choice) => choice.name)).toEqual(["SR-036 Wind"]);
+    expect(found?.map((choice) => choice.name)).toEqual(["SR-000001 (SR-036) Wind"]);
     found?.[0]?.run();
     expect(request.insert).toHaveBeenCalledExactlyOnceWith({
       id: "u1",

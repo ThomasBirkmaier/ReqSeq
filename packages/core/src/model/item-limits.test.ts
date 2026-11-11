@@ -98,7 +98,7 @@ describe("the most entries of a list property (SR-171)", () => {
     expect(await workspace.get(itemLimitProblemsState)).toEqual([]);
   });
 
-  it("is shown at the element and after a bulk update, and carried over saves as a fresh build finds it", async () => {
+  it("[SR-171/AK4] is shown at the element and after a bulk update, and carried over saves as a fresh build finds it", async () => {
     const { fixture, workspace } = await open();
     const got = (await invoke("element.get", { ref: SR1 }, { workspace })) as CommandOutput<"element.get">;
     expect(got.element.problems).toEqual([shown(hint())]);
@@ -126,6 +126,32 @@ describe("the most entries of a list property (SR-171)", () => {
     const carried = await workspace.get(itemLimitProblemsState);
     expect(carried).toEqual(await fresh.get(itemLimitProblemsState));
     expect(carried).toEqual([hint(4, 2)]);
+  });
+
+  it("[SR-171/AK4] element.create and element.update save more entries than max-items, and the check reports the hint", async () => {
+    const { workspace } = await open();
+    const four = ["Shown in m/s.", "Shown in knots.", "Shown on the map.", "Shown in red."];
+    const created = (await invoke(
+      "element.create",
+      { type: "system-requirement", title: "Four criteria", properties: { "acceptance-criteria": four } },
+      { workspace },
+    )) as CommandOutput<"element.create">;
+    expect(created.element.properties["acceptance-criteria"]).toEqual(four);
+    const updated = (await invoke(
+      "element.update",
+      { ref: SR2, set: { "acceptance-criteria": four } },
+      { workspace },
+    )) as CommandOutput<"element.update">;
+    expect(updated.element.properties["acceptance-criteria"]).toEqual(four);
+    const counted = (await check(workspace))
+      .filter((p) => p.code === "element.too-many-items")
+      .map((p) => [p.elementId, p.count]);
+    expect(counted).toEqual(
+      expect.arrayContaining([
+        [created.element.id, 4],
+        [SR2, 4],
+      ]),
+    );
   });
 
   it("says entry for a count of one", async () => {

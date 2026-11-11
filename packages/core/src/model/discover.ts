@@ -5,7 +5,7 @@ import type { Dirent, Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
-import { isTempFile, linksStayInside } from "../files/index.js";
+import { isTempFile, linksStayInside, systemForm } from "../files/index.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 
 /** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
@@ -450,8 +450,7 @@ const portableRule = (name: string): NewFileRule | undefined => {
  * Whether Windows or macOS take `name` for `.git` or `node_modules` (any case, trailing dots and
  * spaces dropped).
  */
-export const isSkippedOnSomeSystem = (name: string): boolean =>
-  SKIPPED_NAMES.has(name.toLowerCase().replace(/[. ]+$/, ""));
+export const isSkippedOnSomeSystem = (name: string): boolean => SKIPPED_NAMES.has(systemForm(name));
 
 /**
  * Whether Windows changes or refuses `name`: a trailing dot or space, one of `<>:"|?*`, a control

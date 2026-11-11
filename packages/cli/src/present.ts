@@ -60,15 +60,15 @@
 // On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `TERM` not `dumb`, #988) the
 // shapes most commands share take a terminal layout, styled by `style.ts` when the terminal has colours
 // (not with `NO_COLOR`); everything above is the plain text that pipes, files and tests get, unchanged:
-// - an element line (one element, a plain, tree or grouped list): the identifier first, strong, the
-//   short ID faint after it (`SR-036 SR-3c90b0`), the status in a column as wide as the list needs,
+// - an element line (one element, a plain, tree or grouped list): the short ID strong, the
+//   identifier faint in brackets behind it (`SR-3c90b0 (SR-036)`, SR-084 AK4), the status in a column as wide as the list needs,
 //   the title cut with `…` to the terminal width, the marks after it faint. The title stays whole when
 //   details follow (element.get, `withText`), which do not repeat it, and when less than `MIN_TITLE`
 //   characters would be left (the line wraps anyway);
 // - a tree list draws its tree with `├ └ │` from the parent of each element; an element whose parent
 //   is not shown before it (`[under X]`) starts a tree of its own; the line goes on beside details;
 // - a grouped list heads each group at the left, with a blank line before it: its title (else name,
-//   else value) strong, then faint what names it besides and the count, `Wind  R1 PKG-0000d1 · 2`;
+//   else value) strong, then faint what names it besides and the count, `Wind  PKG-0000d1 (R1) · 2`;
 //   the columns are as wide as the whole page needs;
 // - hints and problems show their severity first, coloured by it; the line after them is faint.
 // No style is keyed to a status: statuses come from the metamodel. A matrix, a chain, a graph and the
@@ -164,8 +164,9 @@ const withIdentifier = (shortId: string, identifier: unknown): string =>
   text(identifier) === "" ? shortId : `${shortId} (${text(identifier)})`;
 
 /**
- * An element named on a terminal (#988): its identifier first, strong, the short ID faint after it,
- * `SR-036 SR-3c90b0`; the short ID alone, strong, when it has none. `withIdentifier` in plain text.
+ * An element named on a terminal (#988): the short ID strong, the identifier faint in brackets behind
+ * it, `SR-3c90b0 (SR-036)` as in plain text (SR-084 AK4); the short ID alone when it has none.
+ * `withIdentifier` in plain text.
  */
 const nameOn = (style: Style | undefined, shortId: string, identifier: unknown): string => {
   if (style === undefined) {
@@ -173,7 +174,7 @@ const nameOn = (style: Style | undefined, shortId: string, identifier: unknown):
   }
   return text(identifier) === ""
     ? style.strong(shortId)
-    : `${style.strong(text(identifier))} ${style.faint(shortId)}`;
+    : `${style.strong(shortId)} ${style.faint(`(${text(identifier)})`)}`;
 };
 
 /** Names an element by repository and UUID: its short ID when the list has it, else its UUID. */
@@ -949,8 +950,8 @@ const groupHeading = (group: ListGroup, continued: boolean): string => {
 
 /**
  * The heading of a group on a terminal (#988): its title, else its name, else its value, strong; what
- * names it besides (the identifier and short ID of a package, the value next to a name) and the count
- * faint: `Wind  R1 PKG-0000d1 · 2`, `Draft  draft · 2`, `(no value)  4`.
+ * names it besides (the short ID and identifier of a package, SR-084 AK4; the value next to a name) and
+ * the count faint: `Wind  PKG-0000d1 (R1) · 2`, `Draft  draft · 2`, `(no value)  4`.
  */
 const terminalGroupHeading = (group: ListGroup, continued: boolean, style: Style): string => {
   const value = typeof group["value"] === "string" ? group["value"] : JSON.stringify(group["value"]);
@@ -960,9 +961,9 @@ const terminalGroupHeading = (group: ListGroup, continued: boolean, style: Style
     group["value"] === undefined
       ? ["(no value)", ""]
       : title !== ""
-        ? [title, [text(group["identifier"]), value].filter((part) => part !== "").join(" ")]
+        ? [title, withIdentifier(value, group["identifier"])]
         : typeof group["identifier"] === "string"
-          ? [text(group["identifier"]), value]
+          ? [withIdentifier(value, group["identifier"]), ""]
           : name === ""
             ? [value, ""]
             : [name, value];

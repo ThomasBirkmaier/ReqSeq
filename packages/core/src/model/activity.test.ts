@@ -345,7 +345,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
     });
   });
 
-  it("records a created element in another repository than the main one", async () => {
+  it("[SR-117/AK1] records a created element, also in another repository than the main one", async () => {
     const opened = await copy({ fixture: "SR-004/three-repositories" }, "system");
     const output = (await call(
       opened.workspace,

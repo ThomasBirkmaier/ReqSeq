@@ -140,7 +140,7 @@ describe("fieldTexts and changedFields: what to highlight in an element buffer",
       "derives-from",
       "← derives-from",
     ]);
-    expect(fieldTexts(element({ title: "", text: undefined })).get("Title")).toBe("SR-1");
+    expect(fieldTexts(element({ title: "", text: undefined })).get("Title")).toBe("SR-000001 (SR-1)");
     expect(fieldTexts(element({ text: undefined })).get("Text")).toBe("");
   });
 

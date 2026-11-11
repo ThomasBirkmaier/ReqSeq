@@ -17,6 +17,7 @@ import type { OutsideChanges } from "./outside-marks.js";
 import type { RecentEntry } from "./recent.js";
 import { activeRow } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
+import { shownId } from "./id-title.js";
 
 /** What the type lines and the modeline show. */
 export interface OverviewData {
@@ -105,7 +106,7 @@ export const useOverview = (
               return [
                 [
                   entryKey(entry),
-                  { buffer, label: element.identifier ?? element.shortId, title: element.title },
+                  { buffer, label: shownId(element.shortId, element.identifier), title: element.title },
                 ],
               ];
             }),
@@ -235,7 +236,9 @@ export const OverviewView = ({
                 </>
               ) : (
                 <>
-                  <span className="id">{row.label}</span>
+                  <span className="id" title={row.label}>
+                    {row.label}
+                  </span>
                   <span className="title">{row.title}</span>
                 </>
               )}

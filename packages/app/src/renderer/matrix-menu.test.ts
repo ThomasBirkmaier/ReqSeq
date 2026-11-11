@@ -100,8 +100,8 @@ describe("the spot of the matrix's cursor (SR-199)", () => {
     ).toBeUndefined();
   });
 
-  it("names the other end by its identifier, else its short ID, else its UUID", () => {
-    expect(relationSpot(row, relation("in", { identifier: "wind" })).other?.label).toBe("wind");
+  it("names the other end by its short ID with the identifier (SR-084 AK4), else its UUID", () => {
+    expect(relationSpot(row, relation("in", { identifier: "wind" })).other?.label).toBe("N-2 (wind)");
     const bare = relationSpot(row, { ...relation("in"), shortId: undefined, repository: undefined } as never);
     expect(bare.other).toEqual({ id: "uuid-2", label: "uuid-2" });
   });

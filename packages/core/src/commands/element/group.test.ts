@@ -131,6 +131,12 @@ describe("element.list grouped (SR-149 AK1)", () => {
     ]);
     // b3 names only the package d9, which is not in the workspace (spec-frage #978).
     expect(groupLines(output)).toEqual(["PKG-0000d2: b4 b1", "PKG-0000d1: b1 b2", "-: d2 b3 a1 d1"]);
+    // The groups follow the titles of the packages, not their short IDs (d1 before d2) and not the
+    // order of the elements: sorted by title descending, or not sorted, the groups stay as they are.
+    for (const sort of [[{ by: "title", order: "desc" }], []]) {
+      const other = await list(workspace, { group: "package", sort });
+      expect([sort, other.groups?.map((g) => g.title ?? null)]).toEqual([sort, ["alarms", "Wind", null]]);
+    }
   });
 
   it("puts a choice written by its display name in the group of that choice", async () => {

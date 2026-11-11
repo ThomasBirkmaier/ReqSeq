@@ -1,7 +1,7 @@
 // The title in its heading (ThomasBirkmaier/ReqSeq-archive#621): what the heading shows while the title is not edited, and where a click
 // on it puts the caret, as pure functions (`TitleBox.tsx` is the component).
 
-/** What the closed heading shows: the title, or for an empty title (blank only too) the identifier or short ID, muted. */
+/** What the closed heading shows: the title, or for an empty title (blank only too) the short ID with the identifier, muted (SR-084 AK4). */
 export interface TitleHeading {
   readonly text: string;
   readonly untitled: boolean;

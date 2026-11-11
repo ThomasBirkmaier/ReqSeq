@@ -154,20 +154,20 @@ describe("GraphView", () => {
       ),
     ]);
     expect(nodes).toEqual([
-      ["S1 · System Requirement", "Title S1", ["outdated:outdated"]],
-      ["N1 · need", "Title N1", []],
-      ["D1 · Decision", "Title D1", []],
+      ["X-S1 (S1) · System Requirement", "Title S1", ["outdated:outdated"]],
+      ["X-N1 (N1) · need", "Title N1", []],
+      ["X-D1 (D1) · Decision", "Title D1", []],
       ["PKG-1 · package", "Title PKG", []],
-      ["O1 · System Requirement", "Title O1", ["superseded:superseded"]],
-      ["D2 · Decision", "Title D2", []],
-      ["C1 · System Requirement", "Title C1", []],
-      ["C2 · System Requirement", "Title C2", ["outdated:outdated"]],
-      ["C3 · System Requirement", "Title C3", []],
-      ["E · Decision", "Title E", []],
+      ["X-O1 (O1) · System Requirement", "Title O1", ["superseded:superseded"]],
+      ["X-D2 (D2) · Decision", "Title D2", []],
+      ["X-C1 (C1) · System Requirement", "Title C1", []],
+      ["X-C2 (C2) · System Requirement", "Title C2", ["outdated:outdated"]],
+      ["X-C3 (C3) · System Requirement", "Title C3", []],
+      ["X-E (E) · Decision", "Title E", []],
     ]);
     expect(query(`[data-node="${key("O1")}"]`).className).toBe("graph-node superseded");
     expect(query(`[data-node="${key("O1")}"]`).getAttribute("aria-label")).toBe(
-      "O1 System Requirement Title O1 superseded",
+      "X-O1 (O1) System Requirement Title O1 superseded",
     );
     // The element of the selected node, the graph's own while none is chosen, is the marked one (SR-150).
     expect(data.at(-1)).toEqual([
@@ -182,7 +182,7 @@ describe("GraphView", () => {
           key: "element:spec:uuid-S1",
           id: "uuid-S1",
           repository: "spec",
-          name: "S1 Title S1",
+          name: "X-S1 (S1) Title S1",
         },
       },
     ]);
@@ -267,7 +267,7 @@ describe("GraphView", () => {
     expect(container.querySelectorAll("path.graph-edge")).toHaveLength(13);
     // The node says its evidence.
     expect(query(`[data-node="${key("C1")}"]`).getAttribute("aria-label")).toBe(
-      "C1 System Requirement Title C1 evidence · 2 test cases, 1 record · 2 passed, 1 failed",
+      "X-C1 (C1) System Requirement Title C1 evidence · 2 test cases, 1 record · 2 passed, 1 failed",
     );
     // A click on the node with evidence opens it as before.
     await act(async () => {
@@ -389,7 +389,7 @@ describe("GraphView", () => {
   it("[SR-111/AK4] a node's hover text gives its ID, type and title, so a type the box cuts can be read", async () => {
     await mount(asCall(fakeCall()));
     expect(query(`[data-node="${key("C1")}"]`).getAttribute("title")).toBe(
-      "C1 · System Requirement\nTitle C1",
+      "X-C1 (C1) · System Requirement\nTitle C1",
     );
     // Without an identifier, the short ID; a type without a name in the metamodel, by its key.
     expect(query(`[data-node="${key("PKG")}"]`).getAttribute("title")).toBe("PKG-1 · package\nTitle PKG");
@@ -407,7 +407,7 @@ describe("GraphView", () => {
           key: `element:${key("C1")}`,
           id: "uuid-C1",
           repository: "spec",
-          name: "C1 Title C1",
+          name: "X-C1 (C1) Title C1",
         },
       },
     ]);
@@ -521,14 +521,14 @@ describe("GraphView", () => {
     it("[SR-154/AK1] the mouse on a link shows its kind, source and target at the link, and outdated", async () => {
       await mount(asCall(fakeCall()));
       await mouse("mouseover", hit("S1", "N1"));
-      expect(tips()).toEqual([["S1 Derives from N1"]]);
+      expect(tips()).toEqual([["X-S1 (S1) Derives from X-N1 (N1)"]]);
       expect(query(".graph-edge-tip").getAttribute("aria-hidden")).toBe("true");
       expect(query(".graph-edge-tip").style.left).toBe("40px");
       expect(drawn("hovered")).toEqual([`${key("S1")}>${key("N1")}`]);
       expect(chosen()).toEqual([]);
       await mouse("mouseout", hit("S1", "N1"));
       await mouse("mouseover", hit("S1", "D2"));
-      expect(tips()).toEqual([["S1 Refers to D2 · outdated"]]);
+      expect(tips()).toEqual([["X-S1 (S1) Refers to X-D2 (D2) · outdated"]]);
       await mouse("mousemove", hit("S1", "D2"));
       expect(tips()).toHaveLength(1);
       await mouse("mouseout", hit("S1", "D2"));
@@ -542,9 +542,11 @@ describe("GraphView", () => {
       );
       await mount(asCall(fakeCall(() => both)));
       await mouse("mouseover", hit("S1", "N1"));
-      expect(tips()).toEqual([["S1 Derives from N1", "S1 Based on N1"]]);
+      expect(tips()).toEqual([["X-S1 (S1) Derives from X-N1 (N1)", "X-S1 (S1) Based on X-N1 (N1)"]]);
       await press("l");
-      expect(query("#gedge").getAttribute("aria-label")).toBe("S1 Derives from N1; S1 Based on N1");
+      expect(query("#gedge").getAttribute("aria-label")).toBe(
+        "X-S1 (S1) Derives from X-N1 (N1); X-S1 (S1) Based on X-N1 (N1)",
+      );
     });
 
     it("[SR-154/AK3] l selects a link of the selected node: drawn wider, with its text as the active option", async () => {
@@ -554,8 +556,8 @@ describe("GraphView", () => {
       expect(view.getAttribute("aria-activedescendant")).toBe("gedge");
       const tip = query("#gedge");
       expect([tip.getAttribute("role"), tip.getAttribute("aria-selected")]).toEqual(["option", "true"]);
-      expect(tip.getAttribute("aria-label")).toBe("S1 Derives from N1");
-      expect(tips()).toEqual([["S1 Derives from N1"]]);
+      expect(tip.getAttribute("aria-label")).toBe("X-S1 (S1) Derives from X-N1 (N1)");
+      expect(tips()).toEqual([["X-S1 (S1) Derives from X-N1 (N1)"]]);
       expect(chosen()).toEqual([`${key("S1")}>${key("N1")}`]);
       // The node stays marked as the one whose links are chosen, but the link is the selected option.
       expect(selected()).toBeUndefined();
@@ -574,7 +576,7 @@ describe("GraphView", () => {
       }
       expect(new Set(seen.slice(0, links.length)).size).toBe(links.length);
       expect(seen.at(-1)).toBe(seen[0]);
-      expect(query("#gedge").getAttribute("aria-label")).toBe("S1 Derives from N1");
+      expect(query("#gedge").getAttribute("aria-label")).toBe("X-S1 (S1) Derives from X-N1 (N1)");
     });
 
     it("[SR-154/AK5] Escape goes back from the link to its node; without a link Escape is the window's", async () => {
@@ -654,7 +656,7 @@ describe("GraphView", () => {
       ]);
       expect([shows("R11").accent, shows("R07").accent]).toEqual([false, true]);
       expect(query(`[data-node="${key("R11")}"]`).getAttribute("aria-label")).toBe(
-        "R11 System Requirement Title R11 verification open 2 of 3",
+        "X-R11 (R11) System Requirement Title R11 verification open 2 of 3",
       );
       // Not a decision or a need.
       expect([shows("D1").status, shows("N1").status]).toEqual([undefined, undefined]);
@@ -674,7 +676,7 @@ describe("GraphView", () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("N1")).toMatchObject({ status: undefined, ring: "60 %", part: "0.6" });
       expect(query(`[data-node="${key("N1")}"]`).getAttribute("aria-label")).toBe(
-        "N1 need Title N1 verification 60 %",
+        "X-N1 (N1) need Title N1 verification 60 %",
       );
     });
 
@@ -691,7 +693,7 @@ describe("GraphView", () => {
     it("[SR-136/AK6] a need without a valid derived requirement shows no ring", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("N2")).toEqual({ status: undefined, accent: undefined, ring: undefined, part: undefined });
-      expect(query(`[data-node="${key("N2")}"]`).getAttribute("aria-label")).toBe("N2 need Title N2");
+      expect(query(`[data-node="${key("N2")}"]`).getAttribute("aria-label")).toBe("X-N2 (N2) need Title N2");
     });
   });
 });

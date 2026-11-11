@@ -57,7 +57,7 @@ const MODEL: PropertyModel = new Map([
   ["note", new Map<string, PropertyInfo>([["topic", { kind: "text", many: false, markdown: false }]])],
 ]);
 
-const NAME = "SR-1 Measure wind";
+const NAME = "SR-000001 (SR-1) Measure wind";
 const MISSING = "Required property Title (title) of type Requirement (requirement) has no value";
 
 const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
@@ -417,15 +417,15 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     await settle();
     expect(updates()).toEqual([{ ref: "uuid-1", title: "", expectedFileSha256: "sha-0" }]);
     // The buffer is named by the ID alone now that the title is empty (#273).
-    expect(echoed).toEqual([`Saved SR-1. ${MISSING}`]);
+    expect(echoed).toEqual([`Saved SR-000001 (SR-1). ${MISSING}`]);
     expect(data.at(-1)).toMatchObject({ element: { problems: [{ message: MISSING }] } });
     // The editor shows the ID, muted, where the title is.
-    expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-1");
+    expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-000001 (SR-1)");
   });
 
   it("an empty title shows the ID muted while it is not edited", async () => {
     await mountView({ title: "" });
-    expect(heading().textContent).toBe("SR-1");
+    expect(heading().textContent).toBe("SR-000001 (SR-1)");
     expect(heading().className).toBe("untitled");
   });
 
@@ -486,9 +486,9 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
       type: "rename",
       id: "uuid-1",
       repository: "spec",
-      name: "SR-1 Measure wind speed",
+      name: "SR-000001 (SR-1) Measure wind speed",
     });
-    expect(echoed).toEqual(["Saved SR-1 Measure wind speed"]);
+    expect(echoed).toEqual(["Saved SR-000001 (SR-1) Measure wind speed"]);
   });
 
   it("a title changed on disk renames the buffers of the element when it is read again (#273, SR-116)", async () => {
@@ -500,7 +500,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
       type: "rename",
       id: "uuid-1",
       repository: "spec",
-      name: "SR-1 Measure gusts",
+      name: "SR-000001 (SR-1) Measure gusts",
     });
   });
 

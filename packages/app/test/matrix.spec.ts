@@ -70,13 +70,20 @@ const shown = (window: Page): Promise<Shown> =>
     };
   });
 
-/** The label the buffers use: the identifier, else the short ID, else (a target that is not there) the UUID, then the title. */
+/**
+ * The label the buffers use: the short ID with the identifier in brackets (SR-084 AK4), else (a target that is
+ * not there) the UUID, then the title unless it is the identifier's text.
+ */
 const labelOf = (item: {
   readonly id?: string;
   readonly shortId?: string;
   readonly identifier?: string;
   readonly title?: string;
-}): string => `${item.identifier ?? item.shortId ?? item.id ?? ""} ${item.title ?? ""}`.trim();
+}): string => {
+  const short = item.shortId ?? item.id ?? "";
+  const id = item.identifier === undefined ? short : `${short} (${item.identifier})`;
+  return item.title === undefined || item.title === item.identifier ? id : `${id} ${item.title}`.trim();
+};
 
 /** The same as the window shows, built from the output of the CLI: the label, the state of an end that is not there, "outdated". */
 const expected = (matrix: Matrix): Shown => ({

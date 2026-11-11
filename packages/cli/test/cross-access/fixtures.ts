@@ -276,3 +276,15 @@ export const supersededHintFiles = (result: Result): (string | undefined)[] =>
   ((result.outcome as { output?: { problems?: { code: string; file?: string }[] } }).output?.problems ?? [])
     .filter((p) => p.code === "relation.target-superseded")
     .map((p) => p.file);
+
+/** The files one access changed (see `Result.changed`): only the source for a write, none for a refused one. */
+export const changedFiles = (result: Result | undefined): readonly string[] => result?.changed ?? [];
+
+/** `text` with `from` replaced by `to`; throws when `from` is not in it, so a fixture edit cannot go stale. */
+export const replaceOnce = (text: string, from: string | RegExp, to: string): string => {
+  const replaced = text.replace(from, to);
+  if (replaced === text) {
+    throw new Error(`Nothing to replace: ${String(from)}`);
+  }
+  return replaced;
+};

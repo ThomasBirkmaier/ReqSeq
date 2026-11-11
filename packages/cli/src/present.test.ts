@@ -154,6 +154,18 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ total: 4 })).toBe(lines("total: 4"));
   });
 
+  it("[SR-084/AK4] prints the identifier in brackets behind the short ID, and the short ID alone without one", () => {
+    expect(
+      renderHuman({
+        elements: [
+          { shortId: "SR-3c90b0", identifier: "SR-036", status: "draft", title: "One" },
+          { shortId: "SR-3c90b1", status: "draft", title: "Two" },
+        ],
+        total: 2,
+      }),
+    ).toBe(lines("elements:", "  SR-3c90b0 (SR-036)  draft  One", "  SR-3c90b1  draft  Two", "total: 2"));
+  });
+
   it("shows a list with texts compactly: numbered criteria, relations one line each, no relation targets twice (#397)", () => {
     const pkg = {
       kind: "packages",
@@ -1720,7 +1732,7 @@ describe("renderHuman: on a terminal (#988)", () => {
     ...(parent === undefined ? {} : { parent: { id: parent, repository: "system" } }),
   });
 
-  it("puts the identifier first, the status in a column and cuts the title to the width", () => {
+  it("[SR-084/AK4] puts the identifier in brackets behind the short ID, the status in a column and cuts the title to the width", () => {
     const output = {
       elements: [
         element("3c90b0", "Show wind", { identifier: "SR-36", status: "approved" }),
@@ -1732,8 +1744,8 @@ describe("renderHuman: on a terminal (#988)", () => {
     expect(seen(styled)).toBe(
       lines(
         "elements:",
-        "  SR-36 SR-3c90b0  approved  Show wind",
-        "  SR-a1            draft     A title much longer than the t…",
+        "  SR-3c90b0 (SR-36)  approved  Show wind",
+        "  SR-a1              draft     A title much longer than the…",
         "total: 2",
       ),
     );
@@ -1742,8 +1754,8 @@ describe("renderHuman: on a terminal (#988)", () => {
         .split("\n")
         .every((line) => line.length <= terminal.columns),
     ).toBe(true);
-    // The identifier strong, the short ID faint.
-    expect(styled).toContain(`${style("bold", "SR-36")} ${style("dim", "SR-3c90b0")}`);
+    // The short ID strong, the identifier faint.
+    expect(styled).toContain(`${style("bold", "SR-3c90b0")} ${style("dim", "(SR-36)")}`);
     // Plain text is never cut and keeps its form.
     expect(renderHuman(output)).toBe(
       lines(
@@ -1852,7 +1864,7 @@ describe("renderHuman: on a terminal (#988)", () => {
   it("shows one element on its line with its details below, as in plain text", () => {
     const one = { ...element("a1", "Show wind", { identifier: "SR-1" }), file: "SR-1.md", text: "T.\n" };
     expect(seen(renderHuman({ element: one }, true, terminal))).toBe(
-      lines("SR-1 SR-a1  draft  Show wind", ...renderHuman({ element: one }).split("\n").slice(1, -1)),
+      lines("SR-a1 (SR-1)  draft  Show wind", ...renderHuman({ element: one }).split("\n").slice(1, -1)),
     );
   });
 
@@ -1960,29 +1972,29 @@ describe("renderHuman: on a terminal (#988)", () => {
     );
     expect(seen(styled)).toBe(
       lines(
-        "Wind  R1 PKG-d1 · 2",
-        "  SR-168 SR-b1  draft     One",
-        "  SR-b2         approved  Two",
+        "Wind  PKG-d1 (R1) · 2",
+        "  SR-b1 (SR-168)  draft     One",
+        "  SR-b2           approved  Two",
         "",
         "Draft  draft · 1",
-        "  SR-n1         draft     Three",
+        "  SR-n1           draft     Three",
         "    text: |",
         "      T.",
         "",
         "x  3",
         // Its parent is in another group: it starts a tree of its own.
-        "  SR-n2         draft     Four  [under SR-n1]",
+        "  SR-n2           draft     Four  [under SR-n1]",
         "Showing 4 of 7; ask for more with --offset and --limit.",
       ),
     );
-    expect(styled).toContain(`${style("bold", "Wind")}  ${style("dim", "R1 PKG-d1 · 2")}`);
+    expect(styled).toContain(`${style("bold", "Wind")}  ${style("dim", "PKG-d1 (R1) · 2")}`);
     // A group by identifier only; the last group, continued, with targets not available.
     const groups = [
       { value: "PKG-d2", identifier: "P2", count: 1, offset: 0 },
       { unavailable: 1, count: 2, offset: 1 },
     ];
     expect(seen(renderHuman({ elements: [element("a", "A")], groups }, true, terminal))).toBe(
-      lines("P2  PKG-d2 · 1", "  SR-a  draft  A"),
+      lines("PKG-d2 (P2)  1", "  SR-a  draft  A"),
     );
     expect(seen(renderHuman({ elements: [element("b", "B")], groups, offset: 2 }, true, terminal))).toBe(
       lines("(no value)  2, 1 with targets not available, continued", "  SR-b  draft  B"),
@@ -2014,7 +2026,7 @@ describe("renderHuman: on a terminal (#988)", () => {
     expect(seen(styled)).toBe(
       lines(
         "hints:",
-        "  warning  SR-1 SR-a1 → N-b2  relation.too-few  Too few  hint: h1",
+        "  warning  SR-a1 (SR-1) → N-b2  relation.too-few  Too few  hint: h1",
         "error  x.error  Broken",
         "info  x.info  Note",
         "odd  x.odd  Other",

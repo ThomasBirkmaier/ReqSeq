@@ -68,6 +68,10 @@ const traced = async (running: RunningApp, input: Record<string, unknown>): Prom
 
 const key = (repository: string, id: string): string => `${repository}:${id}`;
 
+/** The ID a node shows, as the CLI prints it: the short ID with the identifier in brackets (SR-084 AK4). */
+const shownId = (node: { readonly shortId: string; readonly identifier?: string }): string =>
+  node.identifier === undefined ? node.shortId : `${node.shortId} (${node.identifier})`;
+
 /** Opens an element: Ctrl+P, its short ID, Enter once its title is there. */
 const openElement = async (window: Page, shortId: string, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");
@@ -269,7 +273,7 @@ const wholeChain = async (window: Page, nodes: number): Promise<void> => {
 const cutLines = (window: Page): Promise<string[]> =>
   window.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>(".graph-node")].flatMap((node) =>
-      [...node.querySelectorAll<HTMLElement>(".graph-id, .graph-marks")]
+      [...node.querySelectorAll<HTMLElement>(".graph-id > span, .graph-marks")]
         .filter((line) => line.scrollWidth > line.clientWidth)
         .map((line) => line.textContent),
     ),
@@ -420,29 +424,13 @@ test.describe("the graph of an element on a fixture workspace", () => {
         fits: node.scrollHeight <= node.clientHeight,
       })),
     );
-    // No mark is cut, and no ID: the fixture's short
-    // IDs (14 characters) with "Component Requirement" are wider than any of spec/ (the next test), and
-    // there only the end of the type gives way.
-    expect((await cutLines(window)).filter((line) => !line.includes(" · "))).toEqual([]);
-    const cutIds = await window.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".graph-id")].flatMap((line) => {
-        const text = line.firstChild;
-        const id = line.textContent.split(" · ")[0] ?? "";
-        if (text === null) {
-          return [id];
-        }
-        const range = document.createRange();
-        range.setStart(text, 0);
-        range.setEnd(text, id.length);
-        const right = range.getBoundingClientRect().right;
-        return right <= line.getBoundingClientRect().right - 8 ? [] : [id];
-      }),
-    );
-    expect(cutIds).toEqual([]);
+    // No mark is cut, and neither the ID nor the type: the fixture's short IDs (14 characters) with
+    // "Component Requirement" fit the box; an ID that does not gives way before the type (short-id.spec.ts).
+    expect(await cutLines(window)).toEqual([]);
     expect(shown).toEqual(
       output.nodes.map((node) => ({
         key: key(node.repository, node.id),
-        head: `${node.identifier ?? node.shortId} · ${types.get(node.type) ?? ""}`,
+        head: `${shownId(node)} · ${types.get(node.type) ?? ""}`,
         title: node.title,
         marks: node.marks.map((mark) => WORDS[mark]),
         fits: true,
@@ -490,7 +478,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(node.level).toBeLessThan(0);
     await window.keyboard.press("Enter");
     await expect(window.locator("article h1")).toHaveText(node.title);
-    await expect(window.getByLabel("Modeline")).toContainText(node.identifier ?? node.shortId);
+    await expect(window.getByLabel("Modeline")).toContainText(shownId(node));
     // Ctrl/Cmd+Shift+G shows its graph, and on the graph the element again.
     const its = await traced(running, { ref: node.id, maxDepth: 1 });
     await showGraph(window, its.nodes.length);
@@ -546,7 +534,7 @@ test.describe("the graph on the specification workspace", () => {
       await showGraph(window, (await traced(running, { ref: "SR-111", maxDepth: 1 })).nodes.length);
       await wholeChain(window, (await traced(running, { ref: "SR-111", allLevels: true })).nodes.length);
       expect(await cutLines(window)).toEqual([]);
-      expect(await window.locator(".graph-id", { hasText: "SR-111 · System Requirement" }).count()).toBe(1);
+      expect(await window.locator(".graph-id", { hasText: "(SR-111) · System Requirement" }).count()).toBe(1);
     } finally {
       await running.close();
     }
@@ -751,9 +739,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
       ...model.relations.map((kind) => [kind.key, kind.name] as const),
       ...model.properties.map((property) => [`property:${property.key}`, property.name] as const),
     ]);
-    const idOf = new Map(
-      output.nodes.map((node) => [key(node.repository, node.id), node.identifier ?? node.shortId]),
-    );
+    const idOf = new Map(output.nodes.map((node) => [key(node.repository, node.id), shownId(node)]));
     // The lines the text of a curve must show: each link of its pair, read along the arrow.
     const expected = (curve: string): string[] =>
       output.edges

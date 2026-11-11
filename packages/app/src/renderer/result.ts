@@ -11,7 +11,7 @@
 // answer and go to the modeline (#276). Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
-import { idTitle } from "./id-title.js";
+import { shownId, shownIdTitle } from "./id-title.js";
 import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
 
 /**
@@ -77,7 +77,10 @@ const problemLine = (problem: Rec, depth: number, label: string): ResultLine => 
   // file than the element's (schemas/common.schema.json, `problem`); otherwise a problem that names an element
   // is about the element's own file, so `repository` is the element's repository.
   const repository = str(problem["elementRepository"]) ?? str(problem["repository"]);
-  const name = str(problem["elementIdentifier"]) ?? str(problem["elementShortId"]);
+  // The element as everywhere it is named (SR-084 AK4): short ID with identifier, else what there is.
+  const shortId = str(problem["elementShortId"]);
+  const identifier = str(problem["elementIdentifier"]);
+  const name = shortId === undefined ? identifier : shownId(shortId, identifier);
   return {
     kind: "problem",
     depth,
@@ -119,7 +122,7 @@ const withStatus = (line: ResultLine, record: Rec): ResultLine => {
 const elementLine = (element: Element, depth: number): ResultLine => ({
   kind: "element",
   depth,
-  label: element.identifier ?? element.shortId,
+  label: shownId(element.shortId, element.identifier),
   text: element.title,
   open: elementBufferOf(element),
 });
@@ -155,8 +158,8 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): 
   return {
     kind: "pair",
     depth,
-    label: first.identifier ?? first.shortId,
-    text: `${first.title} · ${key}: ${idTitle(second.identifier ?? second.shortId, second.title)}`,
+    label: shownId(first.shortId, first.identifier),
+    text: `${first.title} · ${key}: ${shownIdTitle(second.shortId, second.identifier, second.title)}`,
     open: readOnlyBuffer(elementBufferOf(first)),
     beside: readOnlyBuffer(elementBufferOf(second)),
   };

@@ -240,7 +240,7 @@ describe("statuses folded in lists (SR-201)", () => {
   it("[SR-201/AK1] without a choice the elements in an invalid status stand at the end, collapsed, with their count", async () => {
     const fake = await open();
     await runCommand("List all elements");
-    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
     expect(section().getAttribute("aria-expanded")).toBe("false");
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",
@@ -265,24 +265,24 @@ describe("statuses folded in lists (SR-201)", () => {
         selection: { where: { all: [{ type: ["need"] }, { not: { status: ["obsolete"] } }] } },
       }),
     );
-    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
     await runCommand("Sort list");
     await type("Hierarchy");
     await keyDown(query("input"), "Enter");
-    expect(shown()).toEqual(["N-001", "N-002", "N-003"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-002 (N-002)", "N-003 (N-003)"]);
   });
 
   it("[SR-201/AK2] choosing a status folds it in every list, choosing it again puts its elements back in place", async () => {
     await open();
     await runCommand("List all elements");
     await foldStatus("Approved");
-    expect(shown()).toEqual(["N-001", "▸ Folded statuses (2)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "▸ Folded statuses (2)"]);
     await foldStatus("Obsolete");
-    expect(shown()).toEqual(["N-001", "N-002", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-002 (N-002)", "▸ Folded statuses (1)"]);
     await foldStatus("Approved");
-    expect(shown()).toEqual(["N-001", "N-002", "N-003"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-002 (N-002)", "N-003 (N-003)"]);
     await runCommand("Fold invalid statuses in lists");
-    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
   });
 
   it("[SR-201/AK3] the section row opens and closes by click, Enter, Tab, Right and Left, and is collapsed again when the list opens again", async () => {
@@ -293,7 +293,7 @@ describe("statuses folded in lists (SR-201)", () => {
       section().click();
       await Promise.resolve();
     });
-    expect(shown()).toEqual(["N-001", "N-003", "▾ Folded statuses (1)", "N-002"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▾ Folded statuses (1)", "N-002 (N-002)"]);
     expect(section().getAttribute("aria-expanded")).toBe("true");
     await act(async () => {
       section().click();
@@ -315,7 +315,7 @@ describe("statuses folded in lists (SR-201)", () => {
     await keyDown(list, "Enter");
     expect(container.querySelector(".list")).toBeNull();
     await keyDown(window, "p", { altKey: true });
-    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
     await keyDown(query(".list"), "ArrowLeft");
     expect(shown()).toHaveLength(3);
   });
@@ -337,7 +337,7 @@ describe("statuses folded in lists (SR-201)", () => {
     root = createRoot(container);
     await open();
     await runCommand("List all elements");
-    expect(shown()).toEqual(["N-003", "▸ Folded statuses (2)"]);
+    expect(shown()).toEqual(["N-003 (N-003)", "▸ Folded statuses (2)"]);
   });
 
   it("[SR-201/AK1] a search result folds its hits in folded statuses the same way", async () => {
@@ -345,7 +345,7 @@ describe("statuses folded in lists (SR-201)", () => {
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
     await type("see");
     await keyDown(query("input"), "Enter");
-    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.search",
       expect.objectContaining({ query: "see", selection: { where: { status: ["obsolete"] } } }),
@@ -360,7 +360,7 @@ describe("statuses folded in lists (SR-201)", () => {
     await keyDown(list, "ArrowRight");
     await keyDown(list, "ArrowDown");
     await fake.changed();
-    expect(shown()).toEqual(["N-001", "N-003", "▾ Folded statuses (1)", "N-002"]);
+    expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▾ Folded statuses (1)", "N-002 (N-002)"]);
     // The selected folded row is still the marked element after the list read again.
     fake.invoke.mockClear();
     await runCommand("Open to the right");

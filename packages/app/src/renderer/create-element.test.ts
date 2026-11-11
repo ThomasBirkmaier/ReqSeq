@@ -92,7 +92,9 @@ describe("creating an element (SR-064)", () => {
     expect(createdEcho({ element: element(""), problems: [hint("title")] })).toBe(
       "Created REP-000009 · 1 hint",
     );
-    expect(createdEcho({ element: { ...element("Wind"), identifier: "R-1" } })).toBe("Created R-1 Wind");
+    expect(createdEcho({ element: { ...element("Wind"), identifier: "R-1" } })).toBe(
+      "Created REP-000009 (R-1) Wind",
+    );
     expect(createdEcho({ element: element("Wind"), problems: [] })).toBe("Created REP-000009 Wind");
   });
 });

@@ -188,15 +188,16 @@ describe("outdatedReferences", () => {
 });
 
 describe("relationLabel", () => {
-  it("is the identifier, else the short ID, else the UUID, then the title when there is one", () => {
+  it("[SR-084/AK4] is the short ID with the identifier, else the short ID, else the UUID, then the title when there is one", () => {
     expect(relationLabel(relation({ identifier: "N-1", shortId: "N-000001", title: "Need" }))).toBe(
-      "N-1 Need",
+      "N-000001 (N-1) Need",
     );
     expect(relationLabel(relation({ shortId: "N-000001", title: "Need" }))).toBe("N-000001 Need");
     expect(relationLabel(relation({ shortId: "N-000001" }))).toBe("N-000001");
     expect(relationLabel(relation({ id: "uuid-9" }))).toBe("uuid-9");
+    expect(relationLabel(relation({ id: "uuid-9", identifier: "N-9", title: "Gone" }))).toBe("N-9 Gone");
     expect(relationLabel(relation({ identifier: "Später", shortId: "PKG-1", title: "Später" }))).toBe(
-      "Später",
+      "PKG-1 (Später)",
     );
   });
 });

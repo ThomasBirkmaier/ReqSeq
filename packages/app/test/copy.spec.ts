@@ -85,13 +85,13 @@ test.describe("copying a field of an element", () => {
     await running.close();
   });
 
-  /** The element as `element get` gives it: the stored text, and the ID the modeline names it by. */
+  /** The element as `element get` gives it: the stored text, and the short ID "Copy field" at the ID copies (SR-084 AK4). */
   const stored = async (): Promise<{ readonly text: string; readonly id: string }> => {
     const result = await running.cli(["element", "get", SR_ID]);
     const { element } = JSON.parse(result.stdout) as {
-      element: { identifier?: string; shortId: string; text: string };
+      element: { shortId: string; text: string };
     };
-    return { text: element.text, id: element.identifier ?? element.shortId };
+    return { text: element.text, id: element.shortId };
   };
 
   test("[SR-128/AK1] hovering a field shows its copy symbol, otherwise it is not to be seen", async () => {

@@ -185,6 +185,7 @@ import {
   valueSignature,
   valuesPrompt,
 } from "./value-list.js";
+import { shownId } from "./id-title.js";
 
 /** Folding of the sections under the headings of the text (SR-191): one extension for every element buffer. */
 const SECTION_FOLDING = { extensions: [sectionFolding()] };
@@ -1965,7 +1966,7 @@ export const ElementView = ({
     // The unsaved title this buffer was shown with, for its editor when it is made (ThomasBirkmaier/ReqSeq-archive#621).
     const kept = keptBoxes.current.get(TITLE_FIELD)?.doc;
     return {
-      id: element.identifier ?? element.shortId,
+      id: shownId(element.shortId, element.identifier),
       readOnly: locked || boxes.get(TITLE_FIELD)?.lineBreak !== false,
       ...(kept === undefined ? {} : { initial: kept }),
     };
