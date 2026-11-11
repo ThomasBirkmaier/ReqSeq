@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["version", "process", "seq", "sha256", "access"],
   "properties": {
-    "version": { "const": 1 },
+    "version": { "description": "Version of this file format.", "const": 1 },
     "process": {
       "type": "string",
       "pattern": "^[0-9]+-[0-9a-f]{8}$",
@@ -46,6 +46,7 @@
         },
         "at": { "$ref": "common.schema.json#/$defs/dateTime" },
         "element": {
+          "description": "The element the call read or changed: its UUID and the repository of its file.",
           "type": "object",
           "required": ["id", "repository"],
           "properties": {

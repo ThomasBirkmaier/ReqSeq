@@ -12581,6 +12581,7 @@
         ],
         "properties": {
           "version": {
+            "description": "Version of this file format.",
             "const": 1
           },
           "process": {
@@ -12640,6 +12641,7 @@
                 "$ref": "#/components/schemas/common/$defs/dateTime"
               },
               "element": {
+                "description": "The element the call read or changed: its UUID and the repository of its file.",
                 "type": "object",
                 "required": [
                   "id",
@@ -15456,6 +15458,7 @@
         ],
         "properties": {
           "format": {
+            "description": "Version of this file format.",
             "const": 1
           },
           "workspaces": {

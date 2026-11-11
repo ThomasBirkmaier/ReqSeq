@@ -6,6 +6,7 @@
  * Schema: `schemas/activity.schema.json#`.
  */
 export interface ActivityFile {
+  /** Version of this file format. */
   readonly version: 1;
   /** The writer: its process ID and 8 random hex digits, new whenever a workspace of the process starts recording. With `seq` it tells a new access from one already seen. */
   readonly process: string;
@@ -28,6 +29,7 @@ export interface ActivityAccess {
   /** The effect of the command in the catalog. */
   readonly effect: "read" | "write-files";
   readonly at: IsoDateTime;
+  /** The element the call read or changed: its UUID and the repository of its file. */
   readonly element: {
     readonly id: Uuid;
     /** Workspace name of the repository of the element's file. */
@@ -1434,6 +1436,7 @@ export interface MetamodelStatus {
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {
+  /** Version of this file format. */
   readonly format: 1;
   /** The most recent first; no two entries with the same `key`. */
   readonly workspaces: readonly RecentWorkspacesWorkspace[];

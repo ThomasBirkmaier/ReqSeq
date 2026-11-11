@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["format", "workspaces"],
   "properties": {
-    "format": { "const": 1 },
+    "format": { "description": "Version of this file format.", "const": 1 },
     "workspaces": {
       "type": "array",
       "maxItems": 20,
