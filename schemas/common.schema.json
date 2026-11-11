@@ -23,7 +23,7 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "shortId": {
-      "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-002 AK3). The file name uses 12 (D-056).",
+      "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-084 AK1, AK2). The file name uses 12 (D-056).",
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
     },
@@ -235,7 +235,7 @@
         },
         "elementShortId": {
           "$ref": "#/$defs/shortId",
-          "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements."
+          "description": "Short ID of the element `elementId` names, for display (SR-084); given on every problem that names an element of the workspace, by every command that has read the elements."
         },
         "elementIdentifier": {
           "type": "string",

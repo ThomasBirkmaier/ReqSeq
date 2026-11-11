@@ -1334,7 +1334,7 @@
             },
             "verification": {
               "type": "array",
-              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it.",
+              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid.",
               "items": {
                 "$ref": "#/$defs/verificationEntry"
               }
@@ -1710,7 +1710,7 @@
         },
         "verificationEntry": {
           "type": "object",
-          "description": "The verification status of a requirement in one view: `element` `verification` gives one per view, `trace.matrix` one for its view.",
+          "description": "The verification status of a requirement in one view: `element` `verification` gives one per view it lists (none for a variant whose status the metamodel marks invalid), `trace.matrix` one for its view.",
           "required": [
             "view",
             "status"
@@ -8643,7 +8643,7 @@
                       },
                       "views": {
                         "type": "array",
-                        "description": "Verification only: the status of the criterion in each view the element applies in (with `view`, that view alone), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                        "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                         "items": {
                           "type": "object",
                           "properties": {
@@ -9181,7 +9181,7 @@
           "properties": {
             "elements": {
               "type": "array",
-              "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+              "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it or whose status the metamodel marks invalid, and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`); an element marked emergent is never `indirect`; and `validation`, the validation status (`$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it. While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/element"
               }
@@ -9959,7 +9959,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart. Only each requirement's own records count, never indirect evidence: a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
+              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in, except a variant whose status the metamodel marks invalid (only the variant's view when the stored selection has one, also when its status is invalid), and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart. Only each requirement's own records count, never indirect evidence: a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
             },
             "limit": {
               "type": "integer",
@@ -10071,7 +10071,7 @@
                   },
                   "verification": {
                     "type": "array",
-                    "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order; with a variant in the stored selection only that variant's row. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
+                    "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order, none for a variant whose status the metamodel marks invalid now; with a variant in the stored selection only that variant's row, also when its status is invalid. Empty when it applies in no view shown. Own records only, never indirect. Left out when the stored view cannot be resolved.",
                     "items": {
                       "type": "object",
                       "properties": {

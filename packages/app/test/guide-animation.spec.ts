@@ -155,7 +155,10 @@ test("[SR-203/AK1] the README animation: Get started in the app, ending in the g
       },
       [running.workspace?.root ?? "", STUB, UUIDS.join(",")] as const,
     );
+    // The modeline says "No workspace" before the folder opens too: the hint of the folder's core says it is
+    // open, and a prompt opened before then would be closed by the switch (#1413).
     await expect(modeline(window)).toContainText("No workspace");
+    await expect(window.getByLabel("Minibuffer")).toContainText("Initialise workspace");
     await frame(1500);
 
     // reqseq workspace init . "Weather station"

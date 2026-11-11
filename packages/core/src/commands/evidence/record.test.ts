@@ -210,7 +210,7 @@ describe("evidence.record (SR-030)", () => {
     expect(withEvidence.elements.map((e) => e.id)).not.toContain(N1);
   });
 
-  it("[SR-030/AK4] a record with the number of an acceptance criterion has the number in its file", async () => {
+  it("a record with the number of an acceptance criterion has the number in its file", async () => {
     const { fixture, workspace } = await open();
     const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: [1] });
     const file = "evidence/2026-10-27-SR-00c002-inspection.md";

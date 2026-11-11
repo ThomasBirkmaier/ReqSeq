@@ -3,7 +3,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Scenario } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { CRITERIA, EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
+import { CRITERIA, EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE, VARIANT_INVALID } from "../../fixtures.js";
 
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
@@ -33,6 +33,22 @@ scenariosOf("evidence.status", [
     input: { selection: { ids: ["SR-0000a1", "SR-0000a2", "SR-0000b1"] } },
     tag: "[SR-047/AK3]",
     expect: "output",
+  },
+  {
+    name: "no row for a variant with an invalid status (SR-047 AK6)",
+    fixture: VARIANT_INVALID,
+    input: { selection: { ids: ["SR-0000a3"] } },
+    tag: "[SR-047/AK6]",
+    expect: "output",
+    check: (results) => {
+      expect(verificationOf(results)).toEqual([
+        [
+          { view: "core", status: "open" },
+          { view: "43043043-0000-4000-8000-0000000000c1", status: "open" },
+          { view: "43043043-0000-4000-8000-0000000000c2", status: "open" },
+        ],
+      ]);
+    },
   },
   {
     name: "records without variant count in every view in a variant-independent repository (SR-173 AK1)",
