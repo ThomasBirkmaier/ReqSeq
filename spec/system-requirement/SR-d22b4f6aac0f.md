@@ -14,7 +14,7 @@ packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
 verification-method: test
 refines:
-  - { id: 2c4b0595-c212-42b7-81be-b18556f3b2fe, version: n2:ef161c8bbe8fda16, title: Properties als Boxen bearbeiten }
+  - { id: 2c4b0595-c212-42b7-81be-b18556f3b2fe, version: n2:5f60fbaad3979d5c, title: Properties als Boxen bearbeiten }
 derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
