@@ -9,30 +9,52 @@
 //
 // The folder holds only compiled code, so sharing it keeps the tests apart; the model cache (SR-082) and
 // the other files of the OS cache folder stay in each file's own home. The variable reaches the test
-// workers through their environment, and the spawned CLIs through `cliEnv()`. A test that sets
-// NODE_COMPILE_CACHE itself (compile-cache.test.ts) keeps its own. A NODE_COMPILE_CACHE of the outer
-// environment is kept and not removed.
+// workers through their environment, and the spawned CLIs through `cliEnv()`. So the e2e CLIs do not
+// use the per-user folder that `bin.ts` picks as shipped; compile-cache.test.ts, which sets an empty
+// NODE_COMPILE_CACHE itself, still checks that path. A NODE_COMPILE_CACHE of the outer environment is
+// used (an empty one counts as unset, as in Node), warmed too and not removed.
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { bin, reqseq } from "./reqseq.js";
 
-export default async function setup(): Promise<(() => Promise<void>) | undefined> {
-  if (process.env["NODE_COMPILE_CACHE"] !== undefined) {
-    return undefined;
-  }
-  const folder = await mkdtemp(path.join(os.tmpdir(), "reqseq-e2e-compile-cache-"));
-  process.env["NODE_COMPILE_CACHE"] = folder;
-  // Without a build there is nothing to warm: each file's `requireBuiltCli` names the missing command.
-  if (existsSync(bin)) {
-    const out = await reqseq(["--version"], { cwd: folder });
+/** Ends a hanging warm-up, which would otherwise hold the whole e2e step until the job's timeout. */
+const WARM_UP_LIMIT_MS = 60_000;
+
+const warm = async (folder: string): Promise<void> => {
+  let timer: NodeJS.Timeout | undefined;
+  const limit = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`reqseq --version did not finish within ${String(WARM_UP_LIMIT_MS)} ms`));
+    }, WARM_UP_LIMIT_MS);
+  });
+  try {
+    const out = await Promise.race([reqseq(["--version"], { cwd: folder }), limit]);
     if (out.code !== 0) {
       throw new Error(`reqseq --version failed with exit code ${String(out.code)}: ${out.stderr}`);
     }
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+export default async function setup(): Promise<() => Promise<void>> {
+  const outer = process.env["NODE_COMPILE_CACHE"];
+  const own = outer === undefined || outer === "";
+  const folder = own ? await mkdtemp(path.join(os.tmpdir(), "reqseq-e2e-compile-cache-")) : outer;
+  process.env["NODE_COMPILE_CACHE"] = folder;
+  // Without a build there is nothing to warm: each file's `requireBuiltCli` names the missing command.
+  if (existsSync(bin)) {
+    await warm(folder);
   }
   return async () => {
-    delete process.env["NODE_COMPILE_CACHE"];
-    await rm(folder, { recursive: true, force: true, maxRetries: 3 });
+    if (own) {
+      process.env["NODE_COMPILE_CACHE"] = outer;
+      if (outer === undefined) {
+        delete process.env["NODE_COMPILE_CACHE"];
+      }
+      await rm(folder, { recursive: true, force: true, maxRetries: 3 });
+    }
   };
 }
