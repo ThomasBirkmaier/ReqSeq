@@ -44,6 +44,8 @@ export default defineConfig({
   testMatch,
   // The app's part of the performance suite (test/perf/playwright.config.ts) runs in the perf job only (#147).
   testIgnore: "perf/**",
+  // One compile cache for the CLI and MCP processes of the tests, filled before the first test (#1356).
+  globalSetup: "./support/compile-cache.ts",
   // One app at a time: each test starts its own Electron with its own workspace and cache folder.
   workers: 1,
   fullyParallel: false,
