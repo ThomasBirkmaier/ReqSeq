@@ -61,7 +61,7 @@ describe("mapping files (SR-054)", () => {
     expect(read.yaml.path).toBe("acme.yaml");
   });
 
-  it("is file.faulty for a missing file or one that is no mapping file, input.invalid for one that does not fit", async () => {
+  it("[SR-008/AK4] is file.faulty for a missing file or one that is no mapping file, input.invalid for one that does not fit", async () => {
     const { workspace } = await open({
       "reqif/wrong.yaml": "reqseq-reqif-mapping: 2\n",
       "reqif/extra.yaml": "reqseq-reqif-mapping: 1\nsource: { name: X }\ntypes: []\nbogus: 1\n",
