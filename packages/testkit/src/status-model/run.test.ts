@@ -9,6 +9,8 @@ describe("status model runner", () => {
       numRuns: 50,
       seed: -7,
     });
+    expect(propertyParameters({ STATUS_MODEL_SEED: "4294967297" }).seed).toBe(1);
+    expect(propertyParameters({ STATUS_MODEL_SEED: "2147483648" }).seed).toBe(-2147483648);
     expect(propertyParameters({ STATUS_MODEL_RUNS: "0", STATUS_MODEL_SEED: " " })).toEqual({
       numRuns: 1,
       seed: DEFAULT_SEED,

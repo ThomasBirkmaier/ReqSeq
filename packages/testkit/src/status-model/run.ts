@@ -26,7 +26,8 @@ function integerOr(value: string | undefined, fallback: number): number {
 export function propertyParameters(env: Readonly<Record<string, string | undefined>>): PropertyParameters {
   return {
     numRuns: Math.max(1, integerOr(env["STATUS_MODEL_RUNS"], DEFAULT_RUNS)),
-    seed: integerOr(env["STATUS_MODEL_SEED"], DEFAULT_SEED),
+    // fast-check takes a 32-bit seed; reduced here, so the seed a failure prints is the one that ran and replays.
+    seed: integerOr(env["STATUS_MODEL_SEED"], DEFAULT_SEED) | 0,
   };
 }
 
