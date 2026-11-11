@@ -5866,7 +5866,7 @@
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Which property holds the acceptance criteria comes from the metamodel, and no change can be checked against a missing or faulty metamodel.",
-        "stage": 1,
+        "stage": 6,
         "implements": [
           "SR-204"
         ],
