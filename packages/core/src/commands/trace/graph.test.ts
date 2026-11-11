@@ -48,6 +48,17 @@ const open = async (change?: (fixture: FixtureWorkspace) => Promise<void>): Prom
 const graph = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
   (await invoke("trace.graph", input, { workspace })) as Output;
 
+/** fixtures/SR-136/graph with a variant f001 and a requirement b099 valid only in it, deriving from a001. */
+const IN_VARIANT_ONLY: Readonly<Record<string, string>> = {
+  "variants/VAR-00000000f001.md":
+    "---\nid: 37373737-3737-4737-8737-00000000f001\ntype: variant\nstatus: draft\ntitle: Coast\n---\n",
+  "requirements/SR-00000000b099.md":
+    "---\nid: 37373737-3737-4737-8737-00000000b099\ntype: system-requirement\nstatus: draft\n" +
+    "title: Show the tide\nrequirement-type: functional\nacceptance-criteria:\n  - Given the tide, then it shows.\n" +
+    "validity:\n  - { id: 37373737-3737-4737-8737-00000000f001, version: n1:0000000000000000 }\n" +
+    "derives-from:\n  - { id: 37373737-3737-4737-8737-00000000a001, version: n1:0000000000000000 }\n---\n",
+};
+
 const failure = async (workspace: Workspace, input: Record<string, unknown>): Promise<CommandError> => {
   try {
     await graph(workspace, input);
@@ -530,6 +541,27 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     expect(core.nodes.find((n) => n.id === ID.GG1)?.verification).toBeUndefined();
     const inV1 = await graph(station, { ref: ID.S1, allLevels: true, view: ID.V1 });
     expect(inV1.nodes.find((n) => n.id === ID.GG1)?.verification?.[0]?.view).toBe(ID.V1);
+  });
+
+  it("[SR-136/AK7] without a variant each requirement node shows its status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-136/graph", files: IN_VARIANT_ONLY });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const [b001, b099, coast] = [U("b001"), U("b099"), U("f001")];
+    const nodeIn = (output: Output, id: string): Node | undefined => output.nodes.find((n) => n.id === id);
+    const core = await graph(workspace, { ref: U("a001") });
+    expect([nodeIn(core, b001)?.verification?.map((v) => v.view), nodeIn(core, b001)?.criteria]).toEqual([
+      ["core"],
+      { verified: 1, total: 1 },
+    ]);
+    expect([nodeIn(core, b099)?.verification, nodeIn(core, b099)?.criteria]).toEqual([undefined, undefined]);
+    const inCoast = await graph(workspace, { ref: U("a001"), view: coast });
+    expect(nodeIn(inCoast, b001)?.verification?.map((v) => v.view)).toEqual([coast]);
+    expect([nodeIn(inCoast, b099)?.verification, nodeIn(inCoast, b099)?.criteria]).toEqual([
+      [{ view: coast, status: "open" }],
+      { verified: 0, total: 1, notVerified: [1] },
+    ]);
   });
 
   it("[SR-136/AK2] a requirement with acceptance criteria counts its verified ones, 2 of 3, and 0 of n without a record", async () => {

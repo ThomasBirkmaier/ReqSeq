@@ -97,11 +97,16 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(line).toContainText("~~Durchgestrichenes~~");
     await expect(content.locator(".cm-lr-h1")).not.toContainText("#");
     await expect(content.locator("table.cm-lr-table")).toHaveCount(1);
-    // The cursor goes into the table: its source is shown, the table widget is gone.
+    // The cursor goes into a cell of the table: the source of the whole table is shown, every line of it,
+    // and the table widget is gone.
     await content.locator("table.cm-lr-table td").first().click();
     await expect(content.locator("table.cm-lr-table")).toHaveCount(0);
-    await expect(content).toContainText("| :--- | ---: | :---: |");
-    await expect(content.locator(".cm-lr-table-source")).toHaveCount(4);
+    await expect(content.locator(".cm-lr-table-source")).toHaveText([
+      "| Größe | Wert | Einheit |",
+      "| :--- | ---: | :---: |",
+      "| Wind | 12 | m/s |",
+      "| Böe | **25** | m/s |",
+    ]);
     // Down out of the table: it is set again.
     for (let step = 0; step < 6; step += 1) {
       await window.keyboard.press("ArrowDown");
@@ -346,7 +351,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(mark).toHaveAttribute("title", relation?.message ?? "");
   });
 
-  test("an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
+  test("[SR-066/AK4] an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
     const { window } = running;
     await opened(window, REFERENCE_SOURCE_TITLE);
     expect(await shown(window)).toContain(`Siehe ${REFERENCE_LABEL}`);
@@ -369,6 +374,65 @@ test.describe("the Markdown editor in the element buffer", () => {
     }
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+  });
+
+  test("[SR-066/AK4] a link to a web address opens nothing on a click or with Ctrl/Cmd+Enter, which says there is no element reference", async () => {
+    const { app, window } = running;
+    // Every way main could open the address counts: a shell call, a new window, a navigation.
+    await app.evaluate(({ shell }) => {
+      const opened: string[] = [];
+      (globalThis as { openedExternally?: string[] }).openedExternally = opened;
+      // A call is what the test looks for; nothing is opened for it.
+      shell.openExternal = (url: string) => {
+        opened.push(url);
+        return Promise.resolve();
+      };
+    });
+    await opened(window, DEMO_TITLE);
+    const link = window.locator(".cm-content .cm-lr-link", { hasText: "das Beispiel" });
+    await link.click();
+    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    // The cursor in the address of the link (the end of the text is after its last line): its line shows
+    // the source, and Follow reference finds no element there.
+    await window.locator(".cm-content").focus();
+    await window.keyboard.press("ControlOrMeta+End");
+    for (let step = 0; step < 6; step += 1) {
+      await window.keyboard.press("ArrowLeft");
+    }
+    await expect(window.locator(".cm-content")).toContainText("[das Beispiel](https://example.org/wind)");
+    // The caret is in the address: its line as the DOM selection has it, and the offset in that line.
+    const [line, caret] = await window.evaluate(() => {
+      const selection = document.getSelection();
+      const node = selection?.focusNode;
+      const shownLine = (node instanceof Element ? node : node?.parentElement)?.closest(".cm-line");
+      if (
+        selection === null ||
+        node === null ||
+        node === undefined ||
+        shownLine === null ||
+        shownLine === undefined
+      ) {
+        return ["", -1];
+      }
+      const before = document.createRange();
+      before.setStart(shownLine, 0);
+      before.setEnd(node, selection.focusOffset);
+      return [shownLine.textContent, before.toString().length] as const;
+    });
+    expect(line).toBe("Siehe [das Beispiel](https://example.org/wind).");
+    expect(caret).toBeGreaterThan(line.indexOf("https://"));
+    expect(caret).toBeLessThan(line.indexOf(")"));
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(minibuffer(window)).toHaveText("No element reference at the cursor");
+    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    expect(
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().map((w) => w.webContents.getURL()),
+      ),
+    ).toEqual(["app://reqseq/index.html"]);
+    expect(
+      await app.evaluate(() => (globalThis as { openedExternally?: string[] }).openedExternally),
+    ).toEqual([]);
   });
 
   test("the editor makes no request outside the app's own protocols", async () => {

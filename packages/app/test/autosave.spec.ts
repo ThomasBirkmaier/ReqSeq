@@ -116,6 +116,25 @@ test.describe("saving without a save command", () => {
     expect(got.stdout).toContain("Neu.");
   });
 
+  test("[SR-105/AK4] Ctrl/Cmd+S writes the change at once, while the second of autosave cannot pass", async () => {
+    const { window } = running;
+    const file = read(running, SR_FILE);
+    const before = await file();
+    // The clock of the window stands still: autosave's second never ends, so only the key can write.
+    await window.clock.install();
+    await window.clock.pauseAt(Date.now() + 1000);
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("Sofort.");
+    await expect(modeline(window)).toContainText("modified");
+    // More than autosave's second of real time: the file is unchanged, so autosave is held.
+    await window.waitForTimeout(1500);
+    expect(await file()).toBe(before);
+    await window.keyboard.press("ControlOrMeta+S");
+    await written(file, `${TEXT}\nSofort.`, Date.now());
+    await expect(minibuffer(window)).toHaveText(`Saved SR-0000c4 ${SR_TITLE}`);
+    await expect(modeline(window)).not.toContainText("modified");
+  });
+
   test("[SR-105/AK1] leaving the element writes the change at once: another buffer, Go to, Close buffer and Close all buffers", async () => {
     const { window } = running;
     // Another buffer (Alt+N): the file has the input before the second would have passed.

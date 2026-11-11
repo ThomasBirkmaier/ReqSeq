@@ -2,7 +2,7 @@
 // `element.create` and `element.update` return) that come from blocks importing the model, which
 // the model therefore cannot ask itself (`ElementHints`). SR-026 AK3: "Gegeben ein Element mit
 // offenem Hinweis, wenn es angezeigt wird, dann ist der Hinweis am Element sichtbar." The model
-// gives the element's own hints (SR-015, SR-016, SR-072 AK2, SR-085, SR-086); these follow:
+// gives the element's own hints (SR-005 AK4, SR-015, SR-016, SR-072 AK2, SR-085, SR-086); these follow:
 //
 // - the validity entries that name a superseded variant (SR-040 AK3);
 // - the validity entries of a variant (SR-039 AK3);

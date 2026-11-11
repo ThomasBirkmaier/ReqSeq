@@ -93,7 +93,7 @@ describe("the title of a target in another repository (D-058)", () => {
     expect(labels()).toEqual(["Measure gusts"]);
   });
 
-  it("[SR-066/AK2] a press on the title follows the reference", async () => {
+  it("[SR-066/AK4] a press on the title follows the reference", async () => {
     follow.mockClear();
     await show(TEXT, () => Promise.resolve("Measure gusts"));
     const shown = container.querySelector(".cm-lr-title");

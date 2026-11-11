@@ -154,6 +154,29 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
     expect(output.evidence?.view).toBe("core");
   });
 
+  it("[SR-126/AK1] of several equally new executions the cell shows the worst, as the status counts it", async () => {
+    // A second run of B01's test case at the same instant as run-2's passed one, failed.
+    const run3 =
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" tests="1" failures="1">\n' +
+      '    <testcase classname="tests.test_wind" name="test_speed[SR-126b01]" time="0.010">\n      <properties>\n' +
+      `        <property name="reqseq:element" value="${ID.B01}"/>\n` +
+      `        <property name="reqseq:version" value="${VERSION.B01}"/>\n` +
+      '        <property name="reqseq:item" value="build-603"/>\n' +
+      '        <property name="reqseq:date" value="2026-10-22T09:00:00Z"/>\n      </properties>\n' +
+      '      <failure message="too slow">AssertionError: too slow</failure>\n    </testcase>\n  </testsuite>\n</testsuites>\n';
+    const output = await matrix(await open({ ...MATRIX, files: { "evidence/ci/run-3.xml": run3 } }), {
+      selection: SR,
+    });
+    const [test] = rowOf(output, "B01").testCases ?? [];
+    expect([test?.last?.item, test?.last?.result, test?.last?.date, test?.mark]).toEqual([
+      "build-603",
+      "failed",
+      "2026-10-22T09:00:00Z",
+      "failed",
+    ]);
+    expect(statusOf(output, "B01")).toEqual(["core failed"]);
+  });
+
   it("[SR-126/AK1] gives the test cases the chain shows for the requirement in the same view", async () => {
     const workspace = await open({ ...MATRIX, files: COAST_FILES });
     const index = await workspace.get(evidenceIndexState);

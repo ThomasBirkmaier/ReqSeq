@@ -10,6 +10,7 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { CheckedWorkspaceFile } from "./config.js";
 import { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
 import { GIT_PLACE, gitPlaceOf } from "./git-folder.js";
+import { localFileUse } from "./local-use.js";
 
 export interface RepositoryLocation {
   /** Name in the workspace file. */
@@ -391,13 +392,15 @@ const locateMetamodel = async (
 };
 
 /**
- * Reads the workspace file in `root` (and the local overrides), locates every repository and the
+ * Reads the workspace file in `root` (and the local overrides, unless Git tracks them: `localFileUse`,
+ * SR-004 AK8), locates every repository and the
  * metamodel folder. Missing repositories never fail it (SR-004 AK3). Rejects with
  * `workspace.not-found` or `file.faulty` when the workspace file is missing or faulty.
  */
 export const loadWorkspaceLayout = async (root: string): Promise<WorkspaceLayout> => {
   const workspaceFile = await readWorkspaceFile(root);
-  const localFile = await readLocalFile(root);
+  const use = await localFileUse(root);
+  const localFile = use.use ? await readLocalFile(root) : { data: undefined, problems: [use.problem] };
   const file = workspaceFile.data;
   const local = localFile.data;
   const problems: Problem[] = [...workspaceFile.problems, ...localFile.problems];
