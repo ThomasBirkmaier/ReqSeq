@@ -26,7 +26,7 @@ import { errorCode, replaceErrorCode, resolveInRoot } from "./paths.js";
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
-import { scanXml } from "./xml-scan.js";
+import { scanXml, shown, streamXml } from "./xml-scan.js";
 
 /** Temp files are `.<file name>.<8 hex>.reqseq-tmp` in the target's folder (watchers ignore them). */
 export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.reqseq-tmp$/;
@@ -38,10 +38,11 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
  * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping), `xml` for
  * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029), `jsonl`
  * for ReqSeq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces, and
- * `copy` for a file ReqSeq copied there before, such as an image `reqif.export` copies (SR-052),
- * which only has to be unchanged.
+ * `reqif` for a ReqIF file `reqif.export` replaces, an XML file whose root element is `REQ-IF`
+ * (SR-207 AK1), and `copy` for a file ReqSeq copied there before, such as an image `reqif.export`
+ * copies (SR-052), which only has to be unchanged.
  */
-export type FileKind = "element" | "yaml" | "xml" | "jsonl" | "copy";
+export type FileKind = "element" | "yaml" | "xml" | "reqif" | "jsonl" | "copy";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
@@ -99,8 +100,33 @@ const REFUSAL: Readonly<
       ? `is no readable XML (line ${String(current.line)}); fix it by hand`
       : undefined;
   },
+  reqif: (_file, bytes) => {
+    // Each element's value is the name of the root, so nothing but one string is kept.
+    const read = streamXml<string>(bytes, {
+      open: (name, _attributes, _line, _start, _contentStart, _selfClosing, parent) => parent ?? name,
+      text: () => undefined,
+      close: () => undefined,
+    });
+    if (read.kind === "refused") {
+      return `is no readable XML (line ${String(read.line)}), so no ReqIF file; ReqSeq replaces only a ReqIF file`;
+    }
+    // The name without a namespace prefix: `reqif:REQ-IF` is a `REQ-IF` element as well.
+    return read.root.slice(read.root.indexOf(":") + 1) === "REQ-IF"
+      ? undefined
+      : `is no ReqIF file (its root element is <${shown(read.root)}>, not <REQ-IF>); ReqSeq replaces only a ReqIF file`;
+  },
   copy: () => undefined,
 };
+
+/**
+ * Why the bytes of `file` must not be replaced as a file of `kind`, or undefined: the check
+ * `writeFileAtomic` makes before a replace, for a caller that refuses before it writes anything else.
+ */
+export const replaceRefusal = (
+  kind: Exclude<FileKind, "jsonl">,
+  file: string,
+  bytes: Uint8Array,
+): string | undefined => REFUSAL[kind](file, bytes);
 
 /** Passes CommandErrors on and maps raw Node errors to codes of `common.schema.json#/$defs/error`. */
 const toCommandError = (error: unknown, file: string, replacing: boolean): CommandError => {

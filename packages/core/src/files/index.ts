@@ -50,6 +50,7 @@ export {
   createFilesAtomic,
   isTempFile,
   removeCreatedFiles,
+  replaceRefusal,
   TEMP_FILE_PATTERN,
   writeFileAtomic,
 } from "./write.js";
