@@ -110,8 +110,8 @@ const REFUSAL: Readonly<
     if (read.kind === "refused") {
       return `is no readable XML (line ${String(read.line)}), so no ReqIF file; ReqSeq replaces only a ReqIF file`;
     }
-    // The name without a namespace prefix: `reqif:REQ-IF` is a `REQ-IF` element as well.
-    return read.root.slice(read.root.indexOf(":") + 1) === "REQ-IF"
+    // The root element as SR-207 names it, `REQ-IF`; a prefixed name is another element.
+    return read.root === "REQ-IF"
       ? undefined
       : `is no ReqIF file (its root element is <${shown(read.root)}>, not <REQ-IF>); ReqSeq replaces only a ReqIF file`;
   },
