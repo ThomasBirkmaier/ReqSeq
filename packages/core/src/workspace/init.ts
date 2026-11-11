@@ -8,7 +8,7 @@ import { CommandError } from "../catalog.js";
 import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
-import { WORKSPACE_FILE } from "./config.js";
+import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
 import { refuseGitAt } from "./git-folder.js";
 
 /** The metamodel folder of a new workspace when the caller names none. */
@@ -175,36 +175,48 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
   } catch (error) {
     throw withWritten(error, written);
   }
-  // The workspace is complete here; the `.gitignore` line is a convenience and never fails the call.
-  const ignore = await ignoreTempFiles(root).catch(() => undefined);
+  // The workspace is complete here; the `.gitignore` lines are a convenience and never fail the call.
+  const ignore = await ignoreFiles(root).catch(() => undefined);
   return ignore === undefined ? written : [...written, ignore];
 };
 
 /** The line of `.gitignore` that keeps ReqSeq's temp files out of Git (#271, `TEMP_FILE_PATTERN`). */
 export const TEMP_FILE_IGNORE = "*.reqseq-tmp";
 
+/** The lines of `.gitignore` that `workspace.init` makes sure of (SR-014 AK1): temp files and the local file. */
+export const GITIGNORE_LINES: readonly string[] = [TEMP_FILE_IGNORE, LOCAL_FILE];
+
 /**
- * Adds `TEMP_FILE_IGNORE` to the `.gitignore` of `root` (product owner decision, 2026-11-02, #271):
- * creates the file, or appends the line with the file's own line ending when no line is it. A
- * `.gitignore` that cannot be read (a link, not a file) is left alone; its bytes are kept as they are.
- * Gives the path written, else undefined.
+ * Adds the `GITIGNORE_LINES` that are missing to the `.gitignore` of `root` (product owner
+ * decisions, 2026-11-02, #271, and 2026-11-11, #1456): creates the file, or appends the missing
+ * lines in one write, with the file's own line ending. A `.gitignore` that cannot be read (a link,
+ * not a file) is left alone; its bytes are kept as they are. Gives the path written, else undefined.
  */
-const ignoreTempFiles = async (root: string): Promise<string | undefined> => {
+const ignoreFiles = async (root: string): Promise<string | undefined> => {
   const current = await readFileSnapshot(root, GITIGNORE);
   if (current.kind === "problem") {
     return current.missing
-      ? (await writeFileAtomic(root, GITIGNORE, `${TEMP_FILE_IGNORE}\n`, null, { kind: "copy" })).path
+      ? (
+          await writeFileAtomic(root, GITIGNORE, GITIGNORE_LINES.map((l) => `${l}\n`).join(""), null, {
+            kind: "copy",
+          })
+        ).path
       : undefined;
   }
-  // Only read to find the line and the line ending; the bytes are kept as they are (any encoding).
+  // Only read to find the lines and the line ending; the bytes are kept as they are (any encoding).
   const text = Buffer.from(current.bytes).toString("latin1");
   // Git keeps leading spaces as part of a pattern and drops trailing ones.
-  if (text.split(/\r?\n/).some((line) => line.trimEnd() === TEMP_FILE_IGNORE)) {
+  const present = new Set(text.split(/\r?\n/).map((line) => line.trimEnd()));
+  const missing = GITIGNORE_LINES.filter((line) => !present.has(line));
+  if (missing.length === 0) {
     return undefined;
   }
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const lead = text === "" || text.endsWith("\n") ? "" : eol;
-  const bytes = Buffer.concat([current.bytes, Buffer.from(`${lead}${TEMP_FILE_IGNORE}${eol}`)]);
+  const bytes = Buffer.concat([
+    current.bytes,
+    Buffer.from(`${lead}${missing.map((l) => `${l}${eol}`).join("")}`),
+  ]);
   return (await writeFileAtomic(root, GITIGNORE, bytes, current.snapshot, { kind: "copy" })).path;
 };
 

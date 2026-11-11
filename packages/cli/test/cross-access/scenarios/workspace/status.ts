@@ -1,4 +1,5 @@
 // Cross-access scenarios of workspace.status, in addition to the default one (cross-access.test.ts).
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("workspace.status", [
@@ -30,6 +31,26 @@ scenariosOf("workspace.status", [
     fixture: { fixture: "SR-173/independent", git: true },
     input: {},
     expect: "output",
+  },
+  {
+    // Committed with the fixture: every access ignores it with the same warning (#1456).
+    name: "a local file tracked by Git",
+    tag: "[SR-004/AK8]",
+    fixture: {
+      fixture: "SR-004/one-repository",
+      git: true,
+      files: { ".reqseq/local.yaml": "reqseq-local: 1\n" },
+    },
+    input: {},
+    expect: "output",
+    check: (results) => {
+      const problems =
+        (results["core"]?.outcome as { output?: { problems?: { file?: string; message: string }[] } }).output
+          ?.problems ?? [];
+      expect(problems.filter((p) => p.file === ".reqseq/local.yaml").map((p) => p.message)).toEqual([
+        expect.stringContaining("is tracked by Git"),
+      ]);
+    },
   },
   { name: "unknown input field", input: { extra: 1 }, expect: "error" },
 ]);

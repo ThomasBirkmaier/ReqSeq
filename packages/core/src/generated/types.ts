@@ -1603,7 +1603,7 @@ export interface ReqifMappingFileWithDefaults {
 }
 
 /**
- * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.
+ * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. A file Git tracks or has staged is ignored with a warning, and the places of the workspace file apply (SR-004 AK8); `workspace.init` adds `.reqseq/local.yaml` to `.gitignore` (SR-014 AK1). It overrides where a repository of the workspace lies locally. Faulty content is reported as a warning and ignored.
  * Schema: `schemas/workspace-local.schema.json#`.
  */
 export interface WorkspaceLocalFile {
