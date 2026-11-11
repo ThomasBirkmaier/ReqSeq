@@ -106,6 +106,8 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
+References of the form `ThomasBirkmaier/ReqSeq-archive#N` point to issues and pull requests of an earlier repository that is not public.
+
 ## License
 
 ReqSeq is free to try. We plan to publish it under a source-available license before 1.0. Feedback and [issues](https://github.com/ThomasBirkmaier/ReqSeq/issues) are very welcome.
