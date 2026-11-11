@@ -2,17 +2,19 @@
 // model of `@reqseq/testkit/status-model`, on generated elements and workspaces. No test here names an [SR/AK] token:
 // they are no evidence of the tool (the model's rule table names the sources).
 //
-// The workspace test builds the inputs of `workspaceStatusOf` (status source, child rules, view scope, version
-// reader) from the model and compares `verificationOf` per requirement, asking in a generated order. So it checks
-// what the core does with them: own records per view (`holdsIn`, SR-173 pooling), the counted children (type,
-// invalid status, view, each once), indirect, missing children, emergent, cycles, the shared neutral view of the
-// variants, the entries per view (invalid variants), and which versions `prepare` reads.
+// The workspace test builds the inputs of `workspaceStatusOf` from the model and compares `verificationOf` per
+// requirement (and none for a need, W8), asking in a generated order. The adapter supplies, from the model: the child
+// rules (`childrenOf` by W1, `counts` by the invalid status), the source's `emergent`, `independent` and `criteriaOf`,
+// the scope (`includesIn` by W2 to W7, `removersOf`) and a version reader. So it checks what the core does with them:
+// own records per view (`holdsIn`, SR-173 pooling), the counted children (type, view, each once), indirect, missing
+// children, emergent, cycles, the shared neutral view of the variants, the entries per view (invalid variants), and
+// the walk of `prepare` (a second pass prepares each element alone).
 //
 // What level 1 does not check: the reader (records it refuses, Markdown and JUnit forms, criteria order as read),
-// the metamodel meanings, relation resolution and twins (the adapter resolves items with the model's W1 for the
-// child rules), the real view rule index (`viewRuleIndexOf`, `ruleScope`: the adapter's scope applies the model's
-// W2 to W7), version hashes and the Git walk behind older criteria (`older-criteria.ts`), and the index order of the
-// store. The level-2 tests of #1396 cover them through a workspace on disk.
+// the metamodel meanings, relation resolution and twins in the trace block (`childrenOf`), the real view rule index
+// (`viewRuleIndexOf`, `ruleScope`), files of one UUID with their own criteria and versions (R4: the generator gives
+// them one own part), version hashes and the Git walk behind older criteria (`older-criteria.ts`), and the index
+// order of the store. The level-2 tests of #1396 cover them through a workspace on disk.
 //
 // Runs: STATUS_MODEL_RUNS (default 1000) and STATUS_MODEL_SEED (default fixed); a failure names the seed.
 import {
@@ -269,13 +271,11 @@ function coreWorkspace(ws: ModelWorkspace) {
             .map(([, variantFile]) => nodeKey(variantFile));
     },
   };
-  let reads = 0;
   const status = workspaceStatusOf(
     source,
     [...variantFiles.values()],
     children,
     (wanted) => {
-      reads += wanted.length;
       return Promise.resolve(new Map(wanted.map((file) => [file, READ_FORMS])));
     },
     scope,
@@ -284,7 +284,7 @@ function coreWorkspace(ws: ModelWorkspace) {
     { kind: "core" },
     ...[...variantFiles.values()].map((variant) => ({ kind: "variant" as const, variant })),
   ];
-  return { files, source, status, views, reads: () => reads };
+  return { files, source, status, views };
 }
 
 /** The model's entries as the core shows them: missing children by UUID, each once and sorted. */
@@ -340,14 +340,33 @@ describe("status model level 1: workspaces against the reference model", () => {
         }
       }
       const expected = modelWorkspaceStatusOf(ws);
+      const compare = (shown: typeof status, element: ModelWorkspaceElement, file: ElementRecord) => {
+        expect({ key: element.key, entries: actualEntries(verificationOf(shown, file)) }).toEqual({
+          key: element.key,
+          entries: expectedEntries(ws, expected.get(element.key) ?? []),
+        });
+      };
       for (const element of ordered) {
         const file = files.get(element);
         expect(file).toBeDefined();
         if (file !== undefined) {
-          expect({ key: element.key, entries: actualEntries(verificationOf(status, file)) }).toEqual({
-            key: element.key,
-            entries: expectedEntries(ws, expected.get(element.key) ?? []),
-          });
+          compare(status, element, file);
+        }
+      }
+      // W8: a need has no verification entries at all.
+      for (const [element, file] of files) {
+        if (element.type === "need") {
+          expect(verificationOf(status, file)).toBeUndefined();
+        }
+      }
+      // The walk of `prepare`: a fresh status, each element prepared alone and compared at once, so the versions
+      // of its counted children come only from the walk below it (an element asked before may have read some).
+      const fresh = coreWorkspace(ws);
+      for (const element of ordered) {
+        const file = fresh.files.get(element);
+        if (file !== undefined) {
+          await fresh.status.prepare([file], { own: true });
+          compare(fresh.status, element, file);
         }
       }
     }, parameters);

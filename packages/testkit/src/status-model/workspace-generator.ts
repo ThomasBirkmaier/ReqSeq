@@ -6,8 +6,8 @@
 // a validation record with a variant is refused by the reader (SR-038 AK4), which is level 2 (#1396). Pure, so a seed
 // replays a case and shrinking works.
 import fc from "fast-check";
-import { statusModelElement } from "./generator.js";
-import type { ModelElement } from "./model.js";
+import { renderDate, statusModelElement } from "./generator.js";
+import { CURRENT, type ModelElement, type ModelRecord } from "./model.js";
 import type { ModelRef, ModelVariant, ModelWorkspace, ModelWorkspaceElement } from "./workspace-model.js";
 
 export const REPOSITORIES = ["spec", "lib"] as const;
@@ -25,6 +25,13 @@ const refArbitrary: fc.Arbitrary<ModelRef> = fc
     repository: fc.option(repositoryArbitrary, { nil: undefined, freq: 2 }),
   })
   .map(({ id, repository }) => (repository === undefined ? { id } : { id, repository }));
+
+/** An item naming the UUID by position of an element before `index` (itself for the first), in its repository. */
+function lowerRefArbitrary(index: number): fc.Arbitrary<ModelRef> {
+  return fc
+    .constantFrom(...ELEMENT_IDS.slice(0, Math.max(1, Math.min(index, ELEMENT_IDS.length))))
+    .map((id) => ({ id }));
+}
 
 function variantsArbitrary(): fc.Arbitrary<ModelVariant[]> {
   return fc.integer({ min: 0, max: VARIANT_IDS.length }).chain((count) =>
@@ -47,15 +54,29 @@ function ownArbitrary(variants: readonly string[]): fc.Arbitrary<ModelElement> {
     variants.length === 0
       ? fc.constant(undefined)
       : fc.option(fc.constantFrom(...variants), { nil: undefined, freq: 2 });
+  // Shape 0: the records of `statusModelElement`; 1: one passed record of the current version, so leaves are often
+  // verified; 2: no record, so a parent decides by its children.
   return fc
-    .tuple(statusModelElement(), fc.array(variantArbitrary, { minLength: 6, maxLength: 6 }))
-    .map(([own, variantsOfRecords]) => ({
-      ...own,
-      records: own.records.map((record, position) => {
-        const variant = variantsOfRecords[position];
-        return record.kind === "verification" && variant !== undefined ? { ...record, variant } : record;
-      }),
-    }));
+    .tuple(
+      statusModelElement(),
+      fc.array(variantArbitrary, { minLength: 6, maxLength: 6 }),
+      fc.integer({ min: 0, max: 2 }),
+    )
+    .map(([own, variantsOfRecords, shape]) => {
+      const records: readonly ModelRecord[] =
+        shape === 1
+          ? [{ kind: "verification", version: CURRENT, date: renderDate(0, "Z"), result: "passed" }]
+          : shape === 2
+            ? []
+            : own.records;
+      return {
+        ...own,
+        records: records.map((record, position) => {
+          const variant = variantsOfRecords[position];
+          return record.kind === "verification" && variant !== undefined ? { ...record, variant } : record;
+        }),
+      };
+    });
 }
 
 function elementArbitrary(
@@ -79,12 +100,16 @@ function elementArbitrary(
       ),
       need: fc.integer({ min: 0, max: 7 }).map((value) => value === 0),
       invalid: fc.integer({ min: 0, max: 6 }).map((value) => value === 0),
-      emergent: fc.integer({ min: 0, max: 3 }).map((value) => value === 0),
+      emergent: fc.integer({ min: 0, max: 2 }).map((value) => value === 0),
       validity: fc.oneof(
         { weight: 2, arbitrary: fc.constant([] as string[]) },
         { weight: 1, arbitrary: fc.subarray([...variants]) },
       ),
-      derivesFrom: fc.array(refArbitrary, { maxLength: 2 }),
+      // Mostly a parent of a lower position, so chains of depth 2 and 3 form; sometimes any, for cycles.
+      derivesFrom: fc.array(
+        fc.oneof({ weight: 3, arbitrary: lowerRefArbitrary(index) }, { weight: 1, arbitrary: refArbitrary }),
+        { maxLength: 2 },
+      ),
       replaces: fc.array(refArbitrary, { maxLength: 1 }),
     })
     .map(({ uuid, repository, need, invalid, emergent, validity, derivesFrom, replaces }) => ({

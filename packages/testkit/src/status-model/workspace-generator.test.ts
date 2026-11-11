@@ -1,16 +1,80 @@
-// The workspace generator of the status model (#1395): with the fixed seed it produces every feature the level-1
-// comparison relies on, and no record the reader refuses.
+// The workspace generator of the status model (#1395): with the seed and run count of the property runs it produces
+// every feature the level-1 comparison relies on, and no record the reader refuses.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { statusModelWorkspace } from "./workspace-generator.js";
+import { DEFAULT_RUNS, DEFAULT_SEED } from "./run.js";
 import {
+  CORE_VIEW,
   type ModelWorkspace,
   appliesIn,
+  countedChildren,
+  entriesInView,
+  recordsInView,
   isExcluded,
   isReplaced,
   resolveRef,
   workspaceStatusOf,
 } from "./workspace-model.js";
+
+type Add = (condition: boolean, feature: string) => void;
+
+function relationFeatures(ws: ModelWorkspace, add: Add): void {
+  for (const element of ws.elements) {
+    add(
+      ws.elements.some((other) => other.id === element.id && other.repository !== element.repository),
+      "twins in two repositories",
+    );
+    add(
+      ws.elements.some(
+        (other) =>
+          other !== element &&
+          other.derivesFrom.some((ref) => resolveRef(ws, ref, other.repository) === element) &&
+          element.derivesFrom.some((ref) => resolveRef(ws, ref, element.repository) === other),
+      ),
+      "2-cycle",
+    );
+    add(
+      ws.variants.some(
+        (variant) =>
+          isReplaced(ws, element, variant.id) &&
+          ws.elements.some(
+            (other) =>
+              other.invalid &&
+              other.validity.includes(variant.id) &&
+              other.replaces.some((ref) => resolveRef(ws, ref, other.repository) === element),
+          ),
+      ),
+      "replaced by an invalid requirement",
+    );
+  }
+}
+
+function viewFeatures(ws: ModelWorkspace, add: Add): void {
+  for (const view of [
+    CORE_VIEW,
+    ...ws.variants.filter((variant) => !variant.invalid).map((variant) => variant.id),
+  ]) {
+    const entries = entriesInView(ws, view);
+    const done = (key: string) => ["verified", "indirect"].includes(entries.get(key)?.status ?? "");
+    for (const element of ws.elements) {
+      const children = countedChildren(ws, element, view);
+      add(
+        element.emergent &&
+          entries.has(element.key) &&
+          recordsInView(ws, element, view).length === 0 &&
+          children.length > 0 &&
+          children.every((child) => done(child.key)),
+        "emergent parent with all children verified",
+      );
+      add(
+        entries.get(element.key)?.status === "indirect" &&
+          children.some((child) => entries.get(child.key)?.status === "indirect"),
+        "indirect child of an indirect parent",
+      );
+    }
+  }
+}
 
 function featuresOf(ws: ModelWorkspace): string[] {
   const features: string[] = [];
@@ -94,6 +158,8 @@ function featuresOf(ws: ModelWorkspace): string[] {
       "excludes a requirement with validity",
     );
   }
+  relationFeatures(ws, add);
+  viewFeatures(ws, add);
   for (const entries of workspaceStatusOf(ws).values()) {
     for (const entry of entries) {
       features.push(`status ${entry.status}`);
@@ -110,9 +176,9 @@ function featuresOf(ws: ModelWorkspace): string[] {
 }
 
 describe("status model workspace generator", () => {
-  it("produces every feature with a fixed seed", () => {
+  it("produces every feature with the seed and run count of the property runs", () => {
     const seen = new Set(
-      fc.sample(statusModelWorkspace(), { seed: 1395, numRuns: 2000 }).flatMap(featuresOf),
+      fc.sample(statusModelWorkspace(), { seed: DEFAULT_SEED, numRuns: DEFAULT_RUNS }).flatMap(featuresOf),
     );
     const expected = [
       "variant-independent repository",
@@ -138,6 +204,11 @@ describe("status model workspace generator", () => {
       "indirect in a variant",
       "two missing children",
       "emergent child missing",
+      "twins in two repositories",
+      "2-cycle",
+      "replaced by an invalid requirement",
+      "emergent parent with all children verified",
+      "indirect child of an indirect parent",
       "own status with criteria",
     ];
     expect(expected.filter((feature) => !seen.has(feature))).toEqual([]);
