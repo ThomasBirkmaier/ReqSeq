@@ -5,6 +5,8 @@
 import fc from "fast-check";
 import { statusModelElement } from "./generator.js";
 import type { ModelElement } from "./model.js";
+import { statusModelWorkspace } from "./workspace-generator.js";
+import type { ModelWorkspace } from "./workspace-model.js";
 
 /** The fixed seed of a run without STATUS_MODEL_SEED. */
 export const DEFAULT_SEED = 1394;
@@ -33,8 +35,12 @@ export function propertyParameters(env: Readonly<Record<string, string | undefin
 
 /** Checks `check` (which throws on a difference) on generated elements; throws with the seed on the first failure. */
 export function forAllElements(check: (element: ModelElement) => void, parameters: PropertyParameters): void {
+  runProperty(fc.property(statusModelElement(), check), parameters);
+}
+
+function runProperty<T>(property: fc.IProperty<T>, parameters: PropertyParameters): void {
   try {
-    fc.assert(fc.property(statusModelElement(), check), {
+    fc.assert(property, {
       numRuns: parameters.numRuns,
       seed: parameters.seed,
     });
@@ -49,4 +55,12 @@ export function forAllElements(check: (element: ModelElement) => void, parameter
       { cause: error },
     );
   }
+}
+
+/** Checks `check` on generated workspaces (#1395), like `forAllElements`. */
+export function forAllWorkspaces(
+  check: (workspace: ModelWorkspace) => void,
+  parameters: PropertyParameters,
+): void {
+  runProperty(fc.property(statusModelWorkspace(), check), parameters);
 }

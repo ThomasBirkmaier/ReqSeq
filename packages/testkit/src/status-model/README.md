@@ -4,11 +4,12 @@ A second, deliberately naive implementation of the status rules, written from th
 
 - `model.ts`: one small function per rule below, the rule's source in its comment.
 - `generator.ts`: fast-check arbitraries of small abstract inputs (one requirement, its acceptance criteria with criterion keys, older versions, records). Only records the reader accepts; refused ones belong to level 2 (#1396).
-- `run.ts`: `forAllElements` runs a check over generated elements with `propertyParameters(process.env)`: `STATUS_MODEL_RUNS` (default 1000) and `STATUS_MODEL_SEED` (default 1394); a failure names the seed and the shrunk input.
-- Level 1, `packages/core/src/evidence/status-model.property.test.ts`: the core's pure functions (`ownVerificationOf`, `criterionStatusesOf`, `validationOf`) against the model, core view only; the file names what it does not check.
+- `workspace-model.ts`, `workspace-generator.ts` (#1395): views, records per view and indirect verification over small workspaces (rules W, R, I below).
+- `run.ts`: `forAllElements` and `forAllWorkspaces` run a check over generated inputs with `propertyParameters(process.env)`: `STATUS_MODEL_RUNS` (default 1000) and `STATUS_MODEL_SEED` (default 1394); a failure names the seed and the shrunk input.
+- Level 1, `packages/core/src/evidence/status-model.property.test.ts`: the core's pure functions against the model; the file names what it does not check.
 - Import it from `@reqseq/testkit/status-model`, not from `@reqseq/testkit`, so only the tests that use it load fast-check.
 
-Scope of this part: the own records of one element in one view. Views, variants, indirect verification and emergent elements follow in #1389's later parts. Not modelled: records refused by the reader (SR-038 AK4, SR-172 AK1, AK3).
+Scope: the own records of one element (#1394), and views, variants, indirect verification and emergent elements over a workspace (#1395). Not modelled: records refused by the reader (SR-038 AK4, SR-172 AK1, AK3), repositories that are not on this machine (`incomplete`, SR-006), and a metamodel without the meanings or not valid.
 
 ## Rules
 
@@ -46,3 +47,35 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | A4 | Ties at the newest instant (V7, V8): the worst result, failed before inconclusive before passed. | SR-038 AK3: „… bei mehreren gleich neuen nach dem schlechtesten Ergebnis (nicht erfolgreich vor nicht beurteilbar vor erfolgreich) …“ |
 | A5 | Records of older versions only: outdated. | SR-038 AK2: „Gegeben ein Element, dessen Validierungs-Datensätze alle zu älteren Fassungen gehören, wenn der Status berechnet wird, dann ist er veraltet.“ |
 | A6 | An inconclusive status carries the reason of its record; on a tie of several inconclusive records, the reason of the first in index order (here: input order). | SR-172 AK2: „… dann ist er nicht beurteilbar … und das Tool zeigt die Begründung.“ The tie: assumption, ADR-0012 „Validation status“ (#807 Q3) |
+
+### Views (Sichten)
+
+| # | Rule | Source |
+| --- | --- | --- |
+| W1 | A relation item resolves in the repository it names, else in its source's repository; it names an element only when exactly one file there carries the UUID. Two files of one UUID in that repository (twins) make it ambiguous: it names neither, so its source is no child and a replacement or exclusion through it has no effect. | ADR-0004 (relation target `repository`, D-058); trace block (`childrenOf`: „each of them is `unresolved` with the state `ambiguous`“); SR-088 |
+| W2 | The core view holds the requirements without validity. | SR-043 AK9: „Gegeben die Sicht des Kerns, wenn sie gewählt wird, dann zeigt das Tool nur Requirements ohne Gültigkeit.“ SR-040 AK1 |
+| W3 | A requirement with validity is in the view of each variant it names, and only there. | SR-040 AK2: „Gegeben ein Requirement mit der Gültigkeit Variante A und Variante B, wenn die Sichten berechnet werden, dann gilt es nur für diese beiden.“ |
+| W4 | A variant's view holds the core requirements it neither excludes nor replaces. | SR-040 AK1: „… in der Sicht jeder Variante, die es weder ausschließt noch ersetzt.“ SR-043 AK1 |
+| W5 | An exclusion of a variant takes the core requirement it names out of that variant's view; one naming a requirement with validity or an element without validity changes no view. | SR-042 AK1, AK7: „… nennt ein Requirement mit Gültigkeit oder ein Element ohne Property mit der Bedeutung Gültigkeit … dann ändert sich keine Sicht …“ |
+| W6 | A requirement with validity and the relation replaces on a core requirement takes it out of the views of the variants of its validity, whatever its own status; without validity, or on a target with validity or without validity property, it changes no view. Several replacing requirements are all in the view. | SR-041 AK1, AK3, AK4, AK6, AK7, AK8, AK9: „… ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht …“ |
+| W7 | Elements of a type without validity (needs) are in every view. Exclusion before replacement (SR-042 AK5) changes `variant.diff` only: both take the core requirement out of the view. | SR-043 AK10; SR-042 AK5 |
+| W8 | A requirement has one entry for the core when it is in the core view, and one for each variant whose view holds it, none for a variant with an invalid status. Other types have none. | SR-047 AK3: „… je einen Eintrag für den Kern, wenn es dort gilt, und für jede Variante, für die es gilt …“; AK6: „Gegeben eine Variante mit ungültigem Status, … dann gibt es für sie keinen Eintrag“; ADR-0012 „Which elements“ |
+
+### Records per view
+
+| # | Rule | Source |
+| --- | --- | --- |
+| R1 | In the core view only verification records without variant count. | SR-047 AK2: „Gegeben ein Datensatz ohne Angabe einer Variante, wenn der Status berechnet wird, dann zählt er nur für den Kern, außer …“; SR-173 AK2 |
+| R2 | In a variant's view the records for that variant count; records for another variant never. | SR-047 AK1: „… mit einem bestandenen Datensatz für Variante A, wenn der Status für Variante B berechnet wird, dann ist er dort offen.“ |
+| R3 | When the element's repository is variant-independent, its records without variant count in every variant's view too, pooled with that variant's records (V4 to V15 over both). The element's repository decides. | SR-173 AK1: „… dann zählt er für den Kern und für jede Variante, für die das Element gilt.“ Rationale (#817): „Es zählt das Repository des Elements, nicht das des Datensatzes.“ Pooling: ADR-0012 „Which records count“ |
+
+### Indirect verification (Indirekter Nachweis)
+
+| # | Rule | Source |
+| --- | --- | --- |
+| I1 | A requirement with a verification record that counts in the view (R1 to R3, any version, any result) takes its status from its records (V3 to V16). | SR-034 AK1: „Gegeben ein Parent ohne eigenen Datensatz der Art Nachweis in der betrachteten Sicht …“; ADR-0012 „Indirect verification“ |
+| I2 | The counted children of a parent in a view: the elements with a derivation item that names it (W1), whose type is requirement, whose status is not invalid and that are in the view; each once. A replacing requirement has only its own children. | SR-034 AK1 („mindestens ein gültiges Child hat, das ein Requirement ist“), AK3: „Gegeben ein Child hat einen als ungültig gekennzeichneten Status, … dann zählt dieses Child nicht.“ D-044; SR-043 AK7; SR-041 AK5: „SR-A hat nur seine eigenen Beziehungen …“ |
+| I3 | Without own record, with at least one counted child, and every counted child verified or itself indirect in the same view: indirect. | SR-034 AK1: „… und jedes dieser Children ist nachgewiesen oder selbst indirekt nachgewiesen, … dann ist er indirekt nachgewiesen.“ |
+| I4 | Otherwise open; when counted children are failed, open or outdated, it names them (direct children only, compared as a set). Without a counted child it names none. | SR-034 AK2: „… dann ist er nicht indirekt nachgewiesen und das Tool nennt die direkten Children, die fehlen.“ `open`, and none named without a counted child: assumption, ADR-0012 (ThomasBirkmaier/ReqSeq-archive#526 Q3, Q4) |
+| I5 | An emergent requirement without own record is open, never indirect, and names no children; as a child it is open, so it is missing. | SR-035 AK1: „… dann reicht der indirekte Nachweis über Children nicht, sondern es braucht einen eigenen Datensatz.“ No children named: assumption, ADR-0012 „Emergent“ (3) (ThomasBirkmaier/ReqSeq-archive#591 Q3) |
+| I6 | An element on a derivation cycle of elements without own record is not indirect: indirect is the least fixed point of I3, so a cycle never verifies itself. | Assumption: ADR-0012 „Indirect verification“ (ThomasBirkmaier/ReqSeq-archive#526 Q5) |

@@ -3,3 +3,5 @@
 export * from "./generator.js";
 export * from "./model.js";
 export * from "./run.js";
+export * from "./workspace-generator.js";
+export * from "./workspace-model.js";
