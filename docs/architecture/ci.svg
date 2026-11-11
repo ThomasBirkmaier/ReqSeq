@@ -108,13 +108,15 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 <path class="arr" d="M232,1256 L256,1256"/>
 <rect class="trig" x="20" y="1310" width="212" height="46" rx="5"/><text class="n" x="30" y="1329">workflow_dispatch</text><text class="s" x="30" y="1345">inputs: workflow, run-id</text>
 <path class="arr" d="M232,1333 L256,1333"/>
-<rect class="lane u" x="286" y="1212" width="1403.2" height="84" rx="8"/>
+<rect class="lane u" x="286" y="1212" width="1403.2" height="140" rx="8"/>
 <text class="lh u" x="298" y="1229">UBUNTU-24.04</text>
 <rect class="box u" x="298" y="1238" width="302.8" height="46" rx="5"/><text class="n" x="308" y="1257">enrich</text><text class="s" x="308" y="1273">job enrich</text>
 <path class="arr" d="M256,1261 L298,1261" marker-end="url(#ah)"/>
-<rect class="box u" x="656.8" y="1238" width="302.8" height="46" rx="5"/><text class="n" x="666.8" y="1257">publish</text><text class="s" x="666.8" y="1273">job publish</text>
+<rect class="box u" x="656.8" y="1238" width="302.8" height="46" rx="5"/><text class="n" x="666.8" y="1257">report a drop of the degree</text><text class="s" x="666.8" y="1273">job report</text>
+<rect class="box u" x="656.8" y="1294" width="302.8" height="46" rx="5"/><text class="n" x="666.8" y="1313">publish</text><text class="s" x="666.8" y="1329">job publish</text>
 <path class="arr" d="M256,1256 L256,1333"/>
 <path class="arr" d="M600.8,1261 L628.8,1261 L628.8,1261 L656.8,1261" marker-end="url(#ah)"/>
+<path class="arr" d="M600.8,1261 L628.8,1261 L628.8,1317 L656.8,1317" marker-end="url(#ah)"/>
 <line class="sep" x1="20" y1="1380" x2="1689.2" y2="1380"/>
 <text class="h" x="20" y="1402">Issue working · issue-working.yml</text>
 <rect class="trig" x="20" y="1416" width="212" height="46" rx="5"/><text class="n" x="30" y="1435">pull_request_target</text><text class="s" x="30" y="1451">opened, reopened, edited, closed</text>
