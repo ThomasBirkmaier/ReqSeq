@@ -1,13 +1,13 @@
 # spec/
 
-The ReqSeq specification, a ReqSeq workspace (D-064, enabler ThomasBirkmaier/ReqSeq-archive#326). Until stage 3 it was exported from the former Logseq graph (also named ReqSeq) (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
+The ReqSeq specification, a ReqSeq workspace (enabler ThomasBirkmaier/ReqSeq-archive#326). Until stage 3 it was exported from the former Logseq graph (also named ReqSeq) (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
 
 **Change it only with ReqSeq** (CLI or MCP), in a pull request, German texts carrying exactly the decided content as requirement text, never as a chat quote (CLAUDE.md, "Repository text"). Status is set only by a person. See CLAUDE.md, "Sources of truth".
 
 ## Layout
 
 - `reqseq-workspace.yaml`: the workspace, one repository `spec` (this folder).
-- `metamodel/spec-model.yaml`: the standard model (D-037) with the additions of this spec (D-060): property `spec-id` (meaning `identifier`), statuses per type, the glossary term.
+- `metamodel/spec-model.yaml`: the standard model (D-037) with the deviations its header lists (D-060): property `spec-id` (meaning `identifier`), statuses per type, the glossary term.
 - One Markdown file per element (D-015), named by D-056 (`SR-5a8b253c90b0.md`), in a folder named like its type key, which is where `element create` puts new elements: `need/`, `system-requirement/`, `decision/`, `glossary-term/`, `package/`, `variant/`.
 - `package/`: one package per topic (D-040), for example `Ablage`, `Metamodell`, `Traceability`, `Nachweis`, `Editor`, `App`. Every system requirement and need names its topic package in `packages`. Packages give the structure, not the schedule; the schedule is the milestone of the issues (product owner decision, 2026-11-05). The stage packages `Stufe-1` to `Stufe-6`, `Querschnitt`, `v0.9` and `Später` are obsolete.
 - `variant/`: the variants Windows, Linux and macOS (`VAR-001` to `VAR-003`, #361); a requirement that holds only on one system names it in `validity`.
@@ -35,8 +35,3 @@ node packages/cli/dist/bin.js element list --with-text --package Editor --where-
 `pnpm reqseq <command> ... --workspace spec` is the same; `pnpm spec:check` runs the check. The MCP server is `node packages/cli/dist/bin.js mcp --workspace spec`.
 
 New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` (an ID reserved for an approved draft is not free). A new system requirement or need goes into the package of its topic: `element update` with `set: {"packages": [{"id": "<UUID of the package>"}]}` (`element get Editor` gives the UUID).
-
-## Known limits
-
-- Mentions of spec IDs in acceptance criteria are plain text (properties are not Markdown text, ThomasBirkmaier/ReqSeq-archive#379).
-- The successor's own `supersedes` relation to a superseded decision is reported as `relation.target-superseded` (warning, exit code 0, ThomasBirkmaier/ReqSeq-archive#304, ThomasBirkmaier/ReqSeq-archive#382).

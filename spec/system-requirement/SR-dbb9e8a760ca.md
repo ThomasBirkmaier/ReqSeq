@@ -16,7 +16,7 @@ derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
-  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:cd7f259e8803f8f3, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:bc790e5fb52a4b70, title: Aufbau der Dateien mit fester Länge des Dateinamens }
 ---
 
 Das Tool muss die Zuordnung der Typen und Attribute einer Quelle zum eigenen Metamodell als Datei speichern und wiederverwenden.
