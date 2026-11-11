@@ -18,7 +18,8 @@
 //   with records, `open` without.
 // - Per acceptance criterion (D-072, AK5 to AK8, `ownVerificationOf`): an element with criteria (the
 //   property with the meaning `acceptance-criteria`, `StatusSource.criteriaOf`) gets the rule above
-//   per criterion, a record without `criteria` counting for each (AK6); its status is failed when one
+//   per criterion, a record without `criteria` counting for each (AK6), one with `criteria` for the
+//   current criteria they resolve to by key or number (AK11, AK12, `criteria.ts`); its status is failed when one
 //   criterion failed, verified when all are, else open or outdated (see `ownVerificationOf`), with the
 //   count of verified criteria (`CriteriaCount`). Without criteria the rule holds for the whole
 //   requirement (AK7).
@@ -34,13 +35,18 @@
 // record of no current version.
 // The indirect verification of a requirement without own record (SR-034) is `indirect.ts`; the state
 // that commands and the filter share is `verification.ts`.
-import type { DataExportElement, ValidationStatus, VerificationStatus } from "../generated/types.js";
+import type {
+  DataExportCriterionName,
+  DataExportElement,
+  ValidationStatus,
+  VerificationStatus,
+} from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
-  criteriaCount,
+  criteriaItemsOf,
   emergentKeyOf,
   invalidStatuses,
   isEmergent,
@@ -53,6 +59,8 @@ import { holdsIn } from "./holds.js";
 import type { VersionForms } from "../model/index.js";
 import { sameVersion } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
+import type { ElementCriteria, OlderCriteria } from "./criteria.js";
+import { criteriaFrom, criterionNameAt, elementCriteria, NO_OLDER_CRITERIA } from "./criteria.js";
 
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
 export type RecordStatus = "open" | "passed" | "failed" | "inconclusive" | "outdated";
@@ -128,8 +136,8 @@ export const recordStatusOf = (
 export interface CriteriaCount {
   readonly verified: number;
   readonly total: number;
-  /** The numbers of the criteria that are not verified, ascending; left out when there is none. */
-  readonly notVerified?: readonly number[];
+  /** The criteria that are not verified, by number ascending, with key and text (SR-205 AK2); left out when there is none. */
+  readonly notVerified?: readonly DataExportCriterionName[];
 }
 
 /** The verification status of an element from its own records, with its criteria counted (SR-031). */
@@ -184,25 +192,39 @@ const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerification
   return all.counted || own?.counted === true ? "outdated" : "open";
 };
 
-/** The results in which every criterion has one status, one frozen object per status and count (by count). */
-const uniform: Record<RecordVerificationStatus, OwnVerification[]> = {
-  open: [],
-  verified: [],
-  failed: [],
-  outdated: [],
+/** The results in which every criterion has one status, one frozen object per status (by the criteria items). */
+type Uniform = Partial<Record<RecordVerificationStatus, OwnVerification>>;
+
+const uniform = new WeakMap<readonly unknown[], Uniform>();
+
+/** The results that name no criterion (none, or all verified), shared by count across elements. */
+const uniformByCount = new Map<number, Uniform>();
+
+/** The cache of `uniformWith` for `status` and `criteria`: by count where no criterion is named. */
+const uniformCache = (status: RecordVerificationStatus, criteria: ElementCriteria): Uniform => {
+  const byCount = criteria.count === 0 || status === "verified";
+  const known = (byCount ? uniformByCount.get(criteria.count) : uniform.get(criteria.items)) ?? {};
+  if (byCount) {
+    uniformByCount.set(criteria.count, known);
+  } else {
+    uniform.set(criteria.items, known);
+  }
+  return known;
 };
 
 /**
- * The result when every one of `count` criteria has `status` (`count` 0: no criteria, AK7): all
- * verified, or none (AK1, D-072: the tool shows how many are verified). Frozen and shared: no key
- * and no object per call (N-036, a baseline page asks it for hundreds of thousands of rows).
+ * The result when every criterion of `criteria` has `status` (none: no criteria, AK7): all verified,
+ * or none (AK1, D-072: the tool shows how many are verified). Frozen and shared, by count where it
+ * names no criterion and else per criteria items: no object per call (N-036, a baseline page asks it
+ * for hundreds of thousands of rows).
  */
-const uniformWith = (status: RecordVerificationStatus, count: number): OwnVerification => {
-  const known = uniform[status][count];
-  if (known !== undefined) {
-    return known;
+const uniformWith = (status: RecordVerificationStatus, criteria: ElementCriteria): OwnVerification => {
+  const known = uniformCache(status, criteria);
+  const cached = known[status];
+  if (cached !== undefined) {
+    return cached;
   }
-  const notVerified = Object.freeze(Array.from({ length: count }, (_, i) => i + 1));
+  const { count, items } = criteria;
   const result: OwnVerification = Object.freeze(
     count === 0
       ? { status }
@@ -211,21 +233,29 @@ const uniformWith = (status: RecordVerificationStatus, count: number): OwnVerifi
           criteria: Object.freeze(
             status === "verified"
               ? { verified: count, total: count }
-              : { verified: 0, total: count, notVerified },
+              : {
+                  verified: 0,
+                  total: count,
+                  notVerified: Object.freeze(
+                    Array.from({ length: count }, (_, i) => Object.freeze(criterionNameAt(items, i + 1))),
+                  ),
+                },
           ),
         },
   );
-  uniform[status][count] = result;
+  known[status] = result;
   return result;
 };
 
 /**
- * The verification status of an element with `count` acceptance criteria in `view` from its records
- * (SR-031 AK1 to AK8, D-072; `independent`: its repository is marked `variant-independent`, SR-173).
- * Without criteria (`count` 0) the newest record of the current version decides for the whole
- * requirement, whatever criteria it names (AK7; spec answer to Q2 of the #963 plan). Otherwise a
- * record that names no criterion counts for every one (AK6), one that names criteria for those it
- * names up to `count` (a larger number counts for no criterion, #960), and each criterion gets the
+ * The verification status of an element with the acceptance criteria `criteria` (a count: criteria
+ * without keys, `plainCriteria`) in `view` from its records (SR-031 AK1 to AK8, AK11, AK12, D-072;
+ * `independent`: its repository is marked `variant-independent`, SR-173). Without criteria the
+ * newest record of the current version decides for the whole requirement, whatever criteria it names
+ * (AK7; spec answer to Q2 of the #963 plan). Otherwise a record that names no criterion counts for
+ * every one (AK6), one that names criteria for the current criteria they resolve to
+ * (`ElementCriteria.positionsOf`: by key, or by number in the version it names; one that resolves to
+ * none counts for no criterion but still counts as a record, AK11, AK12), and each criterion gets the
  * status of its records by the rule of `recordStatusOf`. Whether the requirement has records at all
  * and whether one is of the current version is judged over all its counted records, whatever they
  * name (plan review B1). The first that holds: a criterion failed gives `failed` (AK3); all verified
@@ -239,19 +269,21 @@ export const ownVerificationOf = (
   current: VersionForms | undefined,
   view: View,
   independent: boolean,
-  count: number,
+  of: ElementCriteria | number,
 ): OwnVerification => {
+  const criteria = criteriaFrom(of);
+  const { count } = criteria;
   // Without criteria, or when no record names one (the common case): every criterion has the status
-  // of the whole requirement, one shared result per status and count (N-036: no allocation per row).
+  // of the whole requirement, one shared result per status and criteria (N-036: no allocation per row).
   if (count === 0 || !records.some((r) => r.criteria !== undefined)) {
     const status = recordStatusOf(records, "verification", current, view, independent);
     // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
-    return uniformWith(status === "passed" ? "verified" : (status as RecordVerificationStatus), count);
+    return uniformWith(status === "passed" ? "verified" : (status as RecordVerificationStatus), criteria);
   }
-  const tallies = talliesOf(records, current, view, independent, count);
+  const tallies = talliesOf(records, current, view, independent, criteria);
   // No record: open (AK1), none of the criteria verified.
   if (!tallies.counted) {
-    return uniformWith("open", count);
+    return uniformWith("open", criteria);
   }
   const { named } = tallies;
   // No counted record names a criterion it has: every criterion has the status of the records for all.
@@ -259,7 +291,9 @@ export const ownVerificationOf = (
     named === undefined
       ? new Array<RecordVerificationStatus>(count).fill(criterionStatus(tallies.all, undefined))
       : Array.from({ length: count }, (_, i) => criterionStatus(tallies.all, named.get(i + 1)));
-  const notVerified = statuses.flatMap((s, i) => (s === "verified" ? [] : [i + 1]));
+  const notVerified = statuses.flatMap((s, i) =>
+    s === "verified" ? [] : [criterionNameAt(criteria.items, i + 1)],
+  );
   return {
     status: combined(statuses, notVerified.length === 0, tallies),
     criteria: {
@@ -272,7 +306,7 @@ export const ownVerificationOf = (
 
 /**
  * The status of each acceptance criterion of an element in `view` (SR-031, the rule of
- * `ownVerificationOf`), criterion n at position n - 1; with `count` 0 one status for the whole
+ * `ownVerificationOf`), criterion n at position n - 1; without criteria one status for the whole
  * requirement (AK7). The rows of `evidence.list`'s `display` name the views by it (SR-032 AK4), so they
  * agree with the status by construction. One pass over the records.
  */
@@ -281,22 +315,23 @@ export const criterionStatusesOf = (
   current: VersionForms | undefined,
   view: View,
   independent: boolean,
-  count: number,
+  of: ElementCriteria | number,
 ): RecordVerificationStatus[] => {
-  if (count === 0) {
+  const criteria = criteriaFrom(of);
+  if (criteria.count === 0) {
     const status = recordStatusOf(records, "verification", current, view, independent);
     // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
     return [status === "passed" ? "verified" : (status as RecordVerificationStatus)];
   }
-  const { all, named } = talliesOf(records, current, view, independent, count);
-  return Array.from({ length: count }, (_, i) => criterionStatus(all, named?.get(i + 1)));
+  const { all, named } = talliesOf(records, current, view, independent, criteria);
+  return Array.from({ length: criteria.count }, (_, i) => criterionStatus(all, named?.get(i + 1)));
 };
 
 /** The tallies of the verification records of an element in a view (`ownVerificationOf`). */
 interface Tallies {
   /** The records that name no criterion. */
   readonly all: Tally;
-  /** The records that name a criterion, by its number up to the count; undefined when none does. */
+  /** The records that name a criterion, by its current position; undefined when none does. */
   readonly named: ReadonlyMap<number, Tally> | undefined;
   /** Whether any record counts, whatever it names. */
   readonly counted: boolean;
@@ -310,7 +345,7 @@ const talliesOf = (
   current: VersionForms | undefined,
   view: View,
   independent: boolean,
-  count: number,
+  criteria: ElementCriteria,
 ): Tallies => {
   const all = tally();
   let named: Map<number, Tally> | undefined;
@@ -323,17 +358,16 @@ const talliesOf = (
     const deciding = ofVersion(record, "verification", current);
     counted = true;
     ofCurrent ||= deciding;
-    if (record.criteria === undefined) {
+    const positions = criteria.positionsOf(record, current);
+    if (positions === undefined) {
       add(all, record, deciding);
       continue;
     }
-    for (const n of record.criteria) {
-      if (n <= count) {
-        named ??= new Map<number, Tally>();
-        const t = named.get(n) ?? tally();
-        named.set(n, t);
-        add(t, record, deciding);
-      }
+    for (const n of positions) {
+      named ??= new Map<number, Tally>();
+      const t = named.get(n) ?? tally();
+      named.set(n, t);
+      add(t, record, deciding);
     }
   }
   return { all, named, counted, ofCurrent };
@@ -360,7 +394,7 @@ const combined = (
 
 /**
  * The verification status of an element in `view` from its records (SR-031, `ownVerificationOf`
- * with `count` acceptance criteria, 0 when it has none); `independent`: its repository is marked
+ * with its acceptance `criteria`, 0 when it has none); `independent`: its repository is marked
  * `variant-independent` (SR-173).
  */
 export const verificationStatusOf = (
@@ -368,8 +402,8 @@ export const verificationStatusOf = (
   current: VersionForms | undefined,
   view: View,
   independent: boolean,
-  count = 0,
-): RecordVerificationStatus => ownVerificationOf(records, current, view, independent, count).status;
+  criteria: ElementCriteria | number = 0,
+): RecordVerificationStatus => ownVerificationOf(records, current, view, independent, criteria).status;
 
 const CORE: View = Object.freeze({ kind: "core" });
 
@@ -478,10 +512,10 @@ export interface StatusSource {
    */
   readonly independent: (element: Pick<ElementRecord, "repository">) => boolean;
   /**
-   * How many acceptance criteria the element holds (the property with the meaning
-   * `acceptance-criteria`, `criteriaCount`; D-072), 0 without such a property.
+   * The acceptance criteria the element holds (the property with the meaning `acceptance-criteria`,
+   * D-072; none without such a property), with the criteria its records count for (`criteria.ts`).
    */
-  readonly criteriaOf: (element: Pick<ElementRecord, "data">) => number;
+  readonly criteriaOf: (element: Pick<ElementRecord, "id" | "data">) => ElementCriteria;
 }
 
 const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
@@ -489,15 +523,19 @@ const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
 /**
  * The status source of `metamodel` with the records of `index`; without `index` (the metamodel is
  * not valid) no element has records. `independent` names the repositories the workspace file marks
- * `variant-independent` (`variantIndependentOf` of the layout, SR-173).
+ * `variant-independent` (`variantIndependentOf` of the layout, SR-173); `older` gives the criteria of
+ * older versions (`olderCriteriaState`, SR-031 AK11).
  */
 export const statusSource = (
   metamodel: Metamodel,
   index: EvidenceIndex | undefined,
   independent: ReadonlySet<string>,
+  older: OlderCriteria = NO_OLDER_CRITERIA,
 ): StatusSource => {
   const emergentKey = emergentKeyOf(metamodel);
   const criteriaKey = acceptanceCriteriaKeyOf(metamodel);
+  // One object per element data (N-036: the status asks it per row and view).
+  const known = new WeakMap<object, ElementCriteria>();
   return {
     requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
     needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
@@ -506,6 +544,14 @@ export const statusSource = (
     recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
     emergent: (element) => isEmergent(element, emergentKey),
     independent: (element) => independent.has(element.repository),
-    criteriaOf: (element) => criteriaCount(element.data, criteriaKey),
+    criteriaOf: (element) => {
+      const found = known.get(element.data);
+      if (found !== undefined) {
+        return found;
+      }
+      const criteria = elementCriteria(element.id, criteriaItemsOf(element.data, criteriaKey), older);
+      known.set(element.data, criteria);
+      return criteria;
+    },
   };
 };

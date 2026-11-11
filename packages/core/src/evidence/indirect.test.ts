@@ -2,6 +2,7 @@
 // the derivation children of each element and their current versions. The commands that show it
 // (evidence.status, element.get) and the filter are tested in commands/evidence/indirect.test.ts; the
 // emergent rule (SR-035) in commands/evidence/emergent.test.ts.
+import { plainCriteria } from "./criteria.js";
 import { describe, expect, it } from "vitest";
 import { forms } from "../model/version-forms.test-helper.js";
 import type { ElementRecord } from "../model/index.js";
@@ -88,7 +89,7 @@ const evaluator = (setup: Setup) => {
     emergent: (e) =>
       isEmergent(e, setup.emergentKey === null ? undefined : (setup.emergentKey ?? "emergent")),
     independent: (e) => setup.independent?.has(e.repository) === true,
-    criteriaOf: (e) => [...(setup.criteria ?? [])].find(([c]) => c.data === e.data)?.[1] ?? 0,
+    criteriaOf: (e) => plainCriteria([...(setup.criteria ?? [])].find(([c]) => c.data === e.data)?.[1] ?? 0),
   };
   const versions = setup.versions ?? new Map<ElementRecord, string | undefined>();
   return verificationEvaluator(
@@ -139,7 +140,7 @@ describe("indirect verification (SR-034)", () => {
     const evaluate = evaluator(setup);
     expect(evaluate(a, CORE)).toEqual({
       status: "open",
-      criteria: { verified: 2, total: 3, notVerified: [3] },
+      criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
     });
     expect(evaluate(b, CORE)).toEqual({ status: "verified", criteria: { verified: 2, total: 2 } });
     expect(evaluate(parent, CORE)).toEqual({ status: "open", missingChildren: [a.id] });

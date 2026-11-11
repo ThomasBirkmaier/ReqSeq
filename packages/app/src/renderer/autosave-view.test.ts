@@ -377,13 +377,13 @@ describe("autosave in the element buffer (SR-105)", () => {
     ]);
   });
 
-  it("a failed save says why once and leaves not saved in the modeline; the next input tries again, no loop", async () => {
+  it("[SR-105/AK5] a failed save says why once and leaves not saved with the reason in the modeline; the next input tries again, no loop", async () => {
     const { updates, echoed, data, file } = await mountView();
     file.refuse = new Error("effort must be a number");
     await typeAt(textView(), "!");
     await settle(AUTOSAVE_MS);
     expect(echoed).toEqual(["effort must be a number"]);
-    expect(modeline(data)).toMatchObject({ notSaved: true });
+    expect(modeline(data)).toMatchObject({ notSaved: "effort must be a number" });
     await settle(AUTOSAVE_MS * 5);
     expect(updates()).toHaveLength(1);
     // The same reason again is not said again.

@@ -13,6 +13,8 @@ const IMAGE = "requirements/SR-0000000052a1/anemometer.png";
 const race = vi.hoisted(() => ({
   change: (absolute: string): Promise<void> => Promise.reject(new Error(`no change set for ${absolute}`)),
   reads: 0,
+  /** Changes the output right after the export read it (SR-207 AK2). */
+  output: undefined as ((absolute: string) => Promise<void>) | undefined,
 }));
 
 vi.mock("../../files/index.js", async (importOriginal) => {
@@ -23,7 +25,11 @@ vi.mock("../../files/index.js", async (importOriginal) => {
       if (file === IMAGE && ++race.reads === 2) {
         await race.change(path.join(root, file));
       }
-      return actual.readFileSnapshot(root, file);
+      const read = await actual.readFileSnapshot(root, file);
+      if (file === "s6.reqif" && race.output !== undefined) {
+        await race.output(path.join(root, file));
+      }
+      return read;
     },
   };
 });
@@ -53,5 +59,24 @@ describe("reqif.export of an image that changes (SR-052)", () => {
     ]);
     await expect(fs.stat(fixture.path("s6.reqif"))).rejects.toThrow();
     await expect(fs.stat(fixture.path("s6-images"))).rejects.toThrow();
+  });
+});
+
+describe("reqif.export to a ReqIF file that changes (SR-207)", () => {
+  it("[SR-207/AK2] replaces a ReqIF file only while it is unchanged since the export read it", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-052/package" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const input = { output: "s6.reqif", selection: { ids: ["52052052-0000-4000-8000-0000000052a2"] } };
+    const changed = '<REQ-IF xmlns="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd"/>\n';
+    await fs.writeFile(fixture.path("s6.reqif"), "<REQ-IF/>\n");
+    race.output = (absolute) => fs.writeFile(absolute, changed);
+    onTestFinished(() => {
+      race.output = undefined;
+    });
+    const error = await invoke("reqif.export", input, { workspace }).catch((e: unknown) => e);
+    expect((error as CommandError).code).toBe("file.changed-on-disk");
+    expect(await fs.readFile(fixture.path("s6.reqif"), "utf8")).toBe(changed);
   });
 });

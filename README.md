@@ -106,7 +106,7 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
-Test data for realistic scenarios lives in the separate repository `ReqSeq-testdata`.
+References of the form `ThomasBirkmaier/ReqSeq-archive#N` point to issues and pull requests of an earlier repository that is not public.
 
 ## License
 

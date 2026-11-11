@@ -414,12 +414,12 @@ describe("criterion key findings (SR-204 AK10)", () => {
       .filter((p) => p.code.startsWith("element.criterion-key") && p.elementId === SR.id)
       .map((p) => [p.code, p.severity, p.line, p.count]);
 
-  it("warns once of the criteria without key with their count, on the line of the property", async () => {
+  it("[SR-204/AK10] warns once of the criteria without key with their count, on the line of the property", async () => {
     const opened = await open(UNKEYED);
     expect(codes(await check(opened))).toEqual([["element.criterion-key-missing", "warning", 7, 3]]);
   });
 
-  it("reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning", async () => {
+  it("[SR-204/AK10] reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning", async () => {
     const opened = await open(
       requirement([
         "  - key: twice",

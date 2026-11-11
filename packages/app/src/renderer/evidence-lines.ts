@@ -13,6 +13,7 @@
 // tests", coloured when failed or outdated), opening to one line per test case, opening to the record
 // lines above; then one fold line per older run, opening to its records.
 import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
+import { criterionLabel } from "@reqseq/core/criterion-items";
 import { elementBufferOf } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
 import { joined, reasonLine, wholeReason } from "./variant-lines.js";
@@ -131,7 +132,7 @@ const viewTitle = (view: string, byId: ReadonlyMap<string, ElementName>): string
   view === "core" ? "core" : (byId.get(view)?.title ?? view);
 
 /**
- * A row's head (AK4): "AK2 · passed · 7 tests", "AK2 · failed in Windows · 4 tests", "AK1 · passed · outdated · 1 test".
+ * A row's head (AK4): "AK2 (k7f3) · passed · 7 tests" (its key where it has one, SR-205 AK2), "AK2 · failed in Windows · 4 tests", "AK1 · passed · outdated · 1 test".
  * A verification row gives the worst result of its records, its first case's (core sorts the cases worst first),
  * or "open" without cases; a failed or outdated row names the views where it is so when there are several. A
  * validation row gives its status.
@@ -139,7 +140,7 @@ const viewTitle = (view: string, byId: ReadonlyMap<string, ElementName>): string
 const rowHead = (row: DisplayRow, byId: ReadonlyMap<string, ElementName>): string => {
   const label =
     row.criterion !== undefined
-      ? `AK${String(row.criterion)}`
+      ? criterionLabel(row)
       : row.kind === "validation"
         ? "Validation"
         : "Verification";

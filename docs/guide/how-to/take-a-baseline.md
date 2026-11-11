@@ -54,7 +54,7 @@ reqseq data export --package PKG-65ba20
 ```
 
 ```text title="Output"
-reqseq-data: 4
+reqseq-data: 5
 ...
 selection:
   package: PKG-65ba20

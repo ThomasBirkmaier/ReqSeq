@@ -308,11 +308,14 @@ describe("bufferView", () => {
     ]);
   });
 
-  it("says not saved when the last save of the input failed, after the counts", () => {
+  it("[SR-105/AK5] says not saved with the reason when the last save of the input failed, after the counts", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
-    expect(
-      bufferView(buffer, { kind: "element", element: element(), modified: true, notSaved: true }),
-    ).toEqual(["SR-000001 · system-requirement", "modified", "not saved"]);
+    const notSaved = "Not written: requirements/SR-000001.md is read-only";
+    expect(bufferView(buffer, { kind: "element", element: element(), modified: true, notSaved })).toEqual([
+      "SR-000001 · system-requirement",
+      "modified",
+      "not saved (Not written: requirements/SR-000001.md is read-only)",
+    ]);
   });
 
   it("names the buffer before it has loaded", () => {

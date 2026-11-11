@@ -112,7 +112,11 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect(rowOf(inCoast, b001)?.verification?.map((v) => v.view)).toEqual([coast]);
     expect(rowOf(inCoast, b099)).toEqual({
       verification: [{ view: coast, status: "open" }],
-      criteria: { verified: 0, total: 1, notVerified: [1] },
+      criteria: {
+        verified: 0,
+        total: 1,
+        notVerified: [{ criterion: 1, text: expect.any(String) as string }],
+      },
     });
   });
 
@@ -147,7 +151,11 @@ describe("element.list and element.search: the verification of the rows (SR-137)
       ]);
     }
     const byId = new Map((output.elements ?? []).map((element, at) => [element.id, rows[at]?.[1]]));
-    expect(byId.get(U("b011"))?.criteria).toEqual({ verified: 2, total: 3, notVerified: [3] });
+    expect(byId.get(U("b011"))?.criteria).toEqual({
+      verified: 2,
+      total: 3,
+      notVerified: [{ criterion: 3, text: expect.any(String) as string }],
+    });
     expect(byId.get(U("a001"))?.degree?.share).toBe(0.6);
     // No ring: indirectly verified, without acceptance criteria, a need without a valid derived requirement.
     expect(byId.get(U("b101"))?.criteria).toBeUndefined();

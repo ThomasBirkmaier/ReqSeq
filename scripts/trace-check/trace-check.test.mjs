@@ -107,6 +107,47 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(result.report).toContain("| SR-002 | all | inspection | verification/SR-002.md |");
   });
 
+  it("counts a key tag [SR-xxx/AK-<key>] for the criterion that carries the key in spec/ (SR-029 AK10)", () => {
+    const keyed = [
+      "---",
+      "id: 00000000-0000-4000-8000-000000000003",
+      "type: system-requirement",
+      "status: draft",
+      "title: Drei",
+      "spec-id: SR-003",
+      "acceptance-criteria:",
+      "  - { key: kaaa, text: Gegeben a. }",
+      "  - { key: kdup, text: Gegeben b. }",
+      "  - { key: kdup, text: Gegeben c. }",
+      "verification-method: test",
+      "---",
+      "",
+    ].join("\n");
+    const keyTag = (id, key) => `[${id}/AK-${key}]`;
+    const root = repo({
+      "spec/system-requirement/SR-000000000003.md": keyed,
+      "packages/x/a.test.ts": [
+        `it("${keyTag("SR-003", "kaaa")} a");`,
+        `it("${tag("SR-003", 1)} b");`,
+        `it("${keyTag("SR-003", "kdup")} c");`,
+        `it("${keyTag("SR-003", "kxyz")} d");`,
+        `it("${keyTag("SR-009", "kaaa")} e");`,
+        `it("${tag("SR-003", 2)} f");`,
+        "",
+      ].join("\n"),
+    });
+    const result = traceCheck(root, ["--require", "SR-003"]);
+    expect(result.errors).toEqual([
+      "packages/x/a.test.ts:3: SR-003 has 2 acceptance criteria with the key kdup",
+      "packages/x/a.test.ts:4: SR-003 has no acceptance criterion with the key kxyz",
+      "packages/x/a.test.ts:5: test refers to unknown SR-009",
+      "SR-003 AK3 has no test",
+    ]);
+    expect(result.report).toContain(
+      "| SR-003 | AK1 | test | packages/x/a.test.ts:1<br>packages/x/a.test.ts:2 |",
+    );
+  });
+
   it("reads the tags of the cross-access scenario modules, which are no test files of their own (#527)", () => {
     const root = repo({
       "packages/cli/test/cross-access/scenarios/x/a.ts": `scenariosOf("x.a", [{ tag: "${tag("SR-001", 1)}" }]);\n`,

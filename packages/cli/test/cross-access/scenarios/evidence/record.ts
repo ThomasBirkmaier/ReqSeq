@@ -1,6 +1,6 @@
 // Cross-access scenarios of evidence.record, in addition to the default one (cross-access.test.ts).
 import { scenariosOf } from "../../scenario.js";
-import { EVIDENCE, VARIANT_EVIDENCE } from "../../fixtures.js";
+import { CRITERIA, EVIDENCE, VARIANT_EVIDENCE } from "../../fixtures.js";
 
 // The date is given: without it the time of the call would differ between the accesses.
 scenariosOf("evidence.record", [
@@ -19,20 +19,35 @@ scenariosOf("evidence.record", [
     expect: "output",
   },
   {
-    // The fixture's metamodel gives no property the meaning acceptance-criteria, so both numbers also
-    // give evidence.unknown-criterion (SR-028 AK5).
-    name: "a record with the numbers of acceptance criteria has them in its file (SR-030 AK4)",
-    fixture: EVIDENCE,
+    // Criteria by number or key; the file holds their keys, the output names number, key and text.
+    name: "a record names acceptance criteria by number or key and has their keys in its file (SR-030 AK4)",
+    fixture: CRITERIA,
     input: {
-      ref: "SR-e88fb3",
+      ref: "SR-0000e3",
       kind: "verification",
       result: "passed",
       method: "analysis",
       item: "build-47",
       date: "2026-10-27T10:00:00Z",
-      criteria: [2, 1],
+      criteria: ["kfro", 1],
     },
+    tag: "[SR-030/AK4]",
     expect: "output",
+  },
+  {
+    name: "a criterion without key is refused (SR-030 AK4)",
+    fixture: CRITERIA,
+    input: {
+      ref: "SR-0000e1",
+      kind: "verification",
+      result: "passed",
+      method: "analysis",
+      item: "build-47",
+      date: "2026-10-27T10:00:00Z",
+      criteria: [1],
+    },
+    tag: "[SR-030/AK4]",
+    expect: "error",
   },
   {
     name: "an unknown element gives the same error",

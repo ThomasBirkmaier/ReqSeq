@@ -389,6 +389,65 @@ describe("SR-028 findings of the evidence records", () => {
       expect(await olderCriterionProblems(await open())).toEqual([]);
     });
 
+    it("[SR-028/AK5] a record naming a key that no criterion of the current version carries gives evidence.unknown-criterion", async () => {
+      const workspace = await open({
+        // The fixture's criterion with a key: the same version (a key never counts to it, D-027).
+        "system/requirements/SR-0d0000000001.md": elementA([
+          "key: kone\n    text: Given a wind speed, when it is shown, then it is in km/h.",
+        ]),
+        "ci-results/evidence/2026-10-23-a-test.md": withCriteria("[kone, ktwo, 1]", "n1:de6d3ed288b0f3de"),
+      });
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.code === "evidence.unknown-criterion")
+          .map((p) => [p.line, p.message]),
+      ).toEqual([
+        [
+          9,
+          `The verification record names acceptance criterion ktwo of element ${A}, whose version n1:de6d3ed288b0f3de has 1 and no criterion with that key; it counts for no criterion`,
+        ],
+      ]);
+    });
+
+    it("[SR-028/AK5] checks the keys of an older version against its newest commit, where a key was added in the same version", async () => {
+      const ws = await createFixtureWorkspace({
+        fixture: "SR-028/records",
+        files: { "system/requirements/SR-0d0000000001.md": elementA(["One.", "Two."]) },
+      });
+      onTestFinished(() => ws.cleanup());
+      await ws.git(["init", "--quiet", "--initial-branch=main"], "system");
+      await ws.commit("system");
+      const first = new Workspace(ws.path("system"));
+      const old = await versionOf(first, A);
+      await first.close();
+      // The same version with keys (a key never counts to the version, D-027), then a new version.
+      await ws.write(
+        "system/requirements/SR-0d0000000001.md",
+        elementA(["key: kone\n    text: One.", "key: ktwo\n    text: Two."]),
+      );
+      await ws.commit("system");
+      await ws.write("system/requirements/SR-0d0000000001.md", elementA(["key: kone\n    text: One."]));
+      await ws.commit("system");
+      await ws.write("ci-results/evidence/2026-10-23-old-test.md", withCriteria("[ktwo, kxyz, 3]", old));
+      await ws.write("ci-results/evidence/2026-10-24-old-test.md", withCriteria("[1]", old));
+      const workspace = new Workspace(ws.path("system"));
+      onTestFinished(() => workspace.close());
+      const found = (await check(workspace)).problems.filter((p) => p.code === "evidence.unknown-criterion");
+      expect(found.map((p) => p.message)).toEqual([
+        `The verification record names acceptance criteria 3, kxyz of element ${A}, whose version ${old} has 2 and no criterion with that key; they count for no criterion`,
+      ]);
+      // Number 1 of the older version is `kone` in its newest commit, so it counts for the current
+      // criterion `kone` (SR-031 AK11); `ktwo` is gone from the current version and counts for none.
+      const list = (await invoke(
+        "evidence.list",
+        { ref: A },
+        { workspace },
+      )) as CommandOutput<"evidence.list">;
+      expect(list.display.rows.map((row) => [row.criterion, row.key, row.status, row.cases.length])).toEqual([
+        [1, "kone", "outdated", 1],
+      ]);
+    });
+
     it("counts no criteria for a type without the property of the meaning, nor while the metamodel is not valid", async () => {
       const metamodel = "system/metamodel/standard-model.yaml";
       const ws = await createFixtureWorkspace({ fixture: "SR-028/records" });
@@ -454,14 +513,14 @@ describe("SR-028 findings of the evidence records", () => {
       expect(targets.current.map((t) => t.record.version)).toEqual([forms.n2]);
       expect(targets.older.map((t) => t.criteria)).toEqual([[2]]);
       const [current] = targets.current;
-      expect(current === undefined ? undefined : unknownCriterionProblem(current, 0)).toEqual({
+      expect(current === undefined ? undefined : unknownCriterionProblem(current, [])).toEqual({
         code: "evidence.unknown-criterion",
         severity: "warning",
         message: `The verification record names acceptance criterion 1 of element ${A}, whose version ${forms.n2} has 0; the record counts for the whole requirement`,
         targetId: A,
         targetRepository: "system",
       });
-      expect(current === undefined ? undefined : unknownCriterionProblem(current, 1)).toBeUndefined();
+      expect(current === undefined ? undefined : unknownCriterionProblem(current, ["one"])).toBeUndefined();
     });
   });
 });

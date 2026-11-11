@@ -498,9 +498,29 @@ describe("baseline.get withEvidence per acceptance criterion (SR-031, SR-094)", 
   it("[SR-031/AK5] a baseline of the current version counts the criteria its records verify, 2 of 3", async () => {
     const fixture = await openCriteria(false);
     expect(await criteriaRows(fixture.root)).toEqual({
-      e1: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      e1: [
+        {
+          view: "core",
+          status: "open",
+          criteria: {
+            verified: 2,
+            total: 3,
+            notVerified: [{ criterion: 3, text: expect.any(String) as string }],
+          },
+        },
+      ],
       e2: [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }],
-      e4: [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+      e4: [
+        {
+          view: "core",
+          status: "failed",
+          criteria: {
+            verified: 1,
+            total: 2,
+            notVerified: [{ criterion: 2, text: expect.any(String) as string }],
+          },
+        },
+      ],
     });
   });
 
@@ -511,7 +531,15 @@ describe("baseline.get withEvidence per acceptance criterion (SR-031, SR-094)", 
     await fixture.commit();
     const rows = await criteriaRows(fixture.root);
     expect(rows["e1"]).toEqual([
-      { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+      {
+        view: "core",
+        status: "open",
+        criteria: {
+          verified: 2,
+          total: 3,
+          notVerified: [{ criterion: 3, text: expect.any(String) as string }],
+        },
+      },
     ]);
   });
 

@@ -2,10 +2,11 @@
 // change the schema or the catalog and run `pnpm contracts:generate`.
 
 /**
- * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is internal and private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
+ * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
  * Schema: `schemas/activity.schema.json#`.
  */
 export interface ActivityFile {
+  /** Version of this file format. */
   readonly version: 1;
   /** The writer: its process ID and 8 random hex digits, new whenever a workspace of the process starts recording. With `seq` it tells a new access from one already seen. */
   readonly process: string;
@@ -28,6 +29,7 @@ export interface ActivityAccess {
   /** The effect of the command in the catalog. */
   readonly effect: "read" | "write-files";
   readonly at: IsoDateTime;
+  /** The element the call read or changed: its UUID and the repository of its file. */
   readonly element: {
     readonly id: Uuid;
     /** Workspace name of the repository of the element's file. */
@@ -120,6 +122,18 @@ export interface BaselineElsewhere {
   /** Workspace name of the repository of the element. */
   readonly repository: string;
 }
+
+/**
+ * A criterion key (D-072, SR-204 AK5): a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits.
+ * Schema: `schemas/common.schema.json#/$defs/criterionKey`.
+ */
+export type CriterionKey = string;
+
+/**
+ * An acceptance criterion as a record names it (D-072, SR-028 AK4): its criterion key, or its number, the position in the version the record names, counted from 1.
+ * Schema: `schemas/common.schema.json#/$defs/criterionRef`.
+ */
+export type CriterionRef = number | CriterionKey;
 
 /**
  * Matched words in a text, to highlight: UTF-16 code-unit offsets into the text, `end` exclusive, sorted and not overlapping.
@@ -582,8 +596,8 @@ export interface ReqifUnmapped {
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). */
-  readonly "reqseq-data": 4;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text (SR-205 AK2). */
+  readonly "reqseq-data": 5;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -772,7 +786,7 @@ export interface DataExportLine {
   readonly validationReason?: string;
   readonly problems?: readonly Problem[];
   /** Version of this file format. */
-  readonly "reqseq-data": 4;
+  readonly "reqseq-data": 5;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
@@ -902,8 +916,10 @@ export interface DataExportEvidenceRecord {
   readonly evidenceSource?: string;
   /** The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record. */
   readonly className?: string;
-  /** The acceptance criteria the record holds for, by number counted from 1, ascending and each once (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */
-  readonly criteria?: readonly number[];
+  /** The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */
+  readonly criteria?: readonly CriterionRef[];
+  /** Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it. */
+  readonly criterionNames?: readonly DataExportCriterionName[];
   /** The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it. */
   readonly baselines?: readonly string[];
 }
@@ -954,6 +970,18 @@ export interface DataExportVerificationEntry {
 }
 
 /**
+ * An acceptance criterion as an output names it (SR-205 AK2): number, criterion key and text, each left out where it does not apply.
+ * Schema: `schemas/data-export.schema.json#/$defs/criterionName`.
+ */
+export interface DataExportCriterionName {
+  /** The number: the position in the version whose criteria are counted, counted from 1. */
+  readonly criterion?: number;
+  readonly key?: CriterionKey;
+  /** The text of the acceptance criterion. */
+  readonly text?: string;
+}
+
+/**
  * How many acceptance criteria of a requirement are verified (SR-031 AK5, D-072): a criterion is verified when the newest record for it of the current version passed (a record that names no criterion counts for every one, AK6).
  * Schema: `schemas/data-export.schema.json#/$defs/criteriaCount`.
  */
@@ -962,8 +990,8 @@ export interface DataExportCriteriaCount {
   readonly verified: number;
   /** The number of acceptance criteria. */
   readonly total: number;
-  /** The numbers of the criteria that are not verified (open, failed or outdated), counted from 1, ascending; left out when every criterion is verified. */
-  readonly notVerified?: readonly number[];
+  /** The criteria that are not verified (open, failed or outdated), by number ascending, each with its key and text (SR-205 AK2); left out when every criterion is verified. */
+  readonly notVerified?: readonly DataExportCriterionName[];
 }
 
 /**
@@ -1075,8 +1103,8 @@ export interface EvidenceRecordFile {
   readonly evidence?: string;
   /** Optional test case name or ID (D-026, SR-033). */
   readonly "test-case"?: string;
-  /** The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1 (D-072, SR-028 AK4). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A number that the named version does not have is a finding of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5). */
-  readonly criteria?: readonly number[];
+  /** The acceptance criteria the record holds for (D-072, SR-028 AK4), each by its criterion key or by its number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. `evidence.record` writes keys (SR-030 AK4). The record counts for the criterion of the current version with that key; a number of an older version counts through the key the criterion had in the newest commit with that version (SR-031 AK11). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A key that no criterion of the named version carries, or a number that version does not have, is a finding of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5). */
+  readonly criteria?: readonly CriterionRef[];
 }
 
 /**
@@ -1347,7 +1375,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1430,10 +1458,11 @@ export interface MetamodelStatus {
 }
 
 /**
- * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {
+  /** Version of this file format. */
   readonly format: 1;
   /** The most recent first; no two entries with the same `key`. */
   readonly workspaces: readonly RecentWorkspacesWorkspace[];
@@ -3265,6 +3294,10 @@ export interface EvidenceListOutput {
       readonly kind: "verification" | "validation";
       /** The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row. */
       readonly criterion?: number;
+      /** The criterion key of the row's criterion (SR-205 AK2); left out when it has none. */
+      readonly key?: CriterionKey;
+      /** The text of the row's criterion (SR-205 AK2); left out for a row without `criterion`. */
+      readonly text?: string;
       /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
       readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
       /** Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
@@ -3328,8 +3361,8 @@ export interface EvidenceRecordInput {
   readonly evidence?: string;
   /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
-  /** The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1 (D-072, SR-030 AK4), at most 9007199254740991 (the largest whole number JSON readers keep exactly, so the file holds the number as given). Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems` (SR-028 AK5). */
-  readonly criteria?: readonly number[];
+  /** The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key (D-072, SR-030 AK4). The file gets their criterion keys, sorted by key. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`, SR-030 AK4), a key that several criteria carry (`criterion-key-duplicate`, SR-030 AK5), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). */
+  readonly criteria?: readonly (number | string)[];
   /** The folder to write into: an evidence location of the workspace file or a folder below one, relative to the workspace root (the folder of the main repository) with `/`, for example `evidence/manual` or `../tests/evidence`. Missing folders below the location are created. Default: the first evidence location whose repository is on this machine. */
   readonly folder?: string;
 }
@@ -3340,6 +3373,14 @@ export interface EvidenceRecordInput {
  */
 export interface EvidenceRecordOutput {
   readonly files: readonly string[];
+  /** With `criteria`: each criterion the record holds for, in the order of the criteria, with its number, its criterion key and the first 60 characters of its text (SR-030 AK4). */
+  readonly criteria?: readonly {
+    /** Its position in the current version, from 1. */
+    readonly criterion: number;
+    readonly key: CriterionKey;
+    /** The first 60 characters of its text. */
+    readonly text: string;
+  }[];
   /** The record as the Markdown reader reads it back from the written file (`source: markdown`, its repository and file, line 1), with the UUID and current version of the element. */
   readonly record: DataExportEvidenceRecord;
   readonly problems?: readonly Problem[];

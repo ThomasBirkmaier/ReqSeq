@@ -7,11 +7,12 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
+// `evidenceSource` (#821) and, where it names criteria, their numbers, keys and texts
+// (`criterionNames`, SR-205 AK2). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
 // app (AK3 to AK5, `displayOf`, over the views the element applies in, without that of a variant
 // whose status is invalid unless `view` names it, SR-047 AK6). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   bearingRecords,
@@ -19,17 +20,20 @@ import {
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
+  namedCriterion,
+  plainCriteria,
   testCaseWithEvidenceSource,
   testCasesIn,
   validatesType,
   verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
-import type { ViewHolder } from "../../evidence/index.js";
+import type { ElementCriteria, EvidenceRecord, ViewHolder } from "../../evidence/index.js";
+import type { ElementRecord, VersionForms } from "../../model/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
   acceptanceCriteriaKeyOf,
-  criteriaCount,
+  criteriaItemsOf,
   currentVersionsOf,
   elementStoreState,
   formsOfEntry,
@@ -39,6 +43,7 @@ import {
 } from "../../model/index.js";
 import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
+import { versionValues } from "../../model/version-date.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 
 /**
@@ -51,6 +56,77 @@ const shownView = ({ view: holder, invalid }: ViewHolder, asked: View | undefine
     : holder.kind === "core"
       ? asked.kind === "core"
       : asked.kind === "variant" && asked.variant.id === holder.variant.id;
+
+/** The items of each version the status lookup did not give, by version (`namedItemsOf`). */
+type FetchedItems = ReadonlyMap<string, readonly unknown[]>;
+
+/**
+ * The acceptance criteria items of the older versions that `records` name by number and the status
+ * lookup does not give (it looks up only what can change a count, `older-criteria.ts`): those of the
+ * newest commit with the version, from the walk of the version dates, where Git has it (SR-205 AK2:
+ * the text of a criterion without key in the named version). Bounded by the records of one element.
+ */
+const namedItemsOf = async (
+  ctx: CommandContext,
+  element: ElementRecord,
+  records: readonly EvidenceRecord[],
+  criteria: ElementCriteria,
+  current: VersionForms | undefined,
+): Promise<FetchedItems> => {
+  const versions = [
+    ...new Set(
+      records
+        .filter(
+          (r) =>
+            r.criteria?.some((ref) => typeof ref === "number") === true &&
+            criteria.namedItems(r, current) === undefined,
+        )
+        .map((r) => r.version),
+    ),
+  ];
+  if (versions.length === 0) {
+    return new Map();
+  }
+  const metamodel = await ctx.workspace.get(metamodelState);
+  const layout = await ctx.workspace.get(workspaceLayoutState);
+  const values = await versionValues(
+    { workspace: ctx.workspace, layout, metamodel },
+    versions.map((version) => ({
+      repository: element.repository,
+      file: element.file,
+      id: element.id,
+      version,
+    })),
+  );
+  const key = acceptanceCriteriaKeyOf(metamodel);
+  return new Map(
+    versions.flatMap((version, i) => {
+      const at = values[i];
+      return at === null || at === undefined ? [] : [[version, criteriaItemsOf(at, key)] as const];
+    }),
+  );
+};
+
+/**
+ * `record` with `criterionNames`: each criterion it names with number, key and text (SR-205 AK2,
+ * `namedCriterion`), the number that of the current version.
+ */
+const withCriterionNames = (
+  record: EvidenceRecord,
+  criteria: ElementCriteria,
+  current: VersionForms | undefined,
+  fetched: FetchedItems,
+): EvidenceRecord => {
+  const resolved = criteria.resolve(record, current);
+  if (resolved === undefined) {
+    return record;
+  }
+  const named = criteria.namedItems(record, current) ?? fetched.get(record.version);
+  return {
+    ...record,
+    criterionNames: resolved.map((r) => namedCriterion(r, criteria.items, named)),
+  };
+};
 
 export default defineCommand({
   name: "evidence.list",
@@ -85,15 +161,15 @@ export default defineCommand({
     const listed = listedRecords(records, view, independent, (id, version) =>
       baselinesContaining(baselines, id, storedForms(version, current)),
     ).map(withEvidenceSource);
-    const count =
-      listed.length === 0
-        ? 0
-        : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
-    const bearing = bearingRecords(listed, current, count, independent);
     // The views the element applies in (the view rule of the status, as `verificationOf`), with
     // `view` that one alone, as `listed` holds only its records; none for an element that is no
     // requirement. Read only for an element with records.
     const status = listed.length === 0 ? undefined : await ctx.workspace.get(verificationState);
+    // Its criteria as the status counts them (key or number, older versions through Git, SR-031 AK11).
+    const criteria = status === undefined ? plainCriteria(0) : status.source.criteriaOf(element);
+    const fetched = await namedItemsOf(ctx, element, listed, criteria, current);
+    const named = listed.map((record) => withCriterionNames(record, criteria, current, fetched));
+    const bearing = bearingRecords(named, current, criteria, independent);
     const views =
       status?.source.requirements.has(element.type) !== true
         ? []
@@ -101,12 +177,12 @@ export default defineCommand({
             .filter((holder) => holder.includes(element) && shownView(holder, view))
             .map(({ view: holder }) => holder);
     return {
-      records: listed,
+      records: named,
       bearing,
-      display: displayOf(listed, {
+      display: displayOf(named, {
         bearing,
         current,
-        count,
+        criteria,
         views,
         independent,
         validates: status !== undefined && validatesType(status.source, element.type),
