@@ -23,10 +23,9 @@ export const FORMATS: readonly string[] = [
   "reqif-mapping",
   "data-export",
   "api-endpoint",
+  "activity",
+  "recent-workspaces",
 ];
-
-/** Files ReqSeq keeps for itself in its cache folder: listed, not documented. */
-export const INTERNAL_FORMATS: readonly string[] = ["activity", "recent-workspaces"];
 
 const COMMON = "common";
 
@@ -42,18 +41,16 @@ export const schemaName = (schema: JsonSchema): string =>
     .replace(/^.*\//, "")
     .replace(/\.schema\.json$/, "");
 
-/** Fails when a schema is neither documented nor listed as internal, so no format is left out silently. */
+/** Fails when a schema is not documented, so no format is left out silently. */
 export function checkFormats(schemas: readonly JsonSchema[]): void {
-  const known = new Set([...FORMATS, ...INTERNAL_FORMATS, COMMON]);
+  const known = new Set([...FORMATS, COMMON]);
   const unknown = schemas.map(schemaName).filter((name) => !known.has(name));
   if (unknown.length > 0) {
-    throw new Error(
-      `Schemas neither documented nor internal (packages/docs/src/formats.ts): ${unknown.join(", ")}`,
-    );
+    throw new Error(`Schemas not documented (packages/docs/src/formats.ts): ${unknown.join(", ")}`);
   }
 }
 
-/** Links to where the reference documents the type at a schema URL; none for internal formats. */
+/** Links to where the reference documents the type at a schema URL; none for a schema that is not documented. */
 export const schemaLink =
   (base: string) =>
   (url: URL): string | undefined => {
@@ -168,7 +165,7 @@ export function commonTypesPage(schema: JsonSchema, context: SchemaContext): str
   ].join("\n");
 }
 
-/** The index of the formats, with the internal files listed at the end. */
+/** The index of the formats. */
 export function formatsIndex(schemas: readonly JsonSchema[], base: string): string {
   const titled = (name: string): string => {
     const schema = schemas.find((candidate) => schemaName(candidate) === name);
@@ -177,11 +174,9 @@ export function formatsIndex(schemas: readonly JsonSchema[], base: string): stri
   const root = `${base.replace(/\/$/, "")}/${FORMATS_FOLDER}`;
   return [
     ...frontmatter("File formats", "Every file format of ReqSeq.", 0),
-    "The files of a workspace are plain text: YAML, Markdown with YAML frontmatter, and JSON. Each page lists the fields of one format, its types and examples.",
+    "The files of a workspace and of the cache folder are plain text: YAML, Markdown with YAML frontmatter, and JSON. Each page lists the fields of one format, its types and examples.",
     "",
     ...FORMATS.map((name) => `- [${inline(titled(name))}](${root}/${name}/)`),
-    "",
-    `ReqSeq also keeps files for itself in its cache folder, which are not meant to be read or changed: ${INTERNAL_FORMATS.map((name) => `${inline(titled(name))} (\`${name}\`)`).join(", ")}.`,
     "",
   ].join("\n");
 }
