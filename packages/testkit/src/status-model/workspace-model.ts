@@ -45,7 +45,10 @@ export interface ModelWorkspaceElement {
   readonly derivesFrom: readonly ModelRef[];
   /** Items of the relation kind with the meaning replacement (D-020). */
   readonly replaces: readonly ModelRef[];
-  /** Criteria, older versions and the element's own records (records carry `variant`). */
+  /**
+   * Criteria, older versions and the own records (records carry `variant`). R4: a record names its element by UUID,
+   * so every file of one UUID has the same own part (the generator gives them one object).
+   */
   readonly own: ModelElement;
 }
 
@@ -53,6 +56,11 @@ export interface ModelWorkspace {
   readonly repositories: readonly ModelRepository[];
   readonly variants: readonly ModelVariant[];
   readonly elements: readonly ModelWorkspaceElement[];
+  /**
+   * Sort keys for the order in which a test asks about the elements and views (one per element and view, element
+   * index times four plus view index); the model ignores them.
+   */
+  readonly order: readonly number[];
 }
 
 /** `core`, or a variant id. */

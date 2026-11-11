@@ -70,6 +70,7 @@ function workspace(
     repositories: ["spec", "lib"].map((name) => ({ name, variantIndependent: independent.includes(name) })),
     variants,
     elements,
+    order: [],
   };
 }
 

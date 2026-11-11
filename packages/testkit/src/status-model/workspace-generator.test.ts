@@ -99,6 +99,10 @@ function featuresOf(ws: ModelWorkspace): string[] {
       features.push(`status ${entry.status}`);
       add(entry.view !== "core" && entry.status === "indirect", "indirect in a variant");
       add((entry.missingChildren?.length ?? 0) > 1, "two missing children");
+      add(
+        (entry.missingChildren ?? []).some((key) => ws.elements.some((e) => e.key === key && e.emergent)),
+        "emergent child missing",
+      );
       add(entry.total !== undefined, "own status with criteria");
     }
   }
@@ -133,12 +137,13 @@ describe("status model workspace generator", () => {
       ...["open", "verified", "failed", "outdated", "indirect"].map((status) => `status ${status}`),
       "indirect in a variant",
       "two missing children",
+      "emergent child missing",
       "own status with criteria",
     ];
     expect(expected.filter((feature) => !seen.has(feature))).toEqual([]);
   });
 
-  it("gives a variant only to verification records, and validity and emergent only to requirements", () => {
+  it("gives a variant only to verification records, validity and emergent only to requirements, one own part per UUID", () => {
     for (const ws of fc.sample(statusModelWorkspace(), { seed: 1395, numRuns: 500 })) {
       const variants = ws.variants.map((variant) => variant.id);
       for (const element of ws.elements) {
@@ -149,6 +154,10 @@ describe("status model workspace generator", () => {
           ).toBe(true);
         }
         expect(element.validity.every((id) => variants.includes(id))).toBe(true);
+        // R4: the files of one UUID share its own part.
+        expect(
+          ws.elements.filter((other) => other.id === element.id).every((other) => other.own === element.own),
+        ).toBe(true);
         if (element.type === "need") {
           expect([element.validity, element.emergent]).toEqual([[], false]);
         }

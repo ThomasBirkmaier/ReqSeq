@@ -35,32 +35,32 @@ export function propertyParameters(env: Readonly<Record<string, string | undefin
 
 /** Checks `check` (which throws on a difference) on generated elements; throws with the seed on the first failure. */
 export function forAllElements(check: (element: ModelElement) => void, parameters: PropertyParameters): void {
-  runProperty(fc.property(statusModelElement(), check), parameters);
-}
-
-function runProperty<T>(property: fc.IProperty<T>, parameters: PropertyParameters): void {
   try {
-    fc.assert(property, {
-      numRuns: parameters.numRuns,
-      seed: parameters.seed,
-    });
+    fc.assert(fc.property(statusModelElement(), check), parameters);
   } catch (error) {
-    // fast-check's message holds the seed, the replay path and the shrunk counterexample; keep it in the message, as
-    // a short reporter may not print the cause.
-    // fc.assert always throws an Error.
-    const detail = (error as Error).message;
-    throw new Error(
-      `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)} ` +
-        `STATUS_MODEL_RUNS=${String(parameters.numRuns)}\n${detail}`,
-      { cause: error },
-    );
+    throw replayError(error, parameters);
   }
 }
 
-/** Checks `check` on generated workspaces (#1395), like `forAllElements`. */
-export function forAllWorkspaces(
-  check: (workspace: ModelWorkspace) => void,
+/** Checks the async `check` on generated workspaces (#1395), like `forAllElements`. */
+export async function forAllWorkspaces(
+  check: (workspace: ModelWorkspace) => Promise<void>,
   parameters: PropertyParameters,
-): void {
-  runProperty(fc.property(statusModelWorkspace(), check), parameters);
+): Promise<void> {
+  try {
+    await fc.assert(fc.asyncProperty(statusModelWorkspace(), check), parameters);
+  } catch (error) {
+    throw replayError(error, parameters);
+  }
+}
+
+// fast-check's message holds the seed, the replay path and the shrunk counterexample; keep it in the message, as a
+// short reporter may not print the cause. fc.assert always throws an Error.
+function replayError(error: unknown, parameters: PropertyParameters): Error {
+  const detail = (error as Error).message;
+  return new Error(
+    `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)} ` +
+      `STATUS_MODEL_RUNS=${String(parameters.numRuns)}\n${detail}`,
+    { cause: error },
+  );
 }

@@ -40,15 +40,25 @@ describe("status model runner", () => {
     }).toThrow(/replay with STATUS_MODEL_SEED=3 STATUS_MODEL_RUNS=50\n.*Counterexample/s);
   });
 
-  it("runs a check over generated workspaces", () => {
+  it("runs an async check over generated workspaces and names the seed when it fails", async () => {
     let runs = 0;
-    forAllWorkspaces(
+    await forAllWorkspaces(
       (workspace) => {
         expect(workspace.elements.length).toBeGreaterThan(0);
         runs += 1;
+        return Promise.resolve();
       },
       { numRuns: 5, seed: 3 },
     );
     expect(runs).toBe(5);
+    await expect(
+      forAllWorkspaces(
+        (workspace) => {
+          expect(workspace.elements).toHaveLength(1);
+          return Promise.resolve();
+        },
+        { numRuns: 50, seed: 3 },
+      ),
+    ).rejects.toThrow(/replay with STATUS_MODEL_SEED=3 STATUS_MODEL_RUNS=50\n.*Counterexample/s);
   });
 });

@@ -68,6 +68,7 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | R1 | In the core view only verification records without variant count. | SR-047 AK2: „Gegeben ein Datensatz ohne Angabe einer Variante, wenn der Status berechnet wird, dann zählt er nur für den Kern, außer …“; SR-173 AK2 |
 | R2 | In a variant's view the records for that variant count; records for another variant never. | SR-047 AK1: „… mit einem bestandenen Datensatz für Variante A, wenn der Status für Variante B berechnet wird, dann ist er dort offen.“ |
 | R3 | When the element's repository is variant-independent, its records without variant count in every variant's view too, pooled with that variant's records (V4 to V15 over both). The element's repository decides. | SR-173 AK1: „… dann zählt er für den Kern und für jede Variante, für die das Element gilt.“ Rationale (#817): „Es zählt das Repository des Elements, nicht das des Datensatzes.“ Pooling: ADR-0012 „Which records count“ |
+| R4 | A record names its element by UUID, so it is a record of every file with that UUID (twins, also in two repositories); each file is measured by its own repository's mark (R3), criteria and version. The generator gives the files of one UUID one own part. | ADR-0012 „Decision“ (`element` (UUID)), „Which records count“: „twins of one UUID each follow their own repository“ |
 
 ### Indirect verification (Indirekter Nachweis)
 
