@@ -101,6 +101,8 @@ export interface Volatile {
 
 const DATE_TIME = /\b(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z\b/g;
 const DATE = /\b\d{4}-\d{2}-\d{2}\b(?!T\d)/g;
+/** A criterion key the tool gives (`newCriterionKey`), as the JSON of a criterion shows it before its text. */
+const CRITERION_KEY = /"key": "([a-z][a-z0-9]{3})",(\s*)"text"/g;
 
 const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 const localDay = (date: Date): string =>
@@ -108,8 +110,8 @@ const localDay = (date: Date): string =>
 
 /**
  * The output with the volatile parts fixed: the copy's folders, each new UUID (and its 12 and 6 digit tails, the file
- * name and the short ID) as a numbered placeholder in the order they appear, a time within the run as SHOWN_TIME,
- * and the date of the run as its date.
+ * name and the short ID) as a numbered placeholder in the order they appear, each new criterion key likewise, a time
+ * within the run as SHOWN_TIME, and the date of the run as its date.
  */
 export function stable(output: string, { folders, known, from, to }: Volatile): string {
   let text = output;
@@ -126,6 +128,13 @@ export function stable(output: string, { folders, known, from, to }: Volatile): 
       .replace(new RegExp(`\\b${escape(uuid.slice(-12))}\\b`, "g"), tail)
       .replace(new RegExp(`\\b(?<=-)${escape(uuid.slice(-6))}\\b`, "g"), tail.slice(-6));
   }
+  // A new criterion key (SR-204) as a numbered placeholder in the order the keys appear.
+  const keys = new Map<string, string>();
+  text = text.replace(CRITERION_KEY, (_match: string, key: string, space: string) => {
+    const shown = keys.get(key) ?? `c${(keys.size + 1).toString().padStart(3, "0")}`;
+    keys.set(key, shown);
+    return `"key": "${shown}",${space}"text"`;
+  });
   const early = from.getTime() - 1000;
   const late = to.getTime() + 1000;
   text = text.replace(

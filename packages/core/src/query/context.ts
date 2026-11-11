@@ -1,4 +1,5 @@
 // What the compilers of the filter conditions share (condition.ts, property.ts, relation.ts).
+import { criterionText, isCriterionMapping } from "../model/criterion-items.js";
 import type { CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FilterCondition, MetamodelProperty } from "../generated/types.js";
@@ -66,7 +67,11 @@ export const valuesOf = (value: unknown): readonly unknown[] => {
   if (value === undefined || value === null) {
     return NONE;
   }
-  return Array.isArray(value) ? value : [value];
+  if (!Array.isArray(value)) {
+    return [value];
+  }
+  // An acceptance criterion with its key is its text (SR-204); a list without one is not copied.
+  return value.some(isCriterionMapping) ? value.map(criterionText) : value;
 };
 
 const NONE: readonly never[] = Object.freeze([]);

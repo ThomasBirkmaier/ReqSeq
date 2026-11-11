@@ -254,7 +254,11 @@ describe("elementView", () => {
     const file = parsedFile(`---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\n---\n`);
     const record: ElementRecord = {
       ...recordOf(file),
-      data: { ...recordOf(file).data, "requirement-type": "odd", "acceptance-criteria": ["Shows it"] },
+      data: {
+        ...recordOf(file).data,
+        "requirement-type": "odd",
+        "acceptance-criteria": [{ key: "shws", text: "Shows it" }],
+      },
     };
     const view = elementView({
       successionsOf: () => [],

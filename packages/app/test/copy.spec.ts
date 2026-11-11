@@ -226,7 +226,8 @@ test.describe("copying a field of an element", () => {
     const got = JSON.parse((await running.cli(["element", "get", SR_ID])).stdout) as {
       element: { properties: Record<string, unknown> };
     };
-    expect(got.element.properties["acceptance-criteria"]).toEqual([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`]);
+    // The saved criteria carry their criterion keys (SR-204 AK1).
+    expect((got.element.properties["acceptance-criteria"] as { text: string }[]).map((c) => c.text)).toEqual([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`]);
   });
 
   test("[SR-128/AK4] a click on a field only sets the cursor: the clipboard is not changed", async () => {

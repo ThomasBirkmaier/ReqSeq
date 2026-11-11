@@ -12,6 +12,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { readFirst } from "../runtime/read-first.test-helper.js";
 import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
+import { criterionText } from "../model/criterion-items.js";
 
 const P = "5e025a7d-2b4f-4c61-9d08-0";
 const N = `${P}a0000000001`;
@@ -98,6 +99,13 @@ const at = (n: number): string => `${AC}&n=${String(n)}`;
 
 const frontmatterOf = (text: string): Record<string, unknown> =>
   parse(text.split("---\n")[1] ?? "") as Record<string, unknown>;
+
+/** The texts of the acceptance criteria of a file, without their criterion keys (SR-204). */
+const criteriaOf = (text: string): unknown[] =>
+  (frontmatterOf(text)["acceptance-criteria"] as unknown[]).map(criterionText);
+
+/** `text` as a regular expression that matches it literally. */
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 describe("references in properties marked markdown (SR-127)", () => {
   it("[SR-127/AK3] a changed target makes a reference in an acceptance criterion outdated, with a @text:acceptance-criteria hint that names the item and the line", async () => {
@@ -226,6 +234,29 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(await criteriaHints(workspace)).toEqual([]);
     });
 
+    it("[SR-127/AK3] confirms a reference in a criterion with its key, in place or as a block scalar, and keeps the key (SR-204)", async () => {
+      const keyed = [
+        "acceptance-criteria:",
+        "  - key: plain",
+        `    text: 'Then ${link("wind")}'`,
+        "  - key: block",
+        "    text: |",
+        `      Then ${link("wind")}`,
+        "",
+      ].join("\n");
+      const ws = await fixture(requirement(keyed));
+      await changeN(ws);
+      const workspace = open(ws.root);
+      const current = (await criteriaHints(workspace))[0]?.currentVersion ?? "";
+      expect((await confirm(workspace, [at(1), at(2)])).problems ?? []).toEqual([]);
+      const after = read(ws, A_FILE);
+      expect(after).toContain(`  - key: plain\n    text: 'Then ${link("wind", current)}'\n`);
+      expect(frontmatterOf(after)["acceptance-criteria"]).toEqual([
+        { key: "plain", text: `Then ${link("wind", current)}` },
+        { key: "block", text: `Then ${link("wind", current)}\n` },
+      ]);
+    });
+
     it("[SR-127/AK3] confirms a single value, plain and in a block scalar, of a property marked markdown", async () => {
       const decision = (rationale: string): string =>
         `---\nid: ${C}\ntype: decision\nstatus: draft\ntitle: Choose\n${rationale}---\n\nText.\n`;
@@ -339,7 +370,7 @@ describe("references in properties marked markdown (SR-127)", () => {
           ],
         },
       });
-      expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
+      expect(criteriaOf(read(ws, A_FILE))).toEqual([
         `Then ${link("kept")}.`,
         `**Then** ${link("new", await versionOf(workspace, N))}.`,
         "No link here.",
@@ -362,10 +393,16 @@ describe("references in properties marked markdown (SR-127)", () => {
         criteria[1],
         criteria[2],
       ];
-      expect(frontmatterOf(text)["acceptance-criteria"]).toEqual(stored);
-      // Each criterion is one line of the file, the Markdown as typed (quoted where YAML needs it).
-      expect(text).toContain(
-        `  - "${String(stored[0])}"\n  - Plain without marks\n  - "_Wenn_ ein Wert: **fett**"\n`,
+      expect(criteriaOf(text)).toEqual(stored);
+      // Each criterion is one line of the file at its criterion key, the Markdown as typed (quoted
+      // where YAML needs it; SR-204 AK11).
+      expect(text).toMatch(
+        new RegExp(
+          [`"${String(stored[0])}"`, "Plain without marks", '"_Wenn_ ein Wert: \\*\\*fett\\*\\*"']
+            .map((t, i) => `  - key: [a-z0-9]{4}\\n    text: ${i === 0 ? escaped(t) : t}\\n`)
+            .join(""),
+          "u",
+        ),
       );
     });
 
@@ -393,7 +430,7 @@ describe("references in properties marked markdown (SR-127)", () => {
         { workspace },
       )) as CommandOutput<"element.create">;
       const [file] = out.files;
-      expect(frontmatterOf(read(ws, file ?? ""))["acceptance-criteria"]).toEqual([
+      expect(criteriaOf(read(ws, file ?? ""))).toEqual([
         `Then ${link("wind", await versionOf(workspace, N))}.`,
       ]);
     });
@@ -426,9 +463,9 @@ describe("references in properties marked markdown (SR-127)", () => {
         );
       const stored = await versionOf(workspace, N);
       await bulk("set", [`Then [a](reqseq:${N}).`]);
-      expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([`Then ${link("a", stored)}.`]);
+      expect(criteriaOf(read(ws, A_FILE))).toEqual([`Then ${link("a", stored)}.`]);
       await bulk("add", [`And [b](reqseq:${N}).`, "Plain."]);
-      expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
+      expect(criteriaOf(read(ws, A_FILE))).toEqual([
         `Then ${link("a", stored)}.`,
         `And ${link("b", stored)}.`,
         "Plain.",

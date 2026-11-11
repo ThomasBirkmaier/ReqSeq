@@ -23,7 +23,29 @@ export {
 export type { IdentifierContext } from "./identifiers.js";
 export { identifierKeyOf } from "./identifier-index.js";
 export { emergentKeyOf, isEmergent } from "./emergent.js";
-export { acceptanceCriteriaKeyOf, criteriaCount } from "./acceptance-criteria.js";
+export {
+  acceptanceCriteriaKeyOf,
+  carriedCriteria,
+  criteriaCount,
+  newCriterionKey,
+  reconcileCriteria,
+  withCriterionKeys,
+} from "./acceptance-criteria.js";
+export type { RandomInt } from "./acceptance-criteria.js";
+export type { KeyedCriterion } from "./criterion-items.js";
+export {
+  CRITERION_KEY,
+  criterionKey,
+  criterionText,
+  isCriterionKey,
+  isCriterionMapping,
+  isKeyedCriterion,
+} from "./criterion-items.js";
+export {
+  allCriterionKeyFindings,
+  criterionKeyFindings,
+  criterionKeyProblemsState,
+} from "./criterion-keys.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";

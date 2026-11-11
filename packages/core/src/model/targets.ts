@@ -6,6 +6,7 @@
 // relation target and an inline reference also name the target's repository (D-058). Used by
 // `element.create` and `element.update`; `relation.add`, `element.supersede` and cross-repository
 // relations (SR-005) build on `currentTarget`.
+import { criterionText, isCriterionMapping } from "./criterion-items.js";
 import { CommandError, commandErrorOrThrow } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
 import type { ElementInputValue, ElementValue, RelationTarget } from "../generated/types.js";
@@ -466,9 +467,15 @@ const withUuids = (context: TargetContext, text: string, storedText: string): st
   return parts.join("");
 };
 
-/** The values of a property as text: a string, or the strings of a list, joined by line breaks. */
+/**
+ * The values of a property as text: a string, or the strings of a list (the text of an acceptance
+ * criterion with its key, SR-204), joined by line breaks.
+ */
 const textOf = (value: unknown): string =>
-  (Array.isArray(value) ? (value as unknown[]) : [value]).filter((v) => typeof v === "string").join("\n");
+  (Array.isArray(value) ? (value as unknown[]) : [value])
+    .map(criterionText)
+    .filter((v) => typeof v === "string")
+    .join("\n");
 
 /**
  * The value of a property marked `markdown` as it is stored (SR-127): every string of it, or of its
@@ -486,10 +493,17 @@ export const setMarkdownReferences = async (
   stored: unknown,
 ): Promise<ElementValue> => {
   const storedText = textOf(stored);
-  const set = async (item: unknown): Promise<unknown> =>
-    typeof item === "string" && item.includes(SCHEME)
+  const set = async (item: unknown): Promise<unknown> => {
+    // The text of an acceptance criterion with its key holds references as any text (SR-204).
+    if (isCriterionMapping(item)) {
+      return item.text.includes(SCHEME)
+        ? { ...item, text: await setInlineReferences(context, item.text, storedText, sourceRepository) }
+        : item;
+    }
+    return typeof item === "string" && item.includes(SCHEME)
       ? await setInlineReferences(context, item, storedText, sourceRepository)
       : item;
+  };
   try {
     return (
       Array.isArray(given) ? await Promise.all((given as unknown[]).map(set)) : await set(given)

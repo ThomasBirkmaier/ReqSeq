@@ -22,6 +22,7 @@
 //   omitted: the status (D-030), the origin properties (only the import writes them, SR-057 AK3),
 //   the STRING attribute of a relation-valued property (for reading; its SPEC-RELATIONs carry it),
 //   both round-trip attributes, and whatever the metamodel does not know.
+import { criterionText } from "../model/criterion-items.js";
 import type { MetamodelProperty, ReqifMappingFile } from "../generated/types.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
@@ -214,8 +215,9 @@ const textValue = (
   value: unknown,
 ): ReqifValue | undefined => {
   if (property.many === true) {
+    // An acceptance criterion with its key is read as its text; `reqseq-values` keeps the key (SR-204).
     const items = asList(value).flatMap((item) => {
-      const text = scalarText(item);
+      const text = scalarText(criterionText(item));
       return text === undefined ? [] : [text];
     });
     return items.length === 0 ? undefined : { kind: "xhtml", definition, value: listOf(items) };

@@ -19,6 +19,16 @@ export interface Written {
 export const requiredKey = (message: string): string | undefined =>
   /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
 
+/**
+ * The criterion keys the tool gives (4 characters, SR-204 AK1), random per call: in a file
+ * (`- key: k7f3`) and in an output (`"key":"k7f3"`). The fixtures write their own keys with 5
+ * characters, so these stay compared.
+ */
+export const NEW_CRITERION_KEYS: readonly RegExp[] = [
+  /(?<=- key: )[a-z][a-z0-9]{3}(?=\\n)/g,
+  /(?<="key":")[a-z][a-z0-9]{3}(?=","text")/g,
+];
+
 export const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
 /** SR-004/one-repository with the delivery and the saved mapping of fixtures/SR-053/delivery (SR-053). */
 export const DELIVERY: FixtureOptions = {

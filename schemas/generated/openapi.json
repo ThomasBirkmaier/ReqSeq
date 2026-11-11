@@ -3404,7 +3404,7 @@
                   "repository": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+                    "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it. Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
                   },
                   "expectedFileSha256": {
                     "$ref": "#/components/schemas/common/$defs/fileSha256",
@@ -13199,7 +13199,7 @@
               },
               "key": {
                 "$ref": "#/components/schemas/common/$defs/key",
-                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
+                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid`, the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
               },
               "place": {
                 "type": "object",
@@ -13234,7 +13234,7 @@
               "count": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "How many relations the element has that the limit counts, or how many entries its list property has."
+                "description": "How many relations the element has that the limit counts, how many entries its list property has, or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`)."
               },
               "limit": {
                 "type": "integer",
@@ -13267,6 +13267,9 @@
               "element.missing-status",
               "element.statement-without-text",
               "element.too-many-items",
+              "element.criterion-key-missing",
+              "element.criterion-key-duplicate",
+              "element.criterion-key-invalid",
               "element.text-emptied",
               "relation.missing-target",
               "relation.cross-repository-title",
@@ -14425,8 +14428,43 @@
               "boolean"
             ]
           },
+          "criterion": {
+            "description": "An acceptance criterion with its criterion key, as the element file stores it: a block mapping, key first. Only in the list of the property with the meaning acceptance-criteria; the key never counts to the version.",
+            "type": "object",
+            "properties": {
+              "key": {
+                "description": "The criterion key: a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits; unique in the requirement and kept while the criterion exists.",
+                "type": "string"
+              },
+              "text": {
+                "description": "The text of the acceptance criterion, Markdown.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "key",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "criterionInput": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "description": "Its key."
+              },
+              "text": {
+                "description": "Its text.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "additionalProperties": false
+          },
           "inputValue": {
-            "description": "Property value as a caller gives it to element.create, element.update or element.bulkUpdate: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version. For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier.",
+            "description": "Property value of a write command: like `value`, but a relation target is an element reference (UUID, short ID or identifier, alone or as `{ id, repository? }`) whose version the tool sets.",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/element/$defs/scalar"
@@ -14435,18 +14473,22 @@
                 "type": "null"
               },
               {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/element/$defs/scalar"
-                }
-              },
-              {
                 "$ref": "#/components/schemas/common/$defs/relationTargetInput"
               },
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/common/$defs/relationTargetInput"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/element/$defs/scalar"
+                    },
+                    {
+                      "$ref": "#/components/schemas/element/$defs/criterionInput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/common/$defs/relationTargetInput"
+                    }
+                  ]
                 }
               }
             ]
@@ -14463,7 +14505,14 @@
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/element/$defs/scalar"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/element/$defs/scalar"
+                    },
+                    {
+                      "$ref": "#/components/schemas/element/$defs/criterion"
+                    }
+                  ]
                 }
               },
               {

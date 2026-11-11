@@ -107,7 +107,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it. Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",

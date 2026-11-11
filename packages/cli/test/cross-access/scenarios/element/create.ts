@@ -2,7 +2,7 @@
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { FILTER, NESTED, NESTED_A, requiredKey } from "../../fixtures.js";
+import { FILTER, NESTED, NESTED_A, NEW_CRITERION_KEYS, requiredKey } from "../../fixtures.js";
 
 scenariosOf("element.create", [
   {
@@ -50,8 +50,19 @@ scenariosOf("element.create", [
         "acceptance-criteria": ["Given a gust, then it is shown."],
       },
     },
+    tag: "[SR-204/AK1]",
     expect: "output",
     newElement: true,
+    masks: NEW_CRITERION_KEYS,
+    // Each access gives the criterion a criterion key of its own (SR-204 AK1).
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        const output = (result.outcome as { output: Written }).output;
+        expect(output.element.properties["acceptance-criteria"]).toEqual([
+          { key: "<masked>", text: "Given a gust, then it is shown." },
+        ]);
+      }
+    },
   },
   { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
   {

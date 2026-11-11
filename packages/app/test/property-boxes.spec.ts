@@ -175,7 +175,8 @@ test.describe("property boxes of an element", () => {
     await expect(modeline(window)).not.toContainText("modified");
     const got = await cliGet(running);
     expect(got.element.properties["topic"]).toBe("Wind und Böen");
-    expect(got.element.properties["acceptance-criteria"]).toEqual([...CRITERIA, "Ein neuer Satz."]);
+    // Each saved criterion has its criterion key (SR-204 AK1); the box shows the texts.
+    expect((got.element.properties["acceptance-criteria"] as { text: string }[]).map((c) => c.text)).toEqual([...CRITERIA, "Ein neuer Satz."]);
     // Properties that were not touched keep their lines.
     const after = await readFile(running);
     for (const kept of [

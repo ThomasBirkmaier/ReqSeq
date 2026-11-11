@@ -142,6 +142,10 @@ describe("element.create", () => {
     });
     const id = out.element.id;
     const file = `requirements/SR-${tail12(id)}.md`;
+    // The criterion gets its criterion key (SR-204 AK1), which does not count to the version (SR-091 AK6).
+    const [criterion] = out.element.properties["acceptance-criteria"] as { key: string }[];
+    const key = criterion?.key ?? "";
+    expect(key).toMatch(/^[a-z][a-z0-9]{3}$/);
     expect(await filesBelow(opened.root)).toEqual([...before, file].sort());
     expect(out.files).toEqual([file]);
     // Structural keys, the title, then the properties in the order of the type (ADR-0004).
@@ -154,7 +158,8 @@ describe("element.create", () => {
         "title: Show rain",
         "requirement-type: functional",
         "acceptance-criteria:",
-        "  - Given rain, when it falls, then the station shows it.",
+        `  - key: ${key}`,
+        "    text: Given rain, when it falls, then the station shows it.",
         "---",
         "",
         "The station shows rain.",
@@ -187,7 +192,7 @@ describe("element.create", () => {
       file,
       properties: {
         "requirement-type": "functional",
-        "acceptance-criteria": ["Given rain, when it falls, then the station shows it."],
+        "acceptance-criteria": [{ key, text: "Given rain, when it falls, then the station shows it." }],
       },
       relations: [],
       problems: [noParent(out)],

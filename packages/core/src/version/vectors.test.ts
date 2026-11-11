@@ -74,4 +74,13 @@ describe("version test vectors (ADR-0005)", () => {
     expect(cr.text).not.toContain("\n");
     expect(computeVersion({ ...cr, text: cr.text.replace(/\r/g, "\n") }, "n1")).toBe(vector?.version);
   });
+
+  it("[SR-091/AK6] the vectors with criterion keys, also swapped, have the version of the one without", () => {
+    const original = inputFor("SR-825b7146fb54.md", ["SR-825b7146fb54/layout.png"], []);
+    for (const twin of ["SR-825b7146fb55.md", "SR-825b7146fb56.md"]) {
+      const keyed = inputFor(twin, ["SR-825b7146fb54/layout.png"], []);
+      expect(keyed.properties["acceptance-criteria"]).not.toEqual(original.properties["acceptance-criteria"]);
+      expect(computeVersion(keyed, "n1")).toBe(computeVersion(original, "n1"));
+    }
+  });
 });

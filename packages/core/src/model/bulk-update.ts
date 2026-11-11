@@ -35,6 +35,8 @@
 //   writes only the remaining elements.
 // - `id`, `type` and `status` are refused by the input schema (ADR-0002 rule 6, D-030); nothing is
 //   deleted (D-045): a removed key or item is a change of the element's file only.
+import { acceptanceCriteriaKeyOf, carriedCriteria, withCriterionKeys } from "./acceptance-criteria.js";
+import { criterionText } from "./criterion-items.js";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { Problem } from "../catalog.js";
@@ -256,9 +258,14 @@ const targetOf = (item: TargetItem, repository: string): string =>
     typeof item["repository"] === "string" ? item["repository"] : repository,
   ]);
 
-/** Whether two items are the same: relation targets by target, other items by value. */
+/**
+ * Whether two items are the same: relation targets by target, other items by value, an acceptance
+ * criterion by its text, whatever its criterion key (SR-204).
+ */
 const sameItem = (a: unknown, b: unknown, repository: string): boolean =>
-  hasId(a) && hasId(b) ? targetOf(a, repository) === targetOf(b, repository) : isDeepStrictEqual(a, b);
+  hasId(a) && hasId(b)
+    ? targetOf(a, repository) === targetOf(b, repository)
+    : isDeepStrictEqual(criterionText(a), criterionText(b));
 
 const itemsOf = (value: ElementInputValue): readonly unknown[] => (Array.isArray(value) ? value : [value]);
 
@@ -285,13 +292,17 @@ const newTarget = (plan: Plan, sourceRepository: string, item: TargetItem): Prom
   return known;
 };
 
-/** `remove` with the items `given`: the items of the element that are given, the key with its last item. */
+/**
+ * `remove` with the items `given`: the items of the element that are given, the key with its last
+ * item. The acceptance criteria are written as a whole, so every one left has its key (SR-204 AK1).
+ */
 const removeEdits = (
-  key: string,
+  plan: Plan,
   stored: unknown,
   given: readonly unknown[],
   repository: string,
 ): FrontmatterEdit[] => {
+  const { key } = plan.property;
   if (!Array.isArray(stored)) {
     // One value where a list belongs (the value-kind check reports it): removed when it is given.
     return stored !== undefined && given.some((g) => sameItem(stored, g, repository))
@@ -301,10 +312,15 @@ const removeEdits = (
   const indexes = (stored as unknown[]).flatMap((item, i) =>
     given.some((g) => sameItem(item, g, repository)) ? [i] : [],
   );
+  if (indexes.length > 0 && indexes.length === stored.length) {
+    return [{ kind: "remove", key }];
+  }
+  if (indexes.length > 0 && isCriteria(plan)) {
+    const left = carriedCriteria(stored).filter((_, i) => !indexes.includes(i));
+    return [{ kind: "set", key, value: criteriaValue(plan, stored, left) }];
+  }
   // From the last item, so each index still names its item.
-  return indexes.length > 0 && indexes.length === stored.length
-    ? [{ kind: "remove", key }]
-    : indexes.toReversed().map((index): FrontmatterEdit => ({ kind: "remove-item", key, index }));
+  return indexes.toReversed().map((index): FrontmatterEdit => ({ kind: "remove-item", key, index }));
 };
 
 /** `add` with the items `given`: each one the element does not hold yet, as a new line. */
@@ -344,6 +360,11 @@ const addEdits = async (
             stored,
           )) as unknown[])
         : fresh;
+  if (isCriteria(plan)) {
+    // The whole list, so every acceptance criterion has its key (SR-204 AK1).
+    const kept = Array.isArray(stored) ? carriedCriteria(stored) : held;
+    return [{ kind: "set", key, value: criteriaValue(plan, stored, [...kept, ...added]) }];
+  }
   if (!Array.isArray(stored) && !isAbsent(stored)) {
     // One value where a list belongs: the key becomes the list of it (none when it is blank) and the
     // new items.
@@ -353,6 +374,14 @@ const addEdits = async (
 };
 
 const isAbsent = (value: unknown): boolean => value === undefined || value === null;
+
+/** Whether the plan writes the acceptance criteria (D-072). */
+const isCriteria = (plan: Plan): boolean =>
+  acceptanceCriteriaKeyOf(plan.context.metamodel) === plan.property.key;
+
+/** The acceptance criteria `next` as stored, against the items `stored` now (`reconcileCriteria`, SR-204). */
+const criteriaValue = (plan: Plan, stored: unknown, next: readonly unknown[]): PropertyValue =>
+  withCriterionKeys(plan.context.metamodel, plan.property.key, stored, next) as PropertyValue;
 
 /** The edits of the operation for one element as read now (`record`); none when it has the result already. */
 const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterEdit[]> => {
@@ -373,11 +402,12 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
           : markdownKeysOf(plan.context.metamodel).has(key)
             ? await setMarkdownReferences(plan.context, key, record.repository, given, stored)
             : given;
-      // Relation targets are plain string records (`toPropertyValue` in write.ts).
-      return [{ kind: "set", key, value: set as PropertyValue }];
+      // Relation targets are plain string records (`toPropertyValue` in write.ts); the acceptance
+      // criteria keep and get their criterion keys (SR-204 AK1, AK4).
+      return [{ kind: "set", key, value: withCriterionKeys(plan.context.metamodel, key, stored, set) as PropertyValue }];
     }
     case "remove":
-      return removeEdits(key, stored, itemsOf(value), record.repository);
+      return removeEdits(plan, stored, itemsOf(value), record.repository);
     case "add":
       return addEdits(plan, record, stored, itemsOf(value));
   }

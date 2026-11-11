@@ -134,7 +134,11 @@ test.describe("Create element", () => {
     const got = await created(running);
     expect(got.element.properties).toMatchObject({
       "requirement-type": "performance",
-      "acceptance-criteria": ["Böen über 20 m/s erscheinen.", "Ohne Messung erscheint n/a."],
+      // Each with its criterion key (SR-204 AK1).
+      "acceptance-criteria": [
+        expect.objectContaining({ text: "Böen über 20 m/s erscheinen." }),
+        expect.objectContaining({ text: "Ohne Messung erscheint n/a." }),
+      ],
     });
     expect(Object.keys(got.element.properties).filter((key) => !type.properties.includes(key))).toEqual([]);
     // Created without a relation, it has no parent yet (SR-022 AK6).

@@ -55,6 +55,7 @@ import {
   duplicateIdentifierProblemsState,
   elementStoreState,
   itemLimitProblemsState,
+  criterionKeyProblemsState,
   problemElement,
   relationKey,
   relationLimitProblemsState,
@@ -110,6 +111,7 @@ export const HINT_STATES = [
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   itemLimitProblemsState, // SR-171
+  criterionKeyProblemsState, // SR-204 AK10
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
@@ -135,6 +137,7 @@ const CHECK_ORDER: readonly (readonly string[])[] = [
   ["variant.target-not-core"],
   ["element.wrong-value-kind"],
   ["element.too-many-items"],
+  ["element.criterion-key-missing", "element.criterion-key-invalid", "element.criterion-key-duplicate"],
   ["relation.not-allowed"],
   ["relation.too-few", "relation.too-many"],
   ["element.duplicate-identifier"],

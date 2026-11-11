@@ -40,6 +40,7 @@
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
 // the documents of the changed files are replaced in the same MiniSearch object (see
 // `carrySearchIndex`), so a save costs the files it wrote, not a build.
+import { isCriterionMapping } from "../model/criterion-items.js";
 import { setTimeout as delay, setImmediate as nextTurn } from "node:timers/promises";
 import MiniSearch from "minisearch";
 import type { Options, Query, SearchOptions, SearchResult } from "minisearch";
@@ -144,10 +145,13 @@ export const recordKey = (record: Pick<ElementRecord, "repository" | "file">): s
 /**
  * The texts of a frontmatter value: text, numbers and booleans, a date (`!!timestamp`) as ISO text,
  * also inside lists, mappings, ordered maps and sets (`!!omap`, `!!set`); binary data (`!!binary`)
- * has none.
+ * has none, and an acceptance criterion with its key only its text.
  */
 export const valueTexts = (value: unknown, out: string[]): void => {
-  if (typeof value === "string") {
+  if (isCriterionMapping(value)) {
+    // An acceptance criterion with its key: its text only, the key is no word (SR-204).
+    out.push(value.text);
+  } else if (typeof value === "string") {
     out.push(value);
   } else if (typeof value === "number" || typeof value === "boolean") {
     out.push(String(value));

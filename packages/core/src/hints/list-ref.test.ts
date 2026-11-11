@@ -156,6 +156,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       ...(await sameByRef(SINCE_BASELINE)),
     ]);
     expect([...codes].sort()).toEqual([
+      "element.criterion-key-missing",
       "element.duplicate-identifier",
       "element.missing-required",
       "element.missing-status",

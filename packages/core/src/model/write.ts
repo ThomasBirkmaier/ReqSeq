@@ -55,7 +55,9 @@ import {
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { acceptanceCriteriaKeyOf, carriedCriteria, withCriterionKeys } from "./acceptance-criteria.js";
 import { directlyAffectedCount } from "./affected.js";
+import { criterionKey } from "./criterion-items.js";
 import { itemsEmptied, propertiesEmptied, textEmptied } from "./emptied.js";
 import type { NewFileRule } from "./discover.js";
 import { newFileTarget } from "./discover.js";
@@ -830,7 +832,10 @@ export const createElement = async (
   }
   const text = await setInlineReferences(context, input.text ?? "", "", repository.name);
   const bytes = newElementBytes(base, id, input.title, text, [
-    ...properties.map(([key, value]) => [key, toPropertyValue(value)] as const),
+    // Each acceptance criterion gets its criterion key (SR-204 AK1).
+    ...properties.map(
+      ([key, value]) => [key, toPropertyValue(withCriterionKeys(metamodel, key, undefined, value))] as const,
+    ),
     ...(await newRelations(context, self, relationPlan)),
   ]);
   await refuseByCheck(
@@ -917,7 +922,7 @@ const checkedSetItems = (
     }
     const items = [checked]
       .flat()
-      .map((item, index): [number, ElementInputValue] => [Number(positions[index]), item]);
+      .map((item, index): [number, ElementInputValue] => [Number(positions[index]), item as ElementInputValue]);
     return { key, items };
   });
 };
@@ -968,7 +973,9 @@ const setItemEdits = async (
         },
       );
     }
-    const list: unknown[] = [...(now as unknown[])];
+    const criteria = acceptanceCriteriaKeyOf(context.metamodel) === key;
+    // The acceptance criteria keep their keys, also the ones replaced by position (SR-204 AK6).
+    const list: unknown[] = criteria ? carriedCriteria(now) : [...(now as unknown[])];
     for (const [position, value] of items) {
       if (position > list.length + 1) {
         throw invalid(
@@ -976,7 +983,11 @@ const setItemEdits = async (
           { key, position, length: now.length, reason: "position-out-of-range" },
         );
       }
-      list[position - 1] = value;
+      const held: unknown = list[position - 1];
+      list[position - 1] =
+        criteria && typeof value === "string" && criterionKey(held) !== undefined
+          ? { key: criterionKey(held), text: value }
+          : value;
     }
     const value = markdownKeysOf(context.metamodel).has(key)
       ? ((await setMarkdownReferences(
@@ -987,8 +998,12 @@ const setItemEdits = async (
           now,
         )) as unknown[])
       : list;
-    for (const [position] of items) {
-      const item = value[position - 1] as ItemValue;
+    // The whole list of acceptance criteria, so every item ends up with a key (SR-204 AK1); an item
+    // that stays the same keeps its bytes.
+    const written = criteria ? withCriterionKeys(context.metamodel, key, now, value) : value;
+    const changed = criteria ? written.map((_, i) => i + 1) : items.map(([position]) => position);
+    for (const position of changed) {
+      const item = written[position - 1] as ItemValue;
       edits.push(
         position <= now.length
           ? { kind: "replace-item", key, index: position - 1, value: item }
@@ -1388,7 +1403,13 @@ export const updateElement = async (
   const relationPlan = planRelations(relationState, record, input.addRelations, input.removeRelations);
   const { repository, current } = await readUnchanged(workspace, layout, record);
   expectedFile(record, current, input.expectedFileSha256);
-  const set = await withTargets(context, record.repository, given, current.record.data);
+  // The acceptance criteria keep and get their criterion keys (SR-204 AK1, AK4, AK5).
+  const set = (await withTargets(context, record.repository, given, current.record.data)).map(
+    ([key, value]): [string, ElementValue] => [
+      key,
+      withCriterionKeys(metamodel, key, current.record.data[key], value),
+    ],
+  );
   const relations = await relationEdits(context, relationState, current.record, relationPlan);
   const items = await setItemEdits(context, record.repository, itemChanges, current.record.data);
   const text =

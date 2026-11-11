@@ -365,3 +365,40 @@ describe("sameVersion (ADR-0005 normal form 2)", () => {
     );
   });
 });
+
+describe("criterion keys (D-027, D-072)", () => {
+  const criteria = (items: VersionInput["properties"][string]): VersionInput => ({
+    ...base,
+    properties: { ...base.properties, "acceptance-criteria": items },
+  });
+  const both = (input: VersionInput): string[] => [computeVersion(input, "n1"), computeVersion(input, "n2")];
+
+  it("[SR-091/AK6] counts a criterion with its key as its text alone, in every normal form, whatever the key", () => {
+    const plain = both(base);
+    expect(
+      both(
+        criteria([
+          { key: "abcd", text: "Given A, when B, then C." },
+          { text: "Given D, when E, then F.", key: "efgh" },
+        ]),
+      ),
+    ).toEqual(plain);
+    expect(both(criteria([{ key: "efgh", text: "Given A, when B, then C." }, "Given D, when E, then F."]))).toEqual(
+      plain,
+    );
+    // The key may have any value; it never counts.
+    expect(both(criteria([{ key: 7, text: "Given A, when B, then C." }, "Given D, when E, then F."]))).toEqual(plain);
+  });
+
+  it("counts any other mapping in a list as it is", () => {
+    const plain = both(base);
+    for (const item of [
+      { key: "abcd", text: "Given A, when B, then C.", note: "x" },
+      { key: "abcd", text: 7 },
+      { text: "Given A, when B, then C." },
+      { id: "abcd", text: "Given A, when B, then C." },
+    ]) {
+      expect(both(criteria([item, "Given D, when E, then F."]))).not.toEqual(plain);
+    }
+  });
+});

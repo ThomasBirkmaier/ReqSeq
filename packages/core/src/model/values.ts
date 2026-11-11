@@ -4,6 +4,8 @@
 // "Hinweis"), never an error, and the file is still read and kept unchanged. Keys the metamodel does
 // not know are SR-016 (D-012); which target types a relation may have is SR-086: this check decides
 // only whether a value is a relation target at all.
+import { acceptanceCriteriaKeyOf } from "./acceptance-criteria.js";
+import { isKeyedCriterion } from "./criterion-items.js";
 import type { Problem } from "../catalog.js";
 import type { MetamodelNamed, MetamodelProperty } from "../generated/types.js";
 import type { KeyDefinition, Metamodel } from "../metamodel/index.js";
@@ -47,6 +49,11 @@ interface ValueDefinition {
   readonly choices: ReadonlySet<string>;
   /** What the kind expects, for messages; a choice lists its allowed values (SR-085 AK2). */
   readonly expected: string;
+  /**
+   * The acceptance criteria (D-072): an item may also be a criterion with its key, a mapping of
+   * exactly `key` and `text`, both text (SR-204, `isKeyedCriterion`).
+   */
+  readonly criteria?: true;
 }
 
 const isDate = (value: unknown): boolean => fileSchemaValidator("common.schema.json#/$defs/date")(value);
@@ -108,7 +115,13 @@ const definitionsOf = (metamodel: Metamodel): Definitions => {
   const definitions: Definitions = (key) => {
     if (!cache.has(key)) {
       const found = keyDefinition(metamodel, key);
-      cache.set(key, found === undefined ? undefined : valueDefinition(found));
+      const definition = found === undefined ? undefined : valueDefinition(found);
+      cache.set(
+        key,
+        definition !== undefined && found?.kind === "property" && acceptanceCriteriaKeyOf(metamodel) === key
+          ? { ...definition, criteria: true }
+          : definition,
+      );
     }
     return cache.get(key);
   };
@@ -120,7 +133,7 @@ const definitionsOf = (metamodel: Metamodel): Definitions => {
 const hasKind = (definition: ValueDefinition, value: unknown): boolean => {
   switch (definition.kind) {
     case "text":
-      return typeof value === "string";
+      return typeof value === "string" || (definition.criteria === true && isKeyedCriterion(value));
     case "number":
       return typeof value === "number" && Number.isFinite(value);
     case "date":

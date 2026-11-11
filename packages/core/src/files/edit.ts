@@ -17,6 +17,7 @@ import type { ItemValue, PropertyValue, ScalarValue } from "./yaml-text.js";
 import {
   NEEDS_ESCAPE,
   doubleQuoted,
+  isCriterionItem,
   renderItem,
   renderItemLines,
   renderKey,
@@ -411,14 +412,16 @@ const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[],
   // Each item with the text of its lines and the offsets of its content inside that text.
   const parts = zip(items, chunks).map(([item, c]) => ({
     node: item.node,
+    start: c.start,
     text: text.slice(c.start, c.end),
     content:
       item.content === undefined
         ? undefined
         : [rangeOf(item.node)[0] - c.start, contentEnd(text, item.node) - c.start],
   }));
-  // An appended text takes the quoting of the last text item of the list (#177).
-  const last = items.findLast((item) => isOneLineText(item.node))?.node;
+  // An appended text takes the quoting of the last text item of the list (#177), also the text of a
+  // criterion with its key (SR-204).
+  const last = textNodeOf(items.findLast((item) => isOneLineText(textNodeOf(item.node)))?.node);
   const out = slots.map((slot) => {
     if ("orig" in slot) {
       return parts
@@ -428,17 +431,43 @@ const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[],
     }
     const old = slot.replaces === undefined ? undefined : parts[slot.replaces];
     if (old?.content === undefined) {
-      return slot.appended === true && typeof slot.value === "string" && isOneLineText(last)
-        ? `${indent}- ${requoted(last, slot.value, "item")}${eol}`
-        : `${renderItemLines([slot.value], indent, eol)}${eol}`;
+      if (slot.appended === true && isOneLineText(last)) {
+        if (typeof slot.value === "string") {
+          return `${indent}- ${requoted(last, slot.value, "item")}${eol}`;
+        }
+        if (isCriterionItem(slot.value)) {
+          return `${indent}- key: ${renderScalar(slot.value.key, "value")}${eol}${indent}  text: ${requoted(last, slot.value.text, "value")}${eol}`;
+        }
+      }
+      return `${renderItemLines([slot.value], indent, eol)}${eol}`;
     }
     // A replaced item changes only its content: the dash, its spacing and a trailing comment stay.
-    // A text that replaces a text on one line keeps its quoting (#177).
+    // A text that replaces a text on one line keeps its quoting (#177), also as the text of a
+    // criterion with its key (SR-204), which is a block mapping at the column of the content.
     const [from, to] = old.content as [number, number];
+    const column = from - (old.text.lastIndexOf("\n", from - 1) + 1);
+    const before = textNodeOf(old.node);
+    // A criterion that replaces one with its key changes the scalars of key and text only, so the
+    // spacing and a comment of the mapping stay.
+    const keyNode: unknown = isMap(old.node) && old.node.items.length === 2 ? old.node.get("key", true) : undefined;
+    if (isCriterionItem(slot.value) && isOneLineText(before) && isOneLineText(keyNode)) {
+      const scalars: [Scalar, string][] = [
+        [keyNode, slot.value.key],
+        [before, slot.value.text],
+      ];
+      let out = old.text;
+      for (const [node, value] of scalars.sort(([a], [b]) => rangeOf(b)[0] - rangeOf(a)[0])) {
+        const [start, end] = rangeOf(node);
+        out = `${out.slice(0, start - old.start)}${requoted(node, value, "value")}${out.slice(end - old.start)}`;
+      }
+      return out;
+    }
     const content =
       typeof slot.value === "string" && isOneLineText(old.node)
         ? requoted(old.node, slot.value, "item")
-        : renderItem(slot.value);
+        : isCriterionItem(slot.value) && isOneLineText(before)
+          ? `key: ${renderScalar(slot.value.key, "value")}${eol}${" ".repeat(column)}text: ${requoted(before, slot.value.text, "value")}`
+          : renderItem(slot.value, column, eol);
     return `${old.text.slice(0, from)}${content}${old.text.slice(to)}`;
   });
   return {
@@ -484,7 +513,11 @@ const changedPairSplice = (
  * collection, the strictest place, where a plain scalar reads back anywhere; an item of a block
  * sequence is checked as an item, so a plain text with a comma stays plain there (#177).
  */
-const requoted = (node: Scalar, value: string, context: "flow-value" | "item" = "flow-value"): string => {
+const requoted = (
+  node: Scalar,
+  value: string,
+  context: "flow-value" | "item" | "value" = "flow-value",
+): string => {
   if (node.type === Scalar.QUOTE_SINGLE && !NEEDS_ESCAPE.test(value)) {
     return `'${value.replaceAll("'", "''")}'`;
   }
@@ -498,6 +531,9 @@ const isOneLineText = (node: unknown): node is Scalar =>
   node.type !== Scalar.BLOCK_LITERAL &&
   node.type !== Scalar.BLOCK_FOLDED &&
   node.anchor === undefined;
+
+/** The node of a list item that holds its text: the item, or the `text` of a criterion mapping (SR-204). */
+const textNodeOf = (node: unknown): unknown => (isMap(node) ? node.get("text", true) : node);
 
 /** A copy of `data` with `value` at `path` (`scalarSplice` checked that `data` has the path). */
 const withValueAt = (data: unknown, path: readonly (string | number)[], value: string): unknown => {

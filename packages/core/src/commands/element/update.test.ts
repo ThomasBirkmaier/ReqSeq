@@ -390,7 +390,7 @@ describe("element.update", () => {
     expect(out.element.properties).toMatchObject({
       rationale: "Pilots need it",
       "requirement-type": "functional",
-      "acceptance-criteria": ["Given a gust, then it is shown."],
+      "acceptance-criteria": [expect.objectContaining({ text: "Given a gust, then it is shown." })],
       validity: [expect.objectContaining({ id: variant.element.id, title: "Mountain" })],
       packages: [expect.objectContaining({ id: pkg.element.id, title: "Sensors" })],
       emergent: "no",

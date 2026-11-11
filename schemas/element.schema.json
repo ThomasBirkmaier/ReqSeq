@@ -30,8 +30,30 @@
     "scalar": {
       "type": ["string", "number", "boolean"]
     },
+    "criterion": {
+      "description": "An acceptance criterion with its criterion key, as the element file stores it (D-072, SR-204, ADR-0004): a block mapping, key first. Only in the list of the property with the meaning acceptance-criteria; the key never counts to the version (D-027).",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The criterion key: a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits (SR-204 AK5); unique in the requirement and kept while the criterion exists.",
+          "type": "string"
+        },
+        "text": { "description": "The text of the acceptance criterion, Markdown.", "type": "string" }
+      },
+      "required": ["key", "text"],
+      "additionalProperties": false
+    },
+    "criterionInput": {
+      "type": "object",
+      "properties": {
+        "key": { "description": "Its key (SR-204)." },
+        "text": { "description": "Its text.", "type": "string" }
+      },
+      "required": ["text"],
+      "additionalProperties": false
+    },
     "inputValue": {
-      "description": "Property value as a caller gives it to element.create, element.update or element.bulkUpdate: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).",
+      "description": "Property value of a write command: like `value`, but a relation target is an element reference (UUID, short ID or identifier, alone or as `{ id, repository? }`) whose version the tool sets (SR-021).",
       "anyOf": [
         {
           "$ref": "#/$defs/scalar"
@@ -40,18 +62,16 @@
           "type": "null"
         },
         {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/scalar"
-          }
-        },
-        {
           "$ref": "common.schema.json#/$defs/relationTargetInput"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "common.schema.json#/$defs/relationTargetInput"
+            "anyOf": [
+              { "$ref": "#/$defs/scalar" },
+              { "$ref": "#/$defs/criterionInput" },
+              { "$ref": "common.schema.json#/$defs/relationTargetInput" }
+            ]
           }
         }
       ]
@@ -68,7 +88,7 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/scalar"
+            "anyOf": [{ "$ref": "#/$defs/scalar" }, { "$ref": "#/$defs/criterion" }]
           }
         },
         {

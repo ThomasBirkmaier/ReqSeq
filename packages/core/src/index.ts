@@ -48,6 +48,7 @@ export type {
 } from "./evidence/degree-text.js";
 export * from "./version/version.js";
 export { versionIn } from "./model/version-input.js";
+export { criterionKey, criterionText } from "./model/criterion-items.js";
 export { watchWorkspace } from "./model/watch.js";
 export { ACTIVITY_FILE, FOLLOWED_ACCESSES, watchActivity } from "./model/activity.js";
 export type { AccessName, ActivityWatch, ActivityWatchOptions } from "./model/activity.js";

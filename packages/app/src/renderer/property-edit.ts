@@ -7,6 +7,7 @@
 // only write is `element.update { ref, title?, text?, set?, unset? }` (ADR-0002); the app never writes a
 // file. The title is a field like a single text box (ThomasBirkmaier/ReqSeq-archive#621): keyed `TITLE_FIELD`, compared with the file and
 // kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
+import { criterionText } from "@reqseq/core/criterion-items";
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@reqseq/core";
 import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
 import {
@@ -45,11 +46,14 @@ const storedItems = (value: unknown): number =>
   Array.isArray(value) ? value.length : value === undefined || value === null || value === "" ? 0 : 1;
 
 /**
- * The document of a stored value: a string as it is, a number as its text, a list with one item per line.
- * Undefined for a value that is not text (a mapping, a boolean, a list of lists).
+ * The document of a stored value: a string as it is, a number as its text, a list with one item per line,
+ * an acceptance criterion with its key as its text. Undefined for a value that is not text (a mapping, a
+ * boolean, a list of lists).
  */
 export const boxValue = (value: unknown, many: boolean): Omit<EditableBox, "key" | "info"> | undefined => {
-  const items = Array.isArray(value) ? (value as unknown[]) : [value];
+  // An acceptance criterion with its criterion key shows its text (SR-204); the save sends the texts,
+  // and core keeps the keys by text.
+  const items = (Array.isArray(value) ? (value as unknown[]) : [value]).map(criterionText);
   if (!items.every((item) => typeof item === "string" || typeof item === "number")) {
     return undefined;
   }
@@ -68,7 +72,7 @@ export const boxValue = (value: unknown, many: boolean): Omit<EditableBox, "key"
 export const isNumberedList = (value: unknown): boolean =>
   Array.isArray(value) &&
   value.length > 0 &&
-  value.every((item) => typeof item === "string" && !item.includes("\n"));
+  value.map(criterionText).every((item) => typeof item === "string" && !item.includes("\n"));
 
 /** The kinds whose value the user picks in the minibuffer: there is no text to type (SR-104 AK3). */
 export const isValueKind = (kind: PropertyInfo["kind"]): boolean => kind === "choice" || kind === "relation";

@@ -117,6 +117,12 @@ describe("isNumberedList (#615)", () => {
     expect(isNumberedList([])).toBe(false);
     expect(isNumberedList("a")).toBe(false);
   });
+
+  it("numbers acceptance criteria with their criterion keys, and shows their texts in the box (SR-204)", () => {
+    const criteria = [{ key: "keya", text: "Given a." }, "Given b."];
+    expect(isNumberedList(criteria)).toBe(true);
+    expect(boxValue(criteria, true)).toEqual({ doc: "Given a.\nGiven b.", lineBreak: false });
+  });
 });
 
 describe("boxValue", () => {
