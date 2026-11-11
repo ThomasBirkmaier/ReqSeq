@@ -15,7 +15,7 @@ This file is the starting point. It holds the rules that apply to every change, 
 | architecture work | `docs/architecture/README.md` and the ADRs of your area |
 | work in `packages/core` or `packages/app` | its README and only the part under its `docs/` you work on (ADR-0008 and ADR-0010 are split the same way) |
 
-Skills are in `.claude/skills/<name>/SKILL.md`. A session that starts outside this checkout may list them as `reqseq:<name>`, or not at all; then read the file. A skill or a second CLAUDE.md that names LogReq comes from an old checkout and does not apply. The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
+Skills are in `.claude/skills/<name>/SKILL.md`. A session that starts outside this checkout may list them as `reqseq:<name>`, or not at all; then read the file. The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 
 ## Sources of truth
 
