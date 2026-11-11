@@ -332,6 +332,28 @@ describe("filter.save (SR-070)", () => {
     expect(await listed(workspace)).toEqual({ filters: [], problems: [], incomplete: true });
   });
 
+  it("[SR-083/AK4] writes no filter below .git, also when the workspace file places the filters folder there", async () => {
+    const flow = "reqseq-filter: 1\nname: Flow\nwhere: { all: [] }\n";
+    const { fixture, workspace } = await open({
+      fixture: "SR-069/filter",
+      files: {
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          "metamodel: { repository: system, path: metamodel }\n" +
+          "filters: { repository: system, path: .git/filters }\n",
+        ".git/filters/flow.yaml": flow,
+      },
+    });
+    // A new filter, and one that replaces the filter of a file there.
+    for (const name of ["All", "Flow"]) {
+      const error = await failure(workspace, { name, where: { any: [] } });
+      expect([name, error.code, error.details?.["reason"]]).toEqual([name, "input.invalid", "not-listed"]);
+    }
+    expect(await fs.readdir(fixture.path(".git/filters"))).toEqual(["flow.yaml"]);
+    expect(await read(fixture, ".git/filters/flow.yaml")).toBe(flow);
+  });
+
   it("is refused on a read-only workspace (SR-011 AK3)", async () => {
     const { workspace } = await open({
       fixture: "SR-069/filter",
