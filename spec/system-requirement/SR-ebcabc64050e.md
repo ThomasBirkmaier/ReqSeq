@@ -15,7 +15,7 @@ derives-from:
   - { id: 6ad47d8b-773c-4d21-bf35-1b7deeb96561, version: n1:de3fc7e167c1c882, title: Anpassbares Metamodell }
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:56f3063b768f90cd, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
 ---
 
 Wenn eine Beziehung Typen verbindet, die das Metamodell für ihre Beziehungsart nicht erlaubt, muss das Tool einen Hinweis zeigen.
