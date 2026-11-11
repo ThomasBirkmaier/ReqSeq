@@ -437,7 +437,7 @@
         },
         "last": {
           "$ref": "#/$defs/evidenceRecord",
-          "description": "The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false."
+          "description": "The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false."
         }
       },
       "if": { "properties": { "executed": { "const": false } } },

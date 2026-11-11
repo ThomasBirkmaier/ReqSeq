@@ -6,7 +6,14 @@ import { elementBuffer, overviewBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
-import { CHANGED_ON_DISK, CHANGED_WHILE_SAVING, notSaved, notSavedInTime, saveDrafts } from "./switch.js";
+import {
+  CHANGED_ON_DISK,
+  CHANGED_WHILE_SAVING,
+  notSaved,
+  notSavedInTime,
+  saveDrafts,
+  saveOne,
+} from "./switch.js";
 
 const MODEL: PropertyModel = new Map([
   [
@@ -28,6 +35,8 @@ interface File {
   type?: string;
   /** The hash of its bytes, as core gives it (`fileSha256`). */
   sha?: string;
+  /** The number of directly affected elements `element.update` gives for it (SR-024 AK2). */
+  affected?: number;
 }
 
 /** The files of the workspace, by element id. */
@@ -37,6 +46,8 @@ const elementOf = (id: string, file: File): DataExportElement =>
   // An element without text has none in the output.
   ({
     id,
+    shortId: `SR-${id}`,
+    repository: "system",
     type: file.type ?? "need",
     title: file.title ?? "",
     ...(file.text === "" ? {} : { text: file.text }),
@@ -60,6 +71,7 @@ const fakeCall = (files: Files, failing: ReadonlyMap<string, string> = new Map()
         Object.entries({ ...file.properties, ...set }).filter(([key]) => !unset.includes(key)),
       );
       files.set(id, {
+        ...(file.affected === undefined ? {} : { affected: file.affected }),
         ...(typeof input["title"] === "string"
           ? { title: input["title"] }
           : file.title === undefined
@@ -72,7 +84,11 @@ const fakeCall = (files: Files, failing: ReadonlyMap<string, string> = new Map()
     const now = files.get(id) ?? file;
     return Promise.resolve({
       ok: true,
-      output: { element: elementOf(id, now), ...(now.sha === undefined ? {} : { fileSha256: now.sha }) },
+      output: {
+        element: elementOf(id, now),
+        ...(now.sha === undefined ? {} : { fileSha256: now.sha }),
+        ...(name === "element.update" ? { affected: now.affected ?? 0 } : {}),
+      },
     });
   });
 
@@ -412,5 +428,33 @@ describe("the title of a draft (ThomasBirkmaier/ReqSeq-archive#621)", () => {
     const { run, call } = setup([one], new Map([[one.key, draft]]), files);
     expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: "its type has no title" });
     expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+  });
+});
+
+describe("the draft of a buffer that was left (SR-024)", () => {
+  it("[SR-024/AK2] gives the number of directly affected elements of the write, and none for 0", async () => {
+    const files: Files = new Map([
+      ["1", { title: "Wind", text: "Old", properties: {}, sha: "one", affected: 2 }],
+      ["2", { title: "Rain", text: "Old", properties: {}, sha: "two" }],
+    ]);
+    const [one, two] = [buffer("1"), buffer("2")];
+    const typed = (sha: string): Draft => ({ text: "New", base: "Old", boxes: new Map(), sha });
+    const drafts = new Map<string, Draft>([
+      [one.key, typed("one")],
+      [two.key, typed("two")],
+    ]);
+    const context = {
+      call: fakeCall(files) as unknown as Call,
+      buffers: [one, two],
+      drafts,
+      properties: MODEL,
+      saved: () => undefined,
+      rebased: () => undefined,
+    };
+    expect(await saveOne(context, one, drafts.get(one.key) ?? typed("one"))).toMatchObject({
+      ok: true,
+      affected: { count: 2, name: "SR-1 Wind" },
+    });
+    expect(await saveOne(context, two, drafts.get(two.key) ?? typed("two"))).toEqual({ ok: true });
   });
 });

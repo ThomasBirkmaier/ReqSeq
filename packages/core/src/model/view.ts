@@ -1,6 +1,7 @@
 // One element as commands return it (`data-export.schema.json#/$defs/element`), built from its file
 // as just read: what `element.create` and `element.update` give back after a write (SR-001). List
 // commands give the same element without its text (`listedElement`, `model/list.ts`).
+import { crossRepositoryTitleFindings } from "./cross-repository-titles.js";
 import type { Problem } from "../catalog.js";
 import type { ParsedFile } from "../files/index.js";
 import { elementText } from "../files/index.js";
@@ -384,6 +385,7 @@ export const elementView = (
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...relationLimitFindings(record, { layout: input.layout, store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
+        ...crossRepositoryTitleFindings(record, { store: input.store, metamodel, shortIds }),
         ...(input.extraFindings ?? []),
       ]
     : [];

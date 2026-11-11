@@ -499,6 +499,28 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect((out.problems ?? []).map((p) => p.targetId)).not.toContain(SR_OLD.id);
   });
 
+  it("[SR-072/AK2] gives no hint on a relation from a source with an invalid status, in the command, the check and the source's view", async () => {
+    const opened = await open();
+    const { workspace } = opened;
+    await invoke("element.setStatus", { refs: [SR_OLD.id], status: "obsolete" }, { workspace });
+    const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
+    expect((out.problems ?? []).map((p) => [p.elementId, p.targetId])).toEqual([[SR_CHILD.id, N_OLD.id]]);
+    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    const superseded = checked.problems.filter((p) => p.code === "relation.target-superseded");
+    // SR_CHILD is valid: its relations to N_OLD and to the obsolete SR_OLD keep their hints.
+    expect(superseded.map((p) => [p.elementId, p.targetId])).toEqual([
+      [SR_CHILD.id, SR_OLD.id],
+      [SR_CHILD.id, N_OLD.id],
+      [SR_CHILD.id, SR_OLD.id],
+    ]);
+    const shown = (await invoke(
+      "element.get",
+      { ref: SR_OLD.id },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect((shown.element.problems ?? []).filter((p) => p.code === "relation.target-superseded")).toEqual([]);
+  });
+
   it("[SR-072/AK2] gives a hint for every relation kind and every relation to the element but the successor's own", async () => {
     const opened = await open({ files: OBSOLETES });
     const out = await supersede(opened, {

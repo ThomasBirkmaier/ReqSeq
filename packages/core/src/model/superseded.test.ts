@@ -34,6 +34,23 @@ const hints = async (files: Readonly<Record<string, string>>): Promise<readonly 
 };
 
 describe("hints on relations to superseded elements (SR-072 AK2)", () => {
+  it("[SR-072/AK2] gives no hint on a relation from a source with an invalid status, obsolete like its target", async () => {
+    const out = await hints({
+      "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "requirements/SR-c3d4e5f6a7b8.md": element(
+        "7a1e0c2b-4d3f-4a5b-8c6d-c3d4e5f6a7b8",
+        "system-requirement",
+        "obsolete",
+        `derives-from:\n  - { id: ${N_OLD}, version: n1:1111111111111111 }\n`,
+      ),
+    });
+    // The valid SR-b8c9d0 keeps its hints, also on its relations to the obsolete source.
+    expect(new Set(out.map((p) => (p as { file: string }).file))).toEqual(
+      new Set(["requirements/SR-e5f6a7b8c9d0.md"]),
+    );
+    expect(out).toHaveLength(3);
+  });
+
   it("[SR-072/AK2] gives no hint when the metamodel marks no status invalid", async () => {
     const model = await fs.readFile(
       new URL(`../../../../fixtures/SR-072/supersede/${MODEL}`, import.meta.url),
@@ -103,18 +120,25 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     const files = {
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       "needs/N-b2c3d4e5f6a7.md": element(N_NEW, "need", "draft", supersedes),
-      // An element that supersedes itself is no successor of itself: its relation keeps the hint.
+      // An element that supersedes itself is no successor of itself: a relation to it names none.
+      // Its own relation gets no hint, as its status is invalid.
       "needs/N-0a0a0a0a0a0a.md": element(
         "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a",
         "need",
         "obsolete",
         "supersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a, version: n1:1111111111111111 }\n",
       ),
+      "requirements/SR-0b0b0b0b0b0b.md": element(
+        "7a1e0c2b-4d3f-4a5b-8c6d-0b0b0b0b0b0b",
+        "system-requirement",
+        "draft",
+        "derives-from:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a, version: n1:1111111111111111 }\n",
+      ),
     };
     const messages = async (extra: Readonly<Record<string, string>>) =>
       (await hints({ ...files, ...extra })).map((p) => (p as { message: string }).message);
     expect(await messages({})).toEqual([
-      "Relation Supersedes (supersedes) from Need N-0a0a0a points to Need N-0a0a0a, which is superseded (status Obsolete)",
+      "Relation Derives from (derives-from) from System Requirement SR-0b0b0b points to Need N-0a0a0a, which is superseded (status Obsolete)",
       "Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
       "Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
     ]);

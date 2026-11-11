@@ -16,6 +16,8 @@ const FIXTURE = { fixture: "SR-069/filter" };
 /** SR-0000b1 "Measure wind speed" and the text of its file. */
 const ELEMENT = "SR-0000b1";
 const TITLE = "Measure wind speed";
+/** What a save of its text adds to "Saved <name>": two elements point at it (SR-024 AK2). */
+const AFFECTED = ": 2 elements directly affected";
 const NAME = `${ELEMENT} ${TITLE}`;
 const TEXT = "b1: derives from N1, in package P1.";
 const FILE = path.join("requirements", "SR-0000000000b1.md");
@@ -106,7 +108,7 @@ test.describe("an open element changed or deleted outside the app", () => {
     expect(theirs).not.toContain(MINE);
     await resolve(window, "Keep my input");
     // The buffer is named by the title the file has now (#273).
-    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} Measure the wind`);
+    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} Measure the wind${AFFECTED}`);
     await expect(block).toHaveCount(0);
     await expect(window.getByLabel("Modeline")).not.toContainText("on disk");
     // The input is written; the change of the title, a field without input, stays.

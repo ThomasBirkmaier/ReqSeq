@@ -304,6 +304,9 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
       status: "failed",
       criteria: { verified: 2, total: 3, notVerified: [2] },
     });
+  });
+
+  it("[SR-031/AK10] a criterion with several records of the current version at the newest instant fails when one of them failed", () => {
     // A failed and a passed record of the same date naming the same criterion give failed (#1323).
     expect(
       perCriterion([
@@ -312,13 +315,20 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
         record(DAY1, "passed", { criteria: [2] }),
       ]),
     ).toEqual({ status: "failed", criteria: { verified: 2, total: 3, notVerified: [2] } });
-    // Failed also beats a criterion without record and one of an older version.
+    // The order of the records does not matter; an older failed one does not decide.
     expect(
       perCriterion([
-        record(DAY1, "failed", { criteria: [1] }),
-        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+        record(DAY1, "passed", { criteria: [1, 3] }),
+        record(DAY1, "passed", { criteria: [2] }),
+        record(DAY1, "failed", { criteria: [2] }),
       ]).status,
     ).toBe("failed");
+    expect(
+      perCriterion([
+        record(DAY2, "passed", { criteria: [1, 2, 3] }),
+        record(DAY1, "failed", { criteria: [2] }),
+      ]).status,
+    ).toBe("verified");
   });
 
   it("[SR-031/AK4] outdated when the requirement has records of older versions only, whatever they name", () => {
@@ -393,6 +403,36 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
         record(DAY2, "passed", { criteria: [3], version: OLDER }),
       ]),
     ).toEqual({ status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } });
+  });
+
+  it("[SR-031/AK9] the precedence of the criteria: failed, then outdated by AK4, then open, then outdated", () => {
+    // One criterion failed: failed, whatever the others are (no record, older versions only).
+    expect(
+      perCriterion([
+        record(DAY1, "failed", { criteria: [1] }),
+        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+      ]).status,
+    ).toBe("failed");
+    // No record of the current version but records of older ones: outdated (AK4), also when a
+    // criterion has no record.
+    expect(perCriterion([record(DAY1, "passed", { criteria: [1, 2], version: OLDER })])).toEqual({
+      status: "outdated",
+      criteria: { verified: 0, total: 3, notVerified: [1, 2, 3] },
+    });
+    // Else a criterion without record: open, before one with older versions only.
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { criteria: [1] }),
+        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+      ]),
+    ).toEqual({ status: "open", criteria: { verified: 1, total: 3, notVerified: [2, 3] } });
+    // Else one with older versions only: outdated, before verified.
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { criteria: [1, 3] }),
+        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+      ]),
+    ).toEqual({ status: "outdated", criteria: { verified: 2, total: 3, notVerified: [2] } });
   });
 
   it("counts only the records of the view, and pools those without variant of a marked repository (SR-047, SR-173)", () => {

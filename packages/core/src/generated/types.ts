@@ -311,7 +311,7 @@ export interface Problem {
   readonly currentCommit?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
+  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
   readonly key?: Key;
   /** Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names. */
   readonly place?: {
@@ -357,6 +357,7 @@ export type ProblemCode =
   | "element.too-many-items"
   | "element.text-emptied"
   | "relation.missing-target"
+  | "relation.cross-repository-title"
   | "relation.unresolved-link"
   | "relation.not-a-link"
   | "relation.reference-style"
@@ -919,7 +920,7 @@ export interface DataExportTestCase {
   readonly executed: boolean;
   /** The records of this element from this test case, newest first (by `date`, then repository, file and line); empty when `executed` is false. */
   readonly executions: readonly DataExportEvidenceRecord[];
-  /** The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false. */
+  /** The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false. */
   readonly last?: DataExportEvidenceRecord;
 }
 
@@ -2862,9 +2863,9 @@ export interface TraceMatrixOutput {
       readonly className?: string;
       /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
       readonly executed: boolean;
-      /** The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
+      /** The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
-      /** How the cell is marked (AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
+      /** How the cell is marked (SR-126 AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them (SR-031). Left out otherwise, also when a newer execution of an older version is `last` (#201). */
       readonly mark?: "not-executed" | "outdated" | "failed";
     }[];
     /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */
