@@ -48,11 +48,7 @@ describe("saved filter files (SR-070)", () => {
       { name: "All", where: { all: [] } },
       { workspace: blocked },
     ).catch((e: unknown) => e);
-    // The file to write is checked by the walk rules first, which name the file in the way.
-    expect([(error as CommandError).code, (error as CommandError).details?.["rule"]]).toEqual([
-      "input.invalid",
-      "not-a-folder",
-    ]);
+    expect((error as CommandError).code).toBe("file.not-regular");
     const unknown = await open({
       fixture: "SR-069/filter",
       files: { "reqseq-workspace.yaml": WORKSPACE("{ repository: elsewhere, path: filters }") },

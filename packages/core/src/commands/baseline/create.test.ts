@@ -330,20 +330,22 @@ describe("baseline.create", () => {
     const settings = read(ws, "reqseq-workspace.yaml");
     const inGit = (): string[] => fs.readdirSync(ws.path("system/.git")).sort();
     const before = inGit();
-    for (const folder of [".git/baselines", ".GIT/baselines", "requirements/.git"]) {
+    for (const folder of [".git/baselines", ".GIT/baselines", ".git./baselines", "requirements/.git"]) {
       await ws.write(
         "system/reqseq-workspace.yaml",
         `${settings}baselines: { repository: system, path: ${folder} }\n`,
       );
+      await ws.commit("system");
       const error = await failure(ws, "Release 1", PACKAGE);
       expect([folder, error.code, error.details?.["reason"]]).toEqual([
         folder,
         "input.invalid",
-        "not-listed",
+        "git-folder",
       ]);
     }
     expect(inGit()).toEqual(before);
     expect(fs.existsSync(ws.path("system/requirements/.git"))).toBe(false);
+    expect(fs.existsSync(ws.path("system/.git."))).toBe(false);
   });
 
   it("says when a repository is not here and stores a package without title with an empty one", async () => {

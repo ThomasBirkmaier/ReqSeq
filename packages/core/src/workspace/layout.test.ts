@@ -436,28 +436,29 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("[SR-083/AK3] warns once per filters, baselines or mappings folder that lies in .git, also through a link, and workspace.check shows it", async () => {
+  it("warns once per folder ReqSeq writes into that meets Git, also a default one through a link, and workspace.check shows it", async () => {
     const ws = await setup(
       yaml(
         MAIN,
         "metamodel: { repository: main, path: metamodel }\n" +
           "evidence:\n  - { repository: main, path: .git/evidence }\n" +
-          "baselines: { repository: main, path: .GIT/baselines }\n" +
-          "filters: { repository: main, path: .git/filters }\n" +
-          "mappings: { repository: main, path: linked/reqif }\n",
+          "baselines: { repository: main, path: .git./baselines }\n" +
+          "mappings: { repository: main, path: GIT~1/reqif }\n",
       ),
-      { folders: ["main/.git"] },
+      { folders: ["main/.git/x"] },
     );
-    await fs.symlink(ws.path("main/.git"), ws.path("main/linked"), "junction");
-    const warning = (setting: string, at: string): readonly string[] => [
+    // The default filters folder is a link into .git.
+    await fs.symlink(ws.path("main/.git/x"), ws.path("main/filters"), "junction");
+    const warning = (setting: string, at: string, place: string): readonly string[] => [
       "workspace.invalid",
       "warning",
-      `${setting}: ${at} in repository main lies in a .git folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+      `${setting}: ${at} in repository main: ${place} is .git or a name Windows or macOS take for it, or a link into such a folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
     ];
     const expected = [
-      warning("baselines", ".GIT/baselines"),
-      warning("filters", ".git/filters"),
-      warning("mappings", "linked/reqif"),
+      warning("evidence", ".git/evidence", ".git"),
+      warning("baselines", ".git./baselines", ".git."),
+      warning("filters", "filters", "filters"),
+      warning("mappings", "GIT~1/reqif", "GIT~1"),
     ];
     const layout = await loadWorkspaceLayout(ws.path("main"));
     expect(layout.problems.map((p) => [p.code, p.severity, p.message])).toEqual(expected);
@@ -471,14 +472,28 @@ describe("loadWorkspaceLayout", () => {
     ).toEqual(expected);
   });
 
-  it("takes no name that only starts with .git for a .git folder", async () => {
-    const ws = await setup(
-      yaml(
-        MAIN,
-        "metamodel: { repository: main, path: metamodel }\nfilters: { repository: main, path: gitfilters/.gitkeep-not }\n",
-      ),
-    );
-    expect((await loadWorkspaceLayout(ws.path("main"))).problems).toEqual([]);
+  it("warns about a folder of a repository of its own, but not about a repository below .git, a name that only starts with .git, a loop or a link out of the repository", async () => {
+    const ws = await createFixtureWorkspace({
+      files: {
+        [`outer/.git/wt/main/${WORKSPACE_FILE}`]: yaml(
+          MAIN,
+          "metamodel: { repository: main, path: metamodel }\nfilters: { repository: main, path: gitfilters/.gitkeep }\n" +
+            "baselines: { repository: main, path: own/baselines }\n" +
+            "mappings: { repository: main, path: loop/reqif }\n" +
+            "evidence:\n  - { repository: main, path: away/evidence }\n",
+        ),
+        "outer/.git/wt/main/metamodel/types.yaml": "types: {}\n",
+        "outer/.git/wt/main/own/.git": "gitdir: elsewhere\n",
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    // A loop of links is not judged, and a link out of the repository is not followed (#294).
+    await fs.symlink("loop", ws.path("outer/.git/wt/main/loop"), "dir");
+    await fs.symlink(ws.path("outer/.git"), ws.path("outer/.git/wt/main/away"), "junction");
+    const layout = await loadWorkspaceLayout(ws.path("outer/.git/wt/main"));
+    expect(layout.problems.map((p) => p.message)).toEqual([
+      "baselines: own/baselines in repository main: own holds a .git entry, so it is a repository of its own (git-folder); ReqSeq never writes to Git, so it saves nothing there",
+    ]);
   });
 
   it("reports a missing metamodel folder in an available repository", async () => {

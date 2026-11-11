@@ -14,18 +14,12 @@ import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
-import {
-  currentVersionsOf,
-  elementStoreState,
-  NORMAL_FORM,
-  refuseUnlisted,
-  workspacePath,
-} from "../model/index.js";
+import { currentVersionsOf, elementStoreState, NORMAL_FORM, workspacePath } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
-import { BASELINE_FILE_EXTENSION, foldName, workspaceBaselines } from "./read.js";
-import { baselineStem, baselineText } from "./text.js";
+import { foldName, workspaceBaselines } from "./read.js";
+import { baselineText } from "./text.js";
 import type { Checked } from "./state.js";
 import { elementNames, involvedCommits, refuseUncommitted } from "./state.js";
 import { writeNewBaseline } from "./write.js";
@@ -126,16 +120,6 @@ export const createBaseline = async (
       { repository: baselines.location.repository },
     );
   }
-  // Never below `.git`, also when the workspace file places the baselines folder there (D-036, SR-083 AK4).
-  await refuseUnlisted(
-    layout,
-    repository,
-    path.posix.join(
-      relativeTo(repository, folder),
-      `${baselineStem(request.name)}${BASELINE_FILE_EXTENSION}`,
-    ),
-    { ignored: false },
-  );
   // A repository without a commit (AK7) is refused before any version is computed (#444, N-036).
   const commits = await involvedCommits(layout, request.elements);
   const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);

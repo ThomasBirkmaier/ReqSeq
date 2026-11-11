@@ -9,7 +9,7 @@ import { linksStayInside } from "../files/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { CheckedWorkspaceFile } from "./config.js";
 import { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
-import { liesInGit } from "./git-folder.js";
+import { GIT_PLACE, gitPlaceOf } from "./git-folder.js";
 
 export interface RepositoryLocation {
   /** Name in the workspace file. */
@@ -301,22 +301,34 @@ const unknownLocationRepositories = (
 };
 
 /**
- * A warning per filters, baselines or mappings folder of the workspace file that lies in a `.git`
- * folder, also through a link: ReqSeq never writes there (D-036), so saving there is refused.
+ * A warning per folder of the workspace file that ReqSeq writes into and that meets Git inside its
+ * repository (`gitPlaceOf`): filters, baselines and mappings, configured or by default, and each
+ * evidence location. ReqSeq never writes there (D-036), so saving there is refused.
  */
 const gitFolderLocations = async (
   file: CheckedWorkspaceFile,
+  main: string,
   repositories: readonly RepositoryLocation[],
 ): Promise<Problem[]> => {
   const problems: Problem[] = [];
-  for (const [setting, location] of settingLocations(file)) {
-    const { folder } = locate({ repositories }, location);
-    if (setting !== "evidence" && folder !== undefined && (await liesInGit(folder))) {
+  const locations = [
+    ...(file.evidence ?? []).map((e) => ["evidence", e] as const),
+    ...(Object.keys(DEFAULT_FOLDERS) as (keyof typeof DEFAULT_FOLDERS)[]).map(
+      (setting) => [setting, settingLocation({ file, main }, setting)] as const,
+    ),
+  ];
+  for (const [setting, location] of locations) {
+    const { repository, folder } = locate({ repositories }, location);
+    const place =
+      repository === undefined || folder === undefined
+        ? undefined
+        : await gitPlaceOf(repository.folder, folder);
+    if (place !== undefined) {
       problems.push(
         invalid(
           "warning",
           WORKSPACE_FILE,
-          `${setting}: ${location.path} in repository ${location.repository} lies in a .git folder (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
+          `${setting}: ${location.path} in repository ${location.repository}: ${place.path} ${GIT_PLACE[place.rule]} (git-folder); ReqSeq never writes to Git, so it saves nothing there`,
         ),
       );
     }
@@ -399,7 +411,7 @@ export const loadWorkspaceLayout = async (root: string): Promise<WorkspaceLayout
   const repositories = resolveOverlaps(located, problems);
   problems.push(...unknownOverrides(entries, local), ...unknownLocationRepositories(file, entries));
   problems.push(...repositories.filter((r) => !r.available).map(missingRepository));
-  problems.push(...(await gitFolderLocations(file, repositories)));
+  problems.push(...(await gitFolderLocations(file, main.name, repositories)));
   const metamodel = await locateMetamodel(file.metamodel, repositories, problems);
   return { root, name: file.name, main: main.name, file, repositories, metamodel, problems };
 };
