@@ -397,6 +397,28 @@ test.describe("the Markdown editor in the element buffer", () => {
       await window.keyboard.press("ArrowLeft");
     }
     await expect(window.locator(".cm-content")).toContainText("[das Beispiel](https://example.org/wind)");
+    // The caret is in the address: its line as the DOM selection has it, and the offset in that line.
+    const [line, caret] = await window.evaluate(() => {
+      const selection = document.getSelection();
+      const node = selection?.focusNode;
+      const shownLine = (node instanceof Element ? node : node?.parentElement)?.closest(".cm-line");
+      if (
+        selection === null ||
+        node === null ||
+        node === undefined ||
+        shownLine === null ||
+        shownLine === undefined
+      ) {
+        return ["", -1];
+      }
+      const before = document.createRange();
+      before.setStart(shownLine, 0);
+      before.setEnd(node, selection.focusOffset);
+      return [shownLine.textContent, before.toString().length] as const;
+    });
+    expect(line).toBe("Siehe [das Beispiel](https://example.org/wind).");
+    expect(caret).toBeGreaterThan(line.indexOf("https://"));
+    expect(caret).toBeLessThan(line.indexOf(")"));
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(minibuffer(window)).toHaveText("No element reference at the cursor");
     await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);

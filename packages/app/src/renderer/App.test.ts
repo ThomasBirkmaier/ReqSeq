@@ -149,6 +149,18 @@ const row = (n: number, extra: object = {}) => ({
   ...extra,
 });
 
+/** A relation of `kind` in `direction` to the element `row(n)`, available. */
+const link = (kind: string, direction: "in" | "out", n: number) => ({
+  kind,
+  direction,
+  id: `uuid-${String(n)}`,
+  repository: "spec",
+  shortId: `SR-00000${String(n)}`,
+  title: `Title ${String(n)}`,
+  accessible: true,
+  targetState: "available",
+});
+
 const STATUS = { name: "Weather station", readOnly: true };
 const NO_WORKSPACE = new Error(
   "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
@@ -161,18 +173,7 @@ const workspace = (): Record<string, Handler> => ({
   "element.get": (input) => ({
     element: row(Number(String(input["ref"]).replace("uuid-", "")), {
       versionDate: "2026-10-24T10:00:00Z",
-      relations: [
-        {
-          kind: "derives-from",
-          direction: "out",
-          id: "uuid-3",
-          repository: "spec",
-          shortId: "SR-000003",
-          title: "Title 3",
-          accessible: true,
-          targetState: "available",
-        },
-      ],
+      relations: [link("derives-from", "out", 3)],
     }),
   }),
   // No parents, children or incoming links: the parents line stays away.
@@ -676,16 +677,6 @@ describe("App", () => {
 
   it("[SR-104/AK1] shows the filled properties as boxes below the text, the title as its heading, short ID, type and status only in the modeline, no UUID or version, and a relation group per kind, the incoming with ←", async () => {
     const VERSION = "n2:0123456789abcdef";
-    const link = (kind: string, direction: "in" | "out", n: number) => ({
-      kind,
-      direction,
-      id: `uuid-${String(n)}`,
-      repository: "spec",
-      shortId: `SR-00000${String(n)}`,
-      title: `Title ${String(n)}`,
-      accessible: true,
-      targetState: "available",
-    });
     const handlers = workspace();
     handlers["element.get"] = () => ({
       element: row(1, {
@@ -1812,9 +1803,13 @@ describe("App, the text editor", () => {
     expect(query(".cm-editor")).not.toBeNull();
     await keyDown(window, "s", { metaKey: true });
     expect(text("Minibuffer")).toBe("No changes to save");
+    // The reread after "written" gives the fake's "Hello"; Cmd+S writes what was typed on it.
     await typeText("?");
     await keyDown(window, "s", { metaKey: true });
-    expect(calls(invoke, "element.update")).toHaveLength(2);
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!" },
+      { ref: "uuid-1", text: "Hello?" },
+    ]);
   });
 
   it("[SR-131/AK3] saves the unsaved text when main asks before a switch, and says so when it could not", async () => {
@@ -2511,6 +2506,10 @@ describe("App, the text editor", () => {
         "Follow referenceCtrl+Enter",
       );
       await keyDown(query("input"), "Escape");
+      // The caret inside the label "Two".
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 2 } });
+      });
       await keyDown(query("article"), "Enter", { ctrlKey: true });
       expect(asked(invoke, TARGET)).toEqual([{ ref: TARGET }]);
       expect(query("article h1").textContent).toBe("Title 2");
@@ -2527,9 +2526,17 @@ describe("App, the text editor", () => {
     });
 
     it("[SR-066/AK4] says when there is no reference at the cursor", async () => {
-      await openElement(withReference("plain text"));
+      // A reference in the text, the caret after it at the end of the text.
+      const { invoke } = await openElement(
+        withReference(`Before [Two](reqseq:${TARGET}?version=n1:aa) after`),
+      );
+      act(() => {
+        editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+      });
       await keyDown(query("article"), "Enter", { metaKey: true });
       expect(text("Minibuffer")).toBe("No element reference at the cursor");
+      expect(asked(invoke, TARGET)).toEqual([]);
+      expect(query("article h1").textContent).toBe("Title 1");
     });
 
     it("says why a reference cannot be opened, and keeps the element", async () => {

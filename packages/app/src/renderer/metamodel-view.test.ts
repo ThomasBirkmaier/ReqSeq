@@ -348,6 +348,35 @@ describe("MetamodelView as text", () => {
     ]);
   });
 
+  it("[SR-130/AK5] shows the most entries of a list property and each minimum and maximum of a relation kind", async () => {
+    const output = metamodelOutput({
+      types: [effectiveType("need", ["criteria"])],
+      properties: [
+        { key: "criteria", name: "Criteria", kind: "text", many: true, "max-items": 3, content: true },
+      ],
+      relations: [
+        {
+          key: "derives-from",
+          name: "Derives from",
+          limits: [
+            { "target-type": "need", min: 1 },
+            { "target-type": "need", max: 2 },
+            { "target-type": "need", min: 1, max: 3 },
+          ],
+        },
+      ],
+    });
+    await mount(asCall(fakeCall(() => output)), metamodelBuffer("text"));
+    expect(query('[data-row="type:need"] [data-property="criteria"] .mm-value').textContent).toBe(
+      "list of text · at most 3",
+    );
+    expect(
+      [...container.querySelectorAll('[data-row="relation:derives-from"] [data-limit]')].map(
+        (line) => line.textContent,
+      ),
+    ).toEqual(["limit → NEED: at least 1", "limit → NEED: at most 2", "limit → NEED: 1 to 3"]);
+  });
+
   it("[SR-130/AK4] Ctrl/Cmd+T's switch keeps the selected type: the text opens on it, and a type selected in the text is the graph's", async () => {
     const scrolled = vi.spyOn(Element.prototype, "scrollIntoView");
     const { actions, change } = await mount(asCall(fakeCall()), {

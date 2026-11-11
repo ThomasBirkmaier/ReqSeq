@@ -163,12 +163,18 @@ test.describe("property boxes of an element", () => {
       `${got.element.shortId} · System Requirement · ${got.element.status}`,
     );
     const shown = await window.locator("article").innerText();
-    for (const value of [got.element.shortId, got.element.id, got.element.version, "System Requirement"]) {
+    for (const value of [
+      got.element.shortId,
+      got.element.id,
+      got.element.version,
+      "System Requirement",
+      got.element.status,
+    ]) {
       expect([value, shown.includes(value)]).toEqual([value, false]);
     }
   });
 
-  test("[SR-105/AK4] saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else", async () => {
+  test("saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else", async () => {
     const { window } = running;
     const before = await readFile(running);
     const topic = field(window, "topic");
