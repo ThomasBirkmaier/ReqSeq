@@ -187,7 +187,15 @@ afterEach(() => {
 });
 
 /** The options before every command (ADR-0006). */
-const FIXED = ["--no-pager", "-c", "core.fsmonitor=false", "-c", "protocol.allow=never"];
+const FIXED = [
+  "--no-pager",
+  "-c",
+  "core.fsmonitor=",
+  "-c",
+  "core.useBuiltinFSMonitor=false",
+  "-c",
+  "protocol.allow=never",
+];
 
 describe("git reader", () => {
   it("exports only typed functions and checks, no way to run another subcommand or argument", () => {
@@ -1184,7 +1192,13 @@ describe("commits and changes since a commit (SR-092)", () => {
     const before = await snapshot(ws.path("repo/.git"));
     mock.calls.length = 0;
     await changedPaths(folder, first);
-    expect(mock.calls.map((c) => [c.args, (c.options as ExecFileOptions).timeout])).toEqual(
+    // The filter drivers of the user's own configuration are switched off too; the test leaves them out.
+    const withoutFilters = (args: readonly string[]): string[] =>
+      args.filter(
+        (arg, i) =>
+          !arg.startsWith("filter.") && !(arg === "-c" && (args[i + 1] ?? "").startsWith("filter.")),
+      );
+    expect(mock.calls.map((c) => [withoutFilters(c.args), (c.options as ExecFileOptions).timeout])).toEqual(
       expect.arrayContaining([
         [
           [
@@ -1193,6 +1207,7 @@ describe("commits and changes since a commit (SR-092)", () => {
             "diff.autoRefreshIndex=false",
             "diff",
             "--no-ext-diff",
+            "--ignore-submodules=dirty",
             "--no-renames",
             "--relative",
             "--name-only",
@@ -1206,9 +1221,10 @@ describe("commits and changes since a commit (SR-092)", () => {
           [...FIXED, "-c", "core.untrackedCache=false", "ls-files", "--others", "--exclude-standard", "-z"],
           60_000,
         ],
+        [[...FIXED, "config", "--null", "--name-only", "--list"], 10_000],
       ]),
     );
-    expect(mock.calls).toHaveLength(2);
+    expect(mock.calls).toHaveLength(3);
     // The file with only new stat data counts as changed: more, never less.
     expect(await changedPaths(folder, second)).toEqual({ known: true, paths: ["a.md", "b.md"] });
     await resolveCommit(folder, "HEAD");
@@ -1235,6 +1251,42 @@ describe("commits and changes since a commit (SR-092)", () => {
       detail: "Command failed",
     });
     await expect(changedPaths(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
+  });
+
+  it("switches off every configured filter driver for diff, and is unknown for one it cannot name (SR-208)", async () => {
+    const { folder, first } = await changes();
+    const names = (...listed: string[]): Fake => ({ stdout: listed.map((n) => `${n}\0`).join("") });
+    mock.fake = (args) =>
+      args.includes("config")
+        ? names("core.bare", "filter.x", "filter.My Lfs.required", "filter.a.b.smudge")
+        : undefined;
+    mock.calls.length = 0;
+    expect(await changedPaths(folder, first)).toMatchObject({ known: true });
+    const diff = mock.calls.find((c) => c.args.includes("diff"));
+    expect(diff?.args.slice(FIXED.length, FIXED.length + 12)).toEqual([
+      "-c",
+      "filter.My Lfs.clean=",
+      "-c",
+      "filter.My Lfs.process=",
+      "-c",
+      "filter.My Lfs.required=false",
+      "-c",
+      "filter.a.b.clean=",
+      "-c",
+      "filter.a.b.process=",
+      "-c",
+      "filter.a.b.required=false",
+    ]);
+    mock.fake = (args) => (args.includes("config") ? names("filter.a=b.clean") : undefined);
+    mock.calls.length = 0;
+    expect(await changedPaths(folder, first)).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: 'the filter driver "a=b" cannot be switched off',
+    });
+    expect(mock.calls.some((c) => c.args.includes("diff"))).toBe(false);
+    mock.fake = (args) => (args.includes("config") ? TIMEOUT : undefined);
+    expect(await changedPaths(folder, first)).toMatchObject({ known: false, reason: "timeout" });
   });
 });
 
