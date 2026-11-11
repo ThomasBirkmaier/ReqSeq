@@ -8,7 +8,7 @@ requirement-type: functional
 acceptance-criteria:
   - "Gegeben eine Markdown-Datei, die mit einem Kopf beginnt, der sich nicht als YAML lesen lässt oder nicht geschlossen ist, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool Datei, Zeile und Grund als Fehler."
   - "Gegeben eine Datei mit Konfliktmarkern von Git, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool die Datei als ungelösten Konflikt mit dem Schweregrad Fehler."
-  - "Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal, der Import einer Lieferung lehnt dann aber ab (SR-053 AK3), und das Tool überschreibt die fehlerhafte Datei nie von selbst."
+  - "Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst; ist es eine Element-Datei, lehnt der Import einer Lieferung ab (SR-053 AK3)."
   - "Gegeben eine Datei des Tools mit einer Formatnummer, die das Tool nicht kennt, zum Beispiel `reqseq-filter: 2`, wenn das Tool sie liest, dann meldet es die Datei als fehlerhaft und verwendet ihren Inhalt nicht."
 verification-method: test
 packages:
@@ -19,7 +19,7 @@ derives-from:
 based-on:
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
   - { id: e4ccf89c-0e6f-4cd4-8632-c1c8d8e2f80c, version: n2:8801872f22197995, title: Frühere Dateiformate werden nicht gelesen }
-rationale: "Unbekannte Formatnummer (AK4): Entscheidung des Produktverantwortlichen, 2026-11-11: Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut."
+rationale: "Unbekannte Formatnummer (AK4): Entscheidung des Produktverantwortlichen, 2026-11-11: Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut. Import nur nach fehlerhafter Element-Datei abgelehnt (AK3): Entscheidung des Produktverantwortlichen, 2026-11-11 (#1457): Annahme bestätigt; die Sperre verhindert, dass Elemente einer früheren Lieferung ein zweites Mal entstehen, und andere Dateien gefährden das nicht."
 ---
 
 Wenn eine Datei nicht gelesen werden kann, muss das Tool sie mit Grund melden und mit allen anderen Elementen weiterarbeiten.
