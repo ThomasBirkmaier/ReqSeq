@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
+import { TEST_COMPILE_CACHE } from "./compile-cache.js";
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
 // The Windows and macOS runners in CI stall under load (#753, playwright.config.ts): there the wait is three times as
@@ -40,15 +41,16 @@ const APP_FOLDER = path.resolve(fileURLToPath(new URL("../..", import.meta.url))
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
 /**
- * Node's compile cache of the CLI and MCP processes the tests start, shared by all launches of this test
- * process and removed when it exits (#1356). With a new home per launch, the first CLI call of every test
- * compiled ReqSeq from scratch, which on Windows took more than 15 s at times. It holds only compiled code
- * (`compileCacheFolder`), so sharing it keeps the tests apart. The app itself does not get it: it runs as
- * it ships, without a compile cache (ADR-0008). A NODE_COMPILE_CACHE that is set is kept.
+ * Node's compile cache of the CLI and MCP processes the tests start, filled once before the first test by the
+ * global setup (`compile-cache.ts`, #1356). With a new home per launch, the first CLI call of every test
+ * compiled ReqSeq from scratch and wrote the cache, which on Windows took more than 15 s at times. It holds
+ * only compiled code (`compileCacheFolder`), so sharing it keeps the tests apart. The app itself does not get
+ * it: it runs as it ships, without a compile cache (ADR-0008). Without the global setup (a test file run on its
+ * own config), a folder of this test process is used and removed when it exits.
  */
 const COMPILE_CACHE =
-  process.env["NODE_COMPILE_CACHE"] ?? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-"));
-if (process.env["NODE_COMPILE_CACHE"] === undefined) {
+  process.env[TEST_COMPILE_CACHE] ?? mkdtempSync(path.join(os.tmpdir(), "reqseq-app-compile-cache-"));
+if (process.env[TEST_COMPILE_CACHE] === undefined) {
   process.once("exit", () => {
     rmSync(COMPILE_CACHE, { recursive: true, force: true });
   });
