@@ -110,14 +110,18 @@ const COMMANDS = {
    * commit ID follows, then `--` (`TRAILING`), so a file of that name is never read as a revision.
    * `diff.autoRefreshIndex=false`: `diff` would otherwise refresh the index of a file whose stat
    * data changed, which writes `.git/index` even with `GIT_OPTIONAL_LOCKS=0` (D-036). Without the
-   * refresh, nothing is written and no clean filter (LFS) runs, except for a racily clean entry,
-   * whose content git hashes to compare. A stat-dirty file is listed as changed: more, never less.
+   * refresh, nothing is written. A racily clean entry is hashed to compare, which would run its
+   * clean or process filter (LFS): `changedPaths` switches off every filter driver of the
+   * configuration (`filterOverrides`, SR-208 AK1). A stat-dirty file is listed as changed: more, never
+   * less. `--ignore-submodules=dirty`: the contents of a submodule are not looked at (a `status` in
+   * it would read its own configuration and filters); a submodule at another commit is still listed.
    */
   changes: [
     "-c",
     "diff.autoRefreshIndex=false",
     "diff",
     "--no-ext-diff",
+    "--ignore-submodules=dirty",
     "--no-renames",
     "--relative",
     "--name-only",
@@ -141,6 +145,11 @@ const COMMANDS = {
    * and unmerged entries (`trackedFile`). Read from the index; nothing is refreshed or written.
    */
   indexed: ["ls-files", "--cached", "-z"],
+  /**
+   * The names of every configuration variable git reads for the folder (all scopes, includes
+   * resolved), NUL after each: `filterOverrides` takes the filter drivers from them (SR-208 AK1).
+   */
+  configNames: ["config", "--null", "--name-only", "--list"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 type GitCommand = keyof typeof COMMANDS;
@@ -152,17 +161,29 @@ const TRAILING: Readonly<Partial<Record<GitCommand, readonly string[]>>> = { cha
 const ignore = (): undefined => undefined;
 
 /**
- * Options before every command (ADR-0006): no pager, no file system monitor (a hook program), and
+ * Options before every command (ADR-0006): no pager, no file system monitor (a hook program, SR-208
+ * AK1; empty rather than `false`, which git before 2.36 reads as the name of a hook program, and
+ * `core.useBuiltinFSMonitor=false` for the built-in monitor of Git for Windows 2.33 to 2.35), and
  * no transport at all, so a partial clone cannot fetch a missing object even where git does not
  * know `GIT_NO_LAZY_FETCH` (before 2.44).
  */
-const FIXED_OPTIONS = ["--no-pager", "-c", "core.fsmonitor=false", "-c", "protocol.allow=never"] as const;
+const FIXED_OPTIONS = [
+  "--no-pager",
+  "-c",
+  "core.fsmonitor=",
+  "-c",
+  "core.useBuiltinFSMonitor=false",
+  "-c",
+  "protocol.allow=never",
+] as const;
 
 /**
  * Variables that point git at another repository; inherited ones (for example in a Git hook) would
- * redirect it.
+ * redirect it. `GIT_CONFIG` makes `git config` read only that file, while `diff` ignores it, so the
+ * filter drivers `changedPaths` switches off would not be those `diff` uses (SR-208 AK1).
  */
 const LOCATION_VARIABLES: ReadonlySet<string> = new Set([
+  "GIT_CONFIG",
   "GIT_DIR",
   "GIT_WORK_TREE",
   "GIT_INDEX_FILE",
@@ -260,6 +281,8 @@ interface RunOptions extends ReadOptions {
   readonly revision?: string;
   /** Lines for standard input. */
   readonly input?: string;
+  /** `-c` options after the fixed ones (`filterOverrides`). */
+  readonly config?: readonly string[];
 }
 
 /** Runs one command of `COMMANDS` in `cwd` with the fixed options of ADR-0006. Never rejects. */
@@ -274,6 +297,7 @@ const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): 
       git,
       [
         ...FIXED_OPTIONS,
+        ...(options.config ?? []),
         ...COMMANDS[command],
         ...(options.revision === undefined ? [] : [options.revision, ...(TRAILING[command] ?? [])]),
       ],
@@ -1123,6 +1147,47 @@ export type ChangedPaths = { readonly known: true; readonly paths: readonly stri
 const zList = (stdout: Buffer): string[] => stdout.toString("utf8").split("\0").slice(0, -1);
 
 /**
+ * `-c` options that switch off every filter driver git's configuration of `folder` names (SR-208
+ * AK1): an empty `clean` and `process` command is no filter, and `required=false` keeps a driver
+ * that must run from failing the call. A driver named only in attributes has no command, so none
+ * runs for it. A driver name with `=` cannot be given with `-c` (git splits at the first `=`), so
+ * the files are then unknown; one with a line break makes git refuse the option.
+ */
+const filterOverrides = async (
+  folder: string,
+  options: ReadOptions,
+): Promise<{ readonly ok: true; readonly config: readonly string[] } | Extract<RunResult, { ok: false }>> => {
+  const listed = await run(folder, "configNames", { ...options, quick: true });
+  if (!listed.ok) {
+    return listed;
+  }
+  const drivers = new Set(
+    zList(listed.stdout)
+      .filter((name) => name.startsWith("filter.") && name.lastIndexOf(".") > "filter".length)
+      .map((name) => name.slice("filter.".length, name.lastIndexOf("."))),
+  );
+  const config: string[] = [];
+  for (const driver of drivers) {
+    if (driver.includes("=")) {
+      return {
+        ok: false,
+        reason: "not-a-repository",
+        detail: `the filter driver ${JSON.stringify(driver)} cannot be switched off`,
+      };
+    }
+    config.push(
+      "-c",
+      `filter.${driver}.clean=`,
+      "-c",
+      `filter.${driver}.process=`,
+      "-c",
+      `filter.${driver}.required=false`,
+    );
+  }
+  return { ok: true, config };
+};
+
+/**
  * The files of the working copy in `folder` that differ from `commit` (committed since, staged or
  * not), deleted ones included, and the files Git neither tracks nor ignores (SR-092): paths
  * relative to `folder` (the top level of its work tree or a folder below it) with `/`, only below
@@ -1137,10 +1202,14 @@ export const changedPaths = async (
   if (!isObjectId(commit)) {
     throw new Error(`changedPaths needs a commit ID, not ${commit}`);
   }
-  const [changes, untracked] = await Promise.all([
-    run(folder, "changes", { ...options, revision: commit }),
+  const [overrides, untracked] = await Promise.all([
+    filterOverrides(folder, options),
     run(folder, "untracked", options),
   ]);
+  if (!overrides.ok) {
+    return unknown(overrides);
+  }
+  const changes = await run(folder, "changes", { ...options, revision: commit, config: overrides.config });
   if (!changes.ok) {
     return unknown(changes);
   }

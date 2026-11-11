@@ -61,16 +61,30 @@ const CALLS: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[
   "element.supersede": [{ ref: GUSTS, status: "obsolete", successor: WIND, relation: "supersedes" }],
 };
 
-/** The git subcommands that only read (ADR-0006): no commit, push, pull, fetch, merge, checkout, branch. */
-const READ_ONLY = new Set(["rev-parse", "log", "cat-file", "diff", "ls-files", "ls-tree"]);
+/**
+ * The git subcommands that only read (ADR-0006): no commit, push, pull, fetch, merge, checkout,
+ * branch. `config` can write, so only its listing of the variable names counts (SR-208).
+ */
+const READ_ONLY = new Set([
+  "rev-parse",
+  "log",
+  "cat-file",
+  "diff",
+  "ls-files",
+  "ls-tree",
+  "config --null --name-only --list",
+]);
 
-/** The subcommand of a git command line: the first argument after the options (`-c` takes a value). */
+/**
+ * The subcommand of a git command line: the first argument after the options (`-c` takes a value);
+ * for `config`, with all its arguments.
+ */
 const subcommand = (args: readonly string[]): string | undefined => {
   let i = 0;
   while (args[i]?.startsWith("-") === true) {
     i += args[i] === "-c" ? 2 : 1;
   }
-  return args[i];
+  return args[i] === "config" ? args.slice(i).join(" ") : args[i];
 };
 
 /** Program and subcommand of every process started since the recording began. */
