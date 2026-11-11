@@ -212,7 +212,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(recordsOf(after)).toEqual([["[SR-46fb54] logs in", LOGIN]]);
   });
 
-  it("[SR-029/AK5] assigns the Rust test cases of a nextest file through a name pattern and enriches them as in AK1", async () => {
+  it("assigns the Rust test cases of a nextest file through a name pattern and enriches them as in AK1", async () => {
     const { fixture, workspace } = await open();
     const output = await enrich(workspace, {
       file: "results/nextest.xml",

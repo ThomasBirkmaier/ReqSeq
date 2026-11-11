@@ -918,7 +918,7 @@ describe("catalog commands in the command prompt", () => {
     });
   });
 
-  it("[SR-030/AK4] Record evidence takes the numbers of acceptance criteria one per Enter and passes them to core", async () => {
+  it("Record evidence takes the numbers of acceptance criteria one per Enter and passes them to core", async () => {
     const { context, asked, call } = sources();
     start(context, "evidence.record", true);
     await pick(asked);
