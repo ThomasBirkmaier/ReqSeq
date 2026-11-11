@@ -89,7 +89,7 @@ describe("metamodelText", () => {
     ]);
   });
 
-  it("names the most entries of a list property and each limit of a relation kind (SR-171, SR-152)", () => {
+  it("[SR-130/AK5] names the most entries of a list property and each limit of a relation kind (SR-171, SR-152)", () => {
     const text = metamodelText(
       metamodelOutput({
         types: [

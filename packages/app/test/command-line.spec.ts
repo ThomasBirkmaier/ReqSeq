@@ -3,6 +3,7 @@
 // command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With REQSEQ_SCREENSHOTS set, the argument
 // entry is also saved as a screenshot there.
+import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -94,6 +95,56 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".modeline")).toContainText("Show relation options SR-0000b1 Derives from");
     await expect(window.locator(".result .line").first()).toHaveText("kinds1");
     await expect(window.locator(".result")).toContainText("derives-from");
+  });
+
+  test("[SR-067/AK6] Create relation with the target open writes only the file of the source", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const root = running.workspace?.root ?? "";
+    const label = window.locator("label.prompt-label");
+    /** Every file of the workspace with its text. */
+    const files = async (): Promise<Map<string, string>> => {
+      const entries = await fs.readdir(root, { recursive: true, withFileTypes: true });
+      const texts = new Map<string, string>();
+      for (const entry of entries.filter((found) => found.isFile())) {
+        const file = path.join(entry.parentPath, entry.name);
+        texts.set(path.relative(root, file), await fs.readFile(file, "utf8"));
+      }
+      return texts;
+    };
+    // The target is open in the app; the source is another element.
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("See the wind");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("See the wind");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("See the wind");
+    const before = await files();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Create relation");
+    await expect(names(window).first()).toHaveText("Create relation");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Create relation · source:");
+    await window.keyboard.type("Send data");
+    await expect(names(window).first()).toHaveText("SR-0000b5 Send data to the cloud");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Create relation SR-0000b5 · kind:");
+    await window.keyboard.type("derives");
+    await expect(names(window).first()).toHaveText("Derives from");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("See the wind");
+    await expect(names(window).first()).toHaveText("N-0000a1 See the wind");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".result")).toBeVisible();
+    const source = path.join("requirements", "SR-0000000000b5.md");
+    await expect
+      .poll(async () => (await fs.readFile(path.join(root, source), "utf8")).includes("0000000000a1"))
+      .toBe(true);
+    const after = await files();
+    expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
+    expect([...after].filter(([file, text]) => before.get(file) !== text).map(([file]) => file)).toEqual([
+      source,
+    ]);
   });
 
   test("[SR-133/AK1] in an element, the commands with an element argument come before the others when nothing is typed", async () => {
