@@ -74,14 +74,14 @@ import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveView } from "../variants/index.js";
-import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
+import { refuseGit, shownPath, variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import { criteriaOf, enrichmentOf, NOT_IN_VIEW, notInViewOf } from "./junit.js";
 import type { ElementRefToken, JunitProperty, JunitTestCase } from "./junit-model.js";
 import { CRITERION_PROPERTY, criterionRefsOf, elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { NameMatch } from "./name-pattern.js";
 import { nameMatcher, parseNamePattern } from "./name-pattern.js";
-import type { ViewContext } from "./in-variant.js";
-import { outOfView } from "./in-variant.js";
+import type { RecordViewContext, ViewContext } from "./in-variant.js";
+import { recordOutOfView, recordViewContext } from "./in-variant.js";
 import { evidenceReadState } from "./state.js";
 
 const COMMAND = "evidence.enrichJunit";
@@ -284,8 +284,6 @@ interface CriteriaPlan {
 interface VariantPlan {
   /** Its views after enrich, each once: `core` or a variant's UUID. */
   readonly views: readonly string[];
-  /** The views whose elements are checked (AK9): all of them, none for the core no view implies. */
-  readonly checked: readonly string[];
   /** Existing `reqseq:variant` properties whose value becomes the variant's UUID (AK7). */
   readonly rewrite: readonly { readonly property: JunitProperty; readonly id: string }[];
   /** New `reqseq:variant` values, in the order given (AK6). */
@@ -347,8 +345,8 @@ const givenNames = (given: readonly GivenView[]): string => given.map((v) => v.n
  * Why a kept test case does not fit (AK8, AK9, AK11), or undefined: one of its views is not among the
  * given ones, or it names an element that does not count in one of its views (with `skipNotInView`:
  * in none of them). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either
- * way. A variant the workspace does not have is not checked, nor the core it has without a
- * `reqseq:variant`, unless the core is given.
+ * way. A variant the workspace does not have is not checked; the core is, also the one a test case
+ * has without a `reqseq:variant` (SR-047 AK5).
  */
 const keptVariantProblem = (
   plan: Extract<Plan, { kind: "kept" }>,
@@ -361,10 +359,10 @@ const keptVariantProblem = (
     const what = other.map((view) => (view === CORE ? "the core" : `the variant ${view}`)).join(" and ");
     return `it is enriched already for ${what}, outside the given views (${givenNames(given)}); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`;
   }
-  const named = plan.testCase.properties.some((p) => p.name === VARIANT);
-  const checked = plan.views.filter((view) =>
-    // A variant the workspace does not have: nothing to check against, as for an unknown element.
-    view === CORE ? named || given !== undefined : options.resolveVariant(view).kind !== "invalid",
+  const checked = plan.views.filter(
+    (view) =>
+      // A variant the workspace does not have: nothing to check against, as for an unknown element.
+      view === CORE || options.resolveVariant(view).kind !== "invalid",
   );
   const fit = fitOf(ids, checked, options);
   const why = skipping(options) ? fit.why.filter((w) => fit.nowhere.has(w.id)) : fit.why;
@@ -442,7 +440,6 @@ const variantPlanOf = (
   const implied = own.size === 0 && views.length === 1 && views[0] === CORE;
   return {
     views,
-    checked: given === undefined && own.size === 0 ? [] : views,
     rewrite,
     add: implied ? [] : views.filter((view) => !own.has(view)),
   };
@@ -648,7 +645,8 @@ const enrichPlanOf = (
   if ("error" in variant) {
     return { kind: "invalid", testCase, reason: variant.error };
   }
-  const fit = fitOf(ids, variant.checked, options);
+  // Each view holds the elements (AK9), the core a test case without views has too (SR-047 AK5).
+  const fit = fitOf(ids, variant.views, options);
   const skip = skipping(options);
   if (!skip && fit.why.length > 0) {
     return { kind: "invalid", testCase, reason: fit.why.map((w) => w.text).join("; ") };
@@ -1582,13 +1580,14 @@ const lookupVariant = (
 };
 
 /**
- * `outOfVariant` over the records `resolve` and `resolveVariant` found (`outOfView`, as
- * `evidence.record` refuses a record, SR-047 AK4). An element or variant not found counts: enrich asks
- * only for those it found.
+ * `outOfVariant` over the records `resolve` and `resolveVariant` found (`recordOutOfView`, as
+ * `evidence.record` refuses a record, SR-047 AK4 and AK5: a record of the core of an element of a
+ * repository marked `variant-independent` counts in the variants that hold it, SR-173). An element or
+ * variant not found counts: enrich asks only for those it found.
  */
 export const outOfVariantOf =
   (
-    views: ViewContext,
+    views: RecordViewContext,
     found: ReadonlyMap<string, ElementRecord>,
     variants: ReadonlyMap<string, ElementRecord>,
   ) =>
@@ -1598,7 +1597,7 @@ export const outOfVariantOf =
     if (element === undefined || (variant === undefined && viewId !== CORE)) {
       return undefined;
     }
-    const out = outOfView(
+    const out = recordOutOfView(
       views,
       element,
       variant === undefined ? { kind: "core" } : { kind: "variant", variant },
@@ -1637,7 +1636,7 @@ export const enrichJunitFile = async (
   const shortIds = await workspace.get(shortIdState);
   const metamodel = await workspace.get(metamodelState);
   const found = new Map<string, ElementRecord>();
-  const views: ViewContext = { workspace, metamodel, store, shortIds };
+  const views = recordViewContext({ workspace, metamodel, store, shortIds }, variantIndependentOf(layout));
   const variants = new Map<string, ElementRecord>();
   const given = givenViews(views, input.variant, variants);
   // The metamodel is valid here: a write is refused while it is not (`workspace.read-only`).

@@ -123,6 +123,60 @@ describe("variant-independent repositories (SR-173)", () => {
     expect(unmarked["a1"]).toEqual({ ...all("open"), re: "indirect" });
   });
 
+  it("[SR-047/AK5] [SR-029/AK9] a record without variant of an element valid in a variant only counts there through the mark, so it is reported, refused and not enriched only without it", async () => {
+    const noView = async (workspace: Workspace): Promise<readonly string[]> =>
+      (
+        (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">
+      ).problems.flatMap((p) =>
+        p.code === "evidence.counts-in-no-view" ? [`${String(p.repository)}:${String(p.file)}`] : [],
+      );
+    const record = (workspace: Workspace): Promise<unknown> =>
+      invoke(
+        "evidence.record",
+        { ref: "SR-0000d3", kind: "verification", method: "test", item: "build-1", result: "passed" },
+        { workspace },
+      );
+    const junit = {
+      "results/run.xml":
+        '<testsuites><testsuite name="s"><testcase name="[SR-0000d3] in A"/></testsuite></testsuites>',
+    };
+    const enrich = async (workspace: Workspace): Promise<readonly string[]> =>
+      (
+        (await invoke(
+          "evidence.enrichJunit",
+          { file: "results/run.xml", item: "build-1", variant: ["core"] },
+          { workspace },
+        )) as CommandOutput<"evidence.enrichJunit">
+      ).problems.map((p) => p.message);
+    // S3 applies in A only; marked, its record without variant counts in A (SR-173 AK1).
+    const marked = await open(true, junit);
+    expect(await noView(marked)).toEqual([]);
+    await expect(record(marked)).resolves.toBeDefined();
+    expect(await enrich(marked)).toEqual([]);
+    // Marked, a record without variant of an element that applies in no variant counts nowhere either.
+    const nowhere = await open(true, {
+      "supplier/requirements/SR-0000000000d9.md":
+        "---\nid: 17317317-0000-4000-8000-0000000000d9\ntype: system-requirement\nstatus: draft\n" +
+        "title: Sensor reports dust\nvalidity: [{ id: 17317317-0000-4000-8000-0000000000c9, repository: system }]\n---\n",
+    });
+    await expect(
+      invoke(
+        "evidence.record",
+        { ref: "SR-0000d9", kind: "verification", method: "test", item: "build-1", result: "passed" },
+        { workspace: nowhere },
+      ),
+    ).rejects.toMatchObject({ code: "input.invalid", details: { reason: "counts-in-no-view" } });
+    const unmarked = await open(false, junit);
+    expect(await noView(unmarked)).toEqual(["supplier:evidence/2026-11-01-SR-0000d3-test.md"]);
+    await expect(record(unmarked)).rejects.toMatchObject({
+      code: "input.invalid",
+      details: { reason: "counts-in-no-view" },
+    });
+    expect(await enrich(unmarked)).toEqual([
+      'Test case "[SR-0000d3] in A" (line 1) is not enriched: SR-0000d3 does not apply in core, so a record for it there would count nowhere (SR-040)',
+    ]);
+  });
+
   it("lists the records of the copy a repository names: its repository decides about the records without variant (#821)", async () => {
     // S1 copied into `system`, which is not marked: two elements share its UUID (SR-088, D-058).
     const workspace = await open(true, {

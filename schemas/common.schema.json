@@ -382,6 +382,7 @@
         "evidence.ambiguous-element",
         "evidence.kind-mismatch",
         "evidence.unknown-criterion",
+        "evidence.counts-in-no-view",
         "baseline.invalid",
         "baseline.repository-commit-differs",
         "filter.invalid",

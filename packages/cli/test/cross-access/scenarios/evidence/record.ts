@@ -70,6 +70,13 @@ scenariosOf("evidence.record", [
     expect: "error",
   },
   {
+    name: "a record without variant of a requirement the core does not hold is refused (SR-047 AK5)",
+    fixture: VARIANT_EVIDENCE,
+    input: { ref: "SR-0000b1", kind: "verification", method: "test", item: "build-47", result: "passed" },
+    tag: "[SR-047/AK5]",
+    expect: "error",
+  },
+  {
     name: "a validation record with a variant is refused (SR-038 AK4)",
     fixture: VARIANT_EVIDENCE,
     input: {

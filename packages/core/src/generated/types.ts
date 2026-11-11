@@ -386,6 +386,7 @@ export type ProblemCode =
   | "evidence.ambiguous-element"
   | "evidence.kind-mismatch"
   | "evidence.unknown-criterion"
+  | "evidence.counts-in-no-view"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -3287,7 +3288,7 @@ export interface EvidenceRecordInput {
   readonly reason?: string;
   /** The item under test, for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core, and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core, and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). Absent for a verification of an element the core does not hold, which would then count in no view, is `input.invalid` with `details.reason` `counts-in-no-view` (SR-047 AK5), unless the element's repository is marked `variant-independent` and a variant holds it (SR-173). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
