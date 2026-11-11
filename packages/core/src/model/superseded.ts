@@ -129,7 +129,8 @@ export const elementLabel = (
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
- * Whether a hit is a successor's own relation to the element it superseded: a relation kind with
+ * Whether a hit is a successor's own relation to the element it superseded (whatever the successor's
+ * status: an obsolete successor is still named): a relation kind with
  * the meaning `succession` (from the metamodel, whatever the kind's key or name) from another
  * element. An element that replaces itself is no successor of itself, as in the view
  * (`successionsOf`). The one rule for both: such a hit names a successor and gives no hint
@@ -251,7 +252,7 @@ const sourcesFromIndex = (
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
  * like `unknownFindings`, by the rules of the whole workspace: none on a relation with the meaning
  * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`; product
- * owner decision, 2026-10-29, #170). `source` need not be in the store as it is (a new or just written
+ * owner decision, 2026-10-29, #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as it is (a new or just written
  * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store
