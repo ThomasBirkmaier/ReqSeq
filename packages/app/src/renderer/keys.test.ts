@@ -4,6 +4,7 @@ import {
   historyStep,
   isMac,
   isModClick,
+  isPlainClick,
   listStep,
   matches,
   rowStep,
@@ -146,6 +147,15 @@ describe("keys", () => {
     expect(isModClick({ ...click, ctrlKey: true, shiftKey: true }, false)).toBe(false);
     expect(isModClick({ ...click, ctrlKey: true, altKey: true }, false)).toBe(false);
     expect(isModClick({ ...click, ctrlKey: true, button: 1 }, false)).toBe(false);
+  });
+
+  it("knows a plain click: the main button without a modifier", () => {
+    const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
+    expect(isPlainClick(click)).toBe(true);
+    for (const modifier of ["ctrlKey", "metaKey", "altKey", "shiftKey"] as const) {
+      expect(isPlainClick({ ...click, [modifier]: true })).toBe(false);
+    }
+    expect(isPlainClick({ ...click, button: 1 })).toBe(false);
   });
 
   it("writes a shortcut the way the platform does", () => {

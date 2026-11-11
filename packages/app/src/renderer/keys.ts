@@ -83,8 +83,16 @@ export const isModClick = (
   !event.shiftKey &&
   (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey || event.metaKey);
 
+/** A click with the main button and no modifier: on the value of a choice box it asks for the value (SR-156 AK1). */
+export const isPlainClick = (
+  event: Pick<KeyPress, "ctrlKey" | "metaKey" | "altKey" | "shiftKey"> & { readonly button: number },
+): boolean => event.button === 0 && !event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey;
+
 /** Ctrl/Cmd+click, as the keyboard reference writes it (`isModClick`; "click" is no key). */
 export const MOD_CLICK: Shortcut = { mod: true, shift: false, key: "click" };
+
+/** A plain click, as the keyboard reference writes it (`isPlainClick`). */
+export const CLICK: Shortcut = { mod: false, shift: false, key: "click" };
 
 /** Whether `platform` (`navigator.platform`) is Windows. */
 export const isWindows = (platform: string): boolean => platform.startsWith("Win");

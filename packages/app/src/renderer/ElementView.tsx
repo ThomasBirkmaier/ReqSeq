@@ -142,7 +142,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
-import { ctrlStep, historyStep, isMac, isModClick } from "./keys.js";
+import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
@@ -1765,6 +1765,17 @@ export const ElementView = ({
       now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
     }
   };
+  // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
+  // on its copy symbol is outside the value.
+  const clickChoice = (target: Element): void => {
+    const label = clickedBox(target);
+    const box = label === undefined ? undefined : now.current.boxes.get(label);
+    if (label === undefined || box?.info.kind !== "choice" || !now.current.boxKeys.includes(label)) {
+      return;
+    }
+    fieldOf(label)?.focus();
+    enterField(label);
+  };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
     editTitle,
@@ -1781,6 +1792,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   });
   api.current = {
@@ -1798,6 +1810,7 @@ export const ElementView = ({
     flush,
     pointerNow,
     clickPointer,
+    clickChoice,
     listValue,
   };
 
@@ -1965,8 +1978,14 @@ export const ElementView = ({
       onKeyDown={onBufferKey}
       onClickCapture={(event) => {
         // Ctrl/Cmd+click on a value of a property box lists the elements with it (SR-132 AK1), before the
-        // link of a relation target opens it.
-        if (!isModClick(event, isMac(navigator.platform)) || !(event.target instanceof Element)) {
+        // link of a relation target opens it. A plain click on the value of a choice box asks for its value (SR-156).
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+        if (!isModClick(event, isMac(navigator.platform))) {
+          if (isPlainClick(event)) {
+            api.current.clickChoice(event.target);
+          }
           return;
         }
         const pointer = api.current.clickPointer(event.target);

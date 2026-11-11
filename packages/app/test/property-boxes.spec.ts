@@ -344,6 +344,65 @@ test.describe("property boxes of an element", () => {
     expect(await readFile(running)).toContain("legacy: Altlast");
   });
 
+  test("[SR-156/AK1] a click on the value of a choice box opens the prompt Enter opens; a click on its copy symbol does not", async () => {
+    const { window } = running;
+    const box = field(window, "requirement-type");
+    // The copy symbol shows while the pointer is over the box.
+    await box.hover();
+    await box.locator("> .copy").click();
+    await expect(modeline(window)).toContainText("Copied requirement-type");
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    await box.locator(".value").click();
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    const clicked = await candidates(window);
+    await fs.mkdir(OUT, { recursive: true });
+    await window.mouse.move(0, 0);
+    await window.screenshot({ path: path.join(OUT, "boxes-choice-click.png") });
+    await window.keyboard.press("Escape");
+    await expect(box).toBeFocused();
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    expect(await candidates(window)).toEqual(clicked);
+    expect(clicked).toEqual(["Performance", "Functional", "Quality", "Interface", "Constraint"]);
+  });
+
+  test("[SR-156/AK2] a click on a value of the prompt opened by a click sets it as the keys do", async () => {
+    const { window } = running;
+    await field(window, "requirement-type").locator(".value").click();
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    await window.locator('.candidates [role="option"]', { hasText: "Quality" }).click();
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    await expect(field(window, "requirement-type")).toBeFocused();
+    await expect(field(window, "requirement-type")).toContainText("quality");
+    await expect(modeline(window)).toContainText("modified");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    // The same result as [SR-104/AK3] with the keys: the key in the file, the other properties keep their bytes.
+    expect((await cliGet(running)).element.properties["requirement-type"]).toBe("quality");
+    expect(await readFile(running)).toContain("requirement-type: quality");
+    expect(await readFile(running)).toContain("legacy: Altlast");
+  });
+
+  test("[SR-156/AK3] Escape or a click outside the command line closes the prompt opened by a click and leaves the value", async () => {
+    const { window } = running;
+    const before = await readFile(running);
+    const box = field(window, "requirement-type");
+    await box.locator(".value").click();
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    await window.keyboard.press("ArrowDown");
+    await window.keyboard.press("Escape");
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    await box.locator(".value").click();
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    await window.keyboard.type("qual");
+    await field(window, "topic").locator(".key").click();
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    await expect(box.locator(".value")).toHaveText("performance");
+    await expect(modeline(window)).not.toContainText("modified");
+    expect((await cliGet(running)).element.properties["requirement-type"]).toBe("performance");
+    expect(await readFile(running)).toBe(before);
+  });
+
   test("a relation box shows its targets as links; its prompt finds only elements of the allowed types, and a target is added, then taken out", async () => {
     const { window } = running;
     const box = field(window, "packages");
