@@ -65,8 +65,9 @@ beforeAll(() => {
 });
 
 /** The problems but the hints of the fixture's requirements, which have no parent (SR-022 AK6). */
+/** The problems without the hints these tests are not about: no parent (SR-022 AK6), criteria without key (SR-204 AK10). */
 const withoutNoParent = <P extends { readonly code: string }>(problems: readonly P[]): P[] =>
-  problems.filter((p) => p.code !== "trace.no-parent");
+  problems.filter((p) => p.code !== "trace.no-parent" && p.code !== "element.criterion-key-missing");
 
 describe("reqseq workspace check with evidence records (SR-028)", () => {
   it("[SR-028/AK1] reqseq workspace check reads a record from a repository of another tool", async () => {

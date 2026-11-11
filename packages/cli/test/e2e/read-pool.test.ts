@@ -135,7 +135,12 @@ describe("cold load in worker threads (ADR-0008, ThomasBirkmaier/ReqSeq-archive#
       checkedElements: number;
     };
     expect(output).toMatchObject({ ok: true, checkedElements: ELEMENTS });
-    // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
-    expect(output.problems.filter((p) => p.code !== "trace.no-parent")).toEqual([]);
+    // The generated requirements that got no derivation are hints (SR-022 AK6), as are their acceptance
+    // criteria without criterion key (SR-204 AK10); nothing else is reported.
+    expect(
+      output.problems.filter(
+        (p) => p.code !== "trace.no-parent" && p.code !== "element.criterion-key-missing",
+      ),
+    ).toEqual([]);
   });
 });
