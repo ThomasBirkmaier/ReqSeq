@@ -8,7 +8,8 @@
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
 // `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
-// app (AK3 to AK5, `displayOf`, over the views the element applies in). Nothing is written.
+// app (AK3 to AK5, `displayOf`, over the views the element applies in, without that of a variant
+// whose status is invalid unless `view` names it, SR-047 AK6). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -24,6 +25,7 @@ import {
   verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
+import type { ViewHolder } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
   acceptanceCriteriaKeyOf,
@@ -39,12 +41,16 @@ import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 
-/** Whether `holder` is `asked` (any view when none is asked). */
-const sameView = (holder: View, asked: View | undefined): boolean =>
-  asked === undefined ||
-  (holder.kind === "core"
-    ? asked.kind === "core"
-    : asked.kind === "variant" && asked.variant.id === holder.variant.id);
+/**
+ * Whether the view of `holder` is `asked`; when none is asked, every view but that of a variant
+ * whose status is invalid (SR-047 AK6, as `verificationOf`).
+ */
+const shownView = ({ view: holder, invalid }: ViewHolder, asked: View | undefined): boolean =>
+  asked === undefined
+    ? !invalid
+    : holder.kind === "core"
+      ? asked.kind === "core"
+      : asked.kind === "variant" && asked.variant.id === holder.variant.id;
 
 export default defineCommand({
   name: "evidence.list",
@@ -92,7 +98,7 @@ export default defineCommand({
       status?.source.requirements.has(element.type) !== true
         ? []
         : status.holders
-            .filter(({ view: holder, includes }) => includes(element) && sameView(holder, view))
+            .filter((holder) => holder.includes(element) && shownView(holder, view))
             .map(({ view: holder }) => holder);
     return {
       records: listed,

@@ -211,7 +211,7 @@
         },
         "verification": {
           "type": "array",
-          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3).",
+          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6).",
           "items": {
             "$ref": "#/$defs/verificationEntry"
           }
@@ -456,7 +456,7 @@
     },
     "verificationEntry": {
       "type": "object",
-      "description": "The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).",
+      "description": "The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view it lists (none for a variant whose status the metamodel marks invalid, SR-047 AK6), `trace.matrix` one for its view (SR-126).",
       "required": ["view", "status"],
       "properties": {
         "view": {

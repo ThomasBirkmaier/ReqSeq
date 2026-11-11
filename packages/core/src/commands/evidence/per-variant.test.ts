@@ -42,8 +42,10 @@ const FILES: Readonly<Record<string, string>> = {
   "evidence/a1-core.md": recordFile("b1", "passed"),
 };
 
-const open = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
-  const fixture = await createFixtureWorkspace({ fixture: "SR-043/example", files: FILES });
+const open = async (
+  files: Readonly<Record<string, string>> = {},
+): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-043/example", files: { ...FILES, ...files } });
   const workspace = new Workspace(fixture.root);
   onTestFinished(async () => {
     await workspace.close();
@@ -221,5 +223,40 @@ describe("verification status per variant (SR-047)", () => {
       { workspace },
     )) as CommandOutput<"evidence.record">;
     expect(validation.record.variant).toBeUndefined();
+  });
+
+  it("[SR-047/AK6] a variant with an invalid status gets no entry, and its view stays selectable", async () => {
+    // C „Desert“ is obsolete, a status the metamodel marks invalid; K3 has a passed record for C.
+    const { workspace } = await open({
+      "variants/VAR-0000000000c3.md": `---\nid: ${C}\ntype: variant\nstatus: obsolete\ntitle: Desert\n---\n`,
+      "evidence/k3-c.md": recordFile("a3", "passed", C),
+    });
+    const k3 = [
+      { view: "core", status: "open" },
+      { view: A, status: "verified" },
+      { view: B, status: "open" },
+    ];
+    expect((await statusRows(workspace))["a3"]).toEqual(k3);
+    expect(await getRows(workspace, "SR-0000a3")).toEqual(k3);
+    // The app's evidence rows of the requirement name no view of C either.
+    const list = async (view?: string): Promise<string[]> =>
+      (
+        (await invoke(
+          "evidence.list",
+          { ref: "SR-0000a3", ...(view === undefined ? {} : { view }) },
+          { workspace },
+        )) as CommandOutput<"evidence.list">
+      ).display.rows.flatMap((row) =>
+        (row.views ?? []).map(({ view: shown, status }) => `${shown} ${status}`),
+      );
+    expect(await list()).toEqual(["core open", `${A} verified`, `${B} open`]);
+    // Its view can still be chosen, with the status there.
+    expect(await list(C)).toEqual([`${C} verified`]);
+    const inC = (await invoke(
+      "element.list",
+      { selection: { ids: ["SR-0000a3"], view: C }, withVerification: true },
+      { workspace },
+    )) as CommandOutput<"element.list">;
+    expect(inC.rowVerification?.[0]).toEqual({ verification: [{ view: C, status: "verified" }] });
   });
 });

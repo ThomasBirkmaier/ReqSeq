@@ -204,6 +204,12 @@ export const SINCE_BASELINE: FixtureOptions = {
   },
 };
 
+/** The workspace file of the example of SR-043 with the evidence location `evidence`. */
+const EXAMPLE_WORKSPACE =
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+  "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n";
+
 /** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
 const exampleRecord = (tail: string, result: string, variant?: string): string =>
   `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
@@ -214,13 +220,22 @@ const exampleRecord = (tail: string, result: string, variant?: string): string =
 export const VARIANT_EVIDENCE: FixtureOptions = {
   fixture: "SR-043/example",
   files: {
-    "reqseq-workspace.yaml":
-      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
-      '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
-      "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
+    "reqseq-workspace.yaml": EXAMPLE_WORKSPACE,
     "evidence/k2-core.md": exampleRecord("a2", "passed"),
     "evidence/k2-b.md": exampleRecord("a2", "failed", "c2"),
     "evidence/k1-a.md": exampleRecord("a1", "passed", "c1"),
+  },
+  git: true,
+};
+
+/** The example of SR-043 with variant C obsolete, an invalid status, and K3 passed for C (SR-047 AK6). */
+export const VARIANT_INVALID: FixtureOptions = {
+  fixture: "SR-043/example",
+  files: {
+    "reqseq-workspace.yaml": EXAMPLE_WORKSPACE,
+    "variants/VAR-0000000000c3.md":
+      "---\nid: 43043043-0000-4000-8000-0000000000c3\ntype: variant\nstatus: obsolete\ntitle: Desert\n---\n",
+    "evidence/k3-c.md": exampleRecord("a3", "passed", "c3"),
   },
   git: true,
 };
