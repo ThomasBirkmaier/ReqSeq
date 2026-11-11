@@ -26,6 +26,7 @@ import { errorCode, replaceErrorCode, resolveInRoot } from "./paths.js";
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
+import { isImage } from "./image-type.js";
 import { scanXml, shown, streamXml } from "./xml-scan.js";
 
 /** Temp files are `.<file name>.<8 hex>.reqseq-tmp` in the target's folder (watchers ignore them). */
@@ -39,10 +40,11 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
  * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029), `jsonl`
  * for ReqSeq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces, and
  * `reqif` for a ReqIF file `reqif.export` replaces, an XML file whose root element is `REQ-IF`
- * (SR-207 AK1), and `copy` for a file ReqSeq copied there before, such as an image `reqif.export`
- * copies (SR-052), which only has to be unchanged.
+ * (SR-207 AK1), `copy` for a file that only has to be unchanged, such as the `.gitignore` of
+ * `workspace.init`, and `image` for an image `reqif.export` copies (SR-052) over an earlier file,
+ * which must be an image by its content (`isImage`, SR-207 AK3).
  */
-export type FileKind = "element" | "yaml" | "xml" | "reqif" | "jsonl" | "copy";
+export type FileKind = "element" | "yaml" | "xml" | "reqif" | "jsonl" | "copy" | "image";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
@@ -116,6 +118,8 @@ const REFUSAL: Readonly<
       : `is no ReqIF file (its root element is <${shown(read.root)}>, not <REQ-IF>); ReqSeq replaces only a ReqIF file`;
   },
   copy: () => undefined,
+  image: (_file, bytes) =>
+    isImage(bytes) ? undefined : "is no image by its content; ReqSeq replaces only an image there",
 };
 
 /**

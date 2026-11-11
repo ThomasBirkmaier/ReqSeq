@@ -451,8 +451,8 @@ describe("reqif.export (SR-052)", () => {
       'data="back%5Cslash.png"',
       'data="https://example.com/w.png"',
     ]);
-    // The same bytes are left as they are; a changed copy is replaced.
-    await fs.writeFile(fixture.path(copies[1] ?? ""), "changed");
+    // The same bytes are left as they are; a changed copy that is still an image is replaced.
+    await fs.writeFile(fixture.path(copies[1] ?? ""), "GIF89a changed");
     expect((await run<Exported>(workspace, "reqif.export", input)).files).toEqual(copies);
     expect(await fs.readFile(fixture.path(copies[1] ?? ""), "utf8")).toBe("other");
     await fs.rm(fixture.path(copies[0] ?? ""));
