@@ -153,7 +153,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     });
   }
 
-  it("[SR-087/AK2] hint.confirm writes the new version into files of every status and keeps each status", async () => {
+  it("[SR-087/AK2] hint.confirm writes the new version into the files of every status that has hints, and keeps each status", async () => {
     const { fixture, workspace } = await open();
     const sources = [
       ["requirements/SR-1d2e3f4a5b6c.md", GUSTS],
