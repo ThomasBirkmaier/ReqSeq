@@ -110,9 +110,11 @@ const readLines = (file: string): Line[] => {
 /** The lines `data` gives: its state, then each element (SR-062 AK1, #319). */
 const linesOf = (data: Data): Line[] =>
   data.elements.map((element) => ({
-    "reqseq-data": 3,
+    "reqseq-data": 4,
     ...(data.commit === undefined ? {} : { commit: data.commit }),
     dirty: data.dirty,
+    repositories: data.repositories,
+    incomplete: data.incomplete,
     ...element,
   }));
 
@@ -161,8 +163,14 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const lines = readLines(ws.path(`system/out/${commit}.jsonl`));
     expect(lines).toHaveLength(exported.elements.length);
     expect(lines).toEqual(linesOf(exported));
+    // Every line names the commit of each repository and that none is missing (#1454).
+    const repositories = [
+      { name: "system", available: true, commit, dirty: false },
+      { name: "sensor", available: true, commit: await ws.head("sensor"), dirty: false },
+    ];
+    const state = `{"reqseq-data":4,"commit":"${commit}","dirty":false,"repositories":${JSON.stringify(repositories)},"incomplete":false,"id":`;
     for (const line of text.slice(0, -1).split("\n")) {
-      expect(line.startsWith(`{"reqseq-data":3,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
+      expect(line.startsWith(state)).toBe(true);
     }
   });
 
@@ -341,7 +349,7 @@ describe("data.store: a second repository without a known commit (ThomasBirkmaie
     ]);
   });
 
-  it("stores an incomplete state with the info of the missing repository; the name is clean when the rest is", async () => {
+  it("[SR-062/AK1] marks a missing repository on every line, with the info in the output; the name is clean when the rest is", async () => {
     const ws = await fixture(EXPORT);
     fs.rmSync(ws.path("sensor"), { recursive: true });
     const commit = await ws.head("system");
@@ -354,8 +362,17 @@ describe("data.store: a second repository without a known commit (ThomasBirkmaie
         message: "Repository sensor is not available locally",
       },
     ]);
-    // The lines tell no incompleteness (only the JSON form has `incomplete`); the info says it.
     expect(stateIn(ws.path(`system/out/${commit}.jsonl`))).toEqual([[commit, false]]);
+    // Every line names the commit of the available repository and marks the missing one (#1454).
+    const lines = readLines(ws.path(`system/out/${commit}.jsonl`));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line.repositories).toEqual([
+        { name: "system", available: true, commit, dirty: false },
+        { name: "sensor", available: false },
+      ]);
+      expect(line.incomplete).toBe(true);
+    }
   });
 });
 
@@ -803,6 +820,7 @@ describe("data.store: a file larger than one string (#277, #319)", () => {
   });
 
   it("writes an empty file for a selection without elements, and replaces it", async () => {
+    // No line, so the file names no repository: the assumption of the open question #1461.
     const ws = await fixture();
     const commit = await ws.head();
     const none = { folder: "out", selection: { ids: [] } };
