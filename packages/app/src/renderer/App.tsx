@@ -877,7 +877,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
   // entries run from the prefix key or the context menu have no command prompt to go back to.
   // While the catalog is read, the prompt opens with the actions and takes keys, and its entries are built
-  // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them.
+  // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them, also on an
+  // action (the read is short: core answers at once, or the bridge gives none without a connection).
   const commands = useCallback(
     (shown = true): Prompt => {
       // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
@@ -900,7 +901,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       };
       const prompt = build();
       const reading = catalogRead.current;
-      return reading === undefined
+      // Only a shown prompt: the prefix key and the context menu take the entries as they are now.
+      return reading === undefined || !shown
         ? prompt
         : { ...prompt, fill: reading.then(() => ({ items: build().items })) };
     },
