@@ -1193,6 +1193,8 @@ export const ElementView = ({
       readonly element: DataExportElement;
       readonly fileSha256: string;
       readonly problems?: readonly { message: string }[];
+      /** The number of directly affected elements (SR-024 AK2), said after the save. */
+      readonly affected?: number;
     },
     sent: SentWrite,
     editor: EditorHandle,
@@ -1248,7 +1250,7 @@ export const ElementView = ({
     const named = renameAction(element);
     rename(named);
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    const speech = savedSpeech(said.current, mode, named.name, hint);
+    const speech = savedSpeech(said.current, mode, named.name, hint, output.affected);
     if (speech.echo !== undefined) {
       echo(speech.echo);
     }
@@ -1263,7 +1265,9 @@ export const ElementView = ({
   // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
   const saveInput = async (mode: SaveMode, afterSave = false): Promise<boolean> => {
     const { handle: editor, onEcho: echo, buffer: shown } = now.current;
-    const afterWrite = afterSave ? { name: shown.name, hint: said.current.hint } : undefined;
+    const afterWrite = afterSave
+      ? { name: shown.name, hint: said.current.hint, affected: said.current.affected }
+      : undefined;
     const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode, afterWrite });
     if (step.kind === "done") {
       if (step.echo !== undefined) {
