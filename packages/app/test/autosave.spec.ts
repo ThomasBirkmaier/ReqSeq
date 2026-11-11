@@ -1,7 +1,8 @@
 // Saving without a save command (SR-105) on the built app: the input of an element is in its file a second
 // after the last key or at once when the element is left (AK1), undo and redo step through everything since
-// the element was opened, also after it was saved and after another buffer was shown (AK2), and there is no
-// button and no dialog to save (AK3). Every result is checked in the file of the workspace. Keys use
+// the element was opened, also after it was saved and after another buffer was shown (AK2), there is no
+// button and no dialog to save (AK3), Ctrl/Cmd+S writes at once (AK4), and a file that cannot be written keeps
+// the input, the modeline names the reason and the first close keeps the window open (AK5). Every result is checked in the file of the workspace. Keys use
 // ControlOrMeta (Linux and macOS). The screenshots of a save that failed (`not saved`) go to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fs from "node:fs/promises";
@@ -315,6 +316,8 @@ test.describe("saving without a save command", () => {
       expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
       await expect(text(window)).toContainText("Meins.");
       await expect(modeline(window)).toContainText(/not saved \(.+read-only\)/);
+      // The test ends with input that cannot be saved: the close after it discards it.
+      running.discardAtClose();
     } finally {
       await fs.chmod(file, 0o644);
     }
