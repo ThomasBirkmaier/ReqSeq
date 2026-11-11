@@ -183,7 +183,7 @@ describe("baseline.create", () => {
     );
   });
 
-  it("[SR-050/AK3] a baseline through a variant view names the variant", async () => {
+  it("[SR-050/AK3] a baseline through a view, a variant or the core, names that view", async () => {
     const ws = await fixture();
     const out = await create(ws, "Coast", { view: "VAR-0000c1" });
     expect(read(ws, out.baseline.file)).toContain(

@@ -207,10 +207,15 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
         stale,
       ),
       "baselines/S6.yaml": baseline("S6", "2026-11-10T10:00:00Z", "  package: PKG-1\n", stale),
+      // A filter beside the view: no baseline of Coast either.
+      "baselines/S7.yaml": baseline("S7", "2026-11-10T10:00:00Z", `${OF_COAST}  filter: Open ones\n`, stale),
     };
     const { workspace, fixture } = await open(files);
     expect(await listed(workspace)).toEqual([]);
-    // At the same instant as R2, a later file: it is the newest.
+    // At the same instant as R2, a file with an earlier name, written last: R2 stays the newest.
+    await fixture.write("baselines/R0.yaml", baseline("R0", "2026-11-09T10:00:00Z", OF_COAST, stale));
+    expect(await listed(workspace)).toEqual([]);
+    // At the same instant as R2, a file with a later name: it is the newest.
     await fixture.write("baselines/R2b.yaml", baseline("R2b", "2026-11-09T10:00:00Z", OF_COAST, stale));
     const [hint] = await listed(workspace);
     expect([hint?.targetId, hint?.storedVersion]).toEqual([K1, OLD]);

@@ -142,7 +142,7 @@ describe("SR-028 findings of the evidence records", () => {
     expect(checked.ok).toBe(false);
   });
 
-  it("warns about a verification of a need, not about a validation of a need (#628)", async () => {
+  it("[SR-028/AK6] a verification record of a need counts for no status and is a finding, a validation of a need is not (#628)", async () => {
     const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
     const workspace = await open({
       "system/needs/N-0d00000000a1.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: Weigh the load\n---\n`,
@@ -161,6 +161,10 @@ describe("SR-028 findings of the evidence records", () => {
     expect(found[0]?.message).toBe(
       `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement (D-012)`,
     );
+    // No verification status for the need, and the failed verification record does not reach its
+    // validation status: that is the validation record's (of another version: outdated).
+    const got = (await invoke("element.get", { ref: need }, { workspace })) as CommandOutput<"element.get">;
+    expect([got.element.verification, got.element.validation]).toEqual([undefined, "outdated"]);
   });
 
   it("[SR-038/AK5] a validation record of an element that is neither need nor requirement counts for no status and is a finding", async () => {
