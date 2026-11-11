@@ -568,15 +568,23 @@ const handCriterion = (
 
 /**
  * The criterion a name tag writes (SR-029 AK10): a key as named; a number as the key of the criterion
- * at that position of the current `items` where it has one, else the number. The number form is kept
- * only until the switch-over to key tags (#1419), because every test name of this repository still
- * names criteria by number (product owner decision, 2026-11-10: the switch-over runs after the code).
+ * at that position of the current `items` where it has one that no other criterion carries (a double
+ * key would count for neither, SR-204 AK10), else the number. The number form is kept only until the
+ * switch-over to key tags (#1419), because every test name of this repository still names criteria
+ * by number (product owner decision, 2026-11-10: the switch-over runs after the code).
  */
 const writtenCriterion = (
   criterion: CriterionValue,
   items: readonly unknown[] | undefined,
-): CriterionValue =>
-  typeof criterion === "number" ? (criterionKey(items?.[criterion - 1]) ?? criterion) : criterion;
+): CriterionValue => {
+  if (typeof criterion !== "number") {
+    return criterion;
+  }
+  const key = criterionKey(items?.[criterion - 1]);
+  return key !== undefined && items?.filter((item) => criterionKey(item) === key).length === 1
+    ? key
+    : criterion;
+};
 
 /**
  * The criteria the name of a test case gives for the elements `elements` (`criterionRefsOf`), in name

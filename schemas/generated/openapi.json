@@ -8864,7 +8864,7 @@
                     },
                     "minItems": 1,
                     "uniqueItems": true,
-                    "description": "The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key. The file gets their criterion keys, in the order of the criteria. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`), a key that several criteria carry (`criterion-key-duplicate`), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element."
+                    "description": "The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key. The file gets their criterion keys, sorted by key. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`), a key that several criteria carry (`criterion-key-duplicate`), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element."
                   },
                   "folder": {
                     "type": "string",
@@ -8904,13 +8904,15 @@
                         "properties": {
                           "criterion": {
                             "type": "integer",
-                            "minimum": 1
+                            "minimum": 1,
+                            "description": "Its position in the current version, from 1."
                           },
                           "key": {
                             "$ref": "#/components/schemas/common/$defs/criterionKey"
                           },
                           "text": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The first 60 characters of its text."
                           }
                         },
                         "required": [
@@ -14165,7 +14167,7 @@
                 "items": {
                   "$ref": "#/components/schemas/data-export/$defs/criterionName"
                 },
-                "description": "Each item of `criteria`, in its order, named with number, key and text: the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and that version's text, without key. Only `evidence.list` fills it."
+                "description": "Each item of `criteria`, in its order, named with number, key and text: the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it."
               },
               "baselines": {
                 "type": "array",

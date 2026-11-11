@@ -5,5 +5,5 @@
   "result": "passed",
   "item": "build 42",
   "date": "2026-11-04T08:00:00Z",
-  "criteria": [1]
+  "criteria": ["kgst"]
 }

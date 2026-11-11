@@ -116,7 +116,7 @@
         },
         "minItems": 1,
         "uniqueItems": true,
-        "description": "The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key (D-072, SR-030 AK4). The file gets their criterion keys, in the order of the criteria. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`, SR-030 AK4), a key that several criteria carry (`criterion-key-duplicate`, SR-030 AK5), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3)."
+        "description": "The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key (D-072, SR-030 AK4). The file gets their criterion keys, sorted by key. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`, SR-030 AK4), a key that several criteria carry (`criterion-key-duplicate`, SR-030 AK5), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3)."
       },
       "folder": {
         "type": "string",
@@ -142,9 +142,13 @@
         "items": {
           "type": "object",
           "properties": {
-            "criterion": { "type": "integer", "minimum": 1 },
+            "criterion": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Its position in the current version, from 1."
+            },
             "key": { "$ref": "../common.schema.json#/$defs/criterionKey" },
-            "text": { "type": "string" }
+            "text": { "type": "string", "description": "The first 60 characters of its text." }
           },
           "required": ["criterion", "key", "text"],
           "additionalProperties": false

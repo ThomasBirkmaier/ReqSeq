@@ -1516,15 +1516,19 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ]);
     });
 
-    it("writes a number tag as the key of its criterion where it has one, else as the number, until the switch-over (#1419)", async () => {
-      const items = [{ key: "kaaa", text: "one" }, "two"];
+    it("writes a number tag as the key of its criterion where it has one no other carries, else as the number, until the switch-over (#1419)", async () => {
+      const items = [
+        { key: "kaaa", text: "one" },
+        "two",
+        { key: "kdup", text: "a" },
+        { key: "kdup", text: "b" },
+      ];
       const result = await enrich(
-        suite('<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-46fb54/AK3] a"/>'),
-        {
-          criteriaOf: (id) => (id === LOGIN ? items : []),
-        },
+        suite('<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-46fb54/AK3] [SR-46fb54/AK5] a"/>'),
+        { criteriaOf: (id) => (id === LOGIN ? items : []) },
       );
-      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2, 3, "kaaa"]]]);
+      // A key two criteria carry stays a number: written as the key, it would count for neither.
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2, 3, 5, "kaaa"]]]);
     });
 
     it("writes the criterion of a name the name pattern reads (SR-029 AK5)", async () => {

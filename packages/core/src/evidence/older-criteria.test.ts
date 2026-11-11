@@ -146,4 +146,38 @@ describe("older criteria (SR-031 AK11)", () => {
     expect(await rows(open(ws))).toEqual(carried);
     expect((await workspace.get(evidenceRecordsState)).length).toBe(2);
   });
+
+  it("[SR-205/AK2] names a criterion a record of an older version names by number, without key there, with that number and that version's text, where Git has the version", async () => {
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-028/records",
+      files: { [FILE]: elementA(["One.", "Two."]) },
+    });
+    onTestFinished(() => ws.cleanup());
+    await fs.rm(ws.path("ci-results/evidence/2026-10-20-SR-000001-test.md"));
+    await ws.git(["init", "--quiet", "--initial-branch=main"], "system");
+    await ws.commit("system");
+    const first = new Workspace(ws.path("system"));
+    const old = await versionOf(first);
+    await first.close();
+    await ws.write(FILE, elementA(["One.", "Two, changed."]));
+    await ws.commit("system");
+    await ws.write("ci-results/evidence/2026-10-30-a-test.md", recordOf(old, "[2]"));
+    await ws.write(
+      "ci-results/evidence/2026-10-31-b-test.md",
+      recordOf("n1:0000000000000000", "[2]").replace("2026-10-30", "2026-10-31"),
+    );
+    const workspace = open(ws);
+    // The current criteria carry no key, so the status needs no lookup; the record counts for none.
+    expect(await workspace.get(olderCriteriaState)).toBe(NO_OLDER_CRITERIA);
+    const listed = (await invoke(
+      "evidence.list",
+      { ref: A },
+      { workspace },
+    )) as CommandOutput<"evidence.list">;
+    expect(listed.records.map((r) => [r.version, r.criterionNames])).toEqual([
+      // A version Git does not have: the number as named, no text.
+      ["n1:0000000000000000", [{ criterion: 2 }]],
+      [old, [{ criterion: 2, text: "Two." }]],
+    ]);
+  });
 });

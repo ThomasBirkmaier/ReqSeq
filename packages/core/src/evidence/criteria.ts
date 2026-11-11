@@ -57,6 +57,12 @@ export const elementCriteria = (
   older: OlderCriteria = NO_OLDER_CRITERIA,
 ): ElementCriteria => {
   const count = items.length;
+  // The positions of each record that takes the slow path, resolved once per current version (a
+  // status asks per criterion and per view).
+  const resolved = new WeakMap<
+    EvidenceRecord,
+    { readonly current: VersionForms | undefined; readonly positions: readonly number[] }
+  >();
   const namedItems = (
     record: EvidenceRecord,
     current: VersionForms | undefined,
@@ -82,13 +88,19 @@ export const elementCriteria = (
       if (isCurrentRecord(record, current) && refs.every((r) => typeof r === "number" && r <= count)) {
         return refs as readonly number[];
       }
-      const positions = new Set<number>();
-      for (const resolved of resolveCriterionRefs(refs, namedItems(record, current), items)) {
-        if ("position" in resolved) {
-          positions.add(resolved.position);
+      const known = resolved.get(record);
+      if (known !== undefined && known.current === current) {
+        return known.positions;
+      }
+      const set = new Set<number>();
+      for (const one of resolveCriterionRefs(refs, namedItems(record, current), items)) {
+        if ("position" in one) {
+          set.add(one.position);
         }
       }
-      return [...positions].sort((a, b) => a - b);
+      const positions = [...set].sort((a, b) => a - b);
+      resolved.set(record, { current, positions });
+      return positions;
     },
   };
 };

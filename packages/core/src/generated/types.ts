@@ -916,7 +916,7 @@ export interface DataExportEvidenceRecord {
   readonly className?: string;
   /** The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */
   readonly criteria?: readonly CriterionRef[];
-  /** Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and that version's text, without key. Only `evidence.list` fills it. */
+  /** Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it. */
   readonly criterionNames?: readonly DataExportCriterionName[];
   /** The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it. */
   readonly baselines?: readonly string[];
@@ -3358,7 +3358,7 @@ export interface EvidenceRecordInput {
   readonly evidence?: string;
   /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
-  /** The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key (D-072, SR-030 AK4). The file gets their criterion keys, in the order of the criteria. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`, SR-030 AK4), a key that several criteria carry (`criterion-key-duplicate`, SR-030 AK5), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). */
+  /** The acceptance criteria the record holds for, each by its number (the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1) or by its criterion key (D-072, SR-030 AK4). The file gets their criterion keys, sorted by key. Absent: the record holds for every criterion. `input.invalid`, and nothing is written, for a criterion without key (`details.reason` `criterion-without-key`, SR-030 AK4), a key that several criteria carry (`criterion-key-duplicate`, SR-030 AK5), and a number or key the current version does not have (`unknown-criterion`). Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). */
   readonly criteria?: readonly (number | string)[];
   /** The folder to write into: an evidence location of the workspace file or a folder below one, relative to the workspace root (the folder of the main repository) with `/`, for example `evidence/manual` or `../tests/evidence`. Missing folders below the location are created. Default: the first evidence location whose repository is on this machine. */
   readonly folder?: string;
@@ -3372,8 +3372,10 @@ export interface EvidenceRecordOutput {
   readonly files: readonly string[];
   /** With `criteria`: each criterion the record holds for, in the order of the criteria, with its number, its criterion key and the first 60 characters of its text (SR-030 AK4). */
   readonly criteria?: readonly {
+    /** Its position in the current version, from 1. */
     readonly criterion: number;
     readonly key: CriterionKey;
+    /** The first 60 characters of its text. */
     readonly text: string;
   }[];
   /** The record as the Markdown reader reads it back from the written file (`source: markdown`, its repository and file, line 1), with the UUID and current version of the element. */

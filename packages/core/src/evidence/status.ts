@@ -197,14 +197,29 @@ type Uniform = Partial<Record<RecordVerificationStatus, OwnVerification>>;
 
 const uniform = new WeakMap<readonly unknown[], Uniform>();
 
+/** The results that name no criterion (none, or all verified), shared by count across elements. */
+const uniformByCount = new Map<number, Uniform>();
+
+/** The cache of `uniformWith` for `status` and `criteria`: by count where no criterion is named. */
+const uniformCache = (status: RecordVerificationStatus, criteria: ElementCriteria): Uniform => {
+  const byCount = criteria.count === 0 || status === "verified";
+  const known = (byCount ? uniformByCount.get(criteria.count) : uniform.get(criteria.items)) ?? {};
+  if (byCount) {
+    uniformByCount.set(criteria.count, known);
+  } else {
+    uniform.set(criteria.items, known);
+  }
+  return known;
+};
+
 /**
  * The result when every criterion of `criteria` has `status` (none: no criteria, AK7): all verified,
- * or none (AK1, D-072: the tool shows how many are verified). Frozen and shared per criteria items:
- * no object per call (N-036, a baseline page asks it for hundreds of thousands of rows).
+ * or none (AK1, D-072: the tool shows how many are verified). Frozen and shared, by count where it
+ * names no criterion and else per criteria items: no object per call (N-036, a baseline page asks it
+ * for hundreds of thousands of rows).
  */
 const uniformWith = (status: RecordVerificationStatus, criteria: ElementCriteria): OwnVerification => {
-  const known = uniform.get(criteria.items) ?? {};
-  uniform.set(criteria.items, known);
+  const known = uniformCache(status, criteria);
   const cached = known[status];
   if (cached !== undefined) {
     return cached;

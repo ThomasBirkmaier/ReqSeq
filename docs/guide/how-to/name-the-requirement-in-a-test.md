@@ -7,8 +7,8 @@ sidebar:
 
 A test shows a requirement once it names it, in one of two ways that give the same result:
 
-- **In the test name**, in square brackets: `[SR-b2c0de]`, or with an acceptance criterion by its criterion key, `[SR-b2c0de/AK-k7f3]`, or by its number, `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
-- **As the property `reqseq:element`** of the test case, with the ID as its value. To name one acceptance criterion this way, add the property `reqseq:criterion` with the ID, a colon and the criterion key or number (`SR-b2c0de:k7f3`).
+- **In the test name**, in square brackets: `[SR-b2c0de]`, or with a criterion by key or number, `[SR-b2c0de/AK-k7f3]` or `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
+- **As the property `reqseq:element`** of the test case, with the ID as its value. To name one acceptance criterion this way, add the property `reqseq:criterion` with the ID, a colon and the key or number (`SR-b2c0de:k7f3`).
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
@@ -41,7 +41,7 @@ pytest's own parameter lists such as `test_add[1-2]` are passed over. In a param
 
 ## Names without brackets
 
-For Rust, Go or Java, write the short ID into the name in another form and give the form with `--name-pattern`: `{prefix}` stands for a type prefix (`SR`), `{id}` for the hex digits of the short ID, `{ak}` for the criterion key or the number of an acceptance criterion; the rest is literal text, and case does not matter. For Rust, `sr_c67baa_ak1_shows_the_wind_speed` with `{prefix}_{id}_ak{ak}`; for Go, `TestSRc67baaAK1` with `Test{prefix}{id}AK{ak}`; for Java, `src67baaAk1` with `{prefix}{id}Ak{ak}`. With a criterion key, `sr_c67baa_ak_k7f3` with `{prefix}_{id}_ak_{ak}`; a key starts with a lower-case letter, so `{ak}` cannot be followed by a letter or digit in the pattern.
+For Rust, Go or Java, write the short ID into the name in another form and give the form with `--name-pattern`: `{prefix}` stands for a type prefix (`SR`), `{id}` for the hex digits of the short ID, `{ak}` for a criterion key or number; the rest is literal text, and case does not matter. For Rust, `sr_c67baa_ak1_shows_the_wind_speed` with `{prefix}_{id}_ak{ak}`; for Go, `TestSRc67baaAK1` with `Test{prefix}{id}AK{ak}`; for Java, `src67baaAk1` with `{prefix}{id}Ak{ak}`. Keys: `sr_c67baa_ak_k7f3`, `{prefix}_{id}_ak_{ak}`.
 
 A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or a camel case word), so `loaded123456` never gives D-ed123456. Only names are read, outside brackets. Write a separator where the parts could be read two ways: between a prefix and an ID (`de123456` with the prefixes `D` and `DE`), after the ID before hex letters (`sr_c67baaface`) or a word (`sr_c67baa_ak1parses`), and between an upper-case ID and a camel case word (`SR2F95EAdd`). Too few digits (`sr_029`) or a criterion of ten or more digits count as without reference. Without a separator, `{prefix}{id}` can also read a hash as a short ID (`TestCacheKeyD41d8cd98f00` gives D-41d8cd98f00), and the command exits with 1 unless the workspace has that ID. `workspace check` does not know the pattern, so it cannot warn when such a file was not enriched.
 

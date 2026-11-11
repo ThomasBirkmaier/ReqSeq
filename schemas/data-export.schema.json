@@ -384,7 +384,7 @@
         "criterionNames": {
           "type": "array",
           "items": { "$ref": "#/$defs/criterionName" },
-          "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and that version's text, without key. Only `evidence.list` fills it."
+          "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it."
         },
         "baselines": {
           "type": "array",
