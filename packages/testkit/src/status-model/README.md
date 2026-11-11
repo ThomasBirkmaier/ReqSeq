@@ -5,11 +5,14 @@ A second, deliberately naive implementation of the status rules, written from th
 - `model.ts`: one small function per rule below, the rule's source in its comment.
 - `generator.ts`: fast-check arbitraries of small abstract inputs (one requirement, its acceptance criteria with criterion keys, older versions, records). Only records the reader accepts; refused ones belong to level 2 (#1396).
 - `workspace-model.ts`, `workspace-generator.ts` (#1395): views, records per view and indirect verification over small workspaces (rules W, R, I below).
-- `run.ts`: `forAllElements` and `forAllWorkspaces` run a check over generated inputs with `propertyParameters(process.env)`: `STATUS_MODEL_RUNS` (default 1000) and `STATUS_MODEL_SEED` (default 1394); a failure names the seed and the shrunk input.
+- `degree-model.ts` (#1396): the verification degree, the status filters and the validation an element shows (rules D, F, A7 below).
+- `file-workspace.ts`, `file-render.ts` (#1396): level 2, a workspace as files (twins with their own criteria and version, records against one file's version, both version forms, Markdown and JUnit, CRLF, records the reader refuses), the model's reading of it (R4, R5) and the pure adapter to file contents.
+- `run.ts`: `forAllElements`, `forAllWorkspaces` and `forAllFileWorkspaces` run a check over generated inputs with `propertyParameters(process.env)`: `STATUS_MODEL_RUNS` (default 1000) and `STATUS_MODEL_SEED` (default 1394); a failure names the seed and the shrunk input. Level 2 takes `STATUS_MODEL_FILE_RUNS` (default 30) instead of `STATUS_MODEL_RUNS`.
 - Level 1, `packages/core/src/evidence/status-model.property.test.ts`: the core's pure functions against the model; the file names what it does not check.
+- Level 2, `packages/core/src/evidence/status-model.files.property.test.ts`: the workspace on disk, read through the commands, against the model.
 - Import it from `@reqseq/testkit/status-model`, not from `@reqseq/testkit`, so only the tests that use it load fast-check.
 
-Scope: the own records of one element (#1394), and views, variants, indirect verification and emergent elements over a workspace (#1395). Not modelled: records refused by the reader (SR-038 AK4, SR-172 AK1, AK3), repositories that are not on this machine (`incomplete`, SR-006), and a metamodel without the meanings or not valid.
+Scope: the own records of one element (#1394), and views, variants, indirect verification and emergent elements over a workspace (#1395). Level 2 adds the files, the degree and the filters (#1396). Not modelled: repositories that are not on this machine (`incomplete`, SR-006), and a metamodel without the meanings or not valid.
 
 ## Rules
 
@@ -46,6 +49,7 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | A3 | The newest validation record of the current version decides: passed gives validated (erfolgreich), failed gives failed, inconclusive gives inconclusive. | SR-038 AK3: „… erfolgreich, nicht erfolgreich oder nicht beurteilbar (SR-172) nach dem neuesten Datensatz zur aktuellen Fassung …“ |
 | A4 | Ties at the newest instant (V7, V8): the worst result, failed before inconclusive before passed. | SR-038 AK3: „… bei mehreren gleich neuen nach dem schlechtesten Ergebnis (nicht erfolgreich vor nicht beurteilbar vor erfolgreich) …“ |
 | A5 | Records of older versions only: outdated. | SR-038 AK2: „Gegeben ein Element, dessen Validierungs-Datensätze alle zu älteren Fassungen gehören, wenn der Status berechnet wird, dann ist er veraltet.“ |
+| A7 | Every need shows a validation status (open without record), a requirement only with a validation record, no other element. | SR-038 AK1, AK5; `data-export.schema.json` `element.validation` |
 | A6 | An inconclusive status carries the reason of its record; on a tie of several inconclusive records, the reason of the first in index order (here: input order). | SR-172 AK2: „… dann ist er nicht beurteilbar … und das Tool zeigt die Begründung.“ The tie: assumption, ADR-0012 „Validation status“ (#807 Q3) |
 
 ### Views (Sichten)
@@ -68,7 +72,8 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | R1 | In the core view only verification records without variant count. | SR-047 AK2: „Gegeben ein Datensatz ohne Angabe einer Variante, wenn der Status berechnet wird, dann zählt er nur für den Kern, außer …“; SR-173 AK2 |
 | R2 | In a variant's view the records for that variant count; records for another variant never. | SR-047 AK1: „… mit einem bestandenen Datensatz für Variante A, wenn der Status für Variante B berechnet wird, dann ist er dort offen.“ |
 | R3 | When the element's repository is variant-independent, its records without variant count in every variant's view too, pooled with that variant's records (V4 to V15 over both). The element's repository decides. | SR-173 AK1: „… dann zählt er für den Kern und für jede Variante, für die das Element gilt.“ Rationale (#817): „Es zählt das Repository des Elements, nicht das des Datensatzes.“ Pooling: ADR-0012 „Which records count“ |
-| R4 | A record names its element by UUID, so it is a record of every file with that UUID (twins, also in two repositories); each file is measured by its own repository's mark (R3), criteria and version. The generator gives the files of one UUID one own part. | ADR-0012 „Decision“ (`element` (UUID)), „Which records count“: „twins of one UUID each follow their own repository“ |
+| R5 | A record the reader refuses counts for no status: an inconclusive verification record, a validation record with a variant, an inconclusive one without reason, a date that is no RFC 3339 date-time. | SR-172 AK3: „… weist das Tool ihn ab, nennt den Grund, und er zählt für keinen Status.“ SR-038 AK4 (same words), SR-172 AK1; `evidence-record.schema.json` (`date`) |
+| R4 | A record names its element by UUID, so it is a record of every file with that UUID (twins, also in two repositories); each file is measured by its own repository's mark (R3), criteria and version. A record of the current version of one file is a record of an older version for its twin with other content. Level 1 gives the files of one UUID one own part; level 2 gives a twin its own criteria and text. | ADR-0012 „Decision“ (`element` (UUID)), „Which records count“: „twins of one UUID each follow their own repository“ |
 
 ### Indirect verification (Indirekter Nachweis)
 
@@ -80,3 +85,14 @@ Quotes are the German spec, verbatim. "Assumption" marks a rule the spec does no
 | I4 | Otherwise open; when counted children are failed, open or outdated, it names them (direct children only, compared as a set). Without a counted child it names none. | SR-034 AK2: „… dann ist er nicht indirekt nachgewiesen und das Tool nennt die direkten Children, die fehlen.“ `open`, and none named without a counted child: assumption, ADR-0012 (ThomasBirkmaier/ReqSeq-archive#526 Q3, Q4) |
 | I5 | An emergent requirement without own record is open, never indirect, and names no children; as a child it is open, so it is missing. | SR-035 AK1: „… dann reicht der indirekte Nachweis über Children nicht, sondern es braucht einen eigenen Datensatz.“ No children named: assumption, ADR-0012 „Emergent“ (3) (ThomasBirkmaier/ReqSeq-archive#591 Q3) |
 | I6 | An element on a derivation cycle of elements without own record is not indirect: indirect is the least fixed point of I3, so a cycle never verifies itself. | Assumption: ADR-0012 „Indirect verification“ (ThomasBirkmaier/ReqSeq-archive#526 Q5) |
+
+### Verification degree (Nachweisgrad) and filters
+
+| # | Rule | Source |
+| --- | --- | --- |
+| D1 | Counted are the requirements of the selection whose status is not invalid and that have a status in the view (W2 to W7), each once with its status there. The view of a variant with an invalid status is counted like any other (it has statuses, `evidence.status` only shows no entry for it): this model's reading. | SR-037 AK3: „Gegeben Requirements mit ungültigem Status, … dann zählen sie nicht mit.“ `data-export.schema.json` `verificationDegree` (ThomasBirkmaier/ReqSeq-archive#592) |
+| D2 | A selection without variant counts the core requirements with their status in the core. | SR-037 AK4: „Gegeben eine Auswahl ohne gewählte Variante, … dann zählen nur die Requirements des Kerns mit ihrem Nachweisstatus im Kern.“ |
+| D3 | The count per status: open, verified, indirect, failed, outdated; indirect apart from verified; they add up to the total. | SR-037 AK1: „… die Anzahl je Status“; AK2: „… zählen sie als nachgewiesen und sind getrennt ausgewiesen.“ |
+| D4 | The share is (verified + indirect) / total, left out at total 0. | SR-037 AK1: „… 10 gültigen Requirements, davon 6 nachgewiesen, … dann zeigt das Tool 60 %“; AK2; `verificationDegree.share` |
+| F1 | The filter `verification` holds for an element whose status in the given view is one of the given; a need, or a requirement outside the view, has none. | `filter.schema.json` `verification`; SR-069 |
+| F2 | The filter `validation` holds for an element whose shown validation status (A7) is one of the given. | `filter.schema.json` `validation` |
