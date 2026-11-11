@@ -2837,7 +2837,7 @@ describe("ListView, a search", () => {
     const { data } = await listHarness(asCall(call), searchBuffer("wind"));
     expect(call).toHaveBeenCalledWith("element.search", { query: "wind", limit: 50, offset: 0 });
     expect(texts(".row .title")).toEqual(["Wind speed", "Rewind"]);
-    expect(texts("mark")).toEqual(["Wind", "SR-000002 (SR-2)"]);
+    expect(texts("mark")).toEqual(["Wind", "SR-000002"]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Search: wind");
     expect(data).toEqual([
       ["search:wind", undefined],
@@ -2947,7 +2947,7 @@ describe("ListView, a search", () => {
     await listHarness(asCall(call), searchBuffer("icing"));
     expect(container.querySelectorAll(".row .snippet")).toHaveLength(0);
     expect(texts(".row .title mark")).toEqual(["icing"]);
-    expect(texts(".row .id mark")).toEqual(["SR-000004 (SR-4)"]);
+    expect(texts(".row .id mark")).toEqual(["SR-000004"]);
   });
 
   it("says why the search failed", async () => {

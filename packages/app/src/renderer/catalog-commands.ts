@@ -57,7 +57,7 @@ import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
-import { refIdTitle, shownId } from "./id-title.js";
+import { idOfName, refIdTitle, shownId } from "./id-title.js";
 import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
@@ -1165,7 +1165,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
                     name: bufferName(first),
                     ...take(
                       offer.target === true ? { id: first.id, repository: first.repository } : first.id,
-                      first.name.replace(/ .*$/su, ""),
+                      idOfName(first.name),
                     ),
                   },
                 ],

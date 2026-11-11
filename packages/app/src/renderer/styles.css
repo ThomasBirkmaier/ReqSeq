@@ -292,9 +292,6 @@ body,
 
 .list .rows .row .id {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The title keeps a wider distance to the ID than the columns right of it keep to each other. */
@@ -422,10 +419,12 @@ body,
   background: var(--select);
 }
 
-/* The ID column of the recent elements is as wide as the longest short ID with its identifier, up to 16rem. */
+/* Each recent element is a grid of its own, so the ID column has one fixed width, the same in every line:
+   11rem holds a short ID with a usual identifier ("SR-ae0093 (SR-001)", SR-084 AK4); a longer one ends in
+   "…" and shows in full on hover. */
 .overview .recent {
   display: grid;
-  grid-template-columns: fit-content(16rem) minmax(0, 1fr);
+  grid-template-columns: 11rem minmax(0, 1fr);
   gap: 1rem;
   align-items: baseline;
 }

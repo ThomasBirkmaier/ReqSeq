@@ -117,3 +117,29 @@ export const firstLimit = (cursor: number, page: number, max: number): number =>
 /** A row as the prompt names it: the shown ID, then the title unless it is the identifier's text (#545). */
 export const rowName = (row: Pick<Row, "shortId" | "identifier" | "title">): string =>
   shownIdTitle(row.shortId, row.identifier, row.title);
+
+/**
+ * Where the ID that matched stands in the row's label (SR-183 AK3): the identifier when a word of the query
+ * is in it, else the short ID; no mark when the ID did not match. Core says only that the ID matched
+ * (`fields` has "id"), not which, so the words of the query tell.
+ */
+export const labelMarks = (
+  row: Pick<Row, "shortId" | "identifier" | "markLabel">,
+  query: string,
+): Range[] => {
+  if (!row.markLabel) {
+    return [];
+  }
+  const identifier = row.identifier?.trim() ?? "";
+  const words = query
+    .toLowerCase()
+    .split(/\s+/u)
+    .filter((word) => word !== "");
+  const inIdentifier = identifier !== "" && words.some((word) => identifier.toLowerCase().includes(word));
+  // The label is `<short ID> (<identifier>)` (`shownId`): the identifier starts after the bracket.
+  return [
+    inIdentifier
+      ? [row.shortId.length + 2, row.shortId.length + 2 + identifier.length]
+      : [0, row.shortId.length],
+  ];
+};

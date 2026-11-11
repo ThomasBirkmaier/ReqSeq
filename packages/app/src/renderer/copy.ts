@@ -22,8 +22,8 @@ export const STATUS_FIELD = "Status";
 export const fieldText = (values: readonly string[]): string => values.join("\n");
 
 /**
- * The heading of the buffer: the title, else (empty or only spaces, as `title-box.ts` shows it) the identifier
- * or short ID the element is named by.
+ * The heading of the buffer: the title, else (empty or only spaces, as `title-box.ts` shows it) the short ID
+ * with the identifier the element is named by (SR-084 AK4); "Copy field" on the title copies this shown text.
  */
 export const heading = (element: DataExportElement): string =>
   element.title.trim() === "" ? shownId(element.shortId, element.identifier) : element.title;

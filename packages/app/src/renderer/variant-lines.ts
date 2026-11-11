@@ -16,7 +16,7 @@
 import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
-import { shownId, shownIdTitle } from "./id-title.js";
+import { shownIdTitle } from "./id-title.js";
 import { CORE_VIEW } from "./views.js";
 
 /** A piece of a line: text, or an element named by its title that opens it. */
@@ -116,22 +116,26 @@ const named = (
 
 const titleOf = (name: ElementName): string => name.title;
 const idTitleOf = (name: ElementName): string => shownIdTitle(name.shortId, name.identifier, name.title);
-const idOf = (name: ElementName): string => shownId(name.shortId, name.identifier);
+/** The short ID alone, for a compact badge (#1283); its hover gives the full name (SR-084 AK4). */
+const shortIdOf = (name: ElementName): string => name.shortId;
 
 /** `groups` joined by " · ". */
 export const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
   groups.flatMap((group, at) => (at === 0 ? group : [SEPARATOR, ...group]));
 
 /**
- * " (missing <child>, <child>)", each child a link by its ID with ID and title as its title (shown on hover);
- * nothing without missing children. Only the ID, so that a badge stays compact (#1283).
+ * " (missing <child>, <child>)", each child a link by its short ID with the shown ID and title as its title
+ * (shown on hover); nothing without missing children. Only the short ID, so that a badge stays compact (#1283).
  */
 const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly string[]): LinePart[] =>
   children.length === 0
     ? []
     : [
         { text: " (missing " },
-        ...children.flatMap((child, at) => [...(at === 0 ? [] : [{ text: ", " }]), named(byId, child, idOf)]),
+        ...children.flatMap((child, at) => [
+          ...(at === 0 ? [] : [{ text: ", " }]),
+          named(byId, child, shortIdOf),
+        ]),
         { text: ")" },
       ];
 

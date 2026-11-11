@@ -147,7 +147,7 @@ const hit = (n: number) => ({
 });
 
 describe("path arguments of catalog commands (SR-143)", () => {
-  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const listing = {
     folder: "/w",
     name: "",
@@ -202,7 +202,7 @@ describe("path arguments of catalog commands (SR-143)", () => {
 
 describe("catalog commands in the command prompt", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
-  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
 
   it("offers every implemented read command by its title, or the action that covers it", () => {
     const { context } = setup([list]);
@@ -398,28 +398,34 @@ describe("catalog commands in the command prompt", () => {
     start(context, "relation.options");
     const ref = await last(asked);
     expect(ref.label).toBe("Show relation options · ref:");
-    expect(ref.items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    expect(ref.items.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
     ref.items[0]?.run();
     await flush();
     // ref was the last required argument: Enter runs the command.
     expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
-    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { name: "Show relation options SR-1" } });
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { name: "Show relation options SR-000001 (SR-1)" },
+    });
   });
 
   it("offers the optional arguments on Ctrl/Cmd+Enter, Run first, and their candidates from core", async () => {
-    const { context, asked, call } = setup([neighbourhoodBuffer("uuid-1", "spec", "SR-1 Title 1")], {
-      "relation.options": () => OPTIONS,
-    });
+    const { context, asked, call } = setup(
+      [neighbourhoodBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1")],
+      {
+        "relation.options": () => OPTIONS,
+      },
+    );
     start(context, "relation.options");
     const ref = await last(asked);
     ref.items[0]?.more?.();
     const more = await last(asked);
-    expect(more.label).toBe("Show relation options SR-1 · more arguments:");
+    expect(more.label).toBe("Show relation options SR-000001 (SR-1) · more arguments:");
     expect(more.items.map((i) => i.name)).toEqual(["Run", "kind"]);
     item(more.items, "kind").run();
     const kind = await last(asked);
     expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
-    expect(kind.label).toBe("Show relation options SR-1 · kind:");
+    expect(kind.label).toBe("Show relation options SR-000001 (SR-1) · kind:");
     expect(kind.items.map((i) => i.name)).toEqual(["derives from", "refines"]);
     item(kind.items, "refines").run();
     // Still in "more": the prompt offers what is left, and Run runs it.
@@ -431,26 +437,26 @@ describe("catalog commands in the command prompt", () => {
   });
 
   it("puts the selected row of the shown list first for an element argument", async () => {
-    const row = elementBuffer("uuid-7", "spec", "SR-7 Title 7");
+    const row = elementBuffer("uuid-7", "spec", "SR-000007 (SR-7) Title 7");
     const { context, asked, call } = setup([list], { "trace.affected": () => ({ elements: [], total: 0 }) });
     start({ ...context, row }, "trace.affected");
     const ref = await last(asked);
-    expect(ref.items.map((i) => i.name)).toEqual(["SR-7 Title 7"]);
+    expect(ref.items.map((i) => i.name)).toEqual(["SR-000007 (SR-7) Title 7"]);
     ref.items[0]?.run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("trace.affected", { ref: "uuid-7" });
     // The shown element wins over a row.
     const shownToo = setup([shown]);
     start({ ...shownToo.context, row }, "trace.affected");
-    expect((await last(shownToo.asked)).items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    expect((await last(shownToo.asked)).items.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
   });
 
   it("puts the element of an entry first, before the shown element (SR-197)", async () => {
-    const entry = elementBuffer("uuid-8", "spec", "SR-8 Title 8");
+    const entry = elementBuffer("uuid-8", "spec", "SR-000008 (SR-8) Title 8");
     const { context, asked, call } = setup([shown], { "trace.affected": () => ({ elements: [], total: 0 }) });
     start({ ...context, entry }, "trace.affected");
     const ref = await last(asked);
-    expect(ref.items.map((i) => i.name)).toEqual(["SR-8 Title 8"]);
+    expect(ref.items.map((i) => i.name)).toEqual(["SR-000008 (SR-8) Title 8"]);
     ref.items[0]?.run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("trace.affected", { ref: "uuid-8" });
@@ -462,7 +468,7 @@ describe("catalog commands in the command prompt", () => {
     // Before any answer: the prompt is there, with its label and no candidates yet.
     expect(asked.at(-1)?.label).toBe("Show relation options · ref:");
     expect(asked.at(-1)?.items).toEqual([]);
-    expect((await asked.at(-1)?.fill)?.items?.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    expect((await asked.at(-1)?.fill)?.items?.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
   });
 
   it("gives a result buffer the revision when the command runs, not when its prompt opened", async () => {
@@ -523,16 +529,16 @@ describe("catalog commands in the command prompt", () => {
     expect(first.empty).toBeUndefined();
     first.items[0]?.run();
     const second = await last(asked);
-    expect(second.label).toBe("Show related elements SR-1 · refs:");
+    expect(second.label).toBe("Show related elements SR-000001 (SR-1) · refs:");
     (await second.find?.("t"))?.[0]?.run();
     const third = await last(asked);
     third.empty?.(false);
     const direction = await last(asked);
-    expect(direction.label).toBe("Show related elements SR-1 SR-000002 · direction:");
-    // Back: SR-000002 is taken back, and refs takes values again with SR-1 kept.
+    expect(direction.label).toBe("Show related elements SR-000001 (SR-1) SR-000002 · direction:");
+    // Back: SR-000002 is taken back, and refs takes values again with SR-000001 (SR-1) kept.
     direction.back?.();
     const refs = await last(asked);
-    expect(refs.label).toBe("Show related elements SR-1 · refs:");
+    expect(refs.label).toBe("Show related elements SR-000001 (SR-1) · refs:");
     expect(refs.empty).toBeDefined();
     expect(direction.items.map((i) => i.name)).toEqual(["children", "parents"]);
     item(direction.items, "parents").run();
@@ -551,9 +557,11 @@ describe("catalog commands in the command prompt", () => {
     (await last(asked)).items[0]?.run();
     (await last(asked)).empty?.(true);
     const direction = await last(asked);
-    expect(direction.label).toBe("Show related elements SR-1 · direction:");
+    expect(direction.label).toBe("Show related elements SR-000001 (SR-1) · direction:");
     item(direction.items, "parents").run();
-    expect((await last(asked)).label).toBe("Show related elements SR-1 parents · more arguments:");
+    expect((await last(asked)).label).toBe(
+      "Show related elements SR-000001 (SR-1) parents · more arguments:",
+    );
     expect(call).not.toHaveBeenCalledWith("trace.related", expect.anything());
   });
 
@@ -575,7 +583,7 @@ describe("catalog commands in the command prompt", () => {
     item(direction.items, "children").more?.();
     const more = await last(asked);
     more.back?.();
-    expect((await last(asked)).label).toBe("Show related elements SR-1 · direction:");
+    expect((await last(asked)).label).toBe("Show related elements SR-000001 (SR-1) · direction:");
   });
 
   it("keeps the prompt on the argument core refused, with core's message", async () => {
@@ -593,7 +601,7 @@ describe("catalog commands in the command prompt", () => {
     item((await last(asked)).items, "Run").run();
     const again = await last(asked);
     expect(again.label).toBe(
-      "Invalid input for trace.chain: maxDepth must be >= 0 · Show trace chain SR-1 · maxDepth:",
+      "Invalid input for trace.chain: maxDepth must be >= 0 · Show trace chain SR-000001 (SR-1) · maxDepth:",
     );
     expect(echoed).toEqual([]);
   });
@@ -647,14 +655,17 @@ describe("catalog commands in the command prompt", () => {
     again.items[0]?.run();
     // The new answer takes the place of the refused one, in the line and in the name of the result.
     const more = await last(asked);
-    expect(more.label).toBe("Show trace chain SR-1 2 · more arguments:");
+    expect(more.label).toBe("Show trace chain SR-000001 (SR-1) 2 · more arguments:");
     item(more.items, "Run").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith(
       "trace.chain",
       expect.objectContaining({ ref: "uuid-1", maxDepth: 2 }),
     );
-    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { name: "Show trace chain SR-1 2" } });
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { name: "Show trace chain SR-000001 (SR-1) 2" },
+    });
   });
 
   it("asks the refused value of a list argument again by its place, and the list takes more values", async () => {
@@ -699,7 +710,9 @@ describe("catalog commands in the command prompt", () => {
     item((await last(asked)).items, "maxDepth").run();
     (await last(asked)).text?.("2");
     item((await last(asked)).items, "Run").run();
-    expect((await last(asked)).label).toBe("selection: wrong · Show trace chain SR-1 · maxDepth:");
+    expect((await last(asked)).label).toBe(
+      "selection: wrong · Show trace chain SR-000001 (SR-1) · maxDepth:",
+    );
   });
 
   it("drops with a refused value the values whose offer was read from it, and asks them again", async () => {
@@ -737,10 +750,10 @@ describe("catalog commands in the command prompt", () => {
     expect(echoed).toEqual(["No workspace"]);
     const get = { ...command("element.get"), title: "Read it" };
     catalogItems(context, [get], [])[0]?.more?.();
-    item((await last(asked)).items, "SR-1 Title 1").run();
+    item((await last(asked)).items, "SR-000001 (SR-1) Title 1").run();
     item((await last(asked)).items, "repository").run();
     const repository = await last(asked);
-    expect(repository.label).toBe("No workspace · Read it SR-1 · repository:");
+    expect(repository.label).toBe("No workspace · Read it SR-000001 (SR-1) · repository:");
     expect(repository.items).toEqual([]);
     expect(echoed).toEqual(["No workspace"]);
   });
@@ -825,7 +838,7 @@ describe("catalog commands in the command prompt", () => {
     catalogItems(broken.context, [chain], [])[0]?.more?.();
     await pick(broken.asked);
     await pick(broken.asked, "view");
-    expect((await last(broken.asked)).label).toBe("No metamodel · Chain SR-1 · view:");
+    expect((await last(broken.asked)).label).toBe("No metamodel · Chain SR-000001 (SR-1) · view:");
   });
 
   it("offers the baselines of the workspace by name (baseline.list), or says why it cannot", async () => {
@@ -972,8 +985,8 @@ describe("catalog commands in the command prompt", () => {
 
 describe("the commands that fit the shown view", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
-  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
-  const around = neighbourhoodBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const around = neighbourhoodBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   /** The command prompt with nothing typed and nothing used, as the minibuffer orders it. */
   const prompt = (buffers: Buffers): Choice[] => {
     const { context } = setup(buffers);
@@ -1424,7 +1437,7 @@ const HINTS = {
 
 describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqSeq-archive#85)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
-  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const titles = (context: CatalogContext): string[] =>
     catalogItems(context, CATALOG, ACTIONS).map((choice) => choice.name);
 
@@ -1512,13 +1525,13 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     ref.items[0]?.run();
     // `hintIds` reads `ref`: asked next; Enter on an empty input skips it.
     const hintIds = await last(asked);
-    expect(hintIds.label).toBe("Confirm hints SR-1 · hintIds:");
+    expect(hintIds.label).toBe("Confirm hints SR-000001 (SR-1) · hintIds:");
     hintIds.empty?.(false);
     await flush();
     expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
-      buffer: { kind: "result", name: "Confirm hints SR-1", written: true },
+      buffer: { kind: "result", name: "Confirm hints SR-000001 (SR-1)", written: true },
     });
   });
 
@@ -1531,7 +1544,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     (await last(asked)).items[0]?.run();
     item((await last(asked)).items, "Relation Refines is outdated").run();
     const second = await last(asked);
-    expect(second.label).toBe("Confirm hints SR-1 Relation Refines is outdated · hintIds:");
+    expect(second.label).toBe("Confirm hints SR-000001 (SR-1) Relation Refines is outdated · hintIds:");
     // A hint taken is not offered again.
     expect(second.items).toEqual([]);
     second.empty?.(false);
@@ -1547,7 +1560,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(more.items.map((i) => i.name)).toEqual(["Run", "target", "all", "kind", "expected", "hintIds"]);
     // Backspace on it asks the skipped one again.
     more.back?.();
-    expect((await last(again.asked)).label).toBe("Confirm hints SR-1 · hintIds:");
+    expect((await last(again.asked)).label).toBe("Confirm hints SR-000001 (SR-1) · hintIds:");
   });
 
   it("confirms the hints of a kind in the whole workspace with all yes, not those of the shown element (#644)", async () => {
@@ -1588,7 +1601,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     (await last(asked)).empty?.(false);
     item((await last(asked)).items, "Run").run();
     await flush();
-    // Given were ref and target SR-1 and the hint h1: only h1 is confirmed, not every hint pointing at SR-1.
+    // Given were ref and target SR-000001 (SR-1) and the hint h1: only h1 is confirmed, not every hint pointing at SR-000001 (SR-1).
     expect(call).toHaveBeenLastCalledWith("hint.confirm", { hintIds: ["h1"] });
   });
 
@@ -1609,7 +1622,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
   });
 
   it("saves every open buffer's input before a write command runs, and does not run it when one cannot be saved", async () => {
-    const other = elementBuffer("uuid-2", "spec", "SR-2 Title 2");
+    const other = elementBuffer("uuid-2", "spec", "SR-000002 (SR-2) Title 2");
     const saved: string[] = [];
     const running = setup([shown, other], {
       "hint.confirm": () => ({ confirmed: [] }),
@@ -1651,7 +1664,9 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(stopped.call).not.toHaveBeenCalledWith("hint.confirm", expect.anything());
     // The first that cannot be saved stops the saving too.
     expect(tried).toEqual([other.key]);
-    expect(stopped.echoed.at(-1)).toBe("SR-2 Title 2 could not be saved: Confirm hints did not run");
+    expect(stopped.echoed.at(-1)).toBe(
+      "SR-000002 (SR-2) Title 2 could not be saved: Confirm hints did not run",
+    );
     // Without saveDraft nothing is saved, and the command runs; a read command saves nothing.
     const unsaving = setup([shown], {
       "hint.confirm": () => ({ confirmed: [] }),
@@ -1675,7 +1690,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
 
 describe("the arguments a command expects, completed with the values of the metamodel (SR-108 AK4)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
-  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   /** The element `element.get` gives: of `type`, with `relations`. */
   const element =
     (type: string, relations: readonly Record<string, unknown>[] = []) =>
@@ -1694,7 +1709,7 @@ describe("the arguments a command expects, completed with the values of the meta
     (await last(asked)).items[0]?.run();
     (await last(asked)).empty?.(false);
     const status = await last(asked);
-    expect(status.label).toBe("Set status SR-1 · status:");
+    expect(status.label).toBe("Set status SR-000001 (SR-1) · status:");
     // `refs` is a list: the statuses of its first element's type, by name; core checks the others.
     expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-1" });
     expect(status.items.map((i) => i.name)).toEqual(["Open", "Decided"]);
@@ -1710,7 +1725,9 @@ describe("the arguments a command expects, completed with the values of the meta
     expect((await last(write.asked)).items.map((i) => i.name)).toEqual([]);
     const read = setup([readOnly], {});
     start(read.context, "trace.affected");
-    expect((await last(read.asked)).items.map((i) => i.name)).toEqual(["SR-1 Title 1 · read-only"]);
+    expect((await last(read.asked)).items.map((i) => i.name)).toEqual([
+      "SR-000001 (SR-1) Title 1 · read-only",
+    ]);
   });
 
   it("offers every status of the metamodel without an element, and says why an element cannot be read", async () => {
@@ -1731,7 +1748,7 @@ describe("the arguments a command expects, completed with the values of the meta
     start(gone.context, "element.setStatus");
     (await last(gone.asked)).items[0]?.run();
     (await last(gone.asked)).empty?.(false);
-    expect((await last(gone.asked)).label).toBe("No such element · Set status SR-1 · status:");
+    expect((await last(gone.asked)).label).toBe("No such element · Set status SR-000001 (SR-1) · status:");
   });
 
   it("[SR-108/AK4] completes the property of a bulk update with the properties of the metamodel, and its value with the values the metamodel fixes for it", async () => {
@@ -1844,7 +1861,7 @@ describe("the arguments a command expects, completed with the values of the meta
     const gone = setup([shown], { "element.get": () => failure });
     catalogItems(gone.context, [unset], [])[0]?.run();
     (await last(gone.asked)).items[0]?.run();
-    expect((await last(gone.asked)).label).toBe("No such element · Update element SR-1 · unset:");
+    expect((await last(gone.asked)).label).toBe("No such element · Update element SR-000001 (SR-1) · unset:");
     const noModel = setup([list], {
       "metamodel.get": () => Object.assign(new Error("Broken"), { name: "x" }),
     });
@@ -1867,7 +1884,7 @@ describe("the arguments a command expects, completed with the values of the meta
     catalogItems(related.context, [valueOf], [])[0]?.run();
     (await last(related.asked)).text?.("related");
     const relatedValue = await last(related.asked);
-    expect(relatedValue.items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    expect(relatedValue.items.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
     relatedValue.items[0]?.run();
     await flush();
     expect(related.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
@@ -1905,7 +1922,7 @@ describe("the arguments a command expects, completed with the values of the meta
     start(context, "relation.add");
     const source = await last(asked);
     expect(source.label).toBe("Create relation · source:");
-    expect(source.items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    expect(source.items.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
     source.items[0]?.run();
     const kind = await last(asked);
     expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
@@ -1920,7 +1937,7 @@ describe("the arguments a command expects, completed with the values of the meta
     });
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
-      buffer: { kind: "result", name: "Create relation SR-1 refines SR-000007", written: true },
+      buffer: { kind: "result", name: "Create relation SR-000001 (SR-1) refines SR-000007", written: true },
     });
   });
 
@@ -1934,7 +1951,7 @@ describe("the arguments a command expects, completed with the values of the meta
     (await last(asked)).items[0]?.run();
     item((await last(asked)).items, "derives from").run();
     const target = await last(asked);
-    expect(target.label).toBe("Create relation SR-1 derives from · target:");
+    expect(target.label).toBe("Create relation SR-000001 (SR-1) derives from · target:");
     // The shown element is no candidate: it need not be of a target type.
     expect(target.items).toEqual([]);
     const found = await target.find?.("tit");
@@ -2026,7 +2043,7 @@ describe("the arguments a command expects, completed with the values of the meta
     start(late.context, "relation.add");
     (await last(late.asked)).items[0]?.run();
     item((await last(late.asked)).items, "refines").run();
-    expect((await last(late.asked)).label).toBe("Gone · Create relation SR-1 refines · target:");
+    expect((await last(late.asked)).label).toBe("Gone · Create relation SR-000001 (SR-1) refines · target:");
   });
 
   it("[SR-108/AK4] completes the relation to remove from the element's relations, and an open hint from hint.list", async () => {
@@ -2049,7 +2066,7 @@ describe("the arguments a command expects, completed with the values of the meta
     expect(kind.items.map((i) => i.name)).toEqual(["Refines"]);
     kind.items[0]?.run();
     const target = await last(asked);
-    expect(target.label).toBe("Remove relation SR-1 Refines · target:");
+    expect(target.label).toBe("Remove relation SR-000001 (SR-1) Refines · target:");
     expect(target.items.map((i) => i.name)).toEqual(["SR-000002 Title 2", "uuid-3"]);
     target.items[0]?.run();
     await flush();
@@ -2086,14 +2103,14 @@ describe("the arguments a command expects, completed with the values of the meta
     const gone = setup([shown], { "element.get": () => failure });
     start(gone.context, "relation.remove");
     (await last(gone.asked)).items[0]?.run();
-    expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-1 · kind:");
+    expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-000001 (SR-1) · kind:");
   });
 
   it("names a hint by its target first, where the hints of one element differ (#293)", async () => {
     const outdated = (target: string, hintId: string) => ({
       code: "relation.outdated",
       severity: "warning",
-      message: `Refines of Requirement SR-1 points to an older version of Requirement ${target}`,
+      message: `Refines of Requirement SR-000001 (SR-1) points to an older version of Requirement ${target}`,
       targetShortId: target,
       hintId,
     });
@@ -2106,8 +2123,8 @@ describe("the arguments a command expects, completed with the values of the meta
     start(context, "hint.confirm");
     (await last(asked)).items[0]?.run();
     expect((await last(asked)).items.map((i) => i.name)).toEqual([
-      "SR-2 · Refines of Requirement SR-1 points to an older version of Requirement SR-2",
-      "SR-3 · Refines of Requirement SR-1 points to an older version of Requirement SR-3",
+      "SR-2 · Refines of Requirement SR-000001 (SR-1) points to an older version of Requirement SR-2",
+      "SR-3 · Refines of Requirement SR-000001 (SR-1) points to an older version of Requirement SR-3",
       "Relation Refines is outdated",
     ]);
   });
@@ -2289,7 +2306,7 @@ describe("a bulk update confirms the plan of an open preview of the same input (
 
 describe("arguments given before the prompt asks (SR-199)", () => {
   const list = listBuffer("All elements");
-  const row = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const row = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
 
   it("[SR-199/AK3] asks only the other end of a relation whose source and kind are given", async () => {
     const { context, asked, call } = setup([list], { "relation.options": () => OPTIONS });

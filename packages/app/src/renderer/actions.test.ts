@@ -536,7 +536,7 @@ describe("go to element or buffer", () => {
       limit: 20,
     });
     expect(found?.map((choice) => [choice.id, choice.name, choice.terms])).toEqual([
-      ["element:spec:u1", "SR-000001 (SR-036) Wind", ["wind", "sr-000001 (sr-036)"]],
+      ["element:spec:u1", "SR-000001 (SR-036) Wind", ["wind", "sr-000001"]],
       ["element:spec:u2", "SR-000002 Windy", ["windy"]],
     ]);
     found?.[0]?.run();

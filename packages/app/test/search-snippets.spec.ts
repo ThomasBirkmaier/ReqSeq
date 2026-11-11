@@ -187,7 +187,7 @@ test.describe("the place of a search hit", () => {
     ]);
     await search(running, "SR-203");
     expect(await window.locator(".row .snippet").count()).toBe(0);
-    await expect(window.locator(".row .id mark")).toHaveText("SR-0000a3 (SR-203)");
+    await expect(window.locator(".row .id mark")).toHaveText("SR-203");
 
     // The screenshot for the pull request: a hit in the title only above a hit in the text.
     const wind = await search(running, "wind");

@@ -34,3 +34,11 @@ export const refIdTitle = (ref: {
   ref.shortId === undefined
     ? idTitle(ref.identifier ?? ref.id, ref.title)
     : shownIdTitle(ref.shortId, ref.identifier, ref.title);
+
+/**
+ * The shown ID at the start of a buffer name `shownIdTitle` made: the short ID with its identifier in
+ * brackets, else the first word. A buffer keeps only its name, so this is how a prompt names the element
+ * of a buffer by its ID alone.
+ */
+export const idOfName = (name: string): string =>
+  /^\S+ \([^()]*\)(?= |$)/u.exec(name)?.[0] ?? name.replace(/ .*$/su, "");

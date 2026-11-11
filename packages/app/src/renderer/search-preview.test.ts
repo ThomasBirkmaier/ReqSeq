@@ -99,16 +99,21 @@ describe("the hits that fit the card", () => {
 
   it("[SR-183/AK3] marks the ID when it matched and the title's words where core marked them", () => {
     const [row] = rows([hit(7, { fields: ["id", "title"], titleMarks: [{ start: 0, end: 4 }] })]);
-    expect(row === undefined ? [] : nameMarks(row)).toEqual([
-      [0, 16],
+    // Only the part of the ID that matched (SR-084 AK4): the identifier, or the short ID.
+    expect(row === undefined ? [] : nameMarks(row, "SR-7 gust")).toEqual([
+      [11, 15],
+      [17, 21],
+    ]);
+    expect(row === undefined ? [] : nameMarks(row, "000007")).toEqual([
+      [0, 9],
       [17, 21],
     ]);
     // A title with spaces before it: core marks the title as it is, the name shows it without them.
     const [spaced] = rows([hit(8, { title: "  Gust", titleMarks: [{ start: 2, end: 6 }] })]);
-    expect(spaced === undefined ? [] : nameMarks(spaced)).toEqual([[17, 21]]);
+    expect(spaced === undefined ? [] : nameMarks(spaced, "gust")).toEqual([[17, 21]]);
     // A title that is the ID: the name is the ID alone, and no title mark.
     const [same] = rows([hit(9, { identifier: "Later", title: "Later", fields: ["id"], titleMarks: [] })]);
-    expect(same === undefined ? [] : nameMarks(same)).toEqual([[0, 17]]);
+    expect(same === undefined ? [] : nameMarks(same, "later")).toEqual([[11, 16]]);
   });
 });
 
@@ -261,7 +266,7 @@ describe("the search prompt in the minibuffer", () => {
     // A hit in the title or ID only: one line, no snippet.
     expect(second).toEqual({
       name: "SR-000002 (SR-2) Gust 2",
-      marks: ["SR-000002 (SR-2)", "Gust"],
+      marks: ["SR-000002", "Gust"],
       hint: "draft",
       snippet: undefined,
       snippetMark: undefined,

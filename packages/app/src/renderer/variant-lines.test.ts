@@ -96,11 +96,11 @@ describe("the lines of a requirement's variants", () => {
       ),
     );
     expect(halves(lines.verification)).toEqual([
-      "Core | open (missing SR-00b121 (SR-121), uuid-2)",
+      "Core | open (missing SR-00b121, uuid-2)",
       "Coast | indirect",
     ]);
-    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-00b121 (SR-121)")).toEqual({
-      text: "SR-00b121 (SR-121)",
+    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-00b121")).toEqual({
+      text: "SR-00b121",
       id: "uuid-1",
       open: elementBuffer("uuid-1", "system", "SR-00b121 (SR-121) Log wind"),
     });

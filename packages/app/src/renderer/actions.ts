@@ -53,7 +53,7 @@ import type { GivenArguments, MatrixSpot } from "./matrix-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
-import { rowName, searchRows } from "./rows.js";
+import { labelMarks, rowName, searchRows } from "./rows.js";
 import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
 import type { Side } from "./window-layout.js";
@@ -573,7 +573,10 @@ export const findElements =
       id: row.open.key,
       name: rowName(row),
       title: row.title,
-      terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
+      terms: [
+        ...row.terms,
+        ...labelMarks(row, query).map(([start, end]) => row.label.slice(start, end).toLowerCase()),
+      ],
       run: () => {
         run(row);
       },
@@ -629,8 +632,9 @@ export const referencePrompt = (context: ActionContext, request: ReferenceReques
     request.insert({
       id: row.open.id,
       title: row.title,
-      // The link text of an untitled element stays what the file stored before SR-084 AK4: its identifier.
-      label: row.identifier ?? row.shortId,
+      // The link text of an untitled element stays what the file stored before SR-084 AK4: its identifier,
+      // else (none or blank) the short ID.
+      label: row.identifier !== undefined && row.identifier.trim() !== "" ? row.identifier : row.shortId,
       shortId: row.shortId,
       repository: row.open.repository,
     });
@@ -662,9 +666,9 @@ export const fittingRows = (rows: readonly Row[], lines = CARD_LINES): Row[] => 
  * The marks of a hit's name, `rowName(row)`: the ID when it matched, and the words core marked in
  * the title, as the search buffer marks them (SR-183 AK3).
  */
-export const nameMarks = (row: Row): Range[] => {
+export const nameMarks = (row: Row, query: string): Range[] => {
   const name = rowName(row);
-  const label: Range[] = row.markLabel ? [[0, row.label.length]] : [];
+  const label = labelMarks(row, query);
   if (name === row.label.trim()) {
     return label;
   }
@@ -692,7 +696,7 @@ const searchPrompt = (context: ActionContext): Prompt => ({
     return fittingRows(searchRows(answer.output)).map((row) => ({
       id: row.open.key,
       name: rowName(row),
-      marks: nameMarks(row),
+      marks: nameMarks(row, text),
       ...(row.status === undefined ? {} : { hint: row.status }),
       ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
       run: () => {
