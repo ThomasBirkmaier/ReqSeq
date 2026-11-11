@@ -195,6 +195,24 @@ describe("status model: verification status", () => {
     expect(verificationOf(element([verification("passed", T1, { version: "v1" })])).status).toBe("outdated");
   });
 
+  it("V17: a key two current criteria carry names neither, for current and older records; a number still counts", () => {
+    const twice: ModelCriterion[] = [{ key: "alpha" }, { key: "alpha" }, { key: "bravo" }];
+    const versions = [{ id: "v1", criteria: [{ key: "alpha" }] }];
+    const records = [
+      verification("passed", T1, {
+        criteria: [
+          { by: "key", key: "alpha" },
+          { by: "key", key: "bravo" },
+        ],
+      }),
+      verification("passed", T1, { version: "v1", criteria: [{ by: "number", number: 1 }] }),
+      verification("passed", T1, { version: "v1", criteria: [{ by: "key", key: "alpha" }] }),
+    ];
+    expect(verificationOf(element(records, twice, versions)).criteria).toEqual(["open", "open", "verified"]);
+    const byNumber = verification("passed", T1, { criteria: [{ by: "number", number: 2 }] });
+    expect(verificationOf(element([byNumber], twice)).criteria).toEqual(["open", "verified", "open"]);
+  });
+
   it("V1: validation records never change the verification status", () => {
     expect(verificationOf(element([validation("failed")], abc)).status).toBe("open");
   });

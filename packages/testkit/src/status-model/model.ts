@@ -81,15 +81,17 @@ export function newestOf(records: readonly ModelRecord[]): ModelRecord[] {
 }
 
 // V11, V12 (D-072, SR-031 AK12): a record of the current version names the criterion at `index` by key or number.
-export function currentRecordNames(
-  ref: ModelCriterionRef,
-  criterion: ModelCriterion,
-  index: number,
-): boolean {
+export function currentRecordNames(ref: ModelCriterionRef, key: string | undefined, index: number): boolean {
   if (ref.by === "number") {
     return ref.number === index + 1;
   }
-  return criterion.key !== undefined && criterion.key === ref.key;
+  return key !== undefined && key === ref.key;
+}
+
+// V17 (SR-204 AK10): the key a record can name a current criterion by; none when another criterion carries it too.
+export function namingKeyOf(element: ModelElement, criterion: ModelCriterion): string | undefined {
+  const carriers = element.criteria.filter((other) => other.key !== undefined && other.key === criterion.key);
+  return carriers.length === 1 ? criterion.key : undefined;
 }
 
 // V13 (SR-031 AK11): the key a ref of an older-version record stands for, or undefined when it stands for none.
@@ -103,7 +105,7 @@ export function olderRefKey(
   return older?.criteria?.[ref.number - 1]?.key;
 }
 
-// V10, V11, V12, V13 (SR-031 AK6, AK11, AK12): whether a record counts for the criterion at `index`.
+// V10, V11, V12, V13, V17 (SR-031 AK6, AK11, AK12, SR-204 AK10): whether a record counts for the criterion at `index`.
 export function countsForCriterion(
   record: ModelRecord,
   element: ModelElement,
@@ -113,11 +115,11 @@ export function countsForCriterion(
   if (record.criteria === undefined) {
     return true;
   }
+  const key = namingKeyOf(element, criterion);
   if (isCurrent(record)) {
-    return record.criteria.some((ref) => currentRecordNames(ref, criterion, index));
+    return record.criteria.some((ref) => currentRecordNames(ref, key, index));
   }
   const older = element.olderVersions.find((version) => version.id === record.version);
-  const key = criterion.key;
   return key !== undefined && record.criteria.some((ref) => olderRefKey(ref, older) === key);
 }
 

@@ -6,6 +6,10 @@ import { CURRENT, type ModelElement, type ModelRecord, instantOf } from "./model
 
 function elementFeatures(element: ModelElement): string[] {
   const features = [`criteria ${String(element.criteria.length)}`];
+  const keys = element.criteria.flatMap((criterion) => (criterion.key === undefined ? [] : [criterion.key]));
+  if (new Set(keys).size < keys.length) {
+    features.push("duplicate key");
+  }
   if (element.criteria.some((criterion) => criterion.key === undefined)) {
     features.push("criterion without key");
   }
@@ -69,6 +73,7 @@ describe("status model generator", () => {
     const expected = [
       ...["0", "1", "2", "3", "4"].map((count) => `criteria ${count}`),
       "criterion without key",
+      "duplicate key",
       "older version unknown",
       "older version known",
       "older criterion without key",
