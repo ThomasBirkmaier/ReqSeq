@@ -9,12 +9,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./status-model": {
+      "types": "./dist/status-model/index.d.ts",
+      "default": "./dist/status-model/index.js"
     }
   },
   "scripts": {
     "build": "tsc -b"
   },
   "devDependencies": {
+    "fast-check": "4.10.2",
     "xmllint-wasm": "5.3.0"
   }
 }

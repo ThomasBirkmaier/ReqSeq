@@ -154,21 +154,31 @@ describe("nameMatcher (SR-029 AK5)", () => {
   });
 
   it("stays linear on names built against it: a long near match everywhere, long hex runs, long prefixes (S4)", () => {
-    const adversarial: [string, string][] = [
+    const adversarial = (scale: number): [string, string][] => [
       // Every position is a boundary, and 85 characters of literal text fit at each.
-      [`${"_".repeat(85)}{prefix}_{id}`, "_".repeat(1_000_000)],
+      [`${"_".repeat(85)}{prefix}_{id}`, "_".repeat(7_800 * scale)],
       // Each start tries 27 lengths of {id}, and 80 characters of literal text nearly fit after each.
-      [`{prefix}{id}${"a".repeat(80)}!`, `_sr${"a".repeat(100)}`.repeat(9_700)],
+      [`{prefix}{id}${"a".repeat(80)}!`, `_sr${"a".repeat(100)}`.repeat(150 * scale)],
       // Hex runs longer than 32 digits.
-      ["{prefix}_{id}_{ak}", `_sr_${"f".repeat(40)}`.repeat(25_000)],
-      ["{prefix}{id}_x", "_sr".padEnd(36, "a").repeat(30_000)],
+      ["{prefix}_{id}_{ak}", `_sr_${"f".repeat(40)}`.repeat(1_500 * scale)],
+      ["{prefix}{id}_x", "_sr".padEnd(36, "a").repeat(1_880 * scale)],
     ];
-    const started = performance.now();
-    for (const [pattern, name] of adversarial) {
-      expect(pattern.length).toBeLessThanOrEqual(100);
-      expect(matches(pattern, name)).toEqual([]);
-    }
-    // About 1 MB per name; a quadratic matcher takes hours, this one well under a second each.
-    expect(performance.now() - started).toBeLessThan(20_000);
+    const millisecondsAt = (scale: number): number[] =>
+      adversarial(scale).map(([pattern, name]) => {
+        expect(pattern.length).toBeLessThanOrEqual(100);
+        const started = performance.now();
+        expect(matches(pattern, name)).toEqual([]);
+        return performance.now() - started;
+      });
+    // Each case is timed at two sizes on the same runner, not against a fixed limit, so a slow or instrumented
+    // runner does not fail the test (#1515), and each case on its own, so one slow case is not hidden by the
+    // others. The runs alternate and the fastest of each size counts, so a pause of the runner and the
+    // warm-up of the first run fall away.
+    const runs = [1, 8, 1, 8, 1, 8, 1, 8].map((scale) => [scale, millisecondsAt(scale)] as const);
+    const fastest = (size: number, index: number): number =>
+      Math.min(...runs.filter(([scale]) => scale === size).map(([, ms]) => ms[index] ?? Infinity));
+    const ratios = adversarial(1).map((_, index) => fastest(8, index) / fastest(1, index));
+    // Eight times the input: a linear matcher takes at most about eight times as long, a quadratic one 64 times.
+    expect(Math.max(...ratios)).toBeLessThan(24);
   });
 });

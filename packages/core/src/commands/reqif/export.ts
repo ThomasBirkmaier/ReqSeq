@@ -7,7 +7,8 @@
 // - Images (ADR-0013 "Export"): each image a text embeds that is there (`imageLinks`) is copied to
 //   `<output stem>-images/<element file stem>/<name>` next to the output, a name taken twice in one
 //   element folder with `-2`, `-3`, ...; the `object` names it relative to the output. A copy is new,
-//   or replaces an unchanged earlier copy; one with the same bytes is left as it is. A missing image
+//   or replaces an unchanged earlier file that is an image by its content (SR-207 AK3, `isImage`);
+//   one with the same bytes is left as it is. A missing image
 //   keeps its link as the text has it. `files` lists the copies.
 // - Refused before anything is written: two selected elements with one UUID (`ref.ambiguous`,
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
@@ -121,19 +122,40 @@ const writeCopy = async (root: string, copy: ImageCopy, command: string): Promis
   if (before.kind === "read" && before.snapshot.sha256 === copy.sha256) {
     return;
   }
-  if (before.kind === "problem" && !before.missing) {
-    throw new CommandError(
-      "file.faulty",
-      `output: ${copy.target} cannot be replaced: ${before.problem.message}`,
-      {
+  // A place that cannot be read was refused before any copy (`refuseCopyTargets`); one that became
+  // so since then fails in `writeFileAtomic`, which never replaces what it did not read.
+  await writeFileAtomic(root, copy.target, read.bytes, before.kind === "read" ? before.snapshot : null, {
+    kind: "image",
+  });
+};
+
+/**
+ * Refuses before any copy is written when a place a copy goes holds a file it may not replace: an
+ * earlier file is replaced only when it is an image by its content (SR-207 AK3), and one that
+ * cannot be read is not replaced. `writeFileAtomic` checks again right before each replace.
+ */
+const refuseCopyTargets = async (
+  outputFolder: string,
+  copies: readonly ImageCopy[],
+  command: string,
+): Promise<void> => {
+  for (const copy of copies) {
+    const there = await readFileSnapshot(outputFolder, copy.target);
+    const why =
+      there.kind === "problem"
+        ? there.missing
+          ? undefined
+          : `cannot be replaced: ${there.problem.message}`
+        : there.snapshot.sha256 === copy.sha256
+          ? undefined
+          : replaceRefusal("image", copy.target, there.bytes);
+    if (why !== undefined) {
+      throw new CommandError("file.faulty", `Not exported: ${copy.target} ${why}`, {
         command,
         fields: ["output"],
-      },
-    );
+      });
+    }
   }
-  await writeFileAtomic(root, copy.target, read.bytes, before.kind === "read" ? before.snapshot : null, {
-    kind: "copy",
-  });
 };
 
 /** `absolute` relative to the workspace `root` when it lies inside, else as it is. */
@@ -312,6 +334,7 @@ const writeOutput = async (
       fields: ["output"],
     });
   }
+  await refuseCopyTargets(outputFolder, copies, command);
   for (const copy of copies) {
     await writeCopy(outputFolder, copy, command);
   }
