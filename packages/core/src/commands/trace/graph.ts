@@ -9,7 +9,8 @@
 // so the graph says what element.get says:
 // - `outdated`: the element stores an outdated relation, relation property or inline reference, the
 //   `relation.outdated` and `variant.core-changed` hints of element.get (`outdatedAmong`), whatever
-//   kinds are followed;
+//   kinds are followed, and also for a source with an invalid status, which has no such hints
+//   (SR-025 AK5: in the chain the relation stays visible);
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
 //

@@ -330,13 +330,16 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(window.locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
     await expect(window.locator(".cm-lr-outdated")).toHaveAttribute("title", reference?.message ?? "");
     // A relation of the element: its row is marked with the same word (ThomasBirkmaier/ReqSeq-archive#665), the dated hint on hover.
-    const [relation] = await datedHints("SR-0000b4");
+    // SR-0000b5 is approved: an obsolete element has no such hint (SR-025 AK5).
+    const [relation] = await datedHints("SR-0000b5");
     // Not `opened`: this element has a Markdown box besides the text.
     await window.keyboard.press("ControlOrMeta+P");
-    await window.keyboard.type("Show a dial");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Show a dial");
+    await window.keyboard.type("Send data to the cloud");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(
+      "Send data to the cloud",
+    );
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(window.locator("article h1")).toHaveText("Send data to the cloud");
     const mark = window.locator("article .relation .outdated");
     await expect(mark).toHaveCount(1);
     await expect(mark).toHaveText(` ${word(relation ?? {})}`);

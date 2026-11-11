@@ -18,6 +18,12 @@
 //   unknown (`CurrentVersion` `unknown`: its file no longer holds it, an image cannot be read).
 //   Relations stored in a repository that is not on this machine cannot be read (spec question
 //   ThomasBirkmaier/ReqSeq-archive#262, option 1); the check reports that repository as missing (SR-006).
+// - A source whose status the metamodel marks invalid (D-044, `invalidStatuses`) has no findings
+//   (SR-025 AK5): nobody reviews it again. So neither the check, hint.list, element.get nor
+//   hint.confirm sees them. The relation stays outdated in the chain: the `outdated` of the edges of
+//   trace.chain, trace.graph and the matrix, and the node mark of trace.graph (`outdatedAmong`,
+//   which a superseded node carries besides its `superseded` mark), compare the versions whatever
+//   the source's status.
 // - Each finding (`OutdatedFinding`) keeps its source, target, both versions and a problem: code
 //   `relation.outdated` (`variant.core-changed` for a replacement in a variant onto a core
 //   requirement, `core-changed.ts`, SR-045), severity `warning` (a "Hinweis", D-042; SR-019 AK2 ends
@@ -65,6 +71,7 @@ import {
   hasId,
   incomingFor,
   incomingState,
+  invalidStatuses,
   isKnownVersion,
   isOutdatedVersion,
   placeOfReference,
@@ -316,9 +323,28 @@ const candidateOf = (
   return { finding: { element, target, stored, current, hintId, problem } };
 };
 
-/** The outdated relations, then references, of `element`, before their lines are looked up, appended to `out`. */
+/** The invalid statuses of each metamodel (D-044), so a pass over the store builds them once. */
+const invalidOf = new WeakMap<Metamodel, ReadonlySet<string>>();
+
+/** Whether the status of `element` is one `metamodel` marks invalid (D-044). */
+const hasInvalidStatus = (metamodel: Metamodel, element: ElementRecord): boolean => {
+  let invalid = invalidOf.get(metamodel);
+  if (invalid === undefined) {
+    invalid = new Set(invalidStatuses(metamodel).keys());
+    invalidOf.set(metamodel, invalid);
+  }
+  return invalid.has(String(element.data["status"]));
+};
+
+/**
+ * The outdated relations, then references, of `element`, before their lines are looked up, appended
+ * to `out`; none for a source with an invalid status (SR-025 AK5).
+ */
 const candidatesInto = (element: ElementRecord, context: OutdatedContext, out: Candidate[]): void => {
   const { versions } = context;
+  if (hasInvalidStatus(context.metamodel, element)) {
+    return;
+  }
   eachStoredLink(element, { ...context, store: versions.store }, (link) => {
     const current = outdatedAgainst(versions, link.target, link.stored);
     if (current !== undefined) {
@@ -433,7 +459,8 @@ export const outdatedOfShown = async (
 /**
  * The elements of `elements` that store at least one outdated relation, relation property or inline
  * reference, by the rule of `outdatedOfShown` (the `relation.outdated` and `variant.core-changed`
- * hints of element.get, which the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
+ * hints of element.get, which the modeline counts), but whatever the source's status, as the chain
+ * keeps such a relation visible (SR-025 AK5): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
  * targets of all of them; no finding, message or hint ID is built.
  */
 export const outdatedAmong = async (
