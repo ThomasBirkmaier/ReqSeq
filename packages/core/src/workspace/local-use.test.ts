@@ -10,12 +10,11 @@ import { loadWorkspaceLayout } from "./layout.js";
 
 vi.mock("../git/reader.js", async (importOriginal) => {
   const original = await importOriginal<typeof reader>();
-  return { ...original, trackedFile: vi.fn(original.trackedFile), headFiles: vi.fn(original.headFiles) };
+  return { ...original, trackedFile: vi.fn(original.trackedFile) };
 });
 
 afterEach(() => {
   vi.mocked(reader.trackedFile).mockClear();
-  vi.mocked(reader.headFiles).mockClear();
 });
 
 const WORKSPACE =
@@ -109,38 +108,27 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
     }
   });
 
-  it("asks HEAD from the files of the Git folder, else from git, and the index alone without a commit", async () => {
-    const ws = await setup({});
-    const head = await ws.head("main");
-    await outcome(ws);
-    expect(vi.mocked(reader.trackedFile).mock.calls.at(-1)?.[2]).toBe(head);
-    vi.mocked(reader.headFiles).mockResolvedValueOnce(undefined);
-    await outcome(ws);
-    expect(vi.mocked(reader.trackedFile).mock.calls.at(-1)?.[2]).toBe(head);
-    // git cannot tell HEAD either (a folder that only looks like a work tree).
-    const fake = await setup({ git: false });
-    await fake.write("main/.git", "gitdir: nowhere\n");
-    vi.mocked(reader.trackedFile).mockResolvedValueOnce({ known: true, tracked: false });
-    expect((await outcome(fake))[0]).toBe("../elsewhere/a");
-    expect(vi.mocked(reader.trackedFile).mock.calls.at(-1)?.[2]).toBeUndefined();
+  it("[SR-004/AK8] uses the local file when the main repository has no Git, also with a repository at .reqseq", async () => {
+    const ws = await setup({ git: false });
+    await ws.git(["init", "--quiet", "--template="], "main/.reqseq");
+    expect(await outcome(ws)).toEqual(["../elsewhere/a", []]);
+    expect(reader.trackedFile).not.toHaveBeenCalled();
   });
 });
 
-describe("the local file Git is asked about is the one on disk (SR-004 AK8, review B1)", () => {
-  it.skipIf(process.platform === "win32")(
-    "[SR-004/AK8] ignores a local file reached through a linked .reqseq folder",
-    async () => {
-      const ws = await setup({});
-      await fs.rename(ws.path("main/.reqseq"), ws.path("main/cfg"));
-      await fs.symlink("cfg", ws.path("main/.reqseq"), "dir");
-      expect(await outcome(ws)).toEqual([
-        "../a",
-        [
-          `workspace.invalid warning ${LOCAL_FILE}: ${LOCAL_FILE} is reached through the link .reqseq; it is ignored, ${IGNORED}`,
-        ],
-      ]);
-    },
-  );
+describe("the local file Git is asked about is the one on disk (SR-004 AK8)", () => {
+  it("[SR-004/AK8] ignores a local file reached through a linked .reqseq folder, also one inside the root", async () => {
+    const ws = await setup({});
+    await fs.rename(ws.path("main/.reqseq"), ws.path("main/cfg"));
+    // A junction on Windows (no admin rights needed, an absolute target), a symbolic link elsewhere.
+    await fs.symlink(ws.path("main/cfg"), ws.path("main/.reqseq"), "junction");
+    expect(await outcome(ws)).toEqual([
+      "../a",
+      [
+        `workspace.invalid warning ${LOCAL_FILE}: ${LOCAL_FILE} is reached through the link .reqseq; it is ignored, ${IGNORED}`,
+      ],
+    ]);
+  });
 
   it("[SR-004/AK8] ignores a local file spelled otherwise on disk, as a case-insensitive file system opens it", async () => {
     const ws = await setup({});
@@ -158,7 +146,12 @@ describe("the local file Git is asked about is the one on disk (SR-004 AK8, revi
     spy.mockImplementation(listing((folder) => (folder.endsWith(".reqseq") ? ["Local.yaml"] : [".reqseq"])));
     expect((await outcome(ws))[0]).toBe("../a");
     spy.mockImplementation(() => Promise.reject(new Error("EACCES")));
-    expect((await outcome(ws))[0]).toBe("../a");
+    expect(await outcome(ws)).toEqual([
+      "../a",
+      [
+        `workspace.invalid warning ${LOCAL_FILE}: ${LOCAL_FILE} cannot be checked: its folder or .reqseq cannot be listed; it is ignored, ${IGNORED}`,
+      ],
+    ]);
   });
 
   it("[SR-004/AK8] ignores a local file in a nested repository or submodule at .reqseq", async () => {

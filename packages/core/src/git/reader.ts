@@ -8,8 +8,8 @@
 // line. There is no way to pass another subcommand or argument. Add commands from ADR-0006's list
 // as SRs need them. `headFiles` reads the few small files of the Git folder that name HEAD itself,
 // so that opening an element needs no `rev-parse` (ADR-0006). Object names are object IDs or
-// `<commit ID>:<path>`; only `trackedFile` also names index entries (`:<stage>:./<path>`), which
-// git reads from the index and never writes (SR-004 AK8).
+// `<commit ID>:<path>`; only `trackedFile` also names index entries (`:<stage>:./<path>`) and
+// `HEAD:./<path>`, built from a checked path, which git reads and never writes (SR-004 AK8).
 //
 // A repository folder may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377): a workspace in
 // `spec/` of a code repository. Every path in and out of this module is relative to the folder git
@@ -136,6 +136,11 @@ const COMMANDS = {
    * `<commit>:<path>` took about 10 s, the listing about 0.03 s).
    */
   tree: ["ls-tree", "-r", "-z"],
+  /**
+   * The paths of the index below the folder git runs in, relative to it, NUL after each (`-z`): staged
+   * and unmerged entries (`trackedFile`). Read from the index; nothing is refreshed or written.
+   */
+  indexed: ["ls-files", "--cached", "-z"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 type GitCommand = keyof typeof COMMANDS;
@@ -1151,46 +1156,51 @@ export type TrackedFile = { readonly known: true; readonly tracked: boolean } | 
 /** The index entries of a path: stage 0 (staged) and the stages 1 to 3 of an unmerged path. */
 const INDEX_STAGES = ["", "1:", "2:", "3:"] as const;
 
+/** A path as a case-insensitive file system compares it: NFC, lower case. */
+const folded = (file: string): string => file.normalize("NFC").toLowerCase();
+
 /**
- * Whether Git tracks `file` (relative to `folder`, with `/`, as Git stores it) in the repository
- * whose work tree holds `folder` (SR-004 AK8): the index has an entry for it (staged, also
- * `git add -N` or unmerged in any stage) or `head`, when given, holds it. One `cat-file
- * --batch-check` with the names on standard input, `:<stage>:./<file>` and `<head>:./<file>`, read
- * from the index and the objects and never written (D-036), under the short time limit. Any object
- * counts (a link too); a submodule entry is no file. Unknown when git fails, refuses the repository
- * or does not answer in time. A programming error when `file` is no `isGitPath` or `head` no object ID.
+ * Whether Git tracks `file` (relative to `folder`, with `/`) in the repository whose work tree holds
+ * `folder` (SR-004 AK8), read from the index and the objects and never written (D-036), each under
+ * the short time limit:
+ * - one `cat-file --batch-check` with `:<stage>:./<file>` and `HEAD:./<file>` on standard input: an
+ *   index entry in any stage (staged, also `git add -N`, or unmerged) or the file in HEAD (also
+ *   with its index entry removed); without a commit `HEAD` names nothing;
+ * - `ls-files --cached -z`, the index entries below `folder`, compared in NFC and lower case: on a
+ *   case-insensitive file system Git may check out a committed `.REQSEQ/local.yaml` into an existing
+ *   `.reqseq` folder, where the exact names of `cat-file` find nothing. On a case-sensitive one an
+ *   entry spelled otherwise counts too (stricter, never looser).
+ * Any object counts (a link too); a submodule entry is no file. Unknown when git fails, refuses the
+ * repository or does not answer in time. A programming error when `file` is no `isGitPath`.
  */
 export const trackedFile = async (
   folder: string,
   file: string,
-  head: string | undefined,
   options: ReadOptions = {},
 ): Promise<TrackedFile> => {
-  if (!isGitPath(file) || (head !== undefined && !isObjectId(head))) {
-    throw new Error(`trackedFile cannot ask about ${JSON.stringify(file)} at ${String(head)}`);
+  if (!isGitPath(file)) {
+    throw new Error(`trackedFile cannot ask about ${JSON.stringify(file)}`);
   }
-  const names = [
-    ...INDEX_STAGES.map((stage) => `:${stage}./${file}`),
-    ...(head === undefined ? [] : [`${head}:./${file}`]),
-  ];
-  const result = await run(folder, "objectInfo", {
-    ...options,
-    quick: true,
-    input: names.map((name) => `${name}\n`).join(""),
-  });
-  if (!result.ok) {
-    return unknown(result);
+  const names = [...INDEX_STAGES.map((stage) => `:${stage}./${file}`), `HEAD:./${file}`];
+  const [objects, index] = await Promise.all([
+    run(folder, "objectInfo", { ...options, quick: true, input: names.map((name) => `${name}\n`).join("") }),
+    run(folder, "indexed", { ...options, quick: true }),
+  ]);
+  if (!objects.ok) {
+    return unknown(objects);
   }
-  const output = result.stdout.toString("utf8");
+  if (!index.ok) {
+    return unknown(index);
+  }
+  const output = objects.stdout.toString("utf8");
   const lines = output.split("\n");
   try {
     if (lines.length !== names.length + 1 || lines.at(-1) !== "") {
       throw new Error(`unexpected output of git cat-file: ${output}`);
     }
-    return {
-      known: true,
-      tracked: names.some((name, index) => parseHeader(name, String(lines[index])) !== null),
-    };
+    const found = names.some((name, i) => parseHeader(name, String(lines[i])) !== null);
+    const wanted = folded(file);
+    return { known: true, tracked: found || zList(index.stdout).some((entry) => folded(entry) === wanted) };
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }

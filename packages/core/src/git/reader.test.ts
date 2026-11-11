@@ -1613,66 +1613,79 @@ describe("whether Git tracks a file (SR-004 AK8, #1456)", () => {
     const folder = ws.path("repo");
     await ws.write(`repo/${FILE}`, "reqseq-local: 1\n");
     // Untracked: neither in the index nor in HEAD.
-    const head = await ws.head("repo");
-    expect(await trackedFile(folder, FILE, head)).toEqual({ known: true, tracked: false });
+    expect(await trackedFile(folder, FILE)).toEqual({ known: true, tracked: false });
     // Staged only.
     await ws.git(["add", FILE], "repo");
-    expect(await trackedFile(folder, FILE, head)).toEqual({ known: true, tracked: true });
+    expect(await trackedFile(folder, FILE)).toEqual({ known: true, tracked: true });
     // Committed, then its index entry removed: HEAD still holds it.
-    const committed = await ws.commit("repo");
+    await ws.commit("repo");
     await ws.git(["rm", "--cached", "--quiet", FILE], "repo");
-    expect(await trackedFile(folder, FILE, committed)).toEqual({ known: true, tracked: true });
-    expect(await trackedFile(folder, FILE, undefined)).toEqual({ known: true, tracked: false });
-    // Unmerged: only the stages 1 and 3 in the index (a modify/delete conflict).
+    expect(await trackedFile(folder, FILE)).toEqual({ known: true, tracked: true });
+    // Unmerged: only the stages 1 and 3 in the index (a modify/delete conflict), HEAD without it.
+    await ws.git(["commit", "--quiet", "--no-verify", "-m", "drop"], "repo");
+    expect(await trackedFile(folder, FILE)).toEqual({ known: true, tracked: false });
     const blob = (await ws.git(["hash-object", "-w", "--stdin"], "repo", Buffer.from("x\n"))).trim();
     await ws.git(
       ["update-index", "--index-info"],
       "repo",
       Buffer.from(`100644 ${blob} 1\t${FILE}\n100644 ${blob} 3\t${FILE}\n`),
     );
-    expect(await trackedFile(folder, FILE, undefined)).toEqual({ known: true, tracked: true });
-    // One cat-file under the short time limit, the names on standard input.
-    const call = mock.calls.at(-1);
-    expect(call?.args).toEqual([...FIXED, "cat-file", "--batch-check", "--buffer"]);
-    expect((call?.options as ExecFileOptions).timeout).toBe(10_000);
+    expect(await trackedFile(folder, FILE)).toEqual({ known: true, tracked: true });
+    // One cat-file and one ls-files, both under the short time limit; the names on standard input.
+    const calls = mock.calls
+      .slice(-2)
+      .map((c) => [c.args.slice(FIXED.length), (c.options as ExecFileOptions).timeout]);
+    expect(calls).toEqual([
+      [["cat-file", "--batch-check", "--buffer"], 10_000],
+      [["ls-files", "--cached", "-z"], 10_000],
+    ]);
+  });
+
+  it("[SR-004/AK8] finds an index entry spelled otherwise, as a case-insensitive file system checks it out", async () => {
+    const ws = await fixture(["repo"]);
+    // Git of a case-insensitive file system can write `.REQSEQ/local.yaml` into an existing `.reqseq`.
+    const blob = (await ws.git(["hash-object", "-w", "--stdin"], "repo", Buffer.from("x\n"))).trim();
+    await ws.git(["update-index", "--add", "--cacheinfo", `100644,${blob},.REQSEQ/Local.yaml`], "repo");
+    expect(await trackedFile(ws.path("repo"), FILE)).toEqual({ known: true, tracked: true });
   });
 
   it("[SR-004/AK8] asks a repository without commits about its index", async () => {
     const ws = await fixture();
     await ws.git(["init", "--quiet", "--template="], "plain");
     await ws.write(`plain/${FILE}`, "reqseq-local: 1\n");
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toEqual({ known: true, tracked: false });
+    expect(await trackedFile(ws.path("plain"), FILE)).toEqual({ known: true, tracked: false });
     await ws.git(["add", FILE], "plain");
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toEqual({ known: true, tracked: true });
+    expect(await trackedFile(ws.path("plain"), FILE)).toEqual({ known: true, tracked: true });
   });
 
   it("is unknown outside a repository, without git, or for output it does not expect", async () => {
     const ws = await fixture();
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toMatchObject({
+    expect(await trackedFile(ws.path("plain"), FILE)).toMatchObject({
       known: false,
       reason: "not-a-repository",
     });
     mock.fake = { error: execError("spawn git ENOENT", { code: "ENOENT" }) };
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toMatchObject({
+    expect(await trackedFile(ws.path("plain"), FILE)).toMatchObject({ known: false, reason: "no-git" });
+    mock.fake = (args) => (args.includes("ls-files") ? { error: execError("fatal", {}) } : { stdout: "" });
+    expect(await trackedFile(ws.path("plain"), FILE)).toMatchObject({
       known: false,
-      reason: "no-git",
+      reason: "not-a-repository",
     });
     mock.fake = { stdout: `:./${FILE} missing\n` };
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toEqual({
+    expect(await trackedFile(ws.path("plain"), FILE)).toEqual({
       known: false,
       reason: "not-a-repository",
       detail: `unexpected output of git cat-file: :./${FILE} missing\n`,
     });
-    mock.fake = { stdout: "what\n".repeat(4) };
-    expect(await trackedFile(ws.path("plain"), FILE, undefined)).toEqual({
+    mock.fake = { stdout: "what\n".repeat(5) };
+    expect(await trackedFile(ws.path("plain"), FILE)).toEqual({
       known: false,
       reason: "not-a-repository",
       detail: `unexpected output of git cat-file for :./${FILE}: what`,
     });
   });
 
-  it("refuses a path that leaves the folder and a head that is no object ID", async () => {
-    await expect(trackedFile(".", "../x", undefined)).rejects.toThrow("trackedFile cannot ask");
-    await expect(trackedFile(".", FILE, "HEAD")).rejects.toThrow("trackedFile cannot ask");
+  it("refuses a path that leaves the folder", async () => {
+    await expect(trackedFile(".", "../x")).rejects.toThrow("trackedFile cannot ask");
   });
 });

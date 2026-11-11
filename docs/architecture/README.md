@@ -131,7 +131,7 @@ flowchart TB
   baselines --> files & model & ws
   model --> files & git & mm & version & ws
   mm --> files & ws
-  ws --> files
+  ws --> files & git
 ```
 
 An arrow means that at least one module of the source imports a value (a function, a class, a constant) from the target. Imports of types only (`import type`, today only `data` → `git`, `query` and runtime state) are not drawn, nor are the imports of the shared modules; the table lists both. Besides `runtime/invoke.ts`, `index.ts` re-exports helpers of `catalog`, `product`, `runtime`, `workspace`, `model`, `files`, `query`, `evidence` and `version` for the adapters.
@@ -150,8 +150,10 @@ An arrow means that at least one module of the source imports a value (a functio
 | `baselines` | files, model, runtime state, workspace | |
 | `model` | files, git, metamodel, runtime state, version, workspace | |
 | `metamodel` | files, runtime state, workspace | |
-| `workspace` | files, runtime state | |
+| `workspace` | files, git, runtime state | |
 | `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`) | no other block | |
+
+`workspace` imports `git` for one question: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456); the layout is the workspace block's, and `git` is a lower layer.
 
 Every block may also import the root modules `catalog.ts`, `product.ts` and `build-info.ts` (the build of a delivery, SR-161) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
