@@ -75,7 +75,7 @@ import {
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import type { OlderCriteria } from "./criteria.js";
-import { olderCriteriaState, sameOlderCriteria } from "./older-criteria.js";
+import { changedOlderIds, olderCriteriaState } from "./older-criteria.js";
 import { insertionOf } from "./state.js";
 import type { CriteriaCount, StatusSource, Validation, VerificationEntries } from "./status.js";
 import {
@@ -607,11 +607,34 @@ const carryStore = carryStoreUpdate((value: Promise<StateStatus>, update, worksp
 });
 
 /**
- * `status` as carried, while the criteria of older versions are those it was built with; else built
- * afresh with `older` (a changed element made records of its old version older ones, SR-031 AK11).
+ * `status` as carried, while the criteria of older versions are those it was built with. Else (a
+ * changed element made records of its old version older ones, SR-031 AK11) the elements whose
+ * entries differ (`changedOlderIds`) and their ancestors are computed again with a source of
+ * `older`, and the rest is kept, as after `evidence.record` (#1418: a save of an element whose
+ * records name numbers no longer rebuilds the whole status, N-036); built afresh without children.
  */
-const withOlder = (status: StateStatus, older: OlderCriteria, read: VersionReader): StateStatus =>
-  sameOlderCriteria(status.inputs.older, older) ? status : statusOfInputs({ ...status.inputs, older }, read);
+const withOlder = (status: StateStatus, older: OlderCriteria, read: VersionReader): StateStatus => {
+  const ids = changedOlderIds(status.inputs.older, older);
+  if (ids.size === 0) {
+    return status;
+  }
+  const inputs: StatusInputs = { ...status.inputs, older };
+  if (status.children === undefined) {
+    return statusOfInputs(inputs, read);
+  }
+  const { store } = inputs;
+  return keptOver(
+    status,
+    { from: store, to: store, ids },
+    {
+      inputs,
+      source: statusSource(inputs.metamodel, inputs.index, variantIndependentOf(inputs.layout), older),
+      children: status.children,
+      versionsOfChanged: true,
+    },
+    read,
+  );
+};
 
 /**
  * The carry of `verificationState` over the read after `evidence.record` (`recordedStatus`): the

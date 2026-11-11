@@ -39,9 +39,38 @@ const lookupKey = (id: string, version: string): string => `${id}\n${version}`;
 /** The items behind each lookup `olderCriteriaOf` built, for `sameOlderCriteria`. */
 const entriesOf = new WeakMap<OlderCriteria, ReadonlyMap<string, readonly unknown[]>>();
 
+/** No entries: the lookup `NO_OLDER_CRITERIA`, or one that was not built here. */
+const NO_ENTRIES: ReadonlyMap<string, readonly unknown[]> = new Map();
+
+/**
+ * The UUIDs for which two lookups give other items for some version, or items for a version only
+ * one of them knows: the elements whose status a carried status computes again (`verificationState`).
+ */
+export const changedOlderIds = (a: OlderCriteria, b: OlderCriteria): ReadonlySet<string> => {
+  const changed = new Set<string>();
+  if (a === b) {
+    return changed;
+  }
+  const before = entriesOf.get(a) ?? NO_ENTRIES;
+  const after = entriesOf.get(b) ?? NO_ENTRIES;
+  const idOf = (key: string): string => key.slice(0, key.indexOf("\n"));
+  for (const [key, items] of before) {
+    // An entry `after` lacks compares unequal too (undefined).
+    if (!isDeepStrictEqual(items, after.get(key))) {
+      changed.add(idOf(key));
+    }
+  }
+  for (const key of after.keys()) {
+    if (!before.has(key)) {
+      changed.add(idOf(key));
+    }
+  }
+  return changed;
+};
+
 /** Whether two lookups give the same items for every UUID and version (a carried status stays valid). */
 export const sameOlderCriteria = (a: OlderCriteria, b: OlderCriteria): boolean =>
-  a === b || isDeepStrictEqual(entriesOf.get(a) ?? new Map(), entriesOf.get(b) ?? new Map());
+  changedOlderIds(a, b).size === 0;
 
 /** The criterion keys of current items, one set per items array (N-036: asked per record). */
 const keySets = new WeakMap<readonly unknown[], ReadonlySet<string>>();
