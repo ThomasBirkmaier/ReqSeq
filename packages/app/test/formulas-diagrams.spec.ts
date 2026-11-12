@@ -66,7 +66,7 @@ test.describe("formulas in the editor", () => {
     await running.close();
   });
 
-  test("[SR-096/AK1] a LaTeX formula typed in the editor appears set", async () => {
+  test("[SR-096/AK-wxsv] a LaTeX formula typed in the editor appears set", async () => {
     const { window, workspace } = running;
     await opened(window, DEMO_TITLE);
     const content = await edit(window);
@@ -127,7 +127,7 @@ test.describe("formulas in the editor", () => {
       .toBe(`${DEMO_FRONT_MATTER}Energie $E = mc^2$ hier\n\n$$\n\\frac{a}{b} + \\bigg( x \\bigg) + c\n$$\n`);
   });
 
-  test("[SR-096/AK3] a formula with a syntax error shows the error and its source", async () => {
+  test("[SR-096/AK-s4gf] a formula with a syntax error shows the error and its source", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     const content = await edit(window);

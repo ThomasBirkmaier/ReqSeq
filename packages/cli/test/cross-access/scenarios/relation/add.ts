@@ -31,7 +31,7 @@ scenariosOf("relation.add", [
   },
   {
     name: "a relation the metamodel does not allow, with source, target and kind, nothing is written",
-    tag: "[SR-067/AK4]",
+    tag: "[SR-067/AK-r039]",
     fixture: CYCLE,
     input: { source: "N-a0000000001", kind: "derives-from", target: "SR-b0000000001" },
     expect: "error",
@@ -49,7 +49,7 @@ scenariosOf("relation.add", [
   },
   {
     name: "a relation is written into the source file only",
-    tag: "[SR-067/AK6]",
+    tag: "[SR-067/AK-fcfh]",
     fixture: CYCLE,
     input: { source: "SR-b0000000004", kind: "derives-from", target: "N-a0000000001" },
     expect: "output",
@@ -80,7 +80,7 @@ scenariosOf("relation.add", [
     name: "a relation over the maximum of the metamodel is saved, with the hint",
     fixture: { fixture: "SR-152/limits", git: true },
     input: { source: "SR-c00003", kind: "derives-from", target: "15200000-0000-4000-8000-000000b00001" },
-    tag: "[SR-152/AK3]",
+    tag: "[SR-152/AK-vqk3]",
     expect: "output",
     check: (results) => {
       const { files, problems } = (

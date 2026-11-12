@@ -113,11 +113,11 @@ const withPro = async (): Promise<Workspace> => {
 };
 
 describe("evidence.degree (SR-037)", () => {
-  it("[SR-037/AK1] [SR-101/AK1] evidence.degree of a package of 10 valid requirements gives 0.6 and the count per status, for exactly the elements of the package", async () => {
+  it("[SR-037/AK-zxtb] [SR-101/AK-dj6m] evidence.degree of a package of 10 valid requirements gives 0.6 and the count per status, for exactly the elements of the package", async () => {
     expect(await degree(await open(), { selection: { package: "PKG-00d001" } })).toEqual(P1_DEGREE);
   });
 
-  it("[SR-037/AK1] the counts are those evidence.status and the filter give for the same selection", async () => {
+  it("[SR-037/AK-zxtb] the counts are those evidence.status and the filter give for the same selection", async () => {
     const workspace = await open();
     const out = await degree(workspace);
     expect(out.degree).toEqual(WHOLE);
@@ -146,7 +146,7 @@ describe("evidence.degree (SR-037)", () => {
     }
   });
 
-  it("[SR-037/AK2] evidence.degree counts an indirectly verified requirement as verified and apart", async () => {
+  it("[SR-037/AK-jrkd] evidence.degree counts an indirectly verified requirement as verified and apart", async () => {
     expect(await degree(await open(), { selection: { package: "PKG-00d002" } })).toEqual({
       degree: { share: 0.6, total: 5, counts: counts(1, 2, 1, 1, 0) },
       view: "core",
@@ -154,7 +154,7 @@ describe("evidence.degree (SR-037)", () => {
     });
   });
 
-  it("[SR-037/AK3] evidence.degree leaves out the requirements with an obsolete status", async () => {
+  it("[SR-037/AK-s607] evidence.degree leaves out the requirements with an obsolete status", async () => {
     const workspace = await open();
     // P3 holds P1's requirements, the obsolete O1 (verified) and O2 (failed), and the need N1.
     expect(await degree(workspace, { selection: { package: "PKG-00d003" } })).toEqual(P1_DEGREE);
@@ -164,7 +164,7 @@ describe("evidence.degree (SR-037)", () => {
     ).toEqual({ share: 1, total: 1, counts: counts(0, 1, 0, 0, 0) });
   });
 
-  it("[SR-037/AK4] without a chosen variant, evidence.degree counts only the core requirements, each with its status in the core", async () => {
+  it("[SR-037/AK-csp8] without a chosen variant, evidence.degree counts only the core requirements, each with its status in the core", async () => {
     const workspace = await withPro();
     // R09 has a passed record for Pro only; RV applies only in Pro; R01's record holds in the core.
     await addRecords(workspace, [passed(R09, await versionOf(workspace, R09), { variant: V })]);
@@ -216,7 +216,7 @@ describe("evidence.degree (SR-037)", () => {
     expect((await degree(workspace)).degree).toEqual({ share: 0, total: 14, counts: counts(14, 0, 0, 0, 0) });
   });
 
-  it("[SR-006/AK2] marks the degree incomplete when a repository of the workspace is not available", async () => {
+  it("[SR-006/AK-q0f4] marks the degree incomplete when a repository of the workspace is not available", async () => {
     const file = await edited("reqseq-workspace.yaml", (text) =>
       text.replace(
         "main: true }",

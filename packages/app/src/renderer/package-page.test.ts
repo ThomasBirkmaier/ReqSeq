@@ -30,7 +30,7 @@ const metamodel = (
   ({ types, meanings }) as unknown as Pick<MetamodelGetOutput, "types" | "meanings">;
 
 describe("package page", () => {
-  it("[SR-112/AK1] the package page asks element.list for the elements that name the package, by its UUID", () => {
+  it("[SR-112/AK-fzbz] the package page asks element.list for the elements that name the package, by its UUID", () => {
     const buffer = elementBuffer("uuid-p", "spec", "PKG-0000d1 Stufe-3");
     const selection = packageSelection(buffer.id);
     expect(selection).toEqual({ where: { package: "uuid-p" } });
@@ -44,7 +44,7 @@ describe("package page", () => {
     });
   });
 
-  it("[SR-112/AK2] the elements of the package keep the sort and the row that the page remembers", () => {
+  it("[SR-112/AK-vv6f] the elements of the package keep the sort and the row that the page remembers", () => {
     const buffer = {
       ...elementBuffer("uuid-p", "spec", "Stufe-3"),
       memberSort: [{ by: "hierarchy" as const, order: "asc" as const }],
@@ -55,7 +55,7 @@ describe("package page", () => {
     expect(list.cursor).toBe(4);
   });
 
-  it("[SR-112/AK2] the workspace order is kept as `[]` and named in the heading; the default says nothing (ThomasBirkmaier/ReqSeq-archive#418)", () => {
+  it("[SR-112/AK-vv6f] the workspace order is kept as `[]` and named in the heading; the default says nothing (ThomasBirkmaier/ReqSeq-archive#418)", () => {
     const buffer = { ...elementBuffer("uuid-p", "spec", "Stufe-3"), memberSort: [] };
     expect(memberList(buffer, packageSelection(buffer.id)).sort).toEqual([]);
     expect(memberSummary({ total: 2, incomplete: false }, [])).toBe("2 · workspace order");
@@ -97,7 +97,7 @@ describe("package page", () => {
     expect(memberCount(element)).toBeUndefined();
   });
 
-  it("[SR-112/AK2] the heading names the count, what is missing, and how the elements are sorted", () => {
+  it("[SR-112/AK-vv6f] the heading names the count, what is missing, and how the elements are sorted", () => {
     expect(memberSummary({ total: 37, incomplete: false }, undefined)).toBe("37");
     expect(memberSummary({ total: 37, incomplete: false }, [{ by: "hierarchy", order: "asc" }])).toBe(
       "37 · tree",
@@ -107,7 +107,7 @@ describe("package page", () => {
     );
   });
 
-  it("[SR-112/AK3] the line under the title is core's evidence.coverage and evidence.degree with selection.package", async () => {
+  it("[SR-112/AK-s1rj] the line under the title is core's evidence.coverage and evidence.degree with selection.package", async () => {
     const answers: Record<string, unknown> = {
       "evidence.coverage": {
         levels: [
@@ -137,7 +137,7 @@ describe("package page", () => {
     ]);
   });
 
-  it("[SR-112/AK4] a package without requirements has no line, and a failed call says why", async () => {
+  it("[SR-112/AK-cg1v] a package without requirements has no line, and a failed call says why", async () => {
     const none = {
       "evidence.coverage": { ok: true, output: { levels: [{ type: "need", total: 1, withChildren: 0 }] } },
       "evidence.degree": { ok: true, output: { degree: { total: 0, counts: {} }, view: "core" } },
@@ -159,7 +159,7 @@ describe("package page", () => {
     });
   });
 
-  it("[SR-036/AK2] a click on the line opens core's coverage of the package, one result buffer per package", () => {
+  it("[SR-036/AK-xbxh] a click on the line opens core's coverage of the package, one result buffer per package", () => {
     const coverage = { levels: [{ type: "system-requirement", total: 2, withChildren: 0, elements: {} }] };
     expect(coverageBuffer("uuid-p", "PKG-1 Stage", coverage as never, 3)).toEqual({
       kind: "result",
@@ -175,7 +175,7 @@ describe("package page", () => {
 });
 
 describe("the filter steps of a package page (SR-112 AK2)", () => {
-  it("[SR-112/AK2] select the package's elements that meet every step, and name the steps in the heading", () => {
+  it("[SR-112/AK-vv6f] select the package's elements that meet every step, and name the steps in the heading", () => {
     expect(memberSelection("p1", [])).toEqual(packageSelection("p1"));
     expect(memberSelection("p1", [statusStep("draft"), savedStep("open")])).toEqual({
       filter: "open",
@@ -210,7 +210,7 @@ describe("the line of a list", () => {
     });
   });
 
-  it("[SR-112/AK3] names the variant of the view the degree is for, as core names it", async () => {
+  it("[SR-112/AK-s1rj] names the variant of the view the degree is for, as core names it", async () => {
     const answers: Record<string, unknown> = {
       "evidence.coverage": {
         levels: [{ type: "system-requirement", total: 2, withChildren: 0, withEvidence: 1 }],

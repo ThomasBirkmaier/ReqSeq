@@ -24,7 +24,7 @@ interface GraphOutput {
   }[];
 }
 
-test("[SR-136/AK1] each requirement shows its status and ring, the need its degree, as the CLI gives them", async () => {
+test("[SR-136/AK-h2xg] each requirement shows its status and ring, the need its degree, as the CLI gives them", async () => {
   const running = await launchApp({ fixture: "SR-136/graph" }, { colorScheme: "light" });
   const { window } = running;
   try {

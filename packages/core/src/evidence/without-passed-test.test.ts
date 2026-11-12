@@ -73,7 +73,7 @@ const listed = (of: ElementRecord, records: readonly EvidenceRecord[], view: Vie
   withoutPassedTest(sourceOf(records), [of], view, byValidity(view)).includes(of);
 
 describe("withoutPassedTest (SR-120)", () => {
-  it("[SR-120/AK2] a requirement with at least one passed test execution is not in the list", () => {
+  it("[SR-120/AK-h227] a requirement with at least one passed test execution is not in the list", () => {
     const cases: readonly ((of: ElementRecord) => EvidenceRecord[])[] = [
       (of) => [record(of)],
       (of) => [record(of, { result: "failed", date: "2026-10-27T10:00:00Z" }), record(of)],
@@ -88,7 +88,7 @@ describe("withoutPassedTest (SR-120)", () => {
     }
   });
 
-  it("[SR-120/AK2] a requirement without test execution or only with failed ones is in the list", () => {
+  it("[SR-120/AK-h227] a requirement without test execution or only with failed ones is in the list", () => {
     const cases: readonly ((of: ElementRecord) => EvidenceRecord[])[] = [
       () => [],
       (of) => [record(of, { result: "failed" })],

@@ -218,7 +218,7 @@ const selectedRows = (): string[] =>
 const current = (): string | undefined => container.querySelector(".current")?.textContent;
 
 describe("MatrixView", () => {
-  it("[SR-125/AK1] asks trace.matrix for the selection and sort of the list and shows one row per element in its order", async () => {
+  it("[SR-125/AK-mzzq] asks trace.matrix for the selection and sort of the list and shows one row per element in its order", async () => {
     const call = fakeCall();
     const { data } = await mount(asCall(call));
     expect(call).toHaveBeenCalledWith("trace.matrix", {
@@ -240,7 +240,7 @@ describe("MatrixView", () => {
     expect(query("tbody tr:nth-child(2) .title").style.paddingLeft).toBe("1.25rem");
   });
 
-  it("[SR-125/AK2] has a column for each relation kind and direction of the answer, named, with the other ends in the cells", async () => {
+  it("[SR-125/AK-wzq6] has a column for each relation kind and direction of the answer, named, with the other ends in the cells", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("thead th .name")).toEqual(["Derives from", "Derived by"]);
     expect(texts("tbody tr:nth-child(1) td.cell")).toEqual([
@@ -252,7 +252,7 @@ describe("MatrixView", () => {
     ]);
   });
 
-  it("[SR-153/AK1] marks the cells core names as gaps in the accent, also one with a link, and heads the column with met of expected and share", async () => {
+  it("[SR-153/AK-mcfm] marks the cells core names as gaps in the accent, also one with a link, and heads the column with met of expected and share", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("thead th:nth-child(2) .count")).toEqual(["2 of 4 · 50 %"]);
     expect(texts("td.cell .gap")).toEqual(["—", "—"]);
@@ -263,7 +263,7 @@ describe("MatrixView", () => {
     expect(texts("tbody tr:nth-child(2) td.cell .gap")).toEqual([]);
   });
 
-  it("[SR-125/AK3] [SR-153/AK2] shows an empty cell without a minimum as a grey dash, no gap, and heads its column with the count only", async () => {
+  it("[SR-125/AK-ps48] [SR-153/AK-zx11] shows an empty cell without a minimum as a grey dash, no gap, and heads its column with the count only", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("thead th:nth-child(3) .count")).toEqual(["1"]);
     expect(texts("td.cell .none")).toEqual(["—", "—", "—"]);
@@ -271,7 +271,7 @@ describe("MatrixView", () => {
     expect(texts("tbody tr:nth-child(4) td.cell:nth-child(3) .gap")).toEqual([]);
   });
 
-  it("[SR-125/AK4] marks an outdated relation as outdated and one to a missing target as missing, in its cell", async () => {
+  it("[SR-125/AK-zs8y] marks an outdated relation as outdated and one to a missing target as missing, in its cell", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("td.cell .outdated")).toEqual([" link outdated"]);
     expect(query("tbody tr:nth-child(2) .outdated").closest("td")?.textContent).toBe(
@@ -282,7 +282,7 @@ describe("MatrixView", () => {
     expect(query("tbody tr:nth-child(3) .relation").className).toBe("relation unavailable");
   });
 
-  it("[SR-125/AK5] Enter opens the selected row's element; Down and Up move the row, and the cursor is kept", async () => {
+  it("[SR-125/AK-k8sg] Enter opens the selected row's element; Down and Up move the row, and the cursor is kept", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     // A fresh matrix has no row selected (SR-122): the first Down selects the first row, on its element.
     expect(selectedRows()).toEqual([]);
@@ -307,7 +307,7 @@ describe("MatrixView", () => {
     });
   });
 
-  it("[SR-125/AK5] Right and Left walk through the row element and its links across the cells, row by row", async () => {
+  it("[SR-125/AK-k8sg] Right and Left walk through the row element and its links across the cells, row by row", async () => {
     await mount(asCall(fakeCall()));
     await press("ArrowLeft");
     expect(current()).toContain("SR-1");
@@ -325,7 +325,7 @@ describe("MatrixView", () => {
     expect(container.querySelectorAll(".current")).toHaveLength(1);
   });
 
-  it("[SR-125/AK5] asks again with the cursor back on the row element, so Enter opens the row, not a link", async () => {
+  it("[SR-125/AK-k8sg] asks again with the cursor back on the row element, so Enter opens the row, not a link", async () => {
     const { actions, show } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     await press("ArrowRight");
@@ -336,7 +336,7 @@ describe("MatrixView", () => {
     expect(actions.at(-1)).toEqual({ type: "open", buffer: objectWith({ id: "uuid-s1" }) });
   });
 
-  it("[SR-125/AK5] Enter on a link opens the element at the other end, in its repository", async () => {
+  it("[SR-125/AK-k8sg] Enter on a link opens the element at the other end, in its repository", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     await press("ArrowRight");
@@ -354,14 +354,14 @@ describe("MatrixView", () => {
     });
   });
 
-  it("[SR-125/AK5] a click on a row element opens it and selects the row", async () => {
+  it("[SR-125/AK-k8sg] a click on a row element opens it and selects the row", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await click(query("tbody tr:nth-child(2) td.element [role=link]"));
     expect(actions.at(-2)).toEqual({ type: "cursor", key: "list", cursor: 1 });
     expect(actions.at(-1)).toEqual({ type: "open", buffer: objectWith({ id: "uuid-s2" }) });
   });
 
-  it("[SR-194/AK5] a right-click selects a cell, and a later click on a link of another row unselects it", async () => {
+  it("[SR-194/AK-j5rp] a right-click selects a cell, and a later click on a link of another row unselects it", async () => {
     await mount(asCall(fakeCall()));
     const cell = (row: number): Element => query(`tbody tr:nth-child(${String(row + 1)}) td.cell`);
     await act(async () => {
@@ -373,7 +373,7 @@ describe("MatrixView", () => {
     expect(container.querySelectorAll('td.cell[aria-selected="true"]')).toHaveLength(0);
   });
 
-  it("[SR-125/AK5] a click on a link opens its element", async () => {
+  it("[SR-125/AK-k8sg] a click on a link opens its element", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await click(query("tbody tr:nth-child(1) td.cell [role=link]"));
     expect(actions.at(-1)).toEqual({
@@ -382,7 +382,7 @@ describe("MatrixView", () => {
     });
   });
 
-  it("[SR-125/AK5] Enter or a click on a missing link opens nothing and says its state", async () => {
+  it("[SR-125/AK-k8sg] Enter or a click on a missing link opens nothing and says its state", async () => {
     const { actions, echoed } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     await press("ArrowDown");
@@ -398,7 +398,7 @@ describe("MatrixView", () => {
     expect(actions.some((action) => action.type === "open")).toBe(false);
   });
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P move the row like Down and Up; with no row selected Ctrl+N selects the first", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P move the row like Down and Up; with no row selected Ctrl+N selects the first", async () => {
     await mount(asCall(fakeCall()));
     expect(selectedRows()).toEqual([]);
     expect(query("table").getAttribute("aria-activedescendant")).toBeNull();
@@ -416,7 +416,7 @@ describe("MatrixView", () => {
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-122/AK5] [SR-145/AK3] on %s, with a row selected Ctrl+P is the matrix's, also on the first row; with none, and Cmd+P, it is not",
+    "[SR-122/AK-xm88] [SR-145/AK-mk0f] on %s, with a row selected Ctrl+P is the matrix's, also on the first row; with none, and Cmd+P, it is not",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await mount(asCall(fakeCall()));

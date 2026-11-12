@@ -108,7 +108,7 @@ const criteriaOf = (text: string): unknown[] =>
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 describe("references in properties marked markdown (SR-127)", () => {
-  it("[SR-127/AK3] a changed target makes a reference in an acceptance criterion outdated, with a @text:acceptance-criteria hint that names the item and the line", async () => {
+  it("[SR-127/AK-bd1x] a changed target makes a reference in an acceptance criterion outdated, with a @text:acceptance-criteria hint that names the item and the line", async () => {
     const ws = await fixture();
     const workspace = open(ws.root);
     expect(await criteriaHints(workspace)).toEqual([]);
@@ -129,7 +129,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     );
   });
 
-  it("[SR-127/AK5] a link in the title or in a property the metamodel does not mark is no reference: no hint, no missing target, nothing affected", async () => {
+  it("[SR-127/AK-mdr7] a link in the title or in a property the metamodel does not mark is no reference: no hint, no missing target, nothing affected", async () => {
     const ws = await fixture(
       requirementWith(
         A,
@@ -155,7 +155,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     expect(affected.affected.map((a) => a.id)).not.toContain(A);
   });
 
-  it("[SR-127/AK3] trace.affected of the target lists the element whose acceptance criterion references it", async () => {
+  it("[SR-127/AK-bd1x] trace.affected of the target lists the element whose acceptance criterion references it", async () => {
     const ws = await fixture();
     await ws.write(C_FILE, requirementWith(C, `acceptance-criteria:\n  - "Then ${link("the wind")}."\n`));
     const workspace = open(ws.root);
@@ -167,7 +167,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     expect(affected.affected.find((a) => a.id === C)?.via).toEqual({ kind: "reference" });
   });
 
-  it("[SR-127/AK3] a missing target in an acceptance criterion is reported like one in the text (SR-089), naming the property and the item", async () => {
+  it("[SR-127/AK-bd1x] a missing target in an acceptance criterion is reported like one in the text (SR-089), naming the property and the item", async () => {
     const ws = await fixture(
       requirementWith(
         A,
@@ -183,7 +183,7 @@ describe("references in properties marked markdown (SR-127)", () => {
   });
 
   describe("hint.confirm", () => {
-    it("[SR-127/AK3] hint.confirm writes the new version into that criterion only, in its own quoting (SR-027 AK1)", async () => {
+    it("[SR-127/AK-bd1x] hint.confirm writes the new version into that criterion only, in its own quoting (SR-027 AK1)", async () => {
       const ws = await fixture();
       await changeN(ws);
       const workspace = open(ws.root);
@@ -206,7 +206,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect((await criteriaHints(workspace)).map((h) => h.hintId)).toEqual([at(1), at(2), at(3)]);
     });
 
-    it("[SR-127/AK4] confirming every criterion keeps each in its quoting, writes a block scalar as one line, and the YAML reads back with the new versions", async () => {
+    it("[SR-127/AK-f93q] confirming every criterion keeps each in its quoting, writes a block scalar as one line, and the YAML reads back with the new versions", async () => {
       const ws = await fixture();
       await changeN(ws);
       const workspace = open(ws.root);
@@ -234,7 +234,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(await criteriaHints(workspace)).toEqual([]);
     });
 
-    it("[SR-127/AK3] confirms a reference in a criterion with its key, in place or as a block scalar, and keeps the key (SR-204)", async () => {
+    it("[SR-127/AK-bd1x] confirms a reference in a criterion with its key, in place or as a block scalar, and keeps the key (SR-204)", async () => {
       const keyed = [
         "acceptance-criteria:",
         "  - key: plain",
@@ -257,7 +257,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       ]);
     });
 
-    it("[SR-127/AK3] confirms a single value, plain and in a block scalar, of a property marked markdown", async () => {
+    it("[SR-127/AK-bd1x] confirms a single value, plain and in a block scalar, of a property marked markdown", async () => {
       const decision = (rationale: string): string =>
         `---\nid: ${C}\ntype: decision\nstatus: draft\ntitle: Choose\n${rationale}---\n\nText.\n`;
       for (const [rationale, expected] of [
@@ -310,7 +310,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(read(other, A_FILE)).toBe(requirement(aliased));
     });
 
-    it("[SR-127/AK3] a hint ID of a property that holds no such link confirms nothing", async () => {
+    it("[SR-127/AK-bd1x] a hint ID of a property that holds no such link confirms nothing", async () => {
       const ws = await fixture();
       await changeN(ws);
       const workspace = open(ws.root);
@@ -323,7 +323,7 @@ describe("references in properties marked markdown (SR-127)", () => {
   });
 
   describe("version (ADR-0005)", () => {
-    it("[SR-127/AK5] the flag does not change the version of an element: the same file has the same version with and without markdown on its properties", async () => {
+    it("[SR-127/AK-mdr7] the flag does not change the version of an element: the same file has the same version with and without markdown on its properties", async () => {
       const model = fs.readFileSync(MODEL, "utf8");
       const plain = model.replaceAll("    markdown: true\n", "");
       expect(plain).not.toBe(model);
@@ -378,7 +378,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       ]);
     });
 
-    it("[SR-127/AK4] criteria with bold, italic, code and a reference are written as valid YAML, one readable Markdown line each", async () => {
+    it("[SR-127/AK-f93q] criteria with bold, italic, code and a reference are written as valid YAML, one readable Markdown line each", async () => {
       const ws = await fixture();
       const workspace = open(ws.root);
       const criteria = [

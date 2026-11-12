@@ -52,7 +52,7 @@ describe("criterion keys (SR-204)", () => {
     () =>
       values.shift() ?? 0;
 
-  it("[SR-204/AK1] makes a new key of a consonant and three letters or digits, retried until no criterion has it", () => {
+  it("[SR-204/AK-qg2w] makes a new key of a consonant and three letters or digits, retried until no criterion has it", () => {
     // b, then b, b, b: "bbbb" is taken, so the next draw gives "cbbb".
     const key = newCriterionKey(new Set(["bbbb"]), sequence(0, 0, 0, 0, 1, 0, 0, 0));
     expect(key).toBe("cbbb");
@@ -69,7 +69,7 @@ describe("criterion keys (SR-204)", () => {
     expect(keys("a")).not.toEqual(keys("b"));
   });
 
-  it("[SR-204/AK1] carries the keys of stored criteria, each at its first item only, and a key in a wrong form as its text", () => {
+  it("[SR-204/AK-qg2w] carries the keys of stored criteria, each at its first item only, and a key in a wrong form as its text", () => {
     expect(
       carriedCriteria([
         { key: "first", text: "A" },
@@ -83,7 +83,7 @@ describe("criterion keys (SR-204)", () => {
     expect(carriedCriteria("one")).toEqual([]);
   });
 
-  it("[SR-204/AK4] keeps a key by text, never by position, and gives a new one to another text", () => {
+  it("[SR-204/AK-ftt1] keeps a key by text, never by position, and gives a new one to another text", () => {
     const previous = [
       { key: "aaaa", text: "A" },
       { key: "bbbb", text: "B" },
@@ -103,7 +103,7 @@ describe("criterion keys (SR-204)", () => {
     ]);
   });
 
-  it("[SR-204/AK5] refuses a given key in a wrong form or given twice, with its position", () => {
+  it("[SR-204/AK-b2q6] refuses a given key in a wrong form or given twice, with its position", () => {
     const refused = (next: unknown[]): unknown => {
       try {
         reconcileCriteria("ak", [], next);
@@ -175,7 +175,7 @@ describe("criteria a record names (D-072, SR-031 AK11)", () => {
     expect(["kb", 3, "ka", 1, "ka"].sort(compareCriterionRefs)).toEqual([1, 3, "ka", "ka", "kb"]);
   });
 
-  it("[SR-205/AK2] labels a criterion with number and key, number only, or key only", () => {
+  it("[SR-205/AK-m2vv] labels a criterion with number and key, number only, or key only", () => {
     expect(criterionLabel({ criterion: 2, key: "k7f3" })).toBe("AK2 (k7f3)");
     expect(criterionLabel({ criterion: 2 })).toBe("AK2");
     expect(criterionLabel({ key: "k7f3" })).toBe("AK-k7f3");

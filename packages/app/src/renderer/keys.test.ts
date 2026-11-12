@@ -40,7 +40,7 @@ describe("keys", () => {
     expect(matches(press("p", { ctrlKey: true }), { mod: true, shift: false, key: "p" }, false)).toBe(true);
   });
 
-  it("[SR-145/AK1] under macOS the modifier is Cmd only: the physical Ctrl key with a letter is no shortcut, so Ctrl+P does not jump", () => {
+  it("[SR-145/AK-bfb2] under macOS the modifier is Cmd only: the physical Ctrl key with a letter is no shortcut, so Ctrl+P does not jump", () => {
     const goTo = { mod: true, shift: false, key: "p" };
     const next = { mod: false, shift: false, alt: true, key: "n" };
     // Cmd+P jumps, Cmd+Shift+P is the command prompt, Cmd+Option+A adds a property.
@@ -89,7 +89,7 @@ describe("keys", () => {
     ).toBe(false);
   });
 
-  it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P match by the letter on Linux and Windows, and by the physical key under macOS, where Option types a character", () => {
+  it("[SR-115/AK-m5pg] [SR-145/AK-kbdf] Alt+N and Alt+P match by the letter on Linux and Windows, and by the physical key under macOS, where Option types a character", () => {
     const next = { mod: false, shift: false, alt: true, key: "n" };
     const previous = { mod: false, shift: false, alt: true, key: "p" };
     // Linux and Windows: the letter.
@@ -111,7 +111,7 @@ describe("keys", () => {
     );
   });
 
-  it("[SR-115/AK5] Alt+N is Alt alone: Ctrl+Alt (AltGr), Cmd+Option, Shift or no Alt do not count", () => {
+  it("[SR-115/AK-m5pg] Alt+N is Alt alone: Ctrl+Alt (AltGr), Cmd+Option, Shift or no Alt do not count", () => {
     const next = { mod: false, shift: false, alt: true, key: "n" };
     expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), next, false)).toBe(false);
     expect(matches(press("n", { ctrlKey: true, altKey: true, code: "KeyN" }), next, false)).toBe(false);
@@ -125,7 +125,7 @@ describe("keys", () => {
     ).toBe(false);
   });
 
-  it("[SR-115/AK5] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
+  it("[SR-115/AK-m5pg] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "n" }, false)).toBe("Alt+N");
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "p" }, true)).toBe("⌥P");
   });
@@ -136,7 +136,7 @@ describe("keys", () => {
     expect(isMac("Win32")).toBe(false);
   });
 
-  it("[SR-132/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
+  it("[SR-132/AK-y207] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
     const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
     expect(isModClick({ ...click, ctrlKey: true }, false)).toBe(true);
     expect(isModClick({ ...click, metaKey: true }, false)).toBe(true);
@@ -178,14 +178,14 @@ describe("keys", () => {
     expect(shortcutLabel(follow, true)).toBe("⌘↩");
   });
 
-  it("[SR-122/AK1] Ctrl+N steps down and Ctrl+P steps up, in either case", () => {
+  it("[SR-122/AK-kjhn] Ctrl+N steps down and Ctrl+P steps up, in either case", () => {
     expect(listStep(press("n", { ctrlKey: true }))).toBe(1);
     expect(listStep(press("N", { ctrlKey: true }))).toBe(1);
     expect(listStep(press("p", { ctrlKey: true }))).toBe(-1);
     expect(listStep(press("P", { ctrlKey: true }))).toBe(-1);
   });
 
-  it("[SR-122/AK2] [SR-145/AK3] only the physical Ctrl key counts: Cmd+N/P, Alt, Shift or no modifier give no step", () => {
+  it("[SR-122/AK-h65p] [SR-145/AK-mk0f] only the physical Ctrl key counts: Cmd+N/P, Alt, Shift or no modifier give no step", () => {
     expect(listStep(press("n", { metaKey: true }))).toBeUndefined();
     expect(listStep(press("p", { metaKey: true }))).toBeUndefined();
     expect(listStep(press("p", { ctrlKey: true, metaKey: true }))).toBeUndefined();
@@ -195,14 +195,14 @@ describe("keys", () => {
     expect(listStep(press("x", { ctrlKey: true }))).toBeUndefined();
   });
 
-  it("[SR-122/AK3] the arrow keys and Tab step as before", () => {
+  it("[SR-122/AK-n8p6] the arrow keys and Tab step as before", () => {
     expect(listStep(press("ArrowDown"))).toBe(1);
     expect(listStep(press("Tab"))).toBe(1);
     expect(listStep(press("ArrowUp"))).toBe(-1);
     expect(listStep(press("Enter"))).toBeUndefined();
   });
 
-  it("[SR-122/AK5] [SR-145/AK3] Ctrl+N and Ctrl+P are the physical Ctrl key alone with the letter; Cmd, Shift and AltGr do not count", () => {
+  it("[SR-122/AK-xm88] [SR-145/AK-mk0f] Ctrl+N and Ctrl+P are the physical Ctrl key alone with the letter; Cmd, Shift and AltGr do not count", () => {
     expect(ctrlStep(press("n", { ctrlKey: true }))).toBe(1);
     expect(ctrlStep(press("N", { ctrlKey: true }))).toBe(1);
     expect(ctrlStep(press("p", { ctrlKey: true }))).toBe(-1);
@@ -215,7 +215,7 @@ describe("keys", () => {
     expect(ctrlStep(press("n"))).toBeUndefined();
   });
 
-  it("[SR-122/AK4] a step in a list is Down or Ctrl+N, Up or Ctrl+P; Tab is not a row key", () => {
+  it("[SR-122/AK-mqwc] a step in a list is Down or Ctrl+N, Up or Ctrl+P; Tab is not a row key", () => {
     expect(rowStep(press("ArrowDown"))).toBe(1);
     expect(rowStep(press("n", { ctrlKey: true }))).toBe(1);
     expect(rowStep(press("ArrowUp"))).toBe(-1);
@@ -224,7 +224,7 @@ describe("keys", () => {
     expect(rowStep(press("Enter"))).toBeUndefined();
   });
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P move like Down and Up; with no row selected Ctrl+N and Down go to the first row", () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P move like Down and Up; with no row selected Ctrl+N and Down go to the first row", () => {
     const ctrl = { ctrlKey: true };
     expect(rowTarget(press("n", ctrl), 3, 10)).toBe(4);
     expect(rowTarget(press("ArrowDown"), 3, 10)).toBe(4);
@@ -238,7 +238,7 @@ describe("keys", () => {
     expect(rowTarget(press("n", ctrl), 9, 10)).toBe(10);
   });
 
-  it("[SR-122/AK5] with a row selected Ctrl+P is the list's, also on the first row; with none, and in a list without rows, it is not", () => {
+  it("[SR-122/AK-xm88] with a row selected Ctrl+P is the list's, also on the first row; with none, and in a list without rows, it is not", () => {
     const ctrl = { ctrlKey: true };
     expect(rowTarget(press("p", ctrl), 0, 10)).toBe(-1);
     expect(rowTarget(press("p", ctrl), -1, 10)).toBeUndefined();
@@ -268,7 +268,7 @@ describe("keys", () => {
 });
 
 describe("historyStep", () => {
-  it("[SR-105/AK2] [SR-145/AK1] takes Ctrl/Cmd+Z as undo and Ctrl/Cmd+Shift+Z as redo, Ctrl+Y as redo outside macOS", () => {
+  it("[SR-105/AK-dmrq] [SR-145/AK-bfb2] takes Ctrl/Cmd+Z as undo and Ctrl/Cmd+Shift+Z as redo, Ctrl+Y as redo outside macOS", () => {
     expect(historyStep(press("z", { ctrlKey: true }), false)).toBe("undo");
     expect(historyStep(press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe("redo");
     expect(historyStep(press("y", { ctrlKey: true }), false)).toBe("redo");

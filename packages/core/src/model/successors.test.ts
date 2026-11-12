@@ -50,7 +50,7 @@ const successions = async (opened: Opened): Promise<unknown[]> => {
 };
 
 describe("successors of a superseded element (SR-072 AK3)", () => {
-  it("[SR-072/AK3] reads every item with a UUID under a succession kind that names the element, as the view reads relations", async () => {
+  it("[SR-072/AK-k1fs] reads every item with a UUID under a succession kind that names the element, as the view reads relations", async () => {
     const opened = await open({
       // Its own relation to itself is no successor.
       "needs/N-a1b2c3d4e5f6.md": element(
@@ -90,7 +90,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     ]);
   });
 
-  it("[SR-072/AK3] names none for an element with a valid status or a UUID shared by several files", async () => {
+  it("[SR-072/AK-k1fs] names none for an element with a valid status or a UUID shared by several files", async () => {
     const supersedes = element(N_NEW, "need", "draft", `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`);
     const valid = await open({ "needs/N-b2c3d4e5f6a7.md": supersedes });
     expect(await successions(valid)).toEqual([]);
@@ -105,7 +105,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     expect(await successions(ambiguous)).toEqual([]);
   });
 
-  it("[SR-072/AK3] builds the index once per store and metamodel and one of its own for another store", async () => {
+  it("[SR-072/AK-k1fs] builds the index once per store and metamodel and one of its own for another store", async () => {
     const opened = await open({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       "needs/N-b2c3d4e5f6a7.md": element(
@@ -136,7 +136,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     expect(successionsOf(buildSuccessionIndex(without, metamodel), metamodel, record)).toEqual([]);
   });
 
-  it("[SR-072/AK3] follows a watcher batch that removes or adds a relation Supersedes, as a fresh workspace does", async () => {
+  it("[SR-072/AK-k1fs] follows a watcher batch that removes or adds a relation Supersedes, as a fresh workspace does", async () => {
     const supersedes = `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`;
     const opened = await open({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
@@ -181,7 +181,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     expect(await now()).toEqual([[[OTHER, "needs/N-0a0a0a0a0a0a.md"]], [[OTHER, "needs/N-0a0a0a0a0a0a.md"]]]);
   });
 
-  it("[SR-072/AK3] loads no state, so a view after a write cannot fail when the workspace file broke meanwhile", async () => {
+  it("[SR-072/AK-k1fs] loads no state, so a view after a write cannot fail when the workspace file broke meanwhile", async () => {
     const opened = await open({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       "needs/N-b2c3d4e5f6a7.md": element(

@@ -141,7 +141,7 @@ test.describe("the context menu", () => {
     await running.close();
   });
 
-  test("[SR-194/AK1] a right-click opens the app's menu at the pointer, with the names and keys of the command prompt", async () => {
+  test("[SR-194/AK-dhq2] a right-click opens the app's menu at the pointer, with the names and keys of the command prompt", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -172,7 +172,7 @@ test.describe("the context menu", () => {
     await expect(menu(window)).toHaveCount(1);
   });
 
-  test("[SR-194/AK2] an entry gives what the same command from the command line gives", async () => {
+  test("[SR-194/AK-kg56] an entry gives what the same command from the command line gives", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -233,7 +233,7 @@ test.describe("the context menu", () => {
     await expect.poll(() => shown(window)).toEqual(byLine);
   });
 
-  test("[SR-194/AK3] All commands… opens the command prompt empty, with the commands of the place first", async () => {
+  test("[SR-194/AK-h8zf] All commands… opens the command prompt empty, with the commands of the place first", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -250,7 +250,7 @@ test.describe("the context menu", () => {
     expect(fromMenu.length).toBeGreaterThan(3);
   });
 
-  test("[SR-194/AK4] Escape and a left click outside close the menu; a right-click elsewhere opens the menu there", async () => {
+  test("[SR-194/AK-kvdd] Escape and a left click outside close the menu; a right-click elsewhere opens the menu there", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -286,7 +286,7 @@ test.describe("the context menu", () => {
     await expect(window.locator(`[data-area="${other}"]`)).toHaveAttribute("data-active", "");
   });
 
-  test("[SR-194/AK5] a list row, a search hit and a package entry are selected before the menu opens, and its commands act on them", async () => {
+  test("[SR-194/AK-j5rp] a list row, a search hit and a package entry are selected before the menu opens, and its commands act on them", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -311,7 +311,7 @@ test.describe("the context menu", () => {
     await expect(window.locator('[data-area="right"] article h1')).toHaveText(title);
   });
 
-  test("[SR-194/AK5] a node of the graph and of the metamodel is selected before the menu opens", async () => {
+  test("[SR-194/AK-j5rp] a node of the graph and of the metamodel is selected before the menu opens", async () => {
     running = await launchApp({ fixture: "SR-111/graph" });
     const { window } = running;
     await listAll(window);
@@ -335,7 +335,7 @@ test.describe("the context menu", () => {
     expect(await selectedWhenMenuOpens(type)).toBe(true);
   });
 
-  test("[SR-194/AK5] a target and a cell of the matrix are selected before the menu opens", async () => {
+  test("[SR-194/AK-j5rp] a target and a cell of the matrix are selected before the menu opens", async () => {
     running = await launchApp({ fixture: "SR-125/matrix" });
     const { window } = running;
     await listAll(window);
@@ -359,7 +359,7 @@ test.describe("the context menu", () => {
     );
   });
 
-  test("[SR-194/AK6] a place without its own choice gets the buffer's commands", async () => {
+  test("[SR-194/AK-r0g6] a place without its own choice gets the buffer's commands", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -372,7 +372,7 @@ test.describe("the context menu", () => {
     expect(await entryNames(window)).toEqual([...BUFFER_ENTRIES, "Other window", "Unsplit window", ALL]);
   });
 
-  test("[SR-194/AK7] on macOS Ctrl+click is a right-click", async () => {
+  test("[SR-194/AK-hkgb] on macOS Ctrl+click is a right-click", async () => {
     test.skip(process.platform !== "darwin", "Ctrl+click is a right-click on macOS only");
     running = await launchApp(FIXTURE);
     const { window } = running;

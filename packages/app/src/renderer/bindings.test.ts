@@ -91,7 +91,7 @@ describe("the key after the prefix", () => {
     expect(prefixStep(press("д", { code: "KeyL" }), false)).toEqual(l);
   });
 
-  it("[SR-145/AK1] does not take a letter with Shift, with Alt, or with the physical Ctrl key on macOS", () => {
+  it("[SR-145/AK-bfb2] does not take a letter with Shift, with Alt, or with the physical Ctrl key on macOS", () => {
     expect(prefixStep(press("L", { shiftKey: true }), false)).toEqual({
       kind: "unbound",
       label: "Ctrl+K Shift+L",
@@ -138,7 +138,7 @@ describe("the key after the prefix", () => {
 });
 
 describe("the selection in the next keys", () => {
-  it("[SR-122/AK6] Ctrl+N and Down move it down, Ctrl+P and Up up, the physical Ctrl also on macOS", () => {
+  it("[SR-122/AK-ht29] Ctrl+N and Down move it down, Ctrl+P and Up up, the physical Ctrl also on macOS", () => {
     for (const mac of [false, true]) {
       expect(prefixStep(press("n", { ctrlKey: true }), mac)).toEqual({ kind: "move", step: 1 });
       expect(prefixStep(press("p", { ctrlKey: true }), mac)).toEqual({ kind: "move", step: -1 });

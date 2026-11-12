@@ -65,7 +65,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-127/AK1] the acceptance criteria show bold, italic, code and a reference formatted, without their marks", async () => {
+  test("[SR-127/AK-kjw4] the acceptance criteria show bold, italic, code and a reference formatted, without their marks", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     // One editor for the box, one value per line.
@@ -88,7 +88,7 @@ test.describe("Markdown properties in the element buffer", () => {
     expect(Number(weight)).toBeGreaterThanOrEqual(600);
   });
 
-  test("[SR-127/AK1] an image in a criterion is no picture: its source is shown, nothing is drawn", async () => {
+  test("[SR-127/AK-kjw4] an image in a criterion is no picture: its source is shown, nothing is drawn", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     // (CodeMirror puts empty `img.cm-widgetBuffer` next to widgets; they draw nothing.)
@@ -96,7 +96,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(criteria.locator(".cm-line").nth(2)).toHaveText(IMAGE);
   });
 
-  test("[SR-127/AK5] the title and a property that is not marked markdown show their text as it is", async () => {
+  test("[SR-127/AK-mdr7] the title and a property that is not marked markdown show their text as it is", async () => {
     const { window } = running;
     await expect(window.locator("article h1")).toHaveText(`**${SR_TITLE}**`);
     await expect(field(window, "topic")).toContainText("**Anzeige**");
@@ -105,7 +105,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(field(window, "topic").locator(".cm-lr-strong")).toHaveCount(0);
   });
 
-  test("[SR-127/AK1] the Markdown source is shown only on the line with the cursor, and the other values stay formatted", async () => {
+  test("[SR-127/AK-kjw4] the Markdown source is shown only on the line with the cursor, and the other values stay formatted", async () => {
     const { window } = running;
     const lines = field(window, "acceptance-criteria").locator(".cm-line");
     await expect(lines.nth(0)).not.toContainText("**");
@@ -141,7 +141,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(lines.nth(1)).toContainText("Die Anzeige bleibt lesbar");
   });
 
-  test("[SR-066/AK4] [SR-127/AK3] an outdated reference in a criterion is marked like one in the text, and a click opens its element", async () => {
+  test("[SR-066/AK-c5xd] [SR-127/AK-bd1x] an outdated reference in a criterion is marked like one in the text, and a click opens its element", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     await expect(criteria.locator(".cm-lr-outdated")).toHaveCount(1);
@@ -154,7 +154,7 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
-  test("[SR-127/AK2] [[ in an acceptance criterion inserts a reference: saved with ID and version in that criterion, shown with the title of the target, and a click opens it", async () => {
+  test("[SR-127/AK-k3yf] [[ in an acceptance criterion inserts a reference: saved with ID and version in that criterion, shown with the title of the target, and a click opens it", async () => {
     const { window, workspace } = running;
     const criteria = field(window, "acceptance-criteria");
     const lines = criteria.locator(".cm-line");
@@ -187,14 +187,14 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
-  test("[SR-127/AK3] Ctrl/Cmd+Enter with the focus in the box of the criteria opens the first reference", async () => {
+  test("[SR-127/AK-bd1x] Ctrl/Cmd+Enter with the focus in the box of the criteria opens the first reference", async () => {
     const { window } = running;
     await field(window, "acceptance-criteria").focus();
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
-  test("[SR-128/AK2] copying the criteria still puts the stored Markdown source on the clipboard", async () => {
+  test("[SR-128/AK-yqp3] copying the criteria still puts the stored Markdown source on the clipboard", async () => {
     const { window } = running;
     // The clipboard of the machine is kept: saved here, written back whatever happens.
     const before = await running.app.evaluate(({ clipboard }) => clipboard.readText());

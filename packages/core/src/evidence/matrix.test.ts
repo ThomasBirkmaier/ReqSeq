@@ -119,7 +119,7 @@ describe("testCaseMark (SR-126 AK2, spec questions ThomasBirkmaier/ReqSeq-archiv
     expect(testCaseMark(testCase(failedCurrent, newestOlder), forms(CURRENT))).toBe("failed");
   });
 
-  it("[SR-126/AK2] a failed execution of the current version at the same instant as a passed one marks it failed", () => {
+  it("[SR-126/AK-mp13] a failed execution of the current version at the same instant as a passed one marks it failed", () => {
     const passed = run("2026-01-01T10:00:00Z", { line: 4 });
     const failed = run("2026-01-01T10:00:00Z", { result: "failed", line: 9 });
     const older = run("2026-01-01T09:00:00Z", { result: "failed", line: 2 });
@@ -172,7 +172,7 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     ]);
   });
 
-  it("[SR-126/AK1] of several equally new executions shows the worst as the last one", () => {
+  it("[SR-126/AK-mdgj] of several equally new executions shows the worst as the last one", () => {
     const passed = run("2026-01-02T10:00:00Z", { line: 4 });
     const failed = run("2026-01-02T10:00:00Z", { result: "failed", line: 9, version: OLDER });
     const index = evidenceIndex([passed, failed]);

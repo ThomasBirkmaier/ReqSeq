@@ -54,7 +54,7 @@ const hints = async (ws: FixtureWorkspace): Promise<Hint[]> => {
 };
 
 describe("reqseq hint confirm (SR-027)", () => {
-  it("[SR-027/AK1] [SR-027/AK2] confirms several hints, each on its own, and reports an ID that confirms nothing with exit code 1", async () => {
+  it("[SR-027/AK-t0wx] [SR-027/AK-q47h] confirms several hints, each on its own, and reports an ID that confirms nothing with exit code 1", async () => {
     const ws = await changed();
     const [validity, derives, link] = await hints(ws);
     const before = await fs.readFile(ws.path(A_FILE), "utf8");
@@ -81,7 +81,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     expect((await hints(ws)).map((h) => h.hintId)).toEqual([link?.hintId]);
   });
 
-  it("[SR-027/AK2] confirms all hints that point at an element, then all hints about one, without their IDs (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
+  it("[SR-027/AK-q47h] confirms all hints that point at an element, then all hints about one, without their IDs (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await changed();
     const [validity, derives, link] = await hints(ws);
     const N = "5e025a7d-2b4f-4c61-9d08-0a0000000001";
@@ -120,7 +120,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     ]);
   });
 
-  it("[SR-027/AK2] confirms every open hint of a kind in the workspace with --all, after the count of hint list (#644)", async () => {
+  it("[SR-027/AK-q47h] confirms every open hint of a kind in the workspace with --all, after the count of hint list (#644)", async () => {
     const ws = await changed();
     const listed = (await hints(ws)).map((h) => h.hintId);
     const wrong = await reqseq(
@@ -146,7 +146,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     expect([...(JSON.parse(all.stdout) as Confirmed).confirmed].sort()).toEqual([...listed].sort());
   });
 
-  it("[SR-027/AK3] shows the new version as a normal change in Git, only on the line of the relation", async () => {
+  it("[SR-027/AK-g3q5] shows the new version as a normal change in Git, only on the line of the relation", async () => {
     const ws = await changed();
     const derives = (await hints(ws))[1];
     const out = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
@@ -173,7 +173,7 @@ describe("reqseq hint confirm (SR-027)", () => {
 });
 
 describe("reqseq hint confirm of a changed core requirement (SR-045)", () => {
-  it("[SR-045/AK2] writes the current version and title of SR-K into replaces, and the hint is gone", async () => {
+  it("[SR-045/AK-c59v] writes the current version and title of SR-K into replaces, and the hint is gone", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-045/core-changed", git: true });
     fixtures.push(ws);
     const file = ws.path("requirements/SR-0000000000a1.md");

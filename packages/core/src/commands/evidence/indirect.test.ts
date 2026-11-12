@@ -93,18 +93,18 @@ const FROM_FILES: Record<string, Verification> = {
 };
 
 describe("indirect verification in evidence.status, element.get and the filter (SR-034)", () => {
-  it("[SR-034/AK1] evidence.status gives indirect for a parent whose children have passed records of their current version", async () => {
+  it("[SR-034/AK-kkxv] evidence.status gives indirect for a parent whose children have passed records of their current version", async () => {
     const out = byId(await status(await open(), { selection: { ids: [G, P1] } }));
     expect(out).toEqual({ [G]: core("indirect"), [P1]: core("indirect") });
   });
 
-  it("[SR-034/AK1] element.get shows indirect for a parent without own record", async () => {
+  it("[SR-034/AK-kkxv] element.get shows indirect for a parent without own record", async () => {
     const ws = await open();
     expect((await get(ws, P1)).element.verification).toEqual(core("indirect"));
     expect((await get(ws, G)).element.verification).toEqual(core("indirect"));
   });
 
-  it("[SR-034/AK1] a filter on verification indirect finds the indirectly verified parents", async () => {
+  it("[SR-034/AK-kkxv] a filter on verification indirect finds the indirectly verified parents", async () => {
     const ws = await open();
     const listed = (await invoke(
       "element.list",
@@ -120,7 +120,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
     expect(open_.elements.map((e) => e.id)).toEqual([P2, C22, C32, P6, C61]);
   });
 
-  it("[SR-034/AK2] evidence.status names the missing children of a parent", async () => {
+  it("[SR-034/AK-hk8z] evidence.status names the missing children of a parent", async () => {
     const output = await status(await open(), { selection: { ids: [P2] } });
     expect(byId(output)).toEqual({ [P2]: core("open", [C21, C22, C23]) });
     // Named for readers by short ID and title, though not on the page (ThomasBirkmaier/ReqSeq-archive#588).
@@ -131,7 +131,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
     ]);
   });
 
-  it("[SR-034/AK2] a child valid only for a variant is missing in that variant and does not count in the core", async () => {
+  it("[SR-034/AK-hk8z] a child valid only for a variant is missing in that variant and does not count in the core", async () => {
     const variant = [
       "---",
       `id: ${V1}`,
@@ -171,12 +171,12 @@ describe("indirect verification in evidence.status, element.get and the filter (
     });
   });
 
-  it("[SR-034/AK3] evidence.status does not count a child with status obsolete", async () => {
+  it("[SR-034/AK-s1b5] evidence.status does not count a child with status obsolete", async () => {
     const out = byId(await status(await open(), { selection: { ids: [P3, C32] } }));
     expect(out).toEqual({ [P3]: core("indirect"), [C32]: core("open") });
   });
 
-  it("[SR-034/AK3] the invalid flag of the metamodel decides, not the status key", async () => {
+  it("[SR-034/AK-s1b5] the invalid flag of the metamodel decides, not the status key", async () => {
     const metamodel = await edited(METAMODEL, (text) =>
       text.replace(
         "  - { key: obsolete, name: Obsolete, invalid: true }",

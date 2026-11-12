@@ -73,7 +73,7 @@ describe("imageReader (SR-095 AK2)", () => {
     expect(kindOf(await read({ data: "doc.txt" }))).toBe("image-missing");
   });
 
-  it("[SR-095/AK2] is image-outside for a scheme, an absolute path, a path above the folder or a link out of it, and image-missing for no file", async () => {
+  it("[SR-095/AK-tvd2] is image-outside for a scheme, an absolute path, a path above the folder or a link out of it, and image-missing for no file", async () => {
     const root = await folder({});
     await fs.symlink(path.join(root, "outside.png"), path.join(root, "in", "link.png"));
     const read = imageReader(path.join(root, "in", "delivery.reqif"), OPEN);

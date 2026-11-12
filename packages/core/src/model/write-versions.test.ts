@@ -55,7 +55,7 @@ const open = async (): Promise<{ readonly workspace: Workspace; readonly save: U
 };
 
 describe("the content before a save (SR-024 AK2)", () => {
-  it("[SR-024/AK2] counts a save whose old text embeds an image that cannot be read as a change", async () => {
+  it("[SR-024/AK-mf7x] counts a save whose old text embeds an image that cannot be read as a change", async () => {
     const { workspace, save } = await open();
     const readdir = fs.readdir.bind(fs);
     vi.spyOn(fs, "readdir").mockImplementation(((folder: string, options: never) =>

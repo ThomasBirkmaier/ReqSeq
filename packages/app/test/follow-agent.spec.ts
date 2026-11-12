@@ -144,7 +144,7 @@ const finish = async (running: RunningApp, agent: McpSession): Promise<void> => 
   await running.close();
 };
 
-test("[SR-117/AK1] following, an MCP element_get, element_update and element_create each show their element within 1 s", async () => {
+test("[SR-117/AK-knhb] following, an MCP element_get, element_update and element_create each show their element within 1 s", async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -185,7 +185,7 @@ test("[SR-117/AK1] following, an MCP element_get, element_update and element_cre
   }
 });
 
-test("[SR-117/AK2] not following, MCP reads leave the shown buffer as it was; after a restart of the app the mode is off", async () => {
+test("[SR-117/AK-bhvp] not following, MCP reads leave the shown buffer as it was; after a restart of the app the mode is off", async () => {
   const { running, agent } = await started();
   const { window } = running;
   let restarted: RunningApp | undefined;
@@ -221,7 +221,7 @@ test("[SR-117/AK2] not following, MCP reads leave the shown buffer as it was; af
   }
 });
 
-test('[SR-117/AK3] the modeline shows "following agent" while the mode is on', async () => {
+test('[SR-117/AK-b5v1] the modeline shows "following agent" while the mode is on', async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -235,7 +235,7 @@ test('[SR-117/AK3] the modeline shows "following agent" while the mode is on', a
   }
 });
 
-test("[SR-117/AK4] the mode switches by the command prompt and by the key, and the MCP tool list offers nothing for it", async () => {
+test("[SR-117/AK-k2mf] the mode switches by the command prompt and by the key, and the MCP tool list offers nothing for it", async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -255,7 +255,7 @@ test("[SR-117/AK4] the mode switches by the command prompt and by the key, and t
   }
 });
 
-test("[SR-117/AK5] with unsaved text an MCP read of another element does not switch the view until the input is saved", async () => {
+test("[SR-117/AK-x6y3] with unsaved text an MCP read of another element does not switch the view until the input is saved", async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -285,7 +285,7 @@ test("[SR-117/AK5] with unsaved text an MCP read of another element does not swi
   }
 });
 
-test("[SR-117/AK6] following makes no request", async () => {
+test("[SR-117/AK-wzp3] following makes no request", async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -303,7 +303,7 @@ test("[SR-117/AK6] following makes no request", async () => {
   }
 });
 
-test("[SR-117/AK1] in a split window the agent's element opens in the area of the mode's buffer, which stays inactive; the user's buffer keeps its area and focus", async () => {
+test("[SR-117/AK-knhb] in a split window the agent's element opens in the area of the mode's buffer, which stays inactive; the user's buffer keeps its area and focus", async () => {
   const { running, agent } = await started();
   const { window } = running;
   const left = window.locator('[data-area="left"]');

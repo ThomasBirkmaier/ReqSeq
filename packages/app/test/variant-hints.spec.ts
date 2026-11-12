@@ -102,7 +102,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await running.close();
   });
 
-  test("[SR-045/AK1] the page of SR-A marks its replaces row with the one hint, and List hints of A lists it", async () => {
+  test("[SR-045/AK-yryh] the page of SR-A marks its replaces row with the one hint, and List hints of A lists it", async () => {
     const { window } = running;
     const [hint, ...others] = await elementHints(running, "SR-0000b1", [CORE_CHANGED, "relation.outdated"]);
     expect(others).toEqual([]);
@@ -142,7 +142,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(result).toContainText(ofCoast[0]?.message ?? "-");
   });
 
-  test("[SR-045/AK2] Confirm hints on SR-A writes the current version of K and the hint is gone", async () => {
+  test("[SR-045/AK-c59v] Confirm hints on SR-A writes the current version of K and the hint is gone", async () => {
     const { window } = running;
     await open(window, "Response time at most 20 ms");
     await expect(window.locator("article .relation .outdated")).toHaveCount(1);
@@ -260,7 +260,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
   /** The lines of the hints since the newest baseline on the page shown. */
   const sinceBaseline = (window: Page): Locator => window.locator("article .since-baseline");
 
-  test("[SR-103/AK1] the page of A names the adopted core requirement changed since its newest baseline with both versions", async () => {
+  test("[SR-103/AK-grj7] the page of A names the adopted core requirement changed since its newest baseline with both versions", async () => {
     const { window } = running;
     const hints = await elementHints(running, "VAR-0000c1", SINCE_BASELINE);
     expect(hints.map((h) => h.code)).toEqual(SINCE_BASELINE);
@@ -281,7 +281,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(window.getByLabel("Modeline")).toContainText("2 hints");
   });
 
-  test("[SR-103/AK7] the page of A names a core requirement new in its view since the baseline, with its current version only", async () => {
+  test("[SR-103/AK-bvjw] the page of A names a core requirement new in its view since the baseline, with its current version only", async () => {
     const { window } = running;
     const [, added] = await elementHints(running, "VAR-0000c1", SINCE_BASELINE);
     expect(added?.code).toBe("variant.core-new-since-baseline");
@@ -293,7 +293,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     ).toHaveText(added?.message ?? "-");
   });
 
-  test("[SR-103/AK3] the page of a variant without baseline shows no such hint", async () => {
+  test("[SR-103/AK-m54m] the page of a variant without baseline shows no such hint", async () => {
     const { window } = running;
     expect(await elementHints(running, "VAR-0000c2", SINCE_BASELINE)).toEqual([]);
     await open(window, "Coast");
@@ -303,7 +303,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(sinceBaseline(window)).toHaveCount(0);
   });
 
-  test("[SR-103/AK2] after a new baseline of A the open page of A shows the hints no more", async () => {
+  test("[SR-103/AK-wvtw] after a new baseline of A the open page of A shows the hints no more", async () => {
     const { window } = running;
     await open(window, "Coast");
     await expect(sinceBaseline(window)).toHaveCount(2);
@@ -338,7 +338,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(page.locator(".since-baseline")).toHaveCount(0);
   });
 
-  test("[SR-103/AK5] Confirm hints on A offers none of them and shows core's refusal with its reason", async () => {
+  test("[SR-103/AK-q8d1] Confirm hints on A offers none of them and shows core's refusal with its reason", async () => {
     const { window } = running;
     const before = await fs.readFile(path.join(ws.root, "variants", "VAR-0000000000c1.md"), "utf8");
     const refused = await cliJson<{ problems: readonly { code: string; message: string }[] }>(

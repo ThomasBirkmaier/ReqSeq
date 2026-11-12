@@ -112,7 +112,7 @@ const NEEDS = {
 };
 
 describe("evidence.coverage (SR-036)", () => {
-  it("[SR-036/AK1] counts per type of the selection how many requirements have children and how many have evidence", async () => {
+  it("[SR-036/AK-wkgr] counts per type of the selection how many requirements have children and how many have evidence", async () => {
     const workspace = await open(await fixture());
     const out = await coverage(workspace);
     expect(out.incomplete).toBe(false);
@@ -123,7 +123,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK1] evidence.coverage of a saved filter counts its elements", async () => {
+  it("[SR-036/AK-wkgr] evidence.coverage of a saved filter counts its elements", async () => {
     const workspace = await open(await fixture());
     expect(await levels(workspace, { selection: { filter: "Requirements" } })).toEqual([
       {
@@ -141,7 +141,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK1] [SR-101/AK1] evidence.coverage of a package counts exactly the elements of the package", async () => {
+  it("[SR-036/AK-wkgr] [SR-101/AK-dj6m] evidence.coverage of a package counts exactly the elements of the package", async () => {
     const workspace = await open(await fixture());
     const out = await coverage(workspace, { selection: { package: "PKG-0000d1" } });
     expect(out.levels.map(named)).toEqual([
@@ -160,7 +160,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK2] gives the requirements behind every number, those without children and without evidence included", async () => {
+  it("[SR-036/AK-xbxh] gives the requirements behind every number, those without children and without evidence included", async () => {
     const workspace = await open(await fixture());
     expect(await levels(workspace)).toEqual([
       NEEDS,
@@ -191,7 +191,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-033/AK2] a test case that names two requirements counts as evidence for each in the coverage", async () => {
+  it("[SR-033/AK-mxnt] a test case that names two requirements counts as evidence for each in the coverage", async () => {
     const ws = await fixture();
     const software = async (records: readonly EvidenceRecord[]): Promise<unknown> =>
       (await levels(await open(ws, records))).find(
@@ -214,7 +214,7 @@ describe("evidence.coverage (SR-036)", () => {
     });
   });
 
-  it("[SR-036/AK2] names every element behind the numbers once, by short ID and title, for readers (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
+  it("[SR-036/AK-xbxh] names every element behind the numbers once, by short ID and title, for readers (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const workspace = await open(await fixture());
     const out = await coverage(workspace);
     expect(out.names?.map((n) => [NAME.get(n.id), n.repository, n.shortId, n.title])).toEqual([
@@ -232,7 +232,7 @@ describe("evidence.coverage (SR-036)", () => {
     expect(new Set(out.names?.map((n) => n.id))).toEqual(new Set(listed));
   });
 
-  it("[SR-036/AK2] the UUIDs of a number select exactly its requirements in element.list", async () => {
+  it("[SR-036/AK-xbxh] the UUIDs of a number select exactly its requirements in element.list", async () => {
     const workspace = await open(await fixture());
     const [, requirements] = (await coverage(workspace)).levels;
     const ids = requirements?.elements.withoutEvidence ?? [];
@@ -240,7 +240,7 @@ describe("evidence.coverage (SR-036)", () => {
     expect(list.elements.map((e) => e.shortId)).toEqual(["SR-0000b2"]);
   });
 
-  it("[SR-036/AK3] marks the coverage incomplete when a repository of the workspace is not available", async () => {
+  it("[SR-036/AK-vt44] marks the coverage incomplete when a repository of the workspace is not available", async () => {
     const workspace = await open(await fixture({ "system/reqseq-workspace.yaml": workspaceFile() }));
     const out = await coverage(workspace);
     expect(out.incomplete).toBe(true);
@@ -252,7 +252,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK3] marks the coverage incomplete when a target lies in a repository that is not accessible", async () => {
+  it("[SR-036/AK-vt44] marks the coverage incomplete when a target lies in a repository that is not accessible", async () => {
     // S4's only child, F3, lies in `sensor`; the workspace file lists `sensor`, but it is not on this machine.
     const ws = await fixture();
     await rm(ws.path("sensor"), { recursive: true });
@@ -292,7 +292,7 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK4] leaves out requirements whose status is marked invalid", async () => {
+  it("[SR-036/AK-rsv9] leaves out requirements whose status is marked invalid", async () => {
     const workspace = await open(await fixture());
     // S3 and N3 are obsolete: not counted, even when named.
     const out = await coverage(workspace, { selection: { ids: ["SR-0000b3", "N-0000a3", "SR-0000b1"] } });
@@ -309,7 +309,7 @@ describe("evidence.coverage (SR-036)", () => {
     expect([all.includes(ID.S3), all.includes(ID.N3)]).toEqual([false, false]);
   });
 
-  it("[SR-036/AK4] a child whose status is marked invalid does not count as a child", async () => {
+  it("[SR-036/AK-rsv9] a child whose status is marked invalid does not count as a child", async () => {
     // N2's only child S3 is obsolete.
     const obsolete = await open(await fixture());
     expect((await levels(obsolete))[0]).toEqual(NEEDS);
@@ -328,7 +328,7 @@ describe("evidence.coverage (SR-036)", () => {
     });
   });
 
-  it("[SR-036/AK5] without a selected variant counts only the requirements, children and evidence of the core", async () => {
+  it("[SR-036/AK-chts] without a selected variant counts only the requirements, children and evidence of the core", async () => {
     const workspace = await open(await fixture());
     const none = await levels(workspace, { selection: { filter: "Requirements" } });
     // S4 (V2 only) is neither counted nor S2's child, and S2's record of V2 is no evidence.

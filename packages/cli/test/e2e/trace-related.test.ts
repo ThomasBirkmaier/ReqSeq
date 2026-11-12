@@ -32,7 +32,7 @@ const related = async (args: readonly string[]): Promise<{ run: Run; output: Out
 const shortIds = (output: Output): string[] => output.elements.map((e) => e.shortId);
 
 describe("reqseq trace related (SR-023)", () => {
-  it("[SR-023/AK1] lists the children of a parent on every level, and up to a depth", async () => {
+  it("[SR-023/AK-xzjq] lists the children of a parent on every level, and up to a depth", async () => {
     const all = await related(["children", "--refs", "N-0000a1"]);
     expect([all.run.code, all.run.stderr]).toEqual([0, ""]);
     expect(shortIds(all.output)).toEqual(["SR-0000b1", "SR-0000b2", "SR-0000b3", "SR-0000b4"]);
@@ -41,14 +41,14 @@ describe("reqseq trace related (SR-023)", () => {
     expect(shortIds(one.output)).toEqual(["SR-0000b1", "SR-0000b2"]);
   });
 
-  it("[SR-023/AK2] lists an element derived from two selected parents once", async () => {
+  it("[SR-023/AK-b545] lists an element derived from two selected parents once", async () => {
     const { run: result, output } = await related(["children", "--refs", "N-0000a1", "--refs", "N-0000a2"]);
     expect(result.code).toBe(0);
     expect(shortIds(output)).toEqual(["SR-0000b1", "SR-0000b2", "SR-0000b5", "SR-0000b3", "SR-0000b4"]);
     expect([output.total, output.incomplete]).toEqual([5, false]);
   });
 
-  it("[SR-023/AK3] lists every parent of a selection, and shows them as lines without --json", async () => {
+  it("[SR-023/AK-n8vt] lists every parent of a selection, and shows them as lines without --json", async () => {
     const { output } = await related(["parents", "--refs", "SR-0000b3", "--refs", "SR-0000b5"]);
     expect(shortIds(output)).toEqual(["SR-0000b1", "SR-0000b2", "N-0000a2", "N-0000a1"]);
     const ws = await createFixtureWorkspace({ fixture: "SR-023/related" });

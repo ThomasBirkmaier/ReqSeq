@@ -121,18 +121,18 @@ const withData = (
 };
 
 describe("missing relation targets (SR-089)", () => {
-  it("[SR-089/AK1] reports no finding while every target is there", async () => {
+  it("[SR-089/AK-x34w] reports no finding while every target is there", async () => {
     const { workspace } = await open();
     expect(await workspace.get(missingTargetProblemsState)).toEqual([]);
   });
 
-  it("[SR-089/AK1] reports every relation whose target was removed from a repository that is here, with source and target ID", async () => {
+  it("[SR-089/AK-x34w] reports every relation whose target was removed from a repository that is here, with source and target ID", async () => {
     const { fixture, workspace } = await open();
     await rm(fixture.path(REMOVED_FILE));
     expect(await workspace.get(missingTargetProblemsState)).toEqual(AFTER_REMOVAL);
   });
 
-  it("[SR-089/AK1] gives the findings of one element and of all elements without a line, in key and item order", async () => {
+  it("[SR-089/AK-x34w] gives the findings of one element and of all elements without a line, in key and item order", async () => {
     const { fixture, workspace } = await open();
     await rm(fixture.path(REMOVED_FILE));
     const context = await contextOf(workspace);
@@ -155,7 +155,7 @@ describe("missing relation targets (SR-089)", () => {
     expect(missingTargetFindings(recordOf(context.store, KEPT), context)).toEqual([]);
   });
 
-  it("[SR-089/AK1] reports a target that names the source's own repository, and one of a source of an unknown type", async () => {
+  it("[SR-089/AK-x34w] reports a target that names the source's own repository, and one of a source of an unknown type", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const missing = { id: REMOVED.replace("3b8e", "4b8e"), version: VERSION };
@@ -179,7 +179,7 @@ describe("missing relation targets (SR-089)", () => {
     ]);
   });
 
-  it("[SR-089/AK1] reports every mapping with a missing UUID as id, and leaves other values (SR-085), ambiguous targets (SR-088) and other keys to other checks", async () => {
+  it("[SR-089/AK-x34w] reports every mapping with a missing UUID as id, and leaves other values (SR-085), ambiguous targets (SR-088) and other keys to other checks", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const missing = REMOVED.replace("3b8e", "4b8e");
@@ -222,7 +222,7 @@ describe("missing relation targets (SR-089)", () => {
     expect(missingTargetFindings(recordOf(context.store, SR), shared)).toEqual([]);
   });
 
-  it("[SR-089/AK1] says when the target may be in a file of its repository that cannot be read (SR-008)", async () => {
+  it("[SR-089/AK-x34w] says when the target may be in a file of its repository that cannot be read (SR-008)", async () => {
     const { fixture, workspace } = await open();
     await writeFile(fixture.path(REMOVED_FILE), "---\nid: [unclosed\n---\n");
     const context = await contextOf(workspace);
@@ -334,7 +334,7 @@ describe("missing relation targets (SR-089)", () => {
     expect(referenceFindings).toHaveLength(500);
   });
 
-  it("[SR-089/AK2] does not report a relation to a target in a repository that is not on this machine", async () => {
+  it("[SR-089/AK-q647] does not report a relation to a target in a repository that is not on this machine", async () => {
     const { fixture, workspace } = await open();
     await rm(fixture.path(REMOVED_FILE));
     const context = await contextOf(workspace);
@@ -368,7 +368,7 @@ describe("missing relation targets (SR-089)", () => {
     }
   });
 
-  it("[SR-089/AK2] does not report a target in a repository the workspace file does not list (spec question ThomasBirkmaier/ReqSeq-archive#193)", async () => {
+  it("[SR-089/AK-q647] does not report a target in a repository the workspace file does not list (spec question ThomasBirkmaier/ReqSeq-archive#193)", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const missing = { id: REMOVED.replace("3b8e", "4b8e"), version: VERSION };
@@ -428,7 +428,7 @@ const withReferences = async (
   });
 
 describe("inline references to missing targets (SR-089, D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
-  it("[SR-089/AK1] reports no reference while every target is there, and every one whose target was removed from a repository that is here", async () => {
+  it("[SR-089/AK-x34w] reports no reference while every target is there, and every one whose target was removed from a repository that is here", async () => {
     const { fixture, workspace } = await withReferences();
     expect(await workspace.get(missingTargetProblemsState)).toEqual([]);
     await rm(fixture.path(REMOVED_FILE));
@@ -449,7 +449,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on Thoma
     ]);
   });
 
-  it("[SR-089/AK1] reports a reference without repository whose target is in no repository here, also while one is missing", async () => {
+  it("[SR-089/AK-x34w] reports a reference without repository whose target is in no repository here, also while one is missing", async () => {
     const { workspace } = await withReferences({
       [`sensor/notes/SR-7c9d1e3f5a7b.md`]: [
         "---",
@@ -486,7 +486,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on Thoma
     expect(missingReferenceFindings(recordOf(context.store, KEPT), context)).toEqual([]);
   });
 
-  it("[SR-089/AK1] says when the target of a reference may be in a file that cannot be read (SR-008), and checks only UUIDs", async () => {
+  it("[SR-089/AK-x34w] says when the target of a reference may be in a file that cannot be read (SR-008), and checks only UUIDs", async () => {
     const { fixture, workspace } = await withReferences();
     await writeFile(fixture.path(REMOVED_FILE), "---\nid: [unclosed\n---\n");
     const context = await contextOf(workspace);
@@ -500,7 +500,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on Thoma
     expect(missingReferenceFindings(odd, context)).toEqual([]);
   });
 
-  it("[SR-089/AK2] does not report a reference to a repository that is not on this machine or that the workspace file does not list", async () => {
+  it("[SR-089/AK-q647] does not report a reference to a repository that is not on this machine or that the workspace file does not list", async () => {
     const { fixture, workspace } = await withReferences();
     await rm(fixture.path(REMOVED_FILE));
     const context = await contextOf(workspace);
@@ -511,7 +511,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on Thoma
     expect(missingReferenceFindings(sr, context).map((f) => f.reference.line)).toEqual([17, 18]);
   });
 
-  it("[SR-089/AK1] says how to name a repository that is not on this machine only for a link without repository, and only while one is missing", async () => {
+  it("[SR-089/AK-x34w] says how to name a repository that is not on this machine only for a link without repository, and only while one is missing", async () => {
     const { fixture, workspace } = await withReferences();
     await rm(fixture.path(REMOVED_FILE));
     const context = await contextOf(workspace);

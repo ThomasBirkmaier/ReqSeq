@@ -7,7 +7,7 @@ name: Performance
 # again); it is not a required check. Every time goes into the record
 # verification/performance.md, and a time over a threshold that is not for comparison only opens or updates
 # an issue labelled `perf`.
-# A test tagged `[SR-xxx/AKn]` asserts its threshold and fails the run (ADR-0011: a pass on a runner at
+# A test tagged `[SR-xxx/AK-<key>]` asserts its threshold and fails the run (ADR-0011: a pass on a runner at
 # or below the reference machine of 4 cores and 16 GB is evidence); untagged measurements only record. Failing
 # correctness assertions (wrong counts, findings, versions) fail it too. On Linux the suite runs inside
 # `unshare -rn`, without network, like the CLI e2e suite (ci.yml).

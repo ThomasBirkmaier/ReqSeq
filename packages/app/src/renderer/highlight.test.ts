@@ -56,7 +56,7 @@ describe("trimLead", () => {
   const text = "The station records pressure and rain, and it sounds an alarm at a squall.";
   const at = text.indexOf("squall");
 
-  it("[SR-174/AK1] cuts the words before the first mark at a word start, leads with …, and moves the marks", () => {
+  it("[SR-174/AK-mxnw] cuts the words before the first mark at a word start, leads with …, and moves the marks", () => {
     const trimmed = trimLead(text, [[at, at + 6]], 11);
     expect(trimmed.text).toBe("…alarm at a squall.");
     const [range] = trimmed.ranges;

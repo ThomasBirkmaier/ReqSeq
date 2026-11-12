@@ -63,7 +63,7 @@ test.describe("search hits filtered and grouped", () => {
     await running.close();
   });
 
-  test("[SR-124/AK4] a filter narrows the hits, and the hits left keep their order", async () => {
+  test("[SR-124/AK-mtm9] a filter narrows the hits, and the hits left keep their order", async () => {
     const { window } = running;
     const plain = await searched(running);
     await showFolded(window, await hitsOf(running));
@@ -78,7 +78,7 @@ test.describe("search hits filtered and grouped", () => {
     await expect(ids(window)).toHaveText(filtered);
   });
 
-  test("[SR-149/AK6] [SR-075/AK4] grouped by status, the hits stand under their headings, each group in the order of the search, and the search offers no sort", async () => {
+  test("[SR-149/AK-byyt] [SR-075/AK-qgzh] grouped by status, the hits stand under their headings, each group in the order of the search, and the search offers no sort", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     const before = await snapshot(root);
@@ -109,7 +109,7 @@ test.describe("search hits filtered and grouped", () => {
     expect(await snapshot(root)).toEqual(before);
   });
 
-  test("[SR-201/AK1] the search list puts its hits in a folded status at the end, in a collapsed section with their count, the others before it in their order", async () => {
+  test("[SR-201/AK-d03x] the search list puts its hits in a folded status at the end, in a collapsed section with their count, the others before it in their order", async () => {
     const { window } = running;
     const hits = await hitsOf(running);
     const folded = hits.filter((hit) => hit.status === FOLDED_STATUS);

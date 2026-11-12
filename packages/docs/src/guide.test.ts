@@ -12,7 +12,7 @@ const guideDir = fileURLToPath(new URL("../../../docs/guide/", import.meta.url))
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 describe("guide", () => {
-  it("[SR-140/AK1] the steps of Get started, run in order, create a workspace, a first element and a first chain", async () => {
+  it("[SR-140/AK-kbzc] the steps of Get started, run in order, create a workspace, a first element and a first chain", async () => {
     const path = "start/get-started.md";
     const steps = pageSteps({ path, text: await readFile(join(guideDir, path), "utf8") });
     const cwd = await mkdtemp(join(tmpdir(), "reqseq-get-started-"));
@@ -35,7 +35,7 @@ describe("guide", () => {
     }
   });
 
-  it("[SR-140/AK2] every example of the guide runs with this version, and a failing one stops the build", async () => {
+  it("[SR-140/AK-v5p1] every example of the guide runs with this version, and a failing one stops the build", async () => {
     const pages = await readGuidePages(guideDir);
     expect(await checkExamples(pages, runReqseq)).toBeGreaterThanOrEqual(6);
     const broken = {
@@ -52,7 +52,7 @@ describe("guide", () => {
     await expect(checkExamples([changed], runReqseq)).rejects.toThrow("the output differs from the page");
   });
 
-  it("[SR-140/AK2] the build checks that the app entries, API paths and MCP tools a how-to names exist in this version", async () => {
+  it("[SR-140/AK-v5p1] the build checks that the app entries, API paths and MCP tools a how-to names exist in this version", async () => {
     const pages = await readGuidePages(guideDir);
     const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
     expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);
@@ -74,7 +74,7 @@ describe("guide", () => {
     expect(() => checkHowTos([renamed], names)).toThrow("docs: how-to pages");
   });
 
-  it("[SR-140/AK3] every how-to shows its task in the app, the CLI, the API and MCP", async () => {
+  it("[SR-140/AK-d28g] every how-to shows its task in the app, the CLI, the API and MCP", async () => {
     const pages = await readGuidePages(guideDir);
     const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
     expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);

@@ -40,7 +40,7 @@ const coverage = async (input: unknown, args: readonly string[] = ["--json"]): P
 };
 
 describe("reqseq evidence coverage (SR-036)", () => {
-  it("[SR-036/AK1] reqseq evidence coverage prints the counts per type for a saved filter", async () => {
+  it("[SR-036/AK-wkgr] reqseq evidence coverage prints the counts per type for a saved filter", async () => {
     const result = await coverage({ selection: { filter: "Requirements" } });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as Output;
@@ -50,7 +50,7 @@ describe("reqseq evidence coverage (SR-036)", () => {
     ]);
   });
 
-  it("[SR-036/AK2] reqseq evidence coverage lists the requirements behind each number, as readable output too", async () => {
+  it("[SR-036/AK-xbxh] reqseq evidence coverage lists the requirements behind each number, as readable output too", async () => {
     const result = await coverage({ selection: { where: { type: ["need"] } } }, []);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     // By short ID and title, as other listings (ThomasBirkmaier/ReqSeq-archive#588); `--json` keeps the UUIDs.
@@ -61,7 +61,7 @@ describe("reqseq evidence coverage (SR-036)", () => {
     expect(result.stdout).not.toContain("names:");
   });
 
-  it("[SR-036/AK2] reqseq evidence coverage --json keeps the UUIDs and names them in names (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
+  it("[SR-036/AK-xbxh] reqseq evidence coverage --json keeps the UUIDs and names them in names (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const result = await coverage({ selection: { where: { type: ["need"] } } });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as Output;

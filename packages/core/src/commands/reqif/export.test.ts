@@ -155,7 +155,7 @@ const parsed = async (fixture: FixtureWorkspace, file: string): Promise<ReqifFil
 };
 
 describe("reqif.export (SR-052)", () => {
-  it("[SR-052/AK1] writes a file valid against the ReqIF 1.2 schema with every element of the selection, needs and decisions too, in one flat SPECIFICATION in the order of the list", async (context) => {
+  it("[SR-052/AK-hk4d] writes a file valid against the ReqIF 1.2 schema with every element of the selection, needs and decisions too, in one flat SPECIFICATION in the order of the list", async (context) => {
     const { fixture, workspace } = await open();
     const inPackage = { package: PACKAGE };
     const out = await run<Exported>(workspace, "reqif.export", { output: "s6.reqif", selection: inPackage });
@@ -206,7 +206,7 @@ describe("reqif.export (SR-052)", () => {
     }
   });
 
-  it("[SR-052/AK2] gives every requirement the IDENTIFIER _ plus its UUID and writes every relation as a SPEC-RELATION, a target outside the export as a stub", async () => {
+  it("[SR-052/AK-fbfz] gives every requirement the IDENTIFIER _ plus its UUID and writes every relation as a SPEC-RELATION, a target outside the export as a stub", async () => {
     const { fixture, workspace } = await open();
     await run<Exported>(workspace, "reqif.export", { output: "s6.reqif", selection: { package: PACKAGE } });
     const file = await parsed(fixture, "s6.reqif");
@@ -243,7 +243,7 @@ describe("reqif.export (SR-052)", () => {
     });
   });
 
-  it("[SR-052/AK3] a file of ReqSeq imported into an empty workspace without a mapping gives the same titles, texts, properties, relations and versions, with no relation outdated, and saves its one-to-one mapping", async () => {
+  it("[SR-052/AK-n04g] a file of ReqSeq imported into an empty workspace without a mapping gives the same titles, texts, properties, relations and versions, with no relation outdated, and saves its one-to-one mapping", async () => {
     const original = await open();
     await run<Exported>(original.workspace, "reqif.export", { output: "all.reqif" });
     const all = await fs.readFile(original.fixture.path("all.reqif"), "utf8");
@@ -403,7 +403,7 @@ describe("reqif.export (SR-052)", () => {
     await expect(fs.access(fixture.path("gone"))).rejects.toThrow();
   });
 
-  it("[SR-083/AK3] [SR-083/AK4] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
+  it("[SR-083/AK-zp6z] [SR-083/AK-s4q9] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
     const { fixture, workspace } = await open(undefined, { ".git/hooks/keep": "", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("linked"), "junction");
     await fs.symlink(fixture.path(".git/hooks"), fixture.path("y-images"), "junction");

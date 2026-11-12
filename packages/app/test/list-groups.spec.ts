@@ -38,7 +38,7 @@ test.describe("a grouped list", () => {
     await running.close();
   });
 
-  test("[SR-149/AK4] the command line offers type, status, package and the properties with values to choose", async () => {
+  test("[SR-149/AK-mfr6] the command line offers type, status, package and the properties with values to choose", async () => {
     const { window } = running;
     await command(window, "Group list");
     await expect(candidates(window)).toHaveText([
@@ -52,7 +52,7 @@ test.describe("a grouped list", () => {
     ]);
   });
 
-  test("[SR-149/AK3] the list shows its groups with heading and count, regroups and ungroups in the same sort", async () => {
+  test("[SR-149/AK-pd1k] the list shows its groups with heading and count, regroups and ungroups in the same sort", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     const before = await snapshot(root);
@@ -83,7 +83,7 @@ test.describe("a grouped list", () => {
     expect(await snapshot(root)).toEqual(before);
   });
 
-  test("[SR-201/AK1] in a grouped list the folded section stands after the last group, collapsed with its count, and groups its elements by the same property", async () => {
+  test("[SR-201/AK-d03x] in a grouped list the folded section stands after the last group, collapsed with its count, and groups its elements by the same property", async () => {
     const { window } = running;
     await groupBy(window, "Status");
     const outer = shownBuffer(window).locator(".group:not(.folded .group) h2");

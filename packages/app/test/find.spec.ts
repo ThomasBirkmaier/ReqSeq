@@ -48,7 +48,7 @@ test.describe("find and replace in the element buffer", () => {
     await saveAndRead(running.window, elementFile(), text);
   };
 
-  test("[SR-189/AK1] Find in element marks every hit; Enter and Shift+Enter step, Escape leaves the caret at the hit", async () => {
+  test("[SR-189/AK-ctc8] Find in element marks every hit; Enter and Shift+Enter step, Escape leaves the caret at the hit", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+f");
     const input = window.getByLabel("Find in element");
@@ -74,7 +74,7 @@ test.describe("find and replace in the element buffer", () => {
     await expectSaved("Quarz eins, XQuarz zwei, Quarz drei\n");
   });
 
-  test("[SR-189/AK2] Replace replaces the current hit and goes to the next", async () => {
+  test("[SR-189/AK-jm2n] Replace replaces the current hit and goes to the next", async () => {
     const { window } = running;
     await command(window, "Replace");
     await window.keyboard.type("Quarz");
@@ -97,14 +97,14 @@ test.describe("find and replace in the element buffer", () => {
     await expect(window.locator(".modeline")).toContainText("Replaced 3 hits");
   };
 
-  test("[SR-189/AK3] Replace all replaces every hit and says how many in the status line", async () => {
+  test("[SR-189/AK-byc1] Replace all replaces every hit and says how many in the status line", async () => {
     const { window } = running;
     await replaceAll(window);
     await expect(window.locator(".cm-content")).toBeFocused();
     await expectSaved("Wind eins, Wind zwei, Wind drei\n");
   });
 
-  test("[SR-189/AK4] after Replace all, one undo takes the whole replacement back", async () => {
+  test("[SR-189/AK-mt6q] after Replace all, one undo takes the whole replacement back", async () => {
     const { window } = running;
     await replaceAll(window);
     await expectSaved("Wind eins, Wind zwei, Wind drei\n");

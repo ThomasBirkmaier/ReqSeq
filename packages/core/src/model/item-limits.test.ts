@@ -48,7 +48,7 @@ const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
   ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems;
 
 describe("the most entries of a list property (SR-171)", () => {
-  it("[SR-171/AK1] gives a hint with element, property, count and maximum for more entries than max-items", async () => {
+  it("[SR-171/AK-qqsg] gives a hint with element, property, count and maximum for more entries than max-items", async () => {
     const { workspace } = await open();
     const problems = await check(workspace);
     expect(problems.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
@@ -56,7 +56,7 @@ describe("the most entries of a list property (SR-171)", () => {
     expect(hints.hints.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
   });
 
-  it("[SR-171/AK2] gives no count hint for a list property without max-items, however many entries", async () => {
+  it("[SR-171/AK-ptxs] gives no count hint for a list property without max-items, however many entries", async () => {
     const { fixture } = await open();
     const model = await fs.readFile(fixture.path(MODEL), "utf8");
     // SR-c00002 has seven keywords, which have no max-items; without it on the criteria, none at all.
@@ -98,7 +98,7 @@ describe("the most entries of a list property (SR-171)", () => {
     expect(await workspace.get(itemLimitProblemsState)).toEqual([]);
   });
 
-  it("[SR-171/AK4] is shown at the element and after a bulk update, and carried over saves as a fresh build finds it", async () => {
+  it("[SR-171/AK-nx3d] is shown at the element and after a bulk update, and carried over saves as a fresh build finds it", async () => {
     const { fixture, workspace } = await open();
     const got = (await invoke("element.get", { ref: SR1 }, { workspace })) as CommandOutput<"element.get">;
     expect(got.element.problems).toEqual([shown(hint())]);
@@ -128,7 +128,7 @@ describe("the most entries of a list property (SR-171)", () => {
     expect(carried).toEqual([hint(4, 2)]);
   });
 
-  it("[SR-171/AK4] element.create and element.update save more entries than max-items, and the check reports the hint", async () => {
+  it("[SR-171/AK-nx3d] element.create and element.update save more entries than max-items, and the check reports the hint", async () => {
     const { workspace } = await open();
     const four = ["Shown in m/s.", "Shown in knots.", "Shown on the map.", "Shown in red."];
     const created = (await invoke(

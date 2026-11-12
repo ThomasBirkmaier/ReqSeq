@@ -69,7 +69,7 @@ test.describe("lists in the quiet column", () => {
     await running.close();
   });
 
-  test("[SR-148/AK1] all elements, a filtered list, search hits and the overview stand in the column of the open element", async () => {
+  test("[SR-148/AK-q9x6] all elements, a filtered list, search hits and the overview stand in the column of the open element", async () => {
     const { window } = running;
     await resize(running, 1400);
     // The overview, then the list of a type from it: the heading names the type as the metamodel does.
@@ -103,7 +103,7 @@ test.describe("lists in the quiet column", () => {
     }
   });
 
-  test("[SR-148/AK2] in a buffer narrower than the column, a list takes its full width without scrolling sideways", async () => {
+  test("[SR-148/AK-chxm] in a buffer narrower than the column, a list takes its full width without scrolling sideways", async () => {
     const { window } = running;
     await resize(running, 420);
     await listAll(window);
@@ -114,7 +114,7 @@ test.describe("lists in the quiet column", () => {
     expect(await noSideScroll(window)).toBe(true);
   });
 
-  test("[SR-148/AK3] the matrix and the graph take the full width of the buffer", async () => {
+  test("[SR-148/AK-f1m4] the matrix and the graph take the full width of the buffer", async () => {
     const { window } = running;
     await resize(running, 1400);
     await listAll(window);

@@ -84,7 +84,7 @@ const changedLines = (before: string, after: string): { removed: string[]; added
 };
 
 describe("element.update", () => {
-  it("[SR-001/AK2] keeps the file name when the element is renamed", async () => {
+  it("[SR-001/AK-dgmt] keeps the file name when the element is renamed", async () => {
     const opened = await open();
     const files = await filesBelow(opened.fixture.root);
     const before = await read(opened, GUSTS.file);
@@ -163,7 +163,7 @@ describe("element.update", () => {
     ]);
   });
 
-  it("[SR-002/AK2] keeps the UUID when title and text change", async () => {
+  it("[SR-002/AK-b8j5] keeps the UUID when title and text change", async () => {
     const opened = await open();
     const out = await update(opened, { ref: WIND.id, title: "Show wind", text: "New text.\n" });
     expect(out.element).toMatchObject({ id: WIND.id, title: "Show wind", text: "New text.\n" });
@@ -202,7 +202,7 @@ describe("element.update", () => {
     });
   });
 
-  it("[SR-001/AK3] changes of different elements on two branches merge without a conflict", async () => {
+  it("[SR-001/AK-hwvq] changes of different elements on two branches merge without a conflict", async () => {
     const opened = await open({ git: true });
     const { fixture } = opened;
     const onBranch = async (branch: string, input: Input, extra?: Record<string, unknown>): Promise<void> => {
@@ -291,7 +291,7 @@ describe("element.update", () => {
     ]);
   });
 
-  it("[SR-064/AK2] saves an emptied title as the empty title, keeping its key, and gives its element.missing-required hint; the title is never unset (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
+  it("[SR-064/AK-yhn7] saves an emptied title as the empty title, keeping its key, and gives its element.missing-required hint; the title is never unset (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const opened = await open();
     const before = await read(opened, WIND.file);
     const out = await update(opened, { ref: WIND.id, title: "" });
@@ -318,7 +318,7 @@ describe("element.update", () => {
     expect(await read(opened, WIND.file)).toContain('title: ""\n');
   });
 
-  it("[SR-064/AK3] an element created with only its title takes every other property of its type when opened again, required and optional (the origin aside, SR-057), in type order; the hints of the filled required properties are gone", async () => {
+  it("[SR-064/AK-cs9n] an element created with only its title takes every other property of its type when opened again, required and optional (the origin aside, SR-057), in type order; the hints of the filled required properties are gone", async () => {
     const opened = await open();
     const create = async (input: Record<string, unknown>): Promise<CommandOutput<"element.create">> =>
       (await invoke("element.create", input, {
@@ -489,7 +489,7 @@ describe("element.update", () => {
     expect(await filesBelow(opened.fixture.root)).toEqual(before);
   });
 
-  it("[SR-086/AK1] gives the hint on a relation between types that are not allowed for the element it writes", async () => {
+  it("[SR-086/AK-yrxg] gives the hint on a relation between types that are not allowed for the element it writes", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-086/relation-types" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.path("system"));
@@ -541,7 +541,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
-  it("[SR-016/AK4] removes a property the type does not know with unset, and nothing else, but refuses to set it (#189)", async () => {
+  it("[SR-016/AK-qdr5] removes a property the type does not know with unset, and nothing else, but refuses to set it (#189)", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     expect((await updateError(opened, { ref: GUSTS.id, set: { "customer-id": "1" } })).details).toMatchObject(
@@ -563,7 +563,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(after);
   });
 
-  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-012/AK-f3bs] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "performance" } });
     expect(out.element.properties["requirement-type"]).toBe("performance");
@@ -590,7 +590,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
-  it("[SR-064/AK2] saves an empty string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
+  it("[SR-064/AK-yhn7] saves an empty string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
     const opened = await open();
     const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "" } });
     expect(await read(opened, GUSTS.file)).toContain('\nrequirement-type: ""\n');
@@ -603,7 +603,7 @@ describe("element.update", () => {
     expect(out.problems?.filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
-  it("[SR-166/AK3] refuses a file that changed on disk since it was read and works again on the next call", async () => {
+  it("[SR-166/AK-cwf8] refuses a file that changed on disk since it was read and works again on the next call", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     const changed = (await read(opened, WIND.file)).replace("Show wind speed", "Changed elsewhere");
@@ -839,7 +839,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
   const SPEED = "SR-00b001";
   const SPEED_FILE = "requirements/SR-00000000b001.md";
 
-  it("[SR-024/AK2] shows the number of directly affected elements when the content changed", async () => {
+  it("[SR-024/AK-mf7x] shows the number of directly affected elements when the content changed", async () => {
     const opened = await open(AFFECTED);
     const text = await update(opened, { ref: SPEED, text: "The station shows the wind speed in knots.\n" });
     expect([text.files, text.affected]).toEqual([["requirements/SR-00000000b001.md"], 2]);
@@ -852,7 +852,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect([storms.files.length, storms.affected]).toEqual([1, 0]);
   });
 
-  it("[SR-024/AK2] counts an element with a relation and a reference to it once", async () => {
+  it("[SR-024/AK-mf7x] counts an element with a relation and a reference to it once", async () => {
     const opened = await open(AFFECTED);
     const gusts = await read(opened, "requirements/SR-00000000b002.md");
     await fs.writeFile(
@@ -865,7 +865,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect((await update(opened, { ref: SPEED, text: "Speed.\n" })).affected).toBe(2);
   });
 
-  it("[SR-024/AK2] counts a save that changes only the stored version of a reference: links that store normal form 1 become outdated, though n2 stays (#166)", async () => {
+  it("[SR-024/AK-mf7x] counts a save that changes only the stored version of a reference: links that store normal form 1 become outdated, though n2 stays (#166)", async () => {
     const opened = await open(AFFECTED);
     const file = "requirements/SR-00000000b002.md";
     const link = (version: string): string =>
@@ -883,7 +883,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect([out.element.version, out.affected]).toEqual([before.element.version, 2]);
   });
 
-  it("[SR-024/AK2] counts a save of an element whose old version had no normal form as a change", async () => {
+  it("[SR-024/AK-mf7x] counts a save of an element whose old version had no normal form as a change", async () => {
     const model = STANDARD.replace(
       "\nrelations:",
       "  - { key: weight, name: Weight, kind: number, content: true }\n\nrelations:",
@@ -911,7 +911,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     return opened;
   };
 
-  it("[SR-024/AK2] counts a change of the content of an element that keeps a value without a normal form (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
+  it("[SR-024/AK-mf7x] counts a change of the content of an element that keeps a value without a normal form (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     const opened = await openEndless();
     // The text changes and the value stays: neither the old nor the new element has a version.
     const text = await update(opened, { ref: SPEED, text: "The station shows the wind speed in knots.\n" });
@@ -928,7 +928,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect([counted.files, counted.affected]).toEqual([[SPEED_FILE], 2]);
   });
 
-  it("[SR-024/AK3] shows no affected elements when only the title of an element without a version changed (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
+  it("[SR-024/AK-jt0q] shows no affected elements when only the title of an element without a version changed (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     const opened = await openEndless();
     const title = await update(opened, { ref: SPEED, title: "Show the wind speed" });
     expect([title.files, title.affected]).toEqual([[SPEED_FILE], 0]);
@@ -940,7 +940,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect(same.element).not.toHaveProperty("version");
   });
 
-  it("[SR-024/AK3] shows no affected elements when only the title or a property outside the content changed", async () => {
+  it("[SR-024/AK-jt0q] shows no affected elements when only the title or a property outside the content changed", async () => {
     const opened = await open(AFFECTED);
     const title = await update(opened, { ref: SPEED, title: "Show the wind speed" });
     expect([title.files.length, title.affected]).toEqual([1, 0]);
@@ -1069,7 +1069,7 @@ describe("element.update text layout (ThomasBirkmaier/ReqSeq-archive#308)", () =
     expect((await get(opened, GUSTS.id)).element.text).toBe("The station shows gusts above 10 m/s.\n");
   });
 
-  it("[SR-102/AK1] a new title with the text element.get gave changes only the title line, in every layout", async () => {
+  it("[SR-102/AK-zts9] a new title with the text element.get gave changes only the title line, in every layout", async () => {
     const layouts = {
       blank: `${HEAD}title: Show wind speed\n---\n\nText.\n`,
       none: `${HEAD}title: Show wind speed\n---\nText.\n`,

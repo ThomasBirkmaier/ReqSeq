@@ -76,7 +76,7 @@ const bodyOf = (ws: FixtureWorkspace, out: Output): string =>
   read(ws, out.baseline.file).slice(read(ws, out.baseline.file).indexOf("repositories:"));
 
 describe("baseline.create", () => {
-  it("[SR-050/AK1] [SR-101/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version, for exactly the elements of the package", async () => {
+  it("[SR-050/AK-cvrg] [SR-101/AK-dj6m] baseline.create writes a file in the baseline folder with name, date, commits and id plus version, for exactly the elements of the package", async () => {
     const ws = await fixture();
     const head = await ws.head("system");
     const { B1, B2 } = await entries(ws);
@@ -110,7 +110,7 @@ describe("baseline.create", () => {
     expect(await ws.git(["status", "--porcelain"], "system")).toBe(`?? ${file}\n`);
   });
 
-  it("[SR-050/AK2] uncommitted or never committed files of the selection, embedded files, metamodel or workspace file refuse the baseline; evidence records do not", async () => {
+  it("[SR-050/AK-dw8y] uncommitted or never committed files of the selection, embedded files, metamodel or workspace file refuse the baseline; evidence records do not", async () => {
     const ws = await fixture();
     const b1 = { id: `${ID}b1`, repository: "system", file: "requirements/SR-0000000000b1.md" };
     const refused = async (change: () => Promise<void>): Promise<unknown> => {
@@ -162,7 +162,7 @@ describe("baseline.create", () => {
     expect((await create(ws, "Allowed", PACKAGE)).baseline.elements).toBe(2);
   });
 
-  it("[SR-050/AK8] refuses a view that differs from the saved filter's view and stores the same view once", async () => {
+  it("[SR-050/AK-v9bb] refuses a view that differs from the saved filter's view and stores the same view once", async () => {
     const ws = await fixture();
     await ws.write(
       "system/filters/coast.yaml",
@@ -183,7 +183,7 @@ describe("baseline.create", () => {
     );
   });
 
-  it("[SR-050/AK3] a baseline through a view, a variant or the core, names that view", async () => {
+  it("[SR-050/AK-n87p] a baseline through a view, a variant or the core, names that view", async () => {
     const ws = await fixture();
     const out = await create(ws, "Coast", { view: "VAR-0000c1" });
     expect(read(ws, out.baseline.file)).toContain(
@@ -215,7 +215,7 @@ describe("baseline.create", () => {
     );
   });
 
-  it("[SR-050/AK4] R1 in system and R2 in sensor give the commits of system and sensor once each", async () => {
+  it("[SR-050/AK-j37t] R1 in system and R2 in sensor give the commits of system and sensor once each", async () => {
     const ws = await fixture();
     const [system, sensor] = [await ws.head("system"), await ws.head("sensor")];
     const { B1, E1 } = await entries(ws);
@@ -244,7 +244,7 @@ describe("baseline.create", () => {
     );
   });
 
-  it("[SR-050/AK5] an empty selection writes a file with an empty element list", async () => {
+  it("[SR-050/AK-knpc] an empty selection writes a file with an empty element list", async () => {
     const ws = await fixture();
     fs.rmSync(ws.path("system/baselines"), { recursive: true });
     const out = await create(ws, "基线一", { ids: [] });
@@ -255,7 +255,7 @@ describe("baseline.create", () => {
     expect(scanBaseline(read(ws, out.baseline.file))?.elements).toEqual([]);
   });
 
-  it("[SR-050/AK6] a second baseline „Release 1“ is refused naming the existing file, nothing overwritten", async () => {
+  it("[SR-050/AK-g01t] a second baseline „Release 1“ is refused naming the existing file, nothing overwritten", async () => {
     const ws = await fixture();
     const before = read(ws, "baselines/release-1.yaml");
     for (const name of ["Release 1", "RELEASE 1"]) {
@@ -272,7 +272,7 @@ describe("baseline.create", () => {
     expect((await create(ws, "Release-1", PACKAGE)).files).toEqual(["baselines/Release-1-2.yaml"]);
   });
 
-  it("[SR-050/AK7] a repository without a commit refuses the baseline naming it", async () => {
+  it("[SR-050/AK-k905] a repository without a commit refuses the baseline naming it", async () => {
     const ws = await fixture(["system"]);
     const refusal = async (): Promise<unknown> => {
       const error = await failure(ws, "Sensor", { ids: ["SR-0000e1"] });
@@ -325,7 +325,7 @@ describe("baseline.create", () => {
     expect([missing.code, missing.details]).toEqual(["file.folder-missing", { repository: "sensor" }]);
   });
 
-  it("[SR-083/AK4] writes no baseline below .git, also when the workspace file places the baselines folder there", async () => {
+  it("[SR-083/AK-s4q9] writes no baseline below .git, also when the workspace file places the baselines folder there", async () => {
     const ws = await fixture();
     const settings = read(ws, "reqseq-workspace.yaml");
     const inGit = (): string[] => fs.readdirSync(ws.path("system/.git")).sort();

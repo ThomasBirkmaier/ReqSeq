@@ -28,7 +28,7 @@ const workspace = async (fixture: string): Promise<FixtureWorkspace> => {
 };
 
 describe("reqseq variants (SR-039)", () => {
-  it("[SR-039/AK1] element.create of type variant writes a variant file in the workspace of the core", async () => {
+  it("[SR-039/AK-w7mx] element.create of type variant writes a variant file in the workspace of the core", async () => {
     const ws = await workspace("SR-040/validity");
     const head = await ws.head();
     const result = await reqseq(["element", "create", "variant", "Valley", "--json"], { cwd: ws.root });
@@ -42,7 +42,7 @@ describe("reqseq variants (SR-039)", () => {
     expect(await ws.head()).toBe(head);
   });
 
-  it("[SR-039/AK2] element.create, update and bulkUpdate refuse a variant whose validity names a variant, naming the reason; a relation between variants is allowed", async () => {
+  it("[SR-039/AK-nvfq] element.create, update and bulkUpdate refuse a variant whose validity names a variant, naming the reason; a relation between variants is allowed", async () => {
     const ws = await workspace("SR-039/nested");
     const before = await fs.readFile(ws.path(FILE_B), "utf8");
     const create = await reqseq(
@@ -97,7 +97,7 @@ describe("reqseq variants (SR-039)", () => {
     expect(await ws.git(["status", "--porcelain"])).toBe(" M variants/VAR-0000000000c3.md\n");
   });
 
-  it("[SR-039/AK3] workspace.check and hint.list report a hand-written validity of a variant at its line", async () => {
+  it("[SR-039/AK-jfrf] workspace.check and hint.list report a hand-written validity of a variant at its line", async () => {
     const ws = await workspace("SR-039/nested");
     const check = await reqseq(["workspace", "check"], { cwd: ws.root });
     expect([check.code, check.stderr]).toEqual([0, ""]);

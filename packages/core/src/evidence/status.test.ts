@@ -55,12 +55,12 @@ const statusOf = (records: readonly EvidenceRecord[], view: View = CORE, indepen
 };
 
 describe("verificationStatusOf (SR-031)", () => {
-  it("[SR-031/AK1] a requirement without records is open", () => {
+  it("[SR-031/AK-kbs6] a requirement without records is open", () => {
     expect(verificationStatusOf([], forms(CURRENT), CORE, false)).toBe("open");
     expect(verificationStatusOf([], undefined, IN_V, false)).toBe("open");
   });
 
-  it("[SR-031/AK2] a record of either normal form of the current version counts (ADR-0005)", () => {
+  it("[SR-031/AK-fnvr] a record of either normal form of the current version counts (ADR-0005)", () => {
     const both = { n1: CURRENT, n2: "n2:1111111111111111" };
     const ofN2 = [record("2026-01-01T10:00:00Z", "passed", { version: both.n2 })];
     expect(verificationStatusOf(ofN2, both, CORE, false)).toBe("verified");
@@ -80,21 +80,21 @@ describe("verificationStatusOf (SR-031)", () => {
     });
   });
 
-  it("[SR-031/AK2] the newest record of the current version passed gives verified", () => {
+  it("[SR-031/AK-fnvr] the newest record of the current version passed gives verified", () => {
     expect(statusOf([record("2026-01-01T10:00:00Z", "passed")])).toEqual(["verified", "verified"]);
   });
 
-  it("[SR-031/AK2] an older failed record of the current version does not count when a newer one passed", () => {
+  it("[SR-031/AK-fnvr] an older failed record of the current version does not count when a newer one passed", () => {
     expect(
       statusOf([record("2026-01-01T10:00:00Z", "failed"), record("2026-01-02T10:00:00Z", "passed")]),
     ).toEqual(["verified", "verified"]);
   });
 
-  it("[SR-031/AK3] the newest record of the current version failed gives failed", () => {
+  it("[SR-031/AK-bt0c] the newest record of the current version failed gives failed", () => {
     expect(statusOf([record("2026-01-01T10:00:00Z", "failed")])).toEqual(["failed", "failed"]);
   });
 
-  it("[SR-031/AK3] a newer failed record beats an older passed one of the current version", () => {
+  it("[SR-031/AK-bt0c] a newer failed record beats an older passed one of the current version", () => {
     expect(
       statusOf([
         record("2026-01-01T10:00:00Z", "passed"),
@@ -104,7 +104,7 @@ describe("verificationStatusOf (SR-031)", () => {
     ).toEqual(["failed", "failed"]);
   });
 
-  it("[SR-031/AK4] records only of older versions give outdated", () => {
+  it("[SR-031/AK-hn13] records only of older versions give outdated", () => {
     expect(
       statusOf([
         record("2026-01-01T10:00:00Z", "passed", { version: OLDER }),
@@ -113,7 +113,7 @@ describe("verificationStatusOf (SR-031)", () => {
     ).toEqual(["outdated", "outdated"]);
   });
 
-  it("[SR-031/AK4] a record of the current version beats newer records of an older version", () => {
+  it("[SR-031/AK-hn13] a record of the current version beats newer records of an older version", () => {
     expect(
       statusOf([
         record("2026-01-01T10:00:00Z", "passed"),
@@ -282,7 +282,7 @@ const KEYED = elementCriteria(A, ITEMS, (id, version) => (id === A && version ==
 const named = (...n: number[]) => n.map((i) => ({ criterion: i, ...ITEMS[i - 1] }));
 
 describe("verification status per acceptance criterion (SR-031, D-072)", () => {
-  it("[SR-031/AK1] a requirement with three criteria and no record is open, none of them verified", () => {
+  it("[SR-031/AK-kbs6] a requirement with three criteria and no record is open, none of them verified", () => {
     const none = {
       status: "open",
       criteria: {
@@ -304,7 +304,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     });
   });
 
-  it("[SR-031/AK2] verified when the newest record of the current version for every criterion passed", () => {
+  it("[SR-031/AK-fnvr] verified when the newest record of the current version for every criterion passed", () => {
     const records = [
       record(DAY1, "passed", { criteria: [1] }),
       record(DAY1, "passed", { criteria: [2, 3] }),
@@ -319,7 +319,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     });
   });
 
-  it("[SR-031/AK3] failed when the newest record of the current version for one criterion failed", () => {
+  it("[SR-031/AK-bt0c] failed when the newest record of the current version for one criterion failed", () => {
     const records = [
       record(DAY1, "passed", { criteria: [1, 3] }),
       record(DAY1, "passed", { criteria: [2] }),
@@ -331,7 +331,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     });
   });
 
-  it("[SR-031/AK10] a criterion with several records of the current version at the newest instant fails when one of them failed", () => {
+  it("[SR-031/AK-cffh] a criterion with several records of the current version at the newest instant fails when one of them failed", () => {
     // A failed and a passed record of the same date naming the same criterion give failed (#1323).
     expect(
       perCriterion([
@@ -356,7 +356,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toBe("verified");
   });
 
-  it("[SR-031/AK4] outdated when the requirement has records of older versions only, whatever they name", () => {
+  it("[SR-031/AK-hn13] outdated when the requirement has records of older versions only, whatever they name", () => {
     expect(
       perCriterion([
         record(DAY1, "passed", { version: OLDER, criteria: [1] }),
@@ -374,7 +374,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     });
   });
 
-  it("[SR-031/AK5] open with 2 of 3 when two criteria passed and the third has no record", () => {
+  it("[SR-031/AK-yscc] open with 2 of 3 when two criteria passed and the third has no record", () => {
     expect(
       perCriterion([record(DAY1, "passed", { criteria: [1] }), record(DAY2, "passed", { criteria: [2] })]),
     ).toEqual({ status: "open", criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] } });
@@ -393,7 +393,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     });
   });
 
-  it("[SR-031/AK6] a record that names no criterion counts for every criterion", () => {
+  it("[SR-031/AK-r51q] a record that names no criterion counts for every criterion", () => {
     expect(perCriterion([record(DAY1, "passed")])).toEqual({
       status: "verified",
       criteria: { verified: 3, total: 3 },
@@ -415,7 +415,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     );
   });
 
-  it("[SR-031/AK7] without criteria the newest record of the current version counts for the whole requirement", () => {
+  it("[SR-031/AK-xth0] without criteria the newest record of the current version counts for the whole requirement", () => {
     expect(perCriterion([record(DAY1, "passed", { criteria: [2] })], 0)).toEqual({ status: "verified" });
     expect(perCriterion([record(DAY1, "passed"), record(DAY2, "failed", { criteria: [1] })], 0)).toEqual({
       status: "failed",
@@ -425,7 +425,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toBe("verified");
   });
 
-  it("[SR-031/AK8] outdated when none failed, one criterion has records of older versions only and the rest are verified", () => {
+  it("[SR-031/AK-tt4x] outdated when none failed, one criterion has records of older versions only and the rest are verified", () => {
     expect(
       perCriterion(
         [
@@ -437,7 +437,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toEqual({ status: "outdated", criteria: { verified: 2, total: 3, notVerified: named(3) } });
   });
 
-  it("[SR-031/AK9] the precedence of the criteria: failed, then outdated by AK4, then open, then outdated", () => {
+  it("[SR-031/AK-r34n] the precedence of the criteria: failed, then outdated by AK4, then open, then outdated", () => {
     // One criterion failed: failed, whatever the others are (no record, older versions only).
     expect(
       perCriterion(
@@ -476,7 +476,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toEqual({ status: "outdated", criteria: { verified: 2, total: 3, notVerified: named(2) } });
   });
 
-  it("[SR-028/AK4] counts a record for each criterion it names by key or number, mixed, and for no other", () => {
+  it("[SR-028/AK-rmw3] counts a record for each criterion it names by key or number, mixed, and for no other", () => {
     expect(perCriterion([record(DAY1, "passed", { criteria: [1, "kccc"] })], KEYED)).toEqual({
       status: "open",
       criteria: { verified: 2, total: 3, notVerified: named(2) },
@@ -506,7 +506,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toEqual(["outdated", "open", "open"]);
   });
 
-  it("[SR-031/AK11] an older record counts for the criterion with its key: by key, or by number through the newest commit of its version", () => {
+  it("[SR-031/AK-jr2m] an older record counts for the criterion with its key: by key, or by number through the newest commit of its version", () => {
     const current = [ITEMS[2], { key: "knew", text: "new" }, ITEMS[0]];
     const withOlder = (items: readonly unknown[] | undefined): ElementCriteria =>
       elementCriteria(A, current, (id, version) => (id === A && version === OLDER ? items : undefined));
@@ -551,7 +551,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     ).toBe("outdated");
   });
 
-  it("[SR-031/AK12] a current record that names only keys or numbers the current version lacks counts for no criterion, but as a current record", () => {
+  it("[SR-031/AK-p0hh] a current record that names only keys or numbers the current version lacks counts for no criterion, but as a current record", () => {
     for (const criteria of [["kzzz"], [4]]) {
       const records = [record(DAY1, "passed", { criteria })];
       expect(perCriterion(records, KEYED)).toEqual({
@@ -565,7 +565,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
     }
   });
 
-  it("[SR-204/AK10] a record with a key two criteria carry counts for neither", () => {
+  it("[SR-204/AK-r4d4] a record with a key two criteria carry counts for neither", () => {
     const twice = elementCriteria(A, [ITEMS[0], { key: "kaaa", text: "again" }, ITEMS[2]]);
     expect(perCriterion([record(DAY1, "passed", { criteria: ["kaaa", "kccc"] })], twice).criteria).toEqual({
       verified: 1,
@@ -615,7 +615,7 @@ describe("verification status per acceptance criterion (SR-031, D-072)", () => {
 });
 
 describe("validationOf (SR-038)", () => {
-  it("[SR-038/AK3] an element without validation record is open", () => {
+  it("[SR-038/AK-wb3p] an element without validation record is open", () => {
     expect(statusesOf([])).toEqual(["open", "open"]);
   });
 
@@ -624,7 +624,7 @@ describe("validationOf (SR-038)", () => {
     ["failed", "passed", "validated"],
     ["passed", "passed", "validated"],
   ] as const)(
-    "[SR-038/AK3] the newest validation record of the current version decides: older %s, newer %s gives %s",
+    "[SR-038/AK-wb3p] the newest validation record of the current version decides: older %s, newer %s gives %s",
     (older, newer, status) => {
       expect(
         statusesOf([validation("2026-01-01T10:00:00Z", older), validation("2026-02-01T10:00:00Z", newer)]),
@@ -632,14 +632,14 @@ describe("validationOf (SR-038)", () => {
     },
   );
 
-  it("[SR-038/AK2] a validation of an older version gives outdated", () => {
+  it("[SR-038/AK-g54k] a validation of an older version gives outdated", () => {
     expect(statusesOf([validation("2026-01-01T10:00:00Z", "passed", { version: OLDER })])).toEqual([
       "outdated",
       "outdated",
     ]);
   });
 
-  it("[SR-038/AK3] only records of older versions give outdated; a record of the current version beats newer records of an older version", () => {
+  it("[SR-038/AK-wb3p] only records of older versions give outdated; a record of the current version beats newer records of an older version", () => {
     expect(
       statusesOf([
         validation("2026-01-01T10:00:00Z", "failed", { version: OLDER }),
@@ -654,7 +654,7 @@ describe("validationOf (SR-038)", () => {
     ).toEqual(["validated", "validated"]);
   });
 
-  it("[SR-038/AK1] verification records do not count for the validation status", () => {
+  it("[SR-038/AK-w0j6] verification records do not count for the validation status", () => {
     expect(statusesOf([record("2026-01-01T10:00:00Z", "passed")])).toEqual(["open", "open"]);
     expect(
       statusesOf([record("2026-02-01T10:00:00Z", "failed"), validation("2026-01-01T10:00:00Z", "passed")]),
@@ -688,7 +688,7 @@ describe("validationOf (SR-038)", () => {
 describe("inconclusive validation (SR-172)", () => {
   const WHY = "The field test needs frost";
 
-  it("[SR-038/AK3] [SR-172/AK2] the newest validation record of the current version is inconclusive: inconclusive with its reason", () => {
+  it("[SR-038/AK-wb3p] [SR-172/AK-j3vg] the newest validation record of the current version is inconclusive: inconclusive with its reason", () => {
     expect(
       validationsOf([
         validation("2026-01-01T10:00:00Z", "passed"),
@@ -707,7 +707,7 @@ describe("inconclusive validation (SR-172)", () => {
     ).toEqual(["validated", "validated"]);
   });
 
-  it("[SR-172/AK2] an inconclusive record of an older version gives outdated, without reason", () => {
+  it("[SR-172/AK-j3vg] an inconclusive record of an older version gives outdated, without reason", () => {
     expect(
       validationsOf([validation("2026-01-01T10:00:00Z", "inconclusive", { reason: WHY, version: OLDER })]),
     ).toEqual([{ status: "outdated" }, { status: "outdated" }]);

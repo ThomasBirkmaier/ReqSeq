@@ -18,7 +18,7 @@ const get = async (fixture: string, options: FixtureOptions = {}): Promise<Outpu
 };
 
 describe("metamodel.get", () => {
-  it("[SR-013/AK1] shows the own relation kind with the meaning derivation as its assignment", async () => {
+  it("[SR-013/AK-st9d] shows the own relation kind with the meaning derivation as its assignment", async () => {
     // ThomasBirkmaier/ReqSeq-archive#127 option 1: trace.chain (stage 2) adds the end-to-end test that the chain follows it (ThomasBirkmaier/ReqSeq-archive#34).
     const out = await get("SR-013/own-meanings");
     expect(out.meanings["derivation"]).toEqual(["satisfies"]);
@@ -28,7 +28,7 @@ describe("metamodel.get", () => {
     ]);
   });
 
-  it("[SR-013/AK2] shows the own property with the meaning validity as its assignment", async () => {
+  it("[SR-013/AK-tm7f] shows the own property with the meaning validity as its assignment", async () => {
     // ThomasBirkmaier/ReqSeq-archive#127 option 1: the variant view (stage 5) adds the end-to-end test that evaluates it (ThomasBirkmaier/ReqSeq-archive#55).
     const out = await get("SR-013/own-meanings");
     expect(out.meanings["validity"]).toEqual(["applies-to"]);
@@ -39,7 +39,7 @@ describe("metamodel.get", () => {
     ]);
   });
 
-  it("[SR-013/AK3] shows a meaning without key as an empty assignment", async () => {
+  it("[SR-013/AK-bh0d] shows a meaning without key as an empty assignment", async () => {
     const out = await get("SR-013/own-meanings", {
       files: {
         "model/relations.yaml": "reqseq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
@@ -49,7 +49,7 @@ describe("metamodel.get", () => {
     expect(out.problems).toEqual([]);
   });
 
-  it("[SR-012/AK2] gives the types with inherited properties and meaning", async () => {
+  it("[SR-012/AK-bp90] gives the types with inherited properties and meaning", async () => {
     const out = await get("SR-012/inheritance");
     expect(out.types.map((t) => t.key)).toEqual([
       "item",
@@ -127,7 +127,7 @@ describe("metamodel.get", () => {
 
   // SR-130: the app draws and lists the metamodel from this output alone, so these are the values every
   // access gives (AK6); the graph and the text are tested in the app.
-  it("[SR-130/AK6] gives every type with name, prefix, parent, its properties including the inherited ones, its required properties and statuses", async () => {
+  it("[SR-130/AK-cmt2] gives every type with name, prefix, parent, its properties including the inherited ones, its required properties and statuses", async () => {
     const out = await get("SR-130/metamodel");
     expect(out.problems).toEqual([]);
     expect(out.types).toEqual([
@@ -196,7 +196,7 @@ describe("metamodel.get", () => {
     ]);
   });
 
-  it("[SR-130/AK6] gives every relation kind with its source and target types as written, left out where every type is allowed and empty where none is, and each property's value kind", async () => {
+  it("[SR-130/AK-cmt2] gives every relation kind with its source and target types as written, left out where every type is allowed and empty where none is, and each property's value kind", async () => {
     const out = await get("SR-130/metamodel");
     expect(
       out.relations.map((kind) => [kind.key, kind.name, kind["source-types"], kind["target-types"]]),
@@ -222,7 +222,7 @@ describe("metamodel.get", () => {
     ]);
   });
 
-  it("[SR-130/AK5] says of each property whether it counts to the version, false where content is not written", async () => {
+  it("[SR-130/AK-y6rs] says of each property whether it counts to the version, false where content is not written", async () => {
     const out = await get("SR-130/metamodel");
     expect(out.properties.map((p) => [p.key, p.content])).toEqual([
       ["title", false],

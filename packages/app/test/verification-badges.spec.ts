@@ -80,7 +80,7 @@ test.describe("the verification badges", () => {
     await running.close();
   });
 
-  test("[SR-157/AK1] the right half gives the status with its details: the missing children, and the verified criteria", async () => {
+  test("[SR-157/AK-c9cf] the right half gives the status with its details: the missing children, and the verified criteria", async () => {
     running = await launchApp({ fixture: "SR-034/indirect" });
     await openElement(running.window, "Warn of storms");
     await expect(verification(running.window).locator(".badge-status")).toHaveText([
@@ -139,7 +139,7 @@ test.describe("the verification badges", () => {
     ]);
   });
 
-  test("[SR-157/AK2] a requirement no variant applies to shows one badge for the core", async () => {
+  test("[SR-157/AK-j923] a requirement no variant applies to shows one badge for the core", async () => {
     running = await launchApp({ fixture: "SR-034/indirect" });
     for (const page of PAGES) {
       await openElement(running.window, page.title);
@@ -149,7 +149,7 @@ test.describe("the verification badges", () => {
     }
   });
 
-  test("[SR-157/AK3] the left half is grey, the right one coloured only when failed or outdated, the others grey and told apart by their text", async () => {
+  test("[SR-157/AK-m1zy] the left half is grey, the right one coloured only when failed or outdated, the others grey and told apart by their text", async () => {
     running = await launchApp({ fixture: "SR-034/indirect" });
     const grounds = new Map<string, Rgb>();
     for (const page of PAGES) {
@@ -266,7 +266,7 @@ test.describe("the verification badges", () => {
   }
 
   for (const scheme of ["light", "dark"] as const) {
-    test(`[SR-157/AK4] the text and the background of each half have a contrast of at least 4.5:1 (${scheme})`, async () => {
+    test(`[SR-157/AK-hmj8] the text and the background of each half have a contrast of at least 4.5:1 (${scheme})`, async () => {
       running = await launchApp({ fixture: "SR-034/indirect" }, { colorScheme: scheme });
       for (const page of PAGES) {
         await openElement(running.window, page.title);

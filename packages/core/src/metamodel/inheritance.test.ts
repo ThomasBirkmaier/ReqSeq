@@ -48,7 +48,7 @@ const undefinedProperty = (type: string, property: string, line: number): Proble
 });
 
 describe("type inheritance", () => {
-  it("[SR-012/AK2] gives a type all properties and required properties of its parent, parent first", async () => {
+  it("[SR-012/AK-bp90] gives a type all properties and required properties of its parent, parent first", async () => {
     const metamodel = await load((await fixture()).root);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     expect(effective(metamodel, "requirement")).toEqual({
@@ -65,7 +65,7 @@ describe("type inheritance", () => {
     });
   });
 
-  it("[SR-012/AK2] inherits over several levels; a property listed again keeps the place of the parent", async () => {
+  it("[SR-012/AK-bp90] inherits over several levels; a property listed again keeps the place of the parent", async () => {
     const metamodel = await load((await fixture()).root);
     expect(effective(metamodel, "software-requirement")).toEqual({
       key: "software-requirement",
@@ -87,7 +87,7 @@ describe("type inheritance", () => {
     });
   });
 
-  it("[SR-012/AK2] keeps the written definitions and resolves every type in their order", async () => {
+  it("[SR-012/AK-bp90] keeps the written definitions and resolves every type in their order", async () => {
     const metamodel = await load((await fixture()).root);
     expect(metamodel.effectiveTypes.map((t) => t.key)).toEqual(metamodel.types.map((t) => t.key));
     expect(metamodel.types[2]).toEqual({

@@ -49,7 +49,7 @@ const withCaret = (view: EditorView): string => {
 };
 
 describe("list keys (SR-187)", () => {
-  it("[SR-187/AK1] Tab indents the item at the caret with its sub-items one level, Shift+Tab outdents it", () => {
+  it("[SR-187/AK-q9dn] Tab indents the item at the caret with its sub-items one level, Shift+Tab outdents it", () => {
     const view = viewOf("- a\n- b|\n  - c\n- d");
     expect(key(view, "Tab")).toBe(true);
     expect(withCaret(view)).toBe("- a\n  - b|\n    - c\n- d");
@@ -57,7 +57,7 @@ describe("list keys (SR-187)", () => {
     expect(withCaret(view)).toBe("- a\n- b|\n  - c\n- d");
   });
 
-  it("[SR-187/AK1] Tab and Shift+Tab outside lists are left to the window, so they go on to the next or previous field", () => {
+  it("[SR-187/AK-q9dn] Tab and Shift+Tab outside lists are left to the window, so they go on to the next or previous field", () => {
     const view = viewOf("A paragraph|.\n\n- a");
     expect(key(view, "Tab")).toBe(false);
     expect(key(view, "Tab", { shiftKey: true })).toBe(false);
@@ -113,7 +113,7 @@ describe("list keys (SR-187)", () => {
     expect(moveListItemOrLine(true)(locked)).toBe(false);
   });
 
-  it("[SR-187/AK2] Alt+Up and Alt+Down move a list item with its sub-items one place, the caret with it", () => {
+  it("[SR-187/AK-bck4] Alt+Up and Alt+Down move a list item with its sub-items one place, the caret with it", () => {
     const view = viewOf("- a\n- b|\n  - c\n- d");
     expect(key(view, "ArrowDown", { altKey: true })).toBe(true);
     expect(withCaret(view)).toBe("- a\n- d\n- b|\n  - c");
@@ -125,7 +125,7 @@ describe("list keys (SR-187)", () => {
     expect(docOf(view)).toBe("- b\n  - c\n- a\n- d");
   });
 
-  it("[SR-187/AK2] Alt+Up and Alt+Down move a line outside lists", () => {
+  it("[SR-187/AK-bck4] Alt+Up and Alt+Down move a line outside lists", () => {
     const view = viewOf("one\ntwo|\nthree");
     key(view, "ArrowUp", { altKey: true });
     expect(withCaret(view)).toBe("two|\none\nthree");
@@ -154,7 +154,7 @@ describe("list keys (SR-187)", () => {
     expect(docOf(view)).toBe("- a\n  - y\n  - x\n- b");
   });
 
-  it("[SR-187/AK4] each of these changes is taken back in one undo step", () => {
+  it("[SR-187/AK-k3jk] each of these changes is taken back in one undo step", () => {
     const view = viewOf("- a\n- b|\n  - c\n- d");
     view.dispatch({ changes: { from: 7, insert: "!" }, userEvent: "input.type" });
     moveListItemOrLine(false)(view);

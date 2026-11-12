@@ -472,7 +472,7 @@ describe("writeFileAtomic: review findings", () => {
     });
   });
 
-  it("[SR-008/AK3] refuses to replace a faulty YAML file", async () => {
+  it("[SR-008/AK-kdrw] refuses to replace a faulty YAML file", async () => {
     await put("w.yaml", "name: [\n");
     await expect(
       writeFileAtomic(root, "w.yaml", "name: x\n", await forge("w.yaml"), { kind: "yaml" }),
@@ -577,7 +577,7 @@ describe("retry", () => {
 });
 
 describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
-  it("[SR-008/AK3] refuses a snapshot of a faulty file and leaves it unchanged", async () => {
+  it("[SR-008/AK-kdrw] refuses a snapshot of a faulty file and leaves it unchanged", async () => {
     const content = "---\nid: a\n  bad: [\n---\n";
     await put("a.md", content);
     await expect(writeFileAtomic(root, "a.md", A, await forge("a.md"))).rejects.toMatchObject({
@@ -587,7 +587,7 @@ describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
     expect(await fs.readdir(root)).toEqual(["a.md"]);
   });
 
-  it("[SR-008/AK3] refuses a file with conflict markers and a file without frontmatter", async () => {
+  it("[SR-008/AK-kdrw] refuses a file with conflict markers and a file without frontmatter", async () => {
     const conflicted = "---\nid: a\n<<<<<<< HEAD\nt: 1\n=======\nt: 2\n>>>>>>> b\n---\n";
     await put("c.md", conflicted);
     await expect(writeFileAtomic(root, "c.md", A, await forge("c.md"))).rejects.toMatchObject({
@@ -605,7 +605,7 @@ describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
     expect(await text("README.md")).toBe("# Readme\n");
   });
 
-  it("[SR-008/AK3] refuses to overwrite a file that became faulty after it was read", async () => {
+  it("[SR-008/AK-kdrw] refuses to overwrite a file that became faulty after it was read", async () => {
     await put("a.md", `${A}Text\n`);
     const file = await parsed("a.md");
     const broken = "---\nid: a\n<<<<<<< HEAD\nt: 1\n=======\nt: 2\n>>>>>>> b\n---\nText\n";

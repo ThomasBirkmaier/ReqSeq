@@ -30,7 +30,7 @@ const errorOf = (result: Result | undefined): { code?: string; details?: Record<
 scenariosOf("element.create", [
   {
     name: "a number given as text is refused, nothing is written (#614)",
-    tag: "[SR-085/AK4]",
+    tag: "[SR-085/AK-jx8c]",
     fixture: FILTER,
     input: { type: "software-requirement", title: "Smooth", properties: { priority: "3" } },
     expect: "error",
@@ -50,7 +50,7 @@ scenariosOf("element.create", [
     name: "a variant is an element file of type variant in the workspace of the core",
     fixture: { fixture: "SR-040/validity", git: true },
     input: { type: "variant", title: "Valley" },
-    tag: "[SR-039/AK1]",
+    tag: "[SR-039/AK-w7mx]",
     expect: "output",
     newElement: true,
   },
@@ -58,12 +58,12 @@ scenariosOf("element.create", [
     name: "a variant with validity entries is refused (variant.nested)",
     fixture: NESTED,
     input: { type: "variant", title: "South coast", properties: { validity: [{ id: NESTED_A }] } },
-    tag: "[SR-039/AK2]",
+    tag: "[SR-039/AK-nvfq]",
     expect: "error",
   },
   {
     name: "new element in a new folder",
-    tag: "[SR-064/AK5]",
+    tag: "[SR-064/AK-p5w1]",
     input: {
       type: "system-requirement",
       title: "Show gusts",
@@ -95,7 +95,7 @@ scenariosOf("element.create", [
         "acceptance-criteria": ["Given a gust, then it is shown."],
       },
     },
-    tag: "[SR-204/AK1]",
+    tag: "[SR-204/AK-qg2w]",
     expect: "output",
     newElement: true,
     masks: NEW_CRITERION_KEYS,
@@ -111,7 +111,7 @@ scenariosOf("element.create", [
   },
   {
     name: "without repository and folder, the file is in the main repository in the folder of the type key",
-    tag: "[SR-064/AK5]",
+    tag: "[SR-064/AK-p5w1]",
     fixture: TWO_REPOSITORIES,
     root: "system",
     input: { type: "system-requirement", title: "Show gusts" },
@@ -127,7 +127,7 @@ scenariosOf("element.create", [
   { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
   {
     name: "an abstract type is refused, nothing is written",
-    tag: "[SR-012/AK4]",
+    tag: "[SR-012/AK-hwvc]",
     fixture: ABSTRACT,
     input: { type: "base", title: "x" },
     expect: "error",
@@ -138,7 +138,7 @@ scenariosOf("element.create", [
   },
   {
     name: "a type that inherits from an abstract one without the mark is not abstract",
-    tag: "[SR-012/AK4]",
+    tag: "[SR-012/AK-hwvc]",
     fixture: ABSTRACT,
     input: { type: "derived", title: "x" },
     expect: "output",
@@ -151,7 +151,7 @@ scenariosOf("element.create", [
   },
   {
     name: "a property the type does not have is refused, nothing is written",
-    tag: "[SR-016/AK4]",
+    tag: "[SR-016/AK-qdr5]",
     input: { type: "system-requirement", title: "Show gusts", properties: { colour: "red" } },
     expect: "error",
     check: (results) => {
@@ -161,7 +161,7 @@ scenariosOf("element.create", [
   },
   {
     name: "a relation the metamodel does not allow for the type is refused, nothing is written",
-    tag: "[SR-067/AK4]",
+    tag: "[SR-067/AK-r039]",
     fixture: FILTER,
     input: { type: "system-requirement", title: "Show gusts", relations: { "based-on": ["SR-0000b1"] } },
     expect: "error",
@@ -172,7 +172,7 @@ scenariosOf("element.create", [
   },
   {
     name: "a type without the initial status gets its first valid status in metamodel order",
-    tag: "[SR-064/AK4]",
+    tag: "[SR-064/AK-vv9g]",
     fixture: STATUSES,
     input: { type: "decision", title: "Use knots" },
     expect: "output",
@@ -187,7 +187,7 @@ scenariosOf("element.create", [
   },
   {
     name: "more acceptance criteria than max-items are saved, with the hint",
-    tag: "[SR-171/AK4]",
+    tag: "[SR-171/AK-nx3d]",
     fixture: MAX_ITEMS,
     input: {
       type: "system-requirement",
@@ -207,7 +207,7 @@ scenariosOf("element.create", [
   {
     name: "required properties empty: saved, with the hint",
     input: { type: "system-requirement", title: "Show gusts" },
-    tag: "[SR-064/AK2]",
+    tag: "[SR-064/AK-yhn7]",
     expect: "output",
     newElement: true,
     check: (results) => {
@@ -228,7 +228,7 @@ scenariosOf("element.create", [
   {
     name: "a package is an element file of type package",
     input: { type: "package", title: "Release 3" },
-    tag: "[SR-048/AK1]",
+    tag: "[SR-048/AK-fbss]",
     expect: "output",
     newElement: true,
     check: (results) => {
@@ -262,7 +262,7 @@ scenariosOf("element.create", [
   {
     name: "an empty string of a required choice property is no value: saved, with the hint (#242)",
     input: { type: "system-requirement", title: "Show gusts", properties: { "requirement-type": "" } },
-    tag: "[SR-064/AK2]",
+    tag: "[SR-064/AK-yhn7]",
     expect: "output",
     newElement: true,
     check: (results) => {

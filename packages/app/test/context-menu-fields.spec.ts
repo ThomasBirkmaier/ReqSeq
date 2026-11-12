@@ -97,7 +97,7 @@ test.describe("the context menu on a field", () => {
     }
   });
 
-  test("[SR-196/AK1] Copy field is the first entry on the title, the short ID, a box and a group of relations, and copies that field", async () => {
+  test("[SR-196/AK-sh81] Copy field is the first entry on the title, the short ID, a box and a group of relations, and copies that field", async () => {
     const { window } = running;
     const id = (await modelineField(window, "ID").textContent()) ?? "";
     const cases: readonly (readonly [Locator, string])[] = [
@@ -122,7 +122,7 @@ test.describe("the context menu on a field", () => {
     expect(await entryNames(window)).not.toContain("Copy field");
   });
 
-  test("[SR-196/AK2] a property box adds Add and Clear property, and List elements with this value where its value lists elements", async () => {
+  test("[SR-196/AK-ndw1] a property box adds Add and Clear property, and List elements with this value where its value lists elements", async () => {
     const { window } = running;
     await rightClick(window, field(window, "topic").locator(".value"));
     expect(await entryNames(window)).toEqual([
@@ -151,7 +151,7 @@ test.describe("the context menu on a field", () => {
     await expect(window.locator(".row .title", { hasText: TITLE })).toHaveCount(1);
   });
 
-  test("[SR-196/AK3] the status has Set status, which sets it as from the command line", async () => {
+  test("[SR-196/AK-wz7v] the status has Set status, which sets it as from the command line", async () => {
     const { window } = running;
     await rightClick(window, modelineField(window, "Status"));
     expect(await entryNames(window)).toEqual(["Copy field", "Set status", ALL]);
@@ -168,7 +168,7 @@ test.describe("the context menu on a field", () => {
     await expect.poll(read).toContain("status: approved");
   });
 
-  test("[SR-196/AK3] Copy field on the status copies it; the status has no copy symbol", async () => {
+  test("[SR-196/AK-wz7v] Copy field on the status copies it; the status has no copy symbol", async () => {
     const { window } = running;
     await writeClipboard("");
     await rightClick(window, modelineField(window, "Status"));
@@ -180,7 +180,7 @@ test.describe("the context menu on a field", () => {
     await expect(window.locator(".modeline .copy")).toHaveCount(1);
   });
 
-  test("[SR-196/AK4] the short ID has Show element ID and version, which says them", async () => {
+  test("[SR-196/AK-t3nk] the short ID has Show element ID and version, which says them", async () => {
     const { window } = running;
     await rightClick(window, modelineField(window, "ID"));
     expect(await entryNames(window)).toEqual(["Copy field", "Show element ID and version", ALL]);
@@ -193,7 +193,7 @@ test.describe("the context menu on a field", () => {
     await expect(window.locator("article")).toBeFocused();
   });
 
-  test("[SR-196/AK4] a right-click on the type or any other place of the modeline opens no menu", async () => {
+  test("[SR-196/AK-t3nk] a right-click on the type or any other place of the modeline opens no menu", async () => {
     const { window } = running;
     /** Right-clicks the middle of the first text of the modeline that is `text`. */
     const rightClickText = async (text: string): Promise<void> => {

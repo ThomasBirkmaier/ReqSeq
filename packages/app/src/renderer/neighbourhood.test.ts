@@ -137,7 +137,7 @@ describe("parentLevels", () => {
       extra,
     );
 
-  it("[SR-107/AK1] lists the parents level by level, from the top needs down to the direct parents", () => {
+  it("[SR-107/AK-r2x1] lists the parents level by level, from the top needs down to the direct parents", () => {
     const { levels, more } = parentLevels(parents());
     expect(levels.map((level) => level.map((parent) => parent.name))).toEqual([
       ["Title N1", "Title N2"],
@@ -161,7 +161,7 @@ describe("parentLevels", () => {
     expect(more).toBe(true);
   });
 
-  it("[SR-107/AK4] marks a parent whose link from the element is outdated, and no other", () => {
+  it("[SR-107/AK-b9c5] marks a parent whose link from the element is outdated, and no other", () => {
     const { levels } = parentLevels(
       answer(
         [node("C1", 0), node("S1", 1, up()), node("N1", 2, up())],
@@ -196,7 +196,7 @@ describe("parentLevels", () => {
 });
 
 describe("treeRows", () => {
-  it("[SR-107/AK2] shows the direct children, and the next level only below an opened row, indented by level", () => {
+  it("[SR-107/AK-bhct] shows the direct children, and the next level only below an opened row, indented by level", () => {
     const closed = treeRows(children(), []);
     expect(summary(closed.rows)).toEqual([
       ["X-S1 (S1)", 1, 0, false, true, false, undefined],
@@ -213,7 +213,7 @@ describe("treeRows", () => {
     expect(opened.cut).toBe(false);
   });
 
-  it("[SR-107/AK3] shows a child under each parent, marks the second one repeated and never opens it", () => {
+  it("[SR-107/AK-ntyw] shows a child under each parent, marks the second one repeated and never opens it", () => {
     const both = treeRows(children(), ["spec:uuid-S1", "spec:uuid-S2", "spec:uuid-C1"]);
     expect(summary(both.rows)).toEqual([
       ["X-S1 (S1)", 1, 0, false, true, true, undefined],
@@ -223,7 +223,7 @@ describe("treeRows", () => {
     ]);
   });
 
-  it("[SR-107/AK4] marks an outdated link as outdated", () => {
+  it("[SR-107/AK-b9c5] marks an outdated link as outdated", () => {
     const output = answer(
       [node("N1", 0), node("S1", 1, { direction: "down" })],
       [edge("S1", "N1", { outdated: true })],
@@ -270,7 +270,7 @@ describe("treeRows", () => {
 });
 
 describe("fetchDepth", () => {
-  it("[SR-107/AK2] asks for two levels, and for one more than the deepest opened row has", () => {
+  it("[SR-107/AK-bhct] asks for two levels, and for one more than the deepest opened row has", () => {
     expect(fetchDepth([])).toBe(2);
     expect(fetchDepth(treeRows(children(), []).rows)).toBe(2);
     expect(fetchDepth(treeRows(children(), ["spec:uuid-S1"]).rows)).toBe(3);
@@ -299,7 +299,7 @@ describe("incomingGroups", () => {
       ],
     );
 
-  it("[SR-107/AK2] groups the incoming relations and references by kind and leaves out the derivations", () => {
+  it("[SR-107/AK-bhct] groups the incoming relations and references by kind and leaves out the derivations", () => {
     const { groups, cut } = incomingGroups(incoming());
     expect(groups.map((group) => [group.heading, group.entries.map((entry) => entry.row.label)])).toEqual([
       ["← excludes", ["X-V1 (V1)", "X-E (E)"]],
@@ -308,7 +308,7 @@ describe("incomingGroups", () => {
     expect(cut).toBe(false);
   });
 
-  it("[SR-107/AK2] lists the members of a package under ← packages", () => {
+  it("[SR-107/AK-bhct] lists the members of a package under ← packages", () => {
     const output = answer(
       [node("P1", 0), node("S1", 1, { direction: "down" }), node("S2", 1, { direction: "down" })],
       [
@@ -322,7 +322,7 @@ describe("incomingGroups", () => {
     ]);
   });
 
-  it("[SR-107/AK4] marks an outdated relation and an outdated reference", () => {
+  it("[SR-107/AK-b9c5] marks an outdated relation and an outdated reference", () => {
     const output = answer(
       [node("D2", 0), node("E", 1, { direction: "down" }), node("S1", 1, { direction: "down" })],
       [

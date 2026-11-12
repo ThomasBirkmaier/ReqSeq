@@ -106,7 +106,7 @@ const RAW_JUNIT =
   "  </testsuite>\n</testsuites>\n";
 
 describe("reqseq data store (SR-062)", () => {
-  it("[SR-062/AK1] a pipeline call reqseq data store --folder out writes out/<commit>.jsonl, one element per line", async () => {
+  it("[SR-062/AK-d6t4] a pipeline call reqseq data store --folder out writes out/<commit>.jsonl, one element per line", async () => {
     const ws = await fixture();
     const commit = await ws.head("system");
     const result = await inSystem(ws, ["data", "store", "--folder", "out"]);
@@ -135,7 +135,7 @@ describe("reqseq data store (SR-062)", () => {
     }
   });
 
-  it("[SR-062/AK1] with a repository of the workspace missing, every line of out/<commit>.jsonl marks it", async () => {
+  it("[SR-062/AK-d6t4] with a repository of the workspace missing, every line of out/<commit>.jsonl marks it", async () => {
     const ws = await fixture();
     await fs.rm(ws.path("sensor"), { recursive: true });
     const commit = await ws.head("system");
@@ -156,7 +156,7 @@ describe("reqseq data store (SR-062)", () => {
     }
   });
 
-  it("[SR-062/AK1] reqseq data store without Git exits with 1 and writes nothing", async () => {
+  it("[SR-062/AK-d6t4] reqseq data store without Git exits with 1 and writes nothing", async () => {
     const ws = await fixture(false);
     const result = await inSystem(ws, ["data", "store", "--folder", "out", "--json"]);
     expect(result.code).toBe(1);
@@ -180,7 +180,7 @@ describe("reqseq data store (SR-062)", () => {
     await expect(fs.stat(ws.path("system/out"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("[SR-062/AK2] two stored states are evaluated from the files alone, without ReqSeq or the workspace", async () => {
+  it("[SR-062/AK-h4hb] two stored states are evaluated from the files alone, without ReqSeq or the workspace", async () => {
     const ws = await fixture();
     const states = await tempFolder();
     const target = path.join(states, "stored");

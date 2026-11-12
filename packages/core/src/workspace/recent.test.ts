@@ -63,7 +63,7 @@ const roots = async (): Promise<string[]> =>
   (await readRecentWorkspaces(environment)).map((entry) => entry.root);
 
 describe("rememberWorkspace and readRecentWorkspaces", () => {
-  it("[SR-131/AK1] rememberWorkspace puts the opened root first, once per folder, and keeps at most 20", async () => {
+  it("[SR-131/AK-y2k4] rememberWorkspace puts the opened root first, once per folder, and keeps at most 20", async () => {
     const a = await folder("a");
     const b = await folder("b");
     expect(await rememberWorkspace(a, { environment, now: at(1) })).toBe(true);
@@ -84,7 +84,7 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
     expect(await roots()).toEqual(more.toReversed().slice(0, RECENT_WORKSPACES_KEEP));
   });
 
-  it("[SR-131/AK6] readRecentWorkspaces gives the stored workspaces in the stored order", async () => {
+  it("[SR-131/AK-w8h0] readRecentWorkspaces gives the stored workspaces in the stored order", async () => {
     const [a, b, c] = [await folder("a"), await folder("b"), await folder("c")];
     await rememberWorkspace(a, { environment, now: at(1) });
     await rememberWorkspace(c, { environment, now: at(2) });
@@ -243,7 +243,7 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
 });
 
 describe("existence of the recent workspaces", () => {
-  it("[SR-131/AK4] recentWorkspaceStates marks a root without reqseq-workspace.yaml as missing and does not look upwards", async () => {
+  it("[SR-131/AK-f722] recentWorkspaceStates marks a root without reqseq-workspace.yaml as missing and does not look upwards", async () => {
     const present = await folder("present");
     // A folder inside a workspace, whose own workspace file is gone: the workspace above does not count.
     const inside = await folder("present/requirements", false);
@@ -377,7 +377,7 @@ describe("the checkers of a process", () => {
     expect(asked).toEqual(["nfs-a", "nfs-b", "local"]);
   });
 
-  it("[SR-131/AK5] a typed path on a hung mount blocks only further typed paths, never a root of the list", async () => {
+  it("[SR-131/AK-sxyz] a typed path on a hung mount blocks only further typed paths, never a root of the list", async () => {
     vi.useFakeTimers();
     const asked: string[] = [];
     const stat = (file: string): Promise<{ isFile(): boolean }> => {
@@ -405,7 +405,7 @@ describe("the checkers of a process", () => {
 });
 
 describe("a typed folder path (SR-131 AK5)", () => {
-  it("[SR-131/AK5] typedWorkspaceFolder takes an absolute path or ~, and refuses relative, UNC, NUL and overlong paths by their text", () => {
+  it("[SR-131/AK-sxyz] typedWorkspaceFolder takes an absolute path or ~, and refuses relative, UNC, NUL and overlong paths by their text", () => {
     const linux = { platform: "linux" as const, home: "/home/ada" };
     expect(typedWorkspaceFolder("/req/spec", linux)).toBe("/req/spec");
     expect(typedWorkspaceFolder("/req/spec/", linux)).toBe("/req/spec");
@@ -459,7 +459,7 @@ describe("a typed folder path (SR-131 AK5)", () => {
     expect(typedWorkspaceFolder(path.join(top, "a"), { home: top })).toBe(path.join(top, "a"));
   });
 
-  it("[SR-131/AK5] findTypedWorkspace finds the workspace from the typed folder upwards, and none when no folder up to the root holds one", async () => {
+  it("[SR-131/AK-sxyz] findTypedWorkspace finds the workspace from the typed folder upwards, and none when no folder up to the root holds one", async () => {
     const root = await folder("station");
     const inside = await folder("station/requirements/system", false);
     expect(await findTypedWorkspace(root)).toBe(root);

@@ -59,7 +59,7 @@ const expected = async (
 };
 
 describe("element.search grouped (SR-149 AK6)", () => {
-  it("[SR-149/AK6] groups the hits as any list by package, and keeps their relevance order inside each group", async () => {
+  it("[SR-149/AK-byyt] groups the hits as any list by package, and keeps their relevance order inside each group", async () => {
     const workspace = await open();
     const plain = await search(workspace, { query: "wind" });
     const order = plain.hits.map((hit) => hit.id);
@@ -81,7 +81,7 @@ describe("element.search grouped (SR-149 AK6)", () => {
     }
   });
 
-  it("[SR-149/AK6] groups the hits within a filter by status and by a choice property", async () => {
+  it("[SR-149/AK-byyt] groups the hits within a filter by status and by a choice property", async () => {
     const workspace = await open();
     const order = (await search(workspace, { query: "wind", selection: SR })).hits.map((hit) => hit.id);
     for (const group of ["status", "area", "type"]) {
@@ -121,7 +121,7 @@ describe("element.search grouped (SR-149 AK6)", () => {
 });
 
 describe("element.search within a filter (SR-124 AK4)", () => {
-  it("[SR-124/AK4] a filter narrows the hits, and those left keep their relevance order", async () => {
+  it("[SR-124/AK-mtm9] a filter narrows the hits, and those left keep their relevance order", async () => {
     const workspace = await open();
     const order = (await search(workspace, { query: "wind" })).hits.map((hit) => tail(hit.id));
     const filtered = await search(workspace, { query: "wind", selection: { where: { status: ["draft"] } } });

@@ -189,7 +189,7 @@ const missingRequired = (file: string, elementId: string, type: string, line?: n
 });
 
 describe("metamodel changes without rewriting element files (SR-015)", () => {
-  it("[SR-015/AK1] works with a metamodel file saved by another editor within 2 seconds, without restart", async () => {
+  it("[SR-015/AK-v9jn] works with a metamodel file saved by another editor within 2 seconds, without restart", async () => {
     const opened = await open();
     await watching(opened);
     const store = opened.workspace.peek(elementStoreState);
@@ -204,7 +204,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
     expect(opened.workspace.peek(elementStoreState)).toBe(store);
   });
 
-  it("[SR-015/AK1] works with a metamodel file that an editor saved by renaming a new file over it within 2 seconds", async () => {
+  it("[SR-015/AK-v9jn] works with a metamodel file that an editor saved by renaming a new file over it within 2 seconds", async () => {
     const opened = await open();
     await watching(opened);
     const added = opened.model.replace(
@@ -221,7 +221,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
     expect(ms).toBeLessThanOrEqual(TAKE_OVER_LIMIT_MS);
   });
 
-  it("[SR-015/AK1] creates an element of a type that the saved metamodel added, within 2 seconds", async () => {
+  it("[SR-015/AK-v9jn] creates an element of a type that the saved metamodel added, within 2 seconds", async () => {
     const opened = await open();
     await watching(opened);
     const added = opened.model.replace(
@@ -238,7 +238,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
     expect(out.element).toMatchObject({ type: "interface-requirement", title: "Serial port", problems: [] });
   });
 
-  it("[SR-015/AK2] shows a renamed type under its new name and changes no element file", async () => {
+  it("[SR-015/AK-x7hm] shows a renamed type under its new name and changes no element file", async () => {
     // The need carries a property its type does not have: the hint names the type.
     const opened = await open();
     await watching(opened);
@@ -278,7 +278,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
     expect(await elementFiles(opened.fixture)).toEqual(files);
   });
 
-  it("[SR-015/AK3] gives a hint for every element without a new required property and changes no file", async () => {
+  it("[SR-015/AK-f2y9] gives a hint for every element without a new required property and changes no file", async () => {
     const opened = await open();
     await watching(opened);
     const before = await views(opened);
@@ -320,7 +320,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
   });
 
   // The reset stands for the watcher here: that it resets the metamodel on a save is AK1's test.
-  it("[SR-015/AK4] computes versions with the changed metamodel and changes no file (spec question ThomasBirkmaier/ReqSeq-archive#181, option 1)", async () => {
+  it("[SR-015/AK-pm03] computes versions with the changed metamodel and changes no file (spec question ThomasBirkmaier/ReqSeq-archive#181, option 1)", async () => {
     const opened = await open();
     const before = await views(opened);
     const files = await elementFiles(opened.fixture);

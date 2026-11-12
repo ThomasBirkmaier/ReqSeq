@@ -45,7 +45,7 @@ const column = (extra: Partial<MatrixColumn> = {}): MatrixColumn => ({
 });
 
 describe("matrixInput", () => {
-  it("[SR-125/AK1] asks for the selection and sort of the list, so the rows are the list's", () => {
+  it("[SR-125/AK-mzzq] asks for the selection and sort of the list, so the rows are the list's", () => {
     const list = filteredList([typeStep("system-requirement")]);
     expect(matrixInput(list, 0, 200)).toEqual({
       selection: { where: { type: ["system-requirement"] } },
@@ -62,7 +62,7 @@ describe("matrixInput", () => {
     });
   });
 
-  it("[SR-125/AK6] sends no selection for all elements, and none sort for a saved filter (its own sort holds)", () => {
+  it("[SR-125/AK-w9wp] sends no selection for all elements, and none sort for a saved filter (its own sort holds)", () => {
     expect(matrixInput(listBuffer("All elements"), 0, 200)).toEqual({
       sort: DEFAULT_SORT,
       limit: 200,
@@ -107,7 +107,7 @@ describe("rows and targets", () => {
     incomplete: false,
   } as unknown as TraceMatrixOutput;
 
-  it("[SR-125/AK1] has one row per element in the order of the answer, the depth of a tree", () => {
+  it("[SR-125/AK-mzzq] has one row per element in the order of the answer, the depth of a tree", () => {
     const rows = matrixRows(output);
     expect(rows.map((row) => [row.element.label, row.element.title, row.element.depth])).toEqual([
       ["SR-000001 (SR-1)", "Show wind speed", 2],
@@ -118,7 +118,7 @@ describe("rows and targets", () => {
     expect(rows.map((row) => row.gaps)).toEqual([[], [GAP]]);
   });
 
-  it("[SR-153/AK1] gives a cell the gaps core names for its column, and says each minimum on demand", () => {
+  it("[SR-153/AK-mcfm] gives a cell the gaps core names for its column, and says each minimum on demand", () => {
     const [, row] = matrixRows(output);
     expect(row === undefined ? [] : [cellGaps(row, 0), cellGaps(row, 1)]).toEqual([[GAP], []]);
     expect(gapTitle([GAP, { ...GAP, targetName: "Use Case", count: 1, min: 2 }])).toBe(
@@ -126,7 +126,7 @@ describe("rows and targets", () => {
     );
   });
 
-  it("[SR-125/AK5] walks the row element first, then every relation of every cell in column order", () => {
+  it("[SR-125/AK-k8sg] walks the row element first, then every relation of every cell in column order", () => {
     const rows = matrixRows(output);
     const first = nth(rows, 0);
     const targets = targetsOf(first);
@@ -137,7 +137,7 @@ describe("rows and targets", () => {
 });
 
 describe("opening a relation (AK5)", () => {
-  it("[SR-125/AK5] opens the element of an available relation in its repository", () => {
+  it("[SR-125/AK-k8sg] opens the element of an available relation in its repository", () => {
     expect(opening(relation())).toEqual({
       ok: true,
       buffer: {
@@ -150,7 +150,7 @@ describe("opening a relation (AK5)", () => {
     });
   });
 
-  it("[SR-125/AK5] opens nothing for a missing, ambiguous or inaccessible end, and says its state", () => {
+  it("[SR-125/AK-k8sg] opens nothing for a missing, ambiguous or inaccessible end, and says its state", () => {
     for (const targetState of ["missing", "ambiguous", "inaccessible", "unknown-repository"] as const) {
       expect(opening(relation({ targetState, accessible: false, title: "Gone" }))).toEqual({
         ok: false,
@@ -178,7 +178,7 @@ describe("the element of a target (SR-194 AK5)", () => {
 });
 
 describe("column heads", () => {
-  it("[SR-153/AK1] writes, with minima, the rows that meet them of those they apply to and core's share", () => {
+  it("[SR-153/AK-mcfm] writes, with minima, the rows that meet them of those they apply to and core's share", () => {
     const minima = (met: number, expected: number): MatrixColumn =>
       column({ expected, met, share: met / expected });
     expect(columnCount(minima(2, 5))).toBe("2 of 5 · 40 %");
@@ -190,12 +190,12 @@ describe("column heads", () => {
     expect(columnCount(minima(0, 3))).toBe("0 of 3 · 0 %");
   });
 
-  it("[SR-125/AK3] [SR-153/AK2] writes only the count of a column without a minimum", () => {
+  it("[SR-125/AK-ps48] [SR-153/AK-zx11] writes only the count of a column without a minimum", () => {
     expect(columnCount(column())).toBe("4");
     expect(columnCount(column({ direction: "in", count: 1 }))).toBe("1");
   });
 
-  it("[SR-125/AK2] marks an incoming column with an arrow only when another column has its name", () => {
+  it("[SR-125/AK-wzq6] marks an incoming column with an arrow only when another column has its name", () => {
     const columns = [
       column(),
       column({ direction: "in", name: "Derived by" }),
@@ -315,7 +315,7 @@ describe("the evidence columns (SR-126)", () => {
     );
   });
 
-  it("[SR-031/AK5] shows how many acceptance criteria are verified, those not verified on demand", () => {
+  it("[SR-031/AK-yscc] shows how many acceptance criteria are verified, those not verified on demand", () => {
     expect(
       statusLine({
         view: "core",

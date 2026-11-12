@@ -90,7 +90,7 @@ const filesOf = async (root: string): Promise<Map<string, string>> => {
 };
 
 describe("element.list sorted by a property (SR-075 AK1)", () => {
-  it("[SR-075/AK1] sorts by a property ascending and descending", async () => {
+  it("[SR-075/AK-dmt0] sorts by a property ascending and descending", async () => {
     const { workspace } = await open();
     // Numbers by value (2 before 10); elements without a value last in both orders, in workspace order.
     expect(await sorted(workspace, [{ by: "priority" }])).toEqual([F2, F1, N1, N2, B1, B2, B3, B4, F3]);
@@ -122,7 +122,7 @@ describe("element.list sorted by a property (SR-075 AK1)", () => {
     ).toEqual([N1, N2]);
   });
 
-  it("[SR-075/AK1] sorts by short ID, type, status and title", async () => {
+  it("[SR-075/AK-dmt0] sorts by short ID, type, status and title", async () => {
     const { workspace } = await open();
     expect(await sorted(workspace, [{ by: "id" }])).toEqual(STORE);
     expect(await sorted(workspace, [{ by: "id", order: "desc" }])).toEqual(STORE.toReversed());
@@ -158,7 +158,7 @@ describe("element.list sorted by a property (SR-075 AK1)", () => {
     expect([ids(page), page.total, page.tree]).toEqual([[F3, F1], 9, undefined]);
   });
 
-  it("[SR-075/AK1] sorts choices in metamodel order, other values by kind, and elements without a value last", async () => {
+  it("[SR-075/AK-dmt0] sorts choices in metamodel order, other values by kind, and elements without a value last", async () => {
     const { workspace } = await open();
     // functional (b2), performance (b1), then the text "custom" (b3), then no value.
     expect(await sorted(workspace, [{ by: "requirement-type" }])).toEqual([
@@ -226,7 +226,7 @@ describe("element.list sorted by a property (SR-075 AK1)", () => {
     ]);
   });
 
-  it("[SR-075/AK1] sorts by several keys, ties in workspace order", async () => {
+  it("[SR-075/AK-dmt0] sorts by several keys, ties in workspace order", async () => {
     const { workspace } = await open();
     expect(await sorted(workspace, [{ by: "status" }, { by: "title", order: "desc" }])).toEqual([
       B4,
@@ -257,7 +257,7 @@ const q = (tail: string): string => `${Q}${tail}`;
 const NATURAL_STORE = ["09", "10", "11", "01", "02", "03", "04", "05", "06", "07", "08"].map(q);
 
 describe("element.list sorted by identifier (ThomasBirkmaier/ReqSeq-archive#418)", () => {
-  it("[SR-075/AK1] sorts by identifier with digit runs as numbers, ascending and descending", async () => {
+  it("[SR-075/AK-dmt0] sorts by identifier with digit runs as numbers, ascending and descending", async () => {
     const { workspace } = await open(NATURAL);
     expect(await sorted(workspace, [])).toEqual(NATURAL_STORE);
     // Ascending: D-1, N-9, N-10, SR-2 (before sr-2: equal folded, then the text as written), SR-9,
@@ -270,7 +270,7 @@ describe("element.list sorted by identifier (ThomasBirkmaier/ReqSeq-archive#418)
     expect(await sorted(workspace, [{ by: "identifier", order: "desc" }])).toEqual(ascending.toReversed());
   });
 
-  it("[SR-075/AK1] sorts by type and then identifier", async () => {
+  it("[SR-075/AK-dmt0] sorts by type and then identifier", async () => {
     const { workspace } = await open(NATURAL);
     expect(await sorted(workspace, [{ by: "type" }, { by: "identifier" }])).toEqual(
       ["11", "10", "05", "04", "02", "06", "03", "01", "07", "08", "09"].map(q),
@@ -355,7 +355,7 @@ describe("element.list sorted by identifier (ThomasBirkmaier/ReqSeq-archive#418)
     );
   });
 
-  it("[SR-075/AK1] applies the identifier sort of a saved filter (SR-070 AK3)", async () => {
+  it("[SR-075/AK-dmt0] applies the identifier sort of a saved filter (SR-070 AK3)", async () => {
     const { workspace } = await open({
       ...NATURAL,
       files: {
@@ -382,7 +382,7 @@ describe("element.list sorted by identifier (ThomasBirkmaier/ReqSeq-archive#418)
 });
 
 describe("element.list as a derivation tree (SR-075 AK2)", () => {
-  it("[SR-075/AK2] shows the elements as a tree of their derivations, depth first with depth and parent", async () => {
+  it("[SR-075/AK-f889] shows the elements as a tree of their derivations, depth first with depth and parent", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { sort: [{ by: "hierarchy" }] });
     expect(treeLines(output)).toEqual([
@@ -406,7 +406,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
     });
   });
 
-  it("[SR-075/AK2] orders the roots and the elements below each parent by the keys after hierarchy", async () => {
+  it("[SR-075/AK-f889] orders the roots and the elements below each parent by the keys after hierarchy", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { sort: [{ by: "hierarchy" }, { by: "title" }] });
     // Roots by title: Storms (N2), wind (N1), Zero (b4). b2 is below N2 now: its first parent in sort order.
@@ -423,7 +423,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
     ]);
   });
 
-  it("[SR-075/AK2] shows an element with several parents once, below the parent at the shortest depth", async () => {
+  it("[SR-075/AK-f889] shows an element with several parents once, below the parent at the shortest depth", async () => {
     const { workspace } = await open();
     const lines = treeLines(
       await list(workspace, { sort: [{ by: "hierarchy" }, { by: "title", order: "desc" }] }),
@@ -444,7 +444,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
     expect(lines.filter((line) => line.split(" ")[1] === "b3")).toHaveLength(1);
   });
 
-  it("[SR-075/AK2] makes an element whose parent is not in the list a root", async () => {
+  it("[SR-075/AK-f889] makes an element whose parent is not in the list a root", async () => {
     const { workspace } = await open();
     const output = await list(workspace, {
       selection: { where: { type: ["system-requirement"] } },
@@ -461,7 +461,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
     ]);
   });
 
-  it("[SR-075/AK2] shows each element of a derivation cycle once, and what hangs below a cycle below it", async () => {
+  it("[SR-075/AK-f889] shows each element of a derivation cycle once, and what hangs below a cycle below it", async () => {
     // c1 <-> c2, c3 below c2; c4 <-> c5, entered from c1 (c4 derives from c1 too); c6 derives from
     // itself; c7 derives from c2 and from the root c8, so it hangs below c8.
     const item = (tail: string): string => `  - { id: ${P}${tail}, version: n1:1111111111111111 }\n`;
@@ -502,7 +502,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
     expect(treeLines(within)).toEqual(["0 b4", "0 c2", "1 c3 < c2", "1 c1 < c2"]);
   });
 
-  it("[SR-075/AK2] pages the tree; a parent may lie on an earlier page", async () => {
+  it("[SR-075/AK-f889] pages the tree; a parent may lie on an earlier page", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { sort: [{ by: "hierarchy" }], limit: 3, offset: 3 });
     expect([ids(output), output.total]).toEqual([[B2, F2, B3], 9]);
@@ -512,7 +512,7 @@ describe("element.list as a derivation tree (SR-075 AK2)", () => {
 });
 
 describe("element.list keeps no order in the files (SR-075 AK3)", () => {
-  it("[SR-075/AK3] sorting writes no file, and a created element takes its place without an order in any file", async () => {
+  it("[SR-075/AK-rffk] sorting writes no file, and a created element takes its place without an order in any file", async () => {
     const { workspace, root } = await open();
     const before = await filesOf(root);
     for (const sort of [[{ by: "title" }], [{ by: "hierarchy" }, { by: "priority", order: "desc" }]]) {

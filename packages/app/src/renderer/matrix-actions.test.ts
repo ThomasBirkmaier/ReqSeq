@@ -99,7 +99,7 @@ const sample = filteredList(steps, [{ by: "title", order: "asc" }]);
 const page = elementBuffer("uuid-pkg", "spec", "PKG-1 Stage 3");
 
 describe("the matrix as a mode of the list (SR-125)", () => {
-  it("[SR-125/AK1] Show traceability matrix puts the same list into matrix mode: same steps, selection, sort and row", () => {
+  it("[SR-125/AK-mzzq] Show traceability matrix puts the same list into matrix mode: same steps, selection, sort and row", () => {
     const { context, shown } = start([{ ...sample, cursor: 4 }]);
     runAction(action("matrix"), context);
     expect(shown()).toEqual({ ...sample, cursor: 4, matrix: true });
@@ -108,7 +108,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     expect(context.buffers).toHaveLength(1);
   });
 
-  it("[SR-125/AK1] Show as list brings the list back, the row kept", () => {
+  it("[SR-125/AK-mzzq] Show as list brings the list back, the row kept", () => {
     const { context, shown } = start([{ ...matrixList, cursor: 7 }]);
     runAction(action("matrix-list"), context);
     expect(shown()).toEqual({ ...sample, cursor: 7 });
@@ -134,7 +134,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     }
   });
 
-  it("[SR-125/AK1] both are Ctrl+T or Cmd+T, and the shortcut finds exactly one of them", () => {
+  it("[SR-125/AK-mzzq] both are Ctrl+T or Cmd+T, and the shortcut finds exactly one of them", () => {
     for (const modifiers of [{ ctrlKey: true }, { metaKey: true }]) {
       const press = (shortcut: Parameters<typeof matches>[1]) =>
         matches(
@@ -156,7 +156,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     ).toBe("⌘T");
   });
 
-  it("[SR-125/AK1] a package page shows its elements as a matrix: the list of its members in matrix mode, in its sort", () => {
+  it("[SR-125/AK-mzzq] a package page shows its elements as a matrix: the list of its members in matrix mode, in its sort", () => {
     const sorted = { ...page, memberSort: [{ by: "hierarchy" as const, order: "asc" as const }] };
     const { context, shown } = start([sorted], {}, true);
     expect(titles(context)).toContain("Show traceability matrix");
@@ -187,7 +187,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     expect(context.buffers).toEqual([overviewBuffer()]);
   });
 
-  it("[SR-125/AK1] names the matrix in the buffer name and so in the modeline, and says nothing for a list", () => {
+  it("[SR-125/AK-mzzq] names the matrix in the buffer name and so in the modeline, and says nothing for a list", () => {
     expect(bufferName(matrixList)).toBe(
       "type: system-requirement · status: draft · sorted by title · matrix",
     );
@@ -205,7 +205,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
       true,
     );
 
-    it("[SR-125/AK1] filter by type, status, property and text and saved filter keep it", async () => {
+    it("[SR-125/AK-mzzq] filter by type, status, property and text and saved filter keep it", async () => {
       const { shown, choose, asked, context } = start([base], {
         "metamodel.get": { types: [{ key: "need" }] },
         "filter.list": { filters: [{ name: "open" }] },
@@ -246,7 +246,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
       expect(shown().sort).toEqual([{ by: "title", order: "asc" }]);
     });
 
-    it("[SR-125/AK1] clear list filter and clear all list filters keep it", () => {
+    it("[SR-125/AK-mzzq] clear list filter and clear all list filters keep it", () => {
       const { context, shown } = start([base]);
       action("clear-filter").run(context);
       expect(shown()).toEqual(withMatrix(filteredList(base.steps.slice(0, 1), base.sort), true));
@@ -256,7 +256,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
       expect(again.shown().label).toBe("All elements");
     });
 
-    it("[SR-125/AK1] sort keeps it, and the steps", () => {
+    it("[SR-125/AK-mzzq] sort keeps it, and the steps", () => {
       const { context, shown, asked } = start([base]);
       action("sort").run(context);
       asked.at(-1)?.items[10]?.run();

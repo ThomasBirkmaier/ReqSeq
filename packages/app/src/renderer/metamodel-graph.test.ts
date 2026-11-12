@@ -24,7 +24,7 @@ const edgeLines = (output: MetamodelGetOutput): string[] =>
 const derives: MetamodelLink = { link: "relation", kind: "derives-from", name: "Derives from" };
 
 describe("metamodelGraph", () => {
-  it("[SR-130/AK2] makes each type a node with name, prefix and properties including the inherited ones, each inheritance an edge to the parent, and each relation kind an edge from each allowed source to each allowed target, labelled with its name", () => {
+  it("[SR-130/AK-s795] makes each type a node with name, prefix and properties including the inherited ones, each inheritance an edge to the parent, and each relation kind an edge from each allowed source to each allowed target, labelled with its name", () => {
     const graph = metamodelGraph(FIXTURE_METAMODEL);
     expect(graph.nodes).toEqual([
       {
@@ -119,7 +119,7 @@ describe("metamodelGraph", () => {
     ]);
   });
 
-  it("[SR-130/AK3] draws a relation kind that allows every type on a side once, to or from the node Any type, with the open side in its label, and adds that node only then", () => {
+  it("[SR-130/AK-j585] draws a relation kind that allows every type on a side once, to or from the node Any type, with the open side in its label, and adds that node only then", () => {
     const types = [effectiveType("a"), effectiveType("b"), effectiveType("c")];
     expect(
       edgeLines(

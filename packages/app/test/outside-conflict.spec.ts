@@ -90,7 +90,7 @@ test.describe("an open element changed or deleted outside the app", () => {
     await running.close();
   });
 
-  test('[SR-106/AK2] with unsaved input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the input', async () => {
+  test('[SR-106/AK-ydc8] with unsaved input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the input', async () => {
     const { window } = running;
     await typed(window);
     // A person changes the title and the text in another editor.
@@ -118,7 +118,7 @@ test.describe("an open element changed or deleted outside the app", () => {
     expect(kept).toContain("title: Measure the wind");
   });
 
-  test('[SR-106/AK2] "Take the file" leaves the file as it is, and Ctrl+Z brings the input back', async () => {
+  test('[SR-106/AK-ydc8] "Take the file" leaves the file as it is, and Ctrl+Z brings the input back', async () => {
     const { window } = running;
     await typed(window);
     await changeOutside(file, { text: `${TEXT}\n\n${THEIRS}` });
@@ -147,7 +147,7 @@ test.describe("an open element changed or deleted outside the app", () => {
     expect(await onDisk()).not.toContain(THEIRS);
   });
 
-  test("[SR-106/AK3] a deleted file leaves the content in the editor and a hint names the deletion", async () => {
+  test("[SR-106/AK-v420] a deleted file leaves the content in the editor and a hint names the deletion", async () => {
     const { window } = running;
     await typed(window);
     await fs.rm(file);
@@ -167,7 +167,7 @@ test.describe("an open element changed or deleted outside the app", () => {
     running.discardAtClose();
   });
 
-  test("[SR-116/AK3] with unsaved changes an outside change through MCP follows the conflict rule and no input is lost", async () => {
+  test("[SR-116/AK-vf1x] with unsaved changes an outside change through MCP follows the conflict rule and no input is lost", async () => {
     const { window } = running;
     const mcp = await running.mcp();
     // The agent has its workspace loaded, so its change comes before autosave writes the input.

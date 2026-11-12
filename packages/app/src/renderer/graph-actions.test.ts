@@ -218,7 +218,7 @@ describe("Evidence in the relation kind prompts", () => {
   const offered = (buffers: Buffers): string[] =>
     commandPrompt({ ...context(buffers).full, graphChoices: WITH_EVIDENCE }).items.map((item) => item.name);
 
-  it("[SR-111/AK3] offers Also show relation kind on every link for the evidence, until it is shown", () => {
+  it("[SR-111/AK-h6n9] offers Also show relation kind on every link for the evidence, until it is shown", () => {
     expect(offered([graph])).toContain("Also show relation kind");
     expect(offered([{ ...graph, withEvidence: true }])).not.toContain("Also show relation kind");
     const also = ran("graph-also", [graph], WITH_EVIDENCE);

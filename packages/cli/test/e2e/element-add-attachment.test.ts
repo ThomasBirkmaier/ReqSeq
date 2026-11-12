@@ -38,7 +38,7 @@ interface Added {
 }
 
 describe("reqseq element add-attachment (SR-097)", () => {
-  it("[SR-097/AK1] [SR-097/AK2] copies the image next to the element file; the saved text links it relatively and the link finds it on disk and in the commit", async () => {
+  it("[SR-097/AK-zs31] [SR-097/AK-hp47] copies the image next to the element file; the saved text links it relatively and the link finds it on disk and in the commit", async () => {
     const ws = await workspace();
     // A path relative to the current folder, as on any command line (ADR-0009 localPath).
     const out = await reqseq(

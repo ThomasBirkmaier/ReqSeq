@@ -62,14 +62,14 @@ test.describe("variant.exclude in the app", () => {
     await running.close();
   });
 
-  test("[SR-042/AK1] variant.exclude removes K3 from the view of A only", async () => {
+  test("[SR-042/AK-qj7v] variant.exclude removes K3 from the view of A only", async () => {
     expect(await viewIn(running)).toContain("SR-0000a3");
     await excludeInA(running.window, "SR-0000a3", "Measure the rain", false);
     expect(await viewIn(running)).toEqual(["SR-0000a4", "SR-0000b1", "SR-0000b2"]);
     expect(await viewIn(running, "VAR-0000c2")).toContain("SR-0000a3");
   });
 
-  test("[SR-042/AK6] variant.exclude with undo removes the entry and K2 is back in A", async () => {
+  test("[SR-042/AK-sq52] variant.exclude with undo removes the entry and K2 is back in A", async () => {
     expect(await viewIn(running)).not.toContain("SR-0000a2");
     await excludeInA(running.window, "SR-0000a2", "Measure the wind", true);
     expect(await viewIn(running)).toContain("SR-0000a2");

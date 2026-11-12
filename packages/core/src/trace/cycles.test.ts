@@ -106,7 +106,7 @@ const check = async (
   (await invoke("workspace.check", input, { workspace })) as CommandOutput<"workspace.check">;
 
 describe("cycles in the derivations (SR-090)", () => {
-  it("[SR-090/AK1] reports the cycle of A, B and C with every element of it, and no element outside it", async () => {
+  it("[SR-090/AK-pm0f] reports the cycle of A, B and C with every element of it, and no element outside it", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-090/cycle" });
     onTestFinished(() => fixture.cleanup());
     const workspace = openRoot(fixture.root);
@@ -173,7 +173,7 @@ describe("cycles in the derivations (SR-090)", () => {
     );
   });
 
-  it("[SR-090/AK1] reports an element that derives from itself, through any relation kind with the meaning derivation", async () => {
+  it("[SR-090/AK-pm0f] reports an element that derives from itself, through any relation kind with the meaning derivation", async () => {
     const S = uuid(1);
     const workspace = await open({
       "system/requirements/SR-000000000001.md": requirement(S, [`refines:\n  - { id: ${S}, version: ${V} }`]),
@@ -193,7 +193,7 @@ describe("cycles in the derivations (SR-090)", () => {
     ]);
   });
 
-  it("[SR-090/AK1] reports each cycle on its own, across repositories, in the order of their first element", async () => {
+  it("[SR-090/AK-pm0f] reports each cycle on its own, across repositories, in the order of their first element", async () => {
     const [X, Y, Q, R, T] = [1, 2, 3, 4, 5].map(uuid) as [string, string, string, string, string];
     const workspace = await open({
       "system/reqseq-workspace.yaml": workspaceFile([PLATFORM]),
@@ -225,7 +225,7 @@ describe("cycles in the derivations (SR-090)", () => {
     );
   });
 
-  it("[SR-090/AK1] names every element of a cycle that has more than one way round once", async () => {
+  it("[SR-090/AK-pm0f] names every element of a cycle that has more than one way round once", async () => {
     // A derives from B, B from A and from C, C from B: one cycle of three elements.
     const [X, Y, Z] = [1, 2, 3].map(uuid) as [string, string, string];
     const workspace = await open(
@@ -240,7 +240,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(problems.every((p) => p.message.includes("with 3 elements"))).toBe(true);
   });
 
-  it("[SR-090/AK1] takes each element's target from the cycle's edges: first relation kind of the metamodel, then first item", async () => {
+  it("[SR-090/AK-pm0f] takes each element's target from the cycle's edges: first relation kind of the metamodel, then first item", async () => {
     const [X, Y, Z] = [1, 2, 3].map(uuid) as [string, string, string];
     const workspace = await open({
       ...requirements({ [X]: derivesFrom(Y), [Z]: derivesFrom(Y) }),
@@ -260,7 +260,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(problems[1]?.message).toContain("its relation Refines to System Requirement SR-000001 ");
   });
 
-  it("[SR-090/AK1] names every element of a cycle a caller puts together, also one without an edge in it", async () => {
+  it("[SR-090/AK-pm0f] names every element of a cycle a caller puts together, also one without an edge in it", async () => {
     const [X, Y] = [1, 2].map(uuid) as [string, string];
     const workspace = await open(requirements({ [X]: derivesFrom(Y), [Y]: [] }));
     const graph = derivationGraph(await traceContext(workspace), "workspace.check");
@@ -299,7 +299,7 @@ describe("cycles in the derivations (SR-090)", () => {
     ]);
   });
 
-  it("[SR-090/AK1] names the first elements of a long cycle in the message and reports every element", async () => {
+  it("[SR-090/AK-pm0f] names the first elements of a long cycle in the message and reports every element", async () => {
     const count = CYCLE_NAMES_SHOWN + 5;
     const ids = Array.from({ length: count }, (_, i) => uuid(i + 1));
     const workspace = await open(
@@ -313,7 +313,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(first?.message).not.toContain(`SR-0000${String(CYCLE_NAMES_SHOWN + 1)},`);
   });
 
-  it("[SR-090/AK1] follows no other relation, no inline reference and no target it cannot name for sure", async () => {
+  it("[SR-090/AK-pm0f] follows no other relation, no inline reference and no target it cannot name for sure", async () => {
     const [X, Y, Z, W, DUP, AWAY_ID] = [1, 2, 3, 4, 5, 6].map(uuid) as [
       string,
       string,
@@ -342,7 +342,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(await cycles(workspace)).toEqual([]);
   });
 
-  it("[SR-090/AK1] finds the cycle again after the store is read again, and none once it is broken", async () => {
+  it("[SR-090/AK-pm0f] finds the cycle again after the store is read again, and none once it is broken", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-090/cycle" });
     onTestFinished(() => fixture.cleanup());
     const workspace = openRoot(fixture.root);

@@ -9,7 +9,7 @@ const PLAN = "p1:f77058b6376ff78f9f9febef65e53aa6f03c87562777d572ddb121ac6840c29
 scenariosOf("element.bulkUpdate", [
   {
     name: "a number given as text is refused, nothing is written (#614)",
-    tag: "[SR-085/AK4]",
+    tag: "[SR-085/AK-jx8c]",
     fixture: FILTER,
     input: { selection: {}, property: "priority", operation: "set", value: "3", confirm: true },
     expect: "error",
@@ -24,7 +24,7 @@ scenariosOf("element.bulkUpdate", [
     name: "an origin property is refused: only reqif.import writes it",
     fixture: FILTER,
     input: { selection: {}, property: "delivery", operation: "set", value: "1", confirm: true },
-    tag: "[SR-057/AK3]",
+    tag: "[SR-057/AK-kvbv]",
     expect: "error",
   },
   {
@@ -36,7 +36,7 @@ scenariosOf("element.bulkUpdate", [
       operation: "add",
       value: { id: NESTED_A },
     },
-    tag: "[SR-039/AK2]",
+    tag: "[SR-039/AK-nvfq]",
     expect: "output",
   },
   {
@@ -49,7 +49,7 @@ scenariosOf("element.bulkUpdate", [
       value: { id: NESTED_A },
       confirm: true,
     },
-    tag: "[SR-039/AK2]",
+    tag: "[SR-039/AK-nvfq]",
     expect: "error",
   },
   {
@@ -123,7 +123,7 @@ scenariosOf("element.bulkUpdate", [
   },
   {
     name: "the status is never a bulk change (D-030), nothing is written",
-    tag: "[SR-071/AK4]",
+    tag: "[SR-071/AK-f00k]",
     fixture: FILTER,
     input: { selection: {}, property: "status", operation: "set", value: "approved", confirm: true },
     expect: "error",

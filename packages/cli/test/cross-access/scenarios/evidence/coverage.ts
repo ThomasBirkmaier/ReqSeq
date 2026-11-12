@@ -33,7 +33,7 @@ scenariosOf("evidence.coverage", [
     name: "a package page counts 8 of 10 requirements with evidence, not its need",
     fixture: DEGREE,
     input: { selection: { package: "PKG-00d003" } },
-    tag: "[SR-112/AK3]",
+    tag: "[SR-112/AK-s1rj]",
     expect: "output",
     check: (results) => {
       const { levels } = (results["core"]?.outcome as { output: { levels: readonly CoverageLevel[] } })

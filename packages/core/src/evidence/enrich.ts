@@ -13,16 +13,16 @@
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
 // - Acceptance criteria (SR-029 AK10, D-072): a name token `[<ref>/AK-<key>]` and a name pattern
 //   match whose `{ak}` is a criterion key give a `reqseq:criterion` `<UUID>:<key>` for the element the
-//   reference names (`criterionRefsOf`). Until the switch-over to key tags (#1419; SR-029 AK13 comes
-//   with it), `[<ref>/AK<n>]` and `{ak}` = n (from 1, no leading zero) are still read, and written as
-//   the key of the criterion at position n of the current version where it has one, else as
-//   `<UUID>:<n>`, because every test name of this repository still names criteria by number
-//   (the switch-over runs after the code). An element the name
-//   also names without a criterion (`[SR-x] [SR-x/AK-k7f3]`) gets none from the name: the test holds
-//   for all its criteria; another suffix (`/slow`) names the whole requirement too. A suffix `AK`
-//   that is no such key or number (`AK0`, `AK02`, `AK`, `AK2a`, `AK-x`), and `{ak}` that is none,
-//   leave the test case unchanged as `evidence.invalid-record`: enriched without it, it would hold
-//   for every criterion. A hand-written `reqseq:criterion` `<ref>:<key>` or `<ref>:<n>` (short ID,
+//   reference names (`criterionRefsOf`). An element the name also names without a criterion
+//   (`[SR-x] [SR-x/AK-k7f3]`) gets none from the name: the test holds for all its criteria; another
+//   suffix (`/slow`) names the whole requirement too. A name that names a criterion by its number
+//   (`[<ref>/AK<n>]`, `{ak}` = n), by a key that no criterion or more than one carries in the current
+//   version of its element, or with a suffix `AK` that is neither (`AK0`, `AK`, `AK2a`, `AK-x`, and
+//   `{ak}` that is none) leaves the test case unchanged as `evidence.invalid-criterion-name` (AK13),
+//   with the key to write where the number names a criterion that has one; enriched without it, the
+//   test would hold for every criterion, and a number points to another criterion once one is
+//   inserted (D-072). This holds for every element the name names, also one left out (AK11). A
+//   hand-written `reqseq:criterion` `<ref>:<key>` or `<ref>:<n>` (short ID,
 //   UUID or identifier) is kept, with its reference replaced by the UUID in place; the criteria of
 //   the name that no property names yet are appended, each once. One that is malformed, or names no
 //   element of the test case, leaves the test case unchanged and is `evidence.invalid-record`. The
@@ -188,10 +188,10 @@ export interface EnrichOptions {
   /** The compiled name pattern (AK5, `nameMatcher`); absent: brackets and properties only. */
   readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
   /**
-   * The acceptance criteria items of the current version of the element `id` (a found one), so a
-   * number tag is written as its criterion's key (see the file comment); absent: numbers as named.
+   * The acceptance criteria items of the current version of the element `id` (a found one), against
+   * which the criterion keys of a name are checked (AK13).
    */
-  readonly criteriaOf?: ((id: string) => readonly unknown[]) | undefined;
+  readonly criteriaOf: (id: string) => readonly unknown[];
 }
 
 /** An element a verification record cannot name (`notRequirement`). */
@@ -254,6 +254,8 @@ type Plan =
       readonly views: readonly ViewId[];
     }
   | { readonly kind: "invalid"; readonly testCase: JunitTestCase; readonly reason: string }
+  /** Its name names an acceptance criterion that the current version does not have by key (AK13). */
+  | { readonly kind: "criterion"; readonly testCase: JunitTestCase; readonly reason: string }
   | {
       readonly kind: "reported";
       readonly testCase: JunitTestCase;
@@ -566,54 +568,84 @@ const handCriterion = (
   return { error: `${CRITERION_PROPERTY} "${shown(text)}" names ${what}` };
 };
 
+/** The remedy for criteria without key (SR-204 AK3). */
+const assignKeys = (ref: string): string =>
+  `give the acceptance criteria of ${ref} criterion keys with element.assignCriterionKeys`;
+
+/** How many of the criteria `items` carry the criterion key `key`. */
+const carriers = (items: readonly unknown[], key: string): number =>
+  items.filter((item) => criterionKey(item) === key).length;
+
 /**
- * The criterion a name tag writes (SR-029 AK10): a key as named; a number as the key of the criterion
- * at that position of the current `items` where it has one that no other criterion carries (a double
- * key would count for neither, SR-204 AK10), else the number. The number form is kept only until the
- * switch-over to key tags (#1419), because every test name of this repository still names criteria
- * by number (the switch-over runs after the code).
+ * Why the criterion `criterion` that `text` names for the element written `ref` (`criterionRefsOf`)
+ * does not count against the current criteria `items` (AK13), with what to write instead; undefined
+ * for a key exactly one criterion carries (SR-204 AK10: a double key counts for neither).
  */
-const writtenCriterion = (
+const refusedCriterion = (
+  ref: string,
+  text: string,
   criterion: CriterionValue,
-  items: readonly unknown[] | undefined,
-): CriterionValue => {
-  if (typeof criterion !== "number") {
-    return criterion;
+  items: readonly unknown[],
+): string | undefined => {
+  const byPattern = !text.startsWith("[");
+  const named = `"${shown(text)}"${byPattern ? " (read by the name pattern)" : ""}`;
+  if (typeof criterion === "number") {
+    const key = criterionKey(items[criterion - 1]);
+    if (criterion <= items.length && key === undefined) {
+      return `${named} names an acceptance criterion by its number, which has no criterion key yet; ${assignKeys(ref)} and name it by its key`;
+    }
+    const instead =
+      key === undefined || carriers(items, key) !== 1
+        ? "its criterion key from the element file"
+        : byPattern
+          ? `its criterion key, ${key}`
+          : `its criterion key, [${ref}/AK-${key}]`;
+    return `${named} names an acceptance criterion by its number; name it by ${instead}`;
   }
-  const key = criterionKey(items?.[criterion - 1]);
-  return key !== undefined && items?.filter((item) => criterionKey(item) === key).length === 1
-    ? key
-    : criterion;
+  const count = carriers(items, criterion);
+  if (count === 1) {
+    return undefined;
+  }
+  const which = count === 0 ? "no acceptance criterion" : `${String(count)} acceptance criteria`;
+  const instead =
+    count === 0 && items.length > 0 && items.every((item) => criterionKey(item) === undefined)
+      ? assignKeys(ref)
+      : "name the key from the element file";
+  return `${named} names the criterion key ${criterion}, which ${which} of ${ref} in its current version ${count === 0 ? "carries" : "carry"}; ${instead}`;
 };
 
 /**
  * The criteria the name of a test case gives for the elements `elements` (`criterionRefsOf`), in name
  * order, without those of an element the name also names without a criterion (all of them); or why
- * it is not enriched: a malformed criterion of one of them.
+ * it is not enriched (AK13): a malformed criterion, a number, or a key that not exactly one current
+ * criterion carries, of one of them.
  */
 const nameCriteria = (
   testCase: JunitTestCase,
   elements: ReadonlySet<string>,
   options: EnrichOptions,
-): [string, CriterionValue][] | { readonly error: string } => {
+): [string, CriterionValue][] | { readonly refused: string } => {
   const found: [string, CriterionValue][] = [];
   const whole = new Set<string>();
-  for (const { ref, criterion, malformed } of criterionRefsOf(testCase.name, options.namePattern)) {
+  for (const { ref, criterion, text, malformed } of criterionRefsOf(testCase.name, options.namePattern)) {
     const resolution = ref === "" ? undefined : options.resolve(ref);
     if (resolution?.kind !== "found" || !elements.has(resolution.id)) {
       continue;
     }
     if (malformed !== undefined) {
-      // Enriched without it, the test case would hold for every criterion of the element (D-072).
       return {
-        error: `"${shown(malformed)}" names no acceptance criterion: write AK- and its criterion key, or AK and a number from 1 without leading zero`,
+        refused: `"${shown(malformed)}" names no acceptance criterion: write AK- and its criterion key from the element file`,
       };
     }
     if (criterion === undefined) {
       whole.add(resolution.id);
-    } else {
-      found.push([resolution.id, writtenCriterion(criterion, options.criteriaOf?.(resolution.id))]);
+      continue;
     }
+    const refused = refusedCriterion(ref, text, criterion, options.criteriaOf(resolution.id));
+    if (refused !== undefined) {
+      return { refused };
+    }
+    found.push([resolution.id, criterion]);
   }
   return found.filter(([id]) => !whole.has(id));
 };
@@ -622,13 +654,14 @@ const nameCriteria = (
  * The criteria of a test case to enrich that names the elements `ids` (SR-029 AK10, see the file
  * comment), or why it is not enriched: each hand-written `reqseq:criterion` is kept and gets its UUID
  * in place (`handCriterion`), or is removed when its element is left out (`left`, AK11); each
- * criterion of the name (`nameCriteria`) of an element not left out that no property names yet is
- * added once.
+ * criterion of the name (`fromName`, `nameCriteria`) of an element not left out that no property
+ * names yet is added once.
  */
 const criteriaPlanOf = (
   testCase: JunitTestCase,
   ids: readonly string[],
   left: ReadonlySet<string>,
+  fromName: readonly [string, CriterionValue][],
   options: EnrichOptions,
 ): CriteriaPlan | { readonly error: string } => {
   const elements = new Set(ids);
@@ -657,11 +690,7 @@ const criteriaPlanOf = (
     }
     put(hand.id, hand.n);
   }
-  const fromName = nameCriteria(testCase, new Set(ids.filter((id) => !left.has(id))), options);
-  if ("error" in fromName) {
-    return fromName;
-  }
-  const add = fromName.flatMap(([id, n]) => (put(id, n) ? [`${id}:${String(n)}`] : []));
+  const add = fromName.flatMap(([id, n]) => (!left.has(id) && put(id, n) ? [`${id}:${String(n)}`] : []));
   return { rewrite, add, drop, text: criteriaText(numbers) };
 };
 
@@ -689,6 +718,11 @@ const enrichPlanOf = (
   options: EnrichOptions,
 ): Plan => {
   const ids = [...named.map((n) => n.id), ...added];
+  // AK13: a criterion of the name that does not count leaves the test case unchanged, whatever its views.
+  const fromName = nameCriteria(testCase, new Set(ids), options);
+  if ("refused" in fromName) {
+    return { kind: "criterion", testCase, reason: fromName.refused };
+  }
   const variant = variantPlanOf(testCase, options);
   if ("error" in variant) {
     return { kind: "invalid", testCase, reason: variant.error };
@@ -707,7 +741,7 @@ const enrichPlanOf = (
   }
   // A criterion the reader would refuse after enrich leaves the test case unchanged: enriched, it
   // would give no record.
-  const criteria = criteriaPlanOf(testCase, ids, left, options);
+  const criteria = criteriaPlanOf(testCase, ids, left, fromName, options);
   return "error" in criteria
     ? { kind: "invalid", testCase, reason: criteria.error }
     : {
@@ -1273,8 +1307,9 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
       addLeftOut(outcome, plan, context);
       return;
     case "invalid":
+    case "criterion":
       outcome.problems.push({
-        code: "evidence.invalid-record",
+        code: plan.kind === "invalid" ? "evidence.invalid-record" : "evidence.invalid-criterion-name",
         severity: "error",
         ...where,
         line: plan.testCase.line,

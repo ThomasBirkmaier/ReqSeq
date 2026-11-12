@@ -74,7 +74,7 @@ const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
 const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
 
 describe("reqseq workspace check (SR-019)", () => {
-  it("[SR-019/AK1] ends with exit code 0 for a workspace without findings", async () => {
+  it("[SR-019/AK-v7nq] ends with exit code 0 for a workspace without findings", async () => {
     const ws = await fixture("SR-072/supersede");
     // Its one requirement without a parent gets one (SR-022 AK6).
     const successor = ws.path("requirements/SR-d4e5f6a7b8c9.md");
@@ -101,7 +101,7 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(output).toEqual({ ok: true, problems: [], checkedElements: 5 });
   });
 
-  it("[SR-019/AK1] ends with exit code 0 when there is only info, such as a repository that is not here", async () => {
+  it("[SR-019/AK-v7nq] ends with exit code 0 when there is only info, such as a repository that is not here", async () => {
     const ws = await fixture("SR-089/missing-targets");
     const { human, output } = await checkBoth(ws.path("system"));
     expect(human.code).toBe(0);
@@ -111,7 +111,7 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(output.ok).toBe(true);
   });
 
-  it("[SR-019/AK2] reports every finding with kind, file and element and ends with exit code 1", async () => {
+  it("[SR-019/AK-pt9j] reports every finding with kind, file and element and ends with exit code 1", async () => {
     const ws = await fixture("SR-019/findings");
     const { human, json, output } = await checkBoth(ws.root);
     expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
@@ -143,7 +143,7 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(lines.filter((line) => /^(error|warning) {2}/.test(line))).toHaveLength(output.problems.length);
   });
 
-  it("[SR-019/AK2] reports a relation whose target was removed and ends with exit code 1 (SR-089)", async () => {
+  it("[SR-019/AK-pt9j] reports a relation whose target was removed and ends with exit code 1 (SR-089)", async () => {
     const ws = await fixture("SR-089/missing-targets");
     await fs.rm(ws.path("system/needs/N-2c3d4e5f6a7b.md"));
     const { human, json, output } = await checkBoth(ws.path("system"));
@@ -161,7 +161,7 @@ describe("reqseq workspace check (SR-019)", () => {
     );
   });
 
-  it("[SR-019/AK2] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 with --fail-on warning (SR-090)", async () => {
+  it("[SR-019/AK-pt9j] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 with --fail-on warning (SR-090)", async () => {
     const ws = await fixture("SR-090/cycle");
     const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
@@ -180,7 +180,7 @@ describe("reqseq workspace check (SR-019)", () => {
     ).toHaveLength(3);
   });
 
-  it("[SR-019/AK5] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
+  it("[SR-019/AK-zc2v] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
     const ws = await fixture("SR-085/value-kinds");
     const args = ["workspace", "check", "--severity", "error", ...FAIL_ON_WARNING];
     const result = await reqseq([...args, "--json"], ws.path("system"));
@@ -199,7 +199,7 @@ describe("reqseq workspace check (SR-019)", () => {
     });
   });
 
-  it("[SR-019/AK3] gives all findings as JSON, exactly the command output", async () => {
+  it("[SR-019/AK-kk2m] gives all findings as JSON, exactly the command output", async () => {
     const ws = await fixture("SR-019/findings");
     const { json, output } = await checkBoth(ws.root);
     expect(json.stdout.endsWith("\n")).toBe(true);
@@ -213,7 +213,7 @@ describe("reqseq workspace check (SR-019)", () => {
 });
 
 describe("findings handed over to workspace check", () => {
-  it("[SR-085/AK3] reports a value of the wrong kind as a finding with code, file and element", async () => {
+  it("[SR-085/AK-qr81] reports a value of the wrong kind as a finding with code, file and element", async () => {
     const ws = await fixture("SR-085/value-kinds");
     const { human, json, output } = await checkBoth(ws.path("system"), FAIL_ON_WARNING);
     // SR-019 AK2: findings of SR-085 end the check with exit code 1 (warnings: with --fail-on warning).
@@ -230,7 +230,7 @@ describe("findings handed over to workspace check", () => {
     );
   });
 
-  it("[SR-086/AK2] workspace check reports a relation between types that are not allowed as a finding", async () => {
+  it("[SR-086/AK-wpfy] workspace check reports a relation between types that are not allowed as a finding", async () => {
     const ws = await fixture("SR-086/relation-types");
     const { human, json, output } = await checkBoth(ws.path("system"), FAIL_ON_WARNING);
     expect([human.code, json.code]).toEqual([1, 1]);
@@ -255,7 +255,7 @@ describe("findings handed over to workspace check", () => {
     );
   });
 
-  it("[SR-088/AK3] ends with exit code 1 for duplicate UUIDs and lists both files", async () => {
+  it("[SR-088/AK-rst4] ends with exit code 1 for duplicate UUIDs and lists both files", async () => {
     const ws = await fixture("SR-088/copied-file");
     const { human, json, output } = await checkBoth(ws.path("system"));
     expect([human.code, json.code]).toEqual([1, 1]);
@@ -267,7 +267,7 @@ describe("findings handed over to workspace check", () => {
     ]);
   });
 
-  it("[SR-090/AK1] reports the cycle of A, B and C, naming all three elements", async () => {
+  it("[SR-090/AK-pm0f] reports the cycle of A, B and C, naming all three elements", async () => {
     const ws = await fixture("SR-090/cycle");
     const { human, output } = await checkBoth(ws.root);
     const cycle = output.problems.filter((p) => p.code === "trace.cycle");
@@ -283,7 +283,7 @@ describe("findings handed over to workspace check", () => {
     );
   });
 
-  it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle with --fail-on warning", async () => {
+  it("[SR-090/AK-n7q5] ends the check from the command line with exit code 1 for a cycle with --fail-on warning", async () => {
     const ws = await fixture("SR-090/cycle");
     // A cycle is a warning: exit code 0 by default (ThomasBirkmaier/ReqSeq-archive#304), 1 with --fail-on warning.
     expect((await reqseq(["workspace", "check"], ws.root)).code).toBe(0);
@@ -319,7 +319,7 @@ const headDate = async (ws: FixtureWorkspace): Promise<string> =>
     .replace(".000Z", "Z");
 
 describe("outdated relations in workspace check (SR-025)", () => {
-  it("[SR-025/AK1] reports nothing and ends with exit code 0 when every relation is current", async () => {
+  it("[SR-025/AK-rvw7] reports nothing and ends with exit code 0 when every relation is current", async () => {
     const ws = await fixture("SR-025/outdated", true);
     const { human, json, output } = await checkBoth(ws.root);
     expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 4\nNo problems.\n", stderr: "" });
@@ -327,7 +327,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
     expect(output).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK2] [SR-019/AK2] names source, target and the dates of both versions and ends with exit code 1", async () => {
+  it("[SR-025/AK-zmvt] [SR-019/AK-pt9j] names source, target and the dates of both versions and ends with exit code 1", async () => {
     const ws = await fixture("SR-025/outdated", true);
     const stored = await headDate(ws);
     const storedCommit = (await ws.head()).slice(0, 12);
@@ -380,7 +380,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
     );
   });
 
-  it("[SR-019/AK4] [SR-025/AK3] reports a confirmed hint no more, and ends with exit code 0 when nothing else is left", async () => {
+  it("[SR-019/AK-x4q3] [SR-025/AK-b8r6] reports a confirmed hint no more, and ends with exit code 0 when nothing else is left", async () => {
     const ws = await fixture("SR-025/outdated", true);
     // The need gets a new text after A's derivation and reference to it were set.
     const need = "needs/N-0a0000000001.md";
@@ -461,7 +461,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     expect(errors.stdout.endsWith("\n6 warnings below error not shown.\n")).toBe(true);
   });
 
-  it("[SR-072/AK2] ends with exit code 0 after a supersede with a successor, whose own relation gets no hint", async () => {
+  it("[SR-072/AK-y5gr] ends with exit code 0 after a supersede with a successor, whose own relation gets no hint", async () => {
     // The successor's succession relation records the supersede and gets no hint (#170); the other
     // relations to the superseded element get one each, warnings that must not fail the workspace.
     const ws = await fixture("SR-072/supersede");
@@ -499,7 +499,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
 describe("workspace check restricted to a merge request (SR-092)", () => {
   const B_FILE = "requirements/SR-0b0000000002.md";
 
-  it("[SR-092/AK1] reports only the findings of the changed element and its targets with --changed-since", async () => {
+  it("[SR-092/AK-jzpz] reports only the findings of the changed element and its targets with --changed-since", async () => {
     const ws = await fixture("SR-025/outdated", true);
     // On the target branch: B gets a finding of its own; B has nothing to do with N.
     const b = await fs.readFile(ws.path(B_FILE), "utf8");
@@ -542,7 +542,7 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     expect(none).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 0\nNo problems.\n", stderr: "" });
   });
 
-  it("[SR-092/AK2] says that a commit is not available locally and ends with exit code 4", async () => {
+  it("[SR-092/AK-fh11] says that a commit is not available locally and ends with exit code 4", async () => {
     const ws = await fixture("SR-025/outdated", true);
     const missing = "0123456789abcdef0123456789abcdef01234567";
     const message = `Commit ${missing} is not available locally in any repository of the workspace: fetch it, or deepen a shallow clone`;

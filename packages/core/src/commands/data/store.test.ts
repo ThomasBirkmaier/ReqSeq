@@ -147,7 +147,7 @@ const append = (ws: FixtureWorkspace, file: string, text: string): void => {
 };
 
 describe("data.store: the data of a state as a file named after its commit (SR-062 AK1)", () => {
-  it("[SR-062/AK1] writes the data of the state into the given folder as JSON Lines, one element per line, named after the commit of the main repository", async () => {
+  it("[SR-062/AK-d6t4] writes the data of the state into the given folder as JSON Lines, one element per line, named after the commit of the main repository", async () => {
     const ws = await fixture(EXPORT);
     const root = ws.path("system");
     const commit = await ws.head("system");
@@ -174,7 +174,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     }
   });
 
-  it("[SR-062/AK1] names the file <commit>-dirty.jsonl when an element file has uncommitted changes", async () => {
+  it("[SR-062/AK-d6t4] names the file <commit>-dirty.jsonl when an element file has uncommitted changes", async () => {
     const changed = await fixture();
     const commit = await changed.head();
     append(changed, "requirements/SR-0000000000a1.md", "More text.\n");
@@ -191,7 +191,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect((await storeIn(added.root, { folder: "out" })).files).toEqual([`out/${commit}-dirty.jsonl`]);
   });
 
-  it("[SR-062/AK1] a dirty second repository makes the file -dirty too", async () => {
+  it("[SR-062/AK-d6t4] a dirty second repository makes the file -dirty too", async () => {
     const ws = await fixture(EXPORT);
     append(ws, "sensor/requirements/SR-0000000000e1.md", "Changed.\n");
     const commit = await ws.head("system");
@@ -201,7 +201,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect((await exportIn(ws.path("system"))).repositories.map((r) => r.dirty)).toEqual([false, true]);
   });
 
-  it("[SR-062/AK1] a second run on the same commit replaces the file of that commit", async () => {
+  it("[SR-062/AK-d6t4] a second run on the same commit replaces the file of that commit", async () => {
     const ws = await fixture();
     const commit = await ws.head();
     const file = ws.path(`out/${commit}.jsonl`);
@@ -222,7 +222,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(fs.readFileSync(file, "utf8")).toBe(first);
   });
 
-  it("[SR-062/AK1] leaves an old <commit>.json as it is and writes <commit>.jsonl next to it", async () => {
+  it("[SR-062/AK-d6t4] leaves an old <commit>.json as it is and writes <commit>.jsonl next to it", async () => {
     const ws = await fixture();
     const commit = await ws.head();
     const old = '{"reqseq-data":1,"workspace":"W","elements":[]}\n';
@@ -232,7 +232,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(old);
   });
 
-  it("[SR-062/AK1] without a commit of the main repository nothing is written and git.unavailable is an error", async () => {
+  it("[SR-062/AK-d6t4] without a commit of the main repository nothing is written and git.unavailable is an error", async () => {
     const plain = await fixture({ fixture: "SR-062/store" });
     const out = await storeIn(plain.root, { folder: "out" });
     expect(out).toEqual({
@@ -262,7 +262,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(fs.existsSync(empty.path("out"))).toBe(false);
   });
 
-  it("[SR-062/AK2] each line of the stored file matches $defs/line of the shipped data-export.schema.json, and it names no path of this machine", async () => {
+  it("[SR-062/AK-h4hb] each line of the stored file matches $defs/line of the shipped data-export.schema.json, and it names no path of this machine", async () => {
     const ws = await fixture(EXPORT);
     const out = await storeIn(ws.path("system"), { folder: "out" });
     const file = ws.path(`system/${String(out.files[0])}`);
@@ -349,7 +349,7 @@ describe("data.store: a second repository without a known commit (ThomasBirkmaie
     ]);
   });
 
-  it("[SR-062/AK1] marks a missing repository on every line, with the info in the output; the name is clean when the rest is", async () => {
+  it("[SR-062/AK-d6t4] marks a missing repository on every line, with the info in the output; the name is clean when the rest is", async () => {
     const ws = await fixture(EXPORT);
     fs.rmSync(ws.path("sensor"), { recursive: true });
     const commit = await ws.head("system");
@@ -800,7 +800,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
 });
 
 describe("data.store: a file larger than one string (#277, #319)", () => {
-  it("[SR-062/AK1] writes the lines of jsonLines, in chunks given lazily (review S6)", async () => {
+  it("[SR-062/AK-d6t4] writes the lines of jsonLines, in chunks given lazily (review S6)", async () => {
     const ws = await fixture(EXPORT);
     const commit = await ws.head("system");
     vi.mocked(files.writeFileAtomic).mockClear();

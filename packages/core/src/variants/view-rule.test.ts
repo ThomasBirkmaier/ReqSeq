@@ -83,43 +83,43 @@ const VIEW_A = ["D1", "N1", "P1", "K3", "K4", "A1", "A2", ...VARIANTS];
 const CORE = ["D1", "N1", "P1", "K1", "K2", "K3", "K4", ...VARIANTS];
 
 describe("the view rule (SR-041, SR-043)", () => {
-  it("[SR-043/AK1] the view of A is exactly K3, K4, A1, A2 besides the elements without validity property", async () => {
+  it("[SR-043/AK-ymsc] the view of A is exactly K3, K4, A1, A2 besides the elements without validity property", async () => {
     const ws = await open();
     expect(await list(ws, "VAR-0000c1")).toEqual(VIEW_A);
   });
 
-  it("[SR-043/AK1] a child of the excluded K2 without validity stays in A", async () => {
+  it("[SR-043/AK-ymsc] a child of the excluded K2 without validity stays in A", async () => {
     const ws = await open(requirement("a5", `derives-from: [${to("a2")}]\n`));
     expect(await list(ws, "VAR-0000c1")).toEqual([...VIEW_A.slice(0, 5), "a5", "A1", "A2", ...VARIANTS]);
   });
 
-  it("[SR-041/AK1] the view of A lists SR-A instead of SR-K", async () => {
+  it("[SR-041/AK-xqgg] the view of A lists SR-A instead of SR-K", async () => {
     const ws = await open();
     const view = await list(ws, "VAR-0000c1");
     expect([view.includes("A1"), view.includes("K1")]).toEqual([true, false]);
   });
 
-  it("[SR-041/AK3] the core view and the view of B keep SR-K", async () => {
+  it("[SR-041/AK-bs7h] the core view and the view of B keep SR-K", async () => {
     const ws = await open();
     expect(await list(ws, "core")).toEqual(CORE);
     expect(await list(ws, "VAR-0000c2")).toEqual(CORE);
   });
 
-  it("[SR-041/AK4] SR-A with validity [A, B] replaces SR-K in A and B, not in C", async () => {
+  it("[SR-041/AK-dsdx] SR-A with validity [A, B] replaces SR-K in A and B, not in C", async () => {
     const ws = await open(requirement("b3", `validity: [${A}, ${B}]\nreplaces: [${to("a3")}]\n`));
     expect(await list(ws, "VAR-0000c1")).toEqual(["D1", "N1", "P1", "K4", "A1", "A2", "b3", ...VARIANTS]);
     expect(await list(ws, "VAR-0000c2")).toEqual(["D1", "N1", "P1", "K1", "K2", "K4", "b3", ...VARIANTS]);
     expect(await list(ws, "VAR-0000c3")).toEqual(CORE);
   });
 
-  it("[SR-041/AK6] a replaces from a requirement without validity removes SR-K from no view", async () => {
+  it("[SR-041/AK-cwgx] a replaces from a requirement without validity removes SR-K from no view", async () => {
     const ws = await open(requirement("a5", `replaces: [${to("a4")}]\n`));
     for (const view of ["core", "VAR-0000c1", "VAR-0000c2", "VAR-0000c3"]) {
       expect(await list(ws, view)).toContain("K4");
     }
   });
 
-  it("[SR-041/AK7] two replacements of SR-K in A both appear and give no hint", async () => {
+  it("[SR-041/AK-hq24] two replacements of SR-K in A both appear and give no hint", async () => {
     const ws = await open(requirement("b3", `validity: [${A}]\nreplaces: [${to("a1")}, ${to("a1")}]\n`));
     expect(await list(ws, "VAR-0000c1")).toEqual([...VIEW_A.slice(0, 7), "b3", ...VARIANTS]);
     const store = await ws.get(elementStoreState);
@@ -141,7 +141,7 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(await check(ws, "variant.")).toEqual([]);
   });
 
-  it("[SR-041/AK8] a replaces from SR-A onto a requirement with validity or a need changes no view and gives variant.target-not-core at the entry's line", async () => {
+  it("[SR-041/AK-g0cz] a replaces from SR-A onto a requirement with validity or a need changes no view and gives variant.target-not-core at the entry's line", async () => {
     const ws = await open(
       requirement("b3", `validity: [${A}]\nreplaces:\n  - ${to("b2")}\n  - ${to("d1")}\n  - Coast\n`),
     );
@@ -174,7 +174,7 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect([await hints("VAR-0000c1"), await hints("VAR-0000c2")]).toEqual([2, 0]);
   });
 
-  it("[SR-041/AK9] a replacing requirement with an invalid status still replaces", async () => {
+  it("[SR-041/AK-h2nt] a replacing requirement with an invalid status still replaces", async () => {
     const ws = await open();
     const out = (await invoke(
       "element.setStatus",
@@ -185,7 +185,7 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(await list(ws, "VAR-0000c1")).toEqual(VIEW_A);
   });
 
-  it("[SR-043/AK2] element.search in the view of A finds only K3, K4, A1, A2", async () => {
+  it("[SR-043/AK-k7dn] element.search in the view of A finds only K3, K4, A1, A2", async () => {
     const ws = await open();
     const search = async (query: string): Promise<string[]> =>
       (
@@ -203,12 +203,12 @@ describe("the view rule (SR-041, SR-043)", () => {
     ]);
   });
 
-  it("[SR-043/AK3] element.list with a filter in the view of A holds only K3, K4, A1, A2", async () => {
+  it("[SR-043/AK-g94y] element.list with a filter in the view of A holds only K3, K4, A1, A2", async () => {
     const ws = await open();
     expect(await list(ws, "VAR-0000c1", { type: ["system-requirement"] })).toEqual(["K3", "K4", "A1", "A2"]);
   });
 
-  it("[SR-043/AK8] data.export in the view of A holds exactly K3, K4, A1, A2", async () => {
+  it("[SR-043/AK-yrdn] data.export in the view of A holds exactly K3, K4, A1, A2", async () => {
     const ws = await open();
     const out = (await invoke(
       "data.export",
@@ -218,19 +218,19 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(out.elements.map((e) => name(e.id))).toEqual(["K3", "K4", "A1", "A2"]);
   });
 
-  it("[SR-043/AK9] the core view holds only requirements without validity", async () => {
+  it("[SR-043/AK-pyxy] the core view holds only requirements without validity", async () => {
     const ws = await open();
     expect(await list(ws, "core", { type: ["system-requirement"] })).toEqual(["K1", "K2", "K3", "K4"]);
   });
 
-  it("[SR-043/AK10] needs, decisions and packages are in every view", async () => {
+  it("[SR-043/AK-sknp] needs, decisions and packages are in every view", async () => {
     const ws = await open();
     for (const view of ["core", "VAR-0000c1", "VAR-0000c2", "VAR-0000c3"]) {
       expect((await list(ws, view)).slice(0, 3)).toEqual(OTHERS);
     }
   });
 
-  it("[SR-043/AK10] a need with a stray validity entry is in every view and added in none", async () => {
+  it("[SR-043/AK-sknp] a need with a stray validity entry is in every view and added in none", async () => {
     const ws = await open({
       "needs/N-0000000000d1.md": `---\nid: ${P}d1\ntype: need\nstatus: draft\ntitle: See the weather\nvalidity: [${A}]\n---\n`,
     });

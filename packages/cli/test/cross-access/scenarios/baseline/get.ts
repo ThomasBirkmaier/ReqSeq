@@ -27,7 +27,7 @@ scenariosOf("baseline.get", [
     fixture: EXPORT,
     root: "system",
     input: { baseline: "release-1" },
-    tag: "[SR-051/AK1]",
+    tag: "[SR-051/AK-n6cm]",
     expect: "output",
   },
   {
@@ -57,7 +57,7 @@ scenariosOf("baseline.get", [
       },
     },
     input: { baseline: "Release 1", withEvidence: true },
-    tag: "[SR-205/AK2]",
+    tag: "[SR-205/AK-m2vv]",
     expect: "output",
     check: (results) => {
       expect(baselineEntries(results)["e3"]?.verification?.[0]?.later?.map((r) => r.criterionNames)).toEqual([
@@ -80,7 +80,7 @@ scenariosOf("baseline.get", [
       },
     },
     input: { baseline: "Criteria 1", withEvidence: true },
-    tag: "[SR-031/AK5]",
+    tag: "[SR-031/AK-yscc]",
     expect: "output",
     check: (results) => {
       expect(baselineEntries(results)["e1"]?.verification).toEqual([
@@ -100,7 +100,7 @@ scenariosOf("baseline.get", [
     name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true },
-    tag: "[SR-094/AK1]",
+    tag: "[SR-094/AK-wm63]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -112,7 +112,7 @@ scenariosOf("baseline.get", [
     name: "records dated after the baseline do not count and are named (SR-094 AK2)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true, offset: 2, limit: 2 },
-    tag: "[SR-094/AK2]",
+    tag: "[SR-094/AK-vpcs]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -128,7 +128,7 @@ scenariosOf("baseline.get", [
     name: "outdated with records of older versions only, else open (SR-094 AK3)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true, offset: 3, limit: 2 },
-    tag: "[SR-094/AK3]",
+    tag: "[SR-094/AK-chwr]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -140,7 +140,7 @@ scenariosOf("baseline.get", [
     name: "without a variant in the selection a row for the core and every variant it applies in (SR-094 AK4)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true, offset: 3 },
-    tag: "[SR-094/AK4]",
+    tag: "[SR-094/AK-xt47]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -153,7 +153,7 @@ scenariosOf("baseline.get", [
     name: "with a variant in the selection only that variant's row (SR-094 AK5)",
     fixture: SR094,
     input: { baseline: "Alpine 1", withEvidence: true },
-    tag: "[SR-094/AK5]",
+    tag: "[SR-094/AK-g0b5]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -164,7 +164,7 @@ scenariosOf("baseline.get", [
     name: "no indirect verification in a baseline (SR-094 AK6)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true, offset: 5, limit: 2 },
-    tag: "[SR-094/AK6]",
+    tag: "[SR-094/AK-t5wy]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);
@@ -178,7 +178,7 @@ scenariosOf("baseline.get", [
     name: "the validation status at the baseline version, without view (SR-094 AK7)",
     fixture: SR094,
     input: { baseline: "Release 1", withEvidence: true, limit: 3 },
-    tag: "[SR-094/AK7]",
+    tag: "[SR-094/AK-gdxy]",
     expect: "output",
     check: (results) => {
       const e = baselineEntries(results);

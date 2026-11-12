@@ -75,7 +75,7 @@ describe("result lines", () => {
     expect(identified?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-2"));
   });
 
-  it("[SR-037/AK1] shows the share of a verification degree as a percentage, rounded down as on every access", () => {
+  it("[SR-037/AK-zxtb] shows the share of a verification degree as a percentage, rounded down as on every access", () => {
     const counts = { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 };
     const lines = resultLines({ degree: { share: 0.6, total: 10, counts }, view: "core" });
     expect(lines.slice(0, 3).map((line) => [line.depth, line.label, line.text])).toEqual([
@@ -344,7 +344,7 @@ describe("result view", () => {
     });
   });
 
-  it("[SR-044/AK2] Enter on a pair line shows both elements side by side, read-only, the first on the left and active", async () => {
+  it("[SR-044/AK-d2rh] Enter on a pair line shows both elements side by side, read-only, the first on the left and active", async () => {
     const output = {
       replaced: [{ core: "uuid-1", replacement: "uuid-2" }],
       names: [element(1), element(2)],
@@ -369,7 +369,7 @@ describe("result view", () => {
     ]);
   });
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the lines like Down and Up; Ctrl+N first selects the first line, and Ctrl+P is Go to until one is", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P walk the lines like Down and Up; Ctrl+N first selects the first line, and Ctrl+P is Go to until one is", async () => {
     const output = { count: 2, elements: [element(1), element(2)] };
     await mount(vi.fn<Call>(), resultBuffer("trace.affected", {}, "Affected", output, 0), 0);
     const cursorLine = (): string | null | undefined => container.querySelector("[data-cursor]")?.textContent;

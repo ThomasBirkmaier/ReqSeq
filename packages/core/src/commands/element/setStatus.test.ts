@@ -67,7 +67,7 @@ const statuses = async (opened: Opened): Promise<Record<string, unknown>> =>
   );
 
 describe("element.setStatus offers only the statuses of the metamodel (SR-017)", () => {
-  it("[SR-017/AK1] offers exactly the metamodel's own statuses and sets each of them", async () => {
+  it("[SR-017/AK-h2n4] offers exactly the metamodel's own statuses and sets each of them", async () => {
     const opened = await open();
     const metamodel = (await invoke(
       "metamodel.get",
@@ -82,7 +82,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     }
   });
 
-  it("[SR-017/AK1] refuses a value that is not a status of the metamodel and writes no file", async () => {
+  it("[SR-017/AK-h2n4] refuses a value that is not a status of the metamodel and writes no file", async () => {
     const opened = await open();
     const before = await readAll(opened, FILES);
     // `approved` and `draft` are statuses of the standard model, not of this metamodel.
@@ -99,7 +99,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     expect(await readAll(opened, FILES)).toEqual(before);
   });
 
-  it("[SR-017/AK1] takes the display name of a status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-017/AK-h2n4] takes the display name of a status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     for (const [given, key] of [
       ["Released", "released"],
@@ -114,7 +114,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     }
   });
 
-  it("[SR-017/AK1] refuses a name that two statuses share, with the statuses to choose from (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-017/AK-h2n4] refuses a name that two statuses share, with the statuses to choose from (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const model = opened.fixture.path("metamodel/model.yaml");
     await fs.writeFile(
@@ -164,7 +164,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     });
   });
 
-  it("[SR-002/AK2] keeps the UUID and the file name when the status changes", async () => {
+  it("[SR-002/AK-b8j5] keeps the UUID and the file name when the status changes", async () => {
     const opened = await open();
     await setStatus(opened, { refs: [WIND.id, GUSTS.id], status: "in-change" });
     const store = await opened.workspace.get(elementStoreState);
@@ -175,7 +175,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     expect(store.elements.map((e) => e.file).sort()).toEqual([...FILES].sort());
   });
 
-  it("[SR-016/AK3] refuses an element of an unknown type, also next to a writable one, and writes no file", async () => {
+  it("[SR-016/AK-k7rx] refuses an element of an unknown type, also next to a writable one, and writes no file", async () => {
     const opened = await open("SR-016/unknown");
     const files = ["requirements/X-0f6a7b8c9d0e.md", "requirements/SR-4c1e0d3a9b21.md"];
     const before = await readAll(opened, files);

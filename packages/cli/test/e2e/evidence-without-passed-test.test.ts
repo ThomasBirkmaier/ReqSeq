@@ -63,7 +63,7 @@ describe("reqseq evidence without-passed-test (SR-120)", () => {
     ]);
   });
 
-  it("[SR-120/AK2] reqseq evidence without-passed-test --json leaves out every requirement with a passed test execution", async () => {
+  it("[SR-120/AK-h227] reqseq evidence without-passed-test --json leaves out every requirement with a passed test execution", async () => {
     const result = await withoutPassedTest(["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as { elements: { id: string }[]; total: number; view: string };

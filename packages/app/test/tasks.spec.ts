@@ -52,7 +52,7 @@ test.describe("tasks in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-185/AK1] [SR-185/AK2] a click on a task box ticks it in the file, and undo takes it back", async () => {
+  test("[SR-185/AK-mpnv] [SR-185/AK-nr1h] a click on a task box ticks it in the file, and undo takes it back", async () => {
     const { window } = running;
     const boxes = window.locator(".cm-lr-task");
     await expect(boxes).toHaveText(["☐", "☑"]);
@@ -66,7 +66,7 @@ test.describe("tasks in the element buffer", () => {
     await expectSaved(running, TEXT);
   });
 
-  test("[SR-185/AK3] Toggle task from the command prompt switches the task at the caret", async () => {
+  test("[SR-185/AK-jxg0] Toggle task from the command prompt switches the task at the caret", async () => {
     const { window } = running;
     await window.locator(".cm-line", { hasText: "Sensor" }).click();
     await window.keyboard.press("ControlOrMeta+Shift+P");

@@ -42,7 +42,7 @@ const shortIds = async (input: unknown): Promise<string[]> => {
 const requirement = { type: ["system-requirement"] };
 
 describe("reqseq element list (SR-069)", () => {
-  it("[SR-069/AK1] shows only the elements of a type, a status, a package, a validity or a property", async () => {
+  it("[SR-069/AK-f54m] shows only the elements of a type, a status, a package, a validity or a property", async () => {
     expect(await shortIds({ selection: { where: { type: ["software-requirement"] } } })).toEqual([
       "SWR-0000f1",
       "SWR-0000f2",
@@ -62,14 +62,14 @@ describe("reqseq element list (SR-069)", () => {
     ]);
   });
 
-  it("[SR-069/AK2] applies and, or and not", async () => {
+  it("[SR-069/AK-jk9d] applies and, or and not", async () => {
     const where = {
       all: [requirement, { not: { any: [{ status: ["draft"] }, { invalid: true }] } }],
     };
     expect(await shortIds({ selection: { where } })).toEqual(["SR-0000b1", "SR-0000b5", "SWR-0000f2"]);
   });
 
-  it("[SR-069/AK3] shows the requirements without child, as lines without --json", async () => {
+  it("[SR-069/AK-pjtc] shows the requirements without child, as lines without --json", async () => {
     const where = {
       all: [requirement, { relation: { meaning: "derivation", direction: "down" }, exists: false }],
     };
@@ -88,7 +88,7 @@ describe("reqseq element list (SR-069)", () => {
     );
   });
 
-  it("[SR-101/AK3] selects exactly the elements of a list of short IDs, with their text", async () => {
+  it("[SR-101/AK-w8dm] selects exactly the elements of a list of short IDs, with their text", async () => {
     const result = await list({ selection: { ids: ["N-0000a2", "sr-0000B1"] }, withText: true });
     const output = JSON.parse(result.stdout) as Output;
     expect(output.elements.map((e) => [e.shortId, e.text])).toEqual([

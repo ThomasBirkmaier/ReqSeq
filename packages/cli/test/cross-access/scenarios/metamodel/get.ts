@@ -20,7 +20,7 @@ scenariosOf("metamodel.get", [
     name: "types with inheritance, per-type statuses and open relation kinds (SR-130)",
     fixture: METAMODEL,
     input: {},
-    tag: "[SR-130/AK6]",
+    tag: "[SR-130/AK-cmt2]",
     expect: "output",
     check: (results) => {
       for (const [access, { outcome }] of Object.entries(results)) {
@@ -59,7 +59,7 @@ scenariosOf("metamodel.get", [
     name: "the standard model (SR-130)",
     fixture: CHAIN,
     input: {},
-    tag: "[SR-130/AK6]",
+    tag: "[SR-130/AK-cmt2]",
     expect: "output",
   },
   {
@@ -69,7 +69,7 @@ scenariosOf("metamodel.get", [
       files: { "model/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
     },
     input: {},
-    tag: "[SR-130/AK6]",
+    tag: "[SR-130/AK-cmt2]",
     expect: "output",
     check: (results) => {
       for (const [access, { outcome }] of Object.entries(results)) {

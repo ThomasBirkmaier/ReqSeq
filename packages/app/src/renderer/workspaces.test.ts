@@ -48,7 +48,7 @@ afterEach(() => {
 });
 
 describe("the prompt Open workspace", () => {
-  it("[SR-131/AK1] the Open workspace prompt lists the recent workspaces, the last opened first, and narrows them like the command prompt", async () => {
+  it("[SR-131/AK-y2k4] the Open workspace prompt lists the recent workspaces, the last opened first, and narrows them like the command prompt", async () => {
     const { prompt } = setup();
     // It opens at once and takes keys while main reads the list.
     expect(prompt.label).toBe("Workspace");
@@ -75,7 +75,7 @@ describe("the prompt Open workspace", () => {
     expect(await prompt.fill).toEqual({ label: "Workspace (none opened yet)", items: [] });
   });
 
-  it("[SR-131/AK2] choosing another workspace asks main to open it; choosing the open one opens nothing", async () => {
+  it("[SR-131/AK-cssj] choosing another workspace asks main to open it; choosing the open one opens nothing", async () => {
     const { prompt, open, echoed } = setup();
     const items = await filled(prompt.fill);
     await choose(items, "/req/buoy");
@@ -87,7 +87,7 @@ describe("the prompt Open workspace", () => {
     expect(echoed).toEqual(["/req/station is open"]);
   });
 
-  it("[SR-131/AK4] a missing workspace is listed as not found, and choosing it opens nothing and says the open workspace stays", async () => {
+  it("[SR-131/AK-f722] a missing workspace is listed as not found, and choosing it opens nothing and says the open workspace stays", async () => {
     const { prompt, open, echoed } = setup();
     await choose(await filled(prompt.fill), "/mnt/usb/harbour");
     expect(open).not.toHaveBeenCalled();
@@ -113,14 +113,14 @@ describe("the prompt Open workspace", () => {
     expect(echoed).toEqual(["/req/buoy could not be opened"]);
   });
 
-  it("[SR-131/AK3] says nothing more when the window could not save its input: it named the element", async () => {
+  it("[SR-131/AK-nkm5] says nothing more when the window could not save its input: it named the element", async () => {
     const { prompt, open, echoed } = setup({ answer: { ok: false, reason: "unsaved" } });
     await choose(await filled(prompt.fill), "/req/buoy");
     expect(open).toHaveBeenCalledExactlyOnceWith("/req/buoy");
     expect(echoed).toEqual([]);
   });
 
-  it("[SR-131/AK3] says why nothing opened when the save took too long, or another switch runs", async () => {
+  it("[SR-131/AK-nkm5] says why nothing opened when the save took too long, or another switch runs", async () => {
     const late = setup({ answer: { ok: false, reason: "timeout" } });
     await choose(await filled(late.prompt.fill), "/req/buoy");
     const busy = setup({ answer: { ok: false, reason: "busy" }, name: undefined });
@@ -131,7 +131,7 @@ describe("the prompt Open workspace", () => {
     ]);
   });
 
-  it("[SR-131/AK5] a typed path is the first choice and Enter opens it", async () => {
+  it("[SR-131/AK-sxyz] a typed path is the first choice and Enter opens it", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     const { prompt, open, echoed } = setup();
     const literal = (text: string): Choice | undefined => prompt.literal?.(text);

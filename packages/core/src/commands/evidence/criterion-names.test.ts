@@ -53,7 +53,7 @@ const run = async <
 ): Promise<CommandOutput<N>> => (await invoke(name, input, { workspace })) as CommandOutput<N>;
 
 describe("records name their criteria with number, key and text in every output (SR-205 AK2)", () => {
-  it("[SR-205/AK2] evidence.list names the criteria of the executions of its test cases", async () => {
+  it("[SR-205/AK-m2vv] evidence.list names the criteria of the executions of its test cases", async () => {
     const workspace = await open();
     const out = await run(workspace, "evidence.list", { ref: E3 });
     const [test] = out.testCases;
@@ -61,7 +61,7 @@ describe("records name their criteria with number, key and text in every output 
     expect(test?.last?.criterionNames).toEqual([KFRO]);
   });
 
-  it("[SR-205/AK2] trace.chain names the criteria of the records and test cases below an element", async () => {
+  it("[SR-205/AK-m2vv] trace.chain names the criteria of the records and test cases below an element", async () => {
     const workspace = await open();
     const out = await run(workspace, "trace.chain", { ref: E3, direction: "down" });
     const below = out.evidence.find((e) => e.id === E3);
@@ -71,26 +71,26 @@ describe("records name their criteria with number, key and text in every output 
     ).toEqual([KRED, KDAS]);
   });
 
-  it("[SR-205/AK2] trace.matrix names the criteria of the last execution of a test case", async () => {
+  it("[SR-205/AK-m2vv] trace.matrix names the criteria of the last execution of a test case", async () => {
     const workspace = await open();
     const out = await run(workspace, "trace.matrix", { selection: { ids: [E3] } });
     expect(out.rows[0]?.testCases?.[0]?.last?.criterionNames).toEqual([KFRO]);
   });
 
-  it("[SR-205/AK2] trace.affected names the criteria of the records of older versions: a key with the current number, a number without Git as named", async () => {
+  it("[SR-205/AK-m2vv] trace.affected names the criteria of the records of older versions: a key with the current number, a number without Git as named", async () => {
     const workspace = await open();
     const out = await run(workspace, "trace.affected", { ref: E3 });
     expect(out.records.map((r) => r.criterionNames)).toEqual([[KFRO], [{ criterion: 2 }]]);
   });
 
-  it("[SR-205/AK2] baseline.get names the criteria of the later records with the numbers of the baseline's version", async () => {
+  it("[SR-205/AK-m2vv] baseline.get names the criteria of the later records with the numbers of the baseline's version", async () => {
     const workspace = await open();
     const out = await run(workspace, "baseline.get", { baseline: "Release 1", withEvidence: true });
     const later = out.elements.find((e) => e.id === E3)?.verification?.[0]?.later ?? [];
     expect(later.map((r) => r.criterionNames)).toEqual([[KFRO], [KRED, KDAS]]);
   });
 
-  it("[SR-205/AK2] baseline.get names the criteria of later records by what they name where Git does not have the baseline's version", async () => {
+  it("[SR-205/AK-m2vv] baseline.get names the criteria of later records by what they name where Git does not have the baseline's version", async () => {
     const workspace = await open({
       "baselines/release-0.yaml":
         "reqseq-baseline: 1\nname: Release 0\ndate: 2026-10-01T12:00:00Z\nrepositories:\n" +
@@ -102,7 +102,7 @@ describe("records name their criteria with number, key and text in every output 
     expect(later.map((r) => r.criterionNames)).toEqual([[{ key: "kfro" }]]);
   });
 
-  it("[SR-205/AK2] evidence.record names the criteria of the record it wrote with their whole texts", async () => {
+  it("[SR-205/AK-m2vv] evidence.record names the criteria of the record it wrote with their whole texts", async () => {
     const workspace = await open();
     const out = (await invoke(
       "evidence.record",

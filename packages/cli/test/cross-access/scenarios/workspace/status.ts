@@ -35,7 +35,7 @@ scenariosOf("workspace.status", [
   {
     // Committed with the fixture: every access ignores it with the same warning (#1456).
     name: "a local file tracked by Git",
-    tag: "[SR-004/AK8]",
+    tag: "[SR-004/AK-m7c2]",
     fixture: {
       fixture: "SR-004/one-repository",
       git: true,

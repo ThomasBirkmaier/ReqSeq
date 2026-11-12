@@ -224,7 +224,7 @@ const render = async (): Promise<void> => {
 };
 
 describe("App, the counts of the modeline (SR-114)", () => {
-  it("[SR-114/AK2] the modeline of an element with outdated references and an open hint names their counts as element.get gives them; of an element without, only ID, type and status", async () => {
+  it("[SR-114/AK-bfpp] the modeline of an element with outdated references and an open hint names their counts as element.get gives them; of an element without, only ID, type and status", async () => {
     await render();
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "Enter" });
@@ -236,7 +236,7 @@ describe("App, the counts of the modeline (SR-114)", () => {
     expect(parts()).toEqual(["SR-000002 · Need · draft"]);
   });
 
-  it("[SR-114/AK3] the modeline names kind and count of a list, a graph and a package page", async () => {
+  it("[SR-114/AK-bcv4] the modeline names kind and count of a list, a graph and a package page", async () => {
     await render();
     await runCommand("List all elements");
     expect(parts()).toEqual(["All elements", "3 elements"]);

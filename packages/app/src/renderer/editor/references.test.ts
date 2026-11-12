@@ -166,7 +166,7 @@ describe("the preview of references", () => {
     ]);
   });
 
-  it("[SR-110/AK2] shows the date of the version the reference stores in the word, and the dated hint as title", () => {
+  it("[SR-110/AK-j1xs] shows the date of the version the reference stores in the word, and the dated hint as title", () => {
     const message =
       "points to an older version: stored version from 2026-03-04T10:00:00Z, current version from …";
     const found = decorate(THOMAS, new Map([[KEY, { message, word: "outdated · version of 2026-03-04" }]]));
@@ -213,13 +213,13 @@ describe("the preview of references", () => {
     const TITLES = new Map([[titleKey(ID, "sensor"), "Measure gusts"]]);
     const across = { from: 1, to: 7 };
 
-    it("[SR-066/AK2] shows the title of the target in place of the short ID, with the look of the label", () => {
+    it("[SR-066/AK-qdkx] shows the title of the target in place of the short ID, with the look of the label", () => {
       expect(
         decorate(ACROSS, new Map(), undefined, TITLES).filter((entry) => entry.text !== undefined),
       ).toEqual([{ ...across, widget: "cm-lr-link cm-lr-ref cm-lr-title", text: "Measure gusts" }]);
     });
 
-    it("[SR-066/AK2] shows the short ID on the line that shows its source, and for a target without a title", () => {
+    it("[SR-066/AK-qdkx] shows the short ID on the line that shows its source, and for a target without a title", () => {
       expect(decorate(ACROSS, new Map(), 3, TITLES).some((entry) => entry.text !== undefined)).toBe(false);
       // The same reference off the source line shows the title.
       expect(
@@ -261,7 +261,7 @@ describe("the preview of references", () => {
 });
 
 describe("referencesIn", () => {
-  it("[SR-127/AK3] gives the inline references of the document in order, and none for other links or images", () => {
+  it("[SR-127/AK-bd1x] gives the inline references of the document in order, and none for other links or images", () => {
     const other = "[x](https://example.com) ![i](reqseq:" + ID + ")";
     const doc = `${other} ${THOMAS} and [w](reqseq:${ID}?repository=r)`;
     const found = referencesIn(stateOf(doc));

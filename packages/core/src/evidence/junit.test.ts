@@ -125,7 +125,7 @@ const enriched = (element = LOGIN): (readonly [string, string])[] => [
 ];
 
 describe("JUnit reader (SR-093)", () => {
-  it("[SR-093/AK1] assigns every test case of an enriched JUnit file to the requirement it names", () => {
+  it("[SR-093/AK-tqm2] assigns every test case of an enriched JUnit file to the requirement it names", () => {
     // pytest: the property test case (an existing <properties> block), a short ID in a parameter
     // list, a failure and an error; each names its requirement after enrich.
     const bytes = enrich(sample("pytest.xml"), {
@@ -159,7 +159,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(read.problems).toBeUndefined();
   });
 
-  it("[SR-093/AK1] assigns every test case of an enriched Vitest file to the requirement it names", () => {
+  it("[SR-093/AK-tqm2] assigns every test case of an enriched Vitest file to the requirement it names", () => {
     const bytes = enrich(sample("vitest.xml"), {
       "login > [SR-46fb54/AK1] accepts a valid password": { elements: [[LOGIN, V1]] },
       "login > [SR-036] reports a failure": { elements: [[REPORT, V2]], item: "build-513" },
@@ -176,7 +176,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(read.problems).toBeUndefined();
   });
 
-  it("[SR-093/AK1] a test case that names several requirements gives one record for each, with its own version", () => {
+  it("[SR-093/AK-tqm2] a test case that names several requirements gives one record for each, with its own version", () => {
     const bytes = enrich(sample("vitest.xml"), {
       "login > [SR-46fb54/AK1] accepts a valid password": {
         elements: [
@@ -198,7 +198,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(index.testCasesOf(REPORT).map((t) => t.executions.map((r) => r.version))).toEqual([[V2]]);
   });
 
-  it("[SR-093/AK1] takes item, date and variant from the properties of the test case", () => {
+  it("[SR-093/AK-tqm2] takes item, date and variant from the properties of the test case", () => {
     const read = readJunitRecords(
       AT,
       enrich(sample("vitest.xml"), {
@@ -215,12 +215,12 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("[SR-093/AK1] reads an element UUID in upper case as the UUID", () => {
+  it("[SR-093/AK-tqm2] reads an element UUID in upper case as the UUID", () => {
     const read = readJunitRecords(AT, suite(testCase("t", enriched(LOGIN.toUpperCase()))));
     expect(read.records.map((r) => r.element)).toEqual([LOGIN]);
   });
 
-  it("[SR-093/AK1] reads test cases enriched from a self-closing tag and from an empty properties block", () => {
+  it("[SR-093/AK-tqm2] reads test cases enriched from a self-closing tag and from an empty properties block", () => {
     const bytes = enrich(
       suite('<testcase classname="c" name="a"/>\n<testcase classname="c" name="b"><properties/></testcase>'),
       {
@@ -234,7 +234,7 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("[SR-093/AK1] the evidence state reads the enriched JUnit files of the evidence folders", async () => {
+  it("[SR-093/AK-tqm2] the evidence state reads the enriched JUnit files of the evidence folders", async () => {
     expect(EVIDENCE_READERS).toContain(JUNIT_READER);
     const fixture = await createFixtureWorkspace({ fixture: "enabler-535/evidence" });
     const workspace = new Workspace(fixture.root);
@@ -263,7 +263,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(await workspace.get(evidenceRecordsState)).toEqual(read.records);
   });
 
-  it("[SR-093/AK2] passes over a test case that names no requirement without a problem", () => {
+  it("[SR-093/AK-mtb4] passes over a test case that names no requirement without a problem", () => {
     // After enrich the parameter lists (`test_add[1-2]`, `adds [1, 2]`), the skipped test case and
     // every other test case without a reference still name no requirement.
     for (const [file, names] of [
@@ -278,7 +278,7 @@ describe("JUnit reader (SR-093)", () => {
     }
   });
 
-  it("[SR-093/AK2] a file whose test cases name no requirement gives nothing", () => {
+  it("[SR-093/AK-mtb4] a file whose test cases name no requirement gives nothing", () => {
     const read = readJunitRecords(
       AT,
       suite(
@@ -293,7 +293,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(read).toEqual({ records: [] });
   });
 
-  it("[SR-093/AK3] a skipped test case gives no record, so it never counts as passed", () => {
+  it("[SR-093/AK-d5w6] a skipped test case gives no record, so it never counts as passed", () => {
     const read = readJunitRecords(
       AT,
       enrich(sample("vitest.xml"), {
@@ -331,7 +331,7 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("[SR-093/AK5] a test case that names the variants A and B and the core gives one record per view and element, each for its view only", () => {
+  it("[SR-093/AK-sr3h] a test case that names the variants A and B and the core gives one record per view and element, each for its view only", () => {
     const read = readJunitRecords(
       AT,
       suite(
@@ -412,7 +412,7 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("[SR-093/AK6] passes over a test case enrich marked as not applying in the given views, without the not-enriched warning", () => {
+  it("[SR-093/AK-h5pw] passes over a test case enrich marked as not applying in the given views, without the not-enriched warning", () => {
     const mark = (value: string): readonly [string, string] => ["reqseq:not-in-view", value];
     const handWritten: (readonly [string, string])[] = [
       ["reqseq:element", "SR-46fb54"],
@@ -464,7 +464,7 @@ describe("JUnit reader (SR-093)", () => {
     ]);
   });
 
-  it("[SR-093/AK7] a test case that is not skipped failed with failure or error, else passed", () => {
+  it("[SR-093/AK-h2wb] a test case that is not skipped failed with failure or error, else passed", () => {
     const read = readJunitRecords(
       AT,
       suite(
@@ -495,7 +495,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(read.records[0]?.testCase).toBe("t");
   });
 
-  it("[SR-093/AK8] reports a file that names requirements but is not enriched once, with the number of test cases", () => {
+  it("[SR-093/AK-g9x4] reports a file that names requirements but is not enriched once, with the number of test cases", () => {
     // The samples as the tools wrote them: a reqseq:element property and short IDs in the names.
     expect(readJunitRecords(AT, sample("pytest.xml"))).toEqual({
       records: [],
@@ -655,7 +655,7 @@ describe("JUnit reader (SR-093)", () => {
     expect(readJunitRecords(AT, utf8("<project><testcase name='x'/></project>"))).toEqual({ records: [] });
   });
 
-  it("[SR-093/AK4] assigns the criteria of the reqseq:criterion properties to each named element", () => {
+  it("[SR-093/AK-z4kz] assigns the criteria of the reqseq:criterion properties to each named element", () => {
     const bytes = suite(
       [
         "<testcase classname='c' name='both'><properties>",

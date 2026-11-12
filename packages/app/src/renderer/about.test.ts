@@ -31,7 +31,7 @@ const values = (info: AboutInfo): Record<string, string> =>
   Object.fromEntries(aboutGroups(info).flatMap((group) => group.rows.map((row) => [row.label, row.value])));
 
 describe("the window About ReqSeq (SR-161)", () => {
-  it("[SR-161/AK1] lays out versions, build, runtime and the open workspace as groups of rows", () => {
+  it("[SR-161/AK-hbxy] lays out versions, build, runtime and the open workspace as groups of rows", () => {
     expect(aboutGroups(DELIVERY).map((group) => group.heading)).toEqual([
       "Version",
       "Build",
@@ -63,7 +63,7 @@ describe("the window About ReqSeq (SR-161)", () => {
     });
   });
 
-  it("[SR-161/AK1] leaves out the rows of values a build from a checkout does not have", () => {
+  it("[SR-161/AK-hbxy] leaves out the rows of values a build from a checkout does not have", () => {
     expect(values(CHECKOUT)).toEqual({
       App: "0.9.0",
       "Command line": "0.9.0",
@@ -80,7 +80,7 @@ describe("the window About ReqSeq (SR-161)", () => {
     });
   });
 
-  it("[SR-161/AK3] Copy all gives the whole content as one block, each row as its label and value", () => {
+  it("[SR-161/AK-r9fy] Copy all gives the whole content as one block, each row as its label and value", () => {
     const text = aboutText(aboutGroups(DELIVERY));
     const lines = text.split("\n");
     expect(lines.slice(0, 5)).toEqual([

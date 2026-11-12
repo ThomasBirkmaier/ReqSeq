@@ -82,13 +82,13 @@ const FINDINGS = [
 ] as const;
 
 describe("workspace.check", () => {
-  it("[SR-019/AK1] is ok and lists no problem for a workspace without findings", async () => {
+  it("[SR-019/AK-v7nq] is ok and lists no problem for a workspace without findings", async () => {
     const ws = await fixture(CLEAN);
     const out = await check(open(ws.root));
     expect(out).toEqual({ ok: true, problems: [], checkedElements: 5 });
   });
 
-  it("[SR-019/AK1] stays ok with info only, such as a repository that is not on this machine", async () => {
+  it("[SR-019/AK-v7nq] stays ok with info only, such as a repository that is not on this machine", async () => {
     const ws = await fixture({ fixture: "SR-089/missing-targets" });
     const out = await check(open(ws.path("system")));
     expect(out.ok).toBe(true);
@@ -101,7 +101,7 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(4);
   });
 
-  it("[SR-019/AK2] reports every finding of SR-008, SR-015, SR-016, SR-040, SR-072, SR-085, SR-086, SR-088 and SR-089 with kind, file and element, and is not ok", async () => {
+  it("[SR-019/AK-pt9j] reports every finding of SR-008, SR-015, SR-016, SR-040, SR-072, SR-085, SR-086, SR-088 and SR-089 with kind, file and element, and is not ok", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const out = await check(open(ws.root));
     expect(out.ok).toBe(false);
@@ -111,7 +111,7 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(13);
   });
 
-  it("[SR-019/AK2] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok with failOn warning", async () => {
+  it("[SR-019/AK-pt9j] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok with failOn warning", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
     // Cycles are warnings: since ThomasBirkmaier/ReqSeq-archive#304 they fail the check only with failOn warning.
     const out = await check(open(ws.root), { failOn: "warning" });
@@ -125,7 +125,7 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(5);
   });
 
-  it("[SR-019/AK2] is not ok for warnings alone with failOn warning, since they are findings too", async () => {
+  it("[SR-019/AK-pt9j] is not ok for warnings alone with failOn warning, since they are findings too", async () => {
     // Before ThomasBirkmaier/ReqSeq-archive#304 this was the default; its option 1 made warnings pass by
     // default, so the exit code 1 of SR-019 AK2 for warnings needs failOn warning (--fail-on warning).
     const ws = await fixture({ fixture: "SR-085/value-kinds" });
@@ -190,7 +190,7 @@ describe("workspace.check", () => {
     });
   });
 
-  it("[SR-019/AK5] shows only problems at or above the given severity, and ok stays about all findings", async () => {
+  it("[SR-019/AK-zc2v] shows only problems at or above the given severity, and ok stays about all findings", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const errors = await check(workspace, { severity: "error" });
@@ -216,7 +216,7 @@ describe("workspace.check", () => {
     expect((await check(open(missing.path("system")), { severity: "warning" })).problems).toEqual([]);
   });
 
-  it("[SR-019/AK4] reports a hint about a relation no more once it is confirmed, and is ok when nothing else is left", async () => {
+  it("[SR-019/AK-x4q3] reports a hint about a relation no more once it is confirmed, and is ok when nothing else is left", async () => {
     // fixtures/SR-025/outdated: requirement A derives from need N; B refines A. N gets a new text.
     const ws = await fixture({ fixture: "SR-025/outdated" });
     const need = "needs/N-0a0000000001.md";
@@ -244,7 +244,7 @@ describe("workspace.check", () => {
     expect(await check(workspace, failOn)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-019/AK2] checks again after the element store is read again", async () => {
+  it("[SR-019/AK-pt9j] checks again after the element store is read again", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     expect(kinds(await check(workspace))).toEqual(FINDINGS);
@@ -258,7 +258,7 @@ describe("workspace.check", () => {
     );
   });
 
-  it("[SR-019/AK2] restricted to changed files (SR-092), reports the findings of those elements and their targets only", async () => {
+  it("[SR-019/AK-pt9j] restricted to changed files (SR-092), reports the findings of those elements and their targets only", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const out = await check(workspace, {
@@ -278,7 +278,7 @@ describe("workspace.check", () => {
     });
   });
 
-  it("[SR-019/AK3] gives all findings as an output that matches the catalog schema", async () => {
+  it("[SR-019/AK-kk2m] gives all findings as an output that matches the catalog schema", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const out = await check(open(ws.root));
     const validate = loadContracts().validator("workspace.check", "output");
@@ -293,7 +293,7 @@ describe("workspace.check", () => {
     ["file.invalid-yaml", "file.conflict-markers", "element.duplicate-id"].includes(code),
   );
 
-  it("[SR-019/AK2] [SR-011/AK3] reports only the metamodel error and the findings without metamodel while the metamodel is faulty", async () => {
+  it("[SR-019/AK-pt9j] [SR-011/AK-jt29] reports only the metamodel error and the findings without metamodel while the metamodel is faulty", async () => {
     const ws = await fixture({
       fixture: "SR-019/findings",
       files: { "metamodel/broken.yaml": "properties: [\n" },
@@ -309,7 +309,7 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(13);
   });
 
-  it("[SR-019/AK2] [SR-011/AK3] reports only the missing metamodel folder and the findings without metamodel", async () => {
+  it("[SR-019/AK-pt9j] [SR-011/AK-jt29] reports only the missing metamodel folder and the findings without metamodel", async () => {
     const ws = await fixture({
       fixture: "SR-019/findings",
       files: {
@@ -323,7 +323,7 @@ describe("workspace.check", () => {
     expect(kinds({ ...out, problems: out.problems.slice(1) })).toEqual(WITHOUT_METAMODEL);
   });
 
-  it("[SR-019/AK2] [SR-011/AK3] reports every finding again once the faulty metamodel file is fixed", async () => {
+  it("[SR-019/AK-pt9j] [SR-011/AK-jt29] reports every finding again once the faulty metamodel file is fixed", async () => {
     const ws = await fixture({
       fixture: "SR-019/findings",
       files: { "metamodel/broken.yaml": "properties: [\n" },

@@ -51,7 +51,7 @@ const statusFile = (key: string, extra = ""): string =>
   `reqseq-metamodel: 1\nstatuses:\n  - key: ${key}\n    name: ${key}\n    initial: true\n${extra}`;
 
 describe("loadMetamodel", () => {
-  it("[SR-011/AK1] reads types, properties, relation kinds and statuses only from the YAML files of the named folder", async () => {
+  it("[SR-011/AK-vtcr] reads types, properties, relation kinds and statuses only from the YAML files of the named folder", async () => {
     const ws = await fixture();
     const metamodel = await load(ws.root);
     // Not read: metamodel/ (not named), model/sub/, model/notes.md, model/legacy.yml.
@@ -67,7 +67,7 @@ describe("loadMetamodel", () => {
     expect(metamodel.problems).toEqual([YML_WARNING]);
   });
 
-  it("[SR-011/AK1] keeps every definition as written in its file", async () => {
+  it("[SR-011/AK-vtcr] keeps every definition as written in its file", async () => {
     const metamodel = await load((await fixture()).root);
     expect(metamodel.properties).toEqual([
       { key: "title", name: "Title", kind: "text", meaning: "title" },
@@ -100,7 +100,7 @@ describe("loadMetamodel", () => {
     });
   });
 
-  it("[SR-011/AK1] reads the metamodel from a folder in another repository of the workspace", async () => {
+  it("[SR-011/AK-vtcr] reads the metamodel from a folder in another repository of the workspace", async () => {
     const ws = await createFixtureWorkspace({
       files: {
         "system/reqseq-workspace.yaml":
@@ -116,7 +116,7 @@ describe("loadMetamodel", () => {
     expect(keys(metamodel).statuses).toEqual(["open"]);
   });
 
-  it("[SR-011/AK2] works with the metamodel of the checked-out state after each checkout", async () => {
+  it("[SR-011/AK-d0hy] works with the metamodel of the checked-out state after each checkout", async () => {
     const ws = await fixture({ git: true });
     await ws.git(["checkout", "--quiet", "-b", "other"]);
     await fs.rm(ws.path("model/variant-types.yaml"));
@@ -140,7 +140,7 @@ describe("loadMetamodel", () => {
     expect(keys(await load(ws.root))).toEqual(SPLIT_FOLDER_KEYS);
   });
 
-  it("[SR-011/AK2] follows a checkout that moves the metamodel folder in the workspace file", async () => {
+  it("[SR-011/AK-d0hy] follows a checkout that moves the metamodel folder in the workspace file", async () => {
     const ws = await fixture({ git: true });
     await ws.git(["checkout", "--quiet", "-b", "moved"]);
     await ws.write(
@@ -161,14 +161,14 @@ describe("loadMetamodel", () => {
     expect(keys(await workspace.get(metamodelState))).toEqual(SPLIT_FOLDER_KEYS);
   });
 
-  it("[SR-011/AK2] reads the files of the working tree, not of the last commit", async () => {
+  it("[SR-011/AK-d0hy] reads the files of the working tree, not of the last commit", async () => {
     const ws = await fixture({ git: true });
     await ws.write("model/statuses.yaml", statusFile("uncommitted"));
     expect(keys(await load(ws.root)).statuses).toEqual(["uncommitted"]);
     expect(await ws.git(["status", "--porcelain"])).toBe(" M model/statuses.yaml\n");
   });
 
-  it("[SR-011/AK3] reports file, line and reason of a metamodel file with faulty YAML", async () => {
+  it("[SR-011/AK-jt29] reports file, line and reason of a metamodel file with faulty YAML", async () => {
     const ws = await fixture({
       files: { "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
     });
@@ -228,7 +228,7 @@ describe("loadMetamodel", () => {
     expect(keys(metamodel).types).toEqual(["need", "system-requirement"]);
   });
 
-  it("[SR-127/AK5] a property marked markdown on another kind than text or with the meaning title is metamodel.invalid, on the line of markdown", async () => {
+  it("[SR-127/AK-mdr7] a property marked markdown on another kind than text or with the meaning title is metamodel.invalid, on the line of markdown", async () => {
     const ws = await fixture({
       files: {
         "model/markdown.yaml":
@@ -368,7 +368,7 @@ describe("loadMetamodel", () => {
     ]);
   });
 
-  it("[SR-008/AK4] reports a metamodel file of an unknown format number as invalid and uses none of its content", async () => {
+  it("[SR-008/AK-pm64] reports a metamodel file of an unknown format number as invalid and uses none of its content", async () => {
     const ws = await fixture({
       files: {
         "model/future.yaml": "reqseq-metamodel: 2\nstatuses:\n  - key: later\n    name: Later\n",
@@ -738,7 +738,7 @@ describe("loadMetamodel", () => {
     expect(metamodel.files).not.toContain("model/folder.yaml");
   });
 
-  it("[SR-011/AK4] reports a metamodel folder without .yaml files", async () => {
+  it("[SR-011/AK-vhvd] reports a metamodel folder without .yaml files", async () => {
     const ws = await fixture();
     await fs.rm(ws.path("model"), { recursive: true });
     await ws.write("model/readme.md", "# Model\n");

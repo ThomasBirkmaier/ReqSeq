@@ -50,7 +50,7 @@ const read = (fixture: FixtureWorkspace, file: string): Promise<string> =>
   fs.readFile(fixture.path(file), "utf8");
 
 describe("filter.save (SR-070)", () => {
-  it("[SR-070/AK1] saves a filter with its name as a YAML file in the filters folder of the repository", async () => {
+  it("[SR-070/AK-nzrb] saves a filter with its name as a YAML file in the filters folder of the repository", async () => {
     const { fixture, workspace } = await open();
     const out = await save(workspace, {
       name: "Draft requirements",
@@ -88,7 +88,7 @@ describe("filter.save (SR-070)", () => {
     ]);
   });
 
-  it("[SR-070/AK1] writes element references as UUIDs and choices by key (product owner's note on ThomasBirkmaier/ReqSeq-archive#82)", async () => {
+  it("[SR-070/AK-nzrb] writes element references as UUIDs and choices by key (product owner's note on ThomasBirkmaier/ReqSeq-archive#82)", async () => {
     const { fixture, workspace } = await open();
     await save(workspace, {
       name: "Coastal sensors",
@@ -140,7 +140,7 @@ describe("filter.save (SR-070)", () => {
     });
   });
 
-  it("[SR-070/AK4] saves under an existing name in another Unicode normal form into its file, with the name as last saved", async () => {
+  it("[SR-070/AK-g33p] saves under an existing name in another Unicode normal form into its file, with the name as last saved", async () => {
     const composed = "Pr\u00fcfung";
     const decomposed = "Pru\u0308fung";
     const hand = `reqseq-filter: 1\nname: ${composed}\nwhere:\n  status: [draft]\n`;
@@ -155,7 +155,7 @@ describe("filter.save (SR-070)", () => {
     expect(await read(fixture, "filters/check.yaml")).toBe(hand.replace(composed, decomposed));
   });
 
-  it("[SR-070/AK1] [SR-070/AK4] [SR-070/AK5] saves under an existing name, in any case, into its file and changes only what changed, keeping comments on unchanged lines (ThomasBirkmaier/ReqSeq-archive#363)", async () => {
+  it("[SR-070/AK-nzrb] [SR-070/AK-g33p] [SR-070/AK-pcj9] saves under an existing name, in any case, into its file and changes only what changed, keeping comments on unchanged lines (ThomasBirkmaier/ReqSeq-archive#363)", async () => {
     const hand = [
       "# Kept by the team",
       "reqseq-filter: 1",
@@ -223,7 +223,7 @@ describe("filter.save (SR-070)", () => {
     expect(await fs.readdir(fixture.path("filters"))).toEqual(["mine.yaml"]);
   });
 
-  it("[SR-070/AK1] gives a new filter a file name of its own", async () => {
+  it("[SR-070/AK-nzrb] gives a new filter a file name of its own", async () => {
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
       files: {
@@ -249,7 +249,7 @@ describe("filter.save (SR-070)", () => {
     expect(await fs.readFile(fixture.path("filters/Open.yaml"), "utf8")).toBe("not a filter: true\n");
   });
 
-  it("[SR-070/AK1] writes into the filters location of the workspace file, creating its folders", async () => {
+  it("[SR-070/AK-nzrb] writes into the filters location of the workspace file, creating its folders", async () => {
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
       files: {
@@ -267,7 +267,7 @@ describe("filter.save (SR-070)", () => {
     expect(await fs.readdir(fixture.path("config/team/filters"))).toEqual(["all.yaml"]);
   });
 
-  it("[SR-035/AK2] saves the condition emergent, and running the saved filter gives what the condition gives", async () => {
+  it("[SR-035/AK-k81y] saves the condition emergent, and running the saved filter gives what the condition gives", async () => {
     const { fixture, workspace } = await open();
     expect(await save(workspace, { name: "Emergent", where: { emergent: true } })).toEqual({
       files: ["filters/emergent.yaml"],
@@ -347,7 +347,7 @@ describe("filter.save (SR-070)", () => {
     expect(await listed(workspace)).toEqual({ filters: [], problems: [], incomplete: true });
   });
 
-  it("[SR-083/AK4] writes no filter below .git, also when the workspace file places the filters folder there", async () => {
+  it("[SR-083/AK-s4q9] writes no filter below .git, also when the workspace file places the filters folder there", async () => {
     const flow = "reqseq-filter: 1\nname: Flow\nwhere: { all: [] }\n";
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
@@ -374,7 +374,7 @@ describe("filter.save (SR-070)", () => {
     expect(await read(fixture, ".git/filters/flow.yaml")).toBe(flow);
   });
 
-  it("[SR-070/AK1] writes into a filters folder of the workspace file that is a link to another folder of the repository", async () => {
+  it("[SR-070/AK-nzrb] writes into a filters folder of the workspace file that is a link to another folder of the repository", async () => {
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
       files: {

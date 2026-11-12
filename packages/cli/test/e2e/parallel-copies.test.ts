@@ -144,7 +144,7 @@ const need = (agent: number, access: string, n: number): string =>
   `Need ${String(n)} of agent ${String(agent)} via ${access}`;
 
 describe("separate working copies (SR-081)", () => {
-  it("[SR-081/AK1] five agents on five copies run reqseq serve api, reqseq mcp and CLI commands side by side", async () => {
+  it("[SR-081/AK-mxry] five agents on five copies run reqseq serve api, reqseq mcp and CLI commands side by side", async () => {
     const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-081-home-")));
     cleanups.push(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }));
     const origin = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });

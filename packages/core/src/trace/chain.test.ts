@@ -101,7 +101,7 @@ interface Evidence {
 }
 
 describe("trace chain (SR-022)", () => {
-  it("[SR-022/AK1] shows every level of a need down to the evidence, each with its depth", async () => {
+  it("[SR-022/AK-rmkp] shows every level of a need down to the evidence, each with its depth", async () => {
     const opened = await open();
     const evidence: Readonly<Record<string, readonly Evidence[]>> = {
       [TURNS]: [{ testCase: "counts turns", result: "passed" }],
@@ -141,7 +141,7 @@ describe("trace chain (SR-022)", () => {
     expect(chain.unassigned).toEqual([]);
   });
 
-  it("[SR-022/AK1] gives every level with its depth and every derivation followed in the output", async () => {
+  it("[SR-022/AK-rmkp] gives every level with its depth and every derivation followed in the output", async () => {
     const opened = await open();
     const output = chainOutput(chainOf(opened, SEE_WIND, { direction: "both" }), {
       metamodel: opened.graph.metamodel,
@@ -205,7 +205,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK2] shows every parent of a component requirement up to the needs", async () => {
+  it("[SR-022/AK-dqf1] shows every parent of a component requirement up to the needs", async () => {
     const opened = await open();
     const chain = chainOf(opened, STALL, { direction: "up" });
     expect(levels(chain)).toEqual([
@@ -263,7 +263,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK3] marks a need without a child and a requirement without a child and without evidence", async () => {
+  it("[SR-022/AK-g8js] marks a need without a child and a requirement without a child and without evidence", async () => {
     const opened = await open();
     expect(gaps(chainOf(opened, SEE_WIND, { direction: "both" }))).toEqual([
       [DIRECTION, "no-evidence"],
@@ -301,7 +301,7 @@ describe("trace chain (SR-022)", () => {
     });
   });
 
-  it("[SR-022/AK3] marks no gap where the chain was cut at maxDepth", async () => {
+  it("[SR-022/AK-g8js] marks no gap where the chain was cut at maxDepth", async () => {
     const opened = await open();
     const chain = chainOf(opened, SEE_WIND, { direction: "down", maxDepth: 1 });
     expect(levels(chain)).toEqual([
@@ -330,7 +330,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK3] marks a requirement as a gap whose children name a UUID that two files share (SR-088)", async () => {
+  it("[SR-022/AK-g8js] marks a requirement as a gap whose children name a UUID that two files share (SR-088)", async () => {
     const opened = await open({
       ...CHAIN,
       files: {
@@ -407,7 +407,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK4] stops at a cycle: each element once, the cycle's edges marked, one hint", async () => {
+  it("[SR-022/AK-vvhc] stops at a cycle: each element once, the cycle's edges marked, one hint", async () => {
     const opened = await open({
       ...CHAIN,
       files: {
@@ -452,7 +452,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK4] reports a cycle through the root once, though both walks find it", async () => {
+  it("[SR-022/AK-vvhc] reports a cycle through the root once, though both walks find it", async () => {
     const opened = await open({
       ...CHAIN,
       files: { "components/CR-00000000c001.md": component(TURNS, [SPEED]) },
@@ -484,7 +484,7 @@ describe("trace chain (SR-022)", () => {
     ).toEqual(["The chain stops at a cycle: Component Requirement CR-00c001 derives from itself"]);
   });
 
-  it("[SR-022/AK4] reports both parts of a cycle through the root when maxDepth cuts it differently for each walk", async () => {
+  it("[SR-022/AK-vvhc] reports both parts of a cycle through the root when maxDepth cuts it differently for each walk", async () => {
     // R derives from A and B, A from R and C, B from A, C from R: one cycle of four. Within depth 2
     // the upward walk closes R, A, B (C is reached but not expanded), the downward walk R, A, C (B
     // is not expanded): two cycles of three elements that share two, so both are reported.
@@ -513,7 +513,7 @@ describe("trace chain (SR-022)", () => {
     expect(members(chainOf(opened, R, { direction: "both" }).cycles)).toEqual([[R, A, B, C]]);
   });
 
-  it("[SR-022/AK4] reports both parts of a cycle through the root when one walk sees only some of its elements", async () => {
+  it("[SR-022/AK-vvhc] reports both parts of a cycle through the root when one walk sees only some of its elements", async () => {
     // R derives from X and Y, X from Y, Y from R. Within depth 2 the upward walk closes R, X, Y, the
     // downward walk only R, Y (X is reached but not expanded): the part of two elements lies within
     // the part of three, yet it is another part, so both are reported.
@@ -538,7 +538,7 @@ describe("trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK4] reports each of several cycles", async () => {
+  it("[SR-022/AK-vvhc] reports each of several cycles", async () => {
     const opened = await open({
       ...CHAIN,
       files: {
@@ -554,7 +554,7 @@ describe("trace chain (SR-022)", () => {
     expect(chain.cycles.map((c) => c.elements.map((e) => e.id))).toEqual([[TURNS], [STALL, SENSOR]]);
   });
 
-  it("[SR-022/AK4] names the first elements of a long cycle and counts the rest", async () => {
+  it("[SR-022/AK-vvhc] names the first elements of a long cycle and counts the rest", async () => {
     const count = CYCLE_NAMES_SHOWN + 2;
     const ids = Array.from({ length: count }, (_, i) => `${P}e${String(i).padStart(3, "0")}`);
     const files = Object.fromEntries(
@@ -573,7 +573,7 @@ describe("trace chain (SR-022)", () => {
       /^The chain stops at a cycle of derivations with 22 elements: Component Requirement CR-00e000, .*, Component Requirement CR-00e019, and 2 more$/,
     );
   });
-  it("[SR-022/AK5] marks a requirement without a parent as a gap of the upward chain, the root's too", async () => {
+  it("[SR-022/AK-s38c] marks a requirement without a parent as a gap of the upward chain, the root's too", async () => {
     // A system requirement whose only relation is to a decision (based-on, no meaning in the standard
     // model), and a component requirement deriving from it.
     const ORPHAN = `${P}b004`;
@@ -603,7 +603,7 @@ describe("trace chain (SR-022)", () => {
     expect(gaps(chainOf(opened, STALL, { direction: "up", includes: (e) => e.id === STALL }))).toEqual([]);
   });
 
-  it("[SR-022/AK5] takes a parent of any relation kind with the meaning derivation, also one of the project's own", async () => {
+  it("[SR-022/AK-s38c] takes a parent of any relation kind with the meaning derivation, also one of the project's own", async () => {
     const DECISION = `${P}e001`;
     const decided = `---\nid: ${SPEED}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\ndecided-by:\n  - { id: ${DECISION}, version: ${V} }\n---\n`;
     const opened = await open({
@@ -668,7 +668,7 @@ describe("trace chain in a view and with missing repositories", () => {
     expect(chain.walks[0]?.result.unresolved.map((u) => u.link.source.id)).toEqual([STALL, STALL]);
   });
 
-  it("[SR-006/AK2] marks the chain incomplete, up where a parent is not on this machine and down always then", async () => {
+  it("[SR-006/AK-q0f4] marks the chain incomplete, up where a parent is not on this machine and down always then", async () => {
     const away = "  - { name: away, url: git@example.com:away.git, path: ../away }";
     const fixture = await open({
       ...CHAIN,
@@ -722,7 +722,7 @@ describe("trace chain in a view and with missing repositories", () => {
     expect(chainOf(fixture, STALL, { direction: "down" }).incomplete).toBe(true);
   });
 
-  it("[SR-022/AK5] counts a parent in a repository that is not on this machine, and a missing one, as a parent", async () => {
+  it("[SR-022/AK-s38c] counts a parent in a repository that is not on this machine, and a missing one, as a parent", async () => {
     const opened = await open({
       ...CHAIN,
       files: {
@@ -749,7 +749,7 @@ describe("trace chain in a view and with missing repositories", () => {
 });
 
 describe("trace chain output", () => {
-  it("[SR-022/AK5] gives a no-parent gap with the page of its node in the upward walk", async () => {
+  it("[SR-022/AK-s38c] gives a no-parent gap with the page of its node in the upward walk", async () => {
     const ORPHAN = `${P}b004`;
     const CHILD = `${P}c003`;
     const opened = await open({

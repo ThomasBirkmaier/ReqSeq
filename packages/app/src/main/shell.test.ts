@@ -196,7 +196,7 @@ describe("startShell", () => {
     expect(electron.app.quit).toHaveBeenCalledOnce();
   });
 
-  it("[SR-113/AK1] gives the window the sheet colour of the system's scheme, so that a start does not flash", async () => {
+  it("[SR-113/AK-jp1f] gives the window the sheet colour of the system's scheme, so that a start does not flash", async () => {
     const light = await start(undefined, false);
     expect(light.windows[0]?.options).toMatchObject({ backgroundColor: "#ffffff" });
     const dark = await start(undefined, true);
@@ -260,7 +260,7 @@ describe("startShell", () => {
     ]);
   });
 
-  it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
+  it("[SR-128/AK-yqp3] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
     // The seven channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
@@ -354,7 +354,7 @@ describe("startShell", () => {
     expect(children[0]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
   });
 
-  it("[SR-131/AK3] File > Open Workspace has the loaded window save its input first, and keeps the workspace when it could not", async () => {
+  it("[SR-131/AK-nkm5] File > Open Workspace has the loaded window save its input first, and keeps the workspace when it could not", async () => {
     const shell = options(["electron", ".", "--workspace=/ws"]);
     const { electron, children, windows, ipcListeners } = fakeElectron(false);
     await startShell(electron as unknown as ShellElectron, shell);
@@ -403,7 +403,7 @@ describe("startShell", () => {
     expect(contents?.sent).toHaveLength(2);
   });
 
-  it("[SR-105/AK3] shows no save dialog and no message box: the one dialog is the folder dialog of File > Open Workspace", async () => {
+  it("[SR-105/AK-ptsm] shows no save dialog and no message box: the one dialog is the folder dialog of File > Open Workspace", async () => {
     const fake = fakeElectron(false);
     const others = {
       showSaveDialog: vi.fn(),
@@ -452,7 +452,7 @@ describe("startShell", () => {
     }
   });
 
-  it("[SR-105/AK1] closing the window asks it to save first and closes it once everything is saved", async () => {
+  it("[SR-105/AK-p4gn] closing the window asks it to save first and closes it once everything is saved", async () => {
     const fake = await start(["electron", ".", "--workspace=/ws"]);
     const window = fake.windows[0];
     const contents = window?.webContents;

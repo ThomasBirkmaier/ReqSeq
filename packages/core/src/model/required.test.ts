@@ -52,7 +52,7 @@ const keys = (element: ElementRecord, metamodel: Metamodel): readonly unknown[] 
   requiredFindings(element, metamodel).map((f) => f.path[0]);
 
 describe("requiredFindings", () => {
-  it("[SR-015/AK3] reports a required property that is absent, null, blank or an empty list", async () => {
+  it("[SR-015/AK-f2y9] reports a required property that is absent, null, blank or an empty list", async () => {
     const { metamodel } = await loaded();
     expect(keys(record("base", {}), metamodel)).toEqual(["title", "tags"]);
     expect(keys(record("base", { title: null, tags: [] }), metamodel)).toEqual(["title", "tags"]);
@@ -63,7 +63,7 @@ describe("requiredFindings", () => {
     expect(keys(record("derived", { title: "x", tags: ["a"], weight: 0 }), metamodel)).toEqual([]);
   });
 
-  it("[SR-015/AK3] gives one hint for an empty value of a required number, not also a wrong value kind", async () => {
+  it("[SR-015/AK-f2y9] gives one hint for an empty value of a required number, not also a wrong value kind", async () => {
     const { metamodel } = await loaded();
     for (const weight of ["", "  ", []]) {
       const element = record("derived", { title: "x", tags: ["a"], weight });

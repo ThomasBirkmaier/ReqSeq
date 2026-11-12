@@ -273,7 +273,7 @@ describe("serveMcp", () => {
     expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined]);
   });
 
-  it("[SR-079/AK1] opens no network socket: no network module, and no socket while a session runs", async () => {
+  it("[SR-079/AK-g12j] opens no network socket: no network module, and no socket while a session runs", async () => {
     const files = (await fs.readdir(import.meta.dirname)).filter(
       (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
     );
@@ -414,7 +414,7 @@ describe("serveMcp without a workspace", () => {
     vi.unstubAllEnvs();
   });
 
-  it("[SR-131/AK1] workspace_recent lists the recent workspaces from a folder that holds no workspace", async () => {
+  it("[SR-131/AK-y2k4] workspace_recent lists the recent workspaces from a folder that holds no workspace", async () => {
     // The OS cache folder of this process (Linux, macOS, Windows) lies in the test folder.
     for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
       vi.stubEnv(name, path.join(dir, "home"));

@@ -31,18 +31,18 @@ const firstLine = async (ref: string): Promise<string> => {
 };
 
 describe("reqseq and the validation status (SR-038)", () => {
-  it("[SR-038/AK1] reqseq element get shows the validation status of a need apart from the verification status", async () => {
+  it("[SR-038/AK-w0j6] reqseq element get shows the validation status of a need apart from the verification status", async () => {
     expect(await firstLine("N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: validated]");
     expect(await firstLine("SR-00b001")).toBe(
       "SR-00b001  approved  Show wind speed  [verification: core failed]  [validation: validated]",
     );
   });
 
-  it("[SR-038/AK2] reqseq element get shows outdated for a need validated on an older version", async () => {
+  it("[SR-038/AK-g54k] reqseq element get shows outdated for a need validated on an older version", async () => {
     expect(await firstLine("N-00a003")).toBe("N-00a003  approved  Know the pressure  [validation: outdated]");
   });
 
-  it("[SR-038/AK3] reqseq evidence status prints the validation status of every element", async () => {
+  it("[SR-038/AK-wb3p] reqseq evidence status prints the validation status of every element", async () => {
     const result = await reqseq(["evidence", "status"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
@@ -63,7 +63,7 @@ describe("reqseq and the validation status (SR-038)", () => {
     );
   });
 
-  it("[SR-038/AK3] reqseq element list --json with a validation condition gives the validated elements", async () => {
+  it("[SR-038/AK-wb3p] reqseq element list --json with a validation condition gives the validated elements", async () => {
     const input = JSON.stringify({ selection: { where: { validation: ["validated"] } } });
     const result = await reqseq(["element", "list", "--input", input, "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);

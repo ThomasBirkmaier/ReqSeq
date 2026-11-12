@@ -90,7 +90,7 @@ const way = (...ids: readonly string[]): { id: string; repository: string }[] =>
   ids.map((id) => ({ id, repository: "system" }));
 
 describe("trace.affected (SR-024)", () => {
-  it("[SR-024/AK1] lists every element with a relation or a reference to the element, with way and distance", async () => {
+  it("[SR-024/AK-zsx0] lists every element with a relation or a reference to the element, with way and distance", async () => {
     const workspace = await open();
     const output = await affected(workspace, { ref: "SR-00b001" });
     expect(rows(output)).toEqual([
@@ -113,7 +113,7 @@ describe("trace.affected (SR-024)", () => {
     expect([output.total, output.records, output.incomplete]).toEqual([3, [], false]);
   });
 
-  it("[SR-024/AK1] gives one page of the affected elements in their order, with the total", async () => {
+  it("[SR-024/AK-zsx0] gives one page of the affected elements in their order, with the total", async () => {
     const workspace = await open();
     const all = await affected(workspace, { ref: SEE_WIND });
     const page = await affected(workspace, { ref: SEE_WIND, limit: 2, offset: 1 });
@@ -123,7 +123,7 @@ describe("trace.affected (SR-024)", () => {
     expect((await affected(workspace, { ref: SEE_WIND, offset: 9 })).affected).toEqual([]);
   });
 
-  it("[SR-024/AK1] follows the chain down from a need, each element once at its shortest distance", async () => {
+  it("[SR-024/AK-zsx0] follows the chain down from a need, each element once at its shortest distance", async () => {
     const workspace = await open();
     const output = await affected(workspace, { ref: SEE_WIND });
     expect(rows(output)).toEqual([
@@ -140,7 +140,7 @@ describe("trace.affected (SR-024)", () => {
     ]);
   });
 
-  it("[SR-024/AK1] counts every relation directly, also one that is no derivation, then goes on along the chain", async () => {
+  it("[SR-024/AK-zsx0] counts every relation directly, also one that is no derivation, then goes on along the chain", async () => {
     const workspace = await open();
     // based-on (a relation kind without a meaning) and packages (a relation-valued property).
     expect(rows(await affected(workspace, { ref: ANEMOMETER }))).toEqual([
@@ -166,7 +166,7 @@ describe("trace.affected (SR-024)", () => {
     });
   });
 
-  it("[SR-006/AK2] is incomplete while a repository of the workspace file is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] is incomplete while a repository of the workspace file is not on this machine", async () => {
     const workspace = await open({
       ...AFFECTED,
       files: {
@@ -181,7 +181,7 @@ describe("trace.affected (SR-024)", () => {
     expect([output.affected.length, output.incomplete]).toEqual([3, true]);
   });
 
-  it("[SR-024/AK4] lists the records of an older version of the element from the evidence folders, newest first", async () => {
+  it("[SR-024/AK-vzjd] lists the records of an older version of the element from the evidence folders, newest first", async () => {
     const workspace = await open();
     const current = await versionOf(workspace, "SR-00b001");
     const older = {
@@ -206,7 +206,7 @@ describe("trace.affected (SR-024)", () => {
     expect((await affected(workspace, { ref: "SR-00b004" })).records).toEqual([]);
   });
 
-  it("[SR-024/AK4] lists no record as old while the current version of the element cannot be computed", async () => {
+  it("[SR-024/AK-vzjd] lists no record as old while the current version of the element cannot be computed", async () => {
     const fixture = await createFixtureWorkspace(AFFECTED);
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
@@ -218,13 +218,13 @@ describe("trace.affected (SR-024)", () => {
     expect((await affected(workspace, { ref: "SR-00b001" })).records).toEqual([]);
   });
 
-  it("[SR-024/AK1] names an unknown element", async () => {
+  it("[SR-024/AK-zsx0] names an unknown element", async () => {
     const workspace = await open();
     const unknown = await affectedError(workspace, { ref: "SR-ffffff" });
     expect(unknown.code).toBe("ref.unknown");
   });
 
-  it("[SR-013/AK3] reports which meaning is missing when no relation kind has the meaning derivation", async () => {
+  it("[SR-013/AK-bh0d] reports which meaning is missing when no relation kind has the meaning derivation", async () => {
     const withoutDerivation = await open({
       ...AFFECTED,
       files: {

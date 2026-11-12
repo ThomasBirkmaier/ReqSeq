@@ -50,7 +50,7 @@ test.describe("the view of a variant in the app", () => {
     await running.close();
   });
 
-  test("[SR-043/AK1] Choose view shows exactly K3, K4, A1 and A2 in the view of A, and the core view only the core", async () => {
+  test("[SR-043/AK-ymsc] Choose view shows exactly K3, K4, A1 and A2 in the view of A, and the core view only the core", async () => {
     const { window } = running;
     const modeline = window.getByLabel("Modeline");
     await chooseView(window, `${A} Coast`);
@@ -70,7 +70,7 @@ test.describe("the view of a variant in the app", () => {
     await expect.poll(() => shownRequirements(window)).toContain("SR-0000a2");
   });
 
-  test("[SR-041/AK1] the view of A lists SR-A instead of SR-K, and the view of B keeps SR-K", async () => {
+  test("[SR-041/AK-xqgg] the view of A lists SR-A instead of SR-K, and the view of B keeps SR-K", async () => {
     const { window } = running;
     await chooseView(window, `${A} Coast`);
     // One poll over both IDs, so both hold on the same list and not on rows of the view before.
@@ -83,7 +83,7 @@ test.describe("the view of a variant in the app", () => {
     await expect.poll(shown).toEqual({ a1: true, b1: false });
   });
 
-  test("[SR-042/AK6] in the view of A, variant.exclude with undo still offers the excluded K2, and K2 is back in the list", async () => {
+  test("[SR-042/AK-sq52] in the view of A, variant.exclude with undo still offers the excluded K2, and K2 is back in the list", async () => {
     const { window } = running;
     const names = window.locator('.candidates [role="option"] .name');
     const label = window.locator("label.prompt-label");

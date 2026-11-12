@@ -1,7 +1,8 @@
 // The name pattern of `evidence.enrichJunit` (SR-029 AK5, ADR-0012 "Enriching"): a template such as
-// `{prefix}_{id}_ak{ak}` that finds a short ID written in another form in a test case name
-// (`sr_348143_ak1` gives SR-348143). The pattern arrives through every access, so it never reaches
-// `RegExp`: it is compiled into the own matcher below, whose cost is linear in the name.
+// `{prefix}_{id}_ak_{ak}` that finds a short ID written in another form in a test case name
+// (`sr_348143_ak_k7f3` gives SR-348143 and the criterion key k7f3). The pattern arrives through every
+// access, so it never reaches `RegExp`: it is compiled into the own matcher below, whose cost is
+// linear in the name.
 //
 // - `{prefix}`: a type prefix of the metamodel, ASCII case-insensitive; the longest that fits first,
 //   then the shorter ones (`DE`, then `D`).
@@ -11,8 +12,9 @@
 // - `{ak}`: 1 to 9 digits, all of the run, or a criterion key (SR-204 AK5: a lower-case letter, then
 //   3 to 15 lower-case letters or digits), all of the run of lower-case letters and digits; a longer
 //   run does not match. They are the acceptance criterion the match names, as written (`ak`); enrich
-//   refuses `0` and a leading zero (SR-029 AK10). So `{prefix}_{id}_{ak}` reads `verify` from
-//   `sr_348143_verify` as a key, which then names no criterion.
+//   refuses a number, and so `0` and a leading zero, and names the key to write (SR-029 AK13). So
+//   `{prefix}_{id}_{ak}` reads `verify` from `sr_348143_verify` as a key, which then names no
+//   criterion.
 // - Anything else is literal text, ASCII case-insensitive; `{{` and `}}` are literal braces.
 // - A match starts and ends at a word boundary: the start or end of the name, a character that is
 //   not a letter or digit, or the start of a camel case word. Matches do not overlap.

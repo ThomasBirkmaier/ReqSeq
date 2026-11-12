@@ -94,7 +94,7 @@ test.describe("copying a field of an element", () => {
     return { text: element.text, id: element.shortId };
   };
 
-  test("[SR-128/AK1] hovering a field shows its copy symbol, otherwise it is not to be seen", async () => {
+  test("[SR-128/AK-sthw] hovering a field shows its copy symbol, otherwise it is not to be seen", async () => {
     const { window } = running;
     // Title, text, a property box, a group of relations; the ID is in the modeline.
     const fields = ["Title", "Text", "acceptance-criteria", "topic", "derives-from"];
@@ -124,7 +124,7 @@ test.describe("copying a field of an element", () => {
     expect(mark?.width ?? 0).toBeGreaterThanOrEqual(20);
   });
 
-  test("[SR-128/AK1] the focus in a field shows its copy symbol", async () => {
+  test("[SR-128/AK-sthw] the focus in a field shows its copy symbol", async () => {
     const { window } = running;
     await window.mouse.move(0, 0);
     // A field that is a stop of the Tab key itself.
@@ -146,7 +146,7 @@ test.describe("copying a field of an element", () => {
     await expect(symbol(window, "Text")).toBeHidden();
   });
 
-  test("[SR-128/AK2] clicking the symbol of a box pastes its values one per line, and the modeline says so for a moment", async () => {
+  test("[SR-128/AK-yqp3] clicking the symbol of a box pastes its values one per line, and the modeline says so for a moment", async () => {
     const { window } = running;
     await field(window, "acceptance-criteria").hover();
     await symbol(window, "acceptance-criteria").click();
@@ -156,7 +156,7 @@ test.describe("copying a field of an element", () => {
     await expect(modeline(window)).not.toContainText("Copied", { timeout: 8000 });
   });
 
-  test("[SR-128/AK2] copies the title, the text as it is stored, a relation group as shown, and the ID", async () => {
+  test("[SR-128/AK-yqp3] copies the title, the text as it is stored, a relation group as shown, and the ID", async () => {
     const { window } = running;
     const copied = async (label: string, selector: Locator): Promise<string> => {
       await selector.hover();
@@ -183,7 +183,7 @@ test.describe("copying a field of an element", () => {
     expect(await readClipboard(running)).toBe((await stored()).id);
   });
 
-  test("[SR-128/AK3] Ctrl/Cmd+Shift+C copies the field with the cursor; Copy field in the command prompt does too", async () => {
+  test("[SR-128/AK-pk21] Ctrl/Cmd+Shift+C copies the field with the cursor; Copy field in the command prompt does too", async () => {
     const { window } = running;
     // The cursor in the text.
     await window.keyboard.press("Enter");
@@ -207,7 +207,7 @@ test.describe("copying a field of an element", () => {
     expect(await readClipboard(running)).toBe((await stored()).id);
   });
 
-  test("[SR-128/AK3] with the caret in a box, Ctrl/Cmd+Shift+C copies what the box holds, the unsaved input included", async () => {
+  test("[SR-128/AK-pk21] with the caret in a box, Ctrl/Cmd+Shift+C copies what the box holds, the unsaved input included", async () => {
     const { window } = running;
     await writeClipboard(running, SENTINEL);
     const criteria = field(window, "acceptance-criteria");
@@ -229,7 +229,7 @@ test.describe("copying a field of an element", () => {
     expect(got.element.properties["acceptance-criteria"]).toEqual([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`]);
   });
 
-  test("[SR-128/AK4] a click on a field only sets the cursor: the clipboard is not changed", async () => {
+  test("[SR-128/AK-x005] a click on a field only sets the cursor: the clipboard is not changed", async () => {
     const { window } = running;
     await field(window, "Title").click();
     await field(window, "acceptance-criteria").click();

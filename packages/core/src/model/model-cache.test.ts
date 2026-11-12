@@ -828,7 +828,7 @@ describe("parseModelCache", () => {
     );
   });
 
-  it("[SR-127/AK3] discards a cache of format 4, whose records know no references in properties", () => {
+  it("[SR-127/AK-bd1x] discards a cache of format 4, whose records know no references in properties", () => {
     expect(MODEL_CACHE_FORMAT).toBeGreaterThan(4);
     expect(parse({ ...valid, format: 4 })).toBeUndefined();
   });

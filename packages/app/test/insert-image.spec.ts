@@ -69,7 +69,7 @@ test.describe("inserting an image in the element buffer", () => {
 
   const elementFile = (): string => path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/"));
 
-  test("[SR-097/AK1] Insert image copies the file next to the element file, and the saved text refers to it relatively", async () => {
+  test("[SR-097/AK-zs31] Insert image copies the file next to the element file, and the saved text refers to it relatively", async () => {
     const { window } = running;
     await window.keyboard.type("Skizze: ");
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -90,7 +90,7 @@ test.describe("inserting an image in the element buffer", () => {
     expect(await fs.readFile(source)).toEqual(PNG);
   });
 
-  test("[SR-097/AK2] the inserted image is found from the element file, as a text editor or a Git server resolves it", async () => {
+  test("[SR-097/AK-hp47] the inserted image is found from the element file, as a text editor or a Git server resolves it", async () => {
     const { window } = running;
     await window.keyboard.type("/image");
     await window.keyboard.press("Enter");
@@ -168,7 +168,7 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     }
   });
 
-  test("[SR-097/AK1] Insert image copies the file next to the element file when the workspace path goes through a link", async () => {
+  test("[SR-097/AK-zs31] Insert image copies the file next to the element file when the workspace path goes through a link", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Insert image");

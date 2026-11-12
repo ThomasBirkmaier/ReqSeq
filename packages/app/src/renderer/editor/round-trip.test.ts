@@ -68,7 +68,7 @@ const write = (): { readonly state: EditorState; readonly doc: string } => {
 };
 
 describe("SR-065 AK2, the file of a text written in the editor", () => {
-  it("[SR-065/AK2] a text written in the editor is saved as it is and parses as CommonMark with GitHub extensions", async () => {
+  it("[SR-065/AK-m5px] a text written in the editor is saved as it is and parses as CommonMark with GitHub extensions", async () => {
     const { state, doc } = write();
     // The continuation of the list on Enter is part of the text.
     expect(doc).toContain("- bullet a\n- bullet b\n");

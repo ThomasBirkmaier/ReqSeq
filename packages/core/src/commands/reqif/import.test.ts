@@ -70,7 +70,7 @@ const metamodelHash = async (fixture: FixtureWorkspace): Promise<string> =>
 const tail = (id: string): string => id.replaceAll("-", "").slice(-12);
 
 describe("reqif.import (SR-053)", () => {
-  it("[SR-053/AK1] creates an element file per SPEC-OBJECT of a mapped type and a relation per SPEC-RELATION, in a folder named after the source, each with the initial status", async () => {
+  it("[SR-053/AK-y54s] creates an element file per SPEC-OBJECT of a mapped type and a relation per SPEC-RELATION, in a folder named after the source, each with the initial status", async () => {
     const { fixture, workspace } = await open();
     const out = await run(workspace);
     expect(out.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
@@ -107,7 +107,7 @@ describe("reqif.import (SR-053)", () => {
     expect((await tree(fixture)).filter((f) => f.startsWith("Kunde-A/"))).toEqual([...out.files].sort());
   });
 
-  it("[SR-053/AK1] writes into the folder the mapping names as target", async () => {
+  it("[SR-053/AK-y54s] writes into the folder the mapping names as target", async () => {
     const { fixture, workspace } = await open({
       "reqif/kunde-a.yaml": `${MAPPING}target: { repository: system, path: imported/kunde-a }\n`,
     });
@@ -116,7 +116,7 @@ describe("reqif.import (SR-053)", () => {
     await expect(fs.stat(fixture.path("Kunde-A"))).rejects.toThrow();
   });
 
-  it("[SR-053/AK2] lists every content that is not taken over without loss, with its element and reason", async () => {
+  it("[SR-053/AK-gkxw] lists every content that is not taken over without loss, with its element and reason", async () => {
     const { workspace } = await open();
     const out = await run(workspace);
     const [one] = out.created.map((c) => c.id);
@@ -150,7 +150,7 @@ describe("reqif.import (SR-053)", () => {
     ]);
   });
 
-  it("[SR-053/AK2] lists each SPEC-RELATION of a RELATION-GROUP as a loss, since the group is not imported (#941)", async () => {
+  it("[SR-053/AK-gkxw] lists each SPEC-RELATION of a RELATION-GROUP as a loss, since the group is not imported (#941)", async () => {
     const ref = (id: string): string => `<SPEC-RELATION-REF>${id}</SPEC-RELATION-REF>`;
     const delivery = DELIVERY.replace(
       "</SPEC-TYPES>",
@@ -210,7 +210,7 @@ describe("reqif.import (SR-053)", () => {
     expect(out.losses.filter((l) => l.identifier === "REL-3").map((l) => l.code)).toEqual(["omitted-type"]);
   });
 
-  it("[SR-054/AK2] uses the saved mapping the command names and asks nothing about types and attributes", async () => {
+  it("[SR-054/AK-vy8n] uses the saved mapping the command names and asks nothing about types and attributes", async () => {
     const { workspace } = await open({ "reqif/kunde-a.yaml": "" });
     await invoke(
       "reqif.saveMapping",
@@ -244,7 +244,7 @@ describe("reqif.import (SR-053)", () => {
     expect([got.element.type, got.element.properties["rationale"]]).toEqual(["need", "check with team"]);
   });
 
-  it("[SR-054/AK2] exports to the same source through the saved mapping the command names, asking nothing about types and attributes", async () => {
+  it("[SR-054/AK-vy8n] exports to the same source through the saved mapping the command names, asking nothing about types and attributes", async () => {
     // The mapping of Kunde A keeps the delivery and the import date of its elements out of every export.
     const saved = `${MAPPING}omit-properties: [delivery, import-date]\n`;
     const { fixture, workspace } = await open({ "reqif/kunde-a.yaml": saved });
@@ -268,7 +268,7 @@ describe("reqif.import (SR-053)", () => {
     expect(await fs.readFile(fixture.path("reqif/kunde-a.yaml"), "utf8")).toBe(saved);
   });
 
-  it("[SR-054/AK3] reading the types and attributes of the source changes nothing of the own metamodel", async () => {
+  it("[SR-054/AK-q7hs] reading the types and attributes of the source changes nothing of the own metamodel", async () => {
     const { fixture, workspace } = await open();
     const before = await metamodelHash(fixture);
     await run(workspace);
@@ -365,7 +365,7 @@ describe("reqif.import (SR-053)", () => {
     expect(await tree(fixture)).toEqual(before);
   });
 
-  it("[SR-053/AK1] writes under the spelling of the target folder that the element walk lists (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
+  it("[SR-053/AK-y54s] writes under the spelling of the target folder that the element walk lists (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
     // On a file system that ignores the normal form (macOS) the NFC target is the NFD folder, and
     // the files go there under its spelling; elsewhere the two are different folders.
     const { fixture, workspace } = await open({
@@ -380,7 +380,7 @@ describe("reqif.import (SR-053)", () => {
     expect(out.files.every((f) => listed.elements.some((e) => e.file === f))).toBe(true);
   });
 
-  it("[SR-053/AK2] writes nothing when the mapping omits every type, and lists each object as a loss", async () => {
+  it("[SR-053/AK-gkxw] writes nothing when the mapping omits every type, and lists each object as a loss", async () => {
     const { fixture, workspace } = await open({
       "reqif/kunde-a.yaml": MAPPING.replace(
         "{ source: Customer Requirement, type: system-requirement }",
@@ -398,7 +398,7 @@ describe("reqif.import (SR-053)", () => {
     expect(await tree(fixture)).toEqual(before);
   });
 
-  it("[SR-053/AK3] [SR-004/AK3] [SR-055/AK3] is file.folder-missing when a repository other than the target is not on this machine, and changes no file", async () => {
+  it("[SR-053/AK-stcg] [SR-004/AK-kdfm] [SR-055/AK-ttn9] is file.folder-missing when a repository other than the target is not on this machine, and changes no file", async () => {
     const { workspace, fixture } = await open({
       "reqseq-workspace.yaml": [
         "reqseq-workspace: 1",

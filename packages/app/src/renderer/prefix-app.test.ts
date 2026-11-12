@@ -219,7 +219,7 @@ const editorOf = (selector: string): EditorView => {
 };
 
 describe("the prefix key Ctrl/Cmd+K", () => {
-  it("[SR-109/AK3] after Ctrl+K and half a second without a key, shows the next keys with their commands", async () => {
+  it("[SR-109/AK-kwtg] after Ctrl+K and half a second without a key, shows the next keys with their commands", async () => {
     await onElement();
     vi.useFakeTimers();
     await ctrlK();
@@ -245,7 +245,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     ]);
   });
 
-  it("[SR-109/AK3] [SR-145/AK1] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
+  it("[SR-109/AK-kwtg] [SR-145/AK-bfb2] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     vi.useFakeTimers();
@@ -258,7 +258,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(nextKeys()).toBeUndefined();
   });
 
-  it("[SR-109/AK3] in a read-only workspace the next keys leave out the write commands, and their letters say so", async () => {
+  it("[SR-109/AK-kwtg] in a read-only workspace the next keys leave out the write commands, and their letters say so", async () => {
     HANDLERS["workspace.status"] = () => ({ name: "Weather station", readOnly: true });
     try {
       await onElement();
@@ -274,7 +274,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     }
   });
 
-  it("[SR-109/AK3] a key before half a second runs its command and shows nothing", async () => {
+  it("[SR-109/AK-kwtg] a key before half a second runs its command and shows nothing", async () => {
     await onElement();
     vi.useFakeTimers();
     await ctrlK();
@@ -288,7 +288,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(echo()).toBe("");
   });
 
-  it("[SR-109/AK3] the next key after the list runs its command and the list goes", async () => {
+  it("[SR-109/AK-kwtg] the next key after the list runs its command and the list goes", async () => {
     await onElement();
     vi.useFakeTimers();
     await ctrlK();
@@ -360,7 +360,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(shown()).toBe("All elements");
   });
 
-  it("[SR-122/AK6] Ctrl+N and Ctrl+P move the selection through the next keys, and Enter runs it", async () => {
+  it("[SR-122/AK-ht29] Ctrl+N and Ctrl+P move the selection through the next keys, and Enter runs it", async () => {
     await onElement();
     const selected = (): string | undefined =>
       nextKeys() === undefined
@@ -407,7 +407,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(shown()).toBe("Overview");
   });
 
-  it("[SR-145/AK3] on macOS the physical Ctrl+N and Ctrl+P move the selection through the next keys", async () => {
+  it("[SR-145/AK-mk0f] on macOS the physical Ctrl+N and Ctrl+P move the selection through the next keys", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     await ctrlK(window, true);
@@ -420,7 +420,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     );
   });
 
-  it("[SR-109/AK3] the letter after the prefix never reaches the focused editor or box", async () => {
+  it("[SR-109/AK-kwtg] the letter after the prefix never reaches the focused editor or box", async () => {
     for (const mac of [false, true]) {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(mac ? "MacIntel" : "Linux x86_64");
       for (const field of [".cm-editor", '[data-field="topic"] .cm-editor']) {
@@ -467,7 +467,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(echo()).not.toBe("Ctrl+K-");
   });
 
-  it("[SR-145/AK1] leaves a prevented Ctrl+K alone: on macOS the physical Ctrl+K stays the editor's", async () => {
+  it("[SR-145/AK-bfb2] leaves a prevented Ctrl+K alone: on macOS the physical Ctrl+K stays the editor's", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     const view = editorOf(".cm-editor");

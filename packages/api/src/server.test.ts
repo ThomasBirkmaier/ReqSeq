@@ -253,7 +253,7 @@ afterEach(async () => {
 });
 
 describe("listening", () => {
-  it("[SR-079/AK1] listens on the loopback addresses only, all on one port", async () => {
+  it("[SR-079/AK-g12j] listens on the loopback addresses only, all on one port", async () => {
     const api = await start();
     expect(api.addresses.length).toBeGreaterThan(0);
     expect(api.addresses[0]?.address).toBe("127.0.0.1");
@@ -269,7 +269,7 @@ describe("listening", () => {
     expect(urlOf({ address: "127.0.0.1", family: "IPv4", port: 8 })).toBe("http://127.0.0.1:8");
   });
 
-  it("[SR-079/AK3] has no address option: the bind addresses are a constant", async () => {
+  it("[SR-079/AK-yvqq] has no address option: the bind addresses are a constant", async () => {
     expect(LOOPBACK_HOSTS).toEqual(["127.0.0.1", "::1"]);
     // The only place that listens takes the constant; nothing reads the environment for an address.
     const sources = await Promise.all(
@@ -384,7 +384,7 @@ describe("listening", () => {
     expect(opened.every((s) => !s.listening)).toBe(true);
   });
 
-  it("[SR-079/AK4] writes api.json with port and token, readable by the owner only", async () => {
+  it("[SR-079/AK-m4mv] writes api.json with port and token, readable by the owner only", async () => {
     const api = await start();
     expect(api.endpointFile).toBe(path.join(dir, "api.json"));
     const endpoint = JSON.parse(await fs.readFile(api.endpointFile, "utf8")) as Record<string, unknown>;
@@ -658,7 +658,7 @@ describe("refusals before a command runs", () => {
     expect(echoed).toHaveBeenCalledTimes(4);
   });
 
-  it("[SR-079/AK4] refuses any other Host header (DNS rebinding)", async () => {
+  it("[SR-079/AK-m4mv] refuses any other Host header (DNS rebinding)", async () => {
     for (const host of ["evil.example", `evil.example:${String(server?.port)}`, "127.0.0.1", "127.0.0.1:1"]) {
       const reply = await request({ headers: { host } });
       expect(reply.status).toBe(403);
@@ -667,7 +667,7 @@ describe("refusals before a command runs", () => {
     expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("[SR-079/AK4] refuses a request without Host header", async () => {
+  it("[SR-079/AK-m4mv] refuses a request without Host header", async () => {
     const socket = net.connect(server?.port ?? 0, "127.0.0.1");
     socket.end(`POST /v1/commands/test.echo HTTP/1.0\r\nAuthorization: Bearer ${token}\r\n\r\n`);
     const chunks: Buffer[] = [];
@@ -678,13 +678,13 @@ describe("refusals before a command runs", () => {
     expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("[SR-079/AK4] refuses requests with an Origin header (no browser access)", async () => {
+  it("[SR-079/AK-m4mv] refuses requests with an Origin header (no browser access)", async () => {
     const reply = await request({ headers: { origin: "http://127.0.0.1" } });
     expect(reply.status).toBe(403);
     expect(echoed).not.toHaveBeenCalled();
   });
 
-  it("[SR-079/AK4] refuses a missing or wrong token", async () => {
+  it("[SR-079/AK-m4mv] refuses a missing or wrong token", async () => {
     for (const authorization of [
       "",
       `Bearer ${token.replace(/^./, token.startsWith("a") ? "b" : "a")}`,
@@ -924,7 +924,7 @@ describe("commands", () => {
     expect(reply.body).toEqual({ input: { a: [1, "ü"] } });
   });
 
-  it("[SR-061/AK4] answers with one line per item when Accept names application/x-ndjson (#319)", async () => {
+  it("[SR-061/AK-h1db] answers with one line per item when Accept names application/x-ndjson (#319)", async () => {
     const reply = await request({
       path: "/v1/commands/test.rows",
       headers: { accept: "application/x-ndjson" },

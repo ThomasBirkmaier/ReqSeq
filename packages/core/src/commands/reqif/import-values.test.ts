@@ -231,7 +231,7 @@ const properties = async (workspace: Workspace, id: string | undefined): Promise
     .properties;
 
 describe("reqif.import of each datatype (SR-053)", () => {
-  it("[SR-053/AK2] takes over each value as its property holds it and lists what it leaves out", async () => {
+  it("[SR-053/AK-gkxw] takes over each value as its property holds it and lists what it leaves out", async () => {
     const workspace = await open();
     const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
     const [one, two, three, memo, five] = out.created.map((c) => c.id);
@@ -300,7 +300,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
     ]);
   });
 
-  it("[SR-053/AK2] leaves out a DATE value that is not an xs:dateTime and lists it in reqif.analyze and reqif.import (#571)", async () => {
+  it("[SR-053/AK-gkxw] leaves out a DATE value that is not an xs:dateTime and lists it in reqif.analyze and reqif.import (#571)", async () => {
     const dates = [
       item("D-1", { "a-name": "Text", "a-due": "aaa", "a-reviews": "" }),
       item("D-2", { "a-name": "Short", "a-due": "2021-7-1", "a-reviews": "2026-02-30T00:00:00Z" }),
@@ -406,7 +406,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
     ]);
   });
 
-  it("[SR-053/AK2] lists a reference the import does not need and the file does not define as a loss, in reqif.analyze and reqif.import (#573)", async () => {
+  it("[SR-053/AK-gkxw] lists a reference the import does not need and the file does not define as a loss, in reqif.analyze and reqif.import (#573)", async () => {
     const delivery = DELIVERY.replace(
       "</SPEC-RELATIONS>",
       [

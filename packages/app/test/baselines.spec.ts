@@ -218,7 +218,7 @@ test.describe("baselines in the app", () => {
     running = undefined;
   });
 
-  test("[SR-050/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version", async () => {
+  test("[SR-050/AK-cvrg] baseline.create writes a file in the baseline folder with name, date, commits and id plus version", async () => {
     const ws = await withGit("SR-061/export", ["system", "sensor"]);
     const head = (await ws.git(["rev-parse", "HEAD"], "system")).trim();
     running = await launchIn(ws, "system");
@@ -273,7 +273,7 @@ test.describe("baselines in the app", () => {
     ]);
   });
 
-  test("[SR-051/AK1] baseline.get shows each element with its baseline version and that version's date", async () => {
+  test("[SR-051/AK-n6cm] baseline.get shows each element with its baseline version and that version's date", async () => {
     const { ws, first } = await changedSince();
     running = await launchIn(ws, "system");
     const seconds = Number((await ws.git(["log", "-1", "--format=%ct", first], "system")).trim());
@@ -291,7 +291,7 @@ test.describe("baselines in the app", () => {
     });
   });
 
-  test("[SR-051/AK2] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
+  test("[SR-051/AK-c0xb] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
     const { ws } = await changedSince();
     running = await launchIn(ws, "system");
     const { window } = running;
@@ -318,7 +318,7 @@ test.describe("baselines in the app", () => {
     expect((await cliGet(running, ["release-1"])).selectionKnown).toBe(false);
   });
 
-  test("[SR-051/AK3] baseline.get marks SR-W removed; without stored selection no removed", async () => {
+  test("[SR-051/AK-ntjw] baseline.get marks SR-W removed; without stored selection no removed", async () => {
     const { ws } = await changedSince();
     running = await launchIn(ws, "system");
     const { window } = running;
@@ -339,7 +339,7 @@ test.describe("baselines in the app", () => {
     expect(without).toContain("  removed 0");
   });
 
-  test("[SR-051/AK4] baseline.compare gives both commits and the git command", async () => {
+  test("[SR-051/AK-dcx7] baseline.compare gives both commits and the git command", async () => {
     const { ws, first, second } = await changedSince();
     running = await launchIn(ws, "system");
     const { window } = running;
@@ -369,7 +369,7 @@ test.describe("baselines in the app", () => {
     );
   });
 
-  test("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
+  test("[SR-094/AK-wm63] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
     const ws = await withGit("SR-094/baseline", ["."]);
     running = await launchIn(ws, ".");
     const { window } = running;

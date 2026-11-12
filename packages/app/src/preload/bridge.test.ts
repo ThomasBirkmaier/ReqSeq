@@ -289,7 +289,7 @@ describe("createBridge", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it("[SR-128/AK2] copyText asks the main process over the copy channel, and says whether it was copied", async () => {
+  it("[SR-128/AK-yqp3] copyText asks the main process over the copy channel, and says whether it was copied", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     expect(await bridge.copyText("one\ntwo")).toBe(true);
@@ -303,7 +303,7 @@ describe("createBridge", () => {
     expect(await bridge.copyText("x")).toBe(false);
   });
 
-  it("[SR-195/AK3] pasteText asks the main process over the edit channel for a paste, and gets no content back", async () => {
+  it("[SR-195/AK-qn9f] pasteText asks the main process over the edit channel for a paste, and gets no content back", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     expect(await bridge.pasteText()).toBe(true);
@@ -390,7 +390,7 @@ describe("createBridge", () => {
     expect(await bridge.listFolder("~/pro")).toEqual({ name: "", entries: [], problem: "invalid" });
   });
 
-  it("[SR-131/AK5] openWorkspace passes a typed folder path to main as typed", async () => {
+  it("[SR-131/AK-sxyz] openWorkspace passes a typed folder path to main as typed", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     ipc.answer = { ok: false, reason: "no-workspace" };
@@ -406,7 +406,7 @@ describe("createBridge", () => {
     ]);
   });
 
-  it("[SR-105/AK1] tells the window's saver whether main asks before the window closes or before a switch", async () => {
+  it("[SR-105/AK-p4gn] tells the window's saver whether main asks before the window closes or before a switch", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     const save = vi.fn(() => Promise.resolve(true));
@@ -417,7 +417,7 @@ describe("createBridge", () => {
     expect(save.mock.calls).toEqual([[{ closing: true }], [{ closing: false }]]);
   });
 
-  it("[SR-131/AK3] answers main's request to save with what the window's saver gives; without one, saved", async () => {
+  it("[SR-131/AK-nkm5] answers main's request to save with what the window's saver gives; without one, saved", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -471,7 +471,7 @@ describe("createBridge", () => {
     );
   });
 
-  it("[SR-131/AK3] a request main gave up on tells the save-expired listeners, and asks the saver nothing", async () => {
+  it("[SR-131/AK-nkm5] a request main gave up on tells the save-expired listeners, and asks the saver nothing", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     const save = vi.fn(() => Promise.resolve(true));
@@ -491,7 +491,7 @@ describe("createBridge", () => {
     expect(expired).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-131/AK3] a save-expired from the core process's port is dropped: only main sends it", async () => {
+  it("[SR-131/AK-nkm5] a save-expired from the core process's port is dropped: only main sends it", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     const expired = vi.fn();
@@ -510,7 +510,7 @@ describe("createBridge", () => {
 });
 
 describe("what the renderer can reach", () => {
-  it("[SR-080/AK4] gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
+  it("[SR-080/AK-dq1w] gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     // `invoke` and `commands` go to the core process, which runs the catalog as CLI, API and MCP do.

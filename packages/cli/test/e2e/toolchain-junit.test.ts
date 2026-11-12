@@ -300,7 +300,7 @@ const valuesOf = (node: unknown, key: string): unknown[] => {
 
 describe("connecting a test tool by the guide record-test-results-in-ci and toolchain/junit (SR-063)", () => {
   it(
-    "[SR-063/AK1] a real Vitest run is connected by the one reqseq call of the guide, and its requirements get a status",
+    "[SR-063/AK-ryfc] a real Vitest run is connected by the one reqseq call of the guide, and its requirements get a status",
     async () => {
       const before = await git(["status", "--porcelain", "--ignored", "--", "toolchain/junit"]);
       const ws = await exampleWorkspace();
@@ -332,7 +332,7 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
   );
 
   it(
-    "[SR-063/AK1] the JUnit file of a real pytest run is connected by the same call",
+    "[SR-063/AK-ryfc] the JUnit file of a real pytest run is connected by the same call",
     async () => {
       const ws = await exampleWorkspace();
       const checkout = await tempDir();
@@ -354,7 +354,7 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
     TIMEOUT,
   );
 
-  it("[SR-063/AK1] the pipeline step of the guide is one reqseq call and the CI examples run exactly it", async () => {
+  it("[SR-063/AK-ryfc] the pipeline step of the guide is one reqseq call and the CI examples run exactly it", async () => {
     const step = await pipelineStep();
     expect(step).toMatch(/^reqseq evidence enrich-junit /);
 
@@ -391,7 +391,7 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
   });
 
   it(
-    "[SR-063/AK1] a test case with a typo in its ID makes the pipeline step exit with 1 and name it",
+    "[SR-063/AK-ryfc] a test case with a typo in its ID makes the pipeline step exit with 1 and name it",
     async () => {
       const ws = await exampleWorkspace();
       const checkout = await tempDir();
@@ -413,7 +413,7 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
   );
 
   it(
-    "[SR-063/AK2] every reqseq command of the guide runs as written on the example workspace",
+    "[SR-063/AK-mbcm] every reqseq command of the guide runs as written on the example workspace",
     async () => {
       const home = await tempDir();
       const shell: Shell = { vars: { PWD: repoRoot, HOME: home }, cwd: repoRoot, runs: [] };

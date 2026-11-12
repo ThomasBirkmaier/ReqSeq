@@ -113,7 +113,7 @@ test.describe("the typography of the element text", () => {
     await running.close();
   });
 
-  test("[SR-192/AK1] in a window wider than the column the text stands in a centred column of at most 72 characters", async () => {
+  test("[SR-192/AK-wvh6] in a window wider than the column the text stands in a centred column of at most 72 characters", async () => {
     await resize(running, 1400);
     await opened(running.window);
     const box = await measure(running.window);
@@ -123,7 +123,7 @@ test.describe("the typography of the element text", () => {
     await shot(running.window, "typography-wide");
   });
 
-  test("[SR-192/AK2] in a narrower window the text takes the whole width and wraps without a sideways scroll", async () => {
+  test("[SR-192/AK-s3tb] in a narrower window the text takes the whole width and wraps without a sideways scroll", async () => {
     await resize(running, 420);
     await opened(running.window);
     const box = await measure(running.window);
@@ -175,7 +175,7 @@ test.describe("the typography of the element text", () => {
     ).toBeGreaterThan(0);
   });
 
-  test("[SR-192/AK3] code stands in a face of fixed width, all other text, tables included, in a proportional one", async () => {
+  test("[SR-192/AK-hyxb] code stands in a face of fixed width, all other text, tables included, in a proportional one", async () => {
     await opened(running.window);
     const mono = /monospace/;
     expect(await fontOf(running.window, ".element .cm-lr-code")).toMatch(mono);

@@ -237,7 +237,7 @@ const shown = (): string[] =>
 const section = (): HTMLElement => query(".row.fold-row");
 
 describe("statuses folded in lists (SR-201)", () => {
-  it("[SR-201/AK1] without a choice the elements in an invalid status stand at the end, collapsed, with their count", async () => {
+  it("[SR-201/AK-d03x] without a choice the elements in an invalid status stand at the end, collapsed, with their count", async () => {
     const fake = await open();
     await runCommand("List all elements");
     expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
@@ -254,7 +254,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(query(".list h1").textContent).toContain("3");
   });
 
-  it("[SR-201/AK1] a filtered list folds within its filter, and a tree folds nothing", async () => {
+  it("[SR-201/AK-d03x] a filtered list folds within its filter, and a tree folds nothing", async () => {
     const fake = await open();
     await runCommand("List all elements");
     await runCommand("Filter list by type");
@@ -272,7 +272,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(shown()).toEqual(["N-001 (N-001)", "N-002 (N-002)", "N-003 (N-003)"]);
   });
 
-  it("[SR-201/AK2] choosing a status folds it in every list, choosing it again puts its elements back in place", async () => {
+  it("[SR-201/AK-knzs] choosing a status folds it in every list, choosing it again puts its elements back in place", async () => {
     await open();
     await runCommand("List all elements");
     await foldStatus("Approved");
@@ -285,7 +285,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
   });
 
-  it("[SR-201/AK3] the section row opens and closes by click, Enter, Tab, Right and Left, and is collapsed again when the list opens again", async () => {
+  it("[SR-201/AK-bfj3] the section row opens and closes by click, Enter, Tab, Right and Left, and is collapsed again when the list opens again", async () => {
     await open();
     await runCommand("List all elements");
     const list = query(".list");
@@ -320,7 +320,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(shown()).toHaveLength(3);
   });
 
-  it("[SR-201/AK4] the choice holds after a restart, for every workspace, and writes nothing of a workspace", async () => {
+  it("[SR-201/AK-cqrc] the choice holds after a restart, for every workspace, and writes nothing of a workspace", async () => {
     const first = await open();
     await foldStatus("Draft");
     expect(JSON.parse(window.localStorage.getItem(FOLD_KEY) ?? "null")).toEqual({
@@ -340,7 +340,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(shown()).toEqual(["N-003 (N-003)", "▸ Folded statuses (2)"]);
   });
 
-  it("[SR-201/AK1] a search result folds its hits in folded statuses the same way", async () => {
+  it("[SR-201/AK-d03x] a search result folds its hits in folded statuses the same way", async () => {
     const fake = await open();
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
     await type("see");
@@ -352,7 +352,7 @@ describe("statuses folded in lists (SR-201)", () => {
     );
   });
 
-  it("[SR-201/AK3] an open section stays open when the list reads again, and Left on a folded row closes it", async () => {
+  it("[SR-201/AK-bfj3] an open section stays open when the list reads again, and Left on a folded row closes it", async () => {
     const fake = await open();
     await runCommand("List all elements");
     const list = query(".list");

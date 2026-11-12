@@ -69,12 +69,12 @@ const snapshot = async (ws: FixtureWorkspace): Promise<readonly (readonly [strin
   );
 
 describe("duplicate IDs (SR-088)", () => {
-  it("[SR-088/AK1] reports both files of a copied element file with the shared UUID", async () => {
+  it("[SR-088/AK-nytd] reports both files of a copied element file with the shared UUID", async () => {
     const { workspace } = await open();
     expect(await workspace.get(duplicateIdProblemsState)).toEqual(FIXTURE_PROBLEMS);
   });
 
-  it("[SR-088/AK1] changes neither file", async () => {
+  it("[SR-088/AK-nytd] changes neither file", async () => {
     const { ws, workspace } = await open();
     const before = await snapshot(ws);
     await workspace.get(duplicateIdProblemsState);
@@ -82,7 +82,7 @@ describe("duplicate IDs (SR-088)", () => {
     expect(await snapshot(ws)).toEqual(before);
   });
 
-  it("[SR-088/AK1] reports every file when the UUID is in three files of two repositories", async () => {
+  it("[SR-088/AK-nytd] reports every file when the UUID is in three files of two repositories", async () => {
     const third = "old/N-00606ccf2661.md";
     const { workspace } = await open({
       "system/reqseq-workspace.yaml": [
@@ -105,7 +105,7 @@ describe("duplicate IDs (SR-088)", () => {
     ]);
   });
 
-  it("[SR-088/AK1] reports nothing when every UUID is in one file only", async () => {
+  it("[SR-088/AK-nytd] reports nothing when every UUID is in one file only", async () => {
     const { workspace } = await open({
       [`system/${COPY_FILE}`]:
         "---\nid: 69047954-e58b-41c1-bbb7-d177a39b9763\ntype: need\ntitle: Copy\n---\n",
@@ -114,7 +114,7 @@ describe("duplicate IDs (SR-088)", () => {
     expect(duplicateIdFindings(await workspace.get(elementStoreState))).toEqual([]);
   });
 
-  it("[SR-088/AK1] reports nothing once the copy has a new UUID and the element store is read again", async () => {
+  it("[SR-088/AK-nytd] reports nothing once the copy has a new UUID and the element store is read again", async () => {
     const { ws, workspace } = await open();
     expect(await workspace.get(duplicateIdProblemsState)).toHaveLength(2);
     await ws.write(
@@ -125,7 +125,7 @@ describe("duplicate IDs (SR-088)", () => {
     expect(await workspace.get(duplicateIdProblemsState)).toEqual([]);
   });
 
-  it("[SR-088/AK2] marks a relation to the shared UUID as ambiguous, with every file of it", async () => {
+  it("[SR-088/AK-d138] marks a relation to the shared UUID as ambiguous, with every file of it", async () => {
     const { workspace } = await open();
     const store = await workspace.get(elementStoreState);
     const [toCopied] = relationTargets(store);
@@ -137,7 +137,7 @@ describe("duplicate IDs (SR-088)", () => {
     ]);
   });
 
-  it("[SR-088/AK2] does not mark a relation to a UUID of one file, and finds no element for an unknown UUID", async () => {
+  it("[SR-088/AK-d138] does not mark a relation to a UUID of one file, and finds no element for an unknown UUID", async () => {
     const { workspace } = await open();
     const store = await workspace.get(elementStoreState);
     const [, toOther] = relationTargets(store);
@@ -147,7 +147,7 @@ describe("duplicate IDs (SR-088)", () => {
     expect(resolveId(store.byId, "4c3e1f54-0e3b-4c3f-9b6a-1d2e3f4a5b6c")).toEqual({ kind: "unknown" });
   });
 
-  it("[SR-088/AK3] gives duplicate UUIDs a finding of severity error, so that the check fails", async () => {
+  it("[SR-088/AK-rst4] gives duplicate UUIDs a finding of severity error, so that the check fails", async () => {
     const { workspace } = await open();
     const problems = await workspace.get(duplicateIdProblemsState);
     expect(problems.length).toBeGreaterThan(0);

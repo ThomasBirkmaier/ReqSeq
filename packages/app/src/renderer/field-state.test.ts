@@ -127,7 +127,7 @@ describe("what the buffer holds against the file", () => {
 });
 
 describe("a reload (SR-106, SR-116)", () => {
-  it("[SR-106/AK1] a reload puts the file's value into every field without input", () => {
+  it("[SR-106/AK-m800] a reload puts the file's value into every field without input", () => {
     const before = fields({
       baseline: "old text",
       stored: docsOf([TITLE_FIELD, "Wind"], ["topic", "wind"], ["area", "low"]),
@@ -147,7 +147,7 @@ describe("a reload (SR-106, SR-116)", () => {
     expect(next.draftText).toBe("new text");
   });
 
-  it("[SR-116/AK3] a reload keeps every input: a choice or relation value with input, and a box with input whose property left the file stays as an added box", () => {
+  it("[SR-116/AK-vf1x] a reload keeps every input: a choice or relation value with input, and a box with input whose property left the file stays as an added box", () => {
     const before = fields({
       baseline: "old",
       stored: docsOf([TITLE_FIELD, "Wind"], ["topic", "wind"], ["area", "low"]),
@@ -169,7 +169,7 @@ describe("a reload (SR-106, SR-116)", () => {
     expect(next.draftText).toBeUndefined();
   });
 
-  it("[SR-106/AK2] input on other bytes than it was typed on is a conflict after a reload, the title as any field", () => {
+  it("[SR-106/AK-ydc8] input on other bytes than it was typed on is a conflict after a reload, the title as any field", () => {
     const before = fields({ baseline: "old", stored: docsOf([TITLE_FIELD, "Wind"]) });
     const input = docsOf([TITLE_FIELD, "Gusts"]);
     const next = reloaded(before, "old", docsOf([TITLE_FIELD, "Breeze"]), input, input);
@@ -246,7 +246,7 @@ describe("a buffer shown again with a draft (SR-106)", () => {
     sha,
   });
 
-  it("[SR-106/AK2] a draft shown again on other bytes is a conflict with its kept input; on the same bytes it follows the file", () => {
+  it("[SR-106/AK-ydc8] a draft shown again on other bytes is a conflict with its kept input; on the same bytes it follows the file", () => {
     const kept = typedOn([["topic", "rain", "wind"]], "one", "typed");
     const other = restored(kept, element("changed"), docsOf(["topic", "storm"]), "two", model);
     expect(other.change.kind).toBe("conflict");
@@ -267,7 +267,7 @@ describe("a buffer shown again with a draft (SR-106)", () => {
     expect(same.changed).toBe(false);
   });
 
-  it("[SR-106/AK2] a draft with title input shown again on other bytes, the file's title changed, is a conflict and opens the title", () => {
+  it("[SR-106/AK-ydc8] a draft with title input shown again on other bytes, the file's title changed, is a conflict and opens the title", () => {
     const kept = typedOn([[TITLE_FIELD, "Gusts", "Wind"]]);
     const back = restored(kept, element("file"), docsOf([TITLE_FIELD, "Breeze"]), "two", model);
     expect(back.change).toEqual({
@@ -364,7 +364,7 @@ describe("after a save (SR-105)", () => {
     added,
   });
 
-  it("[SR-105/AK1] after a save, input typed while it ran stays for the next save: in the text, in a box, in a choice", () => {
+  it("[SR-105/AK-p4gn] after a save, input typed while it ran stays for the next save: in the text, in a box, in a choice", () => {
     const before = fields({
       baseline: "old",
       stored: docsOf(["topic", "wind"], ["area", "low"]),

@@ -37,7 +37,7 @@ const requirementsIn = async (ws: FixtureWorkspace, view: string): Promise<strin
 };
 
 describe("variant exclude (SR-042)", () => {
-  it("[SR-042/AK1] variant exclude removes K3 from the view of A only", async () => {
+  it("[SR-042/AK-qj7v] variant exclude removes K3 from the view of A only", async () => {
     const ws = await workspace();
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a3"], { cwd: ws.root });
     expect([result.code, result.stdout, result.stderr]).toEqual([
@@ -54,7 +54,7 @@ describe("variant exclude (SR-042)", () => {
     ]);
   });
 
-  it("[SR-042/AK2] the exclusion is written into the variant file and K3's file is unchanged", async () => {
+  it("[SR-042/AK-jz12] the exclusion is written into the variant file and K3's file is unchanged", async () => {
     const ws = await workspace();
     const core = await read(ws, "requirements/SR-0000000000a3.md");
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a3", "--json"], {
@@ -67,7 +67,7 @@ describe("variant exclude (SR-042)", () => {
     );
   });
 
-  it("[SR-042/AK3] coverage and degree in A do not count the excluded K2 and K3", async () => {
+  it("[SR-042/AK-mw1w] coverage and degree in A do not count the excluded K2 and K3", async () => {
     const ws = await workspace();
     await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a3"], { cwd: ws.root });
     const input = JSON.stringify({ selection: { view: "VAR-0000c1" } });
@@ -85,7 +85,7 @@ describe("variant exclude (SR-042)", () => {
     ]).toEqual([3, 3]);
   });
 
-  it("[SR-042/AK4] variant exclude refuses a requirement with validity: only core requirements", async () => {
+  it("[SR-042/AK-xnqp] variant exclude refuses a requirement with validity: only core requirements", async () => {
     const ws = await workspace();
     const before = await read(ws, A_FILE);
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000b2"], { cwd: ws.root });
@@ -94,7 +94,7 @@ describe("variant exclude (SR-042)", () => {
     expect(await read(ws, A_FILE)).toBe(before);
   });
 
-  it("[SR-042/AK6] variant exclude with undo removes the entry and K2 is back in A", async () => {
+  it("[SR-042/AK-sq52] variant exclude with undo removes the entry and K2 is back in A", async () => {
     const ws = await workspace();
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a2", "--undo"], {
       cwd: ws.root,
@@ -104,7 +104,7 @@ describe("variant exclude (SR-042)", () => {
     expect(await requirementsIn(ws, "VAR-0000c1")).toContain("SR-0000a2");
   });
 
-  it("[SR-042/AK7] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
+  it("[SR-042/AK-dh3f] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
     const P = "43043043-0000-4000-8000-0000000000";
     const ws = await workspace({
       [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}b2 }\n  - { id: ${P}f1 }\n---\n`,

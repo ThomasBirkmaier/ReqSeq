@@ -158,7 +158,7 @@ describe("reqseq serve api", () => {
   const required = process.env["REQSEQ_E2E_EXTERNAL_ADDRESS"] === "required";
 
   it.skipIf(external.length === 0 && !required)(
-    "[SR-079/AK2] cannot be reached on the addresses that other machines use",
+    "[SR-079/AK-m34t] cannot be reached on the addresses that other machines use",
     async () => {
       expect(external, "an address other than loopback (REQSEQ_E2E_EXTERNAL_ADDRESS)").not.toEqual([]);
       const { child } = await start(["serve", "api"]);
@@ -175,7 +175,7 @@ describe("reqseq serve api", () => {
     },
   );
 
-  it("[SR-079/AK1] [SR-080/AK3] serves the workspace on loopback only, with the token from api.json, with no display", async () => {
+  it("[SR-079/AK-g12j] [SR-080/AK-txbq] serves the workspace on loopback only, with the token from api.json, with no display", async () => {
     const { child } = await start(["serve", "api"]);
     const lines = await firstLines(child);
     const file = /^Port and token: (.+)$/m.exec(lines)?.[1] ?? "";
@@ -268,7 +268,7 @@ describe("reqseq serve api", () => {
 });
 
 describe("reqseq mcp", () => {
-  it("[SR-080/AK3] serves MCP on standard input and output with no display, and exits 0 when the input ends", async () => {
+  it("[SR-080/AK-txbq] serves MCP on standard input and output with no display, and exits 0 when the input ends", async () => {
     const { child } = await start(["mcp"]);
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));

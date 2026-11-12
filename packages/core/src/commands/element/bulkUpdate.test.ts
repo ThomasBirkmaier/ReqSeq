@@ -145,7 +145,7 @@ const ids = (elements: readonly { readonly id: string }[]): string[] => elements
 const filesOf = (elements: readonly string[]): string[] => elements.map((e) => FILES[e] ?? e);
 
 describe("element.bulkUpdate (SR-071)", () => {
-  it("[SR-071/AK1] sets a property for every selected element; each file changes only in that property", async () => {
+  it("[SR-071/AK-zbs4] sets a property for every selected element; each file changes only in that property", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const out = await bulk(workspace, {
@@ -182,7 +182,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(again).toMatchObject({ applied: true, count: 0, affected: [], unchanged: 7, files: [] });
   });
 
-  it("[SR-101/AK1] element.bulkUpdate on package P changes exactly the elements of P", async () => {
+  it("[SR-101/AK-dj6m] element.bulkUpdate on package P changes exactly the elements of P", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const out = await bulk(workspace, {
@@ -197,7 +197,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expectOnlyKeyChanged(before, await texts(fixture.root), "topic", filesOf([B1, B2]));
   });
 
-  it("[SR-071/AK1] adds items to a list property: new lines only, items an element holds already are not added twice", async () => {
+  it("[SR-071/AK-zbs4] adds items to a list property: new lines only, items an element holds already are not added twice", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const criterion = "Given a gust, when it is checked, then it holds.";
@@ -224,7 +224,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(again).toMatchObject({ count: 0, unchanged: 2, files: [] });
   });
 
-  it("[SR-071/AK1] adds a relation target with its current version and title; stored targets keep their version", async () => {
+  it("[SR-071/AK-zbs4] adds a relation target with its current version and title; stored targets keep their version", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const p2 = (await invoke("element.get", { ref: P2 }, { workspace })) as CommandOutput<"element.get">;
@@ -249,7 +249,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     );
   });
 
-  it("[SR-071/AK1] sets relation targets as element.update stores them: a stored target keeps its entry", async () => {
+  it("[SR-071/AK-zbs4] sets relation targets as element.update stores them: a stored target keeps its entry", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const p2 = (await invoke("element.get", { ref: P2 }, { workspace })) as CommandOutput<"element.get">;
@@ -271,7 +271,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     );
   });
 
-  it("[SR-071/AK1] removes a property, or only the given items of a list (the key with its last item)", async () => {
+  it("[SR-071/AK-zbs4] removes a property, or only the given items of a list (the key with its last item)", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const removed = await bulk(workspace, {
@@ -304,7 +304,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(Object.keys(after).sort()).toEqual(Object.keys(before).sort());
   });
 
-  it("[SR-071/AK1] writes a choice given by its display name as its key", async () => {
+  it("[SR-071/AK-zbs4] writes a choice given by its display name as its key", async () => {
     const { fixture, workspace } = await open();
     const out = await bulk(workspace, {
       selection: { ids: [B1, B2] },
@@ -319,7 +319,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(after[FILES[B2] ?? ""]).toContain("\nverification-method: inspection\n");
   });
 
-  it("[SR-071/AK1] handles hand-written values: one item where a list belongs, and an empty value", async () => {
+  it("[SR-071/AK-zbs4] handles hand-written values: one item where a list belongs, and an empty value", async () => {
     const { fixture, workspace } = await open(EDGE);
     const added = await bulk(workspace, {
       selection: { ids: [B6, B7] },
@@ -338,7 +338,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     );
   });
 
-  it("[SR-071/AK1] removes one item where a list belongs only when it is given", async () => {
+  it("[SR-071/AK-zbs4] removes one item where a list belongs only when it is given", async () => {
     const { fixture, workspace } = await open(EDGE);
     const other = await bulk(workspace, {
       selection: { ids: [B6, B7] },
@@ -362,7 +362,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     );
   });
 
-  it("[SR-071/AK2] without confirm shows the number of affected elements and writes nothing", async () => {
+  it("[SR-071/AK-gdr6] without confirm shows the number of affected elements and writes nothing", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const input = {
@@ -382,7 +382,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expectOnlyKeyChanged(before, await texts(fixture.root), "topic", done.files);
   });
 
-  it("[SR-071/AK2] refuses a confirmation whose count no longer holds and writes nothing", async () => {
+  it("[SR-071/AK-gdr6] refuses a confirmation whose count no longer holds and writes nothing", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const error = await failure(workspace, {
@@ -410,7 +410,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 
-  it("[SR-071/AK3] leaves out and names every element whose type does not have the property", async () => {
+  it("[SR-071/AK-n129] leaves out and names every element whose type does not have the property", async () => {
     const { fixture, workspace } = await open(EDGE);
     const before = await texts(fixture.root);
     const out = await bulk(workspace, {
@@ -449,7 +449,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     }
   });
 
-  it("[SR-071/AK3] a property of a subtype only: the elements of the supertype are skipped", async () => {
+  it("[SR-071/AK-n129] a property of a subtype only: the elements of the supertype are skipped", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const out = await bulk(workspace, {
@@ -497,7 +497,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     ]);
   });
 
-  it("[SR-071/AK4] refuses to set, add or remove ID, type or status, and writes nothing", async () => {
+  it("[SR-071/AK-f00k] refuses to set, add or remove ID, type or status, and writes nothing", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     for (const property of ["id", "type", "status"]) {
@@ -724,7 +724,7 @@ describe("element.bulkUpdate plan (#158)", () => {
     return error;
   };
 
-  it("[SR-071/AK2] gives the same plan for the same preview, and a confirmation with it writes", async () => {
+  it("[SR-071/AK-gdr6] gives the same plan for the same preview, and a confirmation with it writes", async () => {
     const { fixture, workspace } = await open();
     const before = await texts(fixture.root);
     const preview = await bulk(workspace, REMOVE);
@@ -738,7 +738,7 @@ describe("element.bulkUpdate plan (#158)", () => {
     expectOnlyKeyChanged(before, await texts(fixture.root), "topic", done.files);
   });
 
-  it("[SR-071/AK2] refuses a confirmation when other elements are affected now, though their count is the same", async () => {
+  it("[SR-071/AK-gdr6] refuses a confirmation when other elements are affected now, though their count is the same", async () => {
     const { fixture, workspace } = await open();
     const preview = await bulk(workspace, REMOVE);
     await edit(fixture, B1, "topic: Wind\n", "");
@@ -759,7 +759,7 @@ describe("element.bulkUpdate plan (#158)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 
-  it("[SR-071/AK2] refuses a confirmation when an affected file changed, or the value is another", async () => {
+  it("[SR-071/AK-gdr6] refuses a confirmation when an affected file changed, or the value is another", async () => {
     const { fixture, workspace } = await open();
     const preview = await bulk(workspace, REMOVE);
     await planChanged(workspace, {

@@ -79,7 +79,7 @@ const filesWithId = async (opened: Opened, id: string): Promise<string[]> => {
 };
 
 describe("packages (SR-048, SR-049)", () => {
-  it("[SR-048/AK1] element.create of type package writes a package file", async () => {
+  it("[SR-048/AK-fbss] element.create of type package writes a package file", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", { type: "package", title: "Release 3", text: "P3." });
     const tail = out.element.id.replaceAll("-", "").slice(-12);
@@ -91,7 +91,7 @@ describe("packages (SR-048, SR-049)", () => {
     expect(await opened.fixture.git(["status", "--porcelain"])).toBe("?? package/\n");
   });
 
-  it("[SR-048/AK2] assigning a package writes it into the element file and leaves the package file unchanged", async () => {
+  it("[SR-048/AK-shpy] assigning a package writes it into the element file and leaves the package file unchanged", async () => {
     const opened = await open();
     const before = await sha256(opened, FILE.P1);
     const p1 = await run(opened, "element.list", { selection: { ids: [P1] } });
@@ -105,7 +105,7 @@ describe("packages (SR-048, SR-049)", () => {
     expect(await membersOf(opened, P1)).toEqual([R1, R2, R3]);
   });
 
-  it("[SR-048/AK3] removing the package with element.update drops it from the element and from the package's elements", async () => {
+  it("[SR-048/AK-sn10] removing the package with element.update drops it from the element and from the package's elements", async () => {
     const opened = await open();
     const before = [await sha256(opened, FILE.P1), await sha256(opened, FILE.P2)];
     expect(await membersOf(opened, P1)).toEqual([R1, R2]);
@@ -124,14 +124,14 @@ describe("packages (SR-048, SR-049)", () => {
     expect(await membersOf(opened, P2)).toEqual([R1]);
   });
 
-  it("[SR-049/AK1] a requirement in P1 and P2 appears in both", async () => {
+  it("[SR-049/AK-sqcc] a requirement in P1 and P2 appears in both", async () => {
     const opened = await open();
     expect(await membersOf(opened, P1)).toEqual([R1, R2]);
     expect(await membersOf(opened, P2)).toEqual([R1]);
     expect(await membersOf(opened, "PKG-0000d2")).toEqual([R1]);
   });
 
-  it("[SR-049/AK2] after a change both packages show the same content and there is exactly one file", async () => {
+  it("[SR-049/AK-pm79] after a change both packages show the same content and there is exactly one file", async () => {
     const opened = await open();
     const old = await run(opened, "element.list", { selection: { ids: [R1] } });
     const out = await run(opened, "element.update", { ref: R1, text: "R1: changed once." });

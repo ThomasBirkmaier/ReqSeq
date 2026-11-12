@@ -57,7 +57,7 @@ const outcome = async (ws: FixtureWorkspace): Promise<readonly [string | undefin
 const IGNORED = "and the places of the workspace file apply";
 
 describe("a tracked local file is not used (SR-004 AK8)", () => {
-  it("[SR-004/AK8] ignores a committed local file with a warning, and the places of the workspace file apply", async () => {
+  it("[SR-004/AK-m7c2] ignores a committed local file with a warning, and the places of the workspace file apply", async () => {
     const ws = await setup({ committed: true });
     expect(await outcome(ws)).toEqual([
       "../a",
@@ -67,7 +67,7 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
     ]);
   });
 
-  it("[SR-004/AK8] ignores a staged local file, also in a repository without commits", async () => {
+  it("[SR-004/AK-m7c2] ignores a staged local file, also in a repository without commits", async () => {
     const staged = await setup({});
     await staged.git(["add", LOCAL_FILE], "main");
     expect((await outcome(staged))[0]).toBe("../a");
@@ -78,7 +78,7 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
     expect((await outcome(fresh))[0]).toBe("../a");
   });
 
-  it("[SR-004/AK8] uses an untracked local file, and one in a folder without Git (SR-004 AK6)", async () => {
+  it("[SR-004/AK-m7c2] uses an untracked local file, and one in a folder without Git (SR-004 AK6)", async () => {
     const untracked = await setup({});
     expect(await outcome(untracked)).toEqual(["../elsewhere/a", []]);
     const plain = await setup({ git: false });
@@ -88,7 +88,7 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
     expect(reader.trackedFile).not.toHaveBeenCalled();
   });
 
-  it("[SR-004/AK8] uses the local file without a git program, and ignores it when git refuses or fails (#1475)", async () => {
+  it("[SR-004/AK-m7c2] uses the local file without a git program, and ignores it when git refuses or fails (#1475)", async () => {
     const ws = await setup({});
     vi.mocked(reader.trackedFile).mockResolvedValueOnce({ known: false, reason: "no-git", detail: "x" });
     expect(await outcome(ws)).toEqual(["../elsewhere/a", []]);
@@ -108,7 +108,7 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
     }
   });
 
-  it("[SR-004/AK8] uses the local file when the main repository has no Git, also with a repository at .reqseq", async () => {
+  it("[SR-004/AK-m7c2] uses the local file when the main repository has no Git, also with a repository at .reqseq", async () => {
     const ws = await setup({ git: false });
     await ws.git(["init", "--quiet", "--template="], "main/.reqseq");
     expect(await outcome(ws)).toEqual(["../elsewhere/a", []]);
@@ -117,7 +117,7 @@ describe("a tracked local file is not used (SR-004 AK8)", () => {
 });
 
 describe("the local file Git is asked about is the one on disk (SR-004 AK8)", () => {
-  it("[SR-004/AK8] ignores a local file reached through a linked .reqseq folder, also one inside the root", async () => {
+  it("[SR-004/AK-m7c2] ignores a local file reached through a linked .reqseq folder, also one inside the root", async () => {
     const ws = await setup({});
     await fs.rename(ws.path("main/.reqseq"), ws.path("main/cfg"));
     // A junction on Windows (no admin rights needed, an absolute target), a symbolic link elsewhere.
@@ -130,7 +130,7 @@ describe("the local file Git is asked about is the one on disk (SR-004 AK8)", ()
     ]);
   });
 
-  it("[SR-004/AK8] ignores a local file spelled otherwise on disk, as a case-insensitive file system opens it", async () => {
+  it("[SR-004/AK-m7c2] ignores a local file spelled otherwise on disk, as a case-insensitive file system opens it", async () => {
     const ws = await setup({});
     // The names as a case-insensitive file system lists them, while it opens `.reqseq/local.yaml`.
     const listing = (names: (folder: string) => string[]): typeof fs.readdir =>
@@ -154,7 +154,7 @@ describe("the local file Git is asked about is the one on disk (SR-004 AK8)", ()
     ]);
   });
 
-  it("[SR-004/AK8] ignores a local file in a nested repository or submodule at .reqseq", async () => {
+  it("[SR-004/AK-m7c2] ignores a local file in a nested repository or submodule at .reqseq", async () => {
     const ws = await setup({});
     await ws.git(["init", "--quiet", "--template="], "main/.reqseq");
     expect(await outcome(ws)).toEqual([

@@ -67,7 +67,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-065/AK1] the editor shows headings, emphasis, lists, tables and code blocks set, and the source only on the cursor line", async () => {
+  test("[SR-065/AK-z3qg] the editor shows headings, emphasis, lists, tables and code blocks set, and the source only on the cursor line", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     const content = window.locator(".cm-content");
@@ -144,7 +144,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(window.locator(".cm-line").last()).toHaveText("ENDE");
   });
 
-  test("[SR-065/AK2] a text typed in the app is saved with Ctrl/Cmd+S and the file is CommonMark with GitHub extensions", async () => {
+  test("[SR-065/AK-m5px] a text typed in the app is saved with Ctrl/Cmd+S and the file is CommonMark with GitHub extensions", async () => {
     const { window, workspace } = running;
     await opened(window, DEMO_TITLE);
     await window.keyboard.press("Enter");
@@ -277,7 +277,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).toContain("AAA ");
   });
 
-  test("[SR-105/AK1] a typed text is saved when another buffer is shown, and Close buffer closes without asking", async () => {
+  test("[SR-105/AK-p4gn] a typed text is saved when another buffer is shown, and Close buffer closes without asking", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     await window.keyboard.press("Enter");
@@ -312,7 +312,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-110/AK2] an outdated inline reference and an outdated relation show the date of the version they store, as element get with hintDates gives it", async () => {
+  test("[SR-110/AK-j1xs] an outdated inline reference and an outdated relation show the date of the version they store, as element get with hintDates gives it", async () => {
     const { window } = running;
     /** The `relation.outdated` hints of `ref` as the CLI dates them (`hintDates`). */
     const datedHints = async (ref: string): Promise<{ message: string; storedDate?: string | null }[]> => {
@@ -351,7 +351,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(mark).toHaveAttribute("title", relation?.message ?? "");
   });
 
-  test("[SR-066/AK4] an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
+  test("[SR-066/AK-c5xd] an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
     const { window } = running;
     await opened(window, REFERENCE_SOURCE_TITLE);
     expect(await shown(window)).toContain(`Siehe ${REFERENCE_LABEL}`);
@@ -376,7 +376,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
-  test("[SR-066/AK4] a link to a web address opens nothing on a click or with Ctrl/Cmd+Enter, which says there is no element reference", async () => {
+  test("[SR-066/AK-c5xd] a link to a web address opens nothing on a click or with Ctrl/Cmd+Enter, which says there is no element reference", async () => {
     const { app, window } = running;
     // Every way main could open the address counts: a shell call, a new window, a navigation.
     await app.evaluate(({ shell }) => {

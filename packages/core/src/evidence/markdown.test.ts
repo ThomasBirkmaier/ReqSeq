@@ -180,7 +180,7 @@ const scannedOf = (text: string, spies: StringSpies): number => {
 };
 
 describe("SR-028 reading Markdown records", () => {
-  it("[SR-028/AK1] reads every record in the evidence folders of the workspace file, nested folders included", async () => {
+  it("[SR-028/AK-t64g] reads every record in the evidence folders of the workspace file, nested folders included", async () => {
     const own = record().replace("item: model v3", "item: model v4");
     const { workspace } = await open({
       "system/reqseq-workspace.yaml": `${WORKSPACE_FILE}  - { repository: system, path: verification }\n`,
@@ -209,13 +209,13 @@ describe("SR-028 reading Markdown records", () => {
     expect(out.incomplete).toBe(false);
   });
 
-  it("[SR-028/AK1] reads the records of an evidence folder in the repository of another tool", async () => {
+  it("[SR-028/AK-t64g] reads the records of an evidence folder in the repository of another tool", async () => {
     const { workspace } = await open();
     // `ci-results` holds no element, only the records of the CI (the evidence location of the fixture).
     expect(await workspace.get(evidenceRecordsState)).toEqual([RECORD_A, RECORD_B]);
   });
 
-  it("[SR-028/AK2] assigns a record to its element by UUID and version", async () => {
+  it("[SR-028/AK-hj3c] assigns a record to its element by UUID and version", async () => {
     const { workspace } = await open();
     const index = await workspace.get(evidenceIndexState);
     expect(index.byElement.get(A)).toEqual([RECORD_A]);
@@ -227,7 +227,7 @@ describe("SR-028 reading Markdown records", () => {
     ]);
   });
 
-  it("[SR-028/AK2] a Markdown file without reqseq-record in an evidence folder is no record", async () => {
+  it("[SR-028/AK-hj3c] a Markdown file without reqseq-record in an evidence folder is no record", async () => {
     const { workspace } = await open({
       "ci-results/evidence/notes.md": "# Notes\n\nNo frontmatter at all.\n",
       "ci-results/evidence/list.md": "---\n- reqseq-record\n---\n",
@@ -265,7 +265,7 @@ describe("SR-028 reading Markdown records", () => {
     });
   });
 
-  it("[SR-172/AK1] reads an inconclusive validation with its reason, and refuses one without at the line of result", () => {
+  it("[SR-172/AK-gy05] reads an inconclusive validation with its reason, and refuses one without at the line of result", () => {
     const validation = record()
       .replace("kind: verification", "kind: validation")
       .replace("method: analysis\n", "")
@@ -294,7 +294,7 @@ describe("SR-028 reading Markdown records", () => {
     expect(read(validation.replace("---\n\nText", "reason: ' '\n---\n\nText")).records).toEqual([]);
   });
 
-  it("[SR-172/AK3] refuses an inconclusive verification when read, naming the reason, so it counts for no status; a reason on another result is a warning and ignored (#807 Q2, Q4)", () => {
+  it("[SR-172/AK-r065] refuses an inconclusive verification when read, naming the reason, so it counts for no status; a reason on another result is a warning and ignored (#807 Q2, Q4)", () => {
     const inconclusive = record("reason: no sample").replace("result: failed", "result: inconclusive");
     expect(read(inconclusive).records).toEqual([]);
     expect(read(inconclusive).problems?.map((p) => [p.line, p.severity, p.message])).toEqual([
@@ -323,7 +323,7 @@ describe("SR-028 reading Markdown records", () => {
     }
   });
 
-  it("[SR-008/AK4] a record of an unknown format number is faulty and not counted", () => {
+  it("[SR-008/AK-pm64] a record of an unknown format number is faulty and not counted", () => {
     expect(read(record().replace("reqseq-record: 1", "reqseq-record: 2"))).toMatchObject({
       records: [],
       problems: [{ code: "evidence.invalid-record", severity: "error", line: 2 }],
@@ -482,7 +482,7 @@ describe("SR-028 reading Markdown records", () => {
     ]);
   });
 
-  it("[SR-028/AK4] reads the criteria a record names, ascending, and evidence.list returns them", async () => {
+  it("[SR-028/AK-rmw3] reads the criteria a record names, ascending, and evidence.list returns them", async () => {
     const out = read(record("criteria: [3, 1]"));
     expect(out.problems).toBeUndefined();
     expect(out.records).toEqual([
@@ -501,7 +501,7 @@ describe("SR-028 reading Markdown records", () => {
     expect(listed.records.map((r) => r.criteria)).toEqual([[1]]);
   });
 
-  it("[SR-028/AK4] reads criteria named by key or number, mixed: numbers ascending, then keys", () => {
+  it("[SR-028/AK-rmw3] reads criteria named by key or number, mixed: numbers ascending, then keys", () => {
     const out = read(record("criteria: [m2x9, 3, k7f3, 1]"));
     expect(out.problems).toBeUndefined();
     expect(out.records[0]?.criteria).toEqual([1, 3, "k7f3", "m2x9"]);

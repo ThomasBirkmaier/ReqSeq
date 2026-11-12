@@ -26,7 +26,7 @@ const setup = (window = contents) => {
 };
 
 describe("the copy channel", () => {
-  it("[SR-128/AK2] writes the text it gets from the main frame of the window to the clipboard", async () => {
+  it("[SR-128/AK-yqp3] writes the text it gets from the main frame of the window to the clipboard", async () => {
     const { electron, copy, fromWindow } = setup();
     expect(electron.ipcMain.handle).toHaveBeenCalledOnce();
     expect(await copy(fromWindow, "one\ntwo")).toBe(true);
@@ -37,7 +37,7 @@ describe("the copy channel", () => {
     expect(electron.clipboard.writeText).toHaveBeenCalledTimes(3);
   });
 
-  it("[SR-128/AK2] writes nothing for anything but a string of bounded length", async () => {
+  it("[SR-128/AK-yqp3] writes nothing for anything but a string of bounded length", async () => {
     const { electron, copy, fromWindow } = setup();
     for (const text of [
       undefined,
@@ -52,7 +52,7 @@ describe("the copy channel", () => {
     expect(electron.clipboard.writeText).not.toHaveBeenCalled();
   });
 
-  it("[SR-128/AK2] writes nothing for a message of another sender, another frame or a frame that is gone", async () => {
+  it("[SR-128/AK-yqp3] writes nothing for a message of another sender, another frame or a frame that is gone", async () => {
     const { electron, copy, fromWindow } = setup();
     const other = windowAt(RENDERER_URL);
     // another web contents, a subframe of the window, a frame that is gone
@@ -63,7 +63,7 @@ describe("the copy channel", () => {
     expect(await copy(fromWindow, "x")).toBe(true);
   });
 
-  it("[SR-128/AK2] writes nothing when the main frame shows another page than the bundled renderer", async () => {
+  it("[SR-128/AK-yqp3] writes nothing when the main frame shows another page than the bundled renderer", async () => {
     for (const url of [
       "https://example.org/",
       "reqseq-file://reqseq/x.png",
@@ -76,7 +76,7 @@ describe("the copy channel", () => {
     }
   });
 
-  it("[SR-128/AK2] answers false when the system clipboard cannot be written", async () => {
+  it("[SR-128/AK-yqp3] answers false when the system clipboard cannot be written", async () => {
     const { electron, copy, fromWindow } = setup();
     electron.clipboard.writeText.mockRejectedValueOnce(new Error("no clipboard"));
     expect(await copy(fromWindow, "x")).toBe(false);

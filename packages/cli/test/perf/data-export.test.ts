@@ -261,7 +261,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     }
   });
 
-  it("[SR-061/AK1] gives the data of every element as JSON on the command line at N-036 (data export --json)", async () => {
+  it("[SR-061/AK-cjrr] gives the data of every element as JSON on the command line at N-036 (data export --json)", async () => {
     const file = path.join(scratch, "export.json");
     const memoryFile = path.join(scratch, "memory.json");
     const env = {
@@ -290,7 +290,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     );
   }, 1_800_000);
 
-  it("[SR-061/AK4] gives one element per line on the command line at N-036 (data export --jsonl, #319)", async () => {
+  it("[SR-061/AK-h1db] gives one element per line on the command line at N-036 (data export --jsonl, #319)", async () => {
     const file = path.join(scratch, "export.jsonl");
     const memoryFile = path.join(scratch, "memory-jsonl.json");
     const env = {
@@ -326,7 +326,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     );
   }, 1_800_000);
 
-  it("[SR-061/AK4] gives one element per line over the API at N-036 (Accept: application/x-ndjson, #319)", async () => {
+  it("[SR-061/AK-h1db] gives one element per line over the API at N-036 (Accept: application/x-ndjson, #319)", async () => {
     const workspace = new Workspace(root);
     const server = await startApiServer({ workspace, cacheFolder: scratch });
     try {
@@ -382,7 +382,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     }
   }, 1_800_000);
 
-  it("[SR-061/AK1] gives the data of every element as JSON over the API at N-036 (streamed)", async () => {
+  it("[SR-061/AK-cjrr] gives the data of every element as JSON over the API at N-036 (streamed)", async () => {
     const workspace = new Workspace(root);
     const server = await startApiServer({ workspace, cacheFolder: scratch });
     try {
@@ -440,7 +440,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     }
   }, 1_800_000);
 
-  it("[SR-061/AK1] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async () => {
+  it("[SR-061/AK-cjrr] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async () => {
     const memoryFile = path.join(scratch, "memory-mcp.json");
     const env = {
       REQSEQ_PEAK_MEMORY: memoryFile,

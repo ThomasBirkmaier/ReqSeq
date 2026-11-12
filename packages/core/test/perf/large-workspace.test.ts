@@ -1,7 +1,7 @@
 // Performance suite (ADR-0011, ThomasBirkmaier/ReqSeq-archive#126): the generated workspace of N-036 with 50,000 elements and
 // 200,000 relations. Runs with `pnpm test:perf`, nightly and on pull requests labelled `perf`
 // (.github/workflows/perf.yml), never in the required test run. Times are recorded with `measure`
-// and reported in verification/performance.md. Test names carry no `[SR-xxx/AKn]` tag: these are
+// and reported in verification/performance.md. Test names carry no `[SR-xxx/AK-<key>]` tag: these are
 // component times inside one process, so a time over its threshold only records (the nightly job
 // opens an issue) and does not fail a test. Correctness is asserted as usual. The SRs named in a basis
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns

@@ -8,7 +8,7 @@ scenariosOf("baseline.create", [
     fixture: EXPORT,
     root: "system",
     input: { name: "Release 2", selection: { package: "PKG-0000d1" } },
-    tag: "[SR-050/AK1]",
+    tag: "[SR-050/AK-cvrg]",
     expect: "output",
   },
   {
@@ -16,7 +16,7 @@ scenariosOf("baseline.create", [
     fixture: EXPORT,
     root: "system",
     input: { name: "release 1", selection: { package: "PKG-0000d1" } },
-    tag: "[SR-050/AK6]",
+    tag: "[SR-050/AK-g01t]",
     expect: "error",
   },
 ]);
