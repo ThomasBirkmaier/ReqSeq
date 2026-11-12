@@ -109,7 +109,7 @@ export type BaselineStoredRef =
   | ElementRef
   | {
     readonly id: Uuid;
-    /** Title of the element at baseline time. */
+    /** Title of the element at baseline time, for people; not read, the element is found by `id`. */
     readonly title: string;
   }
   | BaselineElsewhere;

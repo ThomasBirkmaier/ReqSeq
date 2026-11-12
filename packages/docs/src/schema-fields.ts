@@ -176,11 +176,12 @@ export interface Form {
 }
 
 /**
- * The alternatives of a schema (`oneOf`, else `anyOf`) that list fields of their own, so each form can get its own
+ * The alternatives of a schema (`anyOf`, else `oneOf`) that list fields of their own, so each form can get its own
  * field table. An alternative by `$ref` is a definition of its own and documented there.
  */
 export function forms(schema: Schema): Form[] {
-  const alternatives = schema["oneOf"] ?? schema["anyOf"];
+  // In the order `typeText` reads them, so the type line and the forms name the same alternatives.
+  const alternatives = schema["anyOf"] ?? schema["oneOf"];
   return (Array.isArray(alternatives) ? alternatives : [])
     .filter(isSchema)
     .filter((part) => isSchema(part["properties"]))

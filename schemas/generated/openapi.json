@@ -13136,7 +13136,7 @@
                   },
                   "title": {
                     "type": "string",
-                    "description": "Title of the element at baseline time."
+                    "description": "Title of the element at baseline time, for people; not read, the element is found by `id`."
                   }
                 },
                 "additionalProperties": false

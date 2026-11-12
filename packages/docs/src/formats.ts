@@ -124,7 +124,7 @@ const formSections = (name: string, definition: Schema, context: SchemaContext):
   return alternatives.length === 0
     ? []
     : [
-        "Its `object` forms, each with its fields:",
+        `${alternatives.length === 1 ? "Its `object` form" : "Its `object` forms"} with ${alternatives.length === 1 ? "its" : "their"} fields; a type the type line links has its own heading:`,
         "",
         ...alternatives.flatMap((form) => [
           `#### \`${name}\`: ${form.name

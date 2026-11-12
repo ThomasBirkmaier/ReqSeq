@@ -86,7 +86,10 @@
           "required": ["id", "title"],
           "properties": {
             "id": { "$ref": "common.schema.json#/$defs/uuid" },
-            "title": { "type": "string", "description": "Title of the element at baseline time." }
+            "title": {
+              "type": "string",
+              "description": "Title of the element at baseline time, for people; not read, the element is found by `id`."
+            }
           },
           "additionalProperties": false
         },

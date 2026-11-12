@@ -95,7 +95,15 @@ describe("formats", () => {
     });
     const page = formatPage(filter, [], { schemas: [filter], base: String(filter["$id"]) }, 1);
     expect(page).toContain("Type: `object` or `other`.");
-    expect(page).toContain("Its `object` forms, each with its fields:");
+    expect(page).toContain(
+      "Its `object` forms with their fields; a type the type line links has its own heading:",
+    );
+    const single = schema("baseline", {
+      $defs: { ref: { anyOf: [{ type: "string" }, { properties: { id: {} } }] } },
+    });
+    expect(formatPage(single, [], { schemas: [single] }, 1)).toContain(
+      "Its `object` form with its fields; a type the type line links has its own heading:\n\n#### `ref`: `id`",
+    );
     expect(page).toContain("#### `condition`: `not`\n\n| Field |");
     expect(page).toContain("| `not` | `condition` | yes | Condition that must not hold. |");
     expect(page).toContain("#### `condition`: `type`\n");
