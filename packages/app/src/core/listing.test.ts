@@ -25,7 +25,7 @@ const test = (args: CatalogEntry["arguments"], properties: Record<string, unknow
 });
 
 describe("the catalog entries the windows get (SR-108)", () => {
-  it("gives the problem codes of List hints and Confirm hints inline, for a list field and a single one (#1575)", () => {
+  it("gives the problem codes of List hints and Confirm hints inline, for their list fields `kind` (#1575)", () => {
     expect(problemCodes?.length).toBeGreaterThan(0);
     const kind = (name: string) =>
       (listed(name).input as { properties: Record<string, { items?: { enum?: unknown }; enum?: unknown }> })
