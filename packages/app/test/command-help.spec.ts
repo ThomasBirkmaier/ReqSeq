@@ -270,6 +270,8 @@ const layout = (window: Page) =>
     const hitsBox = hits.getBoundingClientRect();
     return {
       panel: { left: panelBox.left, right: panelBox.right, width: panelBox.width },
+      // A classic scrollbar (Windows) takes its width from the text column.
+      scrollbar: panel instanceof HTMLElement ? Math.max(0, panel.offsetWidth - panel.clientWidth - 1) : 0,
       hits: { right: hitsBox.right, width: hitsBox.width },
       text: body.getBoundingClientRect().width,
       chars,
@@ -345,7 +347,7 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     expect(Math.abs(wide.panel.right - wide.hits.right)).toBeLessThan(2);
     expect(wide.panel.width).toBeLessThan(wide.hits.width * 0.7);
     expect(wide.text).toBeLessThanOrEqual(wide.chars + 1);
-    expect(wide.text).toBeGreaterThan(wide.chars - 2);
+    expect(wide.text).toBeGreaterThan(wide.chars - 2 - wide.scrollbar);
     // Its body text is 85 to 90 % of the font of the hits; the hits are dimmed and slightly blurred.
     expect(wide.ratio).toBeGreaterThanOrEqual(0.85);
     expect(wide.ratio).toBeLessThanOrEqual(0.9);
