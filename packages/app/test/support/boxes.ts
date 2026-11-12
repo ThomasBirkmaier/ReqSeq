@@ -18,5 +18,16 @@ export const markdownMetamodel = async (): Promise<string> => {
   return marked;
 };
 
+/** The metamodel of the fixture with the meaning `acceptance-criteria` on its property, as the standard model has it (SR-204). */
+export const criteriaMetamodel = async (): Promise<string> => {
+  const file = await fs.readFile(path.join(FIXTURE_FOLDER, "metamodel", "standard-model.yaml"), "utf8");
+  const marked = file.replace(
+    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n",
+    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n    meaning: acceptance-criteria\n",
+  );
+  expect(marked).not.toBe(file);
+  return marked;
+};
+
 /** A YAML double-quoted string. */
 export const quoted = (value: string): string => `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;

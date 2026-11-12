@@ -10,6 +10,7 @@ import {
   allBoxes,
   boxValue,
   changedBoxes,
+  changesReferences,
   choiceItems,
   chooseKey,
   chooseTarget,
@@ -171,6 +172,15 @@ describe("the criteria box (SR-204)", () => {
     const codec = criterionKeys();
     const { text, init } = codec.decode(doc);
     expect(codec.encode(EditorState.create({ doc: text, extensions: [init, codec.extension] }))).toBe(doc);
+  });
+
+  it("reads the references again after a save of the criteria or the identifier (SR-205 AK1)", () => {
+    const identifier: PropertyInfo = { kind: "text", many: false, markdown: false, meaning: "identifier" };
+    const edit = (info: PropertyInfo, doc = "new"): BoxEdit => ({ key: "k", info, base: "old", doc });
+    expect(changesReferences([edit(criteria)])).toBe(true);
+    expect(changesReferences([edit(identifier)])).toBe(true);
+    expect(changesReferences([edit(text)])).toBe(false);
+    expect(changesReferences([edit(criteria, "old")])).toBe(false);
   });
 
   it("leaves criteria without keys out of the update when another box changes (SR-204 AK2)", () => {

@@ -15,4 +15,10 @@ describe("the menu of a field", () => {
     expect(FIELD_MENU.listable(hitOn(at("page")))).toBe(false);
     document.body.innerHTML = "";
   });
+
+  it("offers Copy criterion reference only in an editor of the acceptance criteria (SR-205 AK4)", () => {
+    document.body.innerHTML = `<div data-field="topic"><span id="topic">Wind</span></div>`;
+    expect(FIELD_MENU.criterion(hitOn(document.getElementById("topic") as Element))).toBe(false);
+    document.body.innerHTML = "";
+  });
 });

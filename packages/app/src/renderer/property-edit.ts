@@ -410,6 +410,13 @@ export interface UpdateInput {
   readonly unset?: readonly string[];
 }
 
+/**
+ * Whether a save of `edits` changes what the references of the criteria are made of (SR-205 AK1): the
+ * criteria themselves, or the identifier, whose value names them. Then the buffer reads them again.
+ */
+export const changesReferences = (edits: readonly BoxEdit[]): boolean =>
+  changedBoxes(edits).some((edit) => isCriteriaInfo(edit.info) || edit.info.meaning === "identifier");
+
 /** The boxes whose document differs from the stored one. */
 export const changedBoxes = (edits: readonly BoxEdit[]): BoxEdit[] =>
   edits.filter((edit) => edit.doc !== edit.base);

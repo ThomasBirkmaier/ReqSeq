@@ -49,6 +49,8 @@ A match starts and ends at a word boundary (the start or end of the name, a char
 
 ## App
 
+To copy the name of a criterion, put the cursor on it in the acceptance criteria box and run **Copy criterion reference** (SR-205 AK4).
+
 Run **Enrich JUnit file** in the command prompt and answer the build with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
 
 ## CLI

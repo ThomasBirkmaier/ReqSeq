@@ -200,6 +200,13 @@ export interface ElementControls {
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
+  /** Whether the cursor is on an acceptance criterion in its box, or was there last (SR-205 AK4). */
+  readonly onCriterion?: () => boolean;
+  /**
+   * Saves the input, then copies the reference for a test name of the criterion with the cursor, or says why
+   * it has none (the action "Copy criterion reference", SR-205 AK4).
+   */
+  readonly copyCriterionReference?: () => void;
   /**
    * Opens the list of the elements with the value the cursor is on, or asks among the values of the element
    * that can be listed (the action "List elements with this value", SR-132).
@@ -1080,6 +1087,16 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.copy();
+    },
+  },
+  {
+    // SR-205 AK4: the reference for a test name of the acceptance criterion with the cursor.
+    id: "copy-criterion-reference",
+    title: "Copy criterion reference",
+    available: (context: ActionContext): boolean =>
+      hasElementText(context) && context.element?.onCriterion?.() === true,
+    run: (context: ActionContext): void => {
+      context.element?.copyCriterionReference?.();
     },
   },
   {

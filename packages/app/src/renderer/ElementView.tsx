@@ -124,6 +124,8 @@ import { ElementText } from "./ElementText.js";
 import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
 import { shownDoc } from "./criterion-doc.js";
+import type { CriterionAt } from "./criterion-reference.js";
+import { NO_CRITERION, criterionAtPos, referenceToCopy } from "./criterion-reference.js";
 import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
@@ -155,6 +157,7 @@ import {
   addableProperties,
   allBoxes,
   changedBoxes,
+  changesReferences,
   choiceKeys,
   editsOf,
   emptyBox,
@@ -359,8 +362,8 @@ const useLinesAgain = (
   call: Call,
   buffer: ElementBuffer,
   elsewhere: number,
-  got: Pick<ElementGetOutput, "element" | "names"> | undefined,
-  setGot: (output: Pick<ElementGetOutput, "element" | "names">) => void,
+  got: Pick<ElementGetOutput, "element" | "names" | "criterionReferences"> | undefined,
+  setGot: (output: Pick<ElementGetOutput, "element" | "names" | "criterionReferences">) => void,
 ): void => {
   const asked = got !== undefined && hasStatus(got.element);
   useEffect(() => {
@@ -449,7 +452,9 @@ export const ElementView = ({
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
   // The last answer of `element.get`, for the lines of the variants and the verification status (SR-046,
   // SR-047): a save answers without them, so they stay until the element is read again.
-  const [got, setGot] = useState<Pick<ElementGetOutput, "element" | "names"> | undefined>(undefined);
+  const [got, setGot] = useState<
+    Pick<ElementGetOutput, "element" | "names" | "criterionReferences"> | undefined
+  >(undefined);
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
@@ -1277,6 +1282,23 @@ export const ElementView = ({
       echo(speech.echo);
     }
     said.current = speech.said;
+    if (changesReferences(sent.edits)) {
+      readReferences();
+    }
+  };
+  // The references of the criteria after a save that changed them (SR-205 AK1): `element.get` works them out;
+  // the answer of `element.update` has none. Read in order with the saves of the buffer, and dropped when a
+  // later save answered first (`staleRead`): that save reads them again.
+  const readReferences = (): void => {
+    const job = async (): Promise<void> => {
+      const { buffer: shown, call: run } = now.current;
+      const writes = settled.current;
+      const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
+      if (mounted.current && answer.ok && !staleRead(writes, settled.current)) {
+        setGot(answer.output);
+      }
+    };
+    void (now.current.keep?.save(job) ?? job());
   };
 
   // Why the input cannot be saved now, or nothing: the element is read-only or its file is gone or cannot
@@ -1561,6 +1583,43 @@ export const ElementView = ({
       echo(none);
     }
   };
+  // The acceptance criterion with the cursor: the line of the criteria box the cursor is on, or was on last.
+  const criterionAt = (): CriterionAt | undefined => {
+    const label = cursorField(document.activeElement, lastField.current);
+    const box = label === undefined ? undefined : now.current.boxes.get(label);
+    const editor = label === undefined ? undefined : boxEditors.current.get(label);
+    if (box === undefined || editor === undefined || !isKeyedBox(box)) {
+      return undefined;
+    }
+    const state = editor.state();
+    return criterionAtPos(state, state.selection.main.head);
+  };
+  // "Copy criterion reference" (SR-205 AK4): the criterion is taken where the cursor is when the action starts
+  // (the prompt gives the focus back after it); then the input is saved, so a line typed just now has its key
+  // in the file, and core gives the reference (`element.get`), found by the key of the line.
+  const copyCriterionReference = async (): Promise<void> => {
+    const at = criterionAt();
+    if (at === undefined) {
+      now.current.onEcho(NO_CRITERION);
+      return;
+    }
+    await flush();
+    const { onEcho: echo, onCopy: copied, buffer: shown, call: run } = now.current;
+    const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
+    if (!answer.ok) {
+      echo(answer.message);
+      return;
+    }
+    if (mounted.current) {
+      setGot(answer.output);
+    }
+    const found = referenceToCopy(answer.output.criterionReferences?.criteria, at);
+    if ("reference" in found) {
+      copied(found.reference, found.reference);
+    } else {
+      echo(found.message);
+    }
+  };
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
@@ -1810,6 +1869,8 @@ export const ElementView = ({
   };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
+    criterionAt,
+    copyCriterionReference,
     editTitle,
     addProperty,
     clearProperty,
@@ -1828,6 +1889,8 @@ export const ElementView = ({
     listValue,
   });
   api.current = {
+    criterionAt,
+    copyCriterionReference,
     editTitle,
     addProperty,
     clearProperty,
@@ -1888,6 +1951,10 @@ export const ElementView = ({
       },
       listValue: () => {
         void api.current.listValue();
+      },
+      onCriterion: () => api.current.criterionAt() !== undefined,
+      copyCriterionReference: () => {
+        void api.current.copyCriterionReference();
       },
       addProperty: () => {
         api.current.addProperty();
@@ -2140,6 +2207,10 @@ export const ElementView = ({
                       numbered: editable.info.many && isNumberedList(view.element.properties[box.key]),
                       markdown: editable.info.markdown,
                       criteria: isKeyedBox(editable),
+                      criterionReferences:
+                        got?.criterionReferences?.property === box.key
+                          ? got.criterionReferences.criteria
+                          : undefined,
                       outdated: outdatedReferences(dated(view.element), box.key),
                       follow,
                       title,
