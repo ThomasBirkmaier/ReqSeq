@@ -16,11 +16,12 @@
 // which every box and every curve is placed (`[data-laid-out]` and a double `requestAnimationFrame`):
 // IPC, core, the JSON, dagre, React's commit, style and paint. Each must be within 1000 ms; a miss is a
 // performance finding, never a higher bound. The parts (until the request, core, layout, commit and
-// paint) go to the log lines `PERF graph` and `PERF graph deep`; the first, the median and the slowest of each
-// series go to the record of the performance suite (`recordValue`, `verification/performance.md`).
+// paint) go to the log lines `PERF graph` and `PERF graph deep`; every open and the median of each series go to
+// the record of the performance suite (`recordValue`, `verification/performance.md`).
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { recordValue } from "@reqseq/testkit";
+import type { PerfMeasurement } from "@reqseq/testkit";
+import { recordValue, thresholdMessage } from "@reqseq/testkit";
 import type { RunningApp } from "../support/app.js";
 import { launchApp } from "../support/app.js";
 import type { GraphDeepFixture } from "../support/graph-deep-fixture.js";
@@ -160,12 +161,36 @@ const choose = async (window: Page, title: string, entry: string): Promise<void>
 const median = (values: readonly number[]): number =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? Number.NaN;
 
-/** Records the first, the median and the slowest of a series of opens, each against the 1 s of SR-111 AK6. */
-const recordSeries = async (name: string, totals: readonly number[]): Promise<void> => {
+/**
+ * Records every open of a series (the first is the first of the app run) and their median, each against the 1 s
+ * of SR-111 AK6.
+ */
+const recordSeries = async (name: string, totals: readonly number[]): Promise<PerfMeasurement[]> => {
   const options = { basis: "SR-111 AK6 (the app)", thresholdMs: LAID_OUT_MS };
-  await recordValue(`app: ${name}, the first of the app run`, totals[0] ?? Number.NaN, options);
-  await recordValue(`app: ${name}, the median of ${String(totals.length)}`, median(totals), options);
-  await recordValue(`app: ${name}, the slowest of ${String(totals.length)}`, Math.max(...totals), options);
+  const measurements: PerfMeasurement[] = [];
+  for (const [index, total] of totals.entries()) {
+    measurements.push(
+      await recordValue(
+        `app: ${name}, open ${String(index + 1)} of ${String(totals.length)}`,
+        total,
+        options,
+      ),
+    );
+  }
+  measurements.push(
+    await recordValue(`app: ${name}, the median of ${String(totals.length)}`, median(totals), options),
+  );
+  return measurements;
+};
+
+/**
+ * Asserts each measurement softly with `thresholdMessage`, after all are recorded (ADR-0011): a miss opens the perf
+ * issue and leaves the night's record complete.
+ */
+const assertWithin = (measurements: readonly PerfMeasurement[]): void => {
+  for (const measurement of measurements) {
+    expect.soft(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(LAID_OUT_MS);
+  }
 };
 
 test.describe("a graph of 500 nodes", () => {
@@ -250,13 +275,10 @@ test.describe("a graph of 500 nodes", () => {
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF graph ${JSON.stringify(record)}`);
     test.info().annotations.push({ type: "SR-111 AK6", description: JSON.stringify(record) });
-    await recordSeries("graph of 500 nodes at depth 1 until laid out", totals);
-    await recordSeries("graph of 500 nodes with 475 evidence boxes until laid out", evidenceTotals);
-    expect(totals[0], "the first graph of the app run").toBeLessThanOrEqual(LAID_OUT_MS);
-    expect(median(totals), "the median of three opens").toBeLessThanOrEqual(LAID_OUT_MS);
-    for (const total of [...totals, ...evidenceTotals]) {
-      expect(total).toBeLessThanOrEqual(LAID_OUT_MS);
-    }
+    assertWithin([
+      ...(await recordSeries("graph of 500 nodes at depth 1 until laid out", totals)),
+      ...(await recordSeries("graph of 500 nodes with 475 evidence boxes until laid out", evidenceTotals)),
+    ]);
   });
 });
 
@@ -332,11 +354,6 @@ test.describe("the whole chain of 500 nodes", () => {
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF graph deep ${JSON.stringify(record)}`);
     test.info().annotations.push({ type: "SR-111 AK6 (deep)", description: JSON.stringify(record) });
-    await recordSeries("whole chain of 500 nodes after + until laid out", totals);
-    expect(totals[0], "the first deep graph of the app run").toBeLessThanOrEqual(LAID_OUT_MS);
-    expect(median(totals), "the median of three").toBeLessThanOrEqual(LAID_OUT_MS);
-    for (const total of totals) {
-      expect(total).toBeLessThanOrEqual(LAID_OUT_MS);
-    }
+    assertWithin(await recordSeries("whole chain of 500 nodes after + until laid out", totals));
   });
 });
