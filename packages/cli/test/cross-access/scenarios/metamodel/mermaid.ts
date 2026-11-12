@@ -1,5 +1,5 @@
 // Cross-access scenarios of metamodel.mermaid, in addition to the default one (cross-access.test.ts). The
-// suite test [SR-151/AK4] also runs them through the CLI's text output.
+// suite test [SR-151/AK-c801] also runs them through the CLI's text output.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
 import { CHAIN } from "../../fixtures.js";
@@ -12,10 +12,10 @@ scenariosOf("metamodel.mermaid", [
     name: "types with inheritance and open relation kinds",
     fixture: METAMODEL,
     input: {},
-    tag: "[SR-151/AK4]",
+    tag: "[SR-151/AK-c801]",
     expect: "output",
   },
-  { name: "the standard model", fixture: CHAIN, input: {}, tag: "[SR-151/AK4]", expect: "output" },
+  { name: "the standard model", fixture: CHAIN, input: {}, tag: "[SR-151/AK-c801]", expect: "output" },
   {
     name: "a faulty metamodel file: the text of the valid files and the problem",
     fixture: {
@@ -23,7 +23,7 @@ scenariosOf("metamodel.mermaid", [
       files: { "model/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
     },
     input: {},
-    tag: "[SR-151/AK4]",
+    tag: "[SR-151/AK-c801]",
     expect: "output",
   },
 ]);

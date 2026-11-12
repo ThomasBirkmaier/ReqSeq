@@ -657,7 +657,7 @@ describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
 });
 
 describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-151/AK4] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr", async () => {
+  it("[SR-151/AK-c801] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr", async () => {
     const texts = runtime.contracts.commands.filter((e) => e.textOutput !== undefined);
     expect(texts.map((e) => e.name).sort()).toEqual(["metamodel.mermaid", "trace.mermaid"]);
     for (const entry of texts) {

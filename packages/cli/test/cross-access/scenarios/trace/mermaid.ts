@@ -1,5 +1,5 @@
 // Cross-access scenarios of trace.mermaid, in addition to the default one (cross-access.test.ts). The
-// suite test [SR-151/AK4] also runs them through the CLI's text output.
+// suite test [SR-151/AK-c801] also runs them through the CLI's text output.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
 
@@ -13,14 +13,14 @@ scenariosOf("trace.mermaid", [
     name: "the direct neighbours of a requirement over every kind, with marks",
     fixture: GRAPH,
     input: { ref: S1 },
-    tag: "[SR-151/AK4]",
+    tag: "[SR-151/AK-c801]",
     expect: "output",
   },
   {
     name: "the whole chain in the core view, cut by limit",
     fixture: GRAPH,
     input: { ref: S1, allLevels: true, view: "core", limit: 4 },
-    tag: "[SR-151/AK4]",
+    tag: "[SR-151/AK-c801]",
     expect: "output",
   },
 ]);

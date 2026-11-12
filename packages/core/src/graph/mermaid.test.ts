@@ -33,7 +33,7 @@ const NODES_S1 = [
 ];
 
 describe("trace.mermaid", () => {
-  it("[SR-151/AK1] writes each node with ID, type, title, marks and verification, each link as an edge from source to target with its kind and outdated, the element framed, bottom to top, no evidence", async () => {
+  it("[SR-151/AK-qv2x] writes each node with ID, type, title, marks and verification, each link as an edge from source to target with its kind and outdated, the element framed, bottom to top, no evidence", async () => {
     const out = await run("trace.mermaid", "SR-111/graph", { ref: S1 });
     expect({ ...out, mermaid: typeof out["mermaid"] }).toEqual({
       mermaid: "string",
@@ -75,7 +75,7 @@ describe("trace.mermaid", () => {
     );
   });
 
-  it("[SR-151/AK1] writes the share of verified criteria and the degree of a need as the app shows them", async () => {
+  it("[SR-151/AK-qv2x] writes the share of verified criteria and the degree of a need as the app shows them", async () => {
     const out = await run("trace.mermaid", "SR-136/graph", { ref: "37373737-3737-4737-8737-00000000a001" });
     const lines = String(out["mermaid"]).split("\n");
     expect(lines.slice(1, 4)).toEqual([
@@ -85,7 +85,7 @@ describe("trace.mermaid", () => {
     ]);
   });
 
-  it("[SR-151/AK6] starts with a comment line when the graph shows not every reachable element", async () => {
+  it("[SR-151/AK-p988] starts with a comment line when the graph shows not every reachable element", async () => {
     const out = await run("trace.mermaid", "SR-111/graph", { ref: S1, limit: 3 });
     expect(out["truncated"]).toBe(true);
     expect(String(out["mermaid"]).split("\n")).toEqual([
@@ -112,7 +112,7 @@ describe("trace.mermaid", () => {
 });
 
 describe("metamodel.mermaid", () => {
-  it("[SR-151/AK2] writes each type with name, prefix and properties, inherited ones marked, Any type for open sides, and one edge per pair with the graph's lines", async () => {
+  it("[SR-151/AK-jdwg] writes each type with name, prefix and properties, inherited ones marked, Any type for open sides, and one edge per pair with the graph's lines", async () => {
     const out = await run("metamodel.mermaid", "SR-130/metamodel", {});
     expect(out["problems"]).toEqual([]);
     expect(String(out["mermaid"]).split("\n")).toEqual([
