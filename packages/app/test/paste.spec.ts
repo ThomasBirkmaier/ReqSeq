@@ -53,7 +53,7 @@ test.describe("pasting and dropping as Markdown", () => {
     await window.keyboard.press("ControlOrMeta+s");
   };
 
-  test("[SR-190/AK1] formatted text from a browser is written as Markdown, nothing as HTML", async () => {
+  test("[SR-190/AK-wrfc] formatted text from a browser is written as Markdown, nothing as HTML", async () => {
     const { window, app } = running;
     await window.keyboard.press("Enter");
     await app.evaluate(async ({ clipboard, ClipboardItem }) => {
@@ -89,7 +89,7 @@ test.describe("pasting and dropping as Markdown", () => {
     expect(running.stderr()).not.toContain("Blocked a request");
   });
 
-  test("[SR-190/AK2] an address pasted over selected text makes it a Markdown link", async () => {
+  test("[SR-190/AK-fzfw] an address pasted over selected text makes it a Markdown link", async () => {
     const { window, app } = running;
     await window.keyboard.press("ControlOrMeta+Home");
     for (let step = 0; step < 6; step += 1) {
@@ -106,7 +106,7 @@ test.describe("pasting and dropping as Markdown", () => {
     await expect.poll(read).toContain("Siehe [Quelle](https://example.org/quelle).\n");
   });
 
-  test("[SR-190/AK3] a pasted image is copied next to the element file and referred to at the caret", async () => {
+  test("[SR-190/AK-k05n] a pasted image is copied next to the element file and referred to at the caret", async () => {
     const { window, app } = running;
     await app.evaluate(async ({ clipboard, ClipboardItem }, png) => {
       const blob = new Blob([Buffer.from(png, "base64")], { type: "image/png" });
@@ -122,7 +122,7 @@ test.describe("pasting and dropping as Markdown", () => {
     expect(copy.subarray(1, 4).toString("ascii")).toBe("PNG");
   });
 
-  test("[SR-190/AK3] a dropped image file is copied and referred to where it was dropped", async () => {
+  test("[SR-190/AK-k05n] a dropped image file is copied and referred to where it was dropped", async () => {
     const { window } = running;
     await window.locator(".cm-content").evaluate((content, png) => {
       const bytes = Uint8Array.from(atob(png), (c) => c.charCodeAt(0));

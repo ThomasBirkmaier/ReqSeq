@@ -88,7 +88,7 @@ test.describe("the overview of a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-118/AK1] opening a workspace shows one line per type with its count, as `element facets` gives them", async () => {
+  test("[SR-118/AK-yggg] opening a workspace shows one line per type with its count, as `element facets` gives them", async () => {
     const { window } = running;
     const facets = await cliJson<Facets>(running, ["element", "facets"]);
     await expect(window.getByRole("option")).toHaveCount(facets.types.length);
@@ -101,7 +101,7 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(window.getByText("Recent")).toHaveCount(0);
   });
 
-  test("[SR-118/AK1] below the types the overview shows the elements opened last, newest first", async () => {
+  test("[SR-118/AK-yggg] below the types the overview shows the elements opened last, newest first", async () => {
     const { window } = running;
     await jumpToHit(window, "icing", "Survive icing");
     await expect(window.locator("article h1")).toHaveText("Survive icing");
@@ -120,7 +120,7 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(window.locator("article h1")).toHaveText("Show a dial");
   });
 
-  test("[SR-118/AK1] the recent elements are there again after the app restarts", async () => {
+  test("[SR-118/AK-yggg] the recent elements are there again after the app restarts", async () => {
     const { window } = running;
     await jumpToHit(window, "icing", "Survive icing");
     await expect(window.locator("article h1")).toHaveText("Survive icing");
@@ -133,7 +133,7 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(running.window.locator(".recent .title")).toHaveText(["Show a dial", "Survive icing"]);
   });
 
-  test("[SR-118/AK2] a type line opens the list of that type, as long as its count", async () => {
+  test("[SR-118/AK-p9z9] a type line opens the list of that type, as long as its count", async () => {
     const { window } = running;
     const facets = await cliJson<Facets>(running, ["element", "facets"]);
     const requirements = facets.types.find((type) => type.key === "system-requirement");
@@ -162,7 +162,7 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", /^type: /);
   });
 
-  test("[SR-118/AK3] right after opening, Ctrl+P reaches every element by short ID and by title", async () => {
+  test("[SR-118/AK-dr7c] right after opening, Ctrl+P reaches every element by short ID and by title", async () => {
     const { window } = running;
     const listed = await cliJson<Listed>(running, ["element", "list"]);
     expect(listed.total).toBe(14);
@@ -178,7 +178,7 @@ test.describe("the overview of a fixture workspace", () => {
     }
   });
 
-  test('[SR-118/AK4] the overview lists no element until "List all elements"', async () => {
+  test('[SR-118/AK-t1qm] the overview lists no element until "List all elements"', async () => {
     const { window } = running;
     await expect(window.locator(".row")).toHaveCount(0);
     await expect(window.getByLabel("Sheet")).not.toContainText("Survive icing");
@@ -199,7 +199,7 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(overview(window)).toBeVisible();
   });
 
-  test("[SR-118/AK5] opening elements leaves every file of the workspace unchanged", async () => {
+  test("[SR-118/AK-kftg] opening elements leaves every file of the workspace unchanged", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     expect(root).not.toBe("");
@@ -215,7 +215,7 @@ test.describe("the overview of a fixture workspace", () => {
     expect(await snapshot(root)).toEqual(before);
   });
 
-  test("[SR-119/AK1] Ctrl+P, a short ID or words of the title, Enter opens the requirement", async () => {
+  test("[SR-119/AK-mb64] Ctrl+P, a short ID or words of the title, Enter opens the requirement", async () => {
     const { window } = running;
     const got = await cliJson<{ element: { title: string; shortId: string } }>(running, [
       "element",

@@ -83,7 +83,7 @@ const EVIDENCE = [
 ].join("\n");
 
 describe("reqseq trace matrix with evidence (SR-126)", () => {
-  it("[SR-126/AK1] reqseq trace matrix --json gives the test cases and the verification status read from JUnit and Markdown record files", async () => {
+  it("[SR-126/AK-mdgj] reqseq trace matrix --json gives the test cases and the verification status read from JUnit and Markdown record files", async () => {
     const rows = await rowsOf({ selection: { ids: ["SR-126b01", "SR-126b05", "N-126a01"] } });
     expect(rows.map((r) => [r.shortId, r.testCases, r.verification])).toEqual([
       ["N-126a01", undefined, undefined],
@@ -109,7 +109,7 @@ describe("reqseq trace matrix with evidence (SR-126)", () => {
     ]);
   });
 
-  it("[SR-126/AK1] reqseq trace matrix prints the verification status after each requirement", async () => {
+  it("[SR-126/AK-mdgj] reqseq trace matrix prints the verification status after each requirement", async () => {
     const result = await matrix(SR);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     // Each row line is followed by its cells (#629), indented below it.
@@ -120,7 +120,7 @@ describe("reqseq trace matrix with evidence (SR-126)", () => {
     expect(rowLines).toContain(`${ROWS}\ntotal: 10\n`);
   });
 
-  it("[SR-126/AK2] reqseq trace matrix --json marks the cells read from record files", async () => {
+  it("[SR-126/AK-mp13] reqseq trace matrix --json marks the cells read from record files", async () => {
     const rows = await rowsOf(SR);
     const marks = rows.map((r) => [
       r.shortId,
@@ -136,7 +136,7 @@ describe("reqseq trace matrix with evidence (SR-126)", () => {
     ]);
   });
 
-  it("[SR-126/AK3] reqseq trace matrix prints an indirectly verified requirement as indirect", async () => {
+  it("[SR-126/AK-pmhn] reqseq trace matrix prints an indirectly verified requirement as indirect", async () => {
     const result = await matrix({ selection: { ids: ["SR-126b07"] } });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toContain(
@@ -144,7 +144,7 @@ describe("reqseq trace matrix with evidence (SR-126)", () => {
     );
   });
 
-  it("[SR-126/AK4] reqseq trace matrix prints the degree above the status column as 55.5 % with the count per status", async () => {
+  it("[SR-126/AK-s18z] reqseq trace matrix prints the degree above the status column as 55.5 % with the count per status", async () => {
     const result = await matrix({ ...SR, limit: 2 });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     // The degree is of the whole selection, not of the page of two rows, and comes before the rows

@@ -21,7 +21,7 @@ test.describe("the command prompt", () => {
     await running.close();
   });
 
-  test("[SR-121/AK2] a text typed for a command puts that command first the next time, also after a restart", async () => {
+  test("[SR-121/AK-ynwj] a text typed for a command puts that command first the next time, also after a restart", async () => {
     running = await launchApp(FIXTURE);
     let { window } = running;
     await listAll(window);
@@ -57,7 +57,7 @@ test.describe("the command prompt", () => {
     await expect(names(window).first()).toHaveText("Filter list by type");
   });
 
-  test('[SR-121/AK1] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
+  test('[SR-121/AK-yx6t] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -69,7 +69,7 @@ test.describe("the command prompt", () => {
     await expect(window.locator("label.prompt-label")).toHaveCount(0);
   });
 
-  test("[SR-133/AK1] Bulk update elements, which needs the selection of a list, is found only on a list or a package page, and no write command is found while the tool refuses writes", async () => {
+  test("[SR-133/AK-w23t] Bulk update elements, which needs the selection of a list, is found only on a list or a package page, and no write command is found while the tool refuses writes", async () => {
     const input = (window: Page): Locator => window.locator("#prompt-input");
     /** The prompt, with `typed` in it, offers `typed` as a candidate; the prompt closes again. */
     const finds = async (window: Page, typed: string): Promise<void> => {
@@ -172,7 +172,7 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".result")).toContainText("derives-from");
   });
 
-  test("[SR-067/AK6] Create relation with the target open writes only the file of the source", async () => {
+  test("[SR-067/AK-fcfh] Create relation with the target open writes only the file of the source", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const root = running.workspace?.root ?? "";
@@ -222,7 +222,7 @@ test.describe("the command prompt", () => {
     ]);
   });
 
-  test("[SR-133/AK1] in an element, the commands with an element argument come before the others when nothing is typed", async () => {
+  test("[SR-133/AK-w23t] in an element, the commands with an element argument come before the others when nothing is typed", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -315,7 +315,7 @@ test.describe("the command prompt", () => {
       await window.keyboard.press("Enter");
     };
 
-    test("[SR-108/AK4] Set status offers only the statuses of the element's type, and a typed fragment finds one first", async () => {
+    test("[SR-108/AK-v62v] Set status offers only the statuses of the element's type, and a typed fragment finds one first", async () => {
       // Software requirements may only be draft or approved; "Obsolete" is a status of the metamodel.
       running = await launchApp({
         ...FIXTURE,
@@ -359,7 +359,7 @@ test.describe("the command prompt", () => {
       expect((JSON.parse(element.stdout) as { element: { status: string } }).element.status).toBe("approved");
     });
 
-    test("[SR-108/AK4] Create relation offers the kinds relation options gives and only targets of their types, also for a target typed with a typo", async () => {
+    test("[SR-108/AK-v62v] Create relation offers the kinds relation options gives and only targets of their types, also for a target typed with a typo", async () => {
       // One more decision whose title has a word of a requirement and a need ("wind").
       running = await launchApp({
         ...FIXTURE,
@@ -402,7 +402,7 @@ test.describe("the command prompt", () => {
       );
     });
 
-    test("[SR-108/AK4] Bulk update offers the metamodel's properties and that property's values", async () => {
+    test("[SR-108/AK-v62v] Bulk update offers the metamodel's properties and that property's values", async () => {
       running = await launchApp(FIXTURE);
       const { window } = running;
       await listAll(window);
@@ -534,7 +534,7 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await running.close();
   });
 
-  test("[SR-109/AK3] Ctrl/Cmd+K and a pause show the next keys, and L lists all elements", async () => {
+  test("[SR-109/AK-kwtg] Ctrl/Cmd+K and a pause show the next keys, and L lists all elements", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const mod = await modifier(window);
@@ -557,7 +557,7 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await expect(rows).toHaveCount(0);
   });
 
-  test("[SR-109/AK3] the letter after Ctrl/Cmd+K is never typed into the text", async () => {
+  test("[SR-109/AK-kwtg] the letter after Ctrl/Cmd+K is never typed into the text", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const mod = await modifier(window);
@@ -651,7 +651,7 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await expect.poll(dialogs).toBe(1);
   });
 
-  test("[SR-121/AK3] the command prompt shows Ctrl+K L next to List all elements", async () => {
+  test("[SR-121/AK-q4xh] the command prompt shows Ctrl+K L next to List all elements", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const mod = await modifier(window);
@@ -663,7 +663,7 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-109/AK1] the shortcut stands at the right of its hit, quieter than the name", async () => {
+  test("[SR-109/AK-d5b0] the shortcut stands at the right of its hit, quieter than the name", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const mod = await modifier(window);

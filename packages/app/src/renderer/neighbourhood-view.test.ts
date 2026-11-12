@@ -229,7 +229,7 @@ const asked = (call: ReturnType<typeof fakeCall>, direction: string, meanings?: 
   );
 
 describe("NeighbourhoodView", () => {
-  it("[SR-107/AK2] shows the children as an indented tree and below it the incoming links by kind", async () => {
+  it("[SR-107/AK-bhct] shows the children as an indented tree and below it the incoming links by kind", async () => {
     const call = fakeCall();
     await mount(asCall(call));
     expect(query("article, .neighbourhood").getAttribute("aria-label")).toBe("Neighbourhood: N1 Title N1");
@@ -256,7 +256,7 @@ describe("NeighbourhoodView", () => {
     expect(selected()).toEqual([]);
   });
 
-  it("[SR-107/AK2] Right opens a row and asks again from the element with one more level; Left closes it or goes to the parent", async () => {
+  it("[SR-107/AK-bhct] Right opens a row and asks again from the element with one more level; Left closes it or goes to the parent", async () => {
     const call = fakeCall();
     const { actions } = await mount(asCall(call));
     await press(query(".neighbourhood"), "ArrowRight");
@@ -278,7 +278,7 @@ describe("NeighbourhoodView", () => {
     expect(rows()).toHaveLength(3);
   });
 
-  it("[SR-107/AK2] opens a level below the next one too, and does not guess whether the row has children before it knows", async () => {
+  it("[SR-107/AK-bhct] opens a level below the next one too, and does not guess whether the row has children before it knows", async () => {
     const call = fakeCall();
     await mount(asCall(call));
     await press(query(".neighbourhood"), "ArrowRight");
@@ -295,7 +295,7 @@ describe("NeighbourhoodView", () => {
     expect(query('[role="tree"] [role="treeitem"]:nth-child(3)').hasAttribute("aria-expanded")).toBe(false);
   });
 
-  it("[SR-107/AK3] shows C1 under both parents and marks the second as repeated", async () => {
+  it("[SR-107/AK-ntyw] shows C1 under both parents and marks the second as repeated", async () => {
     const both = { ...N1, open: ["spec:uuid-S1", "spec:uuid-S2"] };
     await mount(asCall(fakeCall()), both);
     expect(rows()).toEqual([
@@ -307,7 +307,7 @@ describe("NeighbourhoodView", () => {
     expect(texts(".repeated")).toEqual([" repeated"]);
   });
 
-  it("[SR-107/AK4] marks an outdated link in the tree and among the incoming links", async () => {
+  it("[SR-107/AK-b9c5] marks an outdated link in the tree and among the incoming links", async () => {
     const tree = (input: Record<string, unknown>) => {
       const output = treeOf(Number(input["maxDepth"]));
       output.edges[0] = edge("S1", "N1", { outdated: true });
@@ -323,7 +323,7 @@ describe("NeighbourhoodView", () => {
     );
   });
 
-  it("[SR-107/AK1] shows the parents above the title of the neighbourhood", async () => {
+  it("[SR-107/AK-r2x1] shows the parents above the title of the neighbourhood", async () => {
     await mount(
       asCall(fakeCall({ parents: parentsOfC1 })),
       neighbourhoodBuffer("uuid-C1", "spec", "C1 Title C1"),
@@ -361,7 +361,7 @@ describe("NeighbourhoodView", () => {
     expect(actions).toHaveLength(9);
   });
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P move through the tree and on into the incoming links like Down and Up; Ctrl+N first selects the first row", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P move through the tree and on into the incoming links like Down and Up; Ctrl+N first selects the first row", async () => {
     await mount(asCall(fakeCall()));
     const sheet = query(".neighbourhood");
     const ctrl = { ctrlKey: true };
@@ -384,7 +384,7 @@ describe("NeighbourhoodView", () => {
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-122/AK5] [SR-145/AK3] on %s, with a row selected Ctrl+P is the neighbourhood's; with none, and Cmd+P, it is not",
+    "[SR-122/AK-xm88] [SR-145/AK-mk0f] on %s, with a row selected Ctrl+P is the neighbourhood's; with none, and Cmd+P, it is not",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await mount(asCall(fakeCall()));
@@ -418,7 +418,7 @@ describe("NeighbourhoodView", () => {
     expect(selected()).toEqual(["X-S1 (S1)"]);
   });
 
-  it("[SR-107/AK2] Enter opens the element of a tree row and of an incoming row, keeping the row as the cursor", async () => {
+  it("[SR-107/AK-bhct] Enter opens the element of a tree row and of an incoming row, keeping the row as the cursor", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await press(query(".neighbourhood"), "Enter");
     expect(actions.slice(-2)).toMatchObject([
@@ -427,7 +427,7 @@ describe("NeighbourhoodView", () => {
     ]);
   });
 
-  it("[SR-107/AK2] Enter opens an incoming row, and a click opens the row that was clicked", async () => {
+  it("[SR-107/AK-bhct] Enter opens an incoming row, and a click opens the row that was clicked", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await press(query(".neighbourhood"), "End");
     await press(query(".neighbourhood"), "Enter");
@@ -668,7 +668,7 @@ describe("the parents line on the element page", () => {
       );
     });
 
-  it("[SR-107/AK1] shows the titles of the parents up to the top need above the title, and a click and Enter open a parent", async () => {
+  it("[SR-107/AK-r2x1] shows the titles of the parents up to the top need above the title, and a click and Enter open a parent", async () => {
     const call = elementCall(parentsOfC1);
     const { dispatched } = await page(call as unknown as Call);
     expect(call).toHaveBeenCalledWith("trace.neighbourhood", {

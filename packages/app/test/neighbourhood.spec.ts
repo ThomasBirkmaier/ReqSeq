@@ -91,7 +91,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-107/AK1] the parents of C1 stand above its title up to the needs, and a click opens one", async () => {
+  test("[SR-107/AK-r2x1] the parents of C1 stand above its title up to the needs, and a click opens one", async () => {
     const { window } = await launch();
     await openElement(window, SHORT.C1, "Count anemometer turns");
     const up = await traced(running, {
@@ -115,7 +115,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     await expect(window.locator(".parents")).toHaveCount(0);
   });
 
-  test("[SR-107/AK2] Ctrl+J shows the children of N1 as a tree that opens level by level, and S1's incoming links by kind", async () => {
+  test("[SR-107/AK-bhct] Ctrl+J shows the children of N1 as a tree that opens level by level, and S1's incoming links by kind", async () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");
     await showNeighbourhood(window);
@@ -152,7 +152,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     expect(await treeRows(window)).toEqual(sources("derives-from"));
   });
 
-  test("[SR-193/AK1] [SR-193/AK2] Tab, Right and Left open and close the selected tree row of N1's children", async () => {
+  test("[SR-193/AK-qhkh] [SR-193/AK-n5jp] Tab, Right and Left open and close the selected tree row of N1's children", async () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");
     await showNeighbourhood(window);
@@ -176,7 +176,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     await expect(rows.first()).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("[SR-107/AK3] C1 appears under S1 and under S2 of N1, the second time marked repeated", async () => {
+  test("[SR-107/AK-ntyw] C1 appears under S1 and under S2 of N1, the second time marked repeated", async () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");
     await showNeighbourhood(window);
@@ -208,7 +208,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     await expect(window.locator("[role=treeitem] .repeated")).toHaveCount(1);
   });
 
-  test("[SR-107/AK4] S1's based-on to D1 and E's reference to D2 are marked outdated", async () => {
+  test("[SR-107/AK-b9c5] S1's based-on to D1 and E's reference to D2 are marked outdated", async () => {
     const { window } = await launch(CHANGED);
     // D1's neighbourhood shows S1 under "← based-on", outdated.
     const d1 = await traced(running, { ref: ID.D1, direction: "down" });
@@ -230,7 +230,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     ).toHaveCount(1);
   });
 
-  test("[SR-119/AK2] Ctrl+P, N1's short ID, Enter and Ctrl+J show its requirements", async () => {
+  test("[SR-119/AK-mj1y] Ctrl+P, N1's short ID, Enter and Ctrl+J show its requirements", async () => {
     const { window } = await launch();
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type(SHORT.N1);

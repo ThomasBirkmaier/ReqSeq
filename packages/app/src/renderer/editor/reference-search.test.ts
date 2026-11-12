@@ -120,7 +120,7 @@ describe("typedBrackets", () => {
   const typing = (text: string, at: number, insert: string, userEvent = "input.type"): Transaction =>
     state(text).update({ changes: { from: at, insert }, userEvent });
 
-  it("[SR-066/AK1] gives the start of a [[ whose second [ was typed", () => {
+  it("[SR-066/AK-v40r] gives the start of a [[ whose second [ was typed", () => {
     expect(typedBrackets(typing("[", 1, "["))).toBe(0);
     expect(typedBrackets(typing("see [", 5, "["))).toBe(4);
     expect(typedBrackets(typing("see [ and", 5, "["))).toBe(4);
@@ -132,7 +132,7 @@ describe("typedBrackets", () => {
     ).toBe(2);
   });
 
-  it("[SR-066/AK1] is undefined for one [, a [ before a [, a third [, an escaped or an image bracket, and other text", () => {
+  it("[SR-066/AK-v40r] is undefined for one [, a [ before a [, a third [, an escaped or an image bracket, and other text", () => {
     // Only the second of exactly two counts.
     expect(typedBrackets(typing("a [", 3, "["))).toBe(2);
     expect(typedBrackets(typing("", 0, "["))).toBeUndefined();
@@ -156,7 +156,7 @@ describe("typedBrackets", () => {
     ).toBeUndefined();
   });
 
-  it("[SR-066/AK1] is undefined for a [ that is pasted, composed by an input method, or not input", () => {
+  it("[SR-066/AK-v40r] is undefined for a [ that is pasted, composed by an input method, or not input", () => {
     expect(typedBrackets(typing("[", 1, "[", "input.type"))).toBe(0);
     expect(typedBrackets(typing("[", 1, "[", "input.paste"))).toBeUndefined();
     expect(typedBrackets(typing("[", 1, "[", "input.type.compose"))).toBeUndefined();
@@ -164,7 +164,7 @@ describe("typedBrackets", () => {
     expect(typedBrackets(state("[").update({ changes: { from: 1, insert: "[" } }))).toBeUndefined();
   });
 
-  it("[SR-066/AK1] is undefined in inline code, a code block, a link, an address and HTML", () => {
+  it("[SR-066/AK-v40r] is undefined in inline code, a code block, a link, an address and HTML", () => {
     expect(typedBrackets(typing("`a [`", 4, "["))).toBeUndefined();
     expect(typedBrackets(typing("```\n[\n```", 5, "["))).toBeUndefined();
     expect(typedBrackets(typing("    code [", 10, "["))).toBeUndefined();
@@ -177,7 +177,7 @@ describe("typedBrackets", () => {
 });
 
 describe("[[ asks for an element", () => {
-  it("[SR-066/AK1] a typed [[ asks the app for an element and keeps the [[ until one is picked", async () => {
+  it("[SR-066/AK-v40r] a typed [[ asks the app for an element and keeps the [[ until one is picked", async () => {
     const view = await show("see ");
     await type(view, "[");
     expect(pickElement).not.toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe("[[ asks for an element", () => {
     expect(awaitingReference(view.state)).toBe(true);
   });
 
-  it("[SR-066/AK1] a pasted [[, an undo that brings back [[, one [, \\[[, ![[ and [[ in inline code or a link ask nothing, one typed after them does", async () => {
+  it("[SR-066/AK-v40r] a pasted [[, an undo that brings back [[, one [, \\[[, ![[ and [[ in inline code or a link ask nothing, one typed after them does", async () => {
     const view = await show("");
     await input(view, "[[", "input.paste");
     await input(view, " \\", "input.type");
@@ -227,7 +227,7 @@ describe("[[ asks for an element", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] a [[ typed while an input method composes asks nothing, one typed with the keyboard does", async () => {
+  it("[SR-066/AK-v40r] a [[ typed while an input method composes asks nothing, one typed with the keyboard does", async () => {
     const view = await show("");
     await input(view, "[", "input.type.compose");
     await input(view, "[", "input.type.compose");
@@ -238,7 +238,7 @@ describe("[[ asks for an element", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] a [[ typed in a code block asks nothing, one below the block does", async () => {
+  it("[SR-066/AK-v40r] a [[ typed in a code block asks nothing, one below the block does", async () => {
     const view = await show("```\n\n```");
     act(() => {
       view.dispatch({ selection: { anchor: 4 } });
@@ -257,7 +257,7 @@ describe("[[ asks for an element", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] asks once when the editor is configured again while the question is open: the waiting [[ is kept and asks nothing again", async () => {
+  it("[SR-066/AK-v40r] asks once when the editor is configured again while the question is open: the waiting [[ is kept and asks nothing again", async () => {
     const view = await show("");
     await type(view, "[[");
     await render("", mergePlugins(search, { extensions: [EditorView.lineWrapping] }));
@@ -266,7 +266,7 @@ describe("[[ asks for an element", () => {
     expect(awaitingReference(view.state)).toBe(true);
   });
 
-  it("[SR-066/AK1] asks nothing for a [[ typed while a question is open already", async () => {
+  it("[SR-066/AK-v40r] asks nothing for a [[ typed while a question is open already", async () => {
     const view = await show("");
     await type(view, "[[ ");
     await type(view, "[[");
@@ -281,7 +281,7 @@ describe("the pick", () => {
     return { view, request: lastRequest() };
   };
 
-  it("[SR-066/AK2] writes [title](reqseq:<uuid>) in place of the [[, the caret after it, the editor focused", async () => {
+  it("[SR-066/AK-qdkx] writes [title](reqseq:<uuid>) in place of the [[, the caret after it, the editor focused", async () => {
     const { view, request } = await asked("see ");
     const focus = vi.spyOn(view, "focus");
     act(() => {
@@ -293,7 +293,7 @@ describe("the pick", () => {
     expect(awaitingReference(view.state)).toBe(false);
   });
 
-  it("[SR-066/AK2] writes the short ID with ?version=&repository=<name> for a target in another repository", async () => {
+  it("[SR-066/AK-qdkx] writes the short ID with ?version=&repository=<name> for a target in another repository", async () => {
     const { view, request } = await asked("");
     act(() => {
       request.insert({ ...target, repository: "other" });
@@ -301,7 +301,7 @@ describe("the pick", () => {
     expect(doc(view)).toBe(`[SR-5555](reqseq:${target.id}?version=&repository=other)`);
   });
 
-  it("[SR-066/AK2] keeps what was typed after the [[ before the pick after the reference", async () => {
+  it("[SR-066/AK-qdkx] keeps what was typed after the [[ before the pick after the reference", async () => {
     const { view, request } = await asked("see ");
     await type(view, "ab");
     act(() => {
@@ -310,7 +310,7 @@ describe("the pick", () => {
     expect(doc(view)).toBe(`see [The title](reqseq:${target.id})ab`);
   });
 
-  it("[SR-066/AK2] follows the [[ when the text before it changed while the question was open", async () => {
+  it("[SR-066/AK-qdkx] follows the [[ when the text before it changed while the question was open", async () => {
     const { view, request } = await asked("see ");
     act(() => {
       view.dispatch({ changes: { from: 0, insert: ">> " } });
@@ -321,7 +321,7 @@ describe("the pick", () => {
     expect(doc(view)).toBe(`>> see [The title](reqseq:${target.id})`);
   });
 
-  it("[SR-066/AK2] one undo brings back the [[ and asks nothing", async () => {
+  it("[SR-066/AK-qdkx] one undo brings back the [[ and asks nothing", async () => {
     const { view, request } = await asked("see ");
     act(() => {
       request.insert(target);
@@ -335,7 +335,7 @@ describe("the pick", () => {
     expect(awaitingReference(view.state)).toBe(false);
   });
 
-  it("[SR-066/AK2] writes at the caret when the [[ is gone, and nothing when the editor is gone", async () => {
+  it("[SR-066/AK-qdkx] writes at the caret when the [[ is gone, and nothing when the editor is gone", async () => {
     const { view, request } = await asked("see ");
     act(() => {
       view.dispatch({ changes: { from: 4, to: 5 }, selection: { anchor: 5 } });
@@ -354,7 +354,7 @@ describe("the pick", () => {
     root = createRoot(container);
   });
 
-  it("[SR-066/AK1] Escape (cancel) leaves the [[ as typed and gives the editor the focus", async () => {
+  it("[SR-066/AK-v40r] Escape (cancel) leaves the [[ as typed and gives the editor the focus", async () => {
     const { view, request } = await asked("see ");
     const focus = vi.spyOn(view, "focus");
     act(() => {
@@ -368,7 +368,7 @@ describe("the pick", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] a [[ in the query of an open slash menu belongs to the query and asks nothing", async () => {
+  it("[SR-066/AK-v40r] a [[ in the query of an open slash menu belongs to the query and asks nothing", async () => {
     const view = await show("", mergePlugins(slashMenu({ ...options, pickImage: vi.fn() }), search));
     await type(view, "/ref");
     await settle();
@@ -385,7 +385,7 @@ describe("the pick", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] a [[ after a / whose query matches no entry asks: no menu shows", async () => {
+  it("[SR-066/AK-v40r] a [[ after a / whose query matches no entry asks: no menu shows", async () => {
     const view = await show("", mergePlugins(slashMenu({ ...options, pickImage: vi.fn() }), search));
     await type(view, "/zzzq");
     await settle();

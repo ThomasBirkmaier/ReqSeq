@@ -201,7 +201,7 @@ const editorView = (): EditorView => {
 };
 
 describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
-  it("[SR-115/AK5] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
+  it("[SR-115/AK-m5pg] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
     await openFour();
     // Go to the element, the buffer used before the search: shown last are now the element, the search,
     // the list and the overview, though they were opened in another order.
@@ -226,7 +226,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(document.activeElement).toBe(query("[data-buffer]"));
   });
 
-  it("[SR-145/AK2] Option+N and Option+P in the text editor switch buffers by the physical key; the key is taken and the editor loses the focus", async () => {
+  it("[SR-145/AK-kbdf] Option+N and Option+P in the text editor switch buffers by the physical key; the key is taken and the editor loses the focus", async () => {
     await render();
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "Enter" });
@@ -259,7 +259,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(document.activeElement?.closest(".cm-editor") ?? null).toBeNull();
   });
 
-  it("[SR-115/AK5] with one buffer Alt+N switches nothing and is not taken", async () => {
+  it("[SR-115/AK-m5pg] with one buffer Alt+N switches nothing and is not taken", async () => {
     await render();
     expect(shown()).toBe("Overview");
     const next = await alt(query("[data-buffer]"), "n");
@@ -267,7 +267,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Overview");
   });
 
-  it("[SR-115/AK5] in an open prompt Alt+N and Alt+P switch nothing and are left to the input", async () => {
+  it("[SR-115/AK-m5pg] in an open prompt Alt+N and Alt+P switch nothing and are left to the input", async () => {
     await openFour();
     await press(window, { key: "p", ctrlKey: true });
     const input = query("input");
@@ -281,7 +281,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 
-  it("[SR-163/AK1] [SR-163/AK2] the mouse buttons Back and Forward do what Alt+P and Alt+N do, and never navigate", async () => {
+  it("[SR-163/AK-xtth] [SR-163/AK-v661] the mouse buttons Back and Forward do what Alt+P and Alt+N do, and never navigate", async () => {
     await openFour();
     await press(window, { key: "p", ctrlKey: true });
     await press(query("input"), { key: "Enter" });
@@ -300,7 +300,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 
-  it("[SR-163/AK1] the mouse button Back in the text editor switches as Alt+P does; the editor loses the focus", async () => {
+  it("[SR-163/AK-xtth] the mouse button Back in the text editor switches as Alt+P does; the editor loses the focus", async () => {
     await render();
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "Enter" });
@@ -313,7 +313,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(document.activeElement).toBe(query("[data-buffer]"));
   });
 
-  it("[SR-163/AK2] with one buffer or an open prompt the mouse buttons switch nothing, as Alt+N", async () => {
+  it("[SR-163/AK-v661] with one buffer or an open prompt the mouse buttons switch nothing, as Alt+N", async () => {
     await render();
     await mouse(window, 4);
     expect(shown()).toBe("Overview");
@@ -325,7 +325,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 
-  it("[SR-163/AK3] on macOS Cmd+[ and Cmd+] do what the mouse buttons Back and Forward do, also by the physical key", async () => {
+  it("[SR-163/AK-bh0y] on macOS Cmd+[ and Cmd+] do what the mouse buttons Back and Forward do, also by the physical key", async () => {
     await openFour();
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     try {
@@ -354,7 +354,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     }
   });
 
-  it("[SR-163/AK3] on Linux and Windows Ctrl+[ and Ctrl+] switch nothing", async () => {
+  it("[SR-163/AK-bh0y] on Linux and Windows Ctrl+[ and Ctrl+] switch nothing", async () => {
     await openFour();
     for (const init of [
       { key: "[", code: "BracketLeft", ctrlKey: true },
@@ -368,7 +368,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 
-  it('[SR-115/AK5] "Next buffer" and "Previous buffer" are commands of the prompt', async () => {
+  it('[SR-115/AK-m5pg] "Next buffer" and "Previous buffer" are commands of the prompt', async () => {
     await openFour();
     await runCommand("Next buffer");
     expect(shown()).toBe("Overview");

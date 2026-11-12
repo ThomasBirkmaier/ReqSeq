@@ -240,7 +240,7 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     }
   });
 
-  it(`[SR-076/AK2] the ${system} delivery contains the app, the launcher, the command line and the MCP server`, async (ctx) => {
+  it(`[SR-076/AK-z5f8] the ${system} delivery contains the app, the launcher, the command line and the MCP server`, async (ctx) => {
     if (!built) {
       ctx.skip(notBuilt);
     }
@@ -254,14 +254,14 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     }
   });
 
-  it(`[SR-076/AK2] the launcher of the ${system} delivery runs the command line and the MCP server`, async (ctx) => {
+  it(`[SR-076/AK-z5f8] the launcher of the ${system} delivery runs the command line and the MCP server`, async (ctx) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
     await runCommandLineAndMcp(path.join(installed, layout.launcher));
   });
 
-  it(`[SR-161/AK4] tool info of the ${system} delivery shows the version and the commit of this delivery`, async (ctx) => {
+  it(`[SR-161/AK-x2b3] tool info of the ${system} delivery shows the version and the commit of this delivery`, async (ctx) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
@@ -276,7 +276,7 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     expect(info["runtime"]?.["electron"]).toBeDefined();
   });
 
-  it(`[SR-078/AK2] the ${system} delivery installs without network and its command line and MCP server run`, async (ctx) => {
+  it(`[SR-078/AK-n50j] the ${system} delivery installs without network and its command line and MCP server run`, async (ctx) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
@@ -289,7 +289,7 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     await runCommandLineAndMcp(path.join(fresh, layout.launcher));
   });
 
-  it(`[SR-141/AK1] the ${system} delivery serves its documentation without network: pages and search hits of its version`, async (ctx) => {
+  it(`[SR-141/AK-k4fs] the ${system} delivery serves its documentation without network: pages and search hits of its version`, async (ctx) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
@@ -322,7 +322,7 @@ describe("the CLI tarball", () => {
     return prefix;
   };
 
-  it("[SR-078/AK2] the CLI tarball installs without network and runs on Node", async (ctx) => {
+  it("[SR-078/AK-n50j] the CLI tarball installs without network and runs on Node", async (ctx) => {
     if (!existsSync(tarball)) {
       ctx.skip(`not built: ${path.basename(tarball)}`);
     }
@@ -335,7 +335,7 @@ describe("the CLI tarball", () => {
     await runCommandLineAndMcp(path.join(prefix, "bin", names.launcher));
   });
 
-  it("[SR-141/AK1] the CLI tarball serves its documentation without network: pages and search hits of its version", async (ctx) => {
+  it("[SR-141/AK-k4fs] the CLI tarball serves its documentation without network: pages and search hits of its version", async (ctx) => {
     if (!existsSync(tarball)) {
       ctx.skip(`not built: ${path.basename(tarball)}`);
     }

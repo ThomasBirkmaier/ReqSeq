@@ -49,7 +49,7 @@ describe("numberInput (#614)", () => {
     }
   });
 
-  it("[SR-085/AK4] refuses a value or list item that is no number, converts nothing, and says what to give", () => {
+  it("[SR-085/AK-jx8c] refuses a value or list item that is no number, converts nothing, and says what to give", () => {
     const long = "x".repeat(60);
     const cases: readonly (readonly [unknown, string, Record<string, unknown>])[] = [
       // A text JSON reads as a number: only its quotes are wrong (API, MCP).
@@ -85,7 +85,7 @@ describe("numberInput (#614)", () => {
 });
 
 describe("element.create and element.update: a number given as text (#614)", () => {
-  it("[SR-085/AK4] refuses it with input.invalid and writes nothing; a number is written", async () => {
+  it("[SR-085/AK-jx8c] refuses it with input.invalid and writes nothing; a number is written", async () => {
     const { workspace, root } = await open();
     const filesBefore = await fs.readdir(root, { recursive: true });
     const created = await refusalOf(
@@ -122,7 +122,7 @@ describe("element.create and element.update: a number given as text (#614)", () 
 });
 
 describe("element.bulkUpdate and a number property (#614)", () => {
-  it("[SR-085/AK4] refuses set and add of a text, and removes a hand-written text item with remove", async () => {
+  it("[SR-085/AK-jx8c] refuses set and add of a text, and removes a hand-written text item with remove", async () => {
     const fixture = await createFixtureWorkspace({
       fixture: "SR-069/filter",
       files: {

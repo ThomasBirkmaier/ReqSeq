@@ -6,8 +6,10 @@ title: "Oberfläche auf Englisch anzeigen"
 spec-id: "SR-074"
 requirement-type: constraint
 acceptance-criteria:
-  - "Gegeben App, Kommandozeile, API, MCP-Server und Dokumentation, wenn sie geprüft werden, dann sind alle Texte, Meldungen und Hilfen auf Englisch."
-  - "Gegeben Elemente mit deutschem Inhalt, wenn sie angezeigt werden, dann zeigt das Tool den Inhalt unverändert."
+  - key: b6yv
+    text: Gegeben App, Kommandozeile, API, MCP-Server und Dokumentation, wenn sie geprüft werden, dann sind alle Texte, Meldungen und Hilfen auf Englisch.
+  - key: g5k3
+    text: Gegeben Elemente mit deutschem Inhalt, wenn sie angezeigt werden, dann zeigt das Tool den Inhalt unverändert.
 verification-method: inspection
 packages:
   - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }

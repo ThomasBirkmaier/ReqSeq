@@ -29,7 +29,7 @@ scenariosOf("evidence.list", [
     name: "the records of a requirement name each criterion with number, key and text (SR-205 AK2)",
     fixture: CRITERIA,
     input: { ref: "SR-0000e3" },
-    tag: "[SR-205/AK2]",
+    tag: "[SR-205/AK-m2vv]",
     expect: "output",
   },
   {

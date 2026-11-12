@@ -117,7 +117,7 @@ const coverageIn = async (workspace: Workspace, view: string) => {
 const names = (ids: readonly string[] | undefined): string[] => (ids ?? []).map(name);
 
 describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
-  it("[SR-043/AK4] trace.chain in the view of A holds of the requirements only K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-xcpc] trace.chain in the view of A holds of the requirements only K3, K4, A1 and A2", async () => {
     const { workspace } = await open();
     const chain = await chainIn(workspace, "N-0000d1");
     expect(chain.filter((n) => EXAMPLE.has(n))).toEqual(["K3", "K4", "A1", "A2"]);
@@ -129,7 +129,7 @@ describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
     ]);
   });
 
-  it("[SR-043/AK5] evidence.coverage in the view of A counts exactly K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-g28v] evidence.coverage in the view of A counts exactly K3, K4, A1 and A2", async () => {
     const { workspace } = await open();
     const { requirement } = await coverageIn(workspace, A);
     const counted = [...names(requirement?.withChildren), ...names(requirement?.withoutChildren)];
@@ -139,7 +139,7 @@ describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
     expect(names((await coverageIn(workspace, "core")).requirement?.withChildren)).toEqual(["P", "K1", "Q"]);
   });
 
-  it("[SR-043/AK6] evidence.degree in the view of A counts exactly K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-sf70] evidence.degree in the view of A counts exactly K3, K4, A1 and A2", async () => {
     const { workspace } = await open();
     const ids = ["SR-0000a1", "SR-0000a2", "SR-0000a3", "SR-0000a4", "SR-0000b1", "SR-0000b2"];
     const out = await run(workspace, "evidence.degree", { selection: { ids, view: A } });
@@ -150,7 +150,7 @@ describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
     });
   });
 
-  it("[SR-043/AK7] evidence.status indirect in the view of A counts only children from K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-h552] evidence.status indirect in the view of A counts only children from K3, K4, A1 and A2", async () => {
     const { workspace } = await open();
     const parents = ["SR-0000a0", "SR-0000a8"];
     // The core first, so the view of A runs on what the core walk left behind.
@@ -164,7 +164,7 @@ describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
     });
   });
 
-  it("[SR-041/AK5] chain, coverage and indirect verification in A do not hang the children of SR-K under SR-A", async () => {
+  it("[SR-041/AK-sg3q] chain, coverage and indirect verification in A do not hang the children of SR-K under SR-A", async () => {
     const { workspace } = await open();
     expect(await chainIn(workspace, "SR-0000b1")).toEqual(["A1"]);
     const { requirement } = await coverageIn(workspace, A);
@@ -177,7 +177,7 @@ describe("the view rule in trace and evidence (SR-041 AK5, SR-043)", () => {
     });
   });
 
-  it("[SR-006/AK2] trace.chain in the view of A is incomplete when a repository of the workspace is absent", async () => {
+  it("[SR-006/AK-q0f4] trace.chain in the view of A is incomplete when a repository of the workspace is absent", async () => {
     const { workspace } = await open({ "reqseq-workspace.yaml": ABSENT });
     const up = { ref: "SR-0000a0", direction: "up" } as const;
     expect((await run(workspace, "trace.chain", up)).incomplete).toBe(false);

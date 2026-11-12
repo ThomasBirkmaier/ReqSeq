@@ -108,12 +108,12 @@ const FIXTURE_PROBLEMS: readonly Problem[] = [
 ];
 
 describe("value kinds (SR-085)", () => {
-  it("[SR-085/AK1] gives a hint for a value of the wrong kind for text, number, date, choice and relation", async () => {
+  it("[SR-085/AK-q9jz] gives a hint for a value of the wrong kind for text, number, date, choice and relation", async () => {
     const { workspace } = await open();
     expect(await problemsOf(workspace)).toEqual(FIXTURE_PROBLEMS);
   });
 
-  it("[SR-085/AK1] gives no hint when every value has the kind of its property", async () => {
+  it("[SR-085/AK-q9jz] gives no hint when every value has the kind of its property", async () => {
     const { workspace } = await open();
     const problems = await problemsOf(workspace);
     expect(problems.filter((p) => p.elementId === GOOD || p.elementId === NEED)).toEqual([]);
@@ -131,7 +131,7 @@ describe("value kinds (SR-085)", () => {
     ).toEqual([]);
   });
 
-  it("[SR-085/AK1] does not check empty values, keys the metamodel does not know and the structural keys", async () => {
+  it("[SR-085/AK-q9jz] does not check empty values, keys the metamodel does not know and the structural keys", async () => {
     expect(
       await messages({
         status: 7,
@@ -146,7 +146,7 @@ describe("value kinds (SR-085)", () => {
     ).toEqual([]);
   });
 
-  it("[SR-085/AK1] gives a hint for an infinite number, an impossible date and a value of another kind", async () => {
+  it("[SR-085/AK-q9jz] gives a hint for an infinite number, an impossible date and a value of another kind", async () => {
     expect(
       await messages({
         weight: Number.POSITIVE_INFINITY,
@@ -167,7 +167,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] tells how to keep a number or boolean in a text property as text", async () => {
+  it("[SR-085/AK-q9jz] tells how to keep a number or boolean in a text property as text", async () => {
     expect(await messages({ title: true, "acceptance-criteria": ["Given, when, then.", 1] })).toEqual([
       [
         "title",
@@ -180,7 +180,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] checks a property by its key whatever the type of the element", async () => {
+  it("[SR-085/AK-q9jz] checks a property by its key whatever the type of the element", async () => {
     const { workspace } = await open({
       "system/requirements/N-ea6fe2e123a9.md": `---\nid: ${NEED}\ntype: need\nstatus: draft\ntitle: Wind\nweight: heavy\n---\n`,
     });
@@ -198,7 +198,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] shows at most 40 characters of a text of the wrong kind", async () => {
+  it("[SR-085/AK-q9jz] shows at most 40 characters of a text of the wrong kind", async () => {
     const long = "about two and a half kilograms with the mount";
     expect(await messages({ weight: long })).toEqual([
       [
@@ -208,7 +208,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] checks every item of a list property and wants a list where the metamodel says so", async () => {
+  it("[SR-085/AK-q9jz] checks every item of a list property and wants a list where the metamodel says so", async () => {
     expect(
       await messages({
         "review-dates": ["2026-01-01", 20260101, null],
@@ -241,7 +241,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] checks that a relation kind holds a list of relation targets", async () => {
+  it("[SR-085/AK-q9jz] checks that a relation kind holds a list of relation targets", async () => {
     expect(await messages({ "derives-from": [TARGET, { id: NEED }, "N-ea6fe2e123a9"] })).toEqual([
       [
         "derives-from/1",
@@ -260,7 +260,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] names what a mapping that is no relation target lacks or has too much (ThomasBirkmaier/ReqSeq-archive#302)", async () => {
+  it("[SR-085/AK-q9jz] names what a mapping that is no relation target lacks or has too much (ThomasBirkmaier/ReqSeq-archive#302)", async () => {
     const { id, version } = TARGET;
     const expects =
       "Relation Derives from (derives-from) expects each item to be a relation target { id, version }";
@@ -298,7 +298,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] says when a choice property has no values to choose from", async () => {
+  it("[SR-085/AK-q9jz] says when a choice property has no values to choose from", async () => {
     expect(await messages({ "legacy-class": "a" })).toEqual([
       [
         "legacy-class",
@@ -307,7 +307,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK2] lists at most 20 allowed values of a choice", async () => {
+  it("[SR-085/AK-x6jg] lists at most 20 allowed values of a choice", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     const choices = Array.from({ length: 21 }, (_, i) => ({
@@ -325,7 +325,7 @@ describe("value kinds (SR-085)", () => {
     );
   });
 
-  it("[SR-085/AK1] gives the findings of one element for a command that has just written it", async () => {
+  it("[SR-085/AK-q9jz] gives the findings of one element for a command that has just written it", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     const element = recordOf(store, WRONG);
@@ -337,7 +337,7 @@ describe("value kinds (SR-085)", () => {
     );
   });
 
-  it("[SR-085/AK3] stops reading files for the lines when the caller aborts", async () => {
+  it("[SR-085/AK-qr81] stops reading files for the lines when the caller aborts", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     const reason = new Error("stopped");
@@ -349,7 +349,7 @@ describe("value kinds (SR-085)", () => {
     ).rejects.toBe(reason);
   });
 
-  it("[SR-085/AK2] names the allowed values when a choice value in the file is not one of them", async () => {
+  it("[SR-085/AK-x6jg] names the allowed values when a choice value in the file is not one of them", async () => {
     const { workspace } = await open();
     const problems = await problemsOf(workspace);
     expect(problems.filter((p) => p.elementId === SENSOR)).toEqual([SENSOR_PROBLEM]);
@@ -358,7 +358,7 @@ describe("value kinds (SR-085)", () => {
     }
   });
 
-  it("[SR-085/AK3] reports every wrong value of all repositories as a finding with file, line and element", async () => {
+  it("[SR-085/AK-qr81] reports every wrong value of all repositories as a finding with file, line and element", async () => {
     const { workspace } = await open({
       "sensor/anemometer/SR-b69e094ad34c.md": [
         "---",
@@ -387,7 +387,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK3] checks the values again after the element store is read again", async () => {
+  it("[SR-085/AK-qr81] checks the values again after the element store is read again", async () => {
     const { ws, workspace } = await open();
     expect(await problemsOf(workspace)).toHaveLength(5);
     await ws.write(
@@ -399,7 +399,7 @@ describe("value kinds (SR-085)", () => {
     expect(await problemsOf(workspace)).toEqual(FIXTURE_PROBLEMS.slice(0, 4));
   });
 
-  it("[SR-085/AK3] leaves the line out when the file changed or vanished since it was read", async () => {
+  it("[SR-085/AK-qr81] leaves the line out when the file changed or vanished since it was read", async () => {
     const { ws, workspace } = await open();
     await workspace.get(elementStoreState);
     await ws.write(`system/${WRONG_FILE}`, "---\nid: x\n---\n");
@@ -408,7 +408,7 @@ describe("value kinds (SR-085)", () => {
     expect(await problemsOf(workspace)).toEqual(withoutLine);
   });
 
-  it("[SR-085/AK3] leaves the line out for a key written as an alias and for a repository the layout does not have", async () => {
+  it("[SR-085/AK-qr81] leaves the line out for a key written as an alias and for a repository the layout does not have", async () => {
     const { workspace } = await open({
       "system/requirements/SR-9b0f1826503d.md": `---\nid: ${WRONG}\ntype: system-requirement\nstatus: draft\nname: &k weight\n*k : heavy\n---\n`,
     });

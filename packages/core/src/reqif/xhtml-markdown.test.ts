@@ -38,7 +38,7 @@ const exported = (text: string, image?: (url: string) => string): string =>
   markup(markdownToXhtml(text, image === undefined ? {} : { image }).value);
 
 describe("xhtmlToMarkdown", () => {
-  it("[SR-095/AK1] writes headings, lists, emphasis and links in the editor's style", () => {
+  it("[SR-095/AK-c4pp] writes headings, lists, emphasis and links in the editor's style", () => {
     expect(
       markdown(
         '<h1>Start</h1><h2>Scope</h2><h3>Detail</h3><p>The system <b>shall</b> <em>start</em>, <strong>fast</strong> <i>and</i> <del>slow</del> <s>late</s>; see <a href="https://example.org" title="Ex">here</a>.<br/>Next <code>x</code> <span>line</span>.</p><ul><li>one<ul><li>nested</li></ul></li><li>two</li></ul><ol start="3"><li>three</li></ol><blockquote><p>quoted</p></blockquote><pre><code>code</code></pre><hr/>',
@@ -69,7 +69,7 @@ describe("xhtmlToMarkdown", () => {
     `);
   });
 
-  it("[SR-095/AK1] writes a table as a GFM table and joins blocks in a cell with <br>", () => {
+  it("[SR-095/AK-c4pp] writes a table as a GFM table and joins blocks in a cell with <br>", () => {
     expect(
       markdown(
         "<table><thead><tr><th>Id</th><th>Text</th></tr></thead><tbody><tr><td>1</td><td><p>first</p>\n<p>second <b>bold</b></p></td></tr><tr><td><div>a</div> <em>b</em> c</td><td>plain</td></tr></tbody></table>",
@@ -83,7 +83,7 @@ describe("xhtmlToMarkdown", () => {
     expect(xhtmlToMarkdown(value("<table><tr><td><p>a</p><p>b</p></td></tr></table>")).losses).toEqual([]);
   });
 
-  it("[SR-095/AK1] simplifies spanned cells and blocks in cells, keeps their text and names the loss", () => {
+  it("[SR-095/AK-c4pp] simplifies spanned cells and blocks in cells, keeps their text and names the loss", () => {
     const converted = xhtmlToMarkdown(
       value(
         '<table><tr><td rowspan="2">tall</td><td colspan="2">wide</td></tr><tr><td colspan="1"><ul><li>listed</li></ul></td><td><h2>head</h2></td></tr></table>',
@@ -103,7 +103,7 @@ describe("xhtmlToMarkdown", () => {
     ]);
   });
 
-  it("[SR-095/AK1] flattens a cell at every depth: breaks as <br>, nested blocks as a loss", () => {
+  it("[SR-095/AK-c4pp] flattens a cell at every depth: breaks as <br>, nested blocks as a loss", () => {
     const cell = (content: string): { markdown: string; losses: string[] } => {
       const converted = xhtmlToMarkdown(
         value(`<table><tr><th>h</th></tr><tr><td>${content}</td></tr><tr><td>after</td></tr></table>`),
@@ -146,7 +146,7 @@ describe("xhtmlToMarkdown", () => {
     );
   });
 
-  it("[SR-095/AK1] moves white space at the edges of emphasis out of it instead of writing character references (#573)", () => {
+  it("[SR-095/AK-c4pp] moves white space at the edges of emphasis out of it instead of writing character references (#573)", () => {
     const converted = markdown(
       "<p>Type<em> text</em> more, a <strong>bold </strong>b, c<em><strong> both</strong></em> d, e<em> <code>x</code></em></p>",
     );
@@ -213,7 +213,7 @@ describe("xhtmlToMarkdown", () => {
     expect(exportedLines.value.children[0]).toMatchObject({ name: "p", children: { length: 2 * lines + 1 } });
   }, 60_000);
 
-  it("[SR-095/AK3] lists a style and elements without Markdown counterpart as losses and keeps their text", () => {
+  it("[SR-095/AK-xzp8] lists a style and elements without Markdown counterpart as losses and keeps their text", () => {
     const converted = xhtmlToMarkdown(
       value(
         '<p>a <span style="color:red">red</span> <span style="color:red">again</span> <u>under</u> <sub>low</sub> <q xmlns="urn:other">foreign</q> <q xmlns="">bare</q></p>',
@@ -230,7 +230,7 @@ describe("xhtmlToMarkdown", () => {
     expect(codes('<p style="margin:0">x</p>')).toEqual(["xhtml-style"]);
   });
 
-  it("[SR-095/AK3] flattens blocks inside inline content to lines, keeps their text and lists them as losses (#580)", () => {
+  it("[SR-095/AK-xzp8] flattens blocks inside inline content to lines, keeps their text and lists them as losses (#580)", () => {
     const converted = xhtmlToMarkdown(
       value(
         "<p>a<ins>b<h1>H</h1>c<pre>P\nQ</pre>d<ul><li>L</li></ul>e<hr/>f<table><tr><td>T</td></tr></table>g<p>p</p></ins>z</p><div><strong>s<h2>S</h2></strong> <em>e<b>i<pre>E</pre></b></em></div>",
@@ -251,7 +251,7 @@ describe("xhtmlToMarkdown", () => {
     ]);
   });
 
-  it("[SR-095/AK3] keeps a flattened heading in ATX form and a code span on one line (#580)", () => {
+  it("[SR-095/AK-xzp8] keeps a flattened heading in ATX form and a code span on one line (#580)", () => {
     const converted = xhtmlToMarkdown(
       value("<h1>a<ins><p>b</p></ins>c</h1><p><code>a<pre>b\nc</pre>d</code></p>"),
     );

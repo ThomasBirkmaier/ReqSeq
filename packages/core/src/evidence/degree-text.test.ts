@@ -21,7 +21,7 @@ describe("minimumHeadText (SR-153)", () => {
 });
 
 describe("degreePercent (SR-037)", () => {
-  it("[SR-037/AK1] shows 6 of 10 as 60 %", () => {
+  it("[SR-037/AK-zxtb] shows 6 of 10 as 60 %", () => {
     expect(degreePercent(6 / 10)).toBe("60 %");
   });
 
@@ -86,7 +86,7 @@ const counts = (verified: number, indirect: number, failed: number, outdated: nu
 });
 
 describe("packageSummaryText (SR-112)", () => {
-  it("[SR-112/AK3] sums the coverage over the requirement levels and names the count of each status that occurs", () => {
+  it("[SR-112/AK-s1rj] sums the coverage over the requirement levels and names the count of each status that occurs", () => {
     const levels = [
       { total: 1, withChildren: 1 },
       { total: 6, withChildren: 0, withEvidence: 5 },
@@ -100,7 +100,7 @@ describe("packageSummaryText (SR-112)", () => {
     ).toBe("Coverage 8 of 10 with evidence · Degree (core) 70 % (5 verified, 2 indirect, 3 open)");
   });
 
-  it("[SR-112/AK3] gives for package P3 of fixtures/SR-037/degree the numbers of evidence.coverage and evidence.degree", async () => {
+  it("[SR-112/AK-s1rj] gives for package P3 of fixtures/SR-037/degree the numbers of evidence.coverage and evidence.degree", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-037/degree" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
@@ -119,7 +119,7 @@ describe("packageSummaryText (SR-112)", () => {
     );
   });
 
-  it("[SR-112/AK4] gives zeros for requirements without records, and no line without requirements", () => {
+  it("[SR-112/AK-cg1v] gives zeros for requirements without records, and no line without requirements", () => {
     expect(
       packageSummaryText([{ total: 10, withEvidence: 0 }], {
         degree: { share: 0, counts: counts(0, 0, 0, 0, 10) },
@@ -134,7 +134,7 @@ describe("packageSummaryText (SR-112)", () => {
     );
   });
 
-  it("[SR-112/AK3] names a variant view by its title, as the modeline does, else by its short ID or ID", () => {
+  it("[SR-112/AK-s1rj] names a variant view by its title, as the modeline does, else by its short ID or ID", () => {
     const coastal = { id: "uuid-v1", repository: "spec", shortId: "VAR-0000c1", title: "Coastal station" };
     const untitled = { id: "uuid-v2", repository: "spec", shortId: "VAR-0000c2", title: "" };
     expect(
@@ -152,7 +152,7 @@ describe("packageSummaryText (SR-112)", () => {
     expect(summaryViewText("core", [coastal])).toBe("core");
   });
 
-  it("[SR-112/AK3] names the variant of the selection's view as evidence.degree gives it (fixtures/SR-069/filter)", async () => {
+  it("[SR-112/AK-s1rj] names the variant of the selection's view as evidence.degree gives it (fixtures/SR-069/filter)", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);

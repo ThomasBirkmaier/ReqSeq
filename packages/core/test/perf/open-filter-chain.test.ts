@@ -234,7 +234,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     return workspace;
   };
 
-  it("[SR-082/AK5] [SR-082/AK3] shows the first element after the start within 1 s, and the next one within 200 ms", async () => {
+  it("[SR-082/AK-csnf] [SR-082/AK-tndr] shows the first element after the start within 1 s, and the next one within 200 ms", async () => {
     const firstElement = tree.elements[Math.floor(ELEMENTS / 3)];
     const { result: firstView, measurement: firstOpen } = await measure(
       "open the first element after the start (look up, read its file, element view) with its parents line",
@@ -271,7 +271,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK4] applies a saved filter through the catalog within 500 ms (SR-070, ThomasBirkmaier/ReqSeq-archive#228)", async () => {
+  it("[SR-082/AK-h27y] applies a saved filter through the catalog within 500 ms (SR-070, ThomasBirkmaier/ReqSeq-archive#228)", async () => {
     // A saved filter as a team keeps it (SR-070): the system requirements still in draft, by title.
     const saved = (await invoke(
       "filter.save",
@@ -321,7 +321,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
    */
   const firstNeed = (): string => tree.elements.find((e) => e.type === "need")?.id ?? "";
 
-  it("[SR-082/AK4] computes a chain within 500 ms", async () => {
+  it("[SR-082/AK-h27y] computes a chain within 500 ms", async () => {
     const current = opened();
     const need = firstNeed();
     // The result is the first page (200 nodes by default) of the complete walk (spec-frage ThomasBirkmaier/ReqSeq-archive#290).
@@ -480,7 +480,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(carried.relationsById.size).toBe(index.relationsById.size);
   });
 
-  it("[SR-082/AK4] computes the affected elements of the first need within 500 ms (SR-024)", async () => {
+  it("[SR-082/AK-h27y] computes the affected elements of the first need within 500 ms (SR-024)", async () => {
     const current = opened();
     const need = tree.elements.find((e) => e.type === "need")?.id ?? "";
     type Affected = CommandOutput<"trace.affected">;
@@ -551,7 +551,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   // Last: it changes a file of the workspace.
-  it("[SR-082/AK3] shows an element within 200 ms of opening it right after a save", async () => {
+  it("[SR-082/AK-tndr] shows an element within 200 ms of opening it right after a save", async () => {
     const current = opened();
     const saved = tree.elements[Math.floor(ELEMENTS / 3)]?.id ?? "";
     const id = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.id ?? "";
@@ -640,7 +640,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   // After the test above: it changes a file too.
-  it("[SR-082/AK4] computes a chain within 500 ms right after a save", async () => {
+  it("[SR-082/AK-h27y] computes a chain within 500 ms right after a save", async () => {
     const current = opened();
     // As a server after a first chain: the incoming index of the store is built.
     const { store: before, incoming: indexBefore } = await traceContext(current);

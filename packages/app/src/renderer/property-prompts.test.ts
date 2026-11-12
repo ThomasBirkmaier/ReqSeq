@@ -11,7 +11,7 @@ const run = (choice: Choice | undefined): void => {
 };
 
 describe("addPropertyPrompt", () => {
-  it("[SR-104/AK2] lists the properties by name with the key as hint, and adds the one taken", () => {
+  it("[SR-104/AK-k13x] lists the properties by name with the key as hint, and adds the one taken", () => {
     const add = vi.fn();
     const prompt = addPropertyPrompt(
       [
@@ -46,7 +46,7 @@ describe("choicePrompt", () => {
   };
   const tags: PropertyInfo = { ...method, many: true };
 
-  it("[SR-104/AK3] offers only the choices of the metamodel and takes no free text", () => {
+  it("[SR-104/AK-n97r] offers only the choices of the metamodel and takes no free text", () => {
     const prompt = choicePrompt("Verification Method", method, [], vi.fn(), vi.fn());
     expect(prompt.label).toBe("Verification Method");
     expect(prompt.items.map((item) => item.name)).toEqual([
@@ -59,7 +59,7 @@ describe("choicePrompt", () => {
     expect(prompt.find).toBeUndefined();
   });
 
-  it("[SR-104/AK3] hands the keys back that the choice gives, then lets the focus go back to the box", () => {
+  it("[SR-104/AK-n97r] hands the keys back that the choice gives, then lets the focus go back to the box", () => {
     const apply = vi.fn();
     const done = vi.fn();
     const prompt = choicePrompt("Method", method, ["test"], apply, done);
@@ -68,7 +68,7 @@ describe("choicePrompt", () => {
     expect(done).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-104/AK3] toggles a value of a list: a set one is first, with the hint set, and taking it removes it", () => {
+  it("[SR-104/AK-n97r] toggles a value of a list: a set one is first, with the hint set, and taking it removes it", () => {
     const apply = vi.fn();
     const prompt = choicePrompt("Tags", tags, ["analysis"], apply, vi.fn());
     expect(prompt.items.map((item) => [item.name, item.hint])).toEqual([
@@ -83,7 +83,7 @@ describe("choicePrompt", () => {
     expect(apply).toHaveBeenLastCalledWith(["analysis", "test"]);
   });
 
-  it("[SR-104/AK2] lets the focus go back to the box on Escape", () => {
+  it("[SR-104/AK-k13x] lets the focus go back to the box on Escape", () => {
     const done = vi.fn();
     const prompt = choicePrompt("Method", method, [], vi.fn(), done);
     prompt.cancel?.();

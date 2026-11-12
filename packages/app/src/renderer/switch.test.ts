@@ -115,7 +115,7 @@ const setup = (
 };
 
 describe("saving before a switch", () => {
-  it("[SR-131/AK3] the drafts of every element buffer are saved before main is asked to open", async () => {
+  it("[SR-131/AK-nkm5] the drafts of every element buffer are saved before main is asked to open", async () => {
     const files: Files = new Map([
       ["1", { text: "Old one", properties: { topic: "wind" }, sha: "one" }],
       ["2", { text: "Old two", properties: { topic: "rain", criteria: ["a", "b"] } }],
@@ -256,7 +256,7 @@ describe("saving before a switch", () => {
     expect(files.get("1")).toEqual({ text: "Changed by Git", properties: { topic: "storm" }, sha: "new" });
   });
 
-  it("[SR-131/AK3] input typed while its draft was saved is kept, on the file as it was saved, and stops the switch", async () => {
+  it("[SR-131/AK-nkm5] input typed while its draft was saved is kept, on the file as it was saved, and stops the switch", async () => {
     const files: Files = new Map([["1", { text: "Old", properties: { topic: "wind" }, sha: "old" }]]);
     const one = buffer("1");
     const drafts = new Map<string, Draft>([[one.key, { text: "Mine", base: "Old", sha: "old" }]]);
@@ -342,7 +342,7 @@ describe("saving before a switch", () => {
     expect(rebased.get(one.key)).toMatchObject({ text: "Fifth", base: "", sha: "after " });
   });
 
-  it("[SR-131/AK3] says that the input was not saved in time, and what stays open", () => {
+  it("[SR-131/AK-nkm5] says that the input was not saved in time, and what stays open", () => {
     expect(notSavedInTime("Weather station")).toBe(
       "The unsaved input was not saved in time; Weather station stays open",
     );
@@ -384,7 +384,7 @@ describe("saving before a switch", () => {
 });
 
 describe("the title of a draft (ThomasBirkmaier/ReqSeq-archive#621)", () => {
-  it("[SR-105/AK1] a draft with an unsaved title is saved with title, not in set", async () => {
+  it("[SR-105/AK-p4gn] a draft with an unsaved title is saved with title, not in set", async () => {
     const files: Files = new Map([["1", { title: "Old", text: "Text", properties: {}, sha: "one" }]]);
     const one = buffer("1");
     const drafts = new Map<string, Draft>([
@@ -402,7 +402,7 @@ describe("the title of a draft (ThomasBirkmaier/ReqSeq-archive#621)", () => {
     expect(dropped).toEqual([one.key]);
   });
 
-  it("[SR-106/AK2] a draft with an unsaved title on a file whose title changed since is not saved", async () => {
+  it("[SR-106/AK-ydc8] a draft with an unsaved title on a file whose title changed since is not saved", async () => {
     const files: Files = new Map([["1", { title: "Theirs", text: "Text", properties: {}, sha: "two" }]]);
     const one = buffer("1");
     const drafts = new Map<string, Draft>([
@@ -432,7 +432,7 @@ describe("the title of a draft (ThomasBirkmaier/ReqSeq-archive#621)", () => {
 });
 
 describe("the draft of a buffer that was left (SR-024)", () => {
-  it("[SR-024/AK2] gives the number of directly affected elements of the write, and none for 0", async () => {
+  it("[SR-024/AK-mf7x] gives the number of directly affected elements of the write, and none for 0", async () => {
     const files: Files = new Map([
       ["1", { title: "Wind", text: "Old", properties: {}, sha: "one", affected: 2 }],
       ["2", { title: "Rain", text: "Old", properties: {}, sha: "two" }],

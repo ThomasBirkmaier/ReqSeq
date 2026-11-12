@@ -81,7 +81,7 @@ const MAPPING = {
 } as const;
 
 describe("reqif.saveMapping (SR-054)", () => {
-  it("[SR-054/AK1] saves the mapping of a source's types and attributes as a YAML file in the folder reqif of the main repository", async () => {
+  it("[SR-054/AK-yc8n] saves the mapping of a source's types and attributes as a YAML file in the folder reqif of the main repository", async () => {
     const { fixture, workspace } = await open();
     const before = await metamodelHash(fixture);
     expect(await save(workspace, { mapping: MAPPING })).toEqual({
@@ -194,7 +194,7 @@ describe("reqif.saveMapping (SR-054)", () => {
     await expect(fs.readdir(fixture.path("metamodel"))).resolves.toEqual(["standard-model.yaml"]);
   });
 
-  it("[SR-083/AK4] writes no mapping below .git, also when the workspace file places the mapping folder there", async () => {
+  it("[SR-083/AK-s4q9] writes no mapping below .git, also when the workspace file places the mapping folder there", async () => {
     const { fixture, workspace } = await open({
       ...withSetting("mappings: { repository: system, path: .git/reqif }"),
       ".git/reqif/keep": "",

@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 describe("reqseq metamodel get (SR-130)", () => {
-  it("[SR-130/AK6] reqseq metamodel get gives the types, inheritance, properties, statuses and relation kinds as JSON and names them in its text output", async () => {
+  it("[SR-130/AK-cmt2] reqseq metamodel get gives the types, inheritance, properties, statuses and relation kinds as JSON and names them in its text output", async () => {
     const json = await reqseq(["metamodel", "get", "--json"], { cwd: fixture.root });
     expect([json.code, json.stderr]).toEqual([0, ""]);
     const output = JSON.parse(json.stdout) as MetamodelGetOutput;

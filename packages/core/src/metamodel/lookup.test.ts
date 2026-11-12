@@ -46,7 +46,7 @@ const HAZARD_FILE =
   "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    properties: [severity]\n    required: [title, severity]\n";
 
 describe("typeForNewElement", () => {
-  it("[SR-012/AK1] offers a new type with key, name, prefix and required properties once the workspace is opened", async () => {
+  it("[SR-012/AK-zcm2] offers a new type with key, name, prefix and required properties once the workspace is opened", async () => {
     const ws = await fixture();
     const before = await open(ws.root).get(metamodelState);
     expect(errorOf(() => typeForNewElement(before, "hazard")).toJSON()).toEqual({
@@ -73,7 +73,7 @@ describe("typeForNewElement", () => {
     });
   });
 
-  it("[SR-012/AK1] refuses an abstract type: it is only there to be inherited from", async () => {
+  it("[SR-012/AK-zcm2] refuses an abstract type: it is only there to be inherited from", async () => {
     const metamodel = await open((await fixture()).root).get(metamodelState);
     expect(errorOf(() => typeForNewElement(metamodel, "item")).toJSON()).toEqual({
       code: "input.invalid",
@@ -103,7 +103,7 @@ describe("findType", () => {
     return fs.readFile(ws.path(ELEMENT), "utf8");
   };
 
-  it("[SR-012/AK3] keeps the key requirement in the saved file and shows the name System Requirement", async () => {
+  it("[SR-012/AK-f3bs] keeps the key requirement in the saved file and shows the name System Requirement", async () => {
     const ws = await fixture();
     const metamodel = await open(ws.root).get(metamodelState);
     const saved = await save(ws, metamodel);
@@ -117,7 +117,7 @@ describe("findType", () => {
     expect(findType(metamodel, "requirement")?.name).toBe("System Requirement");
   });
 
-  it("[SR-012/AK3] finds types only by key: a renamed type shows its new name, the element file stays as it is", async () => {
+  it("[SR-012/AK-f3bs] finds types only by key: a renamed type shows its new name, the element file stays as it is", async () => {
     const ws = await fixture();
     const before = await fs.readFile(ws.path(ELEMENT));
     const types = await fs.readFile(ws.path("model/types.yaml"), "utf8");
@@ -134,7 +134,7 @@ describe("findType", () => {
 });
 
 describe("allowsType", () => {
-  it("[SR-086/AK1] allows the types of the list and every type that extends one of them", async () => {
+  it("[SR-086/AK-yrxg] allows the types of the list and every type that extends one of them", async () => {
     const metamodel = await open((await fixture()).root).get(metamodelState);
     expect(allowsType(undefined, "item", metamodel)).toBe(true);
     expect(allowsType([], "item", metamodel)).toBe(false);
@@ -166,7 +166,7 @@ describe("keyDefinition", () => {
 });
 
 describe("markdownKeysOf", () => {
-  it("[SR-127/AK5] gives the keys of the properties marked markdown once per metamodel, and none for a metamodel that is not valid", async () => {
+  it("[SR-127/AK-mdr7] gives the keys of the properties marked markdown once per metamodel, and none for a metamodel that is not valid", async () => {
     const base = await open((await fixture()).root).get(metamodelState);
     const marked: Metamodel = {
       ...base,

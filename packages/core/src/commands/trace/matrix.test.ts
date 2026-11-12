@@ -135,7 +135,7 @@ const cell = (output: Output, row: Name, column: string): string[] => {
 };
 
 describe("trace.matrix rows", () => {
-  it("[SR-125/AK1] gives one row per element of the selection, in the order element.list gives", async () => {
+  it("[SR-125/AK-mzzq] gives one row per element of the selection, in the order element.list gives", async () => {
     const workspace = await open();
     const selections = [
       { selection: STAGE_3 },
@@ -193,7 +193,7 @@ describe("trace.matrix rows", () => {
     ]);
   });
 
-  it("[SR-125/AK1] sorted by hierarchy, the rows are the derivation tree with their depth", async () => {
+  it("[SR-125/AK-mzzq] sorted by hierarchy, the rows are the derivation tree with their depth", async () => {
     const workspace = await open();
     for (const input of [
       { selection: {}, sort: [{ by: "hierarchy" }] },
@@ -246,7 +246,7 @@ describe("trace.matrix rows", () => {
 });
 
 describe("trace.matrix columns and cells", () => {
-  it("[SR-125/AK2] has a column per relation kind and direction that occurs, named by name and inverse name", async () => {
+  it("[SR-125/AK-wzq6] has a column per relation kind and direction that occurs, named by name and inverse name", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: STAGE_3 });
     // Relation kinds in the order of the metamodel; `excludes`, `replaces` and the others occur in no row.
@@ -269,7 +269,7 @@ describe("trace.matrix columns and cells", () => {
     });
   });
 
-  it("[SR-125/AK2] names the other end of each relation with short ID and title", async () => {
+  it("[SR-125/AK-wzq6] names the other end of each relation with short ID and title", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: STAGE_3 });
     const element = await list(workspace, { selection: { ids: [ID.S1, ID.N1] } });
@@ -301,7 +301,7 @@ describe("trace.matrix columns and cells", () => {
     expect(cell(output, "S1", "refines/in")).toEqual(["S3"]);
   });
 
-  it("[SR-125/AK2] makes columns of the keys named in kinds, also of relation properties", async () => {
+  it("[SR-125/AK-wzq6] makes columns of the keys named in kinds, also of relation properties", async () => {
     const workspace = await open();
     const narrowed = await matrix(workspace, { selection: STAGE_3, kinds: ["derives-from"] });
     expect(columnKeys(narrowed)).toEqual(["derives-from/out", "derives-from/in"]);
@@ -411,7 +411,7 @@ describe("trace.matrix reads relations as the element view reads them", () => {
 });
 
 describe("trace.matrix gaps and counts", () => {
-  it("[SR-125/AK3] [SR-153/AK2] leaves the cell of a row without such a relation empty, and no gap, where no minimum is", async () => {
+  it("[SR-125/AK-ps48] [SR-153/AK-zx11] leaves the cell of a row without such a relation empty, and no gap, where no minimum is", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: STAGE_3 });
     expect(cell(output, "S1", "refines/out")).toEqual([]);
@@ -433,7 +433,7 @@ describe("trace.matrix gaps and counts", () => {
     ]);
   });
 
-  it("[SR-153/AK1] marks the cells below the minimum as gaps and heads the column with met of expected and share, on every page", async () => {
+  it("[SR-153/AK-mcfm] marks the cells below the minimum as gaps and heads the column with met of expected and share, on every page", async () => {
     const workspace = await open();
     const all = await matrix(workspace, { selection: STAGE_3 });
     expect(gapsOf(all)).toEqual({ S3: [NEED_GAP], S4: [NEED_GAP], S5: [NEED_GAP] });
@@ -461,7 +461,7 @@ describe("trace.matrix gaps and counts", () => {
     });
   });
 
-  it("[SR-153/AK1] marks a cell with relations as a gap when none counts: a missing target and a system requirement", async () => {
+  it("[SR-153/AK-mcfm] marks a cell with relations as a gap when none counts: a missing target and a system requirement", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S4] } });
     expect(cell(output, "S4", "derives-from/out")).toEqual(["S1", "GONE"]);
@@ -469,7 +469,7 @@ describe("trace.matrix gaps and counts", () => {
     expect(gapsOf(output)).toEqual({ S4: [NEED_GAP] });
   });
 
-  it("[SR-153/AK1] gives the column of a minimum even when no row of the selection has such a relation", async () => {
+  it("[SR-153/AK-mcfm] gives the column of a minimum even when no row of the selection has such a relation", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S3] } });
     expect(heads(output)).toEqual([
@@ -483,7 +483,7 @@ describe("trace.matrix gaps and counts", () => {
     ]);
   });
 
-  it("[SR-153/AK1] counts only the rows whose type has a minimum: a need has none", async () => {
+  it("[SR-153/AK-mcfm] counts only the rows whose type has a minimum: a need has none", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S1, ID.S3, ID.N1, ID.N2] } });
     expect(output.columns.find((c) => c.kind === "derives-from" && c.direction === "out")).toMatchObject({
@@ -495,7 +495,7 @@ describe("trace.matrix gaps and counts", () => {
     expect(Object.keys(gapsOf(output))).toEqual(["S3"]);
   });
 
-  it("[SR-153/AK1] needs every minimum of the kind: one gap per minimum it undershoots", async () => {
+  it("[SR-153/AK-mcfm] needs every minimum of the kind: one gap per minimum it undershoots", async () => {
     const workspace = await open(
       MATRIX,
       withLimits(
@@ -518,7 +518,7 @@ describe("trace.matrix gaps and counts", () => {
     });
   });
 
-  it("[SR-153/AK1] checks two limits that apply to the same pair each, as the hints do", async () => {
+  it("[SR-153/AK-mcfm] checks two limits that apply to the same pair each, as the hints do", async () => {
     // Without `source-type` the limit applies to the one source type of the kind: a warning, both checked.
     const workspace = await open(MATRIX, withLimits(`${MINIMUM}      - { target-type: need, min: 2 }\n`));
     const output = await matrix(workspace, { selection: { ids: [ID.S1, ID.S2] } });
@@ -529,7 +529,7 @@ describe("trace.matrix gaps and counts", () => {
     });
   });
 
-  it("[SR-153/AK1] gives the gaps hint.list gives as relation.too-few, with the same count", async () => {
+  it("[SR-153/AK-mcfm] gives the gaps hint.list gives as relation.too-few, with the same count", async () => {
     for (const limits of [
       MINIMUM,
       `      - { target-type: need, min: 2 }\n      - { target-type: system-requirement, min: 1 }\n`,
@@ -548,7 +548,7 @@ describe("trace.matrix gaps and counts", () => {
     }
   });
 
-  it("[SR-153/AK2] gives no gap and no share for min 0 or a limit with max only", async () => {
+  it("[SR-153/AK-zx11] gives no gap and no share for min 0 or a limit with max only", async () => {
     for (const limits of [
       "      - { source-type: system-requirement, target-type: need, min: 0 }\n",
       "      - { source-type: system-requirement, target-type: need, max: 1 }\n",
@@ -563,7 +563,7 @@ describe("trace.matrix gaps and counts", () => {
     }
   });
 
-  it("[SR-125/AK3] [SR-153/AK2] the standard model sets no minimum: no gap and no share in any column", async () => {
+  it("[SR-125/AK-ps48] [SR-153/AK-zx11] the standard model sets no minimum: no gap and no share in any column", async () => {
     const workspace = await open(MATRIX, (fixture) => fixture.write(MODEL, STANDARD_MODEL_TEXT));
     const output = await matrix(workspace, { selection: STAGE_3 });
     expect(heads(output)).toEqual([
@@ -577,7 +577,7 @@ describe("trace.matrix gaps and counts", () => {
     expect(gapsOf(output)).toEqual({});
   });
 
-  it("[SR-125/AK2] [SR-153/AK1] counts and shows only the relations whose other end applies in a view", async () => {
+  it("[SR-125/AK-wzq6] [SR-153/AK-mcfm] counts and shows only the relations whose other end applies in a view", async () => {
     // S1 is valid for the variant only: in the core view it does not apply, so the relations to it are
     // left out of the cells, the counts and the minima; S5 derives only from S1 and S4 from S1 and a
     // missing target, so both are gaps there, as S3; S2 meets the minimum.
@@ -659,7 +659,7 @@ describe("trace.matrix gaps and counts", () => {
 });
 
 describe("trace.matrix outdated and missing relations", () => {
-  it("[SR-125/AK4] marks a relation to an older version of its target as outdated, with both versions", async () => {
+  it("[SR-125/AK-zs8y] marks a relation to an older version of its target as outdated, with both versions", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: STAGE_3, kinds: ["derives-from"] });
     const [s1, s2] = [output.rows.find((r) => r.id === ID.S1), output.rows.find((r) => r.id === ID.S2)];
@@ -679,7 +679,7 @@ describe("trace.matrix outdated and missing relations", () => {
     ]);
   });
 
-  it("[SR-125/AK4] marks an incoming relation from a source that stores an older version of the row", async () => {
+  it("[SR-125/AK-zs8y] marks an incoming relation from a source that stores an older version of the row", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S1] }, kinds: ["derives-from"] });
     const current = (await list(workspace, { selection: { ids: [ID.S1] } })).elements[0]?.version;
@@ -691,7 +691,7 @@ describe("trace.matrix outdated and missing relations", () => {
     ]);
   });
 
-  it("[SR-125/AK4] marks a relation to a target that is not there as missing, and counts it", async () => {
+  it("[SR-125/AK-zs8y] marks a relation to a target that is not there as missing, and counts it", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S4] } });
     const [link] = output.rows[0]?.cells[0]?.slice(1) ?? [];
@@ -712,7 +712,7 @@ describe("trace.matrix outdated and missing relations", () => {
     ]);
   });
 
-  it("[SR-125/AK4] shows a target in a repository that is not here and marks the matrix incomplete", async () => {
+  it("[SR-125/AK-zs8y] shows a target in a repository that is not here and marks the matrix incomplete", async () => {
     const workspace = await open({
       ...MATRIX,
       files: {
@@ -820,7 +820,7 @@ describe("trace.matrix outdated and missing relations", () => {
 });
 
 describe("trace.matrix selections", () => {
-  it("[SR-125/AK6] gives the same matrix for a package given as selection.package or as a condition", async () => {
+  it("[SR-125/AK-w9wp] gives the same matrix for a package given as selection.package or as a condition", async () => {
     const workspace = await open();
     const byPackage = await matrix(workspace, { selection: { package: ID.P1 } });
     expect(await matrix(workspace, { selection: { where: { package: ID.P1 } } })).toEqual(byPackage);

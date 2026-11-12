@@ -83,7 +83,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
 
   const firstNeed = (): string => tree.elements.find((e) => e.type === "need")?.id ?? "";
 
-  it("[SR-082/AK4] gives the direct neighbours of a need over every kind within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the direct neighbours of a need over every kind within 500 ms", async () => {
     // The incoming relation index, the short IDs and the shared verificationState (SR-136) are built once
     // per store, not per call (ADR-0008): this first call pays for them, a few seconds at N-036.
     await graph({ ref: firstNeed() });
@@ -100,7 +100,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] gives 500 nodes of the whole derivation chain of a need within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives 500 nodes of the whole derivation chain of a need within 500 ms", async () => {
     const { result, measurement } = await measure(
       "graph: the whole derivation chain of the first need (limit 500)",
       () => graph({ ref: firstNeed(), allLevels: true, meanings: ["derivation"] }),
@@ -110,7 +110,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] gives 500 nodes of the whole chain of a need over every kind within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives 500 nodes of the whole chain of a need over every kind within 500 ms", async () => {
     const { result, measurement } = await measure(
       "graph: the whole chain of the first need over every kind (limit 500)",
       () => graph({ ref: firstNeed(), allLevels: true }),
@@ -120,7 +120,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] gives the package with the most members at depth 1 within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the package with the most members at depth 1 within 500 ms", async () => {
     expect(hub.members).toBeGreaterThan(100);
     const { result, measurement } = await measure(
       `graph: the package with the most members (${String(hub.members)}) at depth 1 (limit 500)`,

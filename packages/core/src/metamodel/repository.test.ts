@@ -109,7 +109,7 @@ afterEach(() => {
 });
 
 describe("metamodel in its own repository (SR-018)", () => {
-  it("[SR-018/AK1] reads the metamodel from the repository the workspace file names", async () => {
+  it("[SR-018/AK-k72f] reads the metamodel from the repository the workspace file names", async () => {
     const ws = await ownRepository();
     const workspace = open(ws.path("system"));
     expect(await status(workspace)).toEqual({
@@ -130,7 +130,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     expect(metamodel.statuses.map((s) => s.key)).toEqual(["draft", "accepted"]);
   });
 
-  it("[SR-018/AK1] reports metamodel findings in the metamodel repository, with the file relative to it", async () => {
+  it("[SR-018/AK-k72f] reports metamodel findings in the metamodel repository, with the file relative to it", async () => {
     const ws = await ownRepository();
     await ws.write(
       "models/model/statuses.yaml",
@@ -147,7 +147,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     ["EROFS", "a read-only file system"],
     ["EACCES", "a checkout without write permission"],
   ])(
-    "[SR-018/AK2] shows a metamodel repository on %s (%s) as read-only and keeps the workspace writable",
+    "[SR-018/AK-xtmf] shows a metamodel repository on %s (%s) as read-only and keeps the workspace writable",
     async (code) => {
       const ws = await ownRepository();
       // Simulated: the tests may run as root, which ignores missing write permission. A POSIX
@@ -180,7 +180,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     expect(out).toMatchObject({ metamodel: { valid: true }, readOnly: false });
   });
 
-  it("[SR-018/AK2] runs read and write commands while the metamodel repository is read-only", async () => {
+  it("[SR-018/AK-xtmf] runs read and write commands while the metamodel repository is read-only", async () => {
     // Stand-ins with the effects of the real catalog entries: the guard of `invoke` decides by
     // `whileReadOnly`, which every element command has as `refuse`, so they behave like these.
     const entry = (name: string, effect: "read" | "write-files"): Record<string, unknown> => ({
@@ -232,7 +232,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     expect((await workspace.get(metamodelState)).valid).toBe(true);
   });
 
-  it("[SR-018/AK2] refuses to change a metamodel file of a read-only repository and leaves it as it was", async () => {
+  it("[SR-018/AK-xtmf] refuses to change a metamodel file of a read-only repository and leaves it as it was", async () => {
     const ws = await ownRepository();
     const before = await fs.readFile(ws.path("models/model/types.yaml"), "utf8");
     await makeReadOnly(ws.path("models"));
@@ -248,7 +248,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     expect(await fs.readFile(ws.path("models/model/types.yaml"), "utf8")).toBe(before);
   });
 
-  it("[SR-018/AK2] refuses to change or add a metamodel file on a read-only file system", async () => {
+  it("[SR-018/AK-xtmf] refuses to change or add a metamodel file on a read-only file system", async () => {
     const ws = await ownRepository();
     const before = await fs.readFile(ws.path("models/model/types.yaml"), "utf8");
     const types = await parsedYaml(ws.path("models"), "model/types.yaml");
@@ -275,7 +275,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     ]);
   });
 
-  it("[SR-018/AK3] works the same with the metamodel as a folder in the main repository", async () => {
+  it("[SR-018/AK-z3n2] works the same with the metamodel as a folder in the main repository", async () => {
     const own = await ownRepository();
     const folder = await fixture();
     // The same metamodel files, now in the main repository; the repository models is gone.

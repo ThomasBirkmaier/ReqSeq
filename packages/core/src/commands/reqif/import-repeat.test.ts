@@ -124,7 +124,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     }
   });
 
-  it("[SR-056/AK1] reqif.analyze and reqif.import show new, changed and dropped requirements separately, matched by source and IDENTIFIER", async () => {
+  it("[SR-056/AK-nvm9] reqif.analyze and reqif.import show new, changed and dropped requirements separately, matched by source and IDENTIFIER", async () => {
     const { workspace, ids } = await delivered();
     const analysis = await analyzeOf(workspace, 2);
     expect(analysis).toEqual({
@@ -150,7 +150,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(imported.problems).toEqual([]);
   });
 
-  it("[SR-056/AK2] updates the element of the same source and IDENTIFIER in place and creates no second one", async () => {
+  it("[SR-056/AK-c7b8] updates the element of the same source and IDENTIFIER in place and creates no second one", async () => {
     const { workspace, ids, root } = await delivered();
     const one = String(ids["REQ-1"]);
     // A property the mapping does not map stays (D-022); rationale does not count to the version.
@@ -186,7 +186,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-056/AK1] compares a repeated delivery in the normal form of the stored import version (ADR-0005)", async () => {
+  it("[SR-056/AK-nvm9] compares a repeated delivery in the normal form of the stored import version (ADR-0005)", async () => {
     const { workspace, ids, root } = await delivered();
     const store = await workspace.get(elementStoreState);
     const records = Object.values(ids).flatMap((id) => store.byId.get(id) ?? []);
@@ -224,7 +224,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect((await analyzeOf(again, 2)).conflicts).toEqual([{ identifier: "REQ-3", id: ids["REQ-3"] }]);
   });
 
-  it("[SR-056/AK3] lists a dropped requirement only in the output and leaves its file, status and properties as they were", async () => {
+  it("[SR-056/AK-sdgt] lists a dropped requirement only in the output and leaves its file, status and properties as they were", async () => {
     const { workspace, ids, root } = await delivered();
     const four = await get(workspace, String(ids["REQ-4"]));
     const file = path.join(root, "Kunde-A", path.basename(four.element.file));
@@ -240,7 +240,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-056/AK4] shows a requirement changed locally and in the delivery as a conflict and refuses the import without a choice, naming it", async () => {
+  it("[SR-056/AK-wx64] shows a requirement changed locally and in the delivery as a conflict and refuses the import without a choice, naming it", async () => {
     const { workspace, ids, root } = await delivered();
     const three = String(ids["REQ-3"]);
     await run(workspace, "element.update", { ref: three, text: "Stored locally for a year.\n" });
@@ -261,7 +261,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(await tree(root)).toEqual(before);
   });
 
-  it("[SR-055/AK3] a repeated import refused for a conflict changes no file and creates no folder", async () => {
+  it("[SR-055/AK-ttn9] a repeated import refused for a conflict changes no file and creates no folder", async () => {
     const { workspace, ids, root } = await delivered({ "in/img/a.png": PNG.toString("latin1") });
     await run(workspace, "element.update", { ref: String(ids["REQ-3"]), text: "Local.\n" });
     const delivery = DELIVERY_2.replace(
@@ -279,7 +279,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(await tree(root)).toEqual(before);
   });
 
-  it("[SR-056/AK4] takes the delivery for a conflict in take, and keeps the local element for one in keep until the delivery changes it again", async () => {
+  it("[SR-056/AK-wx64] takes the delivery for a conflict in take, and keeps the local element for one in keep until the delivery changes it again", async () => {
     const { workspace, ids } = await delivered();
     const one = String(ids["REQ-1"]);
     const three = String(ids["REQ-3"]);
@@ -301,7 +301,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect((await analyzeOf(workspace, 2)).conflicts).toEqual([]);
   });
 
-  it("[SR-056/AK4] refuses one conflict in both take and keep, and warns of an entry that names no conflict", async () => {
+  it("[SR-056/AK-wx64] refuses one conflict in both take and keep, and warns of an entry that names no conflict", async () => {
     const { workspace, ids } = await delivered();
     await run(workspace, "element.update", { ref: String(ids["REQ-3"]), text: "Local.\n" });
     const both = await failure(workspace, "reqif.import", {
@@ -324,7 +324,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(pick(imported.updated)).toContain("REQ-3");
   });
 
-  it("[SR-056/AK2] writes nothing when the same delivery is imported again", async () => {
+  it("[SR-056/AK-c7b8] writes nothing when the same delivery is imported again", async () => {
     const { workspace, root } = await delivered();
     const before = await tree(root);
     const analysis = await analyzeOf(workspace, 1);
@@ -336,7 +336,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(await tree(root)).toEqual(before);
   });
 
-  it("[SR-056/AK6] writes the delivery's title back over a local edit and warns beforehand (#575/4a)", async () => {
+  it("[SR-056/AK-zdr1] writes the delivery's title back over a local edit and warns beforehand (#575/4a)", async () => {
     const { workspace, ids } = await delivered();
     const two = String(ids["REQ-2"]);
     await run(workspace, "element.update", { ref: two, title: "Local title" });
@@ -354,7 +354,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect((await get(workspace, two)).element.title).toBe("Show the wind");
   });
 
-  it("[SR-056/AK6] warns before it writes the delivery's relations over a local relation edit (#575/4a)", async () => {
+  it("[SR-056/AK-zdr1] warns before it writes the delivery's relations over a local relation edit (#575/4a)", async () => {
     const { workspace, ids } = await delivered();
     const three = String(ids["REQ-3"]);
     await run(workspace, "relation.add", {
@@ -381,7 +381,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect((await get(workspace, three)).element.relations).toEqual([]);
   });
 
-  it("[SR-056/AK6] warns of a local value of a mapped property that does not count (#575/4a)", async () => {
+  it("[SR-056/AK-zdr1] warns of a local value of a mapped property that does not count (#575/4a)", async () => {
     const comment =
       '<ATTRIBUTE-VALUE-STRING THE-VALUE="from the source"><DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>ad-comment</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION></ATTRIBUTE-VALUE-STRING>';
     const { workspace } = await open({
@@ -404,7 +404,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-056/AK6] warns of a local title an update with a changed delivery writes over (#575/4a)", async () => {
+  it("[SR-056/AK-zdr1] warns of a local title an update with a changed delivery writes over (#575/4a)", async () => {
     const { workspace, ids } = await delivered();
     const one = String(ids["REQ-1"]);
     await run(workspace, "element.update", { ref: one, title: "Local title" });
@@ -419,7 +419,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-053/AK3] [SR-008/AK3] [SR-055/AK3] refuses the import while an element file cannot be read, changing no file, and warns in reqif.analyze (#575/8)", async () => {
+  it("[SR-053/AK-stcg] [SR-008/AK-kdrw] [SR-055/AK-ttn9] refuses the import while an element file cannot be read, changing no file, and warns in reqif.analyze (#575/8)", async () => {
     const { workspace, ids, root } = await delivered();
     const one = await get(workspace, String(ids["REQ-1"]));
     const file = path.join(root, "Kunde-A", path.basename(one.element.file));
@@ -446,7 +446,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(await tree(root)).toEqual(before);
   });
 
-  it("[SR-056/AK5] leaves an element changed only locally as it is (#575/1)", async () => {
+  it("[SR-056/AK-fxds] leaves an element changed only locally as it is (#575/1)", async () => {
     const { workspace, ids, root } = await delivered();
     await run(workspace, "element.update", { ref: String(ids["REQ-2"]), text: "Local.\n" });
     const before = await tree(root);
@@ -468,7 +468,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-056/AK4] updates without conflict an element changed locally to what the delivery gives (#575/2)", async () => {
+  it("[SR-056/AK-wx64] updates without conflict an element changed locally to what the delivery gives (#575/2)", async () => {
     const { workspace, ids } = await delivered();
     const one = String(ids["REQ-1"]);
     await run(workspace, "element.update", {
@@ -482,7 +482,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(after.element.properties["import-version"]).toBe(after.element.version);
   });
 
-  it("[SR-056/AK1] counts a local value of an unmapped property that counts as a change of the delivery, and with a local text a conflict (#575/5a)", async () => {
+  it("[SR-056/AK-nvm9] counts a local value of an unmapped property that counts as a change of the delivery, and with a local text a conflict (#575/5a)", async () => {
     const { workspace, ids } = await delivered();
     const two = String(ids["REQ-2"]);
     await run(workspace, "element.update", {
@@ -583,7 +583,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect([refused.code, refused.details?.["fields"]]).toEqual(["input.invalid", ["mapping.types[0].type"]]);
   });
 
-  it("[SR-053/AK3] warns in reqif.analyze of a repository that is not on this machine", async () => {
+  it("[SR-053/AK-stcg] warns in reqif.analyze of a repository that is not on this machine", async () => {
     const { workspace, root } = await open({
       "reqseq-workspace.yaml": [
         "reqseq-workspace: 1",

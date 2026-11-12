@@ -113,7 +113,7 @@ const filesOutsideGit = async (folder: string): Promise<string[]> => {
 
 // 200 writes and a few Git calls: several seconds on slow CI machines (Windows).
 describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => {
-  it("[SR-081/AK3] two copies create 100 elements each; after a Git merge the check finds no duplicate IDs", async () => {
+  it("[SR-081/AK-j4rm] two copies create 100 elements each; after a Git merge the check finds no duplicate IDs", async () => {
     const { origin, clones } = await copies(2);
     const [a, b] = clones as [FixtureWorkspace, FixtureWorkspace];
     // Both copies work at the same time, each on its own files.
@@ -140,7 +140,7 @@ describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => 
     expect(await findings(workspace)).toEqual(await findings(open(origin)));
   });
 
-  it("[SR-081/AK3] a copy kept open across the merge finds the same as a fresh read: no findings from caches", async () => {
+  it("[SR-081/AK-j4rm] a copy kept open across the merge finds the same as a fresh read: no findings from caches", async () => {
     const [a, b] = (await copies(2)).clones as [FixtureWorkspace, FixtureWorkspace];
     await Promise.all([createNeeds(a, "A", PER_COPY), createNeeds(b, "B", PER_COPY)]);
 
@@ -172,7 +172,7 @@ describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => 
     expect(await running.get(duplicateIdProblemsState)).toEqual([]);
   });
 
-  it("[SR-081/AK3] a copy that starts again with its model cache after the merge finds the same as a fresh read", async () => {
+  it("[SR-081/AK-j4rm] a copy that starts again with its model cache after the merge finds the same as a fresh read", async () => {
     const [a, b] = (await copies(2)).clones as [FixtureWorkspace, FixtureWorkspace];
     await Promise.all([createNeeds(a, "A", PER_COPY), createNeeds(b, "B", PER_COPY)]);
     const cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-081-model-cache-"));

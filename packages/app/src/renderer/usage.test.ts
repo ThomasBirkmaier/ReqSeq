@@ -67,7 +67,7 @@ const order = (query: string, storage: UsageStorage | undefined): string[] =>
   ).map(({ item }) => item.id);
 
 describe("ranking by use", () => {
-  it("[SR-108/AK3] puts the command used more often first among equally good matches", () => {
+  it("[SR-108/AK-f6t5] puts the command used more often first among equally good matches", () => {
     expect(order("cl", undefined)).toEqual(["close", "close-all"]);
     expect(order("cl", used(["", "close-all", 1], ["", "close-all", 1], ["", "close", 1]))).toEqual([
       "close-all",
@@ -75,12 +75,12 @@ describe("ranking by use", () => {
     ]);
   });
 
-  it("[SR-108/AK3] puts the command used more recently first among equally good matches used equally often", () => {
+  it("[SR-108/AK-f6t5] puts the command used more recently first among equally good matches used equally often", () => {
     expect(order("cl", used(["", "close", 20], ["", "close-all", 2]))).toEqual(["close-all", "close"]);
     expect(order("cl", used(["", "close-all", 20], ["", "close", 2]))).toEqual(["close", "close-all"]);
   });
 
-  it("[SR-108/AK3] weighs often and recently together: twenty uses a year ago do not outweigh one today", () => {
+  it("[SR-108/AK-f6t5] weighs often and recently together: twenty uses a year ago do not outweigh one today", () => {
     const storage = used(...Array.from({ length: 20 }, () => ["", "close-all", 365] as const), [
       "",
       "close",
@@ -89,7 +89,7 @@ describe("ranking by use", () => {
     expect(order("cl", storage)).toEqual(["close", "close-all"]);
   });
 
-  it("[SR-108/AK3] never lets use lift a command above a better match", () => {
+  it("[SR-108/AK-f6t5] never lets use lift a command above a better match", () => {
     const heavy = used(...Array.from({ length: 50 }, () => ["", "sort", 0] as const));
     // "Sort list" has no word that begins with "all": it is the weaker match for "list" and stays below.
     expect(order("list", undefined).slice(0, 2)).toEqual(["all", "sort"]);
@@ -98,7 +98,7 @@ describe("ranking by use", () => {
     expect(order("fl", heavy).slice(0, 3).sort()).toEqual(["property", "status", "type"]);
   });
 
-  it("[SR-108/AK3] shows an empty text in the order of use, the unused in the given order", () => {
+  it("[SR-108/AK-f6t5] shows an empty text in the order of use, the unused in the given order", () => {
     expect(order("", undefined)).toEqual(COMMANDS.map(({ id }) => id));
     expect(order("", used(["", "close", 3], ["", "sort", 3], ["", "sort", 1]))).toEqual([
       "sort",
@@ -111,7 +111,7 @@ describe("ranking by use", () => {
     ]);
   });
 
-  it("[SR-108/AK3] keeps the plain order when the storage is missing, throws or holds something else", () => {
+  it("[SR-108/AK-f6t5] keeps the plain order when the storage is missing, throws or holds something else", () => {
     const plain = order("cl", undefined);
     const throwing: UsageStorage = {
       getItem: () => {
@@ -136,7 +136,7 @@ describe("ranking by use", () => {
     }).not.toThrow();
   });
 
-  it("[SR-121/AK2] puts the command chosen for a text first when the text is typed again", () => {
+  it("[SR-121/AK-ynwj] puts the command chosen for a text first when the text is typed again", () => {
     // By match "Filter list by type" is first for "fl".
     expect(order("fl", undefined)[0]).toBe("type");
     const storage = memory();
@@ -148,7 +148,7 @@ describe("ranking by use", () => {
     expect(order("fl", storage).slice(1).sort()).toEqual(["property", "type"]);
   });
 
-  it("[SR-121/AK2] keeps it after a restart, ignores case and spaces, and changes no other text", () => {
+  it("[SR-121/AK-ynwj] keeps it after a restart, ignores case and spaces, and changes no other text", () => {
     const storage = memory();
     promptUse(
       () => storage,
@@ -161,7 +161,7 @@ describe("ranking by use", () => {
     expect(order("fil", storage)[0]).toBe("status");
   });
 
-  it("[SR-121/AK2] remembers the newest choice for a text, and one choice per text", () => {
+  it("[SR-121/AK-ynwj] remembers the newest choice for a text, and one choice per text", () => {
     const storage = memory();
     const use = promptUse(
       () => storage,
@@ -173,7 +173,7 @@ describe("ranking by use", () => {
     expect(loadUsage(() => storage).queries).toEqual([["fl", "property"]]);
   });
 
-  it("[SR-121/AK2] puts the remembered command first only when it is offered and matches now", () => {
+  it("[SR-121/AK-ynwj] puts the remembered command first only when it is offered and matches now", () => {
     const storage = memory();
     promptUse(
       () => storage,
@@ -317,7 +317,7 @@ describe("ranking by fit to the shown view", () => {
           ),
     ).map(({ item }) => item.id);
 
-  it("[SR-133/AK1] shows an empty text with the fitting commands first, the others below in the same order", () => {
+  it("[SR-133/AK-w23t] shows an empty text with the fitting commands first, the others below in the same order", () => {
     expect(fitOrder("", ["close-all", "status"])).toEqual([
       "status",
       "close-all",
@@ -333,13 +333,13 @@ describe("ranking by fit to the shown view", () => {
     ).toEqual(["close-all", "status", "sort", "type", "property", "all", "close"]);
   });
 
-  it("[SR-133/AK1] keeps every command reachable by search, fitting or not", () => {
+  it("[SR-133/AK-w23t] keeps every command reachable by search, fitting or not", () => {
     for (const { id, name } of COMMANDS) {
       expect(fitOrder(name, ["type"])[0]).toBe(id);
     }
   });
 
-  it("[SR-133/AK2] puts the fitting command first among equally good matches, before the one in use more", () => {
+  it("[SR-133/AK-cgzy] puts the fitting command first among equally good matches, before the one in use more", () => {
     expect(fitOrder("cl", [])).toEqual(["close", "close-all"]);
     expect(fitOrder("cl", ["close-all"])).toEqual(["close-all", "close"]);
     expect(fitOrder("cl", ["close-all"], used(["", "close", 0], ["", "close", 0]))).toEqual([
@@ -348,12 +348,12 @@ describe("ranking by fit to the shown view", () => {
     ]);
   });
 
-  it("[SR-133/AK2] never lets fit lift a command above a better match", () => {
+  it("[SR-133/AK-cgzy] never lets fit lift a command above a better match", () => {
     // "Sort list" is the weaker match for "list" and stays below "List all elements", fitting or not.
     expect(fitOrder("list", ["sort"]).slice(0, 2)).toEqual(["all", "sort"]);
   });
 
-  it("[SR-133/AK2] keeps the command chosen for a typed text first, though another one fits", () => {
+  it("[SR-133/AK-cgzy] keeps the command chosen for a typed text first, though another one fits", () => {
     expect(fitOrder("fl", ["type"])[0]).toBe("type");
     expect(fitOrder("fl", ["type"], used(["fl", "property", 1]))[0]).toBe("property");
   });

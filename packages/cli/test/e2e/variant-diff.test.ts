@@ -23,7 +23,7 @@ const workspace = async (files: Readonly<Record<string, string>> = {}): Promise<
 };
 
 describe("variant diff (SR-044)", () => {
-  it("[SR-044/AK1] variant diff of A lists added A2, replaced K1 by A1 and excluded K2", async () => {
+  it("[SR-044/AK-nxhm] variant diff of A lists added A2, replaced K1 by A1 and excluded K2", async () => {
     const ws = await workspace();
     const result = await run(["variant", "diff", "VAR-0000c1"], { cwd: ws.root });
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -41,7 +41,7 @@ describe("variant diff (SR-044)", () => {
     );
   });
 
-  it("[SR-044/AK3] a replaced row names the IDs of core requirement and replacement", async () => {
+  it("[SR-044/AK-dc1n] a replaced row names the IDs of core requirement and replacement", async () => {
     const ws = await workspace();
     const result = await run(["variant", "diff", "VAR-0000c1", "--json"], { cwd: ws.root });
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -49,7 +49,7 @@ describe("variant diff (SR-044)", () => {
     expect(output.replaced).toEqual([{ core: `${P}a1`, replacement: `${P}b1` }]);
   });
 
-  it("[SR-041/AK8] variant diff of A lists SR-A, whose replaces names no core requirement, as added", async () => {
+  it("[SR-041/AK-g0cz] variant diff of A lists SR-A, whose replaces names no core requirement, as added", async () => {
     const ws = await workspace({
       "requirements/SR-0000000000b3.md":
         `---\nid: ${P}b3\ntype: system-requirement\nstatus: draft\ntitle: Report gusts\n` +

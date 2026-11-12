@@ -56,7 +56,7 @@ scenariosOf("element.search", [
     expect: "output",
   },
   {
-    tag: "[SR-174/AK5]",
+    tag: "[SR-174/AK-rfbg]",
     name: "a snippet of a Markdown text: heading, bold, link, inline reference and code are plain words",
     fixture: SNIPPETS,
     input: { query: "gusts pulse" },
@@ -78,7 +78,7 @@ scenariosOf("element.search", [
     },
   },
   {
-    tag: "[SR-174/AK5]",
+    tag: "[SR-174/AK-rfbg]",
     name: "a snippet of a list property: the item with the match",
     fixture: SNIPPETS,
     input: { query: "hurricane" },
@@ -99,7 +99,7 @@ scenariosOf("element.search", [
     },
   },
   {
-    tag: "[SR-174/AK5]",
+    tag: "[SR-174/AK-rfbg]",
     name: "no snippet for a title-only hit, its title marked",
     fixture: SNIPPETS,
     input: { query: "icing" },
@@ -109,7 +109,7 @@ scenariosOf("element.search", [
     },
   },
   {
-    tag: "[SR-174/AK5]",
+    tag: "[SR-174/AK-rfbg]",
     name: "no snippet for a status-name hit",
     fixture: SNIPPETS,
     input: { query: "approved" },
@@ -142,7 +142,7 @@ scenariosOf("element.search", [
     expect: "output",
   },
   {
-    tag: "[SR-149/AK6]",
+    tag: "[SR-149/AK-byyt]",
     name: "grouped by package: the hits of each group in relevance order, a hit in two packages twice",
     fixture: { fixture: "SR-149/group" },
     input: { query: "wind", group: "package" },
@@ -176,7 +176,7 @@ scenariosOf("element.search", [
     expect: "error",
   },
   {
-    tag: "[SR-124/AK4]",
+    tag: "[SR-124/AK-mtm9]",
     name: "within a status filter: the hits left in their relevance order",
     fixture: { fixture: "SR-149/group" },
     input: { query: "wind", selection: { where: { status: ["draft"] } } },

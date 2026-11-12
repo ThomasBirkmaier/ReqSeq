@@ -45,7 +45,7 @@ const titles = async (workspace: Workspace): Promise<Problem[]> =>
   );
 
 describe("titles stored across a repository boundary (SR-005 AK4)", () => {
-  it("[SR-005/AK4] workspace.check warns about a title on a relation into another repository, with file and line", async () => {
+  it("[SR-005/AK-gx7c] workspace.check warns about a title on a relation into another repository, with file and line", async () => {
     const workspace = await open({
       [`system/${SOURCE.file}`]: source(
         "draft",
@@ -71,7 +71,7 @@ describe("titles stored across a repository boundary (SR-005 AK4)", () => {
     ]);
   });
 
-  it("[SR-005/AK4] warns also when the source has an invalid status, and for a relation-valued property", async () => {
+  it("[SR-005/AK-gx7c] warns also when the source has an invalid status, and for a relation-valued property", async () => {
     const workspace = await open({
       [`system/${SOURCE.file}`]: source(
         "obsolete",

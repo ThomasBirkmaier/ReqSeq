@@ -93,7 +93,7 @@ const keyedCriteria = (n: number) => {
 };
 
 describe("outdated evidence (SR-025 AK4)", () => {
-  it("[SR-025/AK4] reports the evidence of a requirement whose records all belong to older versions, naming the newest", async () => {
+  it("[SR-025/AK-tmds] reports the evidence of a requirement whose records all belong to older versions, naming the newest", async () => {
     const workspace = await withRecords([
       record(A, OLD, "2026-01-01T10:00:00Z"),
       record(A, OLD, "2026-01-02T10:00:00Z", { repository: "system", file: "evidence/results.xml", line: 7 }),
@@ -121,7 +121,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
-  it("[SR-025/AK4] reports nothing when a record of the current version is older than one of an older version (#201)", async () => {
+  it("[SR-025/AK-tmds] reports nothing when a record of the current version is older than one of an older version (#201)", async () => {
     // The hint follows the status: verified by the current record.
     const workspace = await withRecords([
       record(A, A_VERSION, "2026-01-01T10:00:00Z"),
@@ -130,7 +130,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK4] reports nothing when the newest record is for the current version", async () => {
+  it("[SR-025/AK-tmds] reports nothing when the newest record is for the current version", async () => {
     const workspace = await withRecords([
       record(A, OLD, "2026-01-01T10:00:00Z"),
       record(A, A_VERSION, "2026-01-02T10:00:00+02:00"),
@@ -138,7 +138,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK4] [SR-205/AK2] reports a criterion with records of older versions only while the others are verified (SR-031 AK8), named with number, key and text", async () => {
+  it("[SR-025/AK-tmds] [SR-205/AK-m2vv] reports a criterion with records of older versions only while the others are verified (SR-031 AK8), named with number, key and text", async () => {
     // fixtures/SR-031/criteria: SR-0000e3 has AK1 and AK2 passed at its current version, AK3 only at
     // an older one, so its status is outdated (SR-031 AK8); the other requirements are not outdated.
     const fixture = await createFixtureWorkspace({ fixture: "SR-031/criteria" });
@@ -175,7 +175,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
-  it("[SR-025/AK4] names every criterion with records of older versions only, and none once all are verified", () => {
+  it("[SR-025/AK-tmds] names every criterion with records of older versions only, and none once all are verified", () => {
     const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
     const findings = (records: readonly EvidenceRecord[]): string[] =>
       outdatedEvidenceFindings(
@@ -229,7 +229,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(findings([record(B, A_VERSION, "2026-01-01T00:00:00Z", { result: "inconclusive" })])).toEqual([]);
   });
 
-  it("[SR-025/AK4] takes the newest record per kind and variant", async () => {
+  it("[SR-025/AK-tmds] takes the newest record per kind and variant", async () => {
     const workspace = await withRecords([
       record(A, A_VERSION, "2026-01-03T00:00:00Z"),
       record(A, OLD, "2026-01-02T00:00:00Z", { kind: "validation" }),
@@ -247,7 +247,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
-  it("[SR-025/AK4] counts a record of either normal form of the current version (ADR-0005)", () => {
+  it("[SR-025/AK-tmds] counts a record of either normal form of the current version (ADR-0005)", () => {
     const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
     const both = { n1: A_VERSION, n2: "n2:1111111111111111" };
     const label = (): string => "B";
@@ -470,7 +470,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       return [alone, state];
     };
 
-    it("[SR-026/AK3] [SR-025/AK4] names the first record of a tie in the order of the records, not of the index", async () => {
+    it("[SR-026/AK-w590] [SR-025/AK-tmds] names the first record of a tie in the order of the records, not of the index", async () => {
       // Two locations whose repositories are not in name order: the index sorts a tie by repository
       // name, the records (and so the state) keep the order of the workspace file (review of ThomasBirkmaier/ReqSeq-archive#698, S1).
       const at = "2026-01-02T10:00:00Z";
@@ -482,7 +482,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       expect(alone).toEqual(state);
     });
 
-    it("[SR-026/AK3] [SR-025/AK4] agrees with the state on generated records (kinds, variants, ties, unknown elements)", async () => {
+    it("[SR-026/AK-w590] [SR-025/AK-tmds] agrees with the state on generated records (kinds, variants, ties, unknown elements)", async () => {
       const probe = await withRecords([]);
       const current = new Map([
         [N, await versionOf(probe, N)],
@@ -562,7 +562,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       expect(asked).toEqual([A, N]);
     });
 
-    it("[SR-026/AK3] [SR-025/AK4] agrees with the state for two copies of one UUID and a record of one copy's version", async () => {
+    it("[SR-026/AK-w590] [SR-025/AK-tmds] agrees with the state for two copies of one UUID and a record of one copy's version", async () => {
       // Two copies of one need with different versions (SR-088) and one record of one copy's version.
       // Each copy is checked against its own version: only the other copy is reported, whichever copy
       // the record is of. The hint of one element gives the same. Which version is current for a

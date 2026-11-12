@@ -89,7 +89,7 @@ describe("the lines of an element's evidence records", () => {
     expect(new Set(rows.map((row) => row.key)).size).toBe(3);
   });
 
-  it("[SR-032/AK3] folds the older records by run, one line each with date, version and count, opening to its records", () => {
+  it("[SR-032/AK-hbdt] folds the older records by run, one line each with date, version and count, opening to its records", () => {
     const records = ["a", "b", "c"].map((item) => record({ item }));
     const lines = displayLines(
       {
@@ -113,7 +113,7 @@ describe("the lines of an element's evidence records", () => {
     ]);
   });
 
-  it("[SR-032/AK4] gives one line per criterion with result and test count, a failed or outdated one coloured and naming its views, opening to test cases and records", () => {
+  it("[SR-032/AK-rbjn] gives one line per criterion with result and test count, a failed or outdated one coloured and naming its views, opening to test cases and records", () => {
     const records = [
       record({ item: "mac", testCase: "shows speed", variant: "uuid-v" }),
       record({ item: "core", testCase: "shows speed" }),
@@ -209,7 +209,7 @@ describe("the lines of an element's evidence records", () => {
     expect(whole.rows[1]?.children.map((test) => test.head)).toEqual(["2026-10-21 09:00 UTC · inconclusive"]);
   });
 
-  it("[SR-032/AK5] states the values the open records share once, and nothing when they share none", () => {
+  it("[SR-032/AK-cd8f] states the values the open records share once, and nothing when they share none", () => {
     const shared = (values: Partial<EvidenceListOutput["display"]["shared"]>) =>
       displayLines({ records: [], display: { shared: values, rows: [], older: [] } }, undefined).shared;
     expect(

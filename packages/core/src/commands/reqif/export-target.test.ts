@@ -28,7 +28,7 @@ const exported = (workspace: Workspace, output: string, id: string) =>
   >;
 
 describe("reqif.export to an existing file (SR-207)", () => {
-  it("[SR-207/AK1] refuses an XML file that is no ReqIF file, names why and leaves it and the image folder as they are", async () => {
+  it("[SR-207/AK-gbbc] refuses an XML file that is no ReqIF file, names why and leaves it and the image folder as they are", async () => {
     const { fixture, workspace } = await open({ "results.xml": JUNIT, "broken.reqif": "<REQ-IF>" });
     // WIND embeds an image, which would be copied next to the output.
     const error = await exported(workspace, "results.xml", WIND).catch((e: unknown) => e);
@@ -47,7 +47,7 @@ describe("reqif.export to an existing file (SR-207)", () => {
     expect(await fs.readFile(fixture.path("broken.reqif"), "utf8")).toBe("<REQ-IF>");
   });
 
-  it("[SR-207/AK2] replaces an unchanged ReqIF file", async () => {
+  it("[SR-207/AK-kyqf] replaces an unchanged ReqIF file", async () => {
     const other = '<REQ-IF xmlns="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd"/>\n';
     const { fixture, workspace } = await open({ "other.reqif": other });
     await exported(workspace, "s.reqif", WIND);
@@ -58,7 +58,7 @@ describe("reqif.export to an existing file (SR-207)", () => {
     expect(await fs.readFile(fixture.path("other.reqif"), "utf8")).toContain(`IDENTIFIER="_sh-${HISTORY}"`);
   });
 
-  it("[SR-207/AK3] refuses a file in the image folder that is no image by its content, and writes nothing", async () => {
+  it("[SR-207/AK-h192] refuses a file in the image folder that is no image by its content, and writes nothing", async () => {
     // Two images: the first copy goes to a free place, the second onto a text file.
     const copies = ["s-images/SR-0000000052b6/anemometer.png", "s-images/SR-0000000052b6/anemometer-2.png"];
     const { fixture, workspace } = await open({

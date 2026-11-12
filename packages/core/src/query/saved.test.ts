@@ -24,7 +24,7 @@ const open = async (options: FixtureOptions): Promise<Workspace> => {
 };
 
 describe("saved filter files (SR-070)", () => {
-  it("[SR-070/AK1] reads and writes filters at the root of a repository, never the workspace file", async () => {
+  it("[SR-070/AK-nzrb] reads and writes filters at the root of a repository, never the workspace file", async () => {
     const workspace = await open({
       fixture: "SR-069/filter",
       files: { "reqseq-workspace.yaml": WORKSPACE("{ repository: system, path: . }") },
@@ -60,7 +60,7 @@ describe("saved filter files (SR-070)", () => {
     });
   });
 
-  it("[SR-008/AK4] reports a filter file of an unknown format number as faulty and uses none of it; keeps every faulty file of a name, and reports an empty file", async () => {
+  it("[SR-008/AK-pm64] reports a filter file of an unknown format number as faulty and uses none of it; keeps every faulty file of a name, and reports an empty file", async () => {
     const workspace = await open({
       fixture: "SR-069/filter",
       files: {
@@ -115,7 +115,7 @@ describe("saved filter files (SR-070)", () => {
     expect(inSavedFilter(filter, () => 3)).toBe(3);
   });
 
-  it("[SR-070/AK1] makes a file name of letters and digits that every file system takes", () => {
+  it("[SR-070/AK-nzrb] makes a file name of letters and digits that every file system takes", () => {
     expect(filterSlug("Open drafts")).toBe("open-drafts");
     expect(filterSlug("  Überprüfte Größen: 2026/Q3 ")).toBe("uberprufte-großen-2026-q3");
     expect(filterSlug("需求 review")).toBe("需求-review");

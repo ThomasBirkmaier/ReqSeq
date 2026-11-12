@@ -48,7 +48,7 @@ for (const [scheme, colours] of [
   ["light", LIGHT],
   ["dark", DARK],
 ] as const) {
-  test(`[SR-113/AK1] the app starts ${scheme} as the system says`, async () => {
+  test(`[SR-113/AK-jp1f] the app starts ${scheme} as the system says`, async () => {
     const running = await launchApp(FIXTURE, { colorScheme: scheme });
     const { window } = running;
     try {
@@ -64,7 +64,7 @@ for (const [scheme, colours] of [
   });
 }
 
-test("[SR-113/AK1] without a choice the app follows a change of the system setting", async () => {
+test("[SR-113/AK-jp1f] without a choice the app follows a change of the system setting", async () => {
   const running = await launchApp(FIXTURE, { colorScheme: null });
   const { window } = running;
   try {
@@ -83,7 +83,7 @@ test("[SR-113/AK1] without a choice the app follows a change of the system setti
   }
 });
 
-test("[SR-113/AK2] the command switches light and dark without a restart", async () => {
+test("[SR-113/AK-szv3] the command switches light and dark without a restart", async () => {
   const running = await launchApp(FIXTURE, { colorScheme: "light" });
   const { window } = running;
   try {
@@ -125,7 +125,7 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
   }
 });
 
-test("[SR-113/AK3] a scheme chosen by command stays when the system changes, until Follow system light or dark mode; after a restart the app follows the system again", async () => {
+test("[SR-113/AK-m9n1] a scheme chosen by command stays when the system changes, until Follow system light or dark mode; after a restart the app follows the system again", async () => {
   const running = await launchApp(FIXTURE, { colorScheme: null });
   const { window } = running;
   try {

@@ -57,7 +57,7 @@ const codePoints = (text: string): number => Array.from(text).length;
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
 describe("search hit snippet (SR-174)", () => {
-  it("[SR-174/AK1] names the text and shows one line of its visible text without Markdown characters, the match marked", async () => {
+  it("[SR-174/AK-mxnw] names the text and shows one line of its visible text without Markdown characters, the match marked", async () => {
     const ws = await open();
     const storm = await hitOf(ws, "storm", A1);
     expect(storm.fields).toEqual(["text"]);
@@ -98,7 +98,7 @@ describe("search hit snippet (SR-174)", () => {
     }
   });
 
-  it("[SR-174/AK1] gives no snippet for a match the reader does not see: a link title, HTML, an entity", async () => {
+  it("[SR-174/AK-mxnw] gives no snippet for a match the reader does not see: a link title, HTML, an entity", async () => {
     const ws = await open(
       element(
         "b1",
@@ -118,7 +118,7 @@ describe("search hit snippet (SR-174)", () => {
     expect((await hitOf(ws, "calm", `${P}b1`)).snippet?.text).toBe("A calm day © here ok.");
   });
 
-  it("[SR-174/AK2] names the property and shows the list item, the nested value and the choice name with the match", async () => {
+  it("[SR-174/AK-f869] names the property and shows the list item, the nested value and the choice name with the match", async () => {
     const ws = await open(
       element(
         "b2",
@@ -161,7 +161,7 @@ describe("search hit snippet (SR-174)", () => {
     });
   });
 
-  it("[SR-174/AK3] shows one snippet, in the text when a word is found there, else in the first property in metamodel order", async () => {
+  it("[SR-174/AK-kj61] shows one snippet, in the text when a word is found there, else in the first property in metamodel order", async () => {
     const ws = await open();
     // "dial" is in the title, the text and two properties of a2: the text wins.
     const dial = await hitOf(ws, "dial", A2);
@@ -183,7 +183,7 @@ describe("search hit snippet (SR-174)", () => {
     expect((await hitOf(ws, "speed turns", A2)).snippet?.text).toBe("The dial shows the wind speed.");
   });
 
-  it("[SR-174/AK4] shows no snippet for a match only in the title or an ID, and marks the title", async () => {
+  it("[SR-174/AK-jtqc] shows no snippet for a match only in the title or an ID, and marks the title", async () => {
     const ws = await open();
     const icing = await hitOf(ws, "icing", A3);
     expect(icing.fields).toEqual(["title"]);

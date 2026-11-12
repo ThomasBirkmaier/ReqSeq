@@ -30,7 +30,7 @@ const workspace = async (): Promise<FixtureWorkspace> => {
 };
 
 describe("reqseq element search (SR-068)", () => {
-  it("[SR-068/AK2] shows one line per hit, best first, for a query with a typo in another case", async () => {
+  it("[SR-068/AK-jxr3] shows one line per hit, best first, for a query with a typo in another case", async () => {
     const ws = await workspace();
     const result = await run(["element", "search", "MESURE"], { cwd: ws.root });
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -39,7 +39,7 @@ describe("reqseq element search (SR-068)", () => {
     );
   });
 
-  it("[SR-068/AK1] finds a short ID in title and IDs only, the same with the index from the cache", async () => {
+  it("[SR-068/AK-fxhq] finds a short ID in title and IDs only, the same with the index from the cache", async () => {
     const ws = await workspace();
     const args = ["element", "search", "sr-0000b5", "--fields", "title", "--fields", "id", "--json"];
     const first = await run(args, { cwd: ws.root });
@@ -49,7 +49,7 @@ describe("reqseq element search (SR-068)", () => {
     expect(output.hits.map((hit) => [hit.shortId, hit.fields])).toEqual([["SR-0000b5", ["id"]]]);
   });
 
-  it("[SR-068/AK3] searches only within the selection, one page at a time", async () => {
+  it("[SR-068/AK-bvx3] searches only within the selection, one page at a time", async () => {
     const ws = await workspace();
     const result = await run(
       [

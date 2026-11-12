@@ -11,7 +11,7 @@ const state = (token: string, marked: string | undefined, split = true): MarkSta
 });
 
 describe("markStep (SR-150 AK4)", () => {
-  it("[SR-150/AK4] follows a new selection in the same buffer, also when its element comes a render later", () => {
+  it("[SR-150/AK-xf7p] follows a new selection in the same buffer, also when its element comes a render later", () => {
     expect(markStep(state("0", "e1"), state("1", "e2"), undefined)).toEqual({
       pending: undefined,
       follow: true,

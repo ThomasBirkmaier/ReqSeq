@@ -112,7 +112,7 @@ const headCommit = async (ws: FixtureWorkspace): Promise<string> =>
   (await ws.git(["rev-parse", "HEAD"])).trim();
 
 describe("hint.list (SR-026)", () => {
-  it("[SR-026/AK1] lists every open hint with its kind, the element it is about, its target and its reason", async () => {
+  it("[SR-026/AK-vs4d] lists every open hint with its kind, the element it is about, its target and its reason", async () => {
     const ws = await fixture({ ...HINTS, git: true });
     const workspace = open(ws.root);
     const output = await list(workspace);
@@ -158,14 +158,14 @@ describe("hint.list (SR-026)", () => {
     );
   });
 
-  it("[SR-026/AK1] lists only hints: warnings about an element, no errors such as a missing target", async () => {
+  it("[SR-026/AK-vs4d] lists only hints: warnings about an element, no errors such as a missing target", async () => {
     const workspace = await opened();
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(check.problems.map((p) => p.code)).toContain("relation.missing-target");
     expect((await list(workspace)).hints).toEqual(check.problems.filter(isHint));
   });
 
-  it("[SR-026/AK1] gives the hints of workspace.check, also of a workspace with one finding of each kind", async () => {
+  it("[SR-026/AK-vs4d] gives the hints of workspace.check, also of a workspace with one finding of each kind", async () => {
     const workspace = await opened({ fixture: "SR-019/findings" });
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     const hints = check.problems.filter(isHint);
@@ -176,17 +176,17 @@ describe("hint.list (SR-026)", () => {
     expect(HINT_STATES.every((s) => (FINDING_STATES as readonly unknown[]).includes(s))).toBe(true);
   });
 
-  it("[SR-040/AK3] lists a hint for each requirement whose validity lists a superseded variant", async () => {
+  it("[SR-040/AK-j33h] lists a hint for each requirement whose validity lists a superseded variant", async () => {
     const output = await list(await opened(), { kind: ["variant.superseded-in-validity"] });
     expect(rows(output.hints)).toEqual([VALIDITY_R3]);
   });
 
-  it("[SR-072/AK2] lists a hint for each relation to a superseded element", async () => {
+  it("[SR-072/AK-y5gr] lists a hint for each relation to a superseded element", async () => {
     const output = await list(await opened(), { kind: ["relation.target-superseded"] });
     expect(rows(output.hints)).toEqual([SUPERSEDED_R3]);
   });
 
-  it("[SR-026/AK2] filters by kind", async () => {
+  it("[SR-026/AK-g7cj] filters by kind", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { kind: ["relation.outdated"] })).hints)).toEqual([
       OUTDATED_R1,
@@ -198,7 +198,7 @@ describe("hint.list (SR-026)", () => {
     expect((await list(workspace, { kind: ["trace.cycle"] })).hints).toEqual([]);
   });
 
-  it("[SR-026/AK2] filters by type, a type that extends it included", async () => {
+  it("[SR-026/AK-g7cj] filters by type, a type that extends it included", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { type: ["need"] })).hints)).toEqual([UNKNOWN_N2]);
     expect(rows((await list(workspace, { type: ["safety-requirement"] })).hints)).toEqual([
@@ -216,7 +216,7 @@ describe("hint.list (SR-026)", () => {
     expect((await list(workspace, { type: ["variant"] })).hints).toEqual([]);
   });
 
-  it("[SR-026/AK2] filters by package", async () => {
+  it("[SR-026/AK-g7cj] filters by package", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { package: "PKG-0000d1" })).hints)).toEqual([
       UNKNOWN_R4,
@@ -227,7 +227,7 @@ describe("hint.list (SR-026)", () => {
     expect(rows((await list(workspace, { package: P2 })).hints)).toEqual([REQUIRED_R2]);
   });
 
-  it("[SR-026/AK2] filters by variant: the elements without a validity and those whose validity lists it", async () => {
+  it("[SR-026/AK-g7cj] filters by variant: the elements without a validity and those whose validity lists it", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { variant: VA })).hints)).toEqual([
       REQUIRED_R2,
@@ -245,7 +245,7 @@ describe("hint.list (SR-026)", () => {
     ]);
   });
 
-  it("[SR-026/AK2] filters by element, and combines the filters", async () => {
+  it("[SR-026/AK-g7cj] filters by element, and combines the filters", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { ref: "SR-0000b3" })).hints)).toEqual([SUPERSEDED_R3, VALIDITY_R3]);
     expect(rows((await list(workspace, { ref: N1 })).hints)).toEqual([]);
@@ -303,7 +303,7 @@ describe("hint.list (SR-026)", () => {
     expect((await listError(workspace, { package: "PKG-ffffff" })).code).toBe("ref.unknown");
   });
 
-  it("[SR-013/AK3] names the meaning packages the package filter needs", async () => {
+  it("[SR-013/AK-bh0d] names the meaning packages the package filter needs", async () => {
     const workspace = await opened({
       ...HINTS,
       files: { "metamodel/standard-model.yaml": STANDARD.replace("    meaning: packages\n", "") },
@@ -332,7 +332,7 @@ describe("hint.list (SR-026)", () => {
     expect((await list(workspace, { package: P1 })).hints).toEqual([]);
   });
 
-  it("[SR-006/AK2] is incomplete while a repository is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] is incomplete while a repository is not on this machine", async () => {
     const workspace = await opened({
       ...HINTS,
       files: {
@@ -424,7 +424,7 @@ describe("hint.list (SR-026)", () => {
 });
 
 describe("hints at the element (SR-026 AK3)", () => {
-  it("[SR-026/AK3] element.get shows the outdated relation and reference of an element, with their lines", async () => {
+  it("[SR-026/AK-w590] element.get shows the outdated relation and reference of an element, with their lines", async () => {
     // More needs, so that R1's three targets are a small share of the store (`currentVersionsOf`).
     const needs = Object.fromEntries(
       [1, 2, 3, 4].map((i) => [
@@ -456,7 +456,7 @@ describe("hints at the element (SR-026 AK3)", () => {
     expect(outdated).toEqual(undated);
   });
 
-  it("[SR-026/AK3] element.get with versionDate names the dates, as hint.list does, also once the versions are built", async () => {
+  it("[SR-026/AK-w590] element.get with versionDate names the dates, as hint.list does, also once the versions are built", async () => {
     const ws = await fixture({ ...HINTS, git: true });
     const workspace = open(ws.root);
     const listed = (await list(workspace, { ref: R1 })).hints;
@@ -466,13 +466,13 @@ describe("hints at the element (SR-026 AK3)", () => {
     expect(listed[0]?.currentDate).toBe(await headDate(ws));
   });
 
-  it("[SR-026/AK3] element.get shows the other hints of the element too, and none on an element without", async () => {
+  it("[SR-026/AK-w590] element.get shows the other hints of the element too, and none on an element without", async () => {
     const workspace = await opened();
     expect(rows((await get(workspace, { ref: R3 })).problems ?? [])).toEqual([SUPERSEDED_R3, VALIDITY_R3]);
     expect((await get(workspace, { ref: N1 })).problems).toEqual([]);
   });
 
-  it("[SR-026/AK3] element.update and element.create show the outdated hints of the element they wrote", async () => {
+  it("[SR-026/AK-w590] element.update and element.create show the outdated hints of the element they wrote", async () => {
     const workspace = await opened();
     const shown = await get(workspace, { ref: R1 });
     const updated = (
@@ -515,7 +515,7 @@ describe("hints at the element (SR-026 AK3)", () => {
     );
   });
 
-  it("[SR-026/AK3] shows a hint at the element as its file holds it now", async () => {
+  it("[SR-026/AK-w590] shows a hint at the element as its file holds it now", async () => {
     const ws = await fixture();
     const workspace = open(ws.root);
     await workspace.get(elementStoreState);

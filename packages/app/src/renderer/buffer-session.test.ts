@@ -121,7 +121,7 @@ const everyKind = (): Buffer[] => [
 const names = fakeCall({ "element.list": listing(row(1), row(2), row(3, "other")) });
 
 describe("buffer session (SR-115 AK4)", () => {
-  it("[SR-115/AK4] keeps the filter steps of a search across a restart, not its grouping", async () => {
+  it("[SR-115/AK-qtv5] keeps the filter steps of a search across a restart, not its grouping", async () => {
     const steps = [step("status: draft", { status: ["draft"] })];
     const storage = memory();
     saveSession(
@@ -137,7 +137,7 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(restored.buffers).toEqual([searchBuffer("wind", steps), searchBuffer("gale")]);
   });
 
-  it("[SR-115/AK4] stores and restores every kind of buffer with its order of use", async () => {
+  it("[SR-115/AK-qtv5] stores and restores every kind of buffer with its order of use", async () => {
     const buffers = everyKind();
     const storage = memory();
     saveSession(() => storage, "key", sessionText(buffers));
@@ -207,7 +207,7 @@ describe("buffer session (SR-115 AK4)", () => {
     ]);
   });
 
-  it("[SR-115/AK4] keeps nothing of a storage that throws or holds something else, and stores no title or text", () => {
+  it("[SR-115/AK-qtv5] keeps nothing of a storage that throws or holds something else, and stores no title or text", () => {
     const buffers = everyKind();
     const text = sessionText(buffers);
     // Neither an element's title nor the output of a result is stored, and no selected row.
@@ -291,7 +291,7 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(loadSession(() => many, "key").buffers).toHaveLength(MAX_BUFFERS);
   });
 
-  it("[SR-115/AK4] stores per workspace", () => {
+  it("[SR-115/AK-qtv5] stores per workspace", () => {
     const status = (name: string, repositories?: object[]) => ({
       ok: true as const,
       output: { name, readOnly: false, ...(repositories === undefined ? {} : { repositories }) },
@@ -307,7 +307,7 @@ describe("buffer session (SR-115 AK4)", () => {
     ).toBeUndefined();
   });
 
-  it("[SR-115/AK4] leaves out an element that is gone and a result that is no implemented read command", async () => {
+  it("[SR-115/AK-qtv5] leaves out an element that is gone and a result that is no implemented read command", async () => {
     const session: StoredSession = {
       buffers: [
         { kind: "element", id: "uuid-1", repository: "spec" },
@@ -359,7 +359,7 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(quiet).not.toHaveBeenCalled();
   });
 
-  it("[SR-115/AK4] a name that cannot be read for another reason than a gone element makes the restore incomplete", async () => {
+  it("[SR-115/AK-qtv5] a name that cannot be read for another reason than a gone element makes the restore incomplete", async () => {
     const session: StoredSession = {
       buffers: [
         { kind: "element", id: "uuid-1", repository: "spec" },

@@ -5,14 +5,14 @@ import { DELIVERY, PARTIAL_DELIVERY, REPEAT, REPEATED, coreOutput, imported } fr
 
 scenariosOf("reqif.analyze", [
   {
-    tag: "[SR-055/AK1]",
+    tag: "[SR-055/AK-st6d]",
     name: "a delivery without mapping: every type and relation type with its attributes is unmapped",
     fixture: DELIVERY,
     input: { file: "in/lieferung.reqif" },
     expect: "output",
   },
   {
-    tag: "[SR-055/AK1]",
+    tag: "[SR-055/AK-st6d]",
     name: "a delivery through a mapping that leaves entries unmapped: the list before any write",
     fixture: PARTIAL_DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
@@ -31,7 +31,7 @@ scenariosOf("reqif.analyze", [
     expect: "error",
   },
   {
-    tag: "[SR-056/AK1]",
+    tag: "[SR-056/AK-nvm9]",
     name: "a repeated delivery: new, changed and dropped requirements and the conflicts, separately",
     fixture: REPEATED,
     input: { file: REPEAT.file, mapping: REPEAT.mapping },

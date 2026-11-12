@@ -41,7 +41,7 @@ const refusal = (result: Run): { code: string; message: string; details?: unknow
 };
 
 describe("reqseq baseline create", () => {
-  it("[SR-050/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version", async () => {
+  it("[SR-050/AK-cvrg] baseline.create writes a file in the baseline folder with name, date, commits and id plus version", async () => {
     const ws = await fixture();
     const head = await ws.head("system");
     const result = await create(ws, "Release 2", { package: "PKG-0000d1" });
@@ -60,7 +60,7 @@ describe("reqseq baseline create", () => {
     expect(await ws.git(["status", "--porcelain"], "system")).toBe("?? baselines/Release-2.yaml\n");
   });
 
-  it("[SR-050/AK2] uncommitted or never committed files of the selection, embedded files, metamodel or workspace file refuse the baseline; evidence records do not", async () => {
+  it("[SR-050/AK-dw8y] uncommitted or never committed files of the selection, embedded files, metamodel or workspace file refuse the baseline; evidence records do not", async () => {
     const ws = await fixture();
     await fs.appendFile(ws.path("system/requirements/SR-0000000000b1.md"), "edited\n");
     await fs.appendFile(ws.path("system/metamodel/standard-model.yaml"), "# edited\n");
@@ -75,7 +75,7 @@ describe("reqseq baseline create", () => {
     expect(error.message).toContain("SR-0000b1 (requirements/SR-0000000000b1.md)");
   });
 
-  it("[SR-050/AK4] R1 in system and R2 in sensor give the commits of system and sensor once each", async () => {
+  it("[SR-050/AK-j37t] R1 in system and R2 in sensor give the commits of system and sensor once each", async () => {
     const ws = await fixture();
     const result = await create(ws, "Both", { ids: ["SR-0000b1", "SR-0000e1"] });
     expect(result.code).toBe(0);
@@ -84,7 +84,7 @@ describe("reqseq baseline create", () => {
     );
   });
 
-  it("[SR-050/AK6] a second baseline „Release 1“ is refused naming the existing file, nothing overwritten", async () => {
+  it("[SR-050/AK-g01t] a second baseline „Release 1“ is refused naming the existing file, nothing overwritten", async () => {
     const ws = await fixture();
     const before = await read(ws, "baselines/release-1.yaml");
     expect(refusal(await create(ws, "Release 1", { package: "PKG-0000d1" }))).toMatchObject({
@@ -95,7 +95,7 @@ describe("reqseq baseline create", () => {
     expect((await fs.readdir(ws.path("system/baselines"))).sort()).toEqual(["broken.yaml", "release-1.yaml"]);
   });
 
-  it("[SR-050/AK7] a repository without a commit refuses the baseline naming it", async () => {
+  it("[SR-050/AK-k905] a repository without a commit refuses the baseline naming it", async () => {
     const ws = await fixture(["system"]);
     await ws.git(["init", "-q"], "sensor");
     const error = refusal(await create(ws, "Sensor", { ids: ["SR-0000e1"] }));

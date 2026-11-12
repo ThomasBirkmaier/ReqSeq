@@ -91,7 +91,7 @@ const linkedFile = (elementFile: string, text: string): string => {
 };
 
 describe("element.addAttachment", () => {
-  it("[SR-097/AK1] puts the image into the folder named like the element file, next to it, and the saved text links it relatively", async () => {
+  it("[SR-097/AK-zs31] puts the image into the folder named like the element file, next to it, and the saved text links it relatively", async () => {
     const opened = await open();
     const before = await fs.readFile(opened.fixture.path(WIND.file), "utf8");
     const out = await add(opened, { ref: "SR-e88fb3", sourcePath: "incoming/layout.png" });
@@ -119,7 +119,7 @@ describe("element.addAttachment", () => {
     );
   });
 
-  it("[SR-097/AK2] the link finds the image on disk and in the commit, as a text editor and a Git server look it up, and the image counts to the version", async () => {
+  it("[SR-097/AK-hp47] the link finds the image on disk and in the commit, as a text editor and a Git server look it up, and the image counts to the version", async () => {
     const opened = await open({ git: true });
     const out = await add(opened, { ref: WIND.id, sourcePath: opened.fixture.path("incoming/layout.png") });
     await invoke(
@@ -152,7 +152,7 @@ describe("element.addAttachment", () => {
     expect(await versionOf(opened, WIND.id)).not.toBe(version);
   });
 
-  it("[SR-097/AK2] a folder name ReqSeq did not choose is percent-encoded in the link, which still finds the image", async () => {
+  it("[SR-097/AK-hp47] a folder name ReqSeq did not choose is percent-encoded in the link, which still finds the image", async () => {
     const element =
       "---\nid: 0b7c6e1a-1111-4222-8333-000000000001\ntype: system-requirement\nstatus: draft\ntitle: Odd\n---\n";
     const opened = await open({
@@ -178,7 +178,7 @@ describe("element.addAttachment", () => {
     expect(top).toEqual({ file: "Top/layout.png", markdown: "![layout](Top/layout.png)" });
   });
 
-  it("[SR-097/AK2] gives every image a name that is the same and allowed on Windows, macOS and Linux", async () => {
+  it("[SR-097/AK-hp47] gives every image a name that is the same and allowed on Windows, macOS and Linux", async () => {
     const sources: Record<string, string> = {
       "incoming/Wind Läyout; v2 (final)&.PNG": "Wind-Layout-v2-final.png",
       // Windows itself refuses to create a file with a device name; the rule is checked elsewhere.
@@ -446,7 +446,7 @@ describe("element.addAttachment", () => {
     expect(await fs.readFile(fixture.path(`system/${original.file}`))).toEqual(PNG);
   });
 
-  it("[SR-190/AK3] copies an image given as bytes, named after its name, like one from a file", async () => {
+  it("[SR-190/AK-k05n] copies an image given as bytes, named after its name, like one from a file", async () => {
     const opened = await open();
     const output = await add(opened, { ref: WIND.id, content: PNG.toString("base64"), name: "Bild 1.PNG" });
     expect(output).toEqual({

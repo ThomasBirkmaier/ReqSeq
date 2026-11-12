@@ -7,7 +7,7 @@ import { FIELD_MENU, LISTABLE } from "./field-menu.js";
 const hitOn = (target: Element): MenuHit => ({ place: "field-property", target, point: { x: 0, y: 0 } });
 
 describe("the menu of a field", () => {
-  it("[SR-196/AK2] offers the list on a box marked as listing, not on another box or outside a box", () => {
+  it("[SR-196/AK-ndw1] offers the list on a box marked as listing, not on another box or outside a box", () => {
     document.body.innerHTML = `<div data-field="topic" ${LISTABLE}><span id="topic">Wind</span></div><div data-field="rationale"><span id="rationale">Why</span></div><p id="page"></p>`;
     const at = (id: string): Element => document.getElementById(id) as Element;
     expect(FIELD_MENU.listable(hitOn(at("topic")))).toBe(true);

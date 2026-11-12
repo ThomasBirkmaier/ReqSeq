@@ -127,7 +127,7 @@ const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): P
 
 describe("Git only read (SR-083, D-036)", () => {
   for (const [name, scenarios] of Object.entries(CALLS)) {
-    it(`[SR-083/AK1] ${name} leaves the Git folder as it was and starts only git commands that read`, async () => {
+    it(`[SR-083/AK-fsx5] ${name} leaves the Git folder as it was and starts only git commands that read`, async () => {
       const repository = await fixture({ fixture: "SR-001/two-elements", files: FILES, git: true });
       const workspace = open(repository.root);
       if (name === "baseline.compare" || name === "baseline.get") {
@@ -147,12 +147,12 @@ describe("Git only read (SR-083, D-036)", () => {
     });
   }
 
-  it("[SR-083/AK1] runs every implemented command above", () => {
+  it("[SR-083/AK-fsx5] runs every implemented command above", () => {
     const implemented = contracts.commands.map((c) => c.name).filter((n) => runtime.commands.has(n));
     expect(Object.keys(CALLS).sort()).toEqual(implemented.sort());
   });
 
-  it("[SR-083/AK2] reads a commit only from the local repository and fetches none", async () => {
+  it("[SR-083/AK-r0v1] reads a commit only from the local repository and fetches none", async () => {
     const origin = await fixture({ fixture: "SR-001/two-elements", git: true });
     const clone = await fixture({});
     await clone.git(["clone", "--quiet", pathToFileURL(origin.root).href, "."]);
@@ -178,7 +178,7 @@ describe("Git only read (SR-083, D-036)", () => {
     ).resolves.toBeDefined();
   });
 
-  it("[SR-083/AK1] asks the index whether a local file is tracked without writing to the Git folder (#1456)", async () => {
+  it("[SR-083/AK-fsx5] asks the index whether a local file is tracked without writing to the Git folder (#1456)", async () => {
     const local = "reqseq-local: 1\n";
     const repository = await fixture({
       fixture: "SR-001/two-elements",
@@ -202,7 +202,7 @@ describe("Git only read (SR-083, D-036)", () => {
     expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
   });
 
-  it("[SR-083/AK3] starts processes only in the git reader: no other product module imports node:child_process", () => {
+  it("[SR-083/AK-zp6z] starts processes only in the git reader: no other product module imports node:child_process", () => {
     const packages = path.resolve(import.meta.dirname, "../../..");
     const importers: string[] = [];
     for (const name of fs.readdirSync(packages)) {
@@ -224,7 +224,7 @@ describe("Git only read (SR-083, D-036)", () => {
     expect(importers).toEqual(["core/src/git/reader.ts"]);
   });
 
-  it("[SR-083/AK3] offers no command that writes Git data", () => {
+  it("[SR-083/AK-zp6z] offers no command that writes Git data", () => {
     const writes = /commit|push|pull|fetch|merge|checkout|branch|rebase|reset|stash|tag|clone/i;
     expect(contracts.commands.map((c) => c.name).filter((name) => writes.test(name))).toEqual([]);
   });

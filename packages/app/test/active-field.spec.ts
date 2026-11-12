@@ -106,7 +106,7 @@ test.describe("the field the focus is in", () => {
     await running.close();
   });
 
-  test("[SR-155/AK1] has the background of the selected row of a list, and no other field has it", async () => {
+  test("[SR-155/AK-jrfb] has the background of the selected row of a list, and no other field has it", async () => {
     const { window } = running;
     const row = await selectedRow(window);
     for (const label of ["Title", "topic", "derives-from"]) {
@@ -123,7 +123,7 @@ test.describe("the field the focus is in", () => {
     await expect.poll(() => tinted(window)).toEqual(["Text"]);
   });
 
-  test("[SR-155/AK2] the tint and the copy symbol move with the arrow keys, the pointer elsewhere", async () => {
+  test("[SR-155/AK-tfxs] the tint and the copy symbol move with the arrow keys, the pointer elsewhere", async () => {
     const { window } = running;
     // The first box below the text, in the order the boxes are shown.
     const labels = await window
@@ -163,7 +163,7 @@ test.describe("the field the focus is in", () => {
     await at("Title");
   });
 
-  test("[SR-155/AK4] Ctrl+N and Ctrl+P go from field to field like Down and Up, and Ctrl+P is not Go to", async () => {
+  test("[SR-155/AK-zw14] Ctrl+N and Ctrl+P go from field to field like Down and Up, and Ctrl+P is not Go to", async () => {
     const { window } = running;
     const labels = await window
       .locator("article [data-field]")
@@ -188,7 +188,7 @@ test.describe("the field the focus is in", () => {
     await expect(window.locator("#prompt-input")).toHaveCount(0);
   });
 
-  test("[SR-155/AK3] no field is tinted while the focus is on the buffer or in the prompt", async () => {
+  test("[SR-155/AK-jgyk] no field is tinted while the focus is on the buffer or in the prompt", async () => {
     const { window } = running;
     expect(await tinted(window)).toEqual([]);
     await field(window, "topic").focus();

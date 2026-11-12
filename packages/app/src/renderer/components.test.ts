@@ -278,7 +278,7 @@ describe("Minibuffer", () => {
   const classes = (option: Element | undefined): string[] =>
     [...(option?.children ?? [])].map((part) => part.className);
 
-  it("[SR-109/AK1] shows the shortcut of a hit right after its name, as a part of its own", async () => {
+  it("[SR-109/AK-d5b0] shows the shortcut of a hit right after its name, as a part of its own", async () => {
     await mount({
       label: "Command",
       items: [
@@ -298,7 +298,7 @@ describe("Minibuffer", () => {
     expect(container.querySelector(".hint mark")).toBeNull();
   });
 
-  it("[SR-109/AK2] shows nothing next to a hit without a shortcut", async () => {
+  it("[SR-109/AK-hxz3] shows nothing next to a hit without a shortcut", async () => {
     await mount({
       label: "Command",
       items: [
@@ -315,7 +315,7 @@ describe("Minibuffer", () => {
     expect(container.querySelector(".hint")).toBeNull();
   });
 
-  it("[SR-108/AK2] ranks the candidates by what is typed and marks the characters that matched", async () => {
+  it("[SR-108/AK-qr4w] ranks the candidates by what is typed and marks the characters that matched", async () => {
     await mount({ label: "Command", items: [choice("a", "Sort list"), choice("b", "Search elements")] });
     await type(input(), "srch elem");
     expect(texts('[role="option"]')).toEqual(["Search elements"]);
@@ -326,7 +326,7 @@ describe("Minibuffer", () => {
     expect(input().getAttribute("aria-activedescendant")).toBeNull();
   });
 
-  it("[SR-108/AK2] marks the matched letters of a name found by its initials or with a typo", async () => {
+  it("[SR-108/AK-qr4w] marks the matched letters of a name found by its initials or with a typo", async () => {
     await mount({
       label: "Command",
       items: [choice("a", "Create relation"), choice("b", "List all elements"), choice("c", "Sort list")],
@@ -344,7 +344,7 @@ describe("Minibuffer", () => {
     expect(texts("mark")).toEqual([]);
   });
 
-  it("[SR-131/AK5] puts the choice for the typed text first, so Enter takes it and Down reaches the others", async () => {
+  it("[SR-131/AK-sxyz] puts the choice for the typed text first, so Enter takes it and Down reaches the others", async () => {
     const typed = vi.fn();
     const literal = vi.fn((text: string): Choice | undefined =>
       text.startsWith("/")
@@ -446,7 +446,7 @@ describe("Minibuffer", () => {
   });
 
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
-    it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
+    it("[SR-108/AK-qr4w] marks the matched characters of an argument's candidates", async () => {
       await mount({
         label: "Show relation options SR-1 · kind:",
         items: [choice("a", "derives from"), choice("b", "refines")],
@@ -456,7 +456,7 @@ describe("Minibuffer", () => {
       expect(texts("mark")).toEqual(["der"]);
     });
 
-    it("[SR-108/AK4] completes a typed fragment of a value as it does commands: initials and a slip find it first, the matched characters marked", async () => {
+    it("[SR-108/AK-v62v] completes a typed fragment of a value as it does commands: initials and a slip find it first, the matched characters marked", async () => {
       // The status prompt "Set status" builds for a shown requirement, from `element.get` and `metamodel.get`.
       // The catalog entry of `element.setStatus`, as `commands()` lists it.
       const setStatus = {
@@ -518,7 +518,7 @@ describe("Minibuffer", () => {
       expect(back).toHaveBeenCalledTimes(1);
     });
 
-    it("[SR-134/AK1] goes back one step on Escape in a later step, whatever is typed, and runs nothing", async () => {
+    it("[SR-134/AK-trng] goes back one step on Escape in a later step, whatever is typed, and runs nothing", async () => {
       const back = vi.fn();
       const cancel = vi.fn();
       const refines = choice("a", "refines");
@@ -532,7 +532,7 @@ describe("Minibuffer", () => {
       expect(refines.run).not.toHaveBeenCalled();
     });
 
-    it("[SR-134/AK1] goes back to the prompt an action asked before on Escape, not on Backspace", async () => {
+    it("[SR-134/AK-trng] goes back to the prompt an action asked before on Escape, not on Backspace", async () => {
       const previous = vi.fn();
       const { closed } = await mount({ label: "Text", items: [], text: vi.fn(), previous });
       await press(input(), "Backspace");
@@ -776,7 +776,7 @@ describe("Minibuffer", () => {
       ...extra,
     });
 
-    it("[SR-121/AK2] puts the command remembered for the typed text first, and Enter runs it", async () => {
+    it("[SR-121/AK-ynwj] puts the command remembered for the typed text first, and Enter runs it", async () => {
       const prompt = filters({ use: use({ fl: "status" }) });
       const { closed } = await mount(prompt);
       expect(texts('[role="option"]')).toEqual(["Filter list by type", "Filter list by status"]);
@@ -789,14 +789,14 @@ describe("Minibuffer", () => {
       expect(prompt.items[0]?.run).not.toHaveBeenCalled();
     });
 
-    it("[SR-108/AK3] orders equally good hits by use, and an empty text too", async () => {
+    it("[SR-108/AK-f6t5] orders equally good hits by use, and an empty text too", async () => {
       await mount(filters({ use: use({}, { status: 3 }) }));
       expect(texts('[role="option"]')).toEqual(["Filter list by status", "Filter list by type"]);
       await type(input(), "fil");
       expect(texts('[role="option"]')).toEqual(["Filter list by status", "Filter list by type"]);
     });
 
-    it("[SR-121/AK2] records the typed text and the command on Enter and on a click", async () => {
+    it("[SR-121/AK-ynwj] records the typed text and the command on Enter and on a click", async () => {
       const recorded = use();
       await mount(filters({ use: recorded }));
       await type(input(), "fl");
@@ -815,7 +815,7 @@ describe("Minibuffer", () => {
       expect(recorded.record).toHaveBeenCalledTimes(2);
     });
 
-    it("[SR-121/AK2] records the typed text and the command on Ctrl/Cmd+Enter as on Enter", async () => {
+    it("[SR-121/AK-ynwj] records the typed text and the command on Ctrl/Cmd+Enter as on Enter", async () => {
       const recorded = use();
       const more = vi.fn();
       const prompt = filters({ use: recorded });
@@ -844,7 +844,7 @@ describe("Minibuffer", () => {
     });
   });
 
-  it("[SR-122/AK3] moves the selection with Down, Up and Tab, and stays inside the list", async () => {
+  it("[SR-122/AK-n8p6] moves the selection with Down, Up and Tab, and stays inside the list", async () => {
     await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two"), choice("c", "Three")] });
     const selected = (): string | null | undefined =>
       container.querySelector('[aria-selected="true"]')?.textContent;
@@ -862,7 +862,7 @@ describe("Minibuffer", () => {
     expect(selected()).toBe("Two");
   });
 
-  it("[SR-122/AK1] moves the selection with Ctrl+N and Ctrl+P, and stays inside the list", async () => {
+  it("[SR-122/AK-kjhn] moves the selection with Ctrl+N and Ctrl+P, and stays inside the list", async () => {
     await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two"), choice("c", "Three")] });
     const selected = (): string | null | undefined =>
       container.querySelector('[aria-selected="true"]')?.textContent;
@@ -880,7 +880,7 @@ describe("Minibuffer", () => {
     expect(selected()).toBe("Two");
   });
 
-  it("[SR-122/AK2] Ctrl+N and Ctrl+P do not reach the window", async () => {
+  it("[SR-122/AK-h65p] Ctrl+N and Ctrl+P do not reach the window", async () => {
     await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two")] });
     const reached = vi.fn();
     window.addEventListener("keydown", reached);
@@ -927,7 +927,7 @@ describe("Minibuffer", () => {
     expect(closed).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-134/AK3] ends the prompt on a press of a mouse button outside it, in any step, and lets the press go on", async () => {
+  it("[SR-134/AK-cxgz] ends the prompt on a press of a mouse button outside it, in any step, and lets the press go on", async () => {
     const cancel = vi.fn();
     const items = [choice("a", "One")];
     const closed = vi.fn();
@@ -959,7 +959,7 @@ describe("Minibuffer", () => {
     outside.remove();
   });
 
-  it("[SR-129/AK3] tells the prompt that Escape cancelled it, before it closes", async () => {
+  it("[SR-129/AK-rbjm] tells the prompt that Escape cancelled it, before it closes", async () => {
     const order: string[] = [];
     const cancel = vi.fn(() => order.push("cancel"));
     await mount(
@@ -970,7 +970,7 @@ describe("Minibuffer", () => {
     expect(order).toEqual(["cancel", "close"]);
   });
 
-  it("[SR-129/AK4] does not tell the prompt it was cancelled when a choice or free text answers it", async () => {
+  it("[SR-129/AK-nxbm] does not tell the prompt it was cancelled when a choice or free text answers it", async () => {
     const cancel = vi.fn();
     await mount({ label: "Insert reference", items: [choice("a", "One")], cancel });
     await press(input(), "Enter");
@@ -1025,7 +1025,7 @@ describe("Minibuffer", () => {
     expect(texts('[role="option"]')).toEqual(["SR-036 Wind", "All elements"]);
   });
 
-  it("[SR-115/AK1] Go to finds a buffer by a fuzzy text (initials, a slip) and keeps the order of use among equal matches; the elements shown last follow the buffers, an open element is listed once", async () => {
+  it("[SR-115/AK-gxzy] Go to finds a buffer by a fuzzy text (initials, a slip) and keeps the order of use among equal matches; the elements shown last follow the buffers, an open element is listed once", async () => {
     const buffers = [
       choice("element:spec:8", "SR-038 Wind vane"),
       choice("element:spec:1", "SR-036 Wind speed"),
@@ -1072,7 +1072,7 @@ describe("Minibuffer", () => {
     expect(recents[0]?.run).toHaveBeenCalledOnce();
   });
 
-  it("[SR-108/AK2] marks the matched words of an element hit, not the whole name", async () => {
+  it("[SR-108/AK-qr4w] marks the matched words of an element hit, not the whole name", async () => {
     await mount({
       label: "Go to",
       items: [],
@@ -1122,7 +1122,7 @@ describe("Minibuffer", () => {
       return { find, answer };
     };
 
-    it("[SR-119/AK1] opens the first hit as soon as the hits of the typed text arrive", async () => {
+    it("[SR-119/AK-mb64] opens the first hit as soon as the hits of the typed text arrive", async () => {
       const { find, answer } = deferred();
       const { closed } = await mount({ label: "Go to", items: [], find });
       const hit = choice("e1", "SR-118 Calm start");
@@ -1135,7 +1135,7 @@ describe("Minibuffer", () => {
       expect(closed).toHaveBeenCalledTimes(1);
     });
 
-    it("[SR-119/AK1] opens the hit of the full text, not the hit of an earlier prefix", async () => {
+    it("[SR-119/AK-mb64] opens the hit of the full text, not the hit of an earlier prefix", async () => {
       const { find, answer } = deferred();
       const { closed } = await mount({ label: "Go to", items: [], find });
       const stale = choice("old", "S-001 Starts with S");
@@ -1194,7 +1194,7 @@ describe("Minibuffer", () => {
       expect(hit.run).toHaveBeenCalledTimes(1);
     });
 
-    it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
+    it("[SR-119/AK-mb64] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
       const asked: ((choices: Choice[]) => void)[] = [];
       const find = (): Promise<Choice[]> =>
         new Promise<Choice[]>((resolve) => {
@@ -1542,7 +1542,7 @@ describe("ListView, a list", () => {
         [...group.querySelectorAll(".row .id")].map((id) => id.textContent),
       );
 
-    it("[SR-149/AK3] shows each group under its heading and count, and regroups or ungroups the same elements in the same filter and sort", async () => {
+    it("[SR-149/AK-pd1k] shows each group under its heading and count, and regroups or ungroups the same elements in the same filter and sort", async () => {
       const call = fakeCall({
         "element.list": (input) =>
           input["group"] === "package"
@@ -1660,7 +1660,7 @@ describe("ListView, a list", () => {
     });
   });
 
-  it("[SR-075/AK2] indents the rows of a tree by their depth", async () => {
+  it("[SR-075/AK-f889] indents the rows of a tree by their depth", async () => {
     const call = fakeCall({
       "element.list": () => ({
         elements: rowsOf(1, 4),
@@ -2137,7 +2137,7 @@ describe("OverviewView", () => {
   const options = (): string[] => texts('[role="option"]');
   const listbox = (): HTMLElement => query('[role="listbox"]');
 
-  it("[SR-118/AK1] shows a line per type with its count, one text with a space: Need 1", async () => {
+  it("[SR-118/AK-yggg] shows a line per type with its count, one text with a space: Need 1", async () => {
     await mount(asCall(fakeCall(handlers())));
     expect(options()).toEqual(["Need 1", "System Requirement 3"]);
     expect(listbox().getAttribute("aria-label")).toBe("Overview");
@@ -2283,7 +2283,7 @@ describe("OverviewView", () => {
     expect(empty.opened).toEqual([]);
   });
 
-  it("[SR-122/AK4] Enter with no line selected opens the first line and selects it", async () => {
+  it("[SR-122/AK-mqwc] Enter with no line selected opens the first line and selects it", async () => {
     const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
     expect(listbox().getAttribute("aria-activedescendant")).toBeNull();
     await press(listbox(), "Enter");
@@ -2342,7 +2342,7 @@ const packageMembers = (): ListBuffer => ({
 });
 
 describe("ListView, a part of a buffer (SR-112)", () => {
-  it("[SR-112/AK1] asks for the elements of the selection and shows them as rows, in the buffer that encloses it", async () => {
+  it("[SR-112/AK-fzbz] asks for the elements of the selection and shows them as rows, in the buffer that encloses it", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
     await partHarness(asCall(call), packageMembers());
     expect(call).toHaveBeenCalledWith("element.list", {
@@ -2441,7 +2441,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     expect(left).toHaveLength(1);
   });
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the elements like Down and Up; Ctrl+P on the first leaves like Up", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P walk the elements like Down and Up; Ctrl+P on the first leaves like Up", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
     const left: string[] = [];
     const { actions } = await partHarness(
@@ -2496,7 +2496,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     expect(left).toEqual(["left"]);
   });
 
-  it("[SR-112/AK1] opening a package does not scroll to its elements", async () => {
+  it("[SR-112/AK-fzbz] opening a package does not scroll to its elements", async () => {
     const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => undefined);
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
     await partHarness(asCall(call), packageMembers());
@@ -2505,7 +2505,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     scrolled.mockRestore();
   });
 
-  it("[SR-112/AK1] shows the selected row as the cursor moves while the part has the focus, and not otherwise", async () => {
+  it("[SR-112/AK-fzbz] shows the selected row as the cursor moves while the part has the focus, and not otherwise", async () => {
     const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => undefined);
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
     const shown = packageMembers();
@@ -2692,7 +2692,7 @@ describe("ListView, the verification of the rows (SR-137)", () => {
       shownRow.querySelector(".verification .accent") !== null,
     ]);
 
-  it("[SR-137/AK1] a row shows the verification status of its requirement right of its status, after the rows stand", async () => {
+  it("[SR-137/AK-bvf7] a row shows the verification status of its requirement right of its status, after the rows stand", async () => {
     let answer: (value: unknown) => void = () => undefined;
     const call = vi.fn((name: string, input: Record<string, unknown>) =>
       input["withVerification"] === true
@@ -2780,7 +2780,7 @@ describe("ListView, the verification of the rows (SR-137)", () => {
     expect(call.mock.calls.filter(([name]) => name === "element.list")).toHaveLength(1);
   });
 
-  it("[SR-137/AK3] a row shows the progress ring of its element's node right of its status, none without, also for a hit", async () => {
+  it("[SR-137/AK-gq6h] a row shows the progress ring of its element's node right of its status, none without, also for a hit", async () => {
     const call = vi.fn((name: string, input: Record<string, unknown>) =>
       Promise.resolve({
         ok: true,
@@ -2867,7 +2867,7 @@ describe("ListView, a search", () => {
     expect(container.querySelectorAll(".row")).toHaveLength(80);
   });
 
-  it("[SR-174/AK1] shows under the title of a hit in the text that it was found in the text, and the snippet with its marks", async () => {
+  it("[SR-174/AK-mxnw] shows under the title of a hit in the text that it was found in the text, and the snippet with its marks", async () => {
     const text = "The anemometer measures gusts with pulse counting, as Show a dial shows.";
     const call = fakeCall({
       "element.search": () => ({
@@ -2898,7 +2898,7 @@ describe("ListView, a search", () => {
     expect(texts(".row .title mark")).toEqual([]);
   });
 
-  it("[SR-174/AK2] names the property a hit was found in and shows the snippet of its value", async () => {
+  it("[SR-174/AK-f869] names the property a hit was found in and shows the snippet of its value", async () => {
     const call = fakeCall({
       "element.search": () => ({
         hits: [
@@ -2933,7 +2933,7 @@ describe("ListView, a search", () => {
     expect(described?.getAttribute("title")).toBe("Checks: The dial warns before a hurricane arrives.");
   });
 
-  it("[SR-174/AK4] shows no snippet for a hit in the title or an ID only, and marks the title where core says", async () => {
+  it("[SR-174/AK-jtqc] shows no snippet for a hit in the title or an ID only, and marks the title where core says", async () => {
     const call = fakeCall({
       "element.search": () => ({
         hits: [
@@ -2970,7 +2970,7 @@ describe("ListView, a search", () => {
 });
 
 describe("LoadingView, a list that replaces another list (ThomasBirkmaier/ReqSeq-archive#563)", () => {
-  it("[SR-122/AK4] starts the next list empty: it never shows the rows of the list before under its name, and Ctrl+N waits for its own rows", async () => {
+  it("[SR-122/AK-mqwc] starts the next list empty: it never shows the rows of the list before under its name, and Ctrl+N waits for its own rows", async () => {
     // The search answers when the test says so, as a slow core does.
     let answerSearch: (value: unknown) => void = () => undefined;
     const call = vi.fn((name: string) =>
@@ -3243,7 +3243,7 @@ describe("ElementView", () => {
     const mountRead = (extra: Partial<DataExportElement> = {}) =>
       mount(asCall(fakeCall({ "element.get": () => ({ element: read(extra) }) })));
 
-    it("[SR-128/AK1] gives the title, the text, each property box and each group of relations a copy symbol", async () => {
+    it("[SR-128/AK-sthw] gives the title, the text, each property box and each group of relations a copy symbol", async () => {
       await mountRead();
       expect(fieldNames()).toEqual([
         "Title",
@@ -3264,7 +3264,7 @@ describe("ElementView", () => {
       }
     });
 
-    it("[SR-128/AK1] lets the focus be in the title and in a box, which have no control inside", async () => {
+    it("[SR-128/AK-sthw] lets the focus be in the title and in a box, which have no control inside", async () => {
       await mountRead();
       const focusable = [...container.querySelectorAll<HTMLElement>("[data-field]")]
         .filter((field) => field.getAttribute("tabindex") === "0")
@@ -3272,7 +3272,7 @@ describe("ElementView", () => {
       expect(focusable).toEqual(["Title", "topic", "criteria", "packages"]);
     });
 
-    it("[SR-128/AK2] copies the values of a box one per line, and says which field", async () => {
+    it("[SR-128/AK-yqp3] copies the values of a box one per line, and says which field", async () => {
       const { copies } = await mountRead();
       await click(copySymbol("criteria"));
       await click(copySymbol("topic"));
@@ -3282,7 +3282,7 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-128/AK2] copies the title, the relations as shown, and the text as the editor holds it", async () => {
+    it("[SR-128/AK-yqp3] copies the title, the relations as shown, and the text as the editor holds it", async () => {
       const { copies } = await mountRead();
       await typeInto("!");
       await click(copySymbol("Title"));
@@ -3299,13 +3299,13 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-128/AK2] copies the heading that is shown when the element has no title", async () => {
+    it("[SR-128/AK-yqp3] copies the heading that is shown when the element has no title", async () => {
       const { copies } = await mountRead({ title: "" });
       await click(copySymbol("Title"));
       expect(copies).toEqual([["Title", "SR-000001 (SR-036)"]]);
     });
 
-    it("[SR-128/AK4] leaves the focus where it is when the symbol is pressed, so the editor keeps its cursor", async () => {
+    it("[SR-128/AK-x005] leaves the focus where it is when the symbol is pressed, so the editor keeps its cursor", async () => {
       const { copies } = await mountRead();
       await act(async () => {
         editorView().focus();
@@ -3327,7 +3327,7 @@ describe("ElementView", () => {
       expect(copies).toEqual([]);
     });
 
-    it("[SR-128/AK3] Copy field copies the field the focus is in", async () => {
+    it("[SR-128/AK-pk21] Copy field copies the field the focus is in", async () => {
       const { controls, copies } = await mountRead();
       for (const label of ["criteria", "Title"]) {
         await act(async () => {
@@ -3361,7 +3361,7 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-128/AK3] Copy field from the command prompt copies the field the cursor was in, though the prompt has the focus", async () => {
+    it("[SR-128/AK-pk21] Copy field from the command prompt copies the field the cursor was in, though the prompt has the focus", async () => {
       const { controls, copies } = await mountRead();
       await act(async () => {
         query('[data-field="topic"]').focus();
@@ -3381,7 +3381,7 @@ describe("ElementView", () => {
       expect(copies).toEqual([["topic", "Wind"]]);
     });
 
-    it("[SR-128/AK3] Copy field does not copy a field the focus has left for somewhere else than the prompt", async () => {
+    it("[SR-128/AK-pk21] Copy field does not copy a field the focus has left for somewhere else than the prompt", async () => {
       const { controls, copies } = await mountRead();
       await act(async () => {
         query('[data-field="topic"]').focus();
@@ -3416,7 +3416,7 @@ describe("ElementView", () => {
       expect(editorView().hasFocus).toBe(false);
     });
 
-    it("[SR-128/AK3] Copy field copies the ID when the cursor is in no field: on the buffer itself, or after leaving the text", async () => {
+    it("[SR-128/AK-pk21] Copy field copies the ID when the cursor is in no field: on the buffer itself, or after leaving the text", async () => {
       const { controls, copies } = await mountRead();
       act(() => {
         controls().copy();
@@ -3435,7 +3435,7 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-128/AK3] copies the short ID of an element that has no identifier", async () => {
+    it("[SR-128/AK-pk21] copies the short ID of an element that has no identifier", async () => {
       const { controls, copies } = await mountRead({ identifier: undefined } as never);
       act(() => {
         controls().copy();
@@ -3490,7 +3490,7 @@ describe("ElementView", () => {
     expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
   });
 
-  it("[SR-044/AK2] shows an element read-only in a buffer shown read-only, and tells the modeline so", async () => {
+  it("[SR-044/AK-d2rh] shows an element read-only in a buffer shown read-only, and tells the modeline so", async () => {
     const buffer = readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Measure wind"));
     const { data } = await mount(
       asCall(fakeCall({ "element.get": () => ({ element: read() }) })),
@@ -3910,7 +3910,7 @@ describe("ElementView", () => {
     expect(echoed).toEqual([]);
   });
 
-  it("[SR-106/AK2] keeps unsaved input on a reload with a changed file, shows the file's version below it and says so once", async () => {
+  it("[SR-106/AK-ydc8] keeps unsaved input on a reload with a changed file, shows the file's version below it and says so once", async () => {
     let text = "first";
     let sha = "sha-1";
     const call = fakeCall({ "element.get": () => ({ element: read({ text }), fileSha256: sha }) });
@@ -3933,7 +3933,7 @@ describe("ElementView", () => {
     expect(echoed).toHaveLength(1);
   });
 
-  it("[SR-106/AK2] opens the conflict when a draft comes back on another file, and keeps the draft", async () => {
+  it("[SR-106/AK-ydc8] opens the conflict when a draft comes back on another file, and keeps the draft", async () => {
     const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello" }), fileSha256: "new" }) });
     const { echoed, drafts, controls } = await mount(asCall(call), 0, {
       text: "Hello!",
@@ -4101,7 +4101,7 @@ describe("ElementView", () => {
       vi.useRealTimers();
     });
 
-    it('[SR-106/AK2] with input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the fields with input on the new file', async () => {
+    it('[SR-106/AK-ydc8] with input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the fields with input on the new file', async () => {
       const { disk, outside, echoed, controls, choose, updates, data, drafts } = await mountDisk();
       await typeInto("!");
       await outside({ text: "theirs", properties: { topic: "Gusts" } });
@@ -4128,7 +4128,7 @@ describe("ElementView", () => {
       expect(data.at(-1)?.[1]).not.toHaveProperty("disk");
     });
 
-    it('[SR-106/AK2] "Take the file" puts the file\'s version into the editor and writes nothing; Ctrl+Z brings the input back', async () => {
+    it('[SR-106/AK-ydc8] "Take the file" puts the file\'s version into the editor and writes nothing; Ctrl+Z brings the input back', async () => {
       const { disk, outside, controls, choose, updates, drafts } = await mountDisk();
       await typeInto("!");
       await outside({ text: "theirs" });
@@ -4151,7 +4151,7 @@ describe("ElementView", () => {
       expect(blocks()).toEqual([]);
     });
 
-    it('[SR-106/AK2] "Take the file" takes the file\'s value of a box with input too, and of a choice', async () => {
+    it('[SR-106/AK-ydc8] "Take the file" takes the file\'s value of a box with input too, and of a choice', async () => {
       const area: PropertyInfo = {
         name: "Area",
         kind: "choice",
@@ -4273,7 +4273,7 @@ describe("ElementView", () => {
       expect(editorView().state.doc.toString()).toBe("first!");
     });
 
-    it("[SR-106/AK2] follows the rule for a change from outside when a save finds the file changed before the watcher said so", async () => {
+    it("[SR-106/AK-ydc8] follows the rule for a change from outside when a save finds the file changed before the watcher said so", async () => {
       const { disk, echoed, controls, updates } = await mountDisk();
       await typeInto("!");
       Object.assign(disk, { text: "theirs", sha: "sha-unseen" });
@@ -4288,7 +4288,7 @@ describe("ElementView", () => {
       expect(echoed).toEqual([CHANGED]);
     });
 
-    it("[SR-106/AK3] keeps the content in the read-only editor when the file is deleted, names the deletion, and writes nothing", async () => {
+    it("[SR-106/AK-v420] keeps the content in the read-only editor when the file is deleted, names the deletion, and writes nothing", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       const { outside, echoed, controls, copies, updates, data, disk } = await mountDisk();
       await typeInto("!");
@@ -4334,7 +4334,7 @@ describe("ElementView", () => {
       expect(editorView().state.doc.toString()).toBe("first!");
     });
 
-    it("[SR-106/AK3] a save on a file that is gone finds the deletion, and the choices then say so", async () => {
+    it("[SR-106/AK-v420] a save on a file that is gone finds the deletion, and the choices then say so", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       const { disk, outside, echoed, controls, choose } = await mountDisk();
       await typeInto("!");
@@ -4382,13 +4382,13 @@ describe("ElementView", () => {
       }
     };
 
-    it("[SR-129/AK1] opens at the cursor when / is typed in the text of the element", async () => {
+    it("[SR-129/AK-y6nx] opens at the cursor when / is typed in the text of the element", async () => {
       await mount(asCall(fakeCall({ "element.get": () => ({ element: read({ text: "" }) }) })));
       await typeSlash("");
       expect(container.querySelectorAll(".cm-tooltip-autocomplete li").length).toBeGreaterThan(10);
     });
 
-    it("[SR-129/AK4] asks the app for an element, and writes the reference: the title within the repository of the buffer", async () => {
+    it("[SR-129/AK-nxbm] asks the app for an element, and writes the reference: the title within the repository of the buffer", async () => {
       const { picks } = await mount(
         asCall(fakeCall({ "element.get": () => ({ element: read({ text: "" }) }) })),
       );
@@ -4505,7 +4505,7 @@ describe("ElementView", () => {
       expect(opened).toEqual([[TARGET, undefined]]);
     });
 
-    it("[SR-185/AK3] a text action runs its command on the text at the cursor, or says why not", async () => {
+    it("[SR-185/AK-jxg0] a text action runs its command on the text at the cursor, or says why not", async () => {
       const tasks = fakeCall({
         "element.get": () => ({ element: read({ text: "- [ ] one\n\nplain" }) }),
       });
@@ -4597,7 +4597,7 @@ describe("ElementView", () => {
       });
     const lines = (): (string | null)[] => [...box().querySelectorAll(".cm-line")].map((l) => l.textContent);
 
-    it("[SR-127/AK1] shows the values of a markdown property formatted like the text: bold, italic and code without their marks", async () => {
+    it("[SR-127/AK-kjw4] shows the values of a markdown property formatted like the text: bold, italic and code without their marks", async () => {
       await mountCriteria([FIRST, SECOND]).mounted;
       // One editor for the box, one value per line.
       expect(boxViews()).toHaveLength(1);
@@ -4614,7 +4614,7 @@ describe("ElementView", () => {
       expect(content?.getAttribute("aria-label")).toBe(KEY);
     });
 
-    it("[SR-127/AK1] shows the source only on the line with the caret; the other values stay formatted", async () => {
+    it("[SR-127/AK-kjw4] shows the source only on the line with the caret; the other values stay formatted", async () => {
       await mountCriteria([FIRST, SECOND]).mounted;
       const [view] = boxViews();
       if (view === undefined) {
@@ -4638,7 +4638,7 @@ describe("ElementView", () => {
       expect(lines()).toEqual(["Gegeben ein Satz, wenn er gilt.", "Dann gilt D-017."]);
     });
 
-    it("[SR-127/AK1] shows the label of a reference in a value and opens its element on a click", async () => {
+    it("[SR-127/AK-kjw4] shows the label of a reference in a value and opens its element on a click", async () => {
       const { mounted } = mountCriteria([FIRST, SECOND]);
       const { opened } = await mounted;
       expect(box().querySelector(".cm-lr-ref")?.textContent).toBe("D-017");
@@ -4652,7 +4652,7 @@ describe("ElementView", () => {
       expect(opened).toEqual([[TARGET, undefined]]);
     });
 
-    it("[SR-127/AK3] marks an outdated reference in a value like one in the text, from the hint of that property only", async () => {
+    it("[SR-127/AK-bd1x] marks an outdated reference in a value like one in the text, from the hint of that property only", async () => {
       const { mounted, change } = mountCriteria([FIRST, SECOND], [hint(`@text:${KEY}`)]);
       const { again } = await mounted;
       expect(box().querySelector(".cm-lr-outdated")?.getAttribute("title")).toBe(
@@ -4674,7 +4674,7 @@ describe("ElementView", () => {
       expect(boxViews()[0]).toBe(before);
     });
 
-    it("[SR-127/AK3] Follow reference with the focus on the box opens the first reference of the box, or says there is none", async () => {
+    it("[SR-127/AK-bd1x] Follow reference with the focus on the box opens the first reference of the box, or says there is none", async () => {
       const { mounted } = mountCriteria([FIRST, SECOND, `[x](reqseq:uuid-2)`]);
       const { controls, opened, echoed } = await mounted;
       act(() => {
@@ -4697,7 +4697,7 @@ describe("ElementView", () => {
       expect(echoed).toEqual([]);
     });
 
-    it("[SR-066/AK4] [SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
+    it("[SR-066/AK-c5xd] [SR-127/AK-bd1x] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
       const { controls, opened, echoed } = await mountCriteria([FIRST, SECOND]).mounted;
       const [view] = boxViews();
       if (view === undefined) {
@@ -4717,7 +4717,7 @@ describe("ElementView", () => {
       expect(opened).toEqual([[TARGET, undefined]]);
     });
 
-    it("[SR-127/AK5] shows the title as it is, and a property that is not marked markdown as plain text with its marks", async () => {
+    it("[SR-127/AK-mdr7] shows the title as it is, and a property that is not marked markdown as plain text with its marks", async () => {
       await mountCriteria([FIRST]).mounted;
       expect(query("h1").textContent).toBe("**Measure**");
       const topic = query('[data-field="topic"]');
@@ -4727,7 +4727,7 @@ describe("ElementView", () => {
       expect(container.querySelectorAll(".cm-editor")).toHaveLength(3);
     });
 
-    it("[SR-127/AK5] shows a property as it is when the metamodel has none for the type of the element", async () => {
+    it("[SR-127/AK-mdr7] shows a property as it is when the metamodel has none for the type of the element", async () => {
       await mountCriteria([FIRST, SECOND], [], new Map()).mounted;
       expect(box().querySelector(".cm-editor")).toBeNull();
       expect(texts(`[data-field="${KEY}"] .line`)).toEqual([FIRST, SECOND]);
@@ -4774,7 +4774,7 @@ describe("ElementView", () => {
     };
     const wind = { id: TARGET, title: "Wind sehen", label: "N-1", shortId: "N-1", repository: "spec" };
 
-    it("[SR-127/AK2] [[ in an acceptance criterion asks for an element and writes the reference into that value only", async () => {
+    it("[SR-127/AK-k3yf] [[ in an acceptance criterion asks for an element and writes the reference into that value only", async () => {
       const { picks, controls, call } = await mountSaving();
       const first = await typeInFirst("[[");
       expect(picks).toHaveLength(1);
@@ -4808,7 +4808,7 @@ describe("ElementView", () => {
       expect(lines()[0]).toBe("Gegeben ein Satz, wenn er gilt.Wind sehen");
     });
 
-    it("[SR-127/AK2] no [[ search in a property that is not marked markdown, nor in a read-only box", async () => {
+    it("[SR-127/AK-k3yf] no [[ search in a property that is not marked markdown, nor in a read-only box", async () => {
       const plain: PropertyModel = modelOf({ [KEY]: { kind: "text", many: true, markdown: false } });
       const { picks } = await mountSaving(plain);
       await typeInFirst("[[");
@@ -4824,7 +4824,7 @@ describe("ElementView", () => {
       expect(open.picks).toHaveLength(1);
     });
 
-    it("[SR-127/AK2] a reference to another repository in a value shows the title of its target when it is here (D-058)", async () => {
+    it("[SR-127/AK-k3yf] a reference to another repository in a value shows the title of its target when it is here (D-058)", async () => {
       const across = `Siehe [N-0e9d7c](reqseq:${TARGET}?version=${VERSION}&repository=sensor).`;
       const call = fakeCall({
         "element.get": (input) =>
@@ -4838,7 +4838,7 @@ describe("ElementView", () => {
       expect(lines()).toEqual(["Siehe Böen messen."]);
     });
 
-    it("[SR-127/AK1] shows no image and no slash menu in a value, and [[ that is not typed asks nothing", async () => {
+    it("[SR-127/AK-kjw4] shows no image and no slash menu in a value, and [[ that is not typed asks nothing", async () => {
       const { picks } = await mountCriteria(["![x](a.png) and /heading and [[wind"]).mounted;
       expect(picks).toEqual([]);
       expect(box().querySelector("img:not(.cm-widgetBuffer)")).toBeNull();
@@ -4846,14 +4846,14 @@ describe("ElementView", () => {
       expect(container.querySelector(".cm-tooltip-autocomplete")).toBeNull();
     });
 
-    it("[SR-127/AK1] sets inline formatting only: a heading, a list item and a quote in a value keep their source", async () => {
+    it("[SR-127/AK-kjw4] sets inline formatting only: a heading, a list item and a quote in a value keep their source", async () => {
       await mountCriteria(["# x", "- y", "> z", "1. n", "**b** and # c"]).mounted;
       expect(lines()).toEqual(["# x", "- y", "> z", "1. n", "b and # c"]);
       expect(box().querySelector(".cm-lr-h1, .cm-lr-bullet, .cm-lr-quote, .cm-lr-task")).toBeNull();
       expect(box().querySelector(".cm-lr-strong")?.textContent).toBe("b");
     });
 
-    it("[SR-127/AK1] never pairs a mark across two values, though they are lines of one document", async () => {
+    it("[SR-127/AK-kjw4] never pairs a mark across two values, though they are lines of one document", async () => {
       await mountCriteria(["*a*", "b*", "**c", "d**", "x_", "_y"]).mounted;
       expect(box().querySelectorAll(".cm-lr-em")).toHaveLength(1);
       expect(box().querySelector(".cm-lr-em")?.textContent).toBe("a");
@@ -4861,7 +4861,7 @@ describe("ElementView", () => {
       expect(lines()).toEqual(["a", "b*", "**c", "d**", "x_", "_y"]);
     });
 
-    it("[SR-128/AK2] copies the stored source of a markdown property, one value per line", async () => {
+    it("[SR-128/AK-yqp3] copies the stored source of a markdown property, one value per line", async () => {
       const { copies } = await mountCriteria([FIRST, SECOND]).mounted;
       await click(query(`[data-field="${KEY}"] > .copy`));
       expect(copies).toEqual([[KEY, `${FIRST}\n${SECOND}`]]);
@@ -4969,7 +4969,7 @@ describe("ElementView", () => {
       affected: 0,
     });
 
-    it("[SR-104/AK1] shows every filled property as a box below the text, and none for an empty one", async () => {
+    it("[SR-104/AK-df5n] shows every filled property as a box below the text, and none for an empty one", async () => {
       await mountBoxes({
         topic: "Wind",
         empty: "",
@@ -4989,7 +4989,7 @@ describe("ElementView", () => {
       expect(viewOf(KEY).state.doc.toString()).toBe("first\nsecond");
     });
 
-    it("[SR-104/AK4] saves a box that was emptied with unset, and the box is gone with the property", async () => {
+    it("[SR-104/AK-sxnr] saves a box that was emptied with unset, and the box is gone with the property", async () => {
       const { controls, call, drafts, echoed } = await mountBoxes(
         { topic: "Wind", [KEY]: ["first", "second"] },
         {},
@@ -5010,7 +5010,7 @@ describe("ElementView", () => {
       expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
     });
 
-    it("[SR-104/AK4] treats a box with nothing but blank lines as emptied", async () => {
+    it("[SR-104/AK-sxnr] treats a box with nothing but blank lines as emptied", async () => {
       const { controls, call } = await mountBoxes({ [KEY]: ["first"], topic: "Wind" }, {}, undefined, () =>
         savedWith({ topic: "Wind" }),
       );
@@ -5284,7 +5284,7 @@ describe("ElementView", () => {
       );
     });
 
-    it("[SR-106/AK2] follows a text that changed on disk while only a box has input, keeps the draft on the new text, and stops saving", async () => {
+    it("[SR-106/AK-ydc8] follows a text that changed on disk while only a box has input, keeps the draft on the new text, and stops saving", async () => {
       const { again, change, drafts, echoed } = await mountBoxes({ topic: "Wind" });
       await typeIn("topic", "!");
       change({ topic: "Wind" }, { text: "Changed on disk" });
@@ -5304,7 +5304,7 @@ describe("ElementView", () => {
       });
     });
 
-    it("[SR-106/AK2] keeps the box and its input when the file lost its property, and shows that the file has none", async () => {
+    it("[SR-106/AK-ydc8] keeps the box and its input when the file lost its property, and shows that the file has none", async () => {
       const { again, change, echoed, drafts } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
       await typeIn("topic", "!");
       change({ [KEY]: ["a"] });
@@ -5551,7 +5551,7 @@ describe("ElementView", () => {
         return mounted;
       };
 
-      it("[SR-104/AK1] shows a relation property as a box with its targets as links, and no empty one", async () => {
+      it("[SR-104/AK-df5n] shows a relation property as a box with its targets as links, and no empty one", async () => {
         const first = withStages(stage("p1", "Stufe 3"), stage("p2", "Stufe 4", { targetState: "missing" }));
         const { targets } = await mountValues(first.properties, first.more);
         expect(rows("packages")).toEqual(["PKG-p1 Stufe 3", "PKG-p2 Stufe 4 missing"]);
@@ -5562,7 +5562,7 @@ describe("ElementView", () => {
         expect(container.querySelector('[data-field="packages"]')).toBeNull();
       });
 
-      it("[SR-104/AK2] Add property lists the properties the element lacks, by name; a text property gets an empty box with the caret in it, and no draft", async () => {
+      it("[SR-104/AK-k13x] Add property lists the properties the element lacks, by name; a text property gets an empty box with the caret in it, and no draft", async () => {
         const { controls, asked, drafts } = await mountValues({ topic: "Wind" });
         act(() => {
           controls().addProperty();
@@ -5582,7 +5582,7 @@ describe("ElementView", () => {
         expect(drafts.filter(([, kept]) => kept !== undefined)).toEqual([]);
       });
 
-      it("[SR-104/AK2] saves what is typed into an added box with set, and the box is then the stored one", async () => {
+      it("[SR-104/AK-k13x] saves what is typed into an added box with set, and the box is then the stored one", async () => {
         const { controls, asked, call, drafts } = await mountValues({ topic: "Wind" }, {}, undefined, () =>
           savedWith({ topic: "Wind", [KEY]: ["first"] }),
         );
@@ -5599,7 +5599,7 @@ describe("ElementView", () => {
         expect(viewOf(KEY).state.doc.toString()).toBe("first");
       });
 
-      it("[SR-104/AK2] Add property for a choice puts the empty box in the page with the focus on it, and opens the prompt with the choices at once", async () => {
+      it("[SR-104/AK-k13x] Add property for a choice puts the empty box in the page with the focus on it, and opens the prompt with the choices at once", async () => {
         const { controls, asked, drafts } = await mountValues({ topic: "Wind" });
         act(() => {
           controls().addProperty();
@@ -5619,7 +5619,7 @@ describe("ElementView", () => {
         expect(drafts.filter(([, kept]) => kept !== undefined)).toEqual([]);
       });
 
-      it("[SR-104/AK2] Add property for a relation opens the prompt with the search of the allowed types at once", async () => {
+      it("[SR-104/AK-k13x] Add property for a relation opens the prompt with the search of the allowed types at once", async () => {
         const { controls, asked } = await mountValues({ topic: "Wind" });
         act(() => {
           controls().addProperty();
@@ -5631,7 +5631,7 @@ describe("ElementView", () => {
         expect(document.activeElement).toBe(field("packages"));
       });
 
-      it("[SR-104/AK2] drops an added box that was left empty when the element is saved", async () => {
+      it("[SR-104/AK-k13x] drops an added box that was left empty when the element is saved", async () => {
         const { controls, asked } = await mountValues({ topic: "Wind" }, {}, undefined, () =>
           savedWith({ topic: "Wind!" }),
         );
@@ -5644,7 +5644,7 @@ describe("ElementView", () => {
         expect(container.querySelector('[data-field="area"]')).toBeNull();
       });
 
-      it("[SR-104/AK2] keeps an added box that was typed in while the save ran, as an added box with its input", async () => {
+      it("[SR-104/AK-k13x] keeps an added box that was typed in while the save ran, as an added box with its input", async () => {
         let answer: (value: unknown) => void = () => undefined;
         const call = vi.fn((name: string, input: Record<string, unknown>) =>
           name === "element.update"
@@ -5683,7 +5683,7 @@ describe("ElementView", () => {
         expect(drafts.at(-1)?.[1]?.boxes?.get(KEY)).toEqual({ doc: "late", base: "" });
       });
 
-      it("[SR-104/AK2] says that a read-only element has no property to add, and when there is none to add", async () => {
+      it("[SR-104/AK-k13x] says that a read-only element has no property to add, and when there is none to add", async () => {
         const read = await mountValues({ topic: "Wind" }, { readOnly: true });
         act(() => {
           read.controls().addProperty();
@@ -5704,7 +5704,7 @@ describe("ElementView", () => {
         expect(names(empty.asked.at(-1)).slice(0, 2)).toEqual(["topic", KEY]);
       });
 
-      it("[SR-104/AK3] Enter on a choice box asks with only the choices, and the one taken is the value of the box; the focus comes back to the box", async () => {
+      it("[SR-104/AK-n97r] Enter on a choice box asks with only the choices, and the one taken is the value of the box; the focus comes back to the box", async () => {
         const { asked, drafts, controls, call } = await mountValues(
           { area: "performance", topic: "t" },
           {},
@@ -5729,7 +5729,7 @@ describe("ElementView", () => {
         expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
       });
 
-      it("[SR-104/AK3] shows exactly the choices of the metamodel and sets a value of a list one at a time, a set one is taken out", async () => {
+      it("[SR-104/AK-n97r] shows exactly the choices of the metamodel and sets a value of a list one at a time, a set one is taken out", async () => {
         const { asked } = await mountValues({ tags: ["a"], topic: "t" });
         focusField("tags");
         await press(field("tags"), "Enter");
@@ -5910,7 +5910,7 @@ describe("ElementView", () => {
         expect(names(asked.at(-1))).toEqual(["PKG-p1 Stufe 3"]);
       });
 
-      it("[SR-104/AK4] Clear property empties the box with the cursor, for a choice, a relation and a text, and the properties are removed when it is saved", async () => {
+      it("[SR-104/AK-sxnr] Clear property empties the box with the cursor, for a choice, a relation and a text, and the properties are removed when it is saved", async () => {
         const first = withStages(stage("p1", "Stufe 3"));
         const { controls, call, drafts } = await mountValues(
           { ...first.properties, area: "performance", [KEY]: ["a", "b"] },
@@ -5949,7 +5949,7 @@ describe("ElementView", () => {
         expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
       });
 
-      it("[SR-104/AK4] Clear property from the command prompt empties the box the cursor was in", async () => {
+      it("[SR-104/AK-sxnr] Clear property from the command prompt empties the box the cursor was in", async () => {
         const { controls } = await mountValues({ area: "performance" });
         focusField("area");
         // The command prompt has the focus now.
@@ -6015,7 +6015,7 @@ describe("ElementView", () => {
         expect(locked.echoed.at(-1)).toBe("SR-000001 (SR-036) Measure wind is read-only");
       });
 
-      it("[SR-104/AK4] Clear property empties a property the type does not know, which has no editor; Ctrl/Cmd+Z brings it back, and the save removes it with unset (#189)", async () => {
+      it("[SR-104/AK-sxnr] Clear property empties a property the type does not know, which has no editor; Ctrl/Cmd+Z brings it back, and the save removes it with unset (#189)", async () => {
         const { controls, call, drafts } = await mountValues(
           { topic: "Wind", legacy: ["a", "b"] },
           {},
@@ -6304,7 +6304,7 @@ describe("ElementView", () => {
         });
       };
 
-      it("[SR-132/AK1] the key on the topic box opens the list of the elements with that topic", async () => {
+      it("[SR-132/AK-y207] the key on the topic box opens the list of the elements with that topic", async () => {
         const { controls, dispatched, call } = await mountListing();
         await caretAt(viewOf("topic"), 0);
         await listValue(controls);
@@ -6313,7 +6313,7 @@ describe("ElementView", () => {
         blurAll();
       });
 
-      it("[SR-132/AK2] a list property opens the value on the line with the caret; the box as a whole asks among its values", async () => {
+      it("[SR-132/AK-ymp3] a list property opens the value on the line with the caret; the box as a whole asks among its values", async () => {
         const { controls, dispatched, asked } = await mountListing();
         await caretAt(viewOf("synonyms"), "gust\nbr".length);
         await listValue(controls);
@@ -6331,7 +6331,7 @@ describe("ElementView", () => {
         expect(dispatched.at(-1)).toEqual(opened("synonyms", "gust", "gust"));
       });
 
-      it("[SR-132/AK2] a choice box opens the list of its value", async () => {
+      it("[SR-132/AK-ymp3] a choice box opens the list of its value", async () => {
         const { controls, dispatched } = await mountListing();
         act(() => {
           field("area").focus();
@@ -6340,7 +6340,7 @@ describe("ElementView", () => {
         expect(dispatched.at(-1)).toEqual(opened("area", "quality", "quality"));
       });
 
-      it("[SR-132/AK3] the focused target of a relation box opens the list of the elements with that target", async () => {
+      it("[SR-132/AK-q3fb] the focused target of a relation box opens the list of the elements with that target", async () => {
         const { controls, dispatched } = await mountListing();
         const links = [...container.querySelectorAll<HTMLElement>('[data-field="packages"] [role="link"]')];
         act(() => {
@@ -6350,7 +6350,7 @@ describe("ElementView", () => {
         expect(dispatched.at(-1)).toEqual(opened("packages", "Stufe 4", "PKG-p2"));
       });
 
-      it("[SR-132/AK3] Enter with a modifier on a target link is left to the window; plain Enter still opens the target", async () => {
+      it("[SR-132/AK-q3fb] Enter with a modifier on a target link is left to the window; plain Enter still opens the target", async () => {
         const { targets } = await mountListing();
         const link = query('[data-field="packages"] [role="link"]');
         const key = new KeyboardEvent("keydown", {
@@ -6384,7 +6384,7 @@ describe("ElementView", () => {
         return click;
       };
 
-      it("[SR-132/AK1] Ctrl/Cmd+click on a value opens its list: a line of a text box, a choice, a package target", async () => {
+      it("[SR-132/AK-y207] Ctrl/Cmd+click on a value opens its list: a line of a text box, a choice, a package target", async () => {
         const { dispatched, targets } = await mountListing();
         await modClick(container.querySelectorAll('[data-field="synonyms"] .cm-line')[1]);
         expect(dispatched.at(-1)).toEqual(opened("synonyms", "breeze", "breeze"));
@@ -6404,7 +6404,7 @@ describe("ElementView", () => {
         blurAll();
       });
 
-      it("[SR-132/AK4] Ctrl/Cmd+click on the acceptance criteria offers no list, not even the prompt among the other values", async () => {
+      it("[SR-132/AK-k3w0] Ctrl/Cmd+click on the acceptance criteria offers no list, not even the prompt among the other values", async () => {
         const { dispatched, asked, echoed } = await mountListing();
         await modClick(container.querySelector(`[data-field="${KEY}"] .cm-line`));
         expect(dispatched).toEqual([]);
@@ -6413,7 +6413,7 @@ describe("ElementView", () => {
         blurAll();
       });
 
-      it("[SR-132/AK4] on the acceptance criteria the key asks among the other values, never the criteria", async () => {
+      it("[SR-132/AK-k3w0] on the acceptance criteria the key asks among the other values, never the criteria", async () => {
         const { controls, dispatched, asked } = await mountListing();
         await caretAt(viewOf(KEY), 0);
         await listValue(controls);
@@ -6448,7 +6448,7 @@ describe("ElementView", () => {
         expect(asked.at(-1)?.items).toHaveLength(8);
       });
 
-      it("[SR-132/AK1] from the command prompt it lists the value the cursor was on before the prompt opened", async () => {
+      it("[SR-132/AK-y207] from the command prompt it lists the value the cursor was on before the prompt opened", async () => {
         const { controls, dispatched } = await mountListing();
         // The second target of a box with two: once the prompt has the focus, only the snapshot knows it.
         const links = [...container.querySelectorAll<HTMLElement>('[data-field="packages"] [role="link"]')];
@@ -6483,7 +6483,7 @@ describe("ElementView", () => {
         expect(dispatched.at(-1)).toEqual(opened("synonyms", "breeze", "breeze"));
       });
 
-      it("[SR-132/AK1] typed input is saved before the list opens, so the typed value is the one listed", async () => {
+      it("[SR-132/AK-y207] typed input is saved before the list opens, so the typed value is the one listed", async () => {
         let saved = "Wind";
         const { controls, dispatched, call } = await mountListing(
           () => facetsOf(saved),
@@ -6581,7 +6581,7 @@ describe("ElementView", () => {
     expect(targets).toEqual(["element:spec:n1", "element:platform:r1", "element:spec:p"]);
   });
 
-  it("[SR-132/AK3] Follow reference on a focused link of a relation group opens that link, not the reference at the caret of the text", async () => {
+  it("[SR-132/AK-q3fb] Follow reference on a focused link of a relation group opens that link, not the reference at the caret of the text", async () => {
     const { controls, targets, opened } = await mount(
       asCall(fakeCall({ "element.get": () => ({ element: read({ text: "[x](reqseq:uuid-2)" }) }) })),
     );
@@ -6640,7 +6640,7 @@ describe("ElementView", () => {
       currentDate: "2026-05-06T08:00:00Z",
     };
 
-    it("[SR-110/AK2] marks the row from the hint of its item, then with the date of the version it stores", async () => {
+    it("[SR-110/AK-j1xs] marks the row from the hint of its item, then with the date of the version it stores", async () => {
       const call = fakeCall({
         "element.get": (input) => ({
           element: read({
@@ -6733,7 +6733,7 @@ describe("ElementView", () => {
       ...extra,
     });
 
-    it("[SR-112/AK1] shows below its title and text the elements that name the package, as asked of element.list by its UUID", async () => {
+    it("[SR-112/AK-fzbz] shows below its title and text the elements that name the package, as asked of element.list by its UUID", async () => {
       const call = fakeCall({
         "element.get": () => ({ element: page({ text: "The third stage" }) }),
         "element.list": () => members(),
@@ -6757,7 +6757,7 @@ describe("ElementView", () => {
       expect(query(".members").hasAttribute("hidden")).toBe(false);
     });
 
-    it("[SR-112/AK1] asks once, and moving through the elements asks for nothing more", async () => {
+    it("[SR-112/AK-fzbz] asks once, and moving through the elements asks for nothing more", async () => {
       const call = fakeCall({
         "element.get": () => ({ element: page() }),
         "element.list": () => members(),
@@ -6776,7 +6776,7 @@ describe("ElementView", () => {
       expect(asked()).toBe(1);
     });
 
-    it("[SR-114/AK3] reports the element with the count of its elements for the modeline, once they are there", async () => {
+    it("[SR-114/AK-bcv4] reports the element with the count of its elements for the modeline, once they are there", async () => {
       const call = fakeCall({
         "element.get": () => ({ element: page() }),
         "element.list": () => members(rowsOf(1, 4), 3, true),
@@ -6791,7 +6791,7 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-114/AK3] reports no count for an element that is no package", async () => {
+    it("[SR-114/AK-bcv4] reports no count for an element that is no package", async () => {
       const call = fakeCall({ "element.get": () => ({ element: page({ type: "need" }) }) });
       const { data } = await mount(asCall(call), 0, undefined, { packages: model });
       expect(data.map(([, loaded]) => loaded?.kind)).toEqual([undefined, "element"]);
@@ -6815,7 +6815,7 @@ describe("ElementView", () => {
       ]);
     });
 
-    it("[SR-112/AK1] asks for no elements when the element is no package, or when the metamodel has no package", async () => {
+    it("[SR-112/AK-fzbz] asks for no elements when the element is no package, or when the metamodel has no package", async () => {
       const call = fakeCall({
         "element.get": () => ({ element: read() }),
         "element.list": () => members(),
@@ -6978,7 +6978,7 @@ describe("ElementView", () => {
       expect(document.activeElement).not.toBe(query(".members .list"));
     });
 
-    it("[SR-112/AK1] asks for the elements again when the workspace changed, and keeps them until the answer", async () => {
+    it("[SR-112/AK-fzbz] asks for the elements again when the workspace changed, and keeps them until the answer", async () => {
       let names = ["Title 1", "Title 2", "Title 3"];
       const call = fakeCall({
         "element.get": () => ({ element: page() }),

@@ -173,7 +173,7 @@ describe("portMessage: what the core process sends a window", () => {
     });
   });
 
-  it("[SR-117/AK4] the port carries only the two events, and no mode with them", () => {
+  it("[SR-117/AK-k2mf] the port carries only the two events, and no mode with them", () => {
     expect(PORT_EVENTS).toEqual(["workspace-changed", "agent-activity"]);
     expect(BRIDGE_EVENTS.filter(isBridgeEvent)).toEqual(BRIDGE_EVENTS);
     for (const name of ["follow-mode", "follow", "mode", "toString", "__proto__", 1, undefined]) {
@@ -512,7 +512,7 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
     expect(MAX_ROOT_LENGTH).toBe(CORE_MAX_ROOT_LENGTH);
   });
 
-  it("[SR-131/AK3] save-expired is an event of the window from the main process, never one of the port", () => {
+  it("[SR-131/AK-nkm5] save-expired is an event of the window from the main process, never one of the port", () => {
     expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired"]);
     expect(isBridgeEvent("save-expired")).toBe(true);
     expect(PORT_EVENTS).not.toContain("save-expired");

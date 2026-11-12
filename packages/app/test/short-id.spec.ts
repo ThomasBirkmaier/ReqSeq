@@ -28,7 +28,7 @@ interface Got {
   };
 }
 
-test("[SR-084/AK4] the modeline, the buffer name, the relations and the graph show the identifier in brackets behind the short ID, and Copy field at the ID copies the short ID", async () => {
+test("[SR-084/AK-c2s2] the modeline, the buffer name, the relations and the graph show the identifier in brackets behind the short ID, and Copy field at the ID copies the short ID", async () => {
   const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
   const { window } = running;
   const before = await running.app.evaluate(({ clipboard }) => clipboard.readText());
@@ -77,7 +77,7 @@ test("[SR-084/AK4] the modeline, the buffer name, the relations and the graph sh
   }
 });
 
-test("[SR-084/AK4] an identifier too long for a graph box gives way with an ellipsis before the type, which stays whole (SR-111 AK4)", async () => {
+test("[SR-084/AK-c2s2] an identifier too long for a graph box gives way with an ellipsis before the type, which stays whole (SR-111 AK4)", async () => {
   const LONG = "REQ-SYS-0123-WIND-SPEED-DISPLAY";
   const FILE = "system-requirement/SR-3d09c015e3b8.md";
   const source = await fs.readFile(path.join(SPEC, FILE), "utf8");
@@ -123,7 +123,7 @@ test("[SR-084/AK4] an identifier too long for a graph box gives way with an elli
   }
 });
 
-test("[SR-084/AK4] a list and the overview show the short ID with the identifier, uncut", async () => {
+test("[SR-084/AK-c2s2] a list and the overview show the short ID with the identifier, uncut", async () => {
   const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
   const { window } = running;
   try {

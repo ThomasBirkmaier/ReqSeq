@@ -120,7 +120,7 @@ test.describe.serial("the list of the elements with a value", () => {
     await running.close();
   });
 
-  test("[SR-132/AK1] the key on the topic box and the command on a choice box open the list of the elements with that value", async () => {
+  test("[SR-132/AK-y207] the key on the topic box and the command on a choice box open the list of the elements with that value", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     await caretIn(window, "topic");
@@ -138,7 +138,7 @@ test.describe.serial("the list of the elements with a value", () => {
     });
   });
 
-  test("[SR-132/AK1] Ctrl/Cmd+click on the topic value and on a package target opens the list of the elements with that value", async () => {
+  test("[SR-132/AK-y207] Ctrl/Cmd+click on the topic value and on a package target opens the list of the elements with that value", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     await window
@@ -165,7 +165,7 @@ test.describe.serial("the list of the elements with a value", () => {
     await expect(window.locator("article h1")).toHaveText("Sensors");
   });
 
-  test("[SR-132/AK2] the lists of one value of a list property and of the status hold what the CLI lists for property eq value", async () => {
+  test("[SR-132/AK-ymp3] the lists of one value of a list property and of the status hold what the CLI lists for property eq value", async () => {
     const { window } = running;
     await openElement(window, "Time the samples");
     await caretIn(window, "labels", 2);
@@ -188,7 +188,7 @@ test.describe.serial("the list of the elements with a value", () => {
     expect(status.total).toBe((await listedBy(running, { status: ["draft"] })).total);
   });
 
-  test("[SR-132/AK3] the list of a package target holds the elements of the package, as the CLI lists them", async () => {
+  test("[SR-132/AK-q3fb] the list of a package target holds the elements of the package, as the CLI lists them", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     await window.locator('[data-field="packages"] [role="link"]').first().focus();
@@ -201,7 +201,7 @@ test.describe.serial("the list of the elements with a value", () => {
     expect(listed.elements.map((e) => e.title)).toContain("Measure the hail");
   });
 
-  test("[SR-132/AK4] the rationale and the acceptance criteria offer no list: on their box the key and the command ask only among the other values", async () => {
+  test("[SR-132/AK-k3w0] the rationale and the acceptance criteria offer no list: on their box the key and the command ask only among the other values", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     for (const key of ["rationale", "acceptance-criteria"]) {
@@ -234,7 +234,7 @@ test.describe.serial("the list of the elements with a value", () => {
     }
   });
 
-  test("[SR-132/AK5] a further filter narrows the list of a value as the CLI does", async () => {
+  test("[SR-132/AK-xc4j] a further filter narrows the list of a value as the CLI does", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     await caretIn(window, "topic");
@@ -272,7 +272,7 @@ test.describe("the key under macOS", () => {
     await running.close();
   });
 
-  test("[SR-132/AK1] [SR-145/AK1] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
+  test("[SR-132/AK-y207] [SR-145/AK-bfb2] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     // Cmd+Shift+Enter on the rationale asks: the facets of the element are answered and kept from here on.

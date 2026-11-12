@@ -45,7 +45,7 @@ test.describe("the evidence in the trace chain", () => {
     await running.close();
   });
 
-  test("[SR-033/AK1] the chain view shows each test case of a requirement with all its executions, with date, result, item and evidence", async () => {
+  test("[SR-033/AK-mvfg] the chain view shows each test case of a requirement with all its executions, with date, result, item and evidence", async () => {
     const { window } = running;
     await showChain(window);
     const shown = await lines(window);
@@ -66,7 +66,7 @@ test.describe("the evidence in the trace chain", () => {
     expect(shown.filter((line) => line.startsWith("evidence|"))).toEqual([]);
   });
 
-  test("[SR-033/AK3] the chain view marks a test case without execution as not executed", async () => {
+  test("[SR-033/AK-jtx6] the chain view marks a test case without execution as not executed", async () => {
     const { window } = running;
     await showChain(window);
     const shown = await lines(window);

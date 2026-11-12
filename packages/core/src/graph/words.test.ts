@@ -27,7 +27,7 @@ const edge = (link: Partial<Edge>): Edge => ({
 });
 
 describe("graph words", () => {
-  it("[SR-136/AK2] names the status and ring of a requirement and the degree of a need", () => {
+  it("[SR-136/AK-kvvw] names the status and ring of a requirement and the degree of a need", () => {
     const requirement: Verifiable = {
       verification: [{ view: "core", status: "open" }],
       criteria: { verified: 2, total: 3, notVerified: [{ criterion: 3 }] },
@@ -46,7 +46,7 @@ describe("graph words", () => {
     expect(MARK_WORDS).toEqual({ outdated: "outdated", superseded: "superseded" });
   });
 
-  it("[SR-084/AK4] shows the short ID with the identifier, and a type by its name or key", () => {
+  it("[SR-084/AK-c2s2] shows the short ID with the identifier, and a type by its name or key", () => {
     expect([shownId("SR-3c90b0", "SR-036"), shownId("SR-3c90b0", " "), shownId("SR-3c90b0")]).toEqual([
       "SR-3c90b0 (SR-036)",
       "SR-3c90b0",
@@ -56,7 +56,7 @@ describe("graph words", () => {
     expect([typeName(names, "need"), typeName(names, "other")]).toEqual(["Need", "other"]);
   });
 
-  it("[SR-154/AK1] names a kind or relation property by the metamodel, else its key, a reference by its word", () => {
+  it("[SR-154/AK-rhrj] names a kind or relation property by the metamodel, else its key, a reference by its word", () => {
     const names = relationNames({
       relations: [{ key: "derives-from", name: "Derives from" }],
       properties: [

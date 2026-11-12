@@ -44,7 +44,7 @@ const setup = (contents = new FakeContents()) => {
 };
 
 describe("the edit channel", () => {
-  it("[SR-195/AK3] pastes once right after a click on an entry, as the Edit menu's Paste does", () => {
+  it("[SR-195/AK-qn9f] pastes once right after a click on an entry, as the Edit menu's Paste does", () => {
     const { electron, contents, edit, later } = setup();
     expect(electron.ipcMain.handle).toHaveBeenCalledOnce();
     contents.input(CLICK);
@@ -61,7 +61,7 @@ describe("the edit channel", () => {
     expect(contents.paste).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-195/AK3] pastes after a bare Enter, the key that runs a command", () => {
+  it("[SR-195/AK-qn9f] pastes after a bare Enter, the key that runs a command", () => {
     for (const input of [
       { type: "rawKeyDown", key: "Enter" },
       { type: "keyDown", keyCode: "Return", modifiers: ["numlock"] },
@@ -72,7 +72,7 @@ describe("the edit channel", () => {
     }
   });
 
-  it("[SR-195/AK3] pastes nothing without such an input, or once it is more than a second old", () => {
+  it("[SR-195/AK-qn9f] pastes nothing without such an input, or once it is more than a second old", () => {
     const { contents, edit, later } = setup();
     expect(edit("paste")).toBe(false);
     for (const input of [
@@ -100,7 +100,7 @@ describe("the edit channel", () => {
     expect(contents.paste).not.toHaveBeenCalled();
   });
 
-  it("[SR-195/AK3] pastes nothing for another request, another sender, another frame or another page", () => {
+  it("[SR-195/AK-qn9f] pastes nothing for another request, another sender, another frame or another page", () => {
     const { contents, edit } = setup();
     const other = new FakeContents();
     for (const request of [undefined, "cut", "copy", "PASTE", ["paste"], { paste: true }]) {
@@ -124,7 +124,7 @@ describe("the edit channel", () => {
     }
   });
 
-  it("[SR-195/AK3] pastes nothing after a space, which is typed in every text", () => {
+  it("[SR-195/AK-qn9f] pastes nothing after a space, which is typed in every text", () => {
     const { contents, edit } = setup();
     for (const input of [
       { type: "keyDown", key: " " },

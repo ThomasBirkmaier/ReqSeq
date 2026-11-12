@@ -86,7 +86,7 @@ const found = async (
 };
 
 describe("relation.options offers only the relation kinds the metamodel allows for the type (SR-067 AK1)", () => {
-  it("[SR-067/AK1] offers a system requirement the kinds whose source types allow it, in metamodel order, with name and target types", async () => {
+  it("[SR-067/AK-tfcb] offers a system requirement the kinds whose source types allow it, in metamodel order, with name and target types", async () => {
     const ws = await open();
     // excludes goes only from a variant.
     expect(await options(ws, { ref: "SR-0000b1" })).toEqual({
@@ -94,7 +94,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     });
   });
 
-  it("[SR-067/AK1] offers a subtype the kinds of its supertype, and a need and a variant only theirs", async () => {
+  it("[SR-067/AK-tfcb] offers a subtype the kinds of its supertype, and a need and a variant only theirs", async () => {
     const ws = await open();
     expect(await options(ws, { ref: "swr-0000F1" })).toEqual({
       kinds: [REFINES, DERIVES, BASED_ON, SUPERSEDES, REPLACES],
@@ -105,13 +105,13 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     });
   });
 
-  it("[SR-067/AK1] with a kind offers only that one, and none when the type does not allow it", async () => {
+  it("[SR-067/AK-tfcb] with a kind offers only that one, and none when the type does not allow it", async () => {
     const ws = await open();
     expect(await options(ws, { ref: "SR-0000b1", kind: "derives-from" })).toEqual({ kinds: [DERIVES] });
     expect(await options(ws, { ref: "N-0000a1", kind: "derives-from" })).toEqual({ kinds: [] });
   });
 
-  it("[SR-067/AK1] refuses a key that is no relation kind, as relation.add does", async () => {
+  it("[SR-067/AK-tfcb] refuses a key that is no relation kind, as relation.add does", async () => {
     const ws = await open();
     const unknown = await optionsError(ws, { ref: "N-0000a1", kind: "nope" });
     expect([unknown.code, unknown.message, unknown.details]).toEqual([
@@ -132,7 +132,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     expect(add).toEqual(unknown);
   });
 
-  it("[SR-067/AK1] does not offer a kind whose target types allow no type, and names a subtype it allows", async () => {
+  it("[SR-067/AK-tfcb] does not offer a kind whose target types allow no type, and names a subtype it allows", async () => {
     const ws = await open({
       ...FILTER,
       files: {
@@ -154,7 +154,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     expect(await options(ws, { ref: "N-0000a1", kind: "blocks" })).toEqual({ kinds: [] });
   });
 
-  it("[SR-067/AK1] offers no kind for an element whose type the metamodel does not know (SR-016 AK3)", async () => {
+  it("[SR-067/AK-tfcb] offers no kind for an element whose type the metamodel does not know (SR-016 AK3)", async () => {
     const ws = await open({ ...FILTER, files: { "requirements/X-0000000000ee.md": GADGET } });
     expect(await options(ws, { ref: GADGET_ID })).toEqual({ kinds: [] });
     const error = await optionsError(ws, { ref: GADGET_ID, kind: "nope" });
@@ -169,7 +169,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     expect((await optionsError(ws, { ref: "SR-ffffff" })).code).toBe("ref.unknown");
   });
 
-  it("[SR-067/AK1] relation.add sets a relation exactly when relation.options offers its kind with the target's type", async () => {
+  it("[SR-067/AK-tfcb] relation.add sets a relation exactly when relation.options offers its kind with the target's type", async () => {
     const ws = await open();
     const sources = ["SR-0000b1", "SWR-0000f1", "N-0000a1", "VAR-0000c1", "D-0000e1"];
     // One target of each type that has elements.
@@ -205,7 +205,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
 });
 
 describe("relation.options gives the target types a target search is restricted to (SR-067 AK2)", () => {
-  it("[SR-067/AK2] with a chosen kind, element.search within its target types shows only elements of those types", async () => {
+  it("[SR-067/AK-bcvf] with a chosen kind, element.search within its target types shows only elements of those types", async () => {
     const ws = await open();
     // "draft" is the name of a status, so it finds every draft element, whatever its type.
     expect(await found(ws, "draft")).toEqual([
@@ -231,7 +231,7 @@ describe("relation.options gives the target types a target search is restricted 
     expect(await found(ws, "approved", { where: { type: basedOn?.targetTypes } })).toEqual(["D-0000e1"]);
   });
 
-  it("[SR-067/AK2] a kind without target types finds elements of every type the metamodel knows, not of an unknown type", async () => {
+  it("[SR-067/AK-bcvf] a kind without target types finds elements of every type the metamodel knows, not of an unknown type", async () => {
     const ws = await open({ ...FILTER, files: { "requirements/X-0000000000ee.md": GADGET } });
     const [refines] = (await options(ws, { ref: "N-0000a1", kind: "refines" })).kinds;
     const everyDraft = await found(ws, "draft");

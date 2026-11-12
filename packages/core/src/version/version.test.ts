@@ -242,7 +242,7 @@ describe("version (ADR-0005, normal form n1)", () => {
     const propsIn = (props: VersionInput["properties"]): string =>
       vIn({ properties: { ...base.properties, ...props } });
 
-    it("[SR-091/AK1] is equal for the same content with other line endings or trailing spaces", () => {
+    it("[SR-091/AK-q9fd] is equal for the same content with other line endings or trailing spaces", () => {
       const lf = computeVersion(base, form);
       const crlf = base.text.replace(/\n/g, "\r\n");
       const cr = base.text.replace(/\n/g, "\r");
@@ -257,7 +257,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       ).toBe(lf);
     });
 
-    it("[SR-091/AK2] stays equal when only properties that do not count change", () => {
+    it("[SR-091/AK-m3t3] stays equal when only properties that do not count change", () => {
       const before = computeVersion(base, form);
       expect(propsIn({ status: "approved" })).toBe(before);
       expect(propsIn({ title: "Show wind speed in large digits" })).toBe(before);
@@ -274,7 +274,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       );
     });
 
-    it("[SR-091/AK3] changes when text, an acceptance criterion or a content property changes", () => {
+    it("[SR-091/AK-q8pb] changes when text, an acceptance criterion or a content property changes", () => {
       const before = computeVersion(base, form);
       expect(vIn({ text: `${base.text}More.\n` })).not.toBe(before);
       expect(vIn({ text: base.text.replace("|---|---|", "| --- | --- |") })).not.toBe(before);
@@ -292,7 +292,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       expect(propsIn({ emergent: "yes" })).not.toBe(before);
     });
 
-    it("[SR-091/AK4] changes when an embedded image changes", () => {
+    it("[SR-091/AK-q1k5] changes when an embedded image changes", () => {
       const before = computeVersion(base, form);
       const changed = sha256Hex(new Uint8Array([1, 2, 4]));
       expect(vIn({ files: [{ path: "SR-825b7146fb54/layout.png", sha256: changed }] })).not.toBe(before);
@@ -319,7 +319,7 @@ describe("normal form n2 (ADR-0005, #166, #688)", () => {
     expect(comparableContent(base, "n2")).toBe(canonicalContent(base, "n2"));
   });
 
-  it("[SR-091/AK5] gives the same n2 for reordered and duplicated relation targets, and one target equals a list of one", () => {
+  it("[SR-091/AK-g044] gives the same n2 for reordered and duplicated relation targets, and one target equals a list of one", () => {
     const of = (validity: VersionInput["properties"][string]): string =>
       computeVersion({ ...base, properties: { ...base.properties, validity } }, "n2");
     const ordered = of([{ id: lite }, { id: pro }]);
@@ -332,7 +332,7 @@ describe("normal form n2 (ADR-0005, #166, #688)", () => {
     expect(n1({ id: pro })).not.toBe(n1([{ id: pro }]));
   });
 
-  it("[SR-091/AK3] gives another n2 for an added relation target", () => {
+  it("[SR-091/AK-q8pb] gives another n2 for an added relation target", () => {
     const of = (validity: VersionInput["properties"][string]): string =>
       computeVersion({ ...base, properties: { ...base.properties, validity } }, "n2");
     expect(of([{ id: pro }, { id: lite }])).not.toBe(of([{ id: pro }]));
@@ -373,7 +373,7 @@ describe("criterion keys (D-027, D-072)", () => {
   });
   const both = (input: VersionInput): string[] => [computeVersion(input, "n1"), computeVersion(input, "n2")];
 
-  it("[SR-091/AK6] counts a criterion with its key as its text alone, in every normal form, whatever the key", () => {
+  it("[SR-091/AK-vv64] counts a criterion with its key as its text alone, in every normal form, whatever the key", () => {
     const plain = both(base);
     expect(
       both(

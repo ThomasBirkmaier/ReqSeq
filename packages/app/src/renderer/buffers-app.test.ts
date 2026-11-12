@@ -224,7 +224,7 @@ const render = async (): Promise<void> => {
 };
 
 describe("App, Go to a buffer or an element (SR-115 AK1)", () => {
-  it("[SR-115/AK1] Ctrl+P lists the open buffers, the one used last first, then the elements shown last that are no longer open, and opens any element core finds for a text with a typo", async () => {
+  it("[SR-115/AK-gxzy] Ctrl+P lists the open buffers, the one used last first, then the elements shown last that are no longer open, and opens any element core finds for a text with a typo", async () => {
     await render();
     // Opened: the overview (at the start), the list, its first element, the second element by Ctrl+P.
     await runCommand("List all elements");
@@ -262,7 +262,7 @@ describe("App, Go to a buffer or an element (SR-115 AK1)", () => {
 });
 
 describe("App, Go to after a restart (SR-115 AK1)", () => {
-  it("[SR-115/AK1] the elements shown before the app was opened again are offered with the names the overview read, without asking core when Ctrl+P opens", async () => {
+  it("[SR-115/AK-gxzy] the elements shown before the app was opened again are offered with the names the overview read, without asking core when Ctrl+P opens", async () => {
     // Kept by the start before: element 3, then element 2 (newest first), per workspace (SR-118 AK5).
     const key = recentKey({ ok: true, output: HANDLERS["workspace.status"]?.({}) });
     window.localStorage.setItem(
@@ -298,7 +298,7 @@ describe("App, Go to and elements deleted outside (ThomasBirkmaier/ReqSeq-archiv
     );
   };
 
-  it("[SR-115/AK1] a recent element that the overview no longer finds is not offered under its old name", async () => {
+  it("[SR-115/AK-gxzy] a recent element that the overview no longer finds is not offered under its old name", async () => {
     remembered();
     await render();
     await press(window, { key: "p", ctrlKey: true });
@@ -314,7 +314,7 @@ describe("App, Go to and elements deleted outside (ThomasBirkmaier/ReqSeq-archiv
     expect(candidates()).toEqual(["All elements", "SR-000002 Title 2"]);
   });
 
-  it("[SR-115/AK1] a recent element chosen in Go to and found gone is not offered again", async () => {
+  it("[SR-115/AK-gxzy] a recent element chosen in Go to and found gone is not offered again", async () => {
     remembered();
     await render();
     await runCommand("List all elements");
@@ -333,7 +333,7 @@ describe("App, Go to and elements deleted outside (ThomasBirkmaier/ReqSeq-archiv
     expect(candidates()).toEqual(["Overview", "SR-000002 Title 2"]);
   });
 
-  it("[SR-115/AK1] another workspace offers no name of the one before until its overview read them", async () => {
+  it("[SR-115/AK-gxzy] another workspace offers no name of the one before until its overview read them", async () => {
     remembered();
     await render();
     await press(window, { key: "p", ctrlKey: true });
@@ -361,7 +361,7 @@ describe("App, Go to and elements deleted outside (ThomasBirkmaier/ReqSeq-archiv
 });
 
 describe("App, no tab bar (SR-115 AK2)", () => {
-  it("[SR-115/AK2] with several buffers open there is no tab bar: no tab or tablist, one buffer in the sheet, and no name of a hidden buffer outside the modeline", async () => {
+  it("[SR-115/AK-xn0m] with several buffers open there is no tab bar: no tab or tablist, one buffer in the sheet, and no name of a hidden buffer outside the modeline", async () => {
     await render();
     // Open: the overview, the list, an element, its graph, a search.
     await runCommand("List all elements");
@@ -396,7 +396,7 @@ describe("App, no tab bar (SR-115 AK2)", () => {
 });
 
 describe("App, Close all buffers in the command prompt (SR-123 AK3)", () => {
-  it('[SR-123/AK3] "cab" puts Close all buffers first with one buffer beside the overview; with the overview alone it is not offered', async () => {
+  it('[SR-123/AK-h0hj] "cab" puts Close all buffers first with one buffer beside the overview; with the overview alone it is not offered', async () => {
     await render();
     // The lone overview: the prompt lists its commands, without Close all buffers, and "cab" finds it not.
     await press(window, { key: "P", ctrlKey: true, shiftKey: true });

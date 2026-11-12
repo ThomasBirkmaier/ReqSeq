@@ -154,7 +154,7 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ total: 4 })).toBe(lines("total: 4"));
   });
 
-  it("[SR-084/AK4] prints the identifier in brackets behind the short ID, and the short ID alone without one", () => {
+  it("[SR-084/AK-c2s2] prints the identifier in brackets behind the short ID, and the short ID alone without one", () => {
     expect(
       renderHuman({
         elements: [
@@ -230,7 +230,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("[SR-075/AK2] shows a tree list indented by depth, naming a parent that is not shown before", () => {
+  it("[SR-075/AK-f889] shows a tree list indented by depth, naming a parent that is not shown before", () => {
     const element = (id: string, title: string): Record<string, unknown> => ({
       id,
       repository: "system",
@@ -302,7 +302,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("[SR-149/AK1] shows a grouped list under a heading per group with its value and count", () => {
+  it("[SR-149/AK-yrzz] shows a grouped list under a heading per group with its value and count", () => {
     const element = (id: string, title: string): Record<string, unknown> => ({
       id,
       repository: "system",
@@ -400,7 +400,7 @@ describe("renderHuman: values", () => {
     expect(yaml).toContain("Showing 1 of 2; ask for more with --offset and --limit.");
   });
 
-  it("[SR-149/AK6] shows grouped search hits under their headings, each with its snippet", () => {
+  it("[SR-149/AK-byyt] shows grouped search hits under their headings, each with its snippet", () => {
     const hit = (id: string, title: string, snippet?: Record<string, unknown>): Record<string, unknown> => ({
       id,
       repository: "system",
@@ -439,7 +439,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("[SR-149/AK1] shows each group of a grouped tree as its own tree, with texts", () => {
+  it("[SR-149/AK-yrzz] shows each group of a grouped tree as its own tree, with texts", () => {
     const element = (id: string, body?: string): Record<string, unknown> => ({
       id,
       repository: "system",
@@ -674,7 +674,7 @@ describe("renderHuman: one element", () => {
     expect(renderHuman({ element: { ...element, properties: "odd" } })).toContain("  properties: odd\n");
   });
 
-  it("[SR-205/AK1] [SR-205/AK3] shows each criterion of element get with its number, key and reference, and resolve's criterion", () => {
+  it("[SR-205/AK-npsp] [SR-205/AK-wyyz] shows each criterion of element get with its number, key and reference, and resolve's criterion", () => {
     const properties = {
       "acceptance-criteria": [{ key: "kred", text: "Given a reading." }, "Given none."],
       "requirement-type": "functional",
@@ -730,7 +730,7 @@ describe("renderHuman: verification status (SR-031)", () => {
     ...(verification === undefined ? {} : { verification }),
   });
 
-  it("[SR-031/AK2] shows the verification status per view after the title, apart from the element's own status", () => {
+  it("[SR-031/AK-fnvr] shows the verification status per view after the title, apart from the element's own status", () => {
     const elements = [
       requirement("1", [
         { view: "core", status: "verified" },
@@ -775,7 +775,7 @@ describe("renderHuman: verification status (SR-031)", () => {
       ),
     );
   });
-  it("[SR-031/AK5] shows how many acceptance criteria are verified and which are not", () => {
+  it("[SR-031/AK-yscc] shows how many acceptance criteria are verified and which are not", () => {
     const elements = [
       requirement("1", [
         {
@@ -807,7 +807,7 @@ describe("renderHuman: verification status (SR-031)", () => {
 });
 
 describe("renderHuman: indirect verification (SR-034)", () => {
-  it("[SR-034/AK2] names the missing children after the status of their view: short ID from the list, else from the relations, else UUID", () => {
+  it("[SR-034/AK-hk8z] names the missing children after the status of their view: short ID from the list, else from the relations, else UUID", () => {
     const elements = [
       {
         id: "p",
@@ -840,7 +840,7 @@ describe("renderHuman: indirect verification (SR-034)", () => {
     );
   });
 
-  it("[SR-034/AK1] shows indirect on the line of one element", () => {
+  it("[SR-034/AK-kkxv] shows indirect on the line of one element", () => {
     const element = {
       id: "p",
       shortId: "SR-P",
@@ -865,7 +865,7 @@ describe("renderHuman: elements named by UUID only (ThomasBirkmaier/ReqSeq-archi
     { id: V1, repository: "system", shortId: "VAR-0000c1", title: "Pro" },
   ];
 
-  it("[SR-036/AK2] prints the elements behind the coverage numbers by short ID, identifier and title, not names itself", () => {
+  it("[SR-036/AK-xbxh] prints the elements behind the coverage numbers by short ID, identifier and title, not names itself", () => {
     const levels = [
       {
         type: "system-requirement",
@@ -890,7 +890,7 @@ describe("renderHuman: elements named by UUID only (ThomasBirkmaier/ReqSeq-archi
     );
   });
 
-  it("[SR-034/AK2] names missing children and variants in the verification status by short ID and identifier", () => {
+  it("[SR-034/AK-hk8z] names missing children and variants in the verification status by short ID and identifier", () => {
     const elements = [
       {
         id: "p",
@@ -952,7 +952,7 @@ describe("renderHuman: elements named by UUID only (ThomasBirkmaier/ReqSeq-archi
 });
 
 describe("renderHuman: validation status (SR-038)", () => {
-  it("[SR-038/AK1] shows the validation status in its own bracket after the verification status", () => {
+  it("[SR-038/AK-w0j6] shows the validation status in its own bracket after the verification status", () => {
     const elements = [
       { id: "n", shortId: "N-1", status: "approved", title: "Need", validation: "validated" },
       {
@@ -996,7 +996,7 @@ describe("renderHuman: validation status (SR-038)", () => {
     expect(out.split("\n").filter((line) => line.trimStart().startsWith("validation:"))).toEqual([]);
   });
 
-  it("[SR-172/AK2] shows an inconclusive validation with its reason on one line, cut when long, not again in the details", () => {
+  it("[SR-172/AK-j3vg] shows an inconclusive validation with its reason on one line, cut when long, not again in the details", () => {
     const element = {
       id: "n",
       shortId: "N-1",
@@ -1039,7 +1039,7 @@ describe("renderHuman: validation status (SR-038)", () => {
 describe("renderHuman: verification degree (SR-037)", () => {
   const counts = { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 };
 
-  it("[SR-037/AK1] shows the share of a verification degree as 60 % and the count per status", () => {
+  it("[SR-037/AK-zxtb] shows the share of a verification degree as 60 % and the count per status", () => {
     expect(renderHuman({ degree: { share: 0.6, total: 10, counts }, view: "core", incomplete: false })).toBe(
       lines(
         "degree:",
@@ -1089,7 +1089,7 @@ describe("renderHuman: verification degree (SR-037)", () => {
 });
 
 describe("renderHuman: the mark emergent (SR-035)", () => {
-  it("[SR-035/AK2] shows [emergent] after the title, before the verification status, and only for a marked element", () => {
+  it("[SR-035/AK-k81y] shows [emergent] after the title, before the verification status, and only for a marked element", () => {
     const elements = [
       {
         id: "e",
@@ -1674,7 +1674,7 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
     const { depth: _depth, ...rest } = node(id, shortId, 0);
     return { ...rest, level, marks: [] };
   };
-  it("[SR-111/AK3] prints the evidence summary of a node on the line below it", () => {
+  it("[SR-111/AK-h6n9] prints the evidence summary of a node on the line below it", () => {
     expect(
       renderHuman({
         root: "a",
@@ -1711,7 +1711,7 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
     );
   });
 
-  it("[SR-111/AK3] counts records alone, and shows nodes without evidence as a list", () => {
+  it("[SR-111/AK-h6n9] counts records alone, and shows nodes without evidence as a list", () => {
     const summary = { id: "a", repository: "system", level: 1, testCases: 0, records: 2, results: {} };
     expect(renderHuman({ nodes: [graphNode("a", "SR-00000a", 0)], evidence: [summary] })).toBe(
       lines("nodes:", "  SR-00000a  draft  Title SR-00000a", "    evidence: 2 records"),
@@ -1724,7 +1724,7 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
 });
 
 describe("renderHuman: a graph with verification (SR-136)", () => {
-  it("[SR-136/AK1] prints the status of a requirement node and the degree of a need node", () => {
+  it("[SR-136/AK-h2xg] prints the status of a requirement node and the degree of a need node", () => {
     expect(
       renderHuman({
         nodes: [
@@ -1785,7 +1785,7 @@ describe("renderHuman: on a terminal (#988)", () => {
     ...(parent === undefined ? {} : { parent: { id: parent, repository: "system" } }),
   });
 
-  it("[SR-084/AK4] puts the identifier in brackets behind the short ID, the status in a column and cuts the title to the width", () => {
+  it("[SR-084/AK-c2s2] puts the identifier in brackets behind the short ID, the status in a column and cuts the title to the width", () => {
     const output = {
       elements: [
         element("3c90b0", "Show wind", { identifier: "SR-36", status: "approved" }),

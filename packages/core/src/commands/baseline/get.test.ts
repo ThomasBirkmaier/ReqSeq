@@ -108,7 +108,7 @@ const byId = (rows: readonly Row[]): Record<string, Row> =>
   Object.fromEntries(rows.map((r) => [r.id.slice(-2), r]));
 
 describe("baseline.get", () => {
-  it("[SR-051/AK1] baseline.get shows each element with its baseline version and that version's date", async () => {
+  it("[SR-051/AK-n6cm] baseline.get shows each element with its baseline version and that version's date", async () => {
     const { ws, first, firstDate } = await made();
     const out = await call(ws, "baseline.get", { baseline: "Release 2" });
     expect(out).toMatchObject({
@@ -150,7 +150,7 @@ describe("baseline.get", () => {
     ]);
   });
 
-  it("[SR-051/AK2] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
+  it("[SR-051/AK-c0xb] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
     const { ws } = await made();
     const out = await call(ws, "baseline.get", { baseline: "Release 2" });
     const rows = byId(out.elements);
@@ -182,7 +182,7 @@ describe("baseline.get", () => {
     expect(without.elements.map((r) => r.state)).toEqual(["changed", "changed", "changed", "missing"]);
   });
 
-  it("[SR-051/AK3] baseline.get marks SR-W removed; without stored selection no removed", async () => {
+  it("[SR-051/AK-ntjw] baseline.get marks SR-W removed; without stored selection no removed", async () => {
     const { ws } = await made();
     const rows = byId((await call(ws, "baseline.get", { baseline: "Release 2" })).elements);
     // Not superseded, no longer in PKG-0000d1, and changed: only removed, with the current version.
@@ -494,7 +494,7 @@ describe("baseline.list in a repository that is not here", () => {
 });
 
 describe("baseline.compare", () => {
-  it("[SR-051/AK4] baseline.compare gives both commits and the git command", async () => {
+  it("[SR-051/AK-dcx7] baseline.compare gives both commits and the git command", async () => {
     const { ws, first, second } = await made();
     const file = "requirements/SR-0000000000b1.md";
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" })).toEqual({

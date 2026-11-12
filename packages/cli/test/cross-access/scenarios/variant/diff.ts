@@ -6,7 +6,7 @@ import { VARIANT_VIEWS } from "../../fixtures.js";
 
 scenariosOf("variant.diff", [
   {
-    tag: "[SR-044/AK1]",
+    tag: "[SR-044/AK-nxhm]",
     name: "A adds A2, replaces K1 by A1 and excludes K2",
     fixture: VARIANT_VIEWS,
     input: { variant: "VAR-0000c1" },
@@ -22,7 +22,7 @@ scenariosOf("variant.diff", [
     },
   },
   {
-    tag: "[SR-044/AK3]",
+    tag: "[SR-044/AK-dc1n]",
     name: "the replaced row names the IDs of core requirement and replacement",
     fixture: VARIANT_VIEWS,
     input: { variant: "VAR-0000c1" },

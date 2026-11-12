@@ -80,7 +80,7 @@ test.describe("the bundled documentation", () => {
     await fs.rm(site, { recursive: true, force: true });
   });
 
-  test("[SR-141/AK2] Help > ReqSeq Documentation opens the bundled documentation", async () => {
+  test("[SR-141/AK-g8dv] Help > ReqSeq Documentation opens the bundled documentation", async () => {
     running = await launchApp({ fixture: "SR-069/filter" }, { docsFolder: site });
     const { app, window } = running;
     // The window has loaded its workspace, so it hears the menu and takes keys.
@@ -100,7 +100,7 @@ test.describe("the bundled documentation", () => {
     expect(page.csp).toContain("default-src 'self'");
   });
 
-  test("[SR-141/AK3] help on a command in the command prompt opens its reference page", async () => {
+  test("[SR-141/AK-c1s5] help on a command in the command prompt opens its reference page", async () => {
     running = await launchApp({ fixture: "SR-069/filter" }, { docsFolder: site });
     const { app, window } = running;
     // The window has loaded its workspace, so it hears the menu and takes keys.
@@ -123,7 +123,7 @@ test.describe("the bundled documentation", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText("Opened the documentation in the browser");
   });
 
-  test("[SR-141/AK3] help on a command only the app has opens its place in the key reference", async () => {
+  test("[SR-141/AK-c1s5] help on a command only the app has opens its place in the key reference", async () => {
     running = await launchApp({ fixture: "SR-069/filter" }, { docsFolder: site });
     const { app, window } = running;
     await expect(window.getByLabel("Modeline")).toContainText("Weather station");

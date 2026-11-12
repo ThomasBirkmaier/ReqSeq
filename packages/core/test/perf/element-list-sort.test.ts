@@ -55,7 +55,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
 
   const basis = "SR-075, N-036 (recorded; compare SR-082 AK4, 500 ms)";
 
-  it("[SR-082/AK4] lists the first page of all elements as a derivation tree within 500 ms", async () => {
+  it("[SR-082/AK-h27y] lists the first page of all elements as a derivation tree within 500 ms", async () => {
     await measure("list: first call (short IDs, first page)", () => list({}), { basis });
     // The first tree of the store reads the parents of every element (kept for the store), and the
     // engine has not optimised its code yet (as the first chain, ADR-0008); recorded only.
@@ -82,7 +82,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] lists the first page of all elements sorted by title within 500 ms", async () => {
+  it("[SR-082/AK-h27y] lists the first page of all elements sorted by title within 500 ms", async () => {
     const { result: page, measurement } = await measure(
       "list: first page (200) of all elements sorted by title",
       () => list({ sort: [{ by: "title" }] }),
@@ -96,7 +96,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] lists the first page of all elements sorted by type and identifier within 500 ms (ThomasBirkmaier/ReqSeq-archive#418)", async () => {
+  it("[SR-082/AK-h27y] lists the first page of all elements sorted by type and identifier within 500 ms (ThomasBirkmaier/ReqSeq-archive#418)", async () => {
     const { result: page, measurement } = await measure(
       "list: first page (200) of all elements sorted by type, then identifier (natural order)",
       () => list({ sort: [{ by: "type" }, { by: "identifier" }] }),
@@ -126,7 +126,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] lists the first page of all elements grouped by package, by status and as trees per package group within 500 ms (SR-149)", async () => {
+  it("[SR-082/AK-h27y] lists the first page of all elements grouped by package, by status and as trees per package group within 500 ms (SR-149)", async () => {
     const byPackage = await measure(
       "list: first page (200) of all elements grouped by package, sorted by title",
       () => list({ group: "package", sort: [{ by: "title" }] }),

@@ -59,7 +59,7 @@ const hintsOf = async (ws: FixtureWorkspace, ...args: string[]): Promise<readonl
 };
 
 describe("reqseq hints since a variant's newest baseline (SR-103)", () => {
-  it("[SR-103/AK1] an adopted core requirement changed since A's newest baseline is a hint at A with both versions", async () => {
+  it("[SR-103/AK-grj7] an adopted core requirement changed since A's newest baseline is a hint at A with both versions", async () => {
     const ws = await changedSinceR1();
     const hints = await hintsOf(ws, "--variant", "VAR-0000c1");
     expect(hints.map((h) => [h.code, h.elementId, h.targetId, h.storedVersion])).toEqual([
@@ -75,7 +75,7 @@ describe("reqseq hints since a variant's newest baseline (SR-103)", () => {
     );
   });
 
-  it("[SR-103/AK2] a new baseline of A clears the hint", async () => {
+  it("[SR-103/AK-wvtw] a new baseline of A clears the hint", async () => {
     const ws = await changedSinceR1();
     const created = await reqseq(
       ["baseline", "create", "R2", "--input", '{"selection":{"view":"VAR-0000c1"}}'],
@@ -85,7 +85,7 @@ describe("reqseq hints since a variant's newest baseline (SR-103)", () => {
     expect(await hintsOf(ws)).toEqual([]);
   });
 
-  it("[SR-103/AK5] hint.confirm of the hint is refused: a new baseline settles it", async () => {
+  it("[SR-103/AK-q8d1] hint.confirm of the hint is refused: a new baseline settles it", async () => {
     const ws = await changedSinceR1();
     const before = await fs.readFile(ws.path("variants/VAR-0000000000c1.md"), "utf8");
     const refused = await reqseq(["hint", "confirm", "--ref", "VAR-0000c1", "--kind", CHANGED], ws.root);

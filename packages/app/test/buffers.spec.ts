@@ -60,7 +60,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await running.close();
   });
 
-  test("[SR-115/AK5] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
+  test("[SR-115/AK-m5pg] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
     const { window } = running;
     // Opened in this order: the overview (at the start), the list, an element, a search.
     await listAll(window);
@@ -87,7 +87,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toBeFocused();
   });
 
-  test("[SR-163/AK1] [SR-163/AK2] the mouse buttons Back and Forward switch buffers as Alt+P and Alt+N do, also from the editor", async () => {
+  test("[SR-163/AK-xtth] [SR-163/AK-v661] the mouse buttons Back and Forward switch buffers as Alt+P and Alt+N do, also from the editor", async () => {
     const { window } = running;
     // Chromium's own input path, as the thumb buttons of a mouse reach it on each platform; Playwright's
     // mouse knows only left, middle and right.
@@ -118,7 +118,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     expect(window.url()).toBe(page);
   });
 
-  test("[SR-163/AK3] on macOS Cmd+[ and Cmd+] switch buffers as the mouse buttons Back and Forward do, also from the editor", async () => {
+  test("[SR-163/AK-bh0y] on macOS Cmd+[ and Cmd+] switch buffers as the mouse buttons Back and Forward do, also from the editor", async () => {
     const { window } = running;
     const mac = process.platform === "darwin";
     await listAll(window);
@@ -149,7 +149,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(window.locator(".cm-content")).toBeFocused();
   });
 
-  test("[SR-115/AK5] Alt+N and Alt+P while typing in the editor switch buffers and insert no character", async () => {
+  test("[SR-115/AK-m5pg] Alt+N and Alt+P while typing in the editor switch buffers and insert no character", async () => {
     const { window } = running;
     await listAll(window);
     await goTo(window, ELEMENT);
@@ -181,7 +181,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     expect((await savedText(running)).trimEnd()).toBe(`${LINE}\n ENDE`);
   });
 
-  test("[SR-145/AK2] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it", async () => {
+  test("[SR-145/AK-kbdf] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it", async () => {
     const { window } = running;
     await listAll(window);
     await goTo(window, ELEMENT);
@@ -220,7 +220,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(modeline(window)).not.toContainText("modified");
   });
 
-  test('[SR-115/AK5] "Next buffer" and "Previous buffer" are commands of the prompt, with their keys', async () => {
+  test('[SR-115/AK-m5pg] "Next buffer" and "Previous buffer" are commands of the prompt, with their keys', async () => {
     const { window } = running;
     await listAll(window);
     await search(window, "wind");
@@ -238,7 +238,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     }
   });
 
-  test("[SR-115/AK5] in an open prompt Alt+N switches no buffer", async () => {
+  test("[SR-115/AK-m5pg] in an open prompt Alt+N switches no buffer", async () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+P");
@@ -264,7 +264,7 @@ test.describe("Go to and no tab bar", () => {
 
   const names = (window: Page): Locator => window.locator('.candidates [role="option"] .name');
 
-  test("[SR-115/AK1] Ctrl+P offers the open buffers, the one used last first, then the elements used before, and finds any element by a word of its title with a typo", async () => {
+  test("[SR-115/AK-gxzy] Ctrl+P offers the open buffers, the one used last first, then the elements used before, and finds any element by a word of its title with a typo", async () => {
     const { window } = running;
     // Opened: the overview (at the start), the list, its first element, a second element by Ctrl+P.
     await listAll(window);
@@ -302,7 +302,7 @@ test.describe("Go to and no tab bar", () => {
     await expect(window.locator("article h1")).toHaveText("Warn of storms");
   });
 
-  test("[SR-115/AK2] with several buffers open the window has no tab bar", async () => {
+  test("[SR-115/AK-xn0m] with several buffers open the window has no tab bar", async () => {
     const { window } = running;
     // Open: the overview, the list, an element, its graph, a search.
     await listAll(window);
@@ -346,7 +346,7 @@ test.describe("the open buffers after a restart", () => {
     await running.close();
   });
 
-  test("[SR-115/AK4] after closing and starting the app again the buffers open before are back", async () => {
+  test("[SR-115/AK-qtv5] after closing and starting the app again the buffers open before are back", async () => {
     running = await launchApp(FIXTURE);
     let { window } = running;
     const root = running.workspace?.root ?? "";
@@ -432,7 +432,7 @@ test.describe("Split window", () => {
     await window.keyboard.press("Enter");
   };
 
-  test("[SR-115/AK3] Split window shows an element and its graph side by side", async () => {
+  test("[SR-115/AK-cycg] Split window shows an element and its graph side by side", async () => {
     const { window } = running;
     await listAll(window);
     await goTo(window, ELEMENT);

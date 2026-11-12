@@ -178,7 +178,7 @@ describe("reqseq binary", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
-  it("[SR-064/AK2] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
+  it("[SR-064/AK-yhn7] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(ws);
     const created = await reqseq(["element", "create", "system-requirement", "--title", "Show gusts"], {
@@ -263,7 +263,7 @@ describe("reqseq binary", () => {
   // has its own bound (about ten times the measured time); the global timeout stays.
   const SPAWN_HEAVY_TIMEOUT_MS = 60_000;
   it(
-    "[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (ThomasBirkmaier/ReqSeq-archive#309)",
+    "[SR-060/AK-sct7] answers the input mistakes of the first dogfooding trial readably (ThomasBirkmaier/ReqSeq-archive#309)",
     async () => {
       const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
       fixtures.push(ws);

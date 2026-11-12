@@ -414,15 +414,18 @@ describe("elementRefsOf", () => {
 
 describe("criterionRefsOf (SR-029 AK10)", () => {
   it("gives each reference of the name with its criterion, malformed text, or neither", () => {
-    expect(criterionRefsOf("[SR-a1b2c3/AK2] [ SR-a1b2c3 ] [SR-a1b2c3/AK0] [SR-a1b2c3/slow]")).toEqual([
-      { ref: "SR-a1b2c3", criterion: 2 },
+    expect(
+      criterionRefsOf("[SR-a1b2c3/AK2] [ SR-a1b2c3 ] [SR-a1b2c3/AK0] [SR-a1b2c3/slow] [SR-a1b2c3/AK-k7f3]"),
+    ).toEqual([
+      { ref: "SR-a1b2c3", criterion: 2, text: "[SR-a1b2c3/AK2]" },
       { ref: "SR-a1b2c3" },
       { ref: "SR-a1b2c3", malformed: "[SR-a1b2c3/AK0]" },
       { ref: "SR-a1b2c3" },
+      { ref: "SR-a1b2c3", criterion: "k7f3", text: "[SR-a1b2c3/AK-k7f3]" },
     ]);
     const withAk = nameMatcher(parseNamePattern("{prefix}_{id}_ak{ak}"), ["SR"]);
     expect(criterionRefsOf("sr_a1b2c3_ak3 sr_a1b2c3_ak03", withAk)).toEqual([
-      { ref: "SR-a1b2c3", criterion: 3 },
+      { ref: "SR-a1b2c3", criterion: 3, text: "sr_a1b2c3_ak3" },
       { ref: "SR-a1b2c3", malformed: "sr_a1b2c3_ak03" },
     ]);
     const withoutAk = nameMatcher(parseNamePattern("{prefix}_{id}"), ["SR"]);

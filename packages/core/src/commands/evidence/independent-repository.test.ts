@@ -52,7 +52,7 @@ const statusRows = async (workspace: Workspace): Promise<Record<string, Rows>> =
 const all = (status: string): Rows => ({ re: status, c1: status, c2: status, c3: status });
 
 describe("variant-independent repositories (SR-173)", () => {
-  it("[SR-047/AK2] [SR-173/AK1] a record without variant of an element of a marked repository counts for the core and every variant the element applies in", async () => {
+  it("[SR-047/AK-k95w] [SR-173/AK-g2t9] a record without variant of an element of a marked repository counts for the core and every variant the element applies in", async () => {
     const workspace = await open();
     const rows = await statusRows(workspace);
     // `re` is the core (`core`.slice(-2)).
@@ -82,7 +82,7 @@ describe("variant-independent repositories (SR-173)", () => {
     );
   });
 
-  it("[SR-173/AK1] the evidence lists, has-evidence and the passed-test list follow the same rule", async () => {
+  it("[SR-173/AK-g2t9] the evidence lists, has-evidence and the passed-test list follow the same rule", async () => {
     const workspace = await open();
     const list = (await invoke(
       "evidence.list",
@@ -110,7 +110,7 @@ describe("variant-independent repositories (SR-173)", () => {
     ]);
   });
 
-  it("[SR-173/AK2] a record without variant of an element of an unmarked repository counts only for the core", async () => {
+  it("[SR-173/AK-x4d7] a record without variant of an element of an unmarked repository counts only for the core", async () => {
     const workspace = await open();
     const rows = await statusRows(workspace);
     // K4 lies in `system`; its record lies in the marked repository's folder, which does not count.
@@ -123,7 +123,7 @@ describe("variant-independent repositories (SR-173)", () => {
     expect(unmarked["a1"]).toEqual({ ...all("open"), re: "indirect" });
   });
 
-  it("[SR-047/AK5] [SR-029/AK9] a record without variant of an element valid in a variant only counts there through the mark, so it is reported, refused and not enriched only without it", async () => {
+  it("[SR-047/AK-y6zf] [SR-029/AK-h0h5] a record without variant of an element valid in a variant only counts there through the mark, so it is reported, refused and not enriched only without it", async () => {
     const noView = async (workspace: Workspace): Promise<readonly string[]> =>
       (
         (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">

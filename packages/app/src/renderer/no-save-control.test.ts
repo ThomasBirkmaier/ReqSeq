@@ -21,7 +21,7 @@ const sources = (folder: string): string[] =>
   });
 
 describe("no save control (SR-105 AK3)", () => {
-  it("[SR-105/AK3] no source of the app makes a save button, a save dialog or a message box", () => {
+  it("[SR-105/AK-ptsm] no source of the app makes a save button, a save dialog or a message box", () => {
     const found = sources(SOURCE).flatMap((file) => {
       const text = readFileSync(file, "utf8");
       const about = path.relative(SOURCE, file) === ABOUT;

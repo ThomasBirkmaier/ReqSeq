@@ -198,7 +198,7 @@ describe("neighbourhood (SR-107)", () => {
     ]);
   });
 
-  it("[SR-127/AK3] follows the references in the acceptance criteria and in the rationale like those in the text, up and down", async () => {
+  it("[SR-127/AK-bd1x] follows the references in the acceptance criteria and in the rationale like those in the text, up and down", async () => {
     const opened = await open({
       "system/requirements/SR-000000000004.md": element(S2, "system-requirement", [
         `acceptance-criteria:\n  - Plain.\n  - "Then [the need](reqseq:${N1}?version=${V})."`,

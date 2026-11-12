@@ -108,7 +108,7 @@ const INSPECTION = {
 };
 
 describe("evidence.record (SR-030)", () => {
-  it("[SR-030/AK1] evidence.record fills in the UUID and current version of the requirement", async () => {
+  it("[SR-030/AK-wm0j] evidence.record fills in the UUID and current version of the requirement", async () => {
     const { fixture, workspace } = await open();
     const before = await fs.readFile(fixture.path("requirements/SR-00000000c002.md"));
     const { version } = await get(workspace, "SR-00c002");
@@ -124,7 +124,7 @@ describe("evidence.record (SR-030)", () => {
     expect(await fs.readFile(fixture.path("requirements/SR-00000000c002.md"))).toEqual(before);
   });
 
-  it("[SR-030/AK1] after the requirement changed, the next record takes its new version", async () => {
+  it("[SR-030/AK-wm0j] after the requirement changed, the next record takes its new version", async () => {
     const { fixture, workspace } = await open();
     const first = await record(workspace, { ref: "SR-00c002", ...INSPECTION });
     await invoke(
@@ -142,7 +142,7 @@ describe("evidence.record (SR-030)", () => {
     });
   });
 
-  it("[SR-030/AK2] a record with kind, method, result, item, date and evidence becomes one Markdown file in the chosen evidence folder", async () => {
+  it("[SR-030/AK-k584] a record with kind, method, result, item, date and evidence becomes one Markdown file in the chosen evidence folder", async () => {
     const { fixture, workspace } = await open();
     const before = await filesOf(fixture);
     const { version } = await get(workspace, "SR-00c002");
@@ -185,7 +185,7 @@ describe("evidence.record (SR-030)", () => {
     });
   });
 
-  it("[SR-030/AK2] the saved record is read as evidence of the requirement on the same workspace", async () => {
+  it("[SR-030/AK-k584] the saved record is read as evidence of the requirement on the same workspace", async () => {
     const { workspace } = await open();
     // The records are read before the call, so the record must reach the built state (S12).
     expect(await workspace.get(evidenceRecordsState)).toHaveLength(1);
@@ -202,7 +202,7 @@ describe("evidence.record (SR-030)", () => {
     ]);
   });
 
-  it("[SR-030/AK3] a validation record counts for the validation status and not for the verification status", async () => {
+  it("[SR-030/AK-bt7q] a validation record counts for the validation status and not for the verification status", async () => {
     const { workspace } = await open();
     const s1 = await get(workspace, "SR-00c001");
     expect([s1.validation, s1.verification]).toEqual([
@@ -233,7 +233,7 @@ describe("evidence.record (SR-030)", () => {
     expect(withEvidence.elements.map((e) => e.id)).not.toContain(N1);
   });
 
-  it("[SR-030/AK4] takes criteria by number or key, writes their keys and names number, key and the start of the text", async () => {
+  it("[SR-030/AK-x088] takes criteria by number or key, writes their keys and names number, key and the start of the text", async () => {
     const { fixture, workspace } = await open({ [S2_FILE]: S2_KEYED });
     const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: ["3", "kdir"] });
     const file = "evidence/2026-10-27-SR-00c002-inspection.md";
@@ -270,7 +270,7 @@ describe("evidence.record (SR-030)", () => {
     expect(await frontmatterOf(fixture, all.files[0] ?? "")).not.toHaveProperty("criteria");
   });
 
-  it("[SR-030/AK4] refuses a criterion without key, a number or key the current version lacks, and malformed criteria, and writes nothing", async () => {
+  it("[SR-030/AK-x088] refuses a criterion without key, a number or key the current version lacks, and malformed criteria, and writes nothing", async () => {
     const { fixture, workspace } = await open({ [S2_FILE]: S2_KEYED });
     const before = await filesOf(fixture);
     const refusals: [readonly unknown[], string][] = [
@@ -291,7 +291,7 @@ describe("evidence.record (SR-030)", () => {
     expect(await filesOf(fixture)).toEqual(before);
   });
 
-  it("[SR-030/AK5] refuses a criterion whose key another criterion of the current version carries too, and writes nothing", async () => {
+  it("[SR-030/AK-m2qp] refuses a criterion whose key another criterion of the current version carries too, and writes nothing", async () => {
     const { fixture, workspace } = await open({ [S2_FILE]: S2_DOUBLE });
     const before = await filesOf(fixture);
     for (const criteria of [["kdup"], [1], [2]]) {

@@ -137,7 +137,7 @@ const selected = (): string | undefined =>
   container.querySelector<HTMLElement>('.graph-node[aria-selected="true"]')?.dataset["node"];
 
 describe("GraphView", () => {
-  it("[SR-111/AK4] each node shows title and type name, and the mark words only on marked nodes", async () => {
+  it("[SR-111/AK-kq3w] each node shows title and type name, and the mark words only on marked nodes", async () => {
     const call = fakeCall();
     const { data } = await mount(asCall(call));
     expect(call).toHaveBeenCalledWith("trace.graph", {
@@ -189,7 +189,7 @@ describe("GraphView", () => {
     expect(performance.getEntriesByName(GRAPH_MARKS.layout).length).toBeGreaterThan(0);
   });
 
-  it("[SR-111/AK1] marks the element, selects it and draws one curve per pair, the selected node's last", async () => {
+  it("[SR-111/AK-g4rk] marks the element, selects it and draws one curve per pair, the selected node's last", async () => {
     await mount(asCall(fakeCall()));
     const view = query(".graph");
     expect(view.dataset["laidOut"]).toBe("10");
@@ -206,7 +206,7 @@ describe("GraphView", () => {
     expect(touching.indexOf(true)).toBe(touching.length - touching.filter(Boolean).length);
   });
 
-  it("[SR-111/AK5] arrows move the selection, Enter opens the selected node as the current element", async () => {
+  it("[SR-111/AK-h6rz] arrows move the selection, Enter opens the selected node as the current element", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     const below = selected();
@@ -231,7 +231,7 @@ describe("GraphView", () => {
     expect(query("#elsewhere").textContent).toBe(`element:${String(top)}`);
   });
 
-  it("[SR-111/AK3] draws a muted box below each node with evidence, which the keys, Enter and a click skip", async () => {
+  it("[SR-111/AK-h6n9] draws a muted box below each node with evidence, which the keys, Enter and a click skip", async () => {
     const summary = {
       id: "uuid-C1",
       repository: "spec",
@@ -281,7 +281,7 @@ describe("GraphView", () => {
     });
   });
 
-  it("[SR-111/AK5] the keys never select an evidence box, and a click on one does nothing", async () => {
+  it("[SR-111/AK-h6rz] the keys never select an evidence box, and a click on one does nothing", async () => {
     const summary = {
       id: "uuid-S1",
       repository: "spec",
@@ -312,7 +312,7 @@ describe("GraphView", () => {
     expect(selected()).toBe(key("S1"));
   });
 
-  it("[SR-111/AK5] leaves a key with Ctrl, Cmd or Alt held to the window", async () => {
+  it("[SR-111/AK-h6rz] leaves a key with Ctrl, Cmd or Alt held to the window", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     for (const held of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
       await press("ArrowDown", held);
@@ -327,7 +327,7 @@ describe("GraphView", () => {
     expect(actions.at(-1)).toEqual({ type: "open", buffer: { ...S1, depth: 2 } });
   });
 
-  it("[SR-111/AK1] opens a graph of depth 1 calm: no link is lit up while every link touches the selected node", async () => {
+  it("[SR-111/AK-g4rk] opens a graph of depth 1 calm: no link is lit up while every link touches the selected node", async () => {
     const fan = graphOutput(
       [graphNode("S1", 0), graphNode("C1", 1), graphNode("C2", 1), graphNode("P", -1)],
       [graphEdge("C1", "S1"), graphEdge("C2", "S1"), graphEdge("S1", "P", BASED_ON)],
@@ -341,7 +341,7 @@ describe("GraphView", () => {
     expect(lit.map((path) => path.dataset["source"])).toEqual([selected()]);
   });
 
-  it("[SR-111/AK1] lights up the selected node's links when other links are drawn too", async () => {
+  it("[SR-111/AK-g4rk] lights up the selected node's links when other links are drawn too", async () => {
     // C1 is selected: 4 of the 13 drawn links touch it (to S1 and D1, from D2 and C3).
     await mount(asCall(fakeCall()), { ...S1, selected: key("C1") });
     expect(selected()).toBe(key("C1"));
@@ -358,7 +358,7 @@ describe("GraphView", () => {
     expect(query(`path[data-target="${key("N1")}"]`).classList.contains("selected")).toBe(false);
   });
 
-  it("[SR-111/AK1] opens a package graph calm: its links are more than half of the drawn ones, so none is lit up", async () => {
+  it("[SR-111/AK-g4rk] opens a package graph calm: its links are more than half of the drawn ones, so none is lit up", async () => {
     // A package with five members, two of which refine another member: 5 of the 7 drawn links touch it.
     const members = ["M1", "M2", "M3", "M4", "M5"];
     const pkg = graphOutput(
@@ -386,7 +386,7 @@ describe("GraphView", () => {
     );
   });
 
-  it("[SR-111/AK4] a node's hover text gives its ID, type and title, so a type the box cuts can be read", async () => {
+  it("[SR-111/AK-kq3w] a node's hover text gives its ID, type and title, so a type the box cuts can be read", async () => {
     await mount(asCall(fakeCall()));
     expect(query(`[data-node="${key("C1")}"]`).getAttribute("title")).toBe(
       "X-C1 (C1) · System Requirement\nTitle C1",
@@ -395,7 +395,7 @@ describe("GraphView", () => {
     expect(query(`[data-node="${key("PKG")}"]`).getAttribute("title")).toBe("PKG-1 · package\nTitle PKG");
   });
 
-  it("[SR-111/AK5] a click opens the node as the current element", async () => {
+  it("[SR-111/AK-h6rz] a click opens the node as the current element", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await click(query(`[data-node="${key("C1")}"]`));
     expect(actions).toEqual([
@@ -413,7 +413,7 @@ describe("GraphView", () => {
     ]);
   });
 
-  it("[SR-111/AK2] + and - ask for one level more or less", async () => {
+  it("[SR-111/AK-p2tx] + and - ask for one level more or less", async () => {
     const call = fakeCall();
     const { actions } = await mount(asCall(call));
     await press("+");
@@ -518,7 +518,7 @@ describe("GraphView", () => {
       );
     const chosen = (): string[] => drawn("chosen");
 
-    it("[SR-154/AK1] the mouse on a link shows its kind, source and target at the link, and outdated", async () => {
+    it("[SR-154/AK-rhrj] the mouse on a link shows its kind, source and target at the link, and outdated", async () => {
       await mount(asCall(fakeCall()));
       await mouse("mouseover", hit("S1", "N1"));
       expect(tips()).toEqual([["X-S1 (S1) Derives from X-N1 (N1)"]]);
@@ -535,7 +535,7 @@ describe("GraphView", () => {
       expect(tips()).toEqual([]);
     });
 
-    it("[SR-154/AK2] a link that draws several relations names each of them", async () => {
+    it("[SR-154/AK-yw64] a link that draws several relations names each of them", async () => {
       const both = graphOutput(
         [graphNode("S1", 0), graphNode("N1", -1, { type: "need" })],
         [graphEdge("S1", "N1"), graphEdge("S1", "N1", BASED_ON)],
@@ -549,7 +549,7 @@ describe("GraphView", () => {
       );
     });
 
-    it("[SR-154/AK3] l selects a link of the selected node: drawn wider, with its text as the active option", async () => {
+    it("[SR-154/AK-hwpt] l selects a link of the selected node: drawn wider, with its text as the active option", async () => {
       await mount(asCall(fakeCall()));
       await press("l");
       const view = query(".graph");
@@ -564,7 +564,7 @@ describe("GraphView", () => {
       expect(query(`[data-node="${key("S1")}"]`).classList.contains("link-chosen")).toBe(true);
     });
 
-    it("[SR-154/AK4] l goes through every link of the selected node in turn, and starts again", async () => {
+    it("[SR-154/AK-v3cw] l goes through every link of the selected node in turn, and starts again", async () => {
       await mount(asCall(fakeCall()));
       const links = [...container.querySelectorAll<SVGPathElement>("path.graph-edge")].filter(
         (path) => path.dataset["source"] === key("S1") || path.dataset["target"] === key("S1"),
@@ -579,7 +579,7 @@ describe("GraphView", () => {
       expect(query("#gedge").getAttribute("aria-label")).toBe("X-S1 (S1) Derives from X-N1 (N1)");
     });
 
-    it("[SR-154/AK5] Escape goes back from the link to its node; without a link Escape is the window's", async () => {
+    it("[SR-154/AK-wbxq] Escape goes back from the link to its node; without a link Escape is the window's", async () => {
       await mount(asCall(fakeCall()));
       await press("ArrowDown");
       const node = selected();
@@ -613,7 +613,7 @@ describe("GraphView", () => {
       expect(container.querySelector("#gedge")).not.toBeNull();
     });
 
-    it("[SR-154/AK6] without the mouse on a link and without a chosen link no link carries a word, and there is no legend", async () => {
+    it("[SR-154/AK-k6f3] without the mouse on a link and without a chosen link no link carries a word, and there is no legend", async () => {
       await mount(asCall(fakeCall()));
       expect(container.querySelector(".graph-edge-tip")).toBeNull();
       expect(query(".graph-edges").textContent).toBe("");
@@ -646,7 +646,7 @@ describe("GraphView", () => {
       };
     };
 
-    it("[SR-136/AK1] a requirement shows its status, failed in the accent, indirect as such, and its name says it", async () => {
+    it("[SR-136/AK-h2xg] a requirement shows its status, failed in the accent, indirect as such, and its name says it", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect([shows("R11").status, shows("R07").status, shows("I1").status, shows("R12").status]).toEqual([
         "open",
@@ -662,7 +662,7 @@ describe("GraphView", () => {
       expect([shows("D1").status, shows("N1").status]).toEqual([undefined, undefined]);
     });
 
-    it("[SR-136/AK2] a requirement with acceptance criteria shows a ring with 2 of 3 inside its box", async () => {
+    it("[SR-136/AK-kvvw] a requirement with acceptance criteria shows a ring with 2 of 3 inside its box", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("R11")).toMatchObject({ ring: "2 of 3", part: String(2 / 3) });
       expect(shows("R07")).toMatchObject({ ring: "0 of 1", part: "0" });
@@ -672,7 +672,7 @@ describe("GraphView", () => {
       );
     });
 
-    it("[SR-136/AK3] a need shows the degree of its derived requirements as a ring with the percentage", async () => {
+    it("[SR-136/AK-thr6] a need shows the degree of its derived requirements as a ring with the percentage", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("N1")).toMatchObject({ status: undefined, ring: "60 %", part: "0.6" });
       expect(query(`[data-node="${key("N1")}"]`).getAttribute("aria-label")).toBe(
@@ -680,17 +680,17 @@ describe("GraphView", () => {
       );
     });
 
-    it("[SR-136/AK4] an indirectly verified requirement shows its status and no ring", async () => {
+    it("[SR-136/AK-w6gh] an indirectly verified requirement shows its status and no ring", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("I1")).toEqual({ status: "indirect", accent: false, ring: undefined, part: undefined });
     });
 
-    it("[SR-136/AK5] a requirement without acceptance criteria shows its status and no ring", async () => {
+    it("[SR-136/AK-qgyd] a requirement without acceptance criteria shows its status and no ring", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("R12")).toEqual({ status: "verified", accent: false, ring: undefined, part: undefined });
     });
 
-    it("[SR-136/AK6] a need without a valid derived requirement shows no ring", async () => {
+    it("[SR-136/AK-t58p] a need without a valid derived requirement shows no ring", async () => {
       await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
       expect(shows("N2")).toEqual({ status: undefined, accent: undefined, ring: undefined, part: undefined });
       expect(query(`[data-node="${key("N2")}"]`).getAttribute("aria-label")).toBe("X-N2 (N2) need Title N2");

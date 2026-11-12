@@ -33,14 +33,14 @@ scenariosOf("evidence.status", [
     name: "no row for a variant that excludes or replaces the requirement (SR-047 AK3)",
     fixture: VARIANT_EVIDENCE,
     input: { selection: { ids: ["SR-0000a1", "SR-0000a2", "SR-0000b1"] } },
-    tag: "[SR-047/AK3]",
+    tag: "[SR-047/AK-qncz]",
     expect: "output",
   },
   {
     name: "no row for a variant with an invalid status (SR-047 AK6)",
     fixture: VARIANT_INVALID,
     input: { selection: { ids: ["SR-0000a3"] } },
-    tag: "[SR-047/AK6]",
+    tag: "[SR-047/AK-kp30]",
     expect: "output",
     check: (results) => {
       expect(verificationOf(results)).toEqual([
@@ -56,21 +56,21 @@ scenariosOf("evidence.status", [
     name: "records without variant count in every view in a variant-independent repository (SR-173 AK1)",
     fixture: INDEPENDENT,
     input: {},
-    tag: "[SR-173/AK1]",
+    tag: "[SR-173/AK-g2t9]",
     expect: "output",
   },
   {
     name: "records without variant count only in the core outside a variant-independent repository (SR-173 AK2)",
     fixture: INDEPENDENT,
     input: { selection: { ids: ["SR-0000a4"] } },
-    tag: "[SR-173/AK2]",
+    tag: "[SR-173/AK-x4d7]",
     expect: "output",
   },
   {
     name: "a JUnit test case for the variants A and B and the core counts in each of them only, its core record of a variant-independent repository in every view (SR-093 AK5)",
     fixture: VIEWS,
     input: {},
-    tag: "[SR-093/AK5]",
+    tag: "[SR-093/AK-sr3h]",
     expect: "output",
     check: (results) => {
       const { elements } = (
@@ -111,7 +111,7 @@ scenariosOf("evidence.status", [
     name: "the status per acceptance criterion: open with 2 of 3 criteria verified (SR-031 AK5)",
     fixture: CRITERIA,
     input: {},
-    tag: "[SR-031/AK5]",
+    tag: "[SR-031/AK-yscc]",
     expect: "output",
     check: (results) => {
       const { elements } = (
@@ -159,7 +159,7 @@ scenariosOf("evidence.status", [
     name: "a record that names no criterion counts for every criterion (SR-031 AK6)",
     fixture: CRITERIA,
     input: { selection: { ids: ["SR-0000e2"] } },
-    tag: "[SR-031/AK6]",
+    tag: "[SR-031/AK-r51q]",
     expect: "output",
     check: (results) => {
       expect(verificationOf(results)).toEqual([
@@ -171,7 +171,7 @@ scenariosOf("evidence.status", [
     name: "a requirement without criteria takes the newest record for the whole requirement (SR-031 AK7)",
     fixture: CRITERIA,
     input: { selection: { ids: ["SR-0000e5"] } },
-    tag: "[SR-031/AK7]",
+    tag: "[SR-031/AK-xth0]",
     expect: "output",
     check: (results) => {
       expect(verificationOf(results)).toEqual([[{ view: "core", status: "verified" }]]);
@@ -181,7 +181,7 @@ scenariosOf("evidence.status", [
     name: "a criterion with records of an older version only, the others verified, gives outdated (SR-031 AK8)",
     fixture: CRITERIA,
     input: { selection: { ids: ["SR-0000e3"] } },
-    tag: "[SR-031/AK8]",
+    tag: "[SR-031/AK-tt4x]",
     expect: "output",
     check: (results) => {
       expect(verificationOf(results)).toEqual([
@@ -199,7 +199,7 @@ scenariosOf("evidence.status", [
     name: "validation status apart from the verification status, none for a use case with a validation record (SR-038)",
     fixture: VALIDATION,
     input: {},
-    tag: "[SR-038/AK5]",
+    tag: "[SR-038/AK-f98s]",
     expect: "output",
     check: (results) => {
       const { elements } = (
@@ -212,7 +212,7 @@ scenariosOf("evidence.status", [
     name: "an inconclusive validation with its reason as a status of its own (SR-172 AK2)",
     fixture: INCONCLUSIVE,
     input: {},
-    tag: "[SR-172/AK2]",
+    tag: "[SR-172/AK-j3vg]",
     expect: "output",
     check: (results) => {
       const { elements } = (

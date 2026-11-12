@@ -332,17 +332,43 @@ export const elementRefsOf = (
  * A reference of a test case name with the acceptance criterion it names, if any (`criterionRefsOf`):
  * a bracket token as `bracketReference` reads it, or the short ID a name pattern built.
  */
-export type CriterionRef = BracketReference;
+export type CriterionRef = Pick<BracketReference, "ref"> & CriterionPart;
+
+/** The criterion part of a `CriterionRef`. */
+type CriterionPart =
+  | {
+      /** The criterion it names: a number (1 or more) or a criterion key. */
+      readonly criterion: number | string;
+      /** The text that names `criterion`, as written: the bracket token, or the part a name pattern matched. */
+      readonly text: string;
+      readonly malformed?: undefined;
+    }
+  | {
+      /** Absent for a reference that names the whole requirement. */
+      readonly criterion?: undefined;
+      readonly text?: undefined;
+      /** The text as written when it tries to name a criterion but names none (`[SR-036/AK0]`, `[SR-036/AK]`). */
+      readonly malformed?: string;
+    };
+
+/** The bracket token `token` as a `CriterionRef`: a criterion comes with the token as its text. */
+const bracketCriterion = (token: string): CriterionRef => {
+  const { ref, criterion, malformed } = bracketReference(token);
+  if (criterion !== undefined) {
+    return { ref, criterion, text: token };
+  }
+  return malformed === undefined ? { ref } : { ref, malformed };
+};
 
 /** The digits of `{ak}` that name a criterion. */
 const AK_DIGITS = /^[1-9][0-9]*$/;
 
 /** The criterion `{ak}` read: a number from 1 without leading zero, or a criterion key; else `text` as malformed. */
-const akCriterion = (ak: string, text: string): Pick<CriterionRef, "criterion" | "malformed"> => {
+const akCriterion = (ak: string, text: string): CriterionPart => {
   if (isCriterionKey(ak)) {
-    return { criterion: ak };
+    return { criterion: ak, text };
   }
-  return AK_DIGITS.test(ak) ? { criterion: Number(ak) } : { malformed: text };
+  return AK_DIGITS.test(ak) ? { criterion: Number(ak), text } : { malformed: text };
 };
 
 /**
@@ -351,9 +377,9 @@ const akCriterion = (ak: string, text: string): Pick<CriterionRef, "criterion" |
  * `[<ref>/AK<n>]` criterion n, and with `pattern` a match with `{ak}` names the key or number it read;
  * n is a number from 1 without leading zero. A suffix `AK` alone or before a digit or `-` that is no
  * such suffix (`AK0`, `AK02`, `AK`, `AK2a`, `AK-x`), and `{ak}` that is none (`0`, `03`), are
- * `malformed`. A token without suffix or with another one (`[SR-036]`, `[SR-036/slow]`) and a match
- * of a pattern without `{ak}` name the whole requirement. The caller resolves the references, as for
- * `elementRefsOf`.
+ * `malformed`; enrich refuses a number (SR-029 AK13). A token without suffix or with another one
+ * (`[SR-036]`, `[SR-036/slow]`) and a match of a pattern without `{ak}` name the whole requirement.
+ * The caller resolves the references, as for `elementRefsOf`.
  */
 export const criterionRefsOf = (
   name: string,
@@ -361,7 +387,7 @@ export const criterionRefsOf = (
 ): readonly CriterionRef[] => {
   const refs: CriterionRef[] = [];
   for (const [token] of name.matchAll(BRACKET_TOKEN)) {
-    refs.push(bracketReference(token));
+    refs.push(bracketCriterion(token));
   }
   for (const { shortId, matched, ak } of pattern?.(name) ?? []) {
     refs.push({ ref: shortId, ...(ak === undefined ? {} : akCriterion(ak, matched)) });

@@ -38,7 +38,7 @@ const needs = async (workspace: Workspace, count: number): Promise<string[]> => 
 };
 
 describe("write calls at the same time in one process (SR-166)", () => {
-  it("[SR-166/AK1] keeps the change of every call that reports success in the file", async () => {
+  it("[SR-166/AK-p44g] keeps the change of every call that reports success in the file", async () => {
     const { workspace, read } = await open();
     const ctx = { workspace, access: "mcp" as const };
     const targets = await needs(workspace, CALLS);
@@ -63,7 +63,7 @@ describe("write calls at the same time in one process (SR-166)", () => {
     }
   });
 
-  it("[SR-166/AK2] reports an error for the call whose change cannot be written", async () => {
+  it("[SR-166/AK-t7wn] reports an error for the call whose change cannot be written", async () => {
     const { workspace, read } = await open();
     const ctx = { workspace, access: "mcp" as const };
     // Both calls expect the file as it is now; the one that runs second finds the first one's change.

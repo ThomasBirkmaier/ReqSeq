@@ -15,7 +15,7 @@ const C_TEXT = readFileSync(path.join(defaultFixturesDir, "SR-090/cycle", C_FILE
 scenariosOf("relation.remove", [
   {
     name: "a relation that closed a cycle is gone from the source file, and nothing else changes",
-    tag: "[SR-067/AK5]",
+    tag: "[SR-067/AK-q66b]",
     fixture: CYCLE,
     input: { source: "SR-b0000000003", kind: "derives-from", target: "SR-b0000000001" },
     expect: "output",

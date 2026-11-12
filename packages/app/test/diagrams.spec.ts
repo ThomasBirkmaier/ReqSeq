@@ -80,7 +80,7 @@ test.describe("diagrams in the editor", () => {
     await running.close();
   });
 
-  test("[SR-096/AK2] a Mermaid diagram typed in the editor appears drawn", async () => {
+  test("[SR-096/AK-myzf] a Mermaid diagram typed in the editor appears drawn", async () => {
     const { window, workspace } = running;
     await opened(window, DEMO_TITLE);
     const content = await editEmpty(window);
@@ -126,7 +126,7 @@ test.describe("diagrams in the editor", () => {
       .toBe(`${DEMO_FRONT_MATTER}Ablauf:\n\n\`\`\`mermaid\nflowchart TD\nStart --> Ende --> Ziel\n\`\`\`\n`);
   });
 
-  test("[SR-096/AK2] sequence and state diagrams appear drawn, in the colours of the scheme", async () => {
+  test("[SR-096/AK-myzf] sequence and state diagrams appear drawn, in the colours of the scheme", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     const content = await editEmpty(window);
@@ -161,7 +161,7 @@ test.describe("diagrams in the editor", () => {
     await expect.poll(async () => (await svgOf(images.nth(0))) !== light).toBe(true);
   });
 
-  test("[SR-096/AK3] a diagram with a syntax error shows the error and its source", async () => {
+  test("[SR-096/AK-s4gf] a diagram with a syntax error shows the error and its source", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     const content = await editEmpty(window);

@@ -54,7 +54,7 @@ const BUFFERS: readonly Buffers[] = [
 ];
 
 describe("Follow agent and Stop following agent (SR-117)", () => {
-  it("[SR-117/AK4] only Follow agent and Stop following agent switch the mode, with Ctrl/Cmd+Shift+O and in the command prompt", () => {
+  it("[SR-117/AK-k2mf] only Follow agent and Stop following agent switch the mode, with Ctrl/Cmd+Shift+O and in the command prompt", () => {
     // The only actions that touch the mode's controls.
     for (const candidate of ACTIONS) {
       const off = controls(false);

@@ -74,7 +74,7 @@ test.describe("images in the live preview", () => {
     await running.close();
   });
 
-  test("[SR-184/AK1] an image of the workspace is drawn in place of its source, at most as wide as the text column", async () => {
+  test("[SR-184/AK-n2k7] an image of the workspace is drawn in place of its source, at most as wide as the text column", async () => {
     const { window } = running;
     const image = window.locator('.cm-content img[alt="wide"]');
     await expect(image).toHaveCount(1);
@@ -88,7 +88,7 @@ test.describe("images in the live preview", () => {
     await expect(window.locator(".cm-content")).not.toContainText(WIDE);
   });
 
-  test("[SR-184/AK2] with the cursor in its line, the source shows and the image is below it", async () => {
+  test("[SR-184/AK-h2f8] with the cursor in its line, the source shows and the image is below it", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Home");
@@ -113,7 +113,7 @@ test.describe("images in the live preview", () => {
     expect(imageTop).toBeGreaterThanOrEqual(sourceBottom - 1);
   });
 
-  test("[SR-184/AK3] an image on the network or outside the repository loads nothing and keeps its source with a note", async () => {
+  test("[SR-184/AK-bjm1] an image on the network or outside the repository loads nothing and keeps its source with a note", async () => {
     const { window } = running;
     await expect(line(window, REMOTE)).toContainText(REMOTE);
     await expect(line(window, REMOTE)).toContainText("not shown: address on the network");
@@ -126,7 +126,7 @@ test.describe("images in the live preview", () => {
     expect(sources.every((source) => source.startsWith("reqseq-file://workspace/"))).toBe(true);
   });
 
-  test("[SR-184/AK4] a missing image and a file that is no image keep their source with a note", async () => {
+  test("[SR-184/AK-vqh4] a missing image and a file that is no image keep their source with a note", async () => {
     const { window } = running;
     const shown = line(window, MISSING);
     await expect(shown).toContainText(MISSING);

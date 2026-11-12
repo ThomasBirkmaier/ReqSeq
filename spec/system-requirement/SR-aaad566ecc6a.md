@@ -6,9 +6,12 @@ title: Hell und dunkel darstellen
 spec-id: SR-113
 requirement-type: quality
 acceptance-criteria:
-  - Gegeben die App, wenn sie startet, dann folgt sie der Einstellung des Betriebssystems.
-  - Gegeben die App, wenn die Darstellung per Befehl gewechselt wird, dann wechselt sie ohne Neustart.
-  - Gegeben keine Darstellung ist per Befehl gewählt, wenn sich die Einstellung des Betriebssystems ändert, während die App läuft, dann folgt die App ihr ohne Neustart; wurde die Darstellung per Befehl gewählt, bleibt sie, bis „Follow system light or dark mode“ gewählt wird, und nach einem Neustart folgt die App wieder dem Betriebssystem.
+  - key: jp1f
+    text: Gegeben die App, wenn sie startet, dann folgt sie der Einstellung des Betriebssystems.
+  - key: szv3
+    text: Gegeben die App, wenn die Darstellung per Befehl gewechselt wird, dann wechselt sie ohne Neustart.
+  - key: m9n1
+    text: Gegeben keine Darstellung ist per Befehl gewählt, wenn sich die Einstellung des Betriebssystems ändert, während die App läuft, dann folgt die App ihr ohne Neustart; wurde die Darstellung per Befehl gewählt, bleibt sie, bis „Follow system light or dark mode“ gewählt wird, und nach einem Neustart folgt die App wieder dem Betriebssystem.
 packages:
   - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 verification-method: test

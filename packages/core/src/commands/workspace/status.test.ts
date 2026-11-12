@@ -45,9 +45,9 @@ const threeRepositories = async (
 ): Promise<FixtureWorkspace> => fixture({ fixture: "SR-004/three-repositories", git });
 
 describe("workspace.status", () => {
-  it("[SR-004/AK1] exposes the roots of all three locally present repositories for element discovery", async () => {
+  it("[SR-004/AK-rws1] exposes the roots of all three locally present repositories for element discovery", async () => {
     // ThomasBirkmaier/ReqSeq-archive#127 option 1 by analogy: element discovery is SR-003, which builds on these roots and adds
-    // the element-level [SR-004/AK1] test.
+    // the element-level [SR-004/AK-rws1] test.
     const ws = await threeRepositories();
     const workspace = open(ws.path("system"));
     const layout = await workspace.get(workspaceLayoutState);
@@ -59,7 +59,7 @@ describe("workspace.status", () => {
     expect(availableRepositories(layout).map((r) => r.excludes)).toEqual([[], [], []]);
   });
 
-  it("[SR-004/AK1] reports all three repositories as available with their commits", async () => {
+  it("[SR-004/AK-rws1] reports all three repositories as available with their commits", async () => {
     const ws = await threeRepositories();
     const out = await status(open(ws.path("system")));
     expect(out).toEqual({
@@ -88,7 +88,7 @@ describe("workspace.status", () => {
     });
   });
 
-  it("[SR-004/AK2] opens a single-repository workspace the same way", async () => {
+  it("[SR-004/AK-w3xm] opens a single-repository workspace the same way", async () => {
     const ws = await fixture({ fixture: "SR-004/one-repository", git: true });
     const workspace = open(ws.root);
     const out = await status(workspace);
@@ -104,7 +104,7 @@ describe("workspace.status", () => {
     expect(availableRepositories(layout).map((r) => r.folder)).toEqual([ws.root]);
   });
 
-  it("[SR-004/AK2] gives the same result shape as a multi-repository workspace", async () => {
+  it("[SR-004/AK-w3xm] gives the same result shape as a multi-repository workspace", async () => {
     const one = await fixture({ fixture: "SR-004/one-repository", git: true });
     const three = await threeRepositories();
     const single = await status(open(one.root));
@@ -119,7 +119,7 @@ describe("workspace.status", () => {
     expect(shape(single)).toEqual(shape(multi));
   });
 
-  it("[SR-004/AK2] takes the only repository as the main one without main: true", async () => {
+  it("[SR-004/AK-w3xm] takes the only repository as the main one without main: true", async () => {
     const ws = await fixture({
       fixture: "SR-004/one-repository",
       files: {
@@ -133,7 +133,7 @@ describe("workspace.status", () => {
     expect(out.problems).toEqual([]);
   });
 
-  it("[SR-004/AK3] shows a missing repository as not available and works with the others", async () => {
+  it("[SR-004/AK-kdfm] shows a missing repository as not available and works with the others", async () => {
     const ws = await threeRepositories(["system", "sensor"]);
     await fs.rm(ws.path("product"), { recursive: true });
     const workspace = open(ws.path("system"));
@@ -162,7 +162,7 @@ describe("workspace.status", () => {
     expect(availableRepositories(layout).map((r) => r.name)).toEqual(["system", "sensor"]);
   });
 
-  it("[SR-004/AK3] treats a repository whose local override points nowhere as missing", async () => {
+  it("[SR-004/AK-kdfm] treats a repository whose local override points nowhere as missing", async () => {
     const ws = await threeRepositories();
     await ws.write(
       "system/.reqseq/local.yaml",
@@ -177,7 +177,7 @@ describe("workspace.status", () => {
     expect(out.problems?.map((p) => p.code)).toEqual(["workspace.repository-missing"]);
   });
 
-  it("[SR-004/AK3] treats a path that is a file as a missing repository", async () => {
+  it("[SR-004/AK-kdfm] treats a path that is a file as a missing repository", async () => {
     const ws = await threeRepositories(["system", "product"]);
     await fs.rm(ws.path("sensor"), { recursive: true });
     await ws.write("sensor", "not a folder");
@@ -185,7 +185,7 @@ describe("workspace.status", () => {
     expect(out.repositories[2]).toEqual({ name: "sensor", available: false, path: "../sensor" });
   });
 
-  it("[SR-004/AK3] [SR-011/AK4] reports the metamodel as not valid when its repository is missing, without failing", async () => {
+  it("[SR-004/AK-kdfm] [SR-011/AK-vhvd] reports the metamodel as not valid when its repository is missing, without failing", async () => {
     const ws = await threeRepositories(["system", "product"]);
     await ws.write(
       "system/reqseq-workspace.yaml",
@@ -301,7 +301,7 @@ describe("workspace.status", () => {
     ]);
   });
 
-  it("[SR-004/AK5] names the file and the reason for a folder without a workspace file or with one that cannot be read, and reads no element", async () => {
+  it("[SR-004/AK-gm6w] names the file and the reason for a folder without a workspace file or with one that cannot be read, and reads no element", async () => {
     // A valid element file next to it, which neither case reads.
     const need = {
       "needs/N-000000000001.md":
@@ -338,7 +338,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     options: Parameters<typeof createFixtureWorkspace>[0] = {},
   ): Promise<FixtureWorkspace> => fixture({ fixture: "SR-011/split-folder", ...options });
 
-  it("[SR-011/AK1] opens with the metamodel of the folder named in the workspace file", async () => {
+  it("[SR-011/AK-vtcr] opens with the metamodel of the folder named in the workspace file", async () => {
     const ws = await splitFolder({ git: true });
     const out = await status(open(ws.root));
     expect(out).toEqual({
@@ -359,7 +359,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     });
   });
 
-  it("[SR-011/AK2] is read-only only while the checked-out state has a faulty metamodel", async () => {
+  it("[SR-011/AK-d0hy] is read-only only while the checked-out state has a faulty metamodel", async () => {
     const ws = await splitFolder({ git: true });
     await ws.git(["checkout", "--quiet", "-b", "broken"]);
     await ws.write("model/statuses.yaml", "statuses: [draft\n");
@@ -371,7 +371,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     expect(await status(workspace)).toMatchObject({ metamodel: { valid: true }, readOnly: false });
   });
 
-  it("[SR-011/AK3] opens the workspace read-only and reports file, line and reason of faulty YAML", async () => {
+  it("[SR-011/AK-jt29] opens the workspace read-only and reports file, line and reason of faulty YAML", async () => {
     const ws = await splitFolder({
       files: { "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
     });

@@ -24,7 +24,7 @@ const lines = (value: unknown, chunkLength?: number): string[] =>
   [...jsonLines(value, SPEC, chunkLength)].join("").split("\n");
 
 describe("jsonLines (#319)", () => {
-  it("[SR-061/AK4] gives one line per element: the state fields in catalog order, then the element", () => {
+  it("[SR-061/AK-h1db] gives one line per element: the state fields in catalog order, then the element", () => {
     const text = lines(output);
     expect(text.at(-1)).toBe("");
     const picked = { "reqseq-data": 2, commit: output.commit, dirty: false };

@@ -72,7 +72,7 @@ const labels = (): string[] =>
   [...container.querySelectorAll(".cm-lr-ref")].map((label) => label.textContent);
 
 describe("the title of a target in another repository (D-058)", () => {
-  it("[SR-066/AK2] a reference to a local target in another repository shows its title, the file keeps the short ID", async () => {
+  it("[SR-066/AK-qdkx] a reference to a local target in another repository shows its title, the file keeps the short ID", async () => {
     const title = vi.fn<Title>(() => Promise.resolve("Measure gusts"));
     const view = await show(TEXT, title);
     expect(title).toHaveBeenCalledExactlyOnceWith(GUSTS, "sensor");
@@ -81,7 +81,7 @@ describe("the title of a target in another repository (D-058)", () => {
     expect(view.state.doc.toString()).toBe(TEXT);
   });
 
-  it("[SR-066/AK2] shows the short ID as written on the line that shows its source", async () => {
+  it("[SR-066/AK-qdkx] shows the short ID as written on the line that shows its source", async () => {
     const view = await show(TEXT, () => Promise.resolve("Measure gusts"));
     act(() => {
       view.dispatch({ effects: focusEffect.of(true), selection: { anchor: 6 } });
@@ -93,7 +93,7 @@ describe("the title of a target in another repository (D-058)", () => {
     expect(labels()).toEqual(["Measure gusts"]);
   });
 
-  it("[SR-066/AK4] a press on the title follows the reference", async () => {
+  it("[SR-066/AK-c5xd] a press on the title follows the reference", async () => {
     follow.mockClear();
     await show(TEXT, () => Promise.resolve("Measure gusts"));
     const shown = container.querySelector(".cm-lr-title");

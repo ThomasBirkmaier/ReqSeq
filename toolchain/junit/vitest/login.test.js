@@ -1,7 +1,7 @@
 // Example tests of the guide (../README.md): each test names the requirement it verifies, and the
 // one `reqseq evidence enrich-junit` call of the pipeline does the rest. The requirements are in
 // ../workspace. ReqSeq's own trace-check reads every test file of this repository: never write
-// `[SR-` + three digits + `/AK` + a number + `]` here, it would be read as a test of ReqSeq.
+// `[SR-` + three digits + `/AK` + a key or number + `]` here, it would be read as a test of ReqSeq.
 import { describe, expect, it } from "vitest";
 
 const login = (password) => password === "correct horse";

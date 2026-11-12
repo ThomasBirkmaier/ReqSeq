@@ -74,7 +74,7 @@ const searchPrompt = (answer: (input: Record<string, unknown>) => ElementSearchO
 describe("the hits that fit the card", () => {
   const rows = (hits: Hit[]): Row[] => searchRows(output(hits));
 
-  it("[SR-183/AK1] takes as many hits as the card's lines hold: two for a hit with a snippet, one without", () => {
+  it("[SR-183/AK-c47w] takes as many hits as the card's lines hold: two for a hit with a snippet, one without", () => {
     const ten = Array.from({ length: CARD_LINES }, (_, at) => hit(at + 1));
     expect(fittingRows(rows(ten)).map((row) => row.label)).toEqual([
       "SR-000001 (SR-1)",
@@ -97,7 +97,7 @@ describe("the hits that fit the card", () => {
     expect(fittingRows(rows([hit(1), hit(2)]))).toHaveLength(2);
   });
 
-  it("[SR-183/AK3] marks the ID when it matched and the title's words where core marked them", () => {
+  it("[SR-183/AK-xgxn] marks the ID when it matched and the title's words where core marked them", () => {
     const [row] = rows([hit(7, { fields: ["id", "title"], titleMarks: [{ start: 0, end: 4 }] })]);
     // Only the part of the ID that matched (SR-084 AK4): the identifier, or the short ID.
     expect(row === undefined ? [] : nameMarks(row, "SR-7 gust")).toEqual([
@@ -118,7 +118,7 @@ describe("the hits that fit the card", () => {
 });
 
 describe("the search prompt", () => {
-  it("[SR-183/AK2] asks element.search as the search buffer does and keeps its order: the first hits of the search buffer", async () => {
+  it("[SR-183/AK-qq2p] asks element.search as the search buffer does and keeps its order: the first hits of the search buffer", async () => {
     const hits = [hit(3), hit(1, {}, false), hit(2)];
     const { prompt, call, dispatched } = searchPrompt(() => output(hits));
     expect(prompt.label).toBe("Search");
@@ -226,7 +226,7 @@ describe("the search prompt in the minibuffer", () => {
     return { ...search, closed };
   };
 
-  it("[SR-183/AK1] shows the hits that fit while typing, none of them chosen", async () => {
+  it("[SR-183/AK-c47w] shows the hits that fit while typing, none of them chosen", async () => {
     await mount(() => output(Array.from({ length: CARD_LINES }, (_, at) => hit(at + 1))));
     await type("gust");
     expect(options()).toHaveLength(5);
@@ -242,7 +242,7 @@ describe("the search prompt in the minibuffer", () => {
     expect(chosen()).toEqual([]);
   });
 
-  it("[SR-183/AK3] shows a hit as the search buffer does: the title with its marks, the status, and the snippet under it", async () => {
+  it("[SR-183/AK-xgxn] shows a hit as the search buffer does: the title with its marks, the status, and the snippet under it", async () => {
     await mount(() => output([hit(1), hit(2, { fields: ["id", "title"] }, false)]));
     await type("gust");
     const [first, second] = options().map((option) => ({
@@ -275,7 +275,7 @@ describe("the search prompt in the minibuffer", () => {
     });
   });
 
-  it("[SR-183/AK4] Enter opens the hit chosen with Ctrl+N, Ctrl+P or the arrows", async () => {
+  it("[SR-183/AK-jrbc] Enter opens the hit chosen with Ctrl+N, Ctrl+P or the arrows", async () => {
     for (const [keys, wanted] of [
       [[["n", { ctrlKey: true }]], "element:spec:u1"],
       [[["ArrowDown"], ["ArrowDown"]], "element:spec:u2"],
@@ -301,7 +301,7 @@ describe("the search prompt in the minibuffer", () => {
     }
   });
 
-  it("[SR-183/AK4] opens the hit chosen even when newer hits are on their way, and a click opens a hit", async () => {
+  it("[SR-183/AK-jrbc] opens the hit chosen even when newer hits are on their way, and a click opens a hit", async () => {
     const { dispatched, call } = await mount(() => output([hit(1), hit(2)]));
     await type("gust");
     await press("n", { ctrlKey: true });
@@ -353,7 +353,7 @@ describe("the search prompt in the minibuffer", () => {
     expect(chosen()).toEqual([]);
   });
 
-  it("[SR-183/AK5] Enter without a chosen hit opens the search buffer, also before the hits arrive", async () => {
+  it("[SR-183/AK-bp5z] Enter without a chosen hit opens the search buffer, also before the hits arrive", async () => {
     const shown = await mount(() => output([hit(1)]));
     await type("gust");
     expect(options()).toHaveLength(1);

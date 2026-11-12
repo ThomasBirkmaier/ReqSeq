@@ -34,7 +34,7 @@ const hints = async (files: Readonly<Record<string, string>>): Promise<readonly 
 };
 
 describe("hints on relations to superseded elements (SR-072 AK2)", () => {
-  it("[SR-072/AK2] gives no hint on a relation from a source with an invalid status, obsolete like its target", async () => {
+  it("[SR-072/AK-y5gr] gives no hint on a relation from a source with an invalid status, obsolete like its target", async () => {
     const out = await hints({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       "requirements/SR-c3d4e5f6a7b8.md": element(
@@ -51,7 +51,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     expect(out).toHaveLength(3);
   });
 
-  it("[SR-072/AK2] gives no hint when the metamodel marks no status invalid", async () => {
+  it("[SR-072/AK-y5gr] gives no hint when the metamodel marks no status invalid", async () => {
     const model = await fs.readFile(
       new URL(`../../../../fixtures/SR-072/supersede/${MODEL}`, import.meta.url),
       "utf8",
@@ -64,7 +64,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     ).toEqual([]);
   });
 
-  it("[SR-072/AK2] skips items that are no relation target and targets that are missing or ambiguous", async () => {
+  it("[SR-072/AK-y5gr] skips items that are no relation target and targets that are missing or ambiguous", async () => {
     const out = await hints({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       // A second file with the UUID of the new need makes it ambiguous (SR-088).
@@ -85,7 +85,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     expect(out[1]).toMatchObject({ line: 10, targetId: N_OLD });
   });
 
-  it("[SR-072/AK2] names a type the metamodel does not know by its key and lists each successor once", async () => {
+  it("[SR-072/AK-y5gr] names a type the metamodel does not know by its key and lists each successor once", async () => {
     const twice = `  - { id: ${GADGET}, version: n1:1111111111111111 }\n`;
     const out = await hints({
       "requirements/X-f6a7b8c9d0e1.md": element(GADGET, "gadget", "obsolete"),
@@ -102,7 +102,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     ]);
   });
 
-  it("[SR-072/AK2] says successors when there are several", async () => {
+  it("[SR-072/AK-y5gr] says successors when there are several", async () => {
     const supersedes = `supersedes:\n  - { id: ${N_OLD}, version: n1:1111111111111111 }\n`;
     const out = await hints({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
@@ -115,7 +115,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     ]);
   });
 
-  it("[SR-072/AK2] gives no hint on a successor's own relation with the meaning succession, by meaning, not by key", async () => {
+  it("[SR-072/AK-y5gr] gives no hint on a successor's own relation with the meaning succession, by meaning, not by key", async () => {
     const supersedes = `supersedes:\n  - { id: ${N_OLD}, version: n1:1111111111111111 }\n`;
     const files = {
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,

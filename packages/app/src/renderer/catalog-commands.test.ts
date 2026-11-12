@@ -237,7 +237,7 @@ describe("catalog commands in the command prompt", () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it("[SR-109/AK2] shows nothing next to a catalog command without a key", () => {
+  it("[SR-109/AK-hxz3] shows nothing next to a catalog command without a key", () => {
     const bound = new Set(PREFIX_BINDINGS.map((binding) => binding.id));
     for (const buffers of [[list], [shown]]) {
       const { context } = setup(buffers);
@@ -252,7 +252,7 @@ describe("catalog commands in the command prompt", () => {
     }
   });
 
-  it("[SR-121/AK3] gives Create element its fixed shortcut in the prompt, and no other catalog command one", () => {
+  it("[SR-121/AK-q4xh] gives Create element its fixed shortcut in the prompt, and no other catalog command one", () => {
     for (const buffers of [[list], [shown]]) {
       for (const mac of [false, true]) {
         const { context } = setup(buffers);
@@ -277,7 +277,7 @@ describe("catalog commands in the command prompt", () => {
     }
   });
 
-  it("[SR-121/AK3] gives Create relation, Set status and Confirm hints their fixed shortcut", () => {
+  it("[SR-121/AK-q4xh] gives Create relation, Set status and Confirm hints their fixed shortcut", () => {
     for (const mac of [false, true]) {
       const { context } = setup([shown]);
       const items = catalogItems({ ...context, mac }, CATALOG, ACTIONS);
@@ -289,7 +289,7 @@ describe("catalog commands in the command prompt", () => {
     }
   });
 
-  it("[SR-121/AK3] offers no write command with a letter in a read-only workspace, so the letter is not shown", () => {
+  it("[SR-121/AK-q4xh] offers no write command with a letter in a read-only workspace, so the letter is not shown", () => {
     const { context } = setup([shown]);
     const ids = new Set(catalogItems({ ...context, readOnly: true }, CATALOG, ACTIONS).map((i) => i.id));
     for (const binding of PREFIX_BINDINGS.filter((row) => row.id.startsWith("command:"))) {
@@ -297,7 +297,7 @@ describe("catalog commands in the command prompt", () => {
     }
   });
 
-  it("[SR-108/AK1] finds a catalog command by its initials and with one slip among the first three", () => {
+  it("[SR-108/AK-bs83] finds a catalog command by its initials and with one slip among the first three", () => {
     const { context } = setup([list]);
     const items = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items;
     const top = (query: string): string[] =>
@@ -335,7 +335,7 @@ describe("catalog commands in the command prompt", () => {
     ]);
   });
 
-  it("[SR-050/AK1] fills in the package of a package page for a selection: Create baseline asks only the name", async () => {
+  it("[SR-050/AK-cvrg] fills in the package of a package page for a selection: Create baseline asks only the name", async () => {
     const { context, asked, call } = setup([shown], { "baseline.create": () => ({ files: [] }) });
     // An element buffer that is no package page gives no selection, a package page its package.
     expect(catalogItems(context, [command("baseline.create")], [])).toEqual([]);
@@ -377,7 +377,7 @@ describe("catalog commands in the command prompt", () => {
     expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "element.facets", input: {} } });
   });
 
-  it("[SR-161/AK1] About ReqSeq shows the output of tool.info in its own window, not in a result buffer", async () => {
+  it("[SR-161/AK-hbxy] About ReqSeq shows the output of tool.info in its own window, not in a result buffer", async () => {
     const info = { versions: { app: "1.0.0" } };
     const shownAbout = vi.fn();
     const { context, dispatched } = setup([shown], { "tool.info": () => info });
@@ -499,7 +499,7 @@ describe("catalog commands in the command prompt", () => {
     expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { revision: 3 } });
   });
 
-  it("[SR-108/AK4] finds elements by element.search for an element argument, and takes the one chosen", async () => {
+  it("[SR-108/AK-v62v] finds elements by element.search for an element argument, and takes the one chosen", async () => {
     const { context, asked, call } = setup([list], {
       "element.search": () => ({ hits: [hit(4)], total: 1 }),
       "trace.affected": () => ({ elements: [], total: 0 }),
@@ -519,7 +519,7 @@ describe("catalog commands in the command prompt", () => {
     expect((await last(asked)).label).toBe("Show affected elements SR-000004 · more arguments:");
   });
 
-  it("[SR-205/AK5] takes a typed reference to a criterion for an element argument, which no search finds", async () => {
+  it("[SR-205/AK-ndnj] takes a typed reference to a criterion for an element argument, which no search finds", async () => {
     const { context, asked, call } = setup([list], {
       "element.search": () => ({ hits: [], total: 0 }),
       "element.resolve": () => ({ element: { id: "u1" }, current: null }),
@@ -537,7 +537,7 @@ describe("catalog commands in the command prompt", () => {
     expect((await last(asked)).label).toContain("more arguments:");
   });
 
-  it("[SR-205/AK5] offers a typed reference to a criterion only for element.resolve, which reads it", async () => {
+  it("[SR-205/AK-ndnj] offers a typed reference to a criterion only for element.resolve, which reads it", async () => {
     const { context, asked } = setup([list], {
       "element.search": () => ({ hits: [], total: 0 }),
     });
@@ -1020,7 +1020,7 @@ describe("the commands that fit the shown view", () => {
     return rankByUse(items, (choice) => choice.name, "", undefined).map(({ item: choice }) => choice);
   };
 
-  it("[SR-133/AK1] fits a command with a required element argument to a shown element, one with the selection to a list", () => {
+  it("[SR-133/AK-w23t] fits a command with a required element argument to a shown element, one with the selection to a list", () => {
     const fitting = (buffers: Buffers, name: string): boolean => fits(setup(buffers).context, command(name));
     for (const buffers of [[shown], [around]]) {
       expect(fitting(buffers, "trace.chain")).toBe(true);
@@ -1038,7 +1038,7 @@ describe("the commands that fit the shown view", () => {
     expect(fitting([], "element.facets")).toBe(false);
   });
 
-  it("[SR-133/AK1] shows the actions and the fitting commands above the others when nothing is typed", () => {
+  it("[SR-133/AK-w23t] shows the actions and the fitting commands above the others when nothing is typed", () => {
     for (const buffers of [[shown], [list], [overviewBuffer()]]) {
       const items = prompt(buffers);
       const below = items.findIndex((choice) => choice.fits !== true);
@@ -1108,7 +1108,7 @@ describe('"Create element": the required properties asked in the command line (S
     return last(asked);
   };
 
-  it("[SR-064/AK1] is in the command prompt once, by the title of element.create, and asks the type among the types that can have elements", async () => {
+  it("[SR-064/AK-xjg5] is in the command prompt once, by the title of element.create, and asks the type among the types that can have elements", async () => {
     const running = creating();
     const { context, asked, call } = running;
     const names = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items.map(
@@ -1132,7 +1132,7 @@ describe('"Create element": the required properties asked in the command line (S
     ]);
   });
 
-  it("[SR-064/AK1] asks, after the type and the title, only the required properties of the type, one after the other", async () => {
+  it("[SR-064/AK-xjg5] asks, after the type and the title, only the required properties of the type, one after the other", async () => {
     const running = creating();
     const { asked, call } = running;
     const labels: string[] = [];
@@ -1173,7 +1173,7 @@ describe('"Create element": the required properties asked in the command line (S
     ]);
   });
 
-  it("[SR-064/AK2] creates the element with every required property left empty, opens it, and says how many hints core gave", async () => {
+  it("[SR-064/AK-yhn7] creates the element with every required property left empty, opens it, and says how many hints core gave", async () => {
     const running = creating({ "element.create": created(["severity", "packages", "component"]) });
     const { asked, call, dispatched, echoed } = running;
     let prompt = await typeAndTitle(running, "Report", "Wind gusts");
@@ -1190,7 +1190,7 @@ describe('"Create element": the required properties asked in the command line (S
     expect(echoed.at(-1)).toBe("Created REP-000009 Wind gusts · 3 hints");
   });
 
-  it("[SR-064/AK2] creates the element with an empty title too, when the title is left empty", async () => {
+  it("[SR-064/AK-yhn7] creates the element with an empty title too, when the title is left empty", async () => {
     const running = creating({ "element.create": created(["title"]) });
     const { context, asked, call, echoed } = running;
     start(context, "element.create");
@@ -1725,7 +1725,7 @@ describe("the arguments a command expects, completed with the values of the meta
     });
   const failure = Object.assign(new Error("No such element"), { name: "ref.unknown" });
 
-  it("[SR-108/AK4] completes the status of an element with the statuses its type allows", async () => {
+  it("[SR-108/AK-v62v] completes the status of an element with the statuses its type allows", async () => {
     const { context, asked, call } = setup([shown], {
       "element.get": element("decision"),
       "metamodel.get": () => FIXTURE_METAMODEL,
@@ -1744,7 +1744,7 @@ describe("the arguments a command expects, completed with the values of the meta
     expect(call).toHaveBeenLastCalledWith("element.setStatus", { refs: ["uuid-1"], status: "decided" });
   });
 
-  it("[SR-044/AK2] offers an element shown read-only first to a read command, never to a write command", async () => {
+  it("[SR-044/AK-d2rh] offers an element shown read-only first to a read command, never to a write command", async () => {
     const readOnly = readOnlyBuffer(shown);
     const write = setup([readOnly], { "metamodel.get": () => FIXTURE_METAMODEL });
     start(write.context, "element.setStatus");
@@ -1777,7 +1777,7 @@ describe("the arguments a command expects, completed with the values of the meta
     expect((await last(gone.asked)).label).toBe("No such element · Set status SR-000001 (SR-1) · status:");
   });
 
-  it("[SR-108/AK4] completes the property of a bulk update with the properties of the metamodel, and its value with the values the metamodel fixes for it", async () => {
+  it("[SR-108/AK-v62v] completes the property of a bulk update with the properties of the metamodel, and its value with the values the metamodel fixes for it", async () => {
     const { context, asked, call } = setup([list], {
       "metamodel.get": () => FIXTURE_METAMODEL,
       "element.search": () => ({ hits: [hit(5)], total: 1 }),
@@ -1967,7 +1967,7 @@ describe("the arguments a command expects, completed with the values of the meta
     });
   });
 
-  it("[SR-108/AK4] completes the target of a relation with elements of the kind's target types only", async () => {
+  it("[SR-108/AK-v62v] completes the target of a relation with elements of the kind's target types only", async () => {
     const { context, asked, call } = setup([shown], {
       "relation.options": () => OPTIONS,
       "element.search": () => ({ hits: [hit(7)], total: 1 }),
@@ -1996,7 +1996,7 @@ describe("the arguments a command expects, completed with the values of the meta
     });
   });
 
-  it("[SR-108/AK4] a typed fragment of a relation target with a typo is searched with the kind's target types", async () => {
+  it("[SR-108/AK-v62v] a typed fragment of a relation target with a typo is searched with the kind's target types", async () => {
     const { context, asked, call } = setup([shown], {
       "relation.options": () => OPTIONS,
       "element.search": () => ({ hits: [hit(7)], total: 1 }),
@@ -2072,7 +2072,7 @@ describe("the arguments a command expects, completed with the values of the meta
     expect((await last(late.asked)).label).toBe("Gone · Create relation SR-000001 (SR-1) refines · target:");
   });
 
-  it("[SR-108/AK4] completes the relation to remove from the element's relations, and an open hint from hint.list", async () => {
+  it("[SR-108/AK-v62v] completes the relation to remove from the element's relations, and an open hint from hint.list", async () => {
     const relations = [
       { kind: "refines", direction: "out", id: "uuid-2", shortId: "SR-000002", title: "Title 2" },
       { kind: "refines", direction: "out", id: "uuid-3" },
@@ -2334,7 +2334,7 @@ describe("arguments given before the prompt asks (SR-199)", () => {
   const list = listBuffer("All elements");
   const row = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
 
-  it("[SR-199/AK3] asks only the other end of a relation whose source and kind are given", async () => {
+  it("[SR-199/AK-ngjy] asks only the other end of a relation whose source and kind are given", async () => {
     const { context, asked, call } = setup([list], { "relation.options": () => OPTIONS });
     const given = {
       "relation.add": [
@@ -2349,7 +2349,7 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     expect(target.find).toBeDefined();
   });
 
-  it("[SR-199/AK3] refuses a given kind that relation.options does not offer for the given source", async () => {
+  it("[SR-199/AK-ngjy] refuses a given kind that relation.options does not offer for the given source", async () => {
     const { context, asked } = setup([list], { "relation.options": () => OPTIONS });
     const given = {
       "relation.add": [
@@ -2366,7 +2366,7 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     expect(target.items).toEqual([]);
   });
 
-  it("[SR-199/AK3] does not offer first the element already given to another argument", async () => {
+  it("[SR-199/AK-ngjy] does not offer first the element already given to another argument", async () => {
     const { context, asked } = setup([list]);
     const given = {
       "relation.add": [
@@ -2383,7 +2383,7 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     expect((await last(asked)).items.map((i) => i.id)).toEqual([row.key]);
   });
 
-  it("[SR-199/AK4] runs a command whose arguments are all given at once", async () => {
+  it("[SR-199/AK-k1z8] runs a command whose arguments are all given at once", async () => {
     const { context, asked, call } = setup([list], { "relation.remove": () => ({ files: [] }) });
     const given = {
       "relation.remove": [

@@ -80,7 +80,7 @@ const commandsWithout = async (log: string): Promise<void> => {
 };
 
 describe("without network", () => {
-  it("[SR-078/AK1] records an attempt to reach another machine, and none while the commands run", async () => {
+  it("[SR-078/AK-tnbh] records an attempt to reach another machine, and none while the commands run", async () => {
     const tried = await networkLog();
     const attempt = await outwardAttempt(tried);
     expect(attempt.code).not.toBe(0);
@@ -91,11 +91,11 @@ describe("without network", () => {
     expect(existsSync(log)).toBe(false);
   });
 
-  it("[SR-077/AK1] reads, searches, writes, checks and exports a workspace", async () => {
+  it("[SR-077/AK-ddr5] reads, searches, writes, checks and exports a workspace", async () => {
     await commandsWithout(await networkLog());
   });
 
-  it("[SR-077/AK2] keeps an agent's session going with no error message and keeps every change", async () => {
+  it("[SR-077/AK-p3v2] keeps an agent's session going with no error message and keeps every change", async () => {
     const ws = await workspace();
     const log = await networkLog();
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, "mcp"], {

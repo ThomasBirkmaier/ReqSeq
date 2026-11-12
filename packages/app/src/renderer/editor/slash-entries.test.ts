@@ -44,7 +44,7 @@ const taken = (text: string, id: string): string => {
 };
 
 describe("the entries of the slash menu", () => {
-  it("[SR-129/AK1] lists the elements of the criterion in its order, then bold and italic, then the dates (SR-200)", () => {
+  it("[SR-129/AK-y6nx] lists the elements of the criterion in its order, then bold and italic, then the dates (SR-200)", () => {
     expect(SLASH_ENTRIES.map((candidate) => candidate.name)).toEqual([
       "Heading 1",
       "Heading 2",
@@ -72,12 +72,12 @@ describe("the entries of the slash menu", () => {
     expect(new Set(SLASH_ENTRIES.map((candidate) => candidate.id)).size).toBe(SLASH_ENTRIES.length);
   });
 
-  it("[SR-129/AK1] shows the Markdown of an entry as its detail", () => {
+  it("[SR-129/AK-y6nx] shows the Markdown of an entry as its detail", () => {
     expect(SLASH_ENTRIES.find((candidate) => candidate.id === "heading-2")?.detail).toBe("## ");
     expect(SLASH_ENTRIES.find((candidate) => candidate.id === "text")?.detail).toBe("");
   });
 
-  it("[SR-129/AK1] offers only the inline entries, the reference, the image and the dates inside a table row", () => {
+  it("[SR-129/AK-y6nx] offers only the inline entries, the reference, the image and the dates inside a table row", () => {
     expect(entriesFor(true).map((candidate) => candidate.name)).toEqual([
       "Link",
       "Reference to element",
@@ -94,7 +94,7 @@ describe("the entries of the slash menu", () => {
 describe("where the menu opens", () => {
   const opens = (text: string, at = text.indexOf("/")): boolean => opensMenu(stateOf(text), at);
 
-  it("[SR-129/AK1] opens for a / at the start of a line, after a space, after a list marker and after a quote marker", () => {
+  it("[SR-129/AK-y6nx] opens for a / at the start of a line, after a space, after a list marker and after a quote marker", () => {
     expect(opens("/")).toBe(true);
     expect(opens("text\n/")).toBe(true);
     expect(opens("text /")).toBe(true);
@@ -103,14 +103,14 @@ describe("where the menu opens", () => {
     expect(opens("1. /")).toBe(true);
   });
 
-  it("[SR-129/AK1] does not open in a word, an address, a path or and/or", () => {
+  it("[SR-129/AK-y6nx] does not open in a word, an address, a path or and/or", () => {
     expect(opens("a/b")).toBe(false);
     expect(opens("and/or")).toBe(false);
     expect(opens("see https://example.org")).toBe(false);
     expect(opens("src/renderer/", 12)).toBe(false);
   });
 
-  it("[SR-129/AK1] does not open in code, a link, an image, an autolink or HTML", () => {
+  it("[SR-129/AK-y6nx] does not open in code, a link, an image, an autolink or HTML", () => {
     expect(opens("```\n/\n```")).toBe(false);
     expect(opens("    /")).toBe(false);
     expect(opens("`code /`")).toBe(false);
@@ -133,13 +133,13 @@ describe("where the menu opens", () => {
     expect(withMath("$a$ /")).toBe(true);
   });
 
-  it("[SR-129/AK1] finds the / with its query, up to the caret", () => {
+  it("[SR-129/AK-y6nx] finds the / with its query, up to the caret", () => {
     const state = stateOf("text /nl");
     expect(slashRange(state, 5, 8)).toEqual({ from: 5, to: 8, query: "nl", inTable: false });
     expect(slashRange(state, 5, 6)).toEqual({ from: 5, to: 6, query: "", inTable: false });
   });
 
-  it("[SR-129/AK1] has no range when the / is gone, the caret is before it, on another line, or the query has white space or a /", () => {
+  it("[SR-129/AK-y6nx] has no range when the / is gone, the caret is before it, on another line, or the query has white space or a /", () => {
     const state = stateOf("text /nl more\nnext");
     expect(slashRange(state, 4, 8)).toBeUndefined();
     expect(slashRange(state, 5, 5)).toBeUndefined();
@@ -149,7 +149,7 @@ describe("where the menu opens", () => {
     expect(slashRange(stateOf("a /b/c"), 2, 6)).toBeUndefined();
   });
 
-  it("[SR-129/AK1] knows a table row", () => {
+  it("[SR-129/AK-y6nx] knows a table row", () => {
     const text = "| a | b |\n| --- | --- |\n| x | /bo |";
     const slash = text.indexOf("/");
     expect(slashRange(stateOf(text), slash, slash + 3)?.inTable).toBe(true);
@@ -158,18 +158,18 @@ describe("where the menu opens", () => {
 });
 
 describe("taking an entry", () => {
-  it("[SR-129/AK4] sets a heading on an empty line, with the caret after the marker", () => {
+  it("[SR-129/AK-nxbm] sets a heading on an empty line, with the caret after the marker", () => {
     expect(taken("/h1", "heading-1")).toBe("# ‸");
     expect(taken("/h6", "heading-6")).toBe("###### ‸");
   });
 
-  it("[SR-129/AK4] keeps the text of the line and moves the caret to where the query stood", () => {
+  it("[SR-129/AK-nxbm] keeps the text of the line and moves the caret to where the query stood", () => {
     expect(taken("foo /h2", "heading-2")).toBe("## foo‸");
     expect(taken("foo /h2 bar", "heading-2")).toBe("## foo ‸bar");
     expect(taken("/h2 bar", "heading-2")).toBe("## ‸bar");
   });
 
-  it("[SR-129/AK4] joins the text around a query that was cut short without doubling the space", () => {
+  it("[SR-129/AK-nxbm] joins the text around a query that was cut short without doubling the space", () => {
     const state = stateOf("foo /h2");
     const at = (from: number, to: number): string =>
       state.update(applyEntry(state, from, to, entry("heading-2"))).state.doc.toString();
@@ -177,7 +177,7 @@ describe("taking an entry", () => {
     expect(at(3, 6)).toBe("## foo2");
   });
 
-  it("[SR-129/AK4] replaces the block marker of the line and drops or keeps its indentation", () => {
+  it("[SR-129/AK-nxbm] replaces the block marker of the line and drops or keeps its indentation", () => {
     expect(taken("# foo /nt", "text")).toBe("foo‸");
     expect(taken("  - a /nl", "numbered-list")).toBe("  1. a‸");
     expect(taken("  - /tl", "task-list")).toBe("  - [ ] ‸");
@@ -189,13 +189,13 @@ describe("taking an entry", () => {
     expect(taken(">text /q", "quote")).toBe("> text‸");
   });
 
-  it("[SR-129/AK4] puts a code block on an empty line with a blank line apart from its neighbours", () => {
+  it("[SR-129/AK-nxbm] puts a code block on an empty line with a blank line apart from its neighbours", () => {
     expect(taken("/cb", "code-block")).toBe("```\n‸\n```");
     expect(taken("para\n/cb\nnext", "code-block")).toBe("para\n\n```\n‸\n```\n\nnext");
     expect(taken("para\n\n/cb\n\nnext", "code-block")).toBe("para\n\n```\n‸\n```\n\nnext");
   });
 
-  it("[SR-129/AK4] puts a block below a line that has text, and selects the first header of a table", () => {
+  it("[SR-129/AK-nxbm] puts a block below a line that has text, and selects the first header of a table", () => {
     expect(taken("foo /tb", "table")).toBe("foo\n\n| ‹Column 1› | Column 2 |\n| --- | --- |\n|  |  |");
     expect(taken("# Title /tb\nnext", "table")).toBe(
       "# Title\n\n| ‹Column 1› | Column 2 |\n| --- | --- |\n|  |  |\n\nnext",
@@ -203,7 +203,7 @@ describe("taking an entry", () => {
     expect(taken("- [ ] task /cb", "code-block")).toBe("- [ ] task\n\n  ```\n  ‸\n  ```");
   });
 
-  it("[SR-129/AK4] keeps a block inside a quote and inside a list item", () => {
+  it("[SR-129/AK-nxbm] keeps a block inside a quote and inside a list item", () => {
     expect(taken("> a\n> /cb", "code-block")).toBe("> a\n>\n> ```\n> ‸\n> ```");
     expect(taken("> a\n> /cb\n> b", "code-block")).toBe("> a\n>\n> ```\n> ‸\n> ```\n>\n> b");
     expect(taken("- a\n- /cb", "code-block")).toBe("- a\n- ```\n  ‸\n  ```");
@@ -212,19 +212,19 @@ describe("taking an entry", () => {
     expect(taken("1. /dg\n2. b", "diagram")).toBe("1. ```mermaid\n   ‸\n   ```\n2. b");
   });
 
-  it("[SR-129/AK4] writes math and diagram blocks", () => {
+  it("[SR-129/AK-nxbm] writes math and diagram blocks", () => {
     expect(taken("/mb", "math-block")).toBe("$$\n‸\n$$");
     expect(taken("/dg", "diagram")).toBe("```mermaid\n‸\n```");
   });
 
-  it("[SR-129/AK4] writes the inline entries in place of the / and its query", () => {
+  it("[SR-129/AK-nxbm] writes the inline entries in place of the / and its query", () => {
     expect(taken("see /lk now", "link")).toBe("see [‸]() now");
     expect(taken("see /bo", "bold")).toBe("see **‸**");
     expect(taken("see /it", "italic")).toBe("see *‸*");
     expect(taken("| x | /bo |", "bold")).toBe("| x | **‸** |");
   });
 
-  it("[SR-129/AK4] replaces the / and its query in every entry", () => {
+  it("[SR-129/AK-nxbm] replaces the / and its query in every entry", () => {
     for (const candidate of SLASH_ENTRIES.filter(
       (each) => each.kind !== "reference" && each.kind !== "image" && each.kind !== "date",
     )) {
@@ -254,7 +254,7 @@ describe("taking an entry", () => {
   ];
 
   it.each(MARKDOWN)(
-    "[SR-129/AK4] %s writes CommonMark with GitHub extensions (micromark)",
+    "[SR-129/AK-nxbm] %s writes CommonMark with GitHub extensions (micromark)",
     (id, line, expected) => {
       const result = taken(line, id);
       // What the writer types where the caret (or the selection) is.
@@ -276,11 +276,11 @@ describe("the reference", () => {
     repository: "main",
   };
 
-  it("[SR-129/AK4] writes the title within the repository of the source", () => {
+  it("[SR-129/AK-nxbm] writes the title within the repository of the source", () => {
     expect(referenceMarkdown(target, "main")).toBe(`[The title](reqseq:${target.id})`);
   });
 
-  it("[SR-129/AK4] writes the short ID and the repository for a target in another repository (D-058)", () => {
+  it("[SR-129/AK-nxbm] writes the short ID and the repository for a target in another repository (D-058)", () => {
     expect(referenceMarkdown(target, "other repo")).toBe(
       `[SR-5555](reqseq:${target.id}?version=&repository=main)`,
     );
@@ -289,7 +289,7 @@ describe("the reference", () => {
     );
   });
 
-  it("[SR-129/AK4] falls back to the identifier for an empty title and escapes the label", () => {
+  it("[SR-129/AK-nxbm] falls back to the identifier for an empty title and escapes the label", () => {
     expect(referenceMarkdown({ ...target, title: "  " }, "main")).toBe(`[SR-036](reqseq:${target.id})`);
     expect(referenceMarkdown({ ...target, title: "a [b] `c` \\d" }, "main")).toBe(
       `[a \\[b\\] \\\`c\\\` \\\\d](reqseq:${target.id})`,
@@ -303,7 +303,7 @@ describe("the reference", () => {
 });
 
 describe("the dates of the slash menu (SR-200)", () => {
-  it("[SR-200/AK1] Today writes the computer's day as YYYY-MM-DD in place of the / and its query", () => {
+  it("[SR-200/AK-dnvq] Today writes the computer's day as YYYY-MM-DD in place of the / and its query", () => {
     const state = stateOf("Due /tod here");
     const next = state.update(applyEntry(state, 4, 8, entry("today"), new Date(2026, 10, 8, 23, 59))).state;
     expect(next.doc.toString()).toBe("Due 2026-11-08 here");

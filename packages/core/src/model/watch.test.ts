@@ -130,7 +130,7 @@ const titleShown = (
 ): Promise<number> => within(limitMs, async () => (await title(workspace, id)) === expected);
 
 describe("watching a workspace with the file system (SR-007)", () => {
-  it("[SR-007/AK1] shows an element file saved by another editor within 2 seconds", async () => {
+  it("[SR-007/AK-p383] shows an element file saved by another editor within 2 seconds", async () => {
     const { fixture, workspace } = await opened();
     expect(await title(workspace, REQUIREMENT)).toBe("Show wind speed");
     await watching(fixture, workspace);
@@ -139,7 +139,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(elapsed).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows two saves in a row within 2 seconds each when the first one renamed a new file over the old one", async () => {
+  it("[SR-007/AK-p383] shows two saves in a row within 2 seconds each when the first one renamed a new file over the old one", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     await saveAtomically(fixture, REQUIREMENT_FILE, requirement(REQUIREMENT, "One"));
@@ -155,7 +155,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, REQUIREMENT, "Four")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows an element file that an editor saved by renaming a new file over it within 2 seconds", async () => {
+  it("[SR-007/AK-p383] shows an element file that an editor saved by renaming a new file over it within 2 seconds", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     // Editors such as vim and VS Code write a new file next to the old one and rename it over it.
@@ -176,7 +176,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, OTHER, "Moved")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a folder that a checkout replaced", async () => {
+  it("[SR-007/AK-p383] shows saves within 2 seconds in a folder that a checkout replaced", async () => {
     const { fixture, workspace } = await opened({ git: true });
     // A branch on which `requirements` holds another file only: a checkout empties the folder,
     // so Git removes it and creates it again.
@@ -198,7 +198,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, REQUIREMENT, "Back on main")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a folder that was deleted and created again, or replaced", async () => {
+  it("[SR-007/AK-p383] shows saves within 2 seconds in a folder that was deleted and created again, or replaced", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     await fs.rm(fixture.path("needs"), { recursive: true });
@@ -216,7 +216,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, NEED, "Saved after the move")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a folder named in NFD, and reads its metamodel again, whatever normal form the workspace file names it in (ThomasBirkmaier/ReqSeq-archive#225)", async () => {
+  it("[SR-007/AK-p383] shows saves within 2 seconds in a folder named in NFD, and reads its metamodel again, whatever normal form the workspace file names it in (ThomasBirkmaier/ReqSeq-archive#225)", async () => {
     const { fixture, workspace } = await opened({
       files: { [`${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Decomposed") },
     });
@@ -243,7 +243,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     ).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a nested repository named in NFD, and reads the metamodel again when the workspace file types its folder in another letter case (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
+  it("[SR-007/AK-p383] shows saves within 2 seconds in a nested repository named in NFD, and reads the metamodel again when the workspace file types its folder in another letter case (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const { fixture, workspace } = await opened({
       files: { [`vendor/${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Nested") },
     });
@@ -279,7 +279,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(workspace.peek(workspaceLayoutState)).toBe(layout);
   });
 
-  it("[SR-007/AK2] has search, relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
+  it("[SR-007/AK-p27v] has search, relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
     const count = 1000;
     const files: Record<string, string> = {};
     for (let i = 1; i <= count; i++) {
@@ -342,7 +342,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, uuid(7), "Edited after the pull")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   }, 60_000);
 
-  it("[SR-007/AK3] treats a relation to an element whose file was deleted outside the tool as a missing target", async () => {
+  it("[SR-007/AK-dm1n] treats a relation to an element whose file was deleted outside the tool as a missing target", async () => {
     const { fixture, workspace } = await opened();
     const before = await workspace.get(elementStoreState);
     expect(resolveId(before.byId, NEED).kind).toBe("found");
@@ -361,7 +361,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await fs.readFile(fixture.path(REQUIREMENT_FILE), "utf8")).toContain(`id: ${NEED}`);
   });
 
-  it("[SR-007/AK3] treats relations to the elements of a deleted folder as missing targets", async () => {
+  it("[SR-007/AK-dm1n] treats relations to the elements of a deleted folder as missing targets", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     await fs.rm(fixture.path("needs"), { recursive: true });
@@ -627,7 +627,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await title(workspace, REQUIREMENT)).toBe("A title that makes the file longer");
   });
 
-  it("[SR-007/AK2] reads the metamodel again and keeps an unchanged layout when the OS drops the names of a burst", async () => {
+  it("[SR-007/AK-p27v] reads the metamodel again and keeps an unchanged layout when the OS drops the names of a burst", async () => {
     const { fixture, workspace } = await opened();
     const store = await workspace.get(elementStoreState);
     await workspace.get(metamodelState);
@@ -653,7 +653,7 @@ describe("the watcher's rules (SR-007)", () => {
     });
   });
 
-  it("[SR-007/AK2] reads the layout again when the OS dropped the name of a changed workspace file", async () => {
+  it("[SR-007/AK-p27v] reads the layout again when the OS dropped the name of a changed workspace file", async () => {
     const { fixture, workspace } = await opened();
     await workspace.get(elementStoreState);
     await workspace.get(workspaceLayoutState);
@@ -680,7 +680,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(fake.open().map((h) => [h.folder, h.recursive])).toEqual([[workspace.root, false]]);
   });
 
-  it("[SR-007/AK2] reads the layout again after a nameless event when the workspace was opened through a link", async () => {
+  it("[SR-007/AK-p27v] reads the layout again after a nameless event when the workspace was opened through a link", async () => {
     const { fixture } = await opened();
     // A junction on Windows (no admin rights needed), a symbolic link elsewhere: the repository
     // folders are real paths, the root is the path the workspace was opened with.
@@ -707,7 +707,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect((await workspace.get(workspaceLayoutState)).name).toBe("Linked station");
   });
 
-  it("[SR-007/AK2] reads the metamodel again after a nameless event in another repository that holds it", async () => {
+  it("[SR-007/AK-p27v] reads the metamodel again after a nameless event in another repository that holds it", async () => {
     const { workspace } = await opened({
       files: {
         "reqseq-workspace.yaml":
@@ -726,7 +726,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(workspace.peek(workspaceLayoutState)).toBe(layout);
   });
 
-  it("[SR-007/AK2] checks only the repository whose names the OS dropped when it holds neither the workspace file nor the metamodel", async () => {
+  it("[SR-007/AK-p27v] checks only the repository whose names the OS dropped when it holds neither the workspace file nor the metamodel", async () => {
     const { workspace } = await opened({
       files: {
         "reqseq-workspace.yaml":
@@ -752,7 +752,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await title(workspace, OTHER)).toBe("Other, pulled");
   });
 
-  it("[SR-007/AK2] reads the layout again when the OS dropped the names of the main repository, and not for another one that holds neither the workspace file nor the metamodel", async () => {
+  it("[SR-007/AK-p27v] reads the layout again when the OS dropped the names of the main repository, and not for another one that holds neither the workspace file nor the metamodel", async () => {
     /** The workspace with a second repository beside it, which holds the metamodel or not. */
     const beside = async (
       metamodelIn: "system" | "other",
@@ -949,7 +949,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await exists()).toBe(false);
   });
 
-  it("[SR-007/AK2] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
+  it("[SR-007/AK-p27v] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const { workspace } = await opened({
       files: {
         "reqseq-workspace.yaml":
@@ -1746,7 +1746,7 @@ const lastNamed = (changes: readonly WorkspaceChange[]): Map<string, keyof Works
 };
 
 describe("the watcher tells its listeners what changed (ThomasBirkmaier/ReqSeq-archive#331, SR-007)", () => {
-  it("[SR-007/AK1] tells a listener within 2 seconds that an element file saved by another editor changed, once the store holds it", async () => {
+  it("[SR-007/AK-p383] tells a listener within 2 seconds that an element file saved by another editor changed, once the store holds it", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     const stores: (Promise<ElementStore> | undefined)[] = [];
@@ -1771,7 +1771,7 @@ describe("the watcher tells its listeners what changed (ThomasBirkmaier/ReqSeq-a
     );
   });
 
-  it("[SR-007/AK2] names every element a pull of 1,000 files changed or added, in a few batches within 10 seconds", async () => {
+  it("[SR-007/AK-p27v] names every element a pull of 1,000 files changed or added, in a few batches within 10 seconds", async () => {
     const count = 1000;
     const files: Record<string, string> = {};
     for (let i = 1; i <= count; i++) {
@@ -1828,7 +1828,7 @@ describe("the watcher tells its listeners what changed (ThomasBirkmaier/ReqSeq-a
     }
   }, 60_000);
 
-  it("[SR-007/AK3] names an element whose file was deleted outside the tool as removed", async () => {
+  it("[SR-007/AK-dm1n] names an element whose file was deleted outside the tool as removed", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
     const changes = changesOf(watchWorkspace(workspace));

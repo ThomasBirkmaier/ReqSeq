@@ -25,7 +25,7 @@ const reqseq = async (args: readonly string[]): Promise<Run> => {
 };
 
 describe("reqseq evidence status and element get with indirect verification (SR-034)", () => {
-  it("[SR-034/AK1] reqseq evidence status prints indirect for a parent whose children are verified by record files", async () => {
+  it("[SR-034/AK-kkxv] reqseq evidence status prints indirect for a parent whose children are verified by record files", async () => {
     const result = await reqseq(["evidence", "status"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
@@ -56,7 +56,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     );
   });
 
-  it("[SR-034/AK2] reqseq evidence status names the missing children by short ID though they are not on the page (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
+  it("[SR-034/AK-hk8z] reqseq evidence status names the missing children by short ID though they are not on the page (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const result = await reqseq([
       "evidence",
       "status",
@@ -74,7 +74,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     );
   });
 
-  it("[SR-034/AK2] reqseq evidence status --json names the children that are missing", async () => {
+  it("[SR-034/AK-hk8z] reqseq evidence status --json names the children that are missing", async () => {
     const input = JSON.stringify({ selection: { ids: [U("b120"), U("b150"), U("b160")] } });
     const result = await reqseq(["evidence", "status", "--input", input, "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -88,7 +88,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     ]);
   });
 
-  it("[SR-034/AK3] reqseq element get shows a parent with an obsolete child as indirect", async () => {
+  it("[SR-034/AK-s1b5] reqseq element get shows a parent with an obsolete child as indirect", async () => {
     const result = await reqseq(["element", "get", "SR-00b130"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout.split("\n")[0]).toBe(

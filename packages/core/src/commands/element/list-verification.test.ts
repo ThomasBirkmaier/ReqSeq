@@ -59,7 +59,7 @@ const nodeOf = async (workspace: Workspace, id: string, view?: string): Promise<
 };
 
 describe("element.list and element.search: the verification of the rows (SR-137)", () => {
-  it("[SR-137/AK1] each requirement row gives its status in the view as element.get gives it, indirect as such", async () => {
+  it("[SR-137/AK-bvf7] each requirement row gives its status in the view as element.get gives it, indirect as such", async () => {
     const workspace = await open();
     const output = await list(workspace, {});
     expect(output.rowVerification).toHaveLength(output.elements?.length ?? -1);
@@ -81,7 +81,7 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect((await list(workspace, { withVerification: false })).rowVerification).toBeUndefined();
   });
 
-  it("[SR-137/AK1] a list seen through a variant gives the status in that view", async () => {
+  it("[SR-137/AK-bvf7] a list seen through a variant gives the status in that view", async () => {
     const workspace = await open("SR-111/graph");
     const P = "5e111a7d-2b4f-4c61-9d08-";
     const GG1 = `${P}0c0000000005`;
@@ -94,7 +94,7 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect(at(inV1)).toEqual(await nodeOf(workspace, GG1, V1));
   });
 
-  it("[SR-137/AK4] without a variant each row shows the status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
+  it("[SR-137/AK-k70t] without a variant each row shows the status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
     const made = await createFixtureWorkspace({ fixture: "SR-136/graph", files: IN_VARIANT_ONLY });
     onTestFinished(() => made.cleanup());
     const workspace = new Workspace(made.root);
@@ -120,7 +120,7 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     });
   });
 
-  it("[SR-137/AK2] the statuses of a package's requirement rows count as its verification degree", async () => {
+  it("[SR-137/AK-pvch] the statuses of a package's requirement rows count as its verification degree", async () => {
     const workspace = await open();
     // The rows of a package page ask with `where`, its degree line with `package` (app/package-page.ts).
     const output = await list(workspace, { selection: { where: { package: U("d001") } } });
@@ -140,7 +140,7 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(degree.degree.total);
   });
 
-  it("[SR-137/AK3] each row shows the progress ring of the element's node in the graph, and none where the node has none", async () => {
+  it("[SR-137/AK-gq6h] each row shows the progress ring of the element's node in the graph, and none where the node has none", async () => {
     const workspace = await open();
     const output = await list(workspace, {});
     const rows = rowsOf(output);
@@ -164,7 +164,7 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect([...byId.values()].some((row) => row !== undefined && Object.keys(row).length === 0)).toBe(true);
   });
 
-  it("[SR-137/AK3] gives the rows of a page, of a grouped list and of a search as their nodes", async () => {
+  it("[SR-137/AK-gq6h] gives the rows of a page, of a grouped list and of a search as their nodes", async () => {
     const workspace = await open();
     const page = await list(workspace, { limit: 3, offset: 2 });
     expect(page.rowVerification).toHaveLength(3);

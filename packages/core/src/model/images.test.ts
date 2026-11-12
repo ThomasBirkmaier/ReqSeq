@@ -300,7 +300,7 @@ describe("embeddedImages", () => {
     });
   });
 
-  it("[SR-091/AK4] gives the images the published version test vectors list, missing ones included", async () => {
+  it("[SR-091/AK-q1k5] gives the images the published version test vectors list, missing ones included", async () => {
     // The folder of the vectors is their repository (schemas/examples/version/vectors.yaml).
     const dir = path.resolve(import.meta.dirname, "../../../../schemas/examples/version");
     const index = YAML.parse(await fs.readFile(path.join(dir, "vectors.yaml"), "utf8")) as {
@@ -436,7 +436,7 @@ describe("lookUpImages and imagesUnchanged (a version kept across watcher batche
 describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
   const text = "The wind speed can be read from three metres.\n\n![Layout](N-7b3d5e1f2a4c/layout.png)";
 
-  it("[SR-091/AK4] the version stored for a target changes when an image it embeds changes, appears or goes", async () => {
+  it("[SR-091/AK-q1k5] the version stored for a target changes when an image it embeds changes, appears or goes", async () => {
     const { fixture, workspace } = await open({
       [`system/${NEED.file}`]: needFile(text),
       "system/needs/N-7b3d5e1f2a4c/layout.png": "first",
@@ -464,7 +464,7 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
     expect(await storedVersion(workspace)).toBe(first);
   });
 
-  it("[SR-091/AK4] the version of a written element counts its images and equals the one stored for it", async () => {
+  it("[SR-091/AK-q1k5] the version of a written element counts its images and equals the one stored for it", async () => {
     const { fixture, workspace } = await open({ "system/needs/N-7b3d5e1f2a4c/layout.png": "first" });
     const update = async (): Promise<string | undefined> =>
       (
@@ -478,7 +478,7 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
     expect(await update()).not.toBe(shown);
   });
 
-  it("[SR-091/AK4] a plain link, an absolute URL or an ignored path to a changed file does not change the version", async () => {
+  it("[SR-091/AK-q1k5] a plain link, an absolute URL or an ignored path to a changed file does not change the version", async () => {
     const plain = [
       "See [the layout](N-7b3d5e1f2a4c/layout.png) and ![remote](https://example.org/layout.png).",
       "![Git](../.git/config) ![Self](N-7b3d5e1f2a4c.md)",

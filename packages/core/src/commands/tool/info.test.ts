@@ -27,7 +27,7 @@ const info = async (root: string): Promise<CommandOutput<"tool.info">> => {
 };
 
 describe("tool.info", () => {
-  it("[SR-161/AK1] shows versions, build, runtime and the open workspace, and writes nothing", async () => {
+  it("[SR-161/AK-hbxy] shows versions, build, runtime and the open workspace, and writes nothing", async () => {
     const ws = await fixture();
     const output = await info(ws.root);
     expect(output.versions).toEqual({ app: PRODUCT_VERSION, cli: PRODUCT_VERSION, mcp: PRODUCT_VERSION });
@@ -42,7 +42,7 @@ describe("tool.info", () => {
     expect(await ws.git(["status", "--porcelain", "--untracked-files=all"])).toBe("");
   });
 
-  it("[SR-161/AK1] gives Electron and Chromium of an Electron process, and the commit and date of a delivery", () => {
+  it("[SR-161/AK-hbxy] gives Electron and Chromium of an Electron process, and the commit and date of a delivery", () => {
     const facts = toolFacts(ELECTRON, BUILD);
     expect(facts.build).toEqual({
       commit: BUILD.commit,
@@ -53,7 +53,7 @@ describe("tool.info", () => {
     expect(facts.runtime).toEqual({ electron: "44.9.3", node: "24.1.0", chromium: "146.0.7000.0" });
   });
 
-  it("[SR-161/AK2] names the licences and the documentation, the addresses as text only", () => {
+  it("[SR-161/AK-ttck] names the licences and the documentation, the addresses as text only", () => {
     const delivered = toolFacts(ELECTRON, BUILD);
     expect(delivered.license).toEqual({
       notice: [...PRODUCT_LICENSE],
@@ -67,7 +67,7 @@ describe("tool.info", () => {
     expect(PRODUCT_LICENSE[0]).toMatch(/^Copyright/);
   });
 
-  it("[SR-161/AK2] opens no network connection", async () => {
+  it("[SR-161/AK-ttck] opens no network connection", async () => {
     const ws = await fixture();
     const fetch = vi.spyOn(globalThis, "fetch");
     await info(ws.root);

@@ -9,7 +9,7 @@ const setup = (dark: boolean) => {
 };
 
 describe("the theme", () => {
-  it("[SR-113/AK3] follows the system while nothing was chosen, also when the system changes", () => {
+  it("[SR-113/AK-m9n1] follows the system while nothing was chosen, also when the system changes", () => {
     const { theme, system, root } = setup(false);
     expect(theme.shown()).toBe("light");
     expect(theme.chosen()).toBe(false);
@@ -30,7 +30,7 @@ describe("the theme", () => {
     expect(dark.theme.shown()).toBe("light");
   });
 
-  it("[SR-113/AK3] keeps its choice when the system changes, and follows the system again after follow()", () => {
+  it("[SR-113/AK-m9n1] keeps its choice when the system changes, and follows the system again after follow()", () => {
     const { theme, system, root } = setup(false);
     theme.toggle();
     system.matches = true;

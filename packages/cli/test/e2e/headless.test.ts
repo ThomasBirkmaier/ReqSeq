@@ -45,7 +45,7 @@ const dependenciesOf = (name: string, seen = new Set<string>()): Set<string> => 
 };
 
 describe("the command line without a graphical interface", () => {
-  it("[SR-080/AK3] reads, writes and checks a workspace with no display, and loads nothing of the app", async () => {
+  it("[SR-080/AK-txbq] reads, writes and checks a workspace with no display, and loads nothing of the app", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-069/filter" });
     fixtures.push(ws);
     const run = (args: readonly string[]) => reqseq(args, { cwd: ws.root, env: HEADLESS });

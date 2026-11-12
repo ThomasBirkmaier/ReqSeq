@@ -179,7 +179,7 @@ describe("baseline.get withEvidence of a JUnit test case for the core and a vari
 });
 
 describe("baseline.get withEvidence", () => {
-  it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
+  it("[SR-094/AK-wm63] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
     const { fixture, workspace } = await opened();
     const out = await get(workspace, "Release 1");
     expect(rowsOf(out)).toEqual({
@@ -209,7 +209,7 @@ describe("baseline.get withEvidence", () => {
     expect(coreStatus(older, "b2")).toBe("verified");
   });
 
-  it("[SR-094/AK1] a record of the other normal form counts while the baseline version is the current one (ADR-0005)", async () => {
+  it("[SR-094/AK-wm63] a record of the other normal form counts while the baseline version is the current one (ADR-0005)", async () => {
     const { fixture, workspace } = await opened();
     const versions = await workspace.get(currentVersionsState);
     const b1 = versions.store.byId.get(`${P}b1`)?.[0];
@@ -234,7 +234,7 @@ describe("baseline.get withEvidence", () => {
     expect(coreStatus(other, "b1")).toBe("outdated");
   });
 
-  it("[SR-094/AK2] records are compared to the baseline by date and time, by day when one has no time, later ones of its version named", async () => {
+  it("[SR-094/AK-vpcs] records are compared to the baseline by date and time, by day when one has no time, later ones of its version named", async () => {
     const { workspace } = await opened();
     const out = await get(workspace, "Release 1");
     // SR-0000b1: passed at 13:00 counts, failed at 15:00 does not and is named in its view.
@@ -274,7 +274,7 @@ describe("baseline.get withEvidence", () => {
     expect(b3?.later?.map((r) => r.date)).toEqual(["2026-11-03T08:00:00Z"]);
   });
 
-  it("[SR-094/AK3] without a counting record of the baseline version the status is outdated with older ones, else open", async () => {
+  it("[SR-094/AK-chwr] without a counting record of the baseline version the status is outdated with older ones, else open", async () => {
     const { workspace } = await opened();
     const out = await get(workspace, "Release 1");
     // SR-0000b2: a record of an older version counts; the one of its version is dated after.
@@ -282,7 +282,7 @@ describe("baseline.get withEvidence", () => {
     expect(coreStatus(out, "b3")).toBe("open");
   });
 
-  it("[SR-094/AK4] a baseline without a variant in its selection gives a row for the core and every variant the requirement applies in", async () => {
+  it("[SR-094/AK-xt47] a baseline without a variant in its selection gives a row for the core and every variant the requirement applies in", async () => {
     const { fixture, workspace } = await opened();
     const out = await get(workspace, "Release 1");
     expect(out.view).toBeUndefined();
@@ -307,7 +307,7 @@ describe("baseline.get withEvidence", () => {
     expect(rowsOf(await get(workspace, "Core"))["b1"]).toEqual(rows["b1"]);
   });
 
-  it("[SR-094/AK5] a baseline with a variant in its selection gives only that variant's row", async () => {
+  it("[SR-094/AK-g0b5] a baseline with a variant in its selection gives only that variant's row", async () => {
     const { fixture, workspace } = await opened();
     const out = await get(workspace, "Alpine 1");
     expect(out.view).toBe(ALPINE);
@@ -320,7 +320,7 @@ describe("baseline.get withEvidence", () => {
     expect(rowsOf(await get(workspace, "Coastal 1"))).toEqual({ b1: ["coastal open"], b3: [] });
   });
 
-  it("[SR-047/AK6] a baseline over its view keeps the rows of a variant with an invalid status, one without a view has none", async () => {
+  it("[SR-047/AK-kp30] a baseline over its view keeps the rows of a variant with an invalid status, one without a view has none", async () => {
     // Alpine is obsolete, a status the metamodel marks invalid.
     const { workspace } = await opened({
       "variants/VAR-0000000000c1.md": `---\nid: ${ALPINE}\ntype: variant\nstatus: obsolete\ntitle: Alpine\n---\n`,
@@ -339,7 +339,7 @@ describe("baseline.get withEvidence", () => {
     });
   });
 
-  it("[SR-094/AK6] a baseline's status has no indirect verification", async () => {
+  it("[SR-094/AK-t5wy] a baseline's status has no indirect verification", async () => {
     const { workspace } = await opened();
     // SR-0000b5 has no record; its child SR-0000b6 passed: indirect now, open in the baseline.
     const now = (await invoke(
@@ -353,7 +353,7 @@ describe("baseline.get withEvidence", () => {
     expect(coreStatus(out, "b6")).toBe("verified");
   });
 
-  it("[SR-094/AK7] a baseline gives the validation status at the baseline version by the date rule, without view", async () => {
+  it("[SR-094/AK-gdxy] a baseline gives the validation status at the baseline version by the date rule, without view", async () => {
     const { workspace } = await opened();
     const out = await get(workspace, "Release 1");
     // N-0000a1: validated at 13:00 counts, failed at 15:00 is named; N-0000a2, a need without
@@ -495,7 +495,7 @@ describe("baseline.get withEvidence per acceptance criterion (SR-031, SR-094)", 
     return Object.fromEntries(out.elements.map((e) => [e.id.slice(-2), e.verification]));
   };
 
-  it("[SR-031/AK5] a baseline of the current version counts the criteria its records verify, 2 of 3", async () => {
+  it("[SR-031/AK-yscc] a baseline of the current version counts the criteria its records verify, 2 of 3", async () => {
     const fixture = await openCriteria(false);
     expect(await criteriaRows(fixture.root)).toEqual({
       e1: [

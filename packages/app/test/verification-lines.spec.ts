@@ -30,7 +30,7 @@ test.describe("the children missing for an indirect verification", () => {
     await running.close();
   });
 
-  test("[SR-034/AK2] an open requirement names its missing children as the CLI does, and each opens", async () => {
+  test("[SR-034/AK-hk8z] an open requirement names its missing children as the CLI does, and each opens", async () => {
     const { window } = running;
     await openEditor(window, "Warn of storms");
     const cli = await running.cli(["element", "get", "SR-00b120"]);
@@ -64,7 +64,7 @@ test.describe("the validation status", () => {
     await running.close();
   });
 
-  test("[SR-038/AK1] a requirement shows its validation status on a line apart from its verification status", async () => {
+  test("[SR-038/AK-w0j6] a requirement shows its validation status on a line apart from its verification status", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     await expect(line(window, "Verification").locator(".badge-name")).toHaveText(["Core"]);
@@ -86,7 +86,7 @@ test.describe("an inconclusive validation", () => {
     await running.close();
   });
 
-  test("[SR-172/AK2] a need whose newest validation is inconclusive shows that status with the reason", async () => {
+  test("[SR-172/AK-j3vg] a need whose newest validation is inconclusive shows that status with the reason", async () => {
     const { window } = running;
     await openEditor(window, "Know the frost");
     await expect(line(window, "Validation")).toHaveText(

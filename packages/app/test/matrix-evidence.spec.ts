@@ -29,7 +29,7 @@ test.describe("the evidence columns of the traceability matrix", () => {
     await running.close();
   });
 
-  test("[SR-126/AK1] the matrix has a column of test cases with result and date of the last execution and a column of the verification status", async () => {
+  test("[SR-126/AK-mdgj] the matrix has a column of test cases with result and date of the last execution and a column of the verification status", async () => {
     const { window } = running;
     const heads = window.locator("thead th .name");
     await expect(heads.nth(-2)).toHaveText("Test cases");
@@ -47,7 +47,7 @@ test.describe("the evidence columns of the traceability matrix", () => {
     }
   });
 
-  test("[SR-126/AK2] a requirement without test case, with a test case without execution, or with a failed or outdated execution is marked", async () => {
+  test("[SR-126/AK-mp13] a requirement without test case, with a test case without execution, or with a failed or outdated execution is marked", async () => {
     const { window } = running;
     const marked = (shortId: string): Locator => testCases(window, shortId).locator(".marked");
     await expect(marked("SR-126b02")).toHaveText("test_log[SR-126b02] · failed · 2026-10-22");
@@ -79,13 +79,13 @@ test.describe("the evidence columns of the traceability matrix", () => {
     await expect(status(window, "SR-126b03").locator(".marked")).toHaveText("outdated");
   });
 
-  test("[SR-126/AK3] an indirectly verified requirement has the status indirect", async () => {
+  test("[SR-126/AK-pmhn] an indirectly verified requirement has the status indirect", async () => {
     const { window } = running;
     await expect(status(window, "SR-126b07")).toHaveText("indirect");
     await expect(status(window, "SR-126b07").locator(".marked")).toHaveCount(0);
   });
 
-  test("[SR-126/AK4] above the status column stands the degree of the selection with the count per status", async () => {
+  test("[SR-126/AK-s18z] above the status column stands the degree of the selection with the count per status", async () => {
     const { window } = running;
     const cli = await running.cli(["trace", "matrix"]);
     const { degree } = (
@@ -132,7 +132,7 @@ test.describe("the evidence columns without a chosen view", () => {
     await running.close();
   });
 
-  test("[SR-126/AK5] without a chosen variant the test cases, the status and the degree are those of the core", async () => {
+  test("[SR-126/AK-mmsy] without a chosen variant the test cases, the status and the degree are those of the core", async () => {
     const { window } = running;
     // The record names the version the file has now, in normal form n1 (the tool shows n2 and
     // compares a stored n1 in its own form, ADR-0005); another would make it outdated, not a variant's.

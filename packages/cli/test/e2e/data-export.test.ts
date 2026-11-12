@@ -69,7 +69,7 @@ const schemaValidator = async (schema: string): Promise<Validate | undefined> =>
 };
 
 describe("reqseq data export (SR-061)", () => {
-  it("[SR-061/AK1] reqseq data export --json gives every element with properties, relations, version, status and validity read from the files", async () => {
+  it("[SR-061/AK-cjrr] reqseq data export --json gives every element with properties, relations, version, status and validity read from the files", async () => {
     const ws = await fixture();
     const result = await exportIn(ws, ["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -106,7 +106,7 @@ describe("reqseq data export (SR-061)", () => {
     expect(byId.get("e1")?.relations.map((r) => [r.id, r.outdated])).toEqual([[`${P}b1`, false]]);
   });
 
-  it("[SR-061/AK1] reqseq data export prints one line per element", async () => {
+  it("[SR-061/AK-cjrr] reqseq data export prints one line per element", async () => {
     const result = await exportIn(await fixture(), []);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const lines = result.stdout.split("\n");
@@ -123,7 +123,7 @@ describe("reqseq data export (SR-061)", () => {
     ]);
   });
 
-  it("[SR-061/AK2] reqseq data export gives only the selection of a package, a saved filter, a baseline and a variant", async () => {
+  it("[SR-061/AK-t65h] reqseq data export gives only the selection of a package, a saved filter, a baseline and a variant", async () => {
     const ws = await fixture();
     const cases: readonly [Readonly<Record<string, unknown>>, readonly string[]][] = [
       [{ package: "PKG-0000d1" }, ["b1", "b2"]],
@@ -139,7 +139,7 @@ describe("reqseq data export (SR-061)", () => {
     }
   });
 
-  it("[SR-061/AK3] the JSON of reqseq data export matches schemas/data-export.schema.json", async () => {
+  it("[SR-061/AK-zmv6] the JSON of reqseq data export matches schemas/data-export.schema.json", async () => {
     const ws = await fixture();
     const validate = await schemaValidator("data-export.schema.json");
     for (const args of [[], ["--input", JSON.stringify({ selection: { baseline: "release-1" } })]]) {
@@ -161,7 +161,7 @@ describe("reqseq data export --jsonl (SR-061 AK4, #319)", () => {
       .map((line) => JSON.parse(line) as Record<string, unknown>);
   };
 
-  it("[SR-061/AK4] reqseq data export --jsonl prints one element per line, the state of the export first", async () => {
+  it("[SR-061/AK-h1db] reqseq data export --jsonl prints one element per line, the state of the export first", async () => {
     const ws = await fixture();
     for (const args of [[], ["--input", JSON.stringify({ selection: { package: "PKG-0000d1" } })]]) {
       const json = await exportIn(ws, [...args, "--json"]);
@@ -189,7 +189,7 @@ describe("reqseq data export --jsonl (SR-061 AK4, #319)", () => {
     }
   });
 
-  it("[SR-061/AK3] every line of reqseq data export --jsonl matches $defs/line of schemas/data-export.schema.json", async () => {
+  it("[SR-061/AK-zmv6] every line of reqseq data export --jsonl matches $defs/line of schemas/data-export.schema.json", async () => {
     const ws = await fixture();
     const validate = await schemaValidator("data-export.schema.json#/$defs/line");
     const result = await exportIn(ws, ["--jsonl"]);

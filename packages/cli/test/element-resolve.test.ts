@@ -69,7 +69,7 @@ const currentVersion = async (): Promise<string> => {
 };
 
 describe("element.resolve from another tool", () => {
-  it("[SR-060/AK1] gives title, text, status and current version on the command line", async () => {
+  it("[SR-060/AK-sct7] gives title, text, status and current version on the command line", async () => {
     let out = "";
     const code = await runCli({
       argv: ["element", "resolve", "SR-e88fb3", "--version", await currentVersion(), "--json"],
@@ -103,7 +103,7 @@ describe("element.resolve from another tool", () => {
     expect(resolved.current).toBeNull();
   });
 
-  it("[SR-060/AK1] gives title, text, status and current version through the local API", async () => {
+  it("[SR-060/AK-sct7] gives title, text, status and current version through the local API", async () => {
     const cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-resolve-api-"));
     onTestFinished(() => fs.rm(cache, { recursive: true, force: true }));
     const server = await startApiServer({ workspace: open(), runtime, cacheFolder: cache });
@@ -134,7 +134,7 @@ describe("element.resolve from another tool", () => {
     expect(resolved.current).toBe("outdated");
   });
 
-  it("[SR-060/AK1] gives title, text, status and current version through the MCP server", async () => {
+  it("[SR-060/AK-sct7] gives title, text, status and current version through the MCP server", async () => {
     const toServer = new PassThrough();
     const toClient = new PassThrough();
     const served = serveMcp({

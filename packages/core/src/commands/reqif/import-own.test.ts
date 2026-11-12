@@ -164,7 +164,7 @@ const attributeEntry = (m: Record<string, unknown>, source: string): Entry => {
 };
 
 describe("reqif.import of a file of ReqSeq (SR-052)", () => {
-  it("[SR-052/AK3] reqif.analyze without a mapping plans with the mapping reqif.import builds, so both show the same result (#692)", async () => {
+  it("[SR-052/AK-n04g] reqif.analyze without a mapping plans with the mapping reqif.import builds, so both show the same result (#692)", async () => {
     const all = await exported(undefined);
     const { fixture, workspace } = await target(all.text, all.images);
     const analyze = (): Promise<CommandOutput<"reqif.analyze">> =>
@@ -188,7 +188,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     ]);
   });
 
-  it("[SR-052/AK3] extends the saved mapping by what a later file of the same source adds, keeping what it holds", async () => {
+  it("[SR-052/AK-n04g] extends the saved mapping by what a later file of the same source adds, keeping what it holds", async () => {
     const one = await exported([TEMPERATURE]);
     const all = await exported(undefined);
     const { fixture, workspace } = await target(one.text, undefined, { "in/all.reqif": all.text });
@@ -236,7 +236,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect(fifth.files).toContain(MAPPING);
   });
 
-  it("[SR-056/AK2] warns before a repeated file of ReqSeq writes over a local edit of packages, which does not count (#575/4a)", async () => {
+  it("[SR-056/AK-c7b8] warns before a repeated file of ReqSeq writes over a local edit of packages, which does not count (#575/4a)", async () => {
     const all = await exported(undefined);
     const { workspace } = await target(all.text, all.images);
     const first = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
@@ -263,7 +263,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect((got.element.properties["packages"] as { id: string }[]).length).toBe(1);
   });
 
-  it("[SR-052/AK3] never bypasses a given mapping: an attribute it omits is not taken from reqseq-values", async () => {
+  it("[SR-052/AK-n04g] never bypasses a given mapping: an attribute it omits is not taken from reqseq-values", async () => {
     const all = await exported(undefined);
     const { fixture, workspace } = await target(all.text, all.images);
     await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
@@ -290,7 +290,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     ).toEqual([[`_${WIND}`, "the mapping omits its attribute topic"]]);
   });
 
-  it("[SR-052/AK3] imports an object another tool changed by its SPEC-RELATIONs, keeping a target outside the export with its stored version", async () => {
+  it("[SR-052/AK-n04g] imports an object another tool changed by its SPEC-RELATIONs, keeping a target outside the export with its stored version", async () => {
     const { file, images } = await exported([WIND, HISTORY]);
     // Another tool removed WIND's relation to the decision.
     const edited = rewritten({
@@ -335,7 +335,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect(lost.losses.filter((l) => l.code === "relation-end-not-imported")).toHaveLength(4);
   });
 
-  it("[SR-052/AK3] leaves out a relation the metamodel does not allow, from the channels and from SPEC-RELATIONs", async () => {
+  it("[SR-052/AK-n04g] leaves out a relation the metamodel does not allow, from the channels and from SPEC-RELATIONs", async () => {
     const files = {
       ...OWNER_MODEL,
       "requirements/SR-0000000052b4.md": [
@@ -422,7 +422,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     });
   });
 
-  it("[SR-052/AK3] takes the channels of an object with a property the metamodel here does not know, without that property", async () => {
+  it("[SR-052/AK-n04g] takes the channels of an object with a property the metamodel here does not know, without that property", async () => {
     const weighted = {
       "metamodel/extra.yaml": OWNER_MODEL["metamodel/extra.yaml"]
         .replace("properties: [title, owner,", "properties: [title, weight, owner,")
@@ -445,7 +445,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     ]);
   });
 
-  it("[SR-052/AK3] takes the channels of an object with a relation kind the metamodel here does not know, without a warning (#695)", async () => {
+  it("[SR-052/AK-n04g] takes the channels of an object with a relation kind the metamodel here does not know, without a warning (#695)", async () => {
     const conflicting = {
       "metamodel/extra.yaml": [
         "reqseq-metamodel: 1",
@@ -484,7 +484,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect(temperature.relations.filter((r) => r.direction === "out").map((r) => r.kind)).toEqual([]);
   });
 
-  it("[SR-052/AK3] takes the channels of a text with line breaks and raw HTML, so the text equals the original (#579)", async () => {
+  it("[SR-052/AK-n04g] takes the channels of a text with line breaks and raw HTML, so the text equals the original (#579)", async () => {
     const text = "before\\\nafter  \nend <br> x\n\nbefore<br>after and a <b>x</b> & y\n\n```\n```\n";
     const { text: file } = await exported([GUSTS], {
       ...OWNER_MODEL,
@@ -496,7 +496,7 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect((await element(workspace, imported, GUSTS)).text).toBe(text);
   });
 
-  it("[SR-052/AK3] copies the images of the text and points its links at the copies; an image not there is a loss", async () => {
+  it("[SR-052/AK-n04g] copies the images of the text and points its links at the copies; an image not there is a loss", async () => {
     const files = {
       "requirements/SR-0000000052b5.md": [
         "---",

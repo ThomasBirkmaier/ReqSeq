@@ -25,14 +25,14 @@ const docs = (entries: Record<string, string>): Map<string, string> => new Map(O
 const file = (sha: string, entries: Record<string, string>) => ({ sha, docs: docs(entries) });
 
 describe("outsideChange", () => {
-  it("[SR-106/AK1] follows the file when there is no input", () => {
+  it("[SR-106/AK-m800] follows the file when there is no input", () => {
     expect(outsideChange(new Map(), "one", file("two", { Text: "new" }))).toEqual({
       kind: "follow",
       dropped: [],
     });
   });
 
-  it("[SR-106/AK2] stops saving when the file's bytes are no longer those the input was typed on, with both versions of each field with input", () => {
+  it("[SR-106/AK-ydc8] stops saving when the file's bytes are no longer those the input was typed on, with both versions of each field with input", () => {
     const input = docs({ Text: "mine", topic: "Gusts" });
     expect(outsideChange(input, "one", file("two", { Text: "theirs", topic: "Wind" }))).toEqual({
       kind: "conflict",
@@ -44,7 +44,7 @@ describe("outsideChange", () => {
     });
   });
 
-  it("[SR-106/AK2] stops saving also when the change from outside touched another field than the input (spec question ThomasBirkmaier/ReqSeq-archive#488, 1)", () => {
+  it("[SR-106/AK-ydc8] stops saving also when the change from outside touched another field than the input (spec question ThomasBirkmaier/ReqSeq-archive#488, 1)", () => {
     expect(outsideChange(docs({ Text: "mine" }), "one", file("two", { Text: "base", title: "New" }))).toEqual(
       {
         kind: "conflict",
@@ -106,7 +106,7 @@ describe("a draft that comes back", () => {
     expect([...draftInput({ text: "base", base: "base" })]).toEqual([]);
   });
 
-  it("[SR-106/AK2] keeps the boxes with input on the stored values now; a property gone from the file keeps its input as an added box", () => {
+  it("[SR-106/AK-ydc8] keeps the boxes with input on the stored values now; a property gone from the file keeps its input as an added box", () => {
     expect(
       keptBoxes(
         kept("base", "base", { topic: ["Gusts", "Wind"], rationale: ["Mine", "Old"], criteria: ["a", "b"] }),
@@ -122,7 +122,7 @@ describe("a draft that comes back", () => {
 });
 
 describe("the block On disk", () => {
-  it("[SR-106/AK2] shows the file's lines and marks those the input lacks", () => {
+  it("[SR-106/AK-ydc8] shows the file's lines and marks those the input lacks", () => {
     expect(diskLines(["one", "two", "three"], ["one", "2", "three", "four"])).toEqual([
       { text: "one", differs: false },
       { text: "two", differs: true },
@@ -172,12 +172,12 @@ describe("the block On disk", () => {
 });
 
 describe("what the buffer says and asks", () => {
-  it("[SR-106/AK3] takes only ref.unknown as a file that is gone", () => {
+  it("[SR-106/AK-v420] takes only ref.unknown as a file that is gone", () => {
     expect(isGone("ref.unknown")).toBe(true);
     expect(isGone("file.faulty")).toBe(false);
   });
 
-  it("[SR-106/AK3] says a file is deleted only when it is still gone after a batch of the watcher (a pull removes and adds it)", () => {
+  it("[SR-106/AK-v420] says a file is deleted only when it is still gone after a batch of the watcher (a pull removes and adds it)", () => {
     expect(GONE_CONFIRM_MS).toBeGreaterThan(1000);
     expect(goneWait(undefined, 5000)).toBe(GONE_CONFIRM_MS);
     expect(goneWait(5000, 5200)).toBe(GONE_CONFIRM_MS - 200);
@@ -185,21 +185,21 @@ describe("what the buffer says and asks", () => {
     expect(goneWait(5000, 9000)).toBe(0);
   });
 
-  it("[SR-106/AK2] [SR-106/AK3] marks the modeline: deleted before changed", () => {
+  it("[SR-106/AK-ydc8] [SR-106/AK-v420] marks the modeline: deleted before changed", () => {
     const fields = [{ label: "Text", input: "a", disk: "b" }];
     expect(diskMark(false, undefined)).toBeUndefined();
     expect(diskMark(false, fields)).toBe("changed");
     expect(diskMark(true, fields)).toBe("deleted");
   });
 
-  it("[SR-106/AK2] [SR-106/AK3] names the element and the deletion, and how to resolve", () => {
+  it("[SR-106/AK-ydc8] [SR-106/AK-v420] names the element and the deletion, and how to resolve", () => {
     expect(changedOnDisk("SR-1 One")).toBe('SR-1 One changed on disk. Resolve with "Resolve change on disk"');
     expect(deletedOnDisk("SR-1 One")).toBe(
       "SR-1 One was deleted on disk; its content stays here until you close the buffer",
     );
   });
 
-  it("[SR-106/AK2] lets the user choose which version holds: the input or the file", () => {
+  it("[SR-106/AK-ydc8] lets the user choose which version holds: the input or the file", () => {
     const keep = vi.fn();
     const take = vi.fn();
     const prompt = resolvePrompt(keep, take);

@@ -96,7 +96,7 @@ test.describe("saving without a save command", () => {
     await running.close();
   });
 
-  test("[SR-105/AK1] a change is in the file a second after the last key, without a save command and without a message", async () => {
+  test("[SR-105/AK-p4gn] a change is in the file a second after the last key, without a save command and without a message", async () => {
     const { window } = running;
     const before = await read(running, SR_FILE)();
     await window.keyboard.press("Enter");
@@ -117,7 +117,7 @@ test.describe("saving without a save command", () => {
     expect(got.stdout).toContain("Neu.");
   });
 
-  test("[SR-105/AK4] Ctrl/Cmd+S writes the change at once, while the second of autosave cannot pass", async () => {
+  test("[SR-105/AK-znzt] Ctrl/Cmd+S writes the change at once, while the second of autosave cannot pass", async () => {
     const { window } = running;
     const file = read(running, SR_FILE);
     const before = await file();
@@ -136,7 +136,7 @@ test.describe("saving without a save command", () => {
     await expect(modeline(window)).not.toContainText("modified");
   });
 
-  test("[SR-105/AK1] leaving the element writes the change at once: another buffer, Go to, Close buffer and Close all buffers", async () => {
+  test("[SR-105/AK-p4gn] leaving the element writes the change at once: another buffer, Go to, Close buffer and Close all buffers", async () => {
     const { window } = running;
     // Another buffer (Alt+N): the file has the input before the second would have passed.
     await window.keyboard.press("Enter");
@@ -187,7 +187,7 @@ test.describe("saving without a save command", () => {
     expect(await read(running, OTHER_FILE)()).toContain("Fünf.");
   });
 
-  test("[SR-105/AK2] undo and redo of the text step through its states since opening, also after it was saved and after another buffer was shown", async () => {
+  test("[SR-105/AK-dmrq] undo and redo of the text step through its states since opening, also after it was saved and after another buffer was shown", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
     await window.keyboard.type("Neu.");
@@ -213,7 +213,7 @@ test.describe("saving without a save command", () => {
     await expect(text(window)).toContainText("Neu.");
   });
 
-  test("[SR-105/AK2] undo and redo of a text box and of a choice after they were saved", async () => {
+  test("[SR-105/AK-dmrq] undo and redo of a text box and of a choice after they were saved", async () => {
     const { window } = running;
     // A text box.
     await field(window, "topic").locator(".cm-line").click();
@@ -247,7 +247,7 @@ test.describe("saving without a save command", () => {
     await written(read(running, SR_FILE), "requirement-type: quality", Date.now());
   });
 
-  test("[SR-105/AK1] quitting the app within a second of the last key writes the change before the window closes", async () => {
+  test("[SR-105/AK-p4gn] quitting the app within a second of the last key writes the change before the window closes", async () => {
     const { app, window } = running;
     await window.keyboard.press("Enter");
     await window.keyboard.type(" Beim Beenden.");
@@ -261,7 +261,7 @@ test.describe("saving without a save command", () => {
     expect(await read(running, SR_FILE)()).toContain("Beim Beenden.");
   });
 
-  test("[SR-105/AK1] quitting the app with nothing typed ends it within a few seconds, and writes nothing (ThomasBirkmaier/ReqSeq-archive#611 review S2)", async () => {
+  test("[SR-105/AK-p4gn] quitting the app with nothing typed ends it within a few seconds, and writes nothing (ThomasBirkmaier/ReqSeq-archive#611 review S2)", async () => {
     const { app } = running;
     const before = await read(running, SR_FILE)();
     const exited = app.waitForEvent("close", { timeout: 5000 });
@@ -272,7 +272,7 @@ test.describe("saving without a save command", () => {
     expect(await read(running, SR_FILE)()).toBe(before);
   });
 
-  test("[SR-105/AK1] closing the window with input that cannot be saved keeps it open once and says why; closing again discards it", async () => {
+  test("[SR-105/AK-p4gn] closing the window with input that cannot be saved keeps it open once and says why; closing again discards it", async () => {
     const { app, window } = running;
     const file = read(running, SR_FILE);
     await window.keyboard.press("Enter");
@@ -299,7 +299,7 @@ test.describe("saving without a save command", () => {
     expect(after).not.toContain("Meins.");
   });
 
-  test("[SR-105/AK5] a file that cannot be written keeps the input, the modeline names the reason, and the first close keeps the window open", async () => {
+  test("[SR-105/AK-phcy] a file that cannot be written keeps the input, the modeline names the reason, and the first close keeps the window open", async () => {
     const { app, window } = running;
     // The file, not its folder: Windows ignores the read-only attribute of a folder.
     const file = path.join(running.workspace?.root ?? "", ...SR_FILE.split("/"));
@@ -323,7 +323,7 @@ test.describe("saving without a save command", () => {
     }
   });
 
-  test("[SR-105/AK3] there is no button and no dialog to save, when typing, leaving or closing", async () => {
+  test("[SR-105/AK-ptsm] there is no button and no dialog to save, when typing, leaving or closing", async () => {
     const { app, window } = running;
     // Electron's own dialogs: none to save, and no message box (counted in the main process).
     await app.evaluate(({ dialog }) => {

@@ -162,7 +162,7 @@ const ruleOf = (selector: string): string => {
 };
 
 describe("the traceability matrix (SR-125, SR-153)", () => {
-  it("[SR-153/AK1] marks a gap in the accent colour, by a token, and the outdated and missing marks as the element view does", () => {
+  it("[SR-153/AK-mcfm] marks a gap in the accent colour, by a token, and the outdated and missing marks as the element view does", () => {
     expect(ruleOf(".matrix .gap")).toMatch(/color:\s*var\(--accent-gap\);/);
     expect(ruleOf(".matrix .outdated")).toMatch(/color:\s*var\(--accent-outdated\);/);
     expect(ruleOf(".matrix .unavailable, .matrix .state")).toMatch(/color:\s*var\(--muted\);/);
@@ -170,13 +170,13 @@ describe("the traceability matrix (SR-125, SR-153)", () => {
     expect(values("accent-gap")).toEqual(values("accent-outdated"));
   });
 
-  it("[SR-153/AK2] shows an empty cell that is no gap in the muted colour, as an unavailable end, with no new token", () => {
+  it("[SR-153/AK-zx11] shows an empty cell that is no gap in the muted colour, as an unavailable end, with no new token", () => {
     expect(ruleOf(".matrix .none")).toMatch(/color:\s*var\(--muted\);/);
   });
 });
 
 describe("the copy symbol of a field (SR-128)", () => {
-  it("[SR-128/AK1] is hidden, and seen only while the pointer is over the field or the focus is in it", () => {
+  it("[SR-128/AK-sthw] is hidden, and seen only while the pointer is over the field or the focus is in it", () => {
     expect(ruleOf(".copy")).toMatch(/visibility:\s*hidden;/);
     // The rows of "About ReqSeq" show it the same way (SR-161 AK3).
     const shown = ruleOf(
@@ -187,13 +187,13 @@ describe("the copy symbol of a field (SR-128)", () => {
     expect(CSS.match(/visibility:\s*visible;/g)).toHaveLength(1);
   });
 
-  it("[SR-128/AK1] is very quiet: the muted colour, no frame, and the text colour only under the pointer", () => {
+  it("[SR-128/AK-sthw] is very quiet: the muted colour, no frame, and the text colour only under the pointer", () => {
     expect(ruleOf(".copy")).toMatch(/color:\s*var\(--muted\);/);
     expect(ruleOf(".copy")).toMatch(/border:\s*0;/);
     expect(ruleOf(".copy:hover")).toMatch(/color:\s*var\(--text\);/);
   });
 
-  it("[SR-128/AK1] sits at the right edge of the field, in the room the field keeps for it", () => {
+  it("[SR-128/AK-sthw] sits at the right edge of the field, in the room the field keeps for it", () => {
     expect(ruleOf(".element .field > .copy")).toMatch(/position:\s*absolute;[\s\S]*right:\s*0;/);
     expect(ruleOf(".element .field")).toMatch(/padding-right:\s*1\.75rem;/);
     expect(ruleOf(".element .field")).toMatch(/position:\s*relative;/);
@@ -203,7 +203,7 @@ describe("the copy symbol of a field (SR-128)", () => {
 });
 
 describe("the field the focus is in (SR-155)", () => {
-  it("[SR-155/AK1] has the background of the selected row of a list", () => {
+  it("[SR-155/AK-jrfb] has the background of the selected row of a list", () => {
     expect(ruleOf(".element .field:focus-within")).toMatch(/background:\s*var\(--select\);/);
     expect(ruleOf('.row[aria-selected="true"]')).toMatch(/background:\s*var\(--select\);/);
     // A selection and code in the field take the sheet colour, so they stay visible on the tint.
@@ -211,14 +211,14 @@ describe("the field the focus is in (SR-155)", () => {
     expect(EDITOR.match(/backgroundColor: "var\(--in-field, var\(--select\)\)"/g)).toHaveLength(3);
   });
 
-  it("[SR-155/AK3] is tinted only while the focus is in it: no other rule gives a field a background", () => {
+  it("[SR-155/AK-jgyk] is tinted only while the focus is in it: no other rule gives a field a background", () => {
     const tinted = CSS.split("\n}\n").filter((rule) => /\.field\b[^{]*\{[^}]*background:/.test(rule));
     expect(tinted.map((rule) => rule.trim().split(" {")[0])).toEqual([".element .field:focus-within"]);
   });
 });
 
 describe("the shortcut next to a hit of the command line (SR-109)", () => {
-  it("[SR-109/AK1] writes the shortcut quietly at the right of the hit: muted, smaller than the name", () => {
+  it("[SR-109/AK-d5b0] writes the shortcut quietly at the right of the hit: muted, smaller than the name", () => {
     // The name on the left, the shortcut pushed to the right edge of the row.
     const row = ruleOf(".card-list li");
     expect(row).toMatch(/display:\s*flex;/);
@@ -231,7 +231,7 @@ describe("the shortcut next to a hit of the command line (SR-109)", () => {
 });
 
 describe("the hits of the search prompt (SR-183)", () => {
-  it("[SR-183/AK1] the card is CARD_LINES lines high, and a hit takes one line, or two with its snippet", () => {
+  it("[SR-183/AK-c47w] the card is CARD_LINES lines high, and a hit takes one line, or two with its snippet", () => {
     expect(ruleOf(".card-list")).toContain(`max-height: calc(var(--line) * ${String(CARD_LINES)});`);
     expect(ruleOf(".card-list li.hit")).toMatch(/box-sizing:\s*border-box;[\s\S]*height:\s*var\(--line\);/);
     expect(ruleOf(".card-list li.hit.snipped")).toMatch(/height:\s*calc\(var\(--line\) \* 2\);/);
@@ -302,7 +302,7 @@ describe("the highlight of a change from outside (SR-116)", () => {
   const channels = (hex: string): number[] => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
 
   it.each(["light", "dark"] as const)(
-    "[SR-116/AK1] tints in grey, no colour, and visibly on the sheet (%s)",
+    "[SR-116/AK-w091] tints in grey, no colour, and visibly on the sheet (%s)",
     (scheme) => {
       const tint = values("outside-change")[scheme];
       const [red = 0, green = 0, blue = 0] = channels(tint);
@@ -312,7 +312,7 @@ describe("the highlight of a change from outside (SR-116)", () => {
     },
   );
 
-  it("[SR-116/AK2] fades within the 3 s the mark stays, and stays still without motion", () => {
+  it("[SR-116/AK-g84w] fades within the 3 s the mark stays, and stays still without motion", () => {
     const rule = ruleOf(".outside-change");
     expect(rule).toMatch(/animation:\s*outside-change 2\.5s/);
     // The end of the animation is no tint: nothing is left standing when the class goes at 3 s.
@@ -324,7 +324,7 @@ describe("the highlight of a change from outside (SR-116)", () => {
 });
 
 describe("the block of a field whose file changed under the input (SR-106)", () => {
-  it("[SR-106/AK2] is quiet and in greys: the muted text, the rule as its edge, and what differs in heavier weight", () => {
+  it("[SR-106/AK-ydc8] is quiet and in greys: the muted text, the rule as its edge, and what differs in heavier weight", () => {
     const rule = ruleOf(".element .on-disk");
     expect(rule).toContain("color: var(--muted);");
     expect(rule).toContain("border-left: 2px solid var(--rule);");
@@ -335,7 +335,7 @@ describe("the block of a field whose file changed under the input (SR-106)", () 
 });
 
 describe("the inactive area of a split window (SR-150)", () => {
-  it("[SR-150/AK8] is a shade lighter: its text takes the muted grey, which reads at 4.5:1 on the sheet and on a selection in both schemes", () => {
+  it("[SR-150/AK-kbtr] is a shade lighter: its text takes the muted grey, which reads at 4.5:1 on the sheet and on a selection in both schemes", () => {
     const rule = ruleOf(".area:not([data-active])");
     expect(rule).toContain("--text: var(--muted);");
     expect(rule).toContain("color: var(--text);");
@@ -364,7 +364,7 @@ describe("the verification badges (SR-157)", () => {
     outdated: '.element .badge[data-status="outdated"] .badge-status',
   } as const;
 
-  it("[SR-157/AK3] keeps the name and the status in greys, and colours only a failed or an outdated status, each by a token of its own", () => {
+  it("[SR-157/AK-m1zy] keeps the name and the status in greys, and colours only a failed or an outdated status, each by a token of its own", () => {
     expect(pair(HALVES.name)).toEqual(["sheet", "muted"]);
     expect(pair(HALVES.status)).toEqual(["text", "select"]);
     expect(pair(HALVES.failed)).toEqual(["sheet", "badge-failed"]);
@@ -380,7 +380,7 @@ describe("the verification badges (SR-157)", () => {
   });
 
   it.each(["light", "dark"] as const)(
-    "[SR-157/AK4] gives the text of each half 4.5:1 on its background, also in an inactive area (%s)",
+    "[SR-157/AK-hmj8] gives the text of each half 4.5:1 on its background, also in an inactive area (%s)",
     (scheme) => {
       const at = (name: string): string => values(name)[scheme];
       for (const [text, ground] of [
@@ -399,7 +399,7 @@ describe("the verification badges (SR-157)", () => {
 describe("the slash menu as the card of the command line (SR-129 AK5)", () => {
   const motion = /@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? "";
 
-  it("[SR-129/AK5] is a soft card with a shadow, a seam as wide as its blur, over the whole backdrop dimmed as the card's", () => {
+  it("[SR-129/AK-pk82] is a soft card with a shadow, a seam as wide as its blur, over the whole backdrop dimmed as the card's", () => {
     const list = EDITOR.slice(EDITOR.indexOf('".cm-tooltip.cm-tooltip-autocomplete > ul": {'));
     const rule = list.slice(0, list.indexOf("}"));
     expect(rule).toMatch(/backgroundColor: "var\(--raised\)"/);
@@ -413,7 +413,7 @@ describe("the slash menu as the card of the command line (SR-129 AK5)", () => {
     expect(backdrop).toMatch(/pointer-events:\s*none;/);
   });
 
-  it("[SR-129/AK5] comes in the card's time and curve, goes shorter, and moves only without reduced motion", () => {
+  it("[SR-129/AK-pk82] comes in the card's time and curve, goes shorter, and moves only without reduced motion", () => {
     expect(motion).toMatch(
       /\.cm-lr-slash\[data-motion="in"\] \{\s*animation: slash-come var\(--card-in\) var\(--card-ease\)/,
     );
@@ -451,14 +451,14 @@ describe("the card of the command line in motion (SR-182)", () => {
     return Number(match[1]) / 100;
   };
 
-  it("[SR-182/AK1] rises in at most 200 ms, easing out", () => {
+  it("[SR-182/AK-zj1x] rises in at most 200 ms, easing out", () => {
     expect(time("in")).toBeLessThanOrEqual(200);
     // Ease-out: the curve starts steep and ends flat (cubic-bezier with y2 = 1).
     expect(CSS).toMatch(/--card-ease:\s*cubic-bezier\([\d.]+, [\d.]+, [\d.]+, 1\);/);
   });
 
   it.each(["light", "dark"] as const)(
-    "[SR-182/AK2] dims the backdrop visibly, and the text behind it keeps 4.5:1 (%s)",
+    "[SR-182/AK-fhvv] dims the backdrop visibly, and the text behind it keeps 4.5:1 (%s)",
     (scheme) => {
       const alpha = alphaOf(scheme);
       expect(alpha).toBeGreaterThan(0);
@@ -471,18 +471,18 @@ describe("the card of the command line in motion (SR-182)", () => {
     },
   );
 
-  it("[SR-182/AK2] blurs a seam as wide as the blur of the card's shadow", () => {
+  it("[SR-182/AK-fhvv] blurs a seam as wide as the blur of the card's shadow", () => {
     const blur = /box-shadow:\s*0 -\d+px (\d+)px var\(--shadow\);/.exec(ruleOf(".card-list"))?.[1];
     expect(CSS).toMatch(new RegExp(`--card-seam:\\s*${String(blur)}px;`));
     expect(ruleOf(".card-seam, .slash-seam")).toMatch(/backdrop-filter:\s*blur\(var\(--card-blur\)\);/);
     expect(ruleOf(".card-backdrop")).toMatch(/background:\s*var\(--dim\);/);
   });
 
-  it("[SR-182/AK6] runs back in less time than it rises", () => {
+  it("[SR-182/AK-m5fk] runs back in less time than it rises", () => {
     expect(time("out")).toBeLessThan(time("in"));
   });
 
-  it("[SR-182/AK7] moves only without the system's reduced motion", () => {
+  it("[SR-182/AK-f32v] moves only without the system's reduced motion", () => {
     const motion = /@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? "";
     expect(motion).toMatch(/card-rise/);
     const outside = CSS.replace(motion, "");
@@ -501,7 +501,7 @@ describe("the window About ReqSeq (SR-161)", () => {
   const px = (name: string): number => Number(new RegExp(`--${name}:\\s*(\\d+)px;`).exec(CSS)?.[1]);
 
   it.each(["light", "dark"] as const)(
-    "[SR-161/AK6] dims and blurs the whole backdrop more than behind the card of the command line (%s)",
+    "[SR-161/AK-q0hr] dims and blurs the whole backdrop more than behind the card of the command line (%s)",
     (scheme) => {
       expect(alpha("about-dim", scheme)).toBeGreaterThanOrEqual(4 * alpha("dim", scheme));
       expect(px("about-blur")).toBeGreaterThanOrEqual(4 * px("card-blur"));
@@ -512,7 +512,7 @@ describe("the window About ReqSeq (SR-161)", () => {
     },
   );
 
-  it("[SR-161/AK6] stands centered as a soft card with a shadow, like the card of the command line", () => {
+  it("[SR-161/AK-q0hr] stands centered as a soft card with a shadow, like the card of the command line", () => {
     expect(ruleOf(".about-backdrop")).toMatch(/place-items:\s*center;/);
     const card = ruleOf(".about");
     const list = ruleOf(".card-list");

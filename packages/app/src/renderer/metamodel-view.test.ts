@@ -117,7 +117,7 @@ const selected = (): string | undefined => {
 };
 
 describe("MetamodelView", () => {
-  it("[SR-130/AK2] shows each type with name, prefix and properties, inherited ones muted, and each curve with its label", async () => {
+  it("[SR-130/AK-s795] shows each type with name, prefix and properties, inherited ones muted, and each curve with its label", async () => {
     const call = fakeCall();
     const { data } = await mount(asCall(call));
     expect(call).toHaveBeenCalledWith("metamodel.get", {});
@@ -187,7 +187,7 @@ describe("MetamodelView", () => {
     expect(data.at(-1)).toEqual(["metamodel", { kind: "metamodel", types: 5 }]);
   });
 
-  it("[SR-130/AK4] arrows move the selection between the boxes and leave Ctrl and Cmd keys to the window", async () => {
+  it("[SR-130/AK-g9gk] arrows move the selection between the boxes and leave Ctrl and Cmd keys to the window", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     // The first type is selected when the buffer opens.
     expect(selected()).toBe("item");
@@ -311,7 +311,7 @@ const selectedRow = (): string | undefined =>
   container.querySelector<HTMLElement>('.mm-row[aria-selected="true"]')?.dataset["row"];
 
 describe("MetamodelView as text", () => {
-  it("[SR-130/AK5] shows each type with key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and each relation kind with its source and target types", async () => {
+  it("[SR-130/AK-y6rs] shows each type with key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and each relation kind with its source and target types", async () => {
     const { data } = await mount(asCall(fakeCall()), metamodelBuffer("text"));
     expect(container.querySelector(".mm-type")).toBeNull();
     expect(query(".metamodel-text").dataset["rows"]).toBe("13");
@@ -348,7 +348,7 @@ describe("MetamodelView as text", () => {
     ]);
   });
 
-  it("[SR-130/AK5] shows the most entries of a list property and each minimum and maximum of a relation kind", async () => {
+  it("[SR-130/AK-y6rs] shows the most entries of a list property and each minimum and maximum of a relation kind", async () => {
     const output = metamodelOutput({
       types: [effectiveType("need", ["criteria"])],
       properties: [
@@ -377,7 +377,7 @@ describe("MetamodelView as text", () => {
     ).toEqual(["limit → NEED: at least 1", "limit → NEED: at most 2", "limit → NEED: 1 to 3"]);
   });
 
-  it("[SR-130/AK4] Ctrl/Cmd+T's switch keeps the selected type: the text opens on it, and a type selected in the text is the graph's", async () => {
+  it("[SR-130/AK-g9gk] Ctrl/Cmd+T's switch keeps the selected type: the text opens on it, and a type selected in the text is the graph's", async () => {
     const scrolled = vi.spyOn(Element.prototype, "scrollIntoView");
     const { actions, change } = await mount(asCall(fakeCall()), {
       ...metamodelBuffer(),

@@ -183,7 +183,7 @@ describe("buffers", () => {
     expect(reduceBuffers([b, a], { type: "reset" })).toEqual([]);
   });
 
-  it("[SR-115/AK4] restores buffers behind the open ones, each key once and at most the buffers kept", () => {
+  it("[SR-115/AK-qtv5] restores buffers behind the open ones, each key once and at most the buffers kept", () => {
     const overview = overviewBuffer();
     const open = [overview];
     expect(reduceBuffers(open, { type: "restore", buffers: [a, overview, b] })).toEqual([overview, a, b]);
@@ -232,13 +232,13 @@ const TOPIC: FilterStep = {
 const SAVED: FilterStep = { label: "filter: open", selection: { filter: "open" } };
 
 describe("the steps of a list filter (SR-124)", () => {
-  it("[SR-124/AK1] a list without steps is the list of all elements", () => {
+  it("[SR-124/AK-jz48] a list without steps is the list of all elements", () => {
     const sort = [{ by: "title", order: "asc" }] as const;
     expect(filteredList([], sort)).toEqual(listBuffer("All elements", undefined, sort));
     expect(filteredList([]).steps).toEqual([]);
   });
 
-  it("[SR-124/AK1] one step selects its own condition, several select all of theirs, a saved filter stays a filter", () => {
+  it("[SR-124/AK-jz48] one step selects its own condition, several select all of theirs, a saved filter stays a filter", () => {
     expect(selectionOf([])).toBeUndefined();
     expect(selectionOf([TYPE])).toEqual({ where: { type: ["system-requirement"] } });
     expect(selectionOf([TYPE, STATUS, TOPIC])).toEqual({
@@ -252,7 +252,7 @@ describe("the steps of a list filter (SR-124)", () => {
     });
   });
 
-  it("[SR-124/AK1] the label shows the chain of steps", () => {
+  it("[SR-124/AK-jz48] the label shows the chain of steps", () => {
     const chain = filteredList([TYPE, STATUS, TOPIC], [{ by: "title", order: "asc" }]);
     expect(chain.label).toBe("type: system-requirement · status: draft · topic: Bearbeiten und Finden");
     expect(bufferName(chain)).toBe(
@@ -262,7 +262,7 @@ describe("the steps of a list filter (SR-124)", () => {
     expect(chain.cursor).toBe(NO_ROW);
   });
 
-  it("[SR-122/AK4] a fresh list of the main window has no row selected: the overview, a list, a search, a neighbourhood", () => {
+  it("[SR-122/AK-mqwc] a fresh list of the main window has no row selected: the overview, a list, a search, a neighbourhood", () => {
     expect(NO_ROW).toBeLessThan(0);
     expect(overviewBuffer().cursor).toBe(NO_ROW);
     expect(listBuffer("All elements").cursor).toBe(NO_ROW);
@@ -282,7 +282,7 @@ describe("the steps of a list filter (SR-124)", () => {
 });
 
 describe("the matrix mode of a list (SR-125)", () => {
-  it("[SR-125/AK1] is a flag of the one list buffer: opening it replaces the list in place, and the cursor keeps the flag", () => {
+  it("[SR-125/AK-mzzq] is a flag of the one list buffer: opening it replaces the list in place, and the cursor keeps the flag", () => {
     const open = reduceBuffers([a, list], { type: "open", buffer: withMatrix({ ...list, cursor: 3 }, true) });
     expect(open.map((buffer) => buffer.key)).toEqual([list.key, a.key]);
     expect(open[0]).toEqual({ ...list, cursor: 3, matrix: true });

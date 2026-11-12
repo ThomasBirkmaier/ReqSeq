@@ -38,7 +38,7 @@ test.describe("About ReqSeq", () => {
     await running.close();
   });
 
-  test("[SR-161/AK1] the command prompt shows version, build, runtime and the open workspace in a window", async () => {
+  test("[SR-161/AK-hbxy] the command prompt shows version, build, runtime and the open workspace in a window", async () => {
     await runCommand(running, "About ReqSeq");
     const window = about(running);
     for (const group of ["Version", "Build", "Runtime", "Workspace", "Licence", "Documentation"]) {
@@ -51,7 +51,7 @@ test.describe("About ReqSeq", () => {
     await expect(running.window.locator(".result")).toHaveCount(0);
   });
 
-  test("[SR-161/AK2] the info names the licences, the bundled documentation and the addresses as text", async () => {
+  test("[SR-161/AK-ttck] the info names the licences, the bundled documentation and the addresses as text", async () => {
     await runCommand(running, "About ReqSeq");
     const window = about(running);
     await expect(window).toContainText("Copyright");
@@ -61,7 +61,7 @@ test.describe("About ReqSeq", () => {
     await expect(window.locator("a")).toHaveCount(0);
   });
 
-  test("[SR-161/AK3] a row copies only its value, Copy all the whole content as one block", async () => {
+  test("[SR-161/AK-r9fy] a row copies only its value, Copy all the whole content as one block", async () => {
     await runCommand(running, "About ReqSeq");
     const window = about(running);
     const path = window.locator('[data-label="Path"]');
@@ -85,7 +85,7 @@ test.describe("About ReqSeq", () => {
     expect(copied).toContain("Documentation");
   });
 
-  test("[SR-161/AK5] the command line and the MCP server on the app's Electron give the app's values", async () => {
+  test("[SR-161/AK-r14d] the command line and the MCP server on the app's Electron give the app's values", async () => {
     await runCommand(running, "About ReqSeq");
     await about(running).getByRole("button", { name: "Copy all" }).click();
     await expect(running.window.locator(".modeline")).toContainText("Copied About ReqSeq");
@@ -106,7 +106,7 @@ test.describe("About ReqSeq", () => {
     expect(app).toBe(aboutText(aboutGroups(fromCli)));
   });
 
-  test("[SR-161/AK6] stands centered over a dimmed, blurred window; Escape or a click beside it closes it", async () => {
+  test("[SR-161/AK-q0hr] stands centered over a dimmed, blurred window; Escape or a click beside it closes it", async () => {
     await runCommand(running, "About ReqSeq");
     const card = running.window.locator(".about");
     await expect(card).toBeVisible();

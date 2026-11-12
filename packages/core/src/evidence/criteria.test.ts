@@ -16,7 +16,7 @@ const named = (ref: number | string, items: readonly unknown[] | undefined) => {
 };
 
 describe("namedCriterion (SR-205 AK2)", () => {
-  it("[SR-205/AK2] names a criterion with the number of the current version, its key and text; a key the current version lacks without number, with the text of the named version; a number without key with that version's text", () => {
+  it("[SR-205/AK-m2vv] names a criterion with the number of the current version, its key and text; a key the current version lacks without number, with the text of the named version; a number without key with that version's text", () => {
     // A number of the older version whose key the current version carries: current number, key, text.
     expect(named(1, OLD)).toEqual({ criterion: 2, key: "kred", text: "Red now" });
     // A key gone from the current version: the key and the old text, no number.

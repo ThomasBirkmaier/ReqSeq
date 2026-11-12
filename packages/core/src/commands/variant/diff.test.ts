@@ -37,7 +37,7 @@ const named = (out: CommandOutput<"variant.diff">) => ({
 });
 
 describe("variant.diff (SR-044)", () => {
-  it("[SR-044/AK1] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2", async () => {
+  it("[SR-044/AK-nxhm] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2", async () => {
     const out = await diff(await open());
     expect(named(out)).toEqual({ added: ["A2"], replaced: [["K1", "A1"]], excluded: ["K2"] });
     expect(out.names?.map((n) => [name(n.id), n.shortId, n.title])).toEqual([
@@ -49,12 +49,12 @@ describe("variant.diff (SR-044)", () => {
     expect([out.problems, out.incomplete]).toEqual([undefined, false]);
   });
 
-  it("[SR-044/AK3] a replaced row names the IDs of core requirement and replacement", async () => {
+  it("[SR-044/AK-dc1n] a replaced row names the IDs of core requirement and replacement", async () => {
     const out = await diff(await open());
     expect(out.replaced).toEqual([{ core: `${P}a1`, replacement: `${P}b1` }]);
   });
 
-  it("[SR-041/AK8] variant.diff of A lists SR-A, whose replaces names no core requirement, as added", async () => {
+  it("[SR-041/AK-g0cz] variant.diff of A lists SR-A, whose replaces names no core requirement, as added", async () => {
     // b3 [A] replaces the need N1, b4 [A] replaces A2, which has a validity: both are added, and each
     // entry gives its hint; A's own exclusion of the need N1 gives one too.
     const out = await diff(
@@ -85,7 +85,7 @@ describe("variant.diff (SR-044)", () => {
     ]);
   });
 
-  it("[SR-042/AK5] an excluded and replaced core requirement is listed only as excluded, and the replacing requirement under added", async () => {
+  it("[SR-042/AK-x809] an excluded and replaced core requirement is listed only as excluded, and the replacing requirement under added", async () => {
     // b3 [A] replaces K2, which A excludes.
     const out = await diff(await open(requirement("b3", `validity: [${A}]\nreplaces: [{ id: ${P}a2 }]\n`)));
     expect(named(out)).toEqual({ added: ["A2", "b3"], replaced: [["K1", "A1"]], excluded: ["K2"] });

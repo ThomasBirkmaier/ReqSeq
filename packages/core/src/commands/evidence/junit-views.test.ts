@@ -46,7 +46,7 @@ const list = async (
   )) as CommandOutput<"evidence.list">;
 
 describe("a JUnit test case for several views (SR-093 AK5)", () => {
-  it("[SR-093/AK5] a test case for the variants A and B and the core verifies the requirement in each of them, and in no other variant", async () => {
+  it("[SR-093/AK-sr3h] a test case for the variants A and B and the core verifies the requirement in each of them, and in no other variant", async () => {
     const workspace = await open();
     // `re` is the core (`core`.slice(-2)); c3 (Windows) is not named.
     expect((await statusRows(workspace))["a1"]).toEqual({
@@ -64,7 +64,7 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
     expect(checked.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
   });
 
-  it("[SR-093/AK5] the record of the core of a variant-independent repository counts in every variant, also one the test case does not name", async () => {
+  it("[SR-093/AK-sr3h] the record of the core of a variant-independent repository counts in every variant, also one the test case does not name", async () => {
     const workspace = await open();
     expect((await statusRows(workspace))["b1"]).toEqual({
       re: "verified",
@@ -108,7 +108,7 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
     expect((await statusRows(workspace))["b1"]?.["c1"]).toBe("failed");
   });
 
-  it("[SR-047/AK5] reports each record that counts in no view, unless another record of its test case counts for the requirement", async () => {
+  it("[SR-047/AK-y6zf] reports each record that counts in no view, unless another record of its test case counts for the requirement", async () => {
     // SR-0000a2 applies in Linux only; of each test case the record of the core counts nowhere.
     const property = (name: string, value: string): string => `<property name="${name}" value="${value}"/>`;
     const testCase = (name: string, views: readonly string[]): string =>

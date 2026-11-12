@@ -89,7 +89,7 @@ const to = (id: string, extra: Readonly<Record<string, string>> = {}): unknown =
 });
 
 describe("relation limits (SR-152)", () => {
-  it("[SR-152/AK1] gives a hint with element, relation kind, target type, count and maximum for more relations than the maximum", async () => {
+  it("[SR-152/AK-f9rt] gives a hint with element, relation kind, target type, count and maximum for more relations than the maximum", async () => {
     const { workspace } = await open();
     const problems = await workspace.get(relationLimitProblemsState);
     expect(problems.filter((p) => p.code === "relation.too-many")).toEqual([
@@ -97,7 +97,7 @@ describe("relation limits (SR-152)", () => {
     ]);
   });
 
-  it("[SR-152/AK2] gives a hint with element, relation kind, target type, count and minimum for fewer relations than the minimum", async () => {
+  it("[SR-152/AK-nfmj] gives a hint with element, relation kind, target type, count and minimum for fewer relations than the minimum", async () => {
     const { workspace } = await open();
     const problems = await workspace.get(relationLimitProblemsState);
     // SR-c00002 has no derives-from key: the hint has no line, and its file is not read for it.
@@ -107,7 +107,7 @@ describe("relation limits (SR-152)", () => {
     ]);
   });
 
-  it("[SR-152/AK4] gives no count hint for a relation kind without limits, with none or many relations", async () => {
+  it("[SR-152/AK-sbjp] gives no count hint for a relation kind without limits, with none or many relations", async () => {
     const { fixture, workspace } = await open();
     // SR-c00001 has two based-on relations, SR-c00002 none: based-on has no limit.
     expect((await workspace.get(relationLimitProblemsState)).filter((p) => p.key === "based-on")).toEqual([]);
@@ -125,7 +125,7 @@ describe("relation limits (SR-152)", () => {
     expect(await unlimited.get(relationLimitProblemsState)).toEqual([]);
   });
 
-  it("[SR-152/AK5] counts each item whose target is one element of the target type or a subtype, a duplicate twice", async () => {
+  it("[SR-152/AK-xq7c] counts each item whose target is one element of the target type or a subtype, a duplicate twice", async () => {
     expect(await countsOf([to(UC1), to(UC1)])).toEqual([
       ["relation.too-many", 2],
       ["relation.too-few", 0],
@@ -137,7 +137,7 @@ describe("relation limits (SR-152)", () => {
     expect(await countsOf("not a list")).toEqual([["relation.too-few", 0]]);
   });
 
-  it("[SR-152/AK5] gives no too-few while a target lies in a repository that is not here", async () => {
+  it("[SR-152/AK-xq7c] gives no too-few while a target lies in a repository that is not here", async () => {
     expect(await countsOf([to(UC1, { repository: "elsewhere" })])).toEqual([]);
     const layout = {
       repositories: [
@@ -148,7 +148,7 @@ describe("relation limits (SR-152)", () => {
     expect(await countsOf([to(UC1, { repository: "sensor" })], layout)).toEqual([]);
   });
 
-  it("[SR-152/AK5] gives none to an element of an unknown type, with a status marked invalid, or of a type without limits", async () => {
+  it("[SR-152/AK-xq7c] gives none to an element of an unknown type, with a status marked invalid, or of a type without limits", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const record = recordOf(context, SR2);
@@ -159,7 +159,7 @@ describe("relation limits (SR-152)", () => {
     expect(relationLimitFindings(recordOf(context, NEED), context)).toEqual([]);
   });
 
-  it("[SR-152/AK5] counts a target whatever its status, and not one whose UUID several files share", async () => {
+  it("[SR-152/AK-xq7c] counts a target whatever its status, and not one whose UUID several files share", async () => {
     const UC2 = `${ID}b00002`;
     const { fixture, workspace } = await open();
     const uc1 = await fs.readFile(fixture.path("use-cases/UC-000000b00001.md"), "utf8");

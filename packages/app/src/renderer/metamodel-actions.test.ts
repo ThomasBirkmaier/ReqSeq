@@ -75,7 +75,7 @@ const BUFFERS: readonly Buffers[] = [
 ];
 
 describe("Show metamodel", () => {
-  it("[SR-130/AK1] Show metamodel opens the metamodel as a graph from any buffer and covers metamodel.get, so the prompt lists it once", () => {
+  it("[SR-130/AK-dp8b] Show metamodel opens the metamodel as a graph from any buffer and covers metamodel.get, so the prompt lists it once", () => {
     expect(show?.title).toBe("Show metamodel");
     expect(show?.covers).toEqual(["metamodel.get"]);
     expect(CATALOG.find((entry) => entry.name === "metamodel.get")?.title).toBe("Show metamodel");
@@ -125,7 +125,7 @@ const toText = ACTIONS.find((action) => action.id === "metamodel-text");
 const toGraph = ACTIONS.find((action) => action.id === "metamodel-graph");
 
 describe("Show metamodel as text, Show metamodel as graph", () => {
-  it("[SR-130/AK4] Show metamodel as text and Show metamodel as graph switch with Ctrl/Cmd+T on the metamodel only and keep the selected type", () => {
+  it("[SR-130/AK-g9gk] Show metamodel as text and Show metamodel as graph switch with Ctrl/Cmd+T on the metamodel only and keep the selected type", () => {
     if (toText === undefined || toGraph === undefined) {
       throw new Error("no metamodel toggle");
     }

@@ -198,7 +198,7 @@ const crossingsAtABox = (layout: GraphLayout): string[] =>
   });
 
 describe("layoutGraph", () => {
-  it("[SR-111/AK1] puts what the element links to above it and what links to it below, also with links against the levels", () => {
+  it("[SR-111/AK-g4rk] puts what the element links to above it and what links to it below, also with links against the levels", () => {
     const layout = layoutGraph(S1_GRAPH);
     const root = at(layout, "S1");
     for (const node of S1_GRAPH.nodes) {
@@ -222,7 +222,7 @@ describe("layoutGraph", () => {
     expect(at(layout, "C3").layer).toBe(at(layout, "C1").layer + 1);
   });
 
-  it("[SR-111/AK1] keeps the levels when a node is in a cycle with the element and two nodes are linked both ways", () => {
+  it("[SR-111/AK-g4rk] keeps the levels when a node is in a cycle with the element and two nodes are linked both ways", () => {
     const layout = layoutGraph(
       graphOutput(
         [graphNode("S1", 0), graphNode("P", -1), graphNode("C", 1), graphNode("Q", -1)],
@@ -252,7 +252,7 @@ describe("layoutGraph", () => {
     );
   });
 
-  it("[SR-111/AK1] keeps a child of the element below it when its walk parent took its level from the other walk", () => {
+  it("[SR-111/AK-g4rk] keeps a child of the element below it when its walk parent took its level from the other walk", () => {
     // The whole chain of GL-f81ba9 in spec/ (ThomasBirkmaier/ReqSeq-archive#519): S1 and K link to each other, so K is on level -1 (a
     // tie, the up walk wins); G links to K and is on level 2 from the down walk. Nothing but the side of
     // its level puts G below S1.
@@ -274,7 +274,7 @@ describe("layoutGraph", () => {
     }
   });
 
-  it("[SR-111/AK1] keeps a parent of the element above it when its walk child took its level from the other walk", () => {
+  it("[SR-111/AK-g4rk] keeps a parent of the element above it when its walk child took its level from the other walk", () => {
     // S1 links to A, A to P, P to S1 and to V: P is on level 1 from the down walk, A on level -1, and V,
     // on level -3 from the up walk through P, is linked only from P, which stands below S1.
     const output = graphOutput(
@@ -289,7 +289,7 @@ describe("layoutGraph", () => {
     }
   });
 
-  it("[SR-111/AK1] keeps a parent of the element above it when only a link within its level joins it to the nodes above", () => {
+  it("[SR-111/AK-g4rk] keeps a parent of the element above it when only a link within its level joins it to the nodes above", () => {
     // The mirror case above, with a chain S1 > A > B > W and V and W linked both ways on level -3. dagre
     // breaks the cycle of V and W by reversing one of their links (W comes before V, as core gives it
     // when A lists B before P), so that link puts V nowhere: V needs its anchor to stay above S1.
@@ -337,7 +337,7 @@ describe("layoutGraph", () => {
     ]);
   });
 
-  it("[SR-111/AK1] ranks the links within a level of a graph of up to 200 nodes, so a node stands under the node it links to", () => {
+  it("[SR-111/AK-g4rk] ranks the links within a level of a graph of up to 200 nodes, so a node stands under the node it links to", () => {
     // The diamond: C3 derives from S1 and from C1, all three children of S1 on level 1.
     const diamond = graphOutput(
       [graphNode("S1", 0), graphNode("P", -1), graphNode("C1", 1), graphNode("C3", 1)],
@@ -370,7 +370,7 @@ describe("layoutGraph", () => {
     expect(at(short, "M1").layer).toBe(at(short, "M0").layer + 1);
   });
 
-  it("[SR-111/AK1] lays out a graph of more than 200 nodes in the layers of its levels: parents above, children below, a link within a level drawn between its two nodes", () => {
+  it("[SR-111/AK-g4rk] lays out a graph of more than 200 nodes in the layers of its levels: parents above, children below, a link within a level drawn between its two nodes", () => {
     // Generated outputs of 240 nodes on levels -2 to 2, with links within a level, against the levels,
     // long ones and cycles through the element (some nodes then take their level from the other walk).
     let regular = 0;
@@ -638,20 +638,20 @@ describe("viewStart", () => {
   // A view of 400 px over a drawing from 1000 to 3000 px, with a margin of 50 px.
   const start = (centre: number): number => viewStart(centre, 1000, 2000, 400, 50);
 
-  it("[SR-111/AK1] puts the node in the middle of the view where the drawing reaches half a view beyond it", () => {
+  it("[SR-111/AK-g4rk] puts the node in the middle of the view where the drawing reaches half a view beyond it", () => {
     expect(start(2000)).toBe(1800);
     expect(start(1150)).toBe(950);
     expect(start(2850)).toBe(2650);
   });
 
-  it("[SR-111/AK1] keeps the drawing's edge a margin from the view's edge, and the node in view", () => {
+  it("[SR-111/AK-g4rk] keeps the drawing's edge a margin from the view's edge, and the node in view", () => {
     // Near the start of the drawing (a node without parents): the drawing begins 50 px into the view.
     expect(start(1100)).toBe(950);
     // Near its end (a node without children): it ends 50 px before the view's end.
     expect(start(2950)).toBe(2650);
   });
 
-  it("[SR-111/AK1] centres a drawing that fits the view with its margins", () => {
+  it("[SR-111/AK-g4rk] centres a drawing that fits the view with its margins", () => {
     expect(viewStart(1100, 1000, 300, 400, 50)).toBe(950);
     expect(viewStart(1100, 1000, 200, 400, 50)).toBe(900);
   });
@@ -667,7 +667,7 @@ describe("evidence boxes", () => {
     results: { passed: testCases },
   });
 
-  it("[SR-111/AK3] puts one box below each node with evidence, joined by a line from the node's bottom edge", () => {
+  it("[SR-111/AK-h6n9] puts one box below each node with evidence, joined by a line from the node's bottom edge", () => {
     const plain = layoutGraph(S1_GRAPH);
     const output = { ...S1_GRAPH, evidence: [summary("S1", 2), summary("C1"), summary("GONE")] };
     const layout = layoutGraph(output);
@@ -710,7 +710,7 @@ describe("evidence boxes", () => {
     expect(plain.evidence).toEqual([]);
   });
 
-  it("[SR-111/AK3] spreads an evidence line among the node's links on its bottom edge", () => {
+  it("[SR-111/AK-h6n9] spreads an evidence line among the node's links on its bottom edge", () => {
     const layout = layoutGraph({
       ...graphOutput(
         [graphNode("S1", 0), graphNode("A", 1), graphNode("B", 1)],
@@ -732,7 +732,7 @@ describe("evidence boxes", () => {
 });
 
 describe("the middle of a curve", () => {
-  it("[SR-154/AK3] lies on the drawn curve, halfway on a straight line", () => {
+  it("[SR-154/AK-hwpt] lies on the drawn curve, halfway on a straight line", () => {
     // On the spline: where it passes the middle inner point, (a + 4b + c) / 6.
     expect(
       middleOf([

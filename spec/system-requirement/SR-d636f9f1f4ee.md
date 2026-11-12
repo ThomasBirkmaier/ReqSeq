@@ -6,8 +6,10 @@ title: "Bilder einfügen"
 spec-id: "SR-097"
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben ein Bild wird eingefügt, wenn gespeichert wird, dann liegt die Bilddatei in einem Ordner neben der Element-Datei, der wie die Element-Datei ohne Endung heißt, und der Text verweist relativ darauf.
-  - "Gegeben ein eingefügtes Bild, wenn gespeichert wird, dann ist der Verweis ein relativer Pfad, der von der Element-Datei aus auf die Bilddatei führt, auf der Platte und im selben Commit."
+  - key: zs31
+    text: Gegeben ein Bild wird eingefügt, wenn gespeichert wird, dann liegt die Bilddatei in einem Ordner neben der Element-Datei, der wie die Element-Datei ohne Endung heißt, und der Text verweist relativ darauf.
+  - key: hp47
+    text: Gegeben ein eingefügtes Bild, wenn gespeichert wird, dann ist der Verweis ein relativer Pfad, der von der Element-Datei aus auf die Bilddatei führt, auf der Platte und im selben Commit.
 verification-method: test
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }

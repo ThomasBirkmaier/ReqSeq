@@ -90,7 +90,7 @@ test.describe("the page of a requirement with variants", () => {
     await running.close();
   });
 
-  test("[SR-046/AK1] the editor of a requirement with validity [A, B] shows the titles of A and B", async () => {
+  test("[SR-046/AK-nbwh] the editor of a requirement with validity [A, B] shows the titles of A and B", async () => {
     const { window } = running;
     await openEditor(window, "Warn of storms");
     await expect(window.locator('article [data-field="validity"] li')).toHaveText([
@@ -100,7 +100,7 @@ test.describe("the page of a requirement with variants", () => {
     await badges(window, ["Coast", "Mountain"], ["open", "open"]);
   });
 
-  test("[SR-046/AK2] the editor of a core requirement replaced in A and excluded in B names A and B", async () => {
+  test("[SR-046/AK-cstc] the editor of a core requirement replaced in A and excluded in B names A and B", async () => {
     const { window } = running;
     await openEditor(window, "Response time at most 10 ms");
     const use = line(window, "Replaced or excluded");
@@ -121,7 +121,7 @@ test.describe("the page of a requirement with variants", () => {
     await expect(window.locator("article h1")).toHaveText("Mountain");
   });
 
-  test("[SR-047/AK3] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
+  test("[SR-047/AK-qncz] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
     const { window } = running;
     await record(running, "SR-0000a3", "passed");
     await record(running, "SR-0000a3", "failed", "VAR-0000c2");
@@ -135,7 +135,7 @@ test.describe("the page of a requirement with variants", () => {
     await badges(window, ["Coast"], ["open"]);
   });
 
-  test("[SR-157/AK1] the page shows a pill with round ends per entry: the core or the variant on the left, its status on the right", async () => {
+  test("[SR-157/AK-c9cf] the page shows a pill with round ends per entry: the core or the variant on the left, its status on the right", async () => {
     const { window } = running;
     await record(running, "SR-0000a3", "passed");
     await record(running, "SR-0000a3", "failed", "VAR-0000c2");
@@ -177,7 +177,7 @@ test.describe("the page of a requirement with variants", () => {
     await window.screenshot({ path: path.join(OUT, "sr-157-page-light.png") });
   });
 
-  test("[SR-157/AK5] a click on the left half of a variant's badge opens the variant", async () => {
+  test("[SR-157/AK-n2py] a click on the left half of a variant's badge opens the variant", async () => {
     const { window } = running;
     await openEditor(window, "Measure the rain");
     await badges(window, ["Core", "Coast", "Mountain"], ["open", "open", "open"]);

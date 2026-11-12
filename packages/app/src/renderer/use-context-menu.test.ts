@@ -82,7 +82,7 @@ afterEach(() => {
 const element = (id: string): Element => document.getElementById(id) as Element;
 
 describe("useContextMenu", () => {
-  it("[SR-194/AK1] opens at the pointer on a right-click in an area, with no menu of the system", () => {
+  it("[SR-194/AK-dhq2] opens at the pointer on a right-click in an area, with no menu of the system", () => {
     const props = options();
     render(props);
     const sent = rightClick(element("row"));
@@ -138,7 +138,7 @@ describe("useContextMenu", () => {
     expect(props.choose).toHaveBeenCalledWith(1);
   });
 
-  it("[SR-194/AK4] closes on Escape and on another key, which then goes on", () => {
+  it("[SR-194/AK-kvdd] closes on Escape and on another key, which then goes on", () => {
     render(options());
     rightClick(element("empty"));
     expect(send(window, key("Escape")).defaultPrevented).toBe(true);
@@ -148,7 +148,7 @@ describe("useContextMenu", () => {
     expect(menu.menu).toBeUndefined();
   });
 
-  it("[SR-194/AK4] closes on a left press outside, which goes on, and not on a press in the menu", () => {
+  it("[SR-194/AK-kvdd] closes on a left press outside, which goes on, and not on a press in the menu", () => {
     render(options());
     rightClick(element("empty"));
     send(element("item"), mouse("mousedown", { button: 0 }));
@@ -188,7 +188,7 @@ describe("useContextMenu", () => {
     });
   });
 
-  it("[SR-194/AK7] takes Ctrl+click on macOS as a right-click: the press and its click go nowhere else", () => {
+  it("[SR-194/AK-hkgb] takes Ctrl+click on macOS as a right-click: the press and its click go nowhere else", () => {
     const props = options({ mac: true });
     render(props);
     const below = vi.fn();
@@ -301,7 +301,7 @@ describe("keyboardHit", () => {
     expect(keyboardHit(element("empty"))).toEqual({ target: element("empty"), point: { x: 0, y: 0 } });
   });
 
-  it("[SR-198/AK1] opens on the place of a focused buffer's content, such as the column of a list", () => {
+  it("[SR-198/AK-qc75] opens on the place of a focused buffer's content, such as the column of a list", () => {
     document.body.innerHTML = `
       <div data-area="left">
         <div id="buffer" data-buffer="" tabindex="0"><div id="column" data-menu="list"><h1 id="heading">All</h1></div></div>

@@ -111,7 +111,7 @@ describe("cache folders of separate working copies (SR-081)", () => {
     }
   };
 
-  it("[SR-081/AK2] gives two clones of one repository their own cache folders, outside both copies", async () => {
+  it("[SR-081/AK-kscy] gives two clones of one repository their own cache folders, outside both copies", async () => {
     const origin = await make(createFixtureWorkspace({ files: { "a.md": "a" }, git: true }));
     const one = await make(cloneFixtureWorkspace(origin));
     const two = await make(cloneFixtureWorkspace(origin));
@@ -125,7 +125,7 @@ describe("cache folders of separate working copies (SR-081)", () => {
     }
   });
 
-  it("[SR-081/AK2] follows a copy that was moved, and gives a new copy at the old path the old path's folder", async () => {
+  it("[SR-081/AK-kscy] follows a copy that was moved, and gives a new copy at the old path the old path's folder", async () => {
     const origin = await make(createFixtureWorkspace({ files: { "a.md": "a" }, git: true }));
     const copy = await make(cloneFixtureWorkspace(origin));
     const before = cacheFolder(copy.root);
@@ -140,7 +140,7 @@ describe("cache folders of separate working copies (SR-081)", () => {
     expect(cacheFolder(copy.root)).toBe(before);
   });
 
-  it("[SR-081/AK2] gives a copy named in another case one cache folder where the file system ignores case", async () => {
+  it("[SR-081/AK-kscy] gives a copy named in another case one cache folder where the file system ignores case", async () => {
     const ws = await make(createFixtureWorkspace({ files: { "Working-Copy/a.md": "a" } }));
     const real = ws.path("Working-Copy");
     const other = ws.path("wORKING-cOPY");
@@ -159,7 +159,7 @@ describe("cache folders of separate working copies (SR-081)", () => {
     }
   });
 
-  it("[SR-081/AK2] gives a copy named in another Unicode normal form one cache folder where the file system ignores it", async () => {
+  it("[SR-081/AK-kscy] gives a copy named in another Unicode normal form one cache folder where the file system ignores it", async () => {
     const nfc = `Kopie-${String.fromCodePoint(0xe9)}`;
     const nfd = `Kopie-e${String.fromCodePoint(0x301)}`;
     expect(nfc).not.toBe(nfd);

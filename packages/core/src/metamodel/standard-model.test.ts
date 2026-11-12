@@ -70,7 +70,7 @@ describe("standard model", () => {
     }
   });
 
-  it("[SR-014/AK2] contains the types, properties, relation kinds and statuses of this spec with English names and keys", async () => {
+  it("[SR-014/AK-ng42] contains the types, properties, relation kinds and statuses of this spec with English names and keys", async () => {
     const metamodel = await standardModel();
     // D-037: "die Typen Need, Use Case, System Requirement, Decision, Variant und Package".
     expect(pairs(metamodel.types)).toEqual([
@@ -181,7 +181,7 @@ describe("standard model", () => {
     );
   });
 
-  it("[SR-127/AK5] marks the acceptance criteria and the rationale as Markdown, and no other property", async () => {
+  it("[SR-127/AK-mdr7] marks the acceptance criteria and the rationale as Markdown, and no other property", async () => {
     const metamodel = await standardModel();
     expect(metamodel.properties.filter((p) => p.markdown === true).map((p) => p.key)).toEqual([
       "rationale",
@@ -190,7 +190,7 @@ describe("standard model", () => {
     expect(markdownKeysOf(metamodel)).toEqual(new Set(["rationale", "acceptance-criteria"]));
   });
 
-  it("[SR-014/AK3] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
+  it("[SR-014/AK-bxbx] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
     const metamodel = await standardModel();
     // Open question ThomasBirkmaier/ReqSeq-archive#150, option 1 (assumption): a relation meaning may have several relation kinds
     // (D-012: "Jede Beziehungsart ist entweder eine Parent-Child-Beziehung ..."); the standard

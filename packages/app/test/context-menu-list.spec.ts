@@ -57,7 +57,7 @@ test.describe("the context menu of a list", () => {
     await running.close();
   });
 
-  test("[SR-198/AK1] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
+  test("[SR-198/AK-qc75] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await listAll(window);
@@ -137,7 +137,7 @@ test.describe("the context menu of a list", () => {
     expect(await menuOf(members)).toEqual([...FILTERS, "Sort list", ALL]);
   });
 
-  test("[SR-198/AK1] the head of the folded section has the list's menu; the overview and the neighbourhood outside their rows have the buffer's", async () => {
+  test("[SR-198/AK-qc75] the head of the folded section has the list's menu; the overview and the neighbourhood outside their rows have the buffer's", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     /** The menu of the empty sheet below the shown buffer's content: the buffer's (SR-194 AK6). */

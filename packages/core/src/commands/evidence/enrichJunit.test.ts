@@ -91,7 +91,7 @@ const recordsOf = (bytes: Uint8Array): [string | undefined, string][] =>
   ]);
 
 describe("evidence.enrichJunit (SR-029)", () => {
-  it("[SR-029/AK1] enriches the pytest and Vitest files of the real tools: each test case that names a requirement has UUID, version, item and date", async () => {
+  it("[SR-029/AK-x1rh] enriches the pytest and Vitest files of the real tools: each test case that names a requirement has UUID, version, item and date", async () => {
     const { fixture, workspace } = await open();
     const pytest = await enrich(workspace, { file: "results/pytest.xml" });
     expect(pytest).toEqual({
@@ -124,7 +124,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     });
     const vitestBytes = await bytesOf(fixture, "results/vitest.xml");
     expect(enrichedNames(vitestBytes)).toEqual([
-      "login > [SR-46fb54/AK1] accepts a valid password",
+      "login > [SR-46fb54/AK-gdrb] accepts a valid password",
       "login > [SR-036] reports a failure",
     ]);
     // The parameter lists stay as they were.
@@ -134,7 +134,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK2] reports each test case with an unknown short ID as an error and still enriches the known ones", async () => {
+  it("[SR-029/AK-nyrs] reports each test case with an unknown short ID as an error and still enriches the known ones", async () => {
     const { fixture, workspace } = await open();
     const output = await enrich(workspace, { file: "results/unknown.xml" });
     expect(output.unknown).toEqual([
@@ -162,7 +162,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(enrichedNames(await bytesOf(fixture, "results/unknown.xml"))).toEqual(["[SR-46fb54] logs in"]);
   });
 
-  it("[SR-029/AK3] the same workspace reads the enriched file from its evidence folder without a reset", async () => {
+  it("[SR-029/AK-pbxf] the same workspace reads the enriched file from its evidence folder without a reset", async () => {
     const { fixture, workspace } = await open();
     expect(await workspace.get(evidenceRecordsState)).toEqual([]);
     const before = await bytesOf(fixture, "results/two.xml");
@@ -189,7 +189,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK4] counts the test cases that name no requirement", async () => {
+  it("[SR-029/AK-srmd] counts the test cases that name no requirement", async () => {
     const { workspace } = await open();
     const output = await enrich(workspace, { file: "results/pytest.xml" });
     // test_add[1-2], test_add[3-4], test_fails, test_skipped and test_error.
@@ -216,7 +216,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const { fixture, workspace } = await open();
     const output = await enrich(workspace, {
       file: "results/nextest.xml",
-      namePattern: "{prefix}_{id}_ak{ak}",
+      namePattern: "{prefix}_{id}_ak_{ak}",
     });
     expect(output).toEqual({
       testCases: 2,
@@ -228,13 +228,13 @@ describe("evidence.enrichJunit (SR-029)", () => {
     });
     const bytes = await bytesOf(fixture, "results/nextest.xml");
     expect(enrichedNames(bytes)).toEqual([
-      "tests::sr_46fb54_ak1_accepts_a_valid_password",
-      "tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure",
+      "tests::sr_46fb54_ak_gdrb_accepts_a_valid_password",
+      "tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure",
     ]);
     expect(recordsOf(bytes)).toEqual([
-      ["tests::sr_46fb54_ak1_accepts_a_valid_password", LOGIN],
-      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", REPORT],
-      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", LOG],
+      ["tests::sr_46fb54_ak_gdrb_accepts_a_valid_password", LOGIN],
+      ["tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure", REPORT],
+      ["tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure", LOG],
     ]);
   });
 
@@ -381,7 +381,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(unknown.files).toEqual([path.join(outside, "unknown.xml")]);
   });
 
-  it("[SR-083/AK4] never writes into a .git folder, in any case and through a linked folder (D-036)", async () => {
+  it("[SR-083/AK-s4q9] never writes into a .git folder, in any case and through a linked folder (D-036)", async () => {
     const { fixture, workspace } = await open({ ".git/results.xml": "<testsuites/>", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("results/hooks"));
     for (const input of [
@@ -633,7 +633,7 @@ const variantRecords = async (
   ).records.map((r) => [r.testCase, r.element, r.variant]);
 
 describe("evidence.enrichJunit with variants (SR-029)", () => {
-  it("[SR-029/AK6] writes the variant given by UUID, short ID or identifier into each enriched test case", async () => {
+  it("[SR-029/AK-r1s7] writes the variant given by UUID, short ID or identifier into each enriched test case", async () => {
     for (const variant of [COAST, "VAR-0000c1", "coast"]) {
       const { fixture, workspace } = await openExample(
         '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000b2] storm"/><testcase name="names nothing"/>',
@@ -654,7 +654,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     }
   });
 
-  it("[SR-029/AK6] writes each given view, variants and the core, into each enriched test case, each once", async () => {
+  it("[SR-029/AK-r1s7] writes each given view, variants and the core, into each enriched test case, each once", async () => {
     const { fixture, workspace } = await openExample(
       '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000a4] temperature"/>',
     );
@@ -679,7 +679,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK8] takes a test case whose views are among the given ones, a hand-written core too, and reports one with another", async () => {
+  it("[SR-029/AK-pb9c] takes a test case whose views are among the given ones, a hand-written core too, and reports one with another", async () => {
     const { fixture, workspace } = await openExample(
       `<testcase name="[SR-0000a3] rain">${variantProperty("core")}</testcase>` +
         `<testcase name="[SR-0000a4] temperature">${variantProperty("VAR-0000c2")}</testcase>`,
@@ -700,7 +700,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK11] with skipNotInView leaves out a requirement of only another variant, counts it and ends without error", async () => {
+  it("[SR-029/AK-djjh] with skipNotInView leaves out a requirement of only another variant, counts it and ends without error", async () => {
     // SR-0000b2 applies only in Coast (like SR-145 only on macOS); the run is for the core and Mountain.
     const cases =
       '<testcase name="[SR-0000a3] [SR-0000b2] rain and storm"/><testcase name="[SR-0000b2] storm"/>' +
@@ -744,7 +744,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK11] with skipNotInView a requirement that applies in one of the given views counts only there", async () => {
+  it("[SR-029/AK-djjh] with skipNotInView a requirement that applies in one of the given views counts only there", async () => {
     // The core and Coast: SR-0000a2 is excluded in Coast, SR-0000b2 applies only in Coast.
     const { workspace } = await openExample(
       '<testcase name="[SR-0000a2] wind"/><testcase name="[SR-0000b2] storm"/>',
@@ -776,7 +776,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(views(uuid43("b2"))).toEqual({ [COAST]: "verified" });
   });
 
-  it("[SR-029/AK12] [SR-093/AK6] marks a test case of only another variant with the given views, and the workspace reads it without a warning", async () => {
+  it("[SR-029/AK-hx47] [SR-093/AK-h5pw] marks a test case of only another variant with the given views, and the workspace reads it without a warning", async () => {
     // SR-0000b2 applies only in Coast; the run is for the core and Mountain.
     const { fixture, workspace } = await openExample(
       '<testcase name="[SR-0000b2] storm"/><testcase name="[SR-0000a2] wind"/>',
@@ -818,7 +818,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     );
   });
 
-  it("[SR-029/AK7] turns a reqseq:variant given by short ID or identifier into the variant's UUID", async () => {
+  it("[SR-029/AK-w8pw] turns a reqseq:variant given by short ID or identifier into the variant's UUID", async () => {
     const { fixture, workspace } = await openExample(
       `<testcase name="[SR-0000a3] rain">${variantProperty("VAR-0000c2")}</testcase>` +
         `<testcase name="[SR-0000b2] storm">${variantProperty("coast")}</testcase>`,
@@ -835,7 +835,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK8] reports a test case that names another variant than the given one and leaves it unchanged", async () => {
+  it("[SR-029/AK-pb9c] reports a test case that names another variant than the given one and leaves it unchanged", async () => {
     const { fixture, workspace } = await openExample(
       `<testcase name="[SR-0000a3] rain">${variantProperty("VAR-0000c2")}</testcase><testcase name="[SR-0000a4] temperature"/>`,
     );
@@ -852,7 +852,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(await variantRecords(fixture)).toEqual([["[SR-0000a4] temperature", uuid43("a4"), COAST]]);
   });
 
-  it("[SR-029/AK9] reports a test case that names a requirement excluded, replaced or not valid in its variant, and leaves it unchanged", async () => {
+  it("[SR-029/AK-h0h5] reports a test case that names a requirement excluded, replaced or not valid in its variant, and leaves it unchanged", async () => {
     const { fixture, workspace } = await openExample(
       '<testcase name="[SR-0000a2] wind"/><testcase name="[SR-0000a1] response"/>' +
         `<testcase name="[SR-0000b2] storm">${variantProperty("VAR-0000c2")}</testcase>` +
@@ -885,7 +885,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK8] reports a test case enriched before for another variant than the given one, and keeps it", async () => {
+  it("[SR-029/AK-pb9c] reports a test case enriched before for another variant than the given one, and keeps it", async () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000a3] rain"/>');
     expect((await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c2"] })).problems).toEqual(
       [],
@@ -903,7 +903,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(await bytesOf(fixture, "results/run.xml")).toEqual(before);
   });
 
-  it("[SR-029/AK9] reports a requirement that does not apply in the given core", async () => {
+  it("[SR-029/AK-h0h5] reports a requirement that does not apply in the given core", async () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
     const output = await enrich(workspace, { file: "results/run.xml", variant: ["core"] });
     expect(output.problems.map((p) => p.message)).toEqual([

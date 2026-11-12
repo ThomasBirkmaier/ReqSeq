@@ -125,7 +125,7 @@ const record = (version: string, extra: Partial<AffectedRecord> = {}): AffectedR
 });
 
 describe("affected elements (SR-024)", () => {
-  it("[SR-024/AK1] leaves out the element itself, its relations to itself and a cycle back to it", async () => {
+  it("[SR-024/AK-zsx0] leaves out the element itself, its relations to itself and a cycle back to it", async () => {
     const opened = await open();
     const out = await output(opened, opened.record(S1));
     expect(out.affected.map((a) => [a.id, a.distance, a.path, a.via])).toEqual([
@@ -156,7 +156,7 @@ describe("affected elements (SR-024)", () => {
     ]);
   });
 
-  it("[SR-024/AK1] counts the links into the element's repository only", async () => {
+  it("[SR-024/AK-zsx0] counts the links into the element's repository only", async () => {
     const opened = await open();
     // P2 names N1 in its own repository (platform), not the need of the system repository.
     const out = await output(opened, opened.record(N1));
@@ -169,7 +169,7 @@ describe("affected elements (SR-024)", () => {
     expect(out.incomplete).toBe(false);
   });
 
-  it("[SR-024/AK1] counts a link to a UUID that several files share for each of them (SR-088)", async () => {
+  it("[SR-024/AK-zsx0] counts a link to a UUID that several files share for each of them (SR-088)", async () => {
     const opened = await open();
     for (const file of ["needs/N-000000000005.md", "needs/copy/N-000000000005.md"]) {
       const out = await output(opened, opened.record(DUP, file));
@@ -177,7 +177,7 @@ describe("affected elements (SR-024)", () => {
     }
   });
 
-  it("[SR-024/AK1] shows an empty title for a title that is no text or without the meaning title (SR-013 AK3)", async () => {
+  it("[SR-024/AK-zsx0] shows an empty title for a title that is no text or without the meaning title (SR-013 AK3)", async () => {
     const numbered = await open({
       ...FILES,
       "system/requirements/SR-000000000003.md": element(S2, "system-requirement", [
@@ -196,7 +196,7 @@ describe("affected elements (SR-024)", () => {
     expect((await output(untitled, untitled.record(S1))).affected.map((a) => a.title)).toEqual(["", "", ""]);
   });
 
-  it("[SR-024/AK4] lists the evidence records of an older version of the element", async () => {
+  it("[SR-024/AK-vzjd] lists the evidence records of an older version of the element", async () => {
     const opened = await open();
     const old = record(OLD, { variant: P2, evidence: "reports/old.pdf", testCase: "speed shown" });
     const failed = record(OLD, { kind: "validation", result: "failed", date: "2026-10-21T10:00:00Z" });

@@ -65,7 +65,7 @@ const snapshot = async (folder: string): Promise<Record<string, string>> => {
 };
 
 describe("element.get", () => {
-  it("[SR-084/AK1] shows the element with the type prefix and at least 6 characters of its UUID, by UUID or short ID", async () => {
+  it("[SR-084/AK-rmv3] shows the element with the type prefix and at least 6 characters of its UUID, by UUID or short ID", async () => {
     const opened = await open(TWO);
     const byId = await get(opened, { ref: WIND.id });
     expect(byId).toMatchObject({
@@ -137,7 +137,7 @@ describe("element.get", () => {
     ]);
   });
 
-  it("[SR-005/AK2] shows the title of a target in another repository that is on this machine", async () => {
+  it("[SR-005/AK-trhc] shows the title of a target in another repository that is on this machine", async () => {
     const opened = await open({ fixture: "SR-089/missing-targets" }, "system");
     const element = await get(opened, { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" });
     expect(element.repository).toBe("sensor");
@@ -157,7 +157,7 @@ describe("element.get", () => {
     ]);
   });
 
-  it("[SR-006/AK1] shows a target in a repository that is not on this machine only by short ID, as not accessible", async () => {
+  it("[SR-006/AK-fbb3] shows a target in a repository that is not on this machine only by short ID, as not accessible", async () => {
     const opened = await open({ fixture: "SR-089/missing-targets" }, "system");
     const element = await get(opened, { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" });
     const [vault] = element.relations.filter((r) => r.kind === "based-on");
@@ -174,7 +174,7 @@ describe("element.get", () => {
     });
   });
 
-  it("[SR-088/AK2] marks a relation to a UUID that two files share as ambiguous; that UUID itself is ambiguous", async () => {
+  it("[SR-088/AK-d138] marks a relation to a UUID that two files share as ambiguous; that UUID itself is ambiguous", async () => {
     const opened = await open({ fixture: "SR-088/copied-file" }, "system");
     const element = await get(opened, { ref: "4f4f8db9-be88-4699-8641-6ae4d00fcab6" });
     const [copied] = element.relations;
@@ -313,14 +313,14 @@ describe("element.get", () => {
     });
   });
 
-  it("[SR-016/AK3] shows an element of an unknown type with a hint and only for reading", async () => {
+  it("[SR-016/AK-k7rx] shows an element of an unknown type with a hint and only for reading", async () => {
     const opened = await open({ fixture: "SR-016/unknown" });
     const element = await get(opened, { ref: "2c9e4b71-6d58-4f03-a1e7-0f6a7b8c9d0e" });
     expect(element).toMatchObject({ type: "gadget", title: "Wind vane", readOnly: true });
     expect(hints(element)).toContainEqual(expect.objectContaining({ code: "element.unknown-type", line: 3 }));
   });
 
-  it("[SR-016/AK1] gives a hint with the key of each unknown property and keeps it under properties", async () => {
+  it("[SR-016/AK-nr6q] gives a hint with the key of each unknown property and keeps it under properties", async () => {
     const opened = await open({ fixture: "SR-016/unknown" });
     const element = await get(opened, { ref: "5e0b8c2d-7f14-4a39-b6d2-8e9f0a1b2c3d" });
     expect(element.readOnly).toBe(false);
@@ -330,7 +330,7 @@ describe("element.get", () => {
     expect(unknown.some((p) => p.message.includes("legacy"))).toBe(true);
   });
 
-  it("[SR-085/AK2] gives a hint with the allowed values for a choice value that is not one of them", async () => {
+  it("[SR-085/AK-x6jg] gives a hint with the allowed values for a choice value that is not one of them", async () => {
     const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
     const element = await get(opened, { ref: "c0dcc639-0097-42b7-b926-b69e094ad34c" });
     const [hint] = hints(element);
@@ -339,7 +339,7 @@ describe("element.get", () => {
     expect(hint?.message).toMatch(/low.*medium.*high/);
   });
 
-  it("[SR-085/AK2] keeps a display name written by hand in a file as it is and gives the hint (SR-012 AK3, ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-085/AK-x6jg] keeps a display name written by hand in a file as it is and gives the hint (SR-012 AK3, ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const file = "requirements/SR-00000000c309.md";
     const text =
       "---\nid: 0b7c6e1a-1111-4222-8333-00000000c309\ntype: system-requirement\nstatus: draft\ntitle: By hand\nrequirement-type: Functional\n---\n\nText.\n";
@@ -357,7 +357,7 @@ describe("element.get", () => {
     expect(await fs.readFile(opened.fixture.path(file), "utf8")).toBe(text);
   });
 
-  it("[SR-086/AK1] gives a hint with source, target and relation kind for a relation between types that are not allowed", async () => {
+  it("[SR-086/AK-yrxg] gives a hint with source, target and relation kind for a relation between types that are not allowed", async () => {
     const opened = await open({ fixture: "SR-086/relation-types" }, "system");
     const element = await get(opened, { ref: "22a972fd-f4f1-4b95-ba1d-e3e85234824e" });
     // The fixture stores a made-up version, so the relation is outdated too, and the two elements
@@ -381,7 +381,7 @@ describe("element.get", () => {
     expect(hints(allowed).filter((p) => p.code === "relation.not-allowed")).toEqual([]);
   });
 
-  it("[SR-091/AK4] gives another version when an embedded image changes", async () => {
+  it("[SR-091/AK-q1k5] gives another version when an embedded image changes", async () => {
     const opened = await open({
       ...TWO,
       files: {
@@ -467,7 +467,7 @@ describe("element.get, more of what stage 1 shows", () => {
     },
   );
 
-  it("[SR-013/AK3] gives a hint naming the missing meaning title of a valid metamodel, with an empty title", async () => {
+  it("[SR-013/AK-bh0d] gives a hint naming the missing meaning title of a valid metamodel, with an empty title", async () => {
     const model = await fs.readFile(
       new URL("../../../../../fixtures/SR-001/two-elements/metamodel/standard-model.yaml", import.meta.url),
       "utf8",
@@ -522,7 +522,7 @@ describe("element.get, more of what stage 1 shows", () => {
     expect(error.details).toMatchObject({ ref: WIND.id, file: WIND.file, problems: [expect.any(Object)] });
   });
 
-  it("[SR-040/AK3] shows the hint on a validity that lists a superseded variant", async () => {
+  it("[SR-040/AK-j33h] shows the hint on a validity that lists a superseded variant", async () => {
     const opened = await open({
       fixture: "SR-040/validity",
       files: {
@@ -568,7 +568,7 @@ describe("element.get, more of what stage 1 shows", () => {
 });
 
 describe("a superseded element names its successor without a relation of its own (SR-072 AK3)", () => {
-  it("[SR-072/AK3] element.get names the successor as an incoming relation; the superseded file has none", async () => {
+  it("[SR-072/AK-k1fs] element.get names the successor as an incoming relation; the superseded file has none", async () => {
     const opened = await open({ fixture: "SR-072/supersede" });
     const old = "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6";
     const successor = "7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7";
@@ -598,7 +598,7 @@ describe("a superseded element names its successor without a relation of its own
     expect(await fs.readFile(opened.fixture.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toBe(before);
   });
 
-  it("[SR-072/AK2] element.get gives the hint on a relation to a superseded element, naming its successor", async () => {
+  it("[SR-072/AK-y5gr] element.get gives the hint on a relation to a superseded element, naming its successor", async () => {
     const opened = await open({ fixture: "SR-072/supersede" });
     await invoke(
       "element.supersede",
@@ -621,7 +621,7 @@ describe("a superseded element names its successor without a relation of its own
     ]);
   });
 
-  it("[SR-072/AK3] element.get names no successor for an element that is not superseded", async () => {
+  it("[SR-072/AK-k1fs] element.get names no successor for an element that is not superseded", async () => {
     const opened = await open({ fixture: "SR-072/supersede" });
     const element = await get(opened, { ref: "N-d4e5f6" });
     expect(element.relations.filter((r) => r.direction === "in")).toEqual([]);
@@ -688,7 +688,7 @@ describe("element.get gives the same hints on relations to superseded elements a
   const supersededHints = (problems: readonly Problem[]): readonly Problem[] =>
     problems.filter((p) => p.code === "relation.target-superseded");
 
-  it("[SR-072/AK2] element.get and workspace.check give the same hints, naming only complete successor relations", async () => {
+  it("[SR-072/AK-y5gr] element.get and workspace.check give the same hints, naming only complete successor relations", async () => {
     const opened = await open({ fixture: "SR-072/supersede", files: FILES });
     const check = (await invoke(
       "workspace.check",
@@ -729,7 +729,7 @@ describe("element.get hintDates (ThomasBirkmaier/ReqSeq-archive#702)", () => {
   const outdated = (element: Element): readonly Problem[] =>
     hints(element).filter((problem) => problem.code === "relation.outdated");
 
-  it("[SR-110/AK2] dates the outdated relations and references of the element, but not its own version", async () => {
+  it("[SR-110/AK-j1xs] dates the outdated relations and references of the element, but not its own version", async () => {
     const opened = await open(HINTS);
     const plain = await get(opened, { ref: "SR-0000b1" });
     const dated = await get(opened, { ref: "SR-0000b1", hintDates: true });
@@ -752,7 +752,7 @@ describe("element.get hintDates (ThomasBirkmaier/ReqSeq-archive#702)", () => {
     expect(dated).toEqual(withoutDate);
   });
 
-  it("[SR-110/AK2] gives an element without outdated relations as without the input", async () => {
+  it("[SR-110/AK-j1xs] gives an element without outdated relations as without the input", async () => {
     const opened = await open(TWO);
     expect(await get(opened, { ref: WIND.id, hintDates: true })).toEqual(await get(opened, { ref: WIND.id }));
   });
@@ -770,7 +770,7 @@ describe("element.get names the variants that replace or exclude a core requirem
   const output = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">> =>
     (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
 
-  it("[SR-046/AK3] element.get names A as replacing and B as excluding variant", async () => {
+  it("[SR-046/AK-msfv] element.get names A as replacing and B as excluding variant", async () => {
     const opened = await open(EXAMPLE);
     const k1 = await output(opened, "SR-0000a1");
     expect([k1.element.replacedBy, k1.element.excludedBy]).toEqual([

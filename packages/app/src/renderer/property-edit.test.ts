@@ -126,7 +126,7 @@ describe("isNumberedList (#615)", () => {
 });
 
 describe("boxValue", () => {
-  it("[SR-104/AK1] is the stored value as it is: a string, a number as its text, a list with one item per line", () => {
+  it("[SR-104/AK-df5n] is the stored value as it is: a string, a number as its text, a list with one item per line", () => {
     expect(boxValue("Wind", false)).toEqual({ doc: "Wind", lineBreak: false });
     expect(boxValue("  Wind \n", false)).toEqual({ doc: "  Wind \n", lineBreak: false });
     expect(boxValue(2.5, false)).toEqual({ doc: "2.5", lineBreak: false });
@@ -151,7 +151,7 @@ describe("boxValue", () => {
 });
 
 describe("editableBoxes", () => {
-  it("[SR-104/AK1] has the filled properties of a text or choice kind that the type has, and one the type does not know", () => {
+  it("[SR-104/AK-df5n] has the filled properties of a text or choice kind that the type has, and one the type does not know", () => {
     const boxes = editableBoxes(
       element({
         topic: "Wind",
@@ -185,7 +185,7 @@ describe("editableBoxes", () => {
 });
 
 describe("editableBoxes of choices and relations (SR-104)", () => {
-  it("[SR-104/AK3] has the stored keys of a choice, one per line", () => {
+  it("[SR-104/AK-n97r] has the stored keys of a choice, one per line", () => {
     const boxes = editableBoxes(element({ area: "quality", tags: ["a", "b"], topic: "x" }), model);
     expect(boxes.get("area")?.doc).toBe("quality");
     expect(boxes.get("tags")?.doc).toBe("a\nb");
@@ -285,7 +285,7 @@ describe("choiceItems and chooseKey", () => {
   const area = prop("area");
   const tags = prop("tags");
 
-  it("[SR-104/AK3] offers exactly the choices of the metamodel, in its order, with the key as hint", () => {
+  it("[SR-104/AK-n97r] offers exactly the choices of the metamodel, in its order, with the key as hint", () => {
     expect(choiceItems(area, [])).toEqual([
       { key: "quality", name: "Quality", hint: "quality", set: false },
       { key: "performance", name: "Performance", hint: "performance", set: false },
@@ -308,7 +308,7 @@ describe("choiceItems and chooseKey", () => {
     expect(choiceItems({ kind: "choice", many: false, markdown: false }, [])).toEqual([]);
   });
 
-  it("[SR-104/AK3] replaces the value of a single choice and toggles the values of a list", () => {
+  it("[SR-104/AK-n97r] replaces the value of a single choice and toggles the values of a list", () => {
     expect(chooseKey(area, ["quality"], "interface")).toEqual(["interface"]);
     expect(chooseKey(area, ["quality"], "quality")).toEqual(["quality"]);
     expect(chooseKey(area, [], "quality")).toEqual(["quality"]);
@@ -342,7 +342,7 @@ describe("chooseTarget", () => {
 });
 
 describe("addableProperties", () => {
-  it("[SR-104/AK2] offers the keys of the type that have no box, by name, without the title", () => {
+  it("[SR-104/AK-k13x] offers the keys of the type that have no box, by name, without the title", () => {
     const found = addableProperties(element({ topic: "Wind", criteria: ["a"], title: "T" }), model);
     expect(found.map(({ key, name }) => [key, name])).toEqual([
       ["effort", "effort"],
@@ -357,7 +357,7 @@ describe("addableProperties", () => {
     expect(found.find((property) => property.key === "area")?.info).toBe(model.get("need")?.get("area"));
   });
 
-  it("[SR-104/AK2] offers a key that is stored with an empty value, because no box shows it", () => {
+  it("[SR-104/AK-k13x] offers a key that is stored with an empty value, because no box shows it", () => {
     const found = addableProperties(element({ topic: "", criteria: [], area: "  ", effort: null }), model);
     expect(found.map((property) => property.key)).toEqual([
       "topic",
@@ -387,7 +387,7 @@ describe("addableProperties", () => {
 });
 
 describe("allBoxes", () => {
-  it("[SR-104/AK2] has the editable boxes and an empty box, with the empty document, for each property that was added", () => {
+  it("[SR-104/AK-k13x] has the editable boxes and an empty box, with the empty document, for each property that was added", () => {
     const boxes = allBoxes(element({ topic: "Wind", effort: { nested: true } }), model, [
       "area",
       "criteria",
@@ -409,7 +409,7 @@ describe("allBoxes", () => {
 });
 
 describe("shownBoxes", () => {
-  it("[SR-104/AK2] puts an added box at its place in the order of the type, before the first box that comes after it", () => {
+  it("[SR-104/AK-k13x] puts an added box at its place in the order of the type, before the first box that comes after it", () => {
     const filled = element({ topic: "Wind", effort: 3, legacy: "x" });
     expect(shownBoxes(filled, model, ["criteria"]).map((box) => box.key)).toEqual([
       "topic",
@@ -459,7 +459,7 @@ describe("updateInput", () => {
     doc,
   });
 
-  it("[SR-104/AK4] removes a property whose box was emptied: unset, for every text kind", () => {
+  it("[SR-104/AK-sxnr] removes a property whose box was emptied: unset, for every text kind", () => {
     expect(
       updateInput("u", undefined, [
         edit("topic", text, "Wind", ""),
@@ -470,7 +470,7 @@ describe("updateInput", () => {
     ).toEqual({ ref: "u", unset: ["topic", "criteria", "effort", "day"] });
   });
 
-  it("[SR-104/AK4] removes a property the type does not know when its box was emptied, and never sets it (#189)", () => {
+  it("[SR-104/AK-sxnr] removes a property the type does not know when its box was emptied, and never sets it (#189)", () => {
     const legacy = editableBoxes(element({ legacy: "x" }), model).get("legacy");
     const info = legacy?.info ?? text;
     expect(updateInput("u", undefined, [edit("legacy", info, "x", "")])).toEqual({
@@ -480,7 +480,7 @@ describe("updateInput", () => {
     expect(updateInput("u", undefined, [edit("legacy", info, "y", "x")])).toEqual({ ref: "u" });
   });
 
-  it("[SR-104/AK4] treats a box with nothing but blank lines as emptied", () => {
+  it("[SR-104/AK-sxnr] treats a box with nothing but blank lines as emptied", () => {
     expect(
       updateInput("u", undefined, [edit("criteria", list, "a", " \n\n\t"), edit("topic", text, "x", "  ")]),
     ).toEqual({ ref: "u", unset: ["criteria", "topic"] });
@@ -546,7 +546,7 @@ describe("updateInput", () => {
     expect(updateInput("u", undefined, [edit("topic", text, "a", "7")]).set).toEqual({ topic: "7" });
   });
 
-  it("[SR-104/AK1] gives the document of every stored value back as the same value, without a blank item or a line break", () => {
+  it("[SR-104/AK-df5n] gives the document of every stored value back as the same value, without a blank item or a line break", () => {
     for (const [stored, many] of [
       ["Wind", false],
       [["a", "b"], true],
@@ -573,13 +573,13 @@ describe("updateInput for choices and relations (SR-104)", () => {
     doc,
   });
 
-  it("[SR-104/AK3] sends the keys of a choice: one key for a single choice, the whole array for a list", () => {
+  it("[SR-104/AK-n97r] sends the keys of a choice: one key for a single choice, the whole array for a list", () => {
     expect(
       updateInput("u", undefined, [edit("area", area, "", "quality"), edit("tags", tags, "a", "a\nb")]),
     ).toEqual({ ref: "u", set: { area: "quality", tags: ["a", "b"] } });
   });
 
-  it("[SR-104/AK4] removes a choice and a relation that were emptied with unset", () => {
+  it("[SR-104/AK-sxnr] removes a choice and a relation that were emptied with unset", () => {
     expect(
       updateInput("u", undefined, [
         edit("area", area, "quality", ""),
@@ -590,7 +590,7 @@ describe("updateInput for choices and relations (SR-104)", () => {
     ).toEqual({ ref: "u", unset: ["area", "tags", "parent", "packages"] });
   });
 
-  it("[SR-104/AK4] sends the targets of a relation as id and repository, for every target that remains", () => {
+  it("[SR-104/AK-sxnr] sends the targets of a relation as id and repository, for every target that remains", () => {
     expect(
       updateInput("u", undefined, [
         edit("packages", packages, "a\tspec\tA\nb\t\tB", "b\t\tB\nc\tvault\tC"),

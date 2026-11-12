@@ -80,7 +80,7 @@ test.describe("the evidence records of a requirement", () => {
     await unfold(head(window, /^2026-10-20 14:00 UTC/));
   };
 
-  test("[SR-032/AK1] the element view shows version, item, date, result and evidence of each record", async () => {
+  test("[SR-032/AK-z0d4] the element view shows version, item, date, result and evidence of each record", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     await openAll(window);
@@ -92,7 +92,7 @@ test.describe("the evidence records of a requirement", () => {
     await expect(records(window).getByRole("link")).toHaveCount(0);
   });
 
-  test("[SR-032/AK2] the element view names the baselines that contain the version of a record", async () => {
+  test("[SR-032/AK-nx9m] the element view names the baselines that contain the version of a record", async () => {
     const { window } = running;
     const cli = await running.cli(["evidence", "list", "SR-e88fb3"]);
     const listed = JSON.parse(cli.stdout) as Listed;
@@ -109,7 +109,7 @@ test.describe("the evidence records of a requirement", () => {
     );
   });
 
-  test("[SR-032/AK3] the newest run stands open, older runs fold away one line each and open by click and keyboard", async () => {
+  test("[SR-032/AK-hbdt] the newest run stands open, older runs fold away one line each and open by click and keyboard", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     // The test of the 21st bears the status; the inspection of the 20th is an older run.
@@ -134,7 +134,7 @@ test.describe("the evidence records of a requirement", () => {
     expect((JSON.parse(cli.stdout) as { bearing: number[] }).bearing).toEqual([0]);
   });
 
-  test("[SR-032/AK4] one line per criterion with result and test count opens to its test cases, and those to their records", async () => {
+  test("[SR-032/AK-rbjn] one line per criterion with result and test count opens to its test cases, and those to their records", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     const row = head(window, /^Verification/);
@@ -148,7 +148,7 @@ test.describe("the evidence records of a requirement", () => {
     await window.screenshot({ path: path.join(SHOTS, "sr-032-evidence-light.png") });
   });
 
-  test("[SR-032/AK5] the values the open records share stand once above the lines", async () => {
+  test("[SR-032/AK-cd8f] the values the open records share stand once above the lines", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
     await expect(shared(window)).toHaveText(

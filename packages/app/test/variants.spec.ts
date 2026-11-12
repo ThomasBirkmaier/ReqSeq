@@ -27,7 +27,7 @@ test.describe("variants on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-039/AK1] element.create of type variant writes a variant file in the workspace of the core", async () => {
+  test("[SR-039/AK-w7mx] element.create of type variant writes a variant file in the workspace of the core", async () => {
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -122,7 +122,7 @@ test.describe("records per variant in the app", () => {
     await running.close();
   });
 
-  test("[SR-047/AK4] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
+  test("[SR-047/AK-vd3h] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
     const { window } = running;
     await recordForCoast(window, "SR-0000a2", "Measure the wind");
     await expect(label(window)).toContainText(

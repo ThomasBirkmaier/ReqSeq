@@ -45,7 +45,7 @@ const P = "5c0e1d2a-0022-4022-8022-00000000";
 const V = "n1:0000000000000000";
 
 describe("reqseq trace chain (SR-022)", () => {
-  it("[SR-022/AK1] prints every level below a need with its depth, as JSON and readable", async () => {
+  it("[SR-022/AK-rmkp] prints every level below a need with its depth, as JSON and readable", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const json = await reqseq(["trace", "chain", "N-00a001", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
@@ -79,7 +79,7 @@ describe("reqseq trace chain (SR-022)", () => {
     expect(yaml.stdout).toContain("    shortId: CR-00c002\n    type: component-requirement\n");
   });
 
-  it("[SR-022/AK1] shows a later page without nesting an element under the wrong parent (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
+  it("[SR-022/AK-rmkp] shows a later page without nesting an element under the wrong parent (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const page = await reqseq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
     expect(page.stdout.split("\n").slice(0, 3)).toEqual([
@@ -90,7 +90,7 @@ describe("reqseq trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK4] marks a cycle whose closing edge starts on another page (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
+  it("[SR-022/AK-vvhc] marks a cycle whose closing edge starts on another page (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
     const page = await reqseq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
     expect(page.code).toBe(0);
@@ -109,7 +109,7 @@ describe("reqseq trace chain (SR-022)", () => {
     );
   });
 
-  it("[SR-022/AK2] prints every parent of a component requirement up to the needs", async () => {
+  it("[SR-022/AK-dqf1] prints every parent of a component requirement up to the needs", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const json = await reqseq(["trace", "chain", "CR-00c002", "--direction", "up", "--json"], ws.root);
     expect(json.code).toBe(0);
@@ -122,7 +122,7 @@ describe("reqseq trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK3] marks the gaps: a need without a child, requirements without a child and evidence", async () => {
+  it("[SR-022/AK-g8js] marks the gaps: a need without a child, requirements without a child and evidence", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const rain = JSON.parse(
       (await reqseq(["trace", "chain", "N-00a003", "--json"], ws.root)).stdout,
@@ -134,7 +134,7 @@ describe("reqseq trace chain (SR-022)", () => {
     expect(wind.gaps).toEqual([]);
   });
 
-  it("[SR-022/AK4] stops at a cycle and reports it as a warning, with exit code 0", async () => {
+  it("[SR-022/AK-vvhc] stops at a cycle and reports it as a warning, with exit code 0", async () => {
     const ws = await fixture({
       fixture: "SR-022/chain",
       files: {
@@ -182,7 +182,7 @@ describe("reqseq trace chain follows the meaning derivation (SR-013)", () => {
     },
   };
 
-  it("[SR-013/AK1] follows the own relation kind satisfies, not traces-to", async () => {
+  it("[SR-013/AK-st9d] follows the own relation kind satisfies, not traces-to", async () => {
     const ws = await fixture(OWN);
     const json = await reqseq(["trace", "chain", "W-0000f1", "--json"], ws.root);
     expect(json.code).toBe(0);
@@ -191,7 +191,7 @@ describe("reqseq trace chain follows the meaning derivation (SR-013)", () => {
     expect(output.edges.map((e) => e.kind)).toEqual(["satisfies"]);
   });
 
-  it("[SR-013/AK3] names the missing assignment of the meaning derivation, with exit code 2", async () => {
+  it("[SR-013/AK-bh0d] names the missing assignment of the meaning derivation, with exit code 2", async () => {
     const ws = await fixture({
       ...OWN,
       files: {
@@ -255,7 +255,7 @@ const chainJson = async (ws: FixtureWorkspace, ref: string): Promise<WithEvidenc
 const fields = (e: Execution): unknown[] => [e.date, e.result, e.item, e.evidenceSource];
 
 describe("reqseq trace chain: test cases and executions (SR-033)", () => {
-  it("[SR-033/AK1] reqseq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {
+  it("[SR-033/AK-mvfg] reqseq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {
     const ws = await fixture({
       fixture: "SR-033/chain",
       files: {
@@ -315,7 +315,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     });
   });
 
-  it("[SR-022/AK1] reqseq trace chain shows every level of a need down to the record files, with their depth", async () => {
+  it("[SR-022/AK-rmkp] reqseq trace chain shows every level of a need down to the record files, with their depth", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "N-33a001");
     expect(output.nodes.map((n) => [n.shortId, n.depth])).toEqual([
@@ -359,7 +359,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     });
   });
 
-  it("[SR-033/AK2] reqseq trace chain shows a JUnit test case that names two requirements at both", async () => {
+  it("[SR-033/AK-mxnt] reqseq trace chain shows a JUnit test case that names two requirements at both", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "N-33a001");
     // One <testcase> of run-1.xml names SR-33b001 and SR-33b002: shown at each, with its own executions.
@@ -392,7 +392,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     expect(level?.elements.withEvidence).toEqual([`${Q}b001`, `${Q}b002`, `${Q}b004`]);
   });
 
-  it("[SR-033/AK3] reqseq trace chain marks a skipped JUnit test case as not executed", async () => {
+  it("[SR-033/AK-jtx6] reqseq trace chain marks a skipped JUnit test case as not executed", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "SR-33b003");
     expect(output.evidence).toEqual([
@@ -419,7 +419,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     ]);
   });
 
-  it("[SR-022/AK3] reqseq trace chain marks a gap at a requirement whose test case was skipped, and none at one with a record file", async () => {
+  it("[SR-022/AK-g8js] reqseq trace chain marks a gap at a requirement whose test case was skipped, and none at one with a record file", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const gaps = async (): Promise<unknown[]> =>
       (await chainJson(ws, "N-33a001")).gaps.map((g) => [g.id, g.kind]);

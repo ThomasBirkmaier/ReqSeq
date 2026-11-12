@@ -71,7 +71,7 @@ const SHARED_ENDS: FixtureOptions = {
 };
 
 describe("element.resolve", () => {
-  it("[SR-060/AK1] gives the element with title, text, status and current version by UUID or short ID", async () => {
+  it("[SR-060/AK-sct7] gives the element with title, text, status and current version by UUID or short ID", async () => {
     const opened = await open(TWO);
     const byId = await resolve(opened, { ref: WIND.id });
     expect(byId.current).toBeNull();
@@ -93,7 +93,7 @@ describe("element.resolve", () => {
     expect(await resolve(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });
 
-  it("[SR-060/AK1] resolves a short ID and a UUID in any case to the same element (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
+  it("[SR-060/AK-sct7] resolves a short ID and a UUID in any case to the same element (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await open(TWO);
     const expected = (await resolve(opened, { ref: "SR-e88fb3" })).element;
     for (const ref of ["sr-e88fb3", "Sr-E88FB3", "sr-6328CEE88FB3", WIND.id.toUpperCase()]) {
@@ -106,7 +106,7 @@ describe("element.resolve", () => {
     ]);
   });
 
-  it("[SR-060/AK3] refuses a malformed reference with a message that says what a reference looks like (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-060/AK-c573] refuses a malformed reference with a message that says what a reference looks like (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open(TWO);
     const error = await resolveError(opened, { ref: " SR-036" });
     expect(error.toJSON()).toEqual({
@@ -135,7 +135,7 @@ describe("element.resolve", () => {
     ]);
   });
 
-  it("[SR-060/AK1] resolves a short ID another tool stored before the display grew, when the prefix leaves one element", async () => {
+  it("[SR-060/AK-sct7] resolves a short ID another tool stored before the display grew, when the prefix leaves one element", async () => {
     const opened = await open(SHARED_ENDS);
     // SR-abc123 fits two system requirements, N-abc123 only the need.
     expect((await resolve(opened, { ref: "N-abc123" })).element).toMatchObject({
@@ -145,7 +145,7 @@ describe("element.resolve", () => {
     });
   });
 
-  it("[SR-060/AK3] names the element whose tail fits a short ID with an outdated prefix, without resolving it (ThomasBirkmaier/ReqSeq-archive#275)", async () => {
+  it("[SR-060/AK-c573] names the element whose tail fits a short ID with an outdated prefix, without resolving it (ThomasBirkmaier/ReqSeq-archive#275)", async () => {
     // The type was changed by hand from system requirement to need (ThomasBirkmaier/ReqSeq-archive#165 (b)); the file name and
     // references in other tools keep the prefix SR (D-056).
     const id = "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
@@ -170,7 +170,7 @@ describe("element.resolve", () => {
     expect(await snapshot(opened.fixture.root)).toEqual(before);
   });
 
-  it("[SR-060/AK3] names the element of an outdated prefix only when it lies in the given repository and file (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
+  it("[SR-060/AK-c573] names the element of an outdated prefix only when it lies in the given repository and file (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
     const id = "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
     const file = "requirements/SR-7a8b9c0d1e2f.md";
     const opened = await open({
@@ -190,7 +190,7 @@ describe("element.resolve", () => {
     }
   });
 
-  it("[SR-060/AK3] keeps ref.unknown with repository and file, without candidates, when the file moved after the store read it", async () => {
+  it("[SR-060/AK-c573] keeps ref.unknown with repository and file, without candidates, when the file moved after the store read it", async () => {
     const opened = await open(TWO);
     await resolve(opened, { ref: "SR-e88fb3" });
     await fs.mkdir(opened.fixture.path("moved"));
@@ -233,7 +233,7 @@ describe("element.resolve", () => {
     ]);
   });
 
-  it("[SR-060/AK2] compares a given version in its own normal form (ADR-0005 normal form 2)", async () => {
+  it("[SR-060/AK-s406] compares a given version in its own normal form (ADR-0005 normal form 2)", async () => {
     const opened = await open(TWO);
     const store = await opened.workspace.get(elementStoreState);
     const record = store.elements.find((e) => e.id === WIND.id);
@@ -247,7 +247,7 @@ describe("element.resolve", () => {
     );
   });
 
-  it("[SR-060/AK2] reports whether the given version is still the current one", async () => {
+  it("[SR-060/AK-s406] reports whether the given version is still the current one", async () => {
     const opened = await open(TWO);
     const { element: now } = await resolve(opened, { ref: WIND.id });
     expect((await resolve(opened, { ref: "SR-e88fb3", version: now.version })).current).toBe("current");
@@ -266,7 +266,7 @@ describe("element.resolve", () => {
     );
   });
 
-  it("[SR-060/AK2] tells unknown, not current or outdated, for an element without a version (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
+  it("[SR-060/AK-s406] tells unknown, not current or outdated, for an element without a version (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     // A counted value without a normal form (`.inf`, ADR-0005) leaves the element without a version.
     const endless = `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n`;
     const opened = await open({ ...TWO, files: { [GUSTS.file]: endless } });
@@ -310,7 +310,7 @@ describe("element.resolve", () => {
     expect(await resolve(opened, { ref: WIND.id, versionDate: false })).toEqual(plain);
   });
 
-  it("[SR-060/AK2] keeps a version current when only status and title change (D-013)", async () => {
+  it("[SR-060/AK-s406] keeps a version current when only status and title change (D-013)", async () => {
     const opened = await open(TWO);
     const { element: before } = await resolve(opened, { ref: GUSTS.id });
     await invoke(
@@ -328,7 +328,7 @@ describe("element.resolve", () => {
     expect(after.current).toBe("current");
   });
 
-  it("[SR-060/AK3] reports an unknown short ID or UUID as ref.unknown", async () => {
+  it("[SR-060/AK-c573] reports an unknown short ID or UUID as ref.unknown", async () => {
     const opened = await open(TWO);
     const before = await snapshot(opened.fixture.root);
     for (const ref of ["SR-ffffff", "N-ffffff", WIND.id.replace("e8df", "0000")]) {
@@ -338,7 +338,7 @@ describe("element.resolve", () => {
     expect(await snapshot(opened.fixture.root)).toEqual(before);
   });
 
-  it("[SR-060/AK3] reports an ambiguous short ID as ref.ambiguous with the candidates", async () => {
+  it("[SR-060/AK-c573] reports an ambiguous short ID as ref.ambiguous with the candidates", async () => {
     const opened = await open(SHARED_ENDS);
     const error = await resolveError(opened, { ref: "SR-abc123" });
     expect([error.code, error.details]).toEqual([
@@ -356,7 +356,7 @@ describe("element.resolve", () => {
     expect([none.code, none.details]).toEqual(["ref.unknown", { ref: "D-abc123" }]);
   });
 
-  it("[SR-060/AK3] reports a UUID that two files share (SR-088) as ref.ambiguous", async () => {
+  it("[SR-060/AK-c573] reports a UUID that two files share (SR-088) as ref.ambiguous", async () => {
     const opened = await open({ fixture: "SR-088/copied-file" }, "system");
     const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
     const error = await resolveError(opened, { ref });
@@ -364,7 +364,7 @@ describe("element.resolve", () => {
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 
-  it("[SR-060/AK1] resolves one copy of a UUID two files share by its file, as element.get opens it (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
+  it("[SR-060/AK-sct7] resolves one copy of a UUID two files share by its file, as element.get opens it (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
     const opened = await open({ fixture: "SR-088/copied-file" }, "system");
     const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
     const input = { ref, repository: "system", file: "copies/N-00606ccf2661.md" };

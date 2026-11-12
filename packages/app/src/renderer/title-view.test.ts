@@ -365,7 +365,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(heading().querySelector(".cm-editor")).toBeNull();
   });
 
-  it("[SR-105/AK1] a changed title is saved a second after the last key as title, and nothing else is sent", async () => {
+  it("[SR-105/AK-p4gn] a changed title is saved a second after the last key as title, and nothing else is sent", async () => {
     const { updates, file, echoed } = await mountView();
     await enterTitle();
     await typeAt(titleView(), " speed");
@@ -378,7 +378,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(heading().textContent).toBe("Measure wind speed");
   });
 
-  it("[SR-127/AK5] [[ typed in the title asks for no element: the title stays plain text and is saved as typed", async () => {
+  it("[SR-127/AK-mdr7] [[ typed in the title asks for no element: the title stays plain text and is saved as typed", async () => {
     const { updates, picks } = await mountView();
     await enterTitle();
     await typeAt(titleView(), " [");
@@ -389,7 +389,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(heading().textContent).toBe("Measure wind [[");
   });
 
-  it("[SR-105/AK1] the title, the text and a box changed together go in one element.update", async () => {
+  it("[SR-105/AK-p4gn] the title, the text and a box changed together go in one element.update", async () => {
     const { updates } = await mountView();
     await enterTitle();
     await typeAt(titleView(), "!");
@@ -407,7 +407,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     ]);
   });
 
-  it("[SR-064/AK2] an emptied title is saved as the empty title, and core's hint is said with Saved", async () => {
+  it("[SR-064/AK-yhn7] an emptied title is saved as the empty title, and core's hint is said with Saved", async () => {
     const { updates, echoed, controls, data } = await mountView();
     await enterTitle();
     await typeOver(titleView(), "");
@@ -429,7 +429,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(heading().className).toBe("untitled");
   });
 
-  it("[SR-105/AK2] Ctrl/Cmd+Z in the title after its save brings the title before back, and it is saved again", async () => {
+  it("[SR-105/AK-dmrq] Ctrl/Cmd+Z in the title after its save brings the title before back, and it is saved again", async () => {
     const { updates } = await mountView();
     await enterTitle();
     await typeAt(titleView(), "!");
@@ -453,7 +453,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(drafts.at(-1)?.boxes?.get("Title")).toEqual({ doc: "Measure wind!", base: "Measure wind" });
   });
 
-  it("[SR-105/AK1] shown again with title input, the title editor holds it and keeps it: a later edit of the text saves both", async () => {
+  it("[SR-105/AK-p4gn] shown again with title input, the title editor holds it and keeps it: a later edit of the text saves both", async () => {
     const draft: Draft = {
       text: "first",
       base: "first",
@@ -504,7 +504,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     });
   });
 
-  it("[SR-106/AK1] a title without input follows the file, closed and open, and the caret stays", async () => {
+  it("[SR-106/AK-m800] a title without input follows the file, closed and open, and the caret stays", async () => {
     const { file, reload } = await mountView();
     file.title = "Measure gusts";
     file.sha = "sha-x";
@@ -519,7 +519,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(titleView().state.selection.main.head).toBe(3);
   });
 
-  it('[SR-106/AK2] with input in the title and other bytes on disk nothing is saved, "On disk" shows the file\'s title, and "Take the file" puts it in as an edit that Ctrl/Cmd+Z takes back', async () => {
+  it('[SR-106/AK-ydc8] with input in the title and other bytes on disk nothing is saved, "On disk" shows the file\'s title, and "Take the file" puts it in as an edit that Ctrl/Cmd+Z takes back', async () => {
     const { file, reload, updates, controls, asked, data } = await mountView();
     await enterTitle();
     await typeAt(titleView(), " speed");
@@ -563,7 +563,7 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(echoed.at(-1)).toBe("No element reference at the cursor");
   });
 
-  it("[SR-106/AK3] a deleted file leaves the typed title in its editor, read-only, and Edit title says why; nothing is written", async () => {
+  it("[SR-106/AK-v420] a deleted file leaves the typed title in its editor, read-only, and Edit title says why; nothing is written", async () => {
     const { updates, file, reload, echoed, controls } = await mountView();
     await enterTitle();
     await typeAt(titleView(), "!");

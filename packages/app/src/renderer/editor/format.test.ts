@@ -71,7 +71,7 @@ afterEach(() => {
 });
 
 describe("formatting the selection", () => {
-  it("[SR-186/AK1] puts the marked text between **, * or ` and keeps the selection on it", () => {
+  it("[SR-186/AK-vzm9] puts the marked text between **, * or ` and keeps the selection on it", () => {
     expect(formatted("a ‹word› b", "bold")).toBe("a **‹word›** b");
     expect(formatted("a ‹word› b", "italic")).toBe("a *‹word›* b");
     expect(formatted("a ‹word› b", "code")).toBe("a `‹word›` b");
@@ -87,7 +87,7 @@ describe("formatting the selection", () => {
     expect(formatted("‹a› and ‹b›", "italic")).toBe("*‹a›* and *‹b›*");
   });
 
-  it("[SR-186/AK2] Ctrl/Cmd+B and Ctrl/Cmd+I in the editor do what Bold and Italic do", () => {
+  it("[SR-186/AK-ykwj] Ctrl/Cmd+B and Ctrl/Cmd+I in the editor do what Bold and Italic do", () => {
     const view = viewOf("a ‹word› b");
     const key = (key: string): void => {
       view.contentDOM.dispatchEvent(
@@ -106,7 +106,7 @@ describe("formatting the selection", () => {
     expect(shown(view.state)).toBe("a ***‹word›*** b");
   });
 
-  it("[SR-186/AK3] the same format again takes the marks off", () => {
+  it("[SR-186/AK-njft] the same format again takes the marks off", () => {
     expect(formatted("a **‹word›** b", "bold")).toBe("a ‹word› b");
     expect(formatted("a ‹**word**› b", "bold")).toBe("a ‹word› b");
     expect(formatted("a *‹word›* b", "italic")).toBe("a ‹word› b");
@@ -122,7 +122,7 @@ describe("formatting the selection", () => {
     expect(formatted("**a ‹b› c**", "bold")).toBe("a ‹b› c");
   });
 
-  it("[SR-186/AK4] without a selection, the marks go around the word at the caret, or an empty pair in white space", () => {
+  it("[SR-186/AK-ddb8] without a selection, the marks go around the word at the caret, or an empty pair in white space", () => {
     expect(formatted("a wo‸rd b", "bold")).toBe("a **wo‸rd** b");
     expect(formatted("a wo‸rd b", "code")).toBe("a `wo‸rd` b");
     expect(formatted("a ‸ b", "italic")).toBe("a *‸* b");
@@ -142,7 +142,7 @@ describe("formatting the selection", () => {
     expect(formatted("a‹ ›b", "bold")).toBe("a**‸**b");
   });
 
-  it("[SR-186/AK5] Link writes the selection as a Markdown link with the address, or the address as text at the caret", () => {
+  it("[SR-186/AK-gbzd] Link writes the selection as a Markdown link with the address, or the address as text at the caret", () => {
     const linked = (marked: string, address: string): string => {
       const state = stateOf(marked);
       return shown(state.update(linkChange(state, address)).state);
@@ -165,7 +165,7 @@ describe("formatting the selection", () => {
     expect(linked("‸", "a<b>[c]")).toBe("[a<b>\\[c\\]](a%3Cb%3E[c])‸");
   });
 
-  it("[SR-186/AK6] one undo takes the whole formatting back, also right after typing", () => {
+  it("[SR-186/AK-tbd1] one undo takes the whole formatting back, also right after typing", () => {
     const view = viewOf("a ‸");
     view.dispatch({
       changes: { from: 2, insert: "word" },

@@ -89,7 +89,7 @@ scenariosOf("workspace.check", [
     fixture: CROSS_REPOSITORY_TITLE,
     root: "system",
     input: {},
-    tag: "[SR-005/AK4]",
+    tag: "[SR-005/AK-gx7c]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -108,7 +108,7 @@ scenariosOf("workspace.check", [
     name: "an outdated reference of an obsolete source is no finding (SR-025 AK5)",
     fixture: OBSOLETE_SOURCE,
     input: {},
-    tag: "[SR-025/AK5]",
+    tag: "[SR-025/AK-n45t]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -123,7 +123,7 @@ scenariosOf("workspace.check", [
     name: "a record for a variant that replaces its requirement counts in no view and is a finding (SR-047 AK5)",
     fixture: VARIANT_EVIDENCE,
     input: {},
-    tag: "[SR-047/AK5]",
+    tag: "[SR-047/AK-y6zf]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -142,7 +142,7 @@ scenariosOf("workspace.check", [
     name: "a validation record of a use case, neither need nor requirement, is a finding (SR-038 AK5)",
     fixture: { fixture: "SR-038/validation", git: true },
     input: {},
-    tag: "[SR-038/AK5]",
+    tag: "[SR-038/AK-f98s]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -180,7 +180,7 @@ scenariosOf("workspace.check", [
     name: "a requirement without a parent is a hint with its ID",
     fixture: ORPHANED_CHAIN,
     input: {},
-    tag: "[SR-022/AK6]",
+    tag: "[SR-022/AK-bb3n]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -197,7 +197,7 @@ scenariosOf("workspace.check", [
     name: "relations above a maximum and below a minimum of the metamodel, with count and limit",
     fixture: { fixture: "SR-152/limits" },
     input: {},
-    tag: "[SR-152/AK1]",
+    tag: "[SR-152/AK-f9rt]",
     expect: "output",
     check: (results) => {
       const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
@@ -226,7 +226,7 @@ scenariosOf("workspace.check", [
     name: "a list property with more entries than its max-items, with count and limit",
     fixture: { fixture: "SR-171/max-items" },
     input: {},
-    tag: "[SR-171/AK1]",
+    tag: "[SR-171/AK-qqsg]",
     expect: "output",
     check: (results) => {
       const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
@@ -247,7 +247,7 @@ scenariosOf("workspace.check", [
   },
   {
     name: "duplicate identifiers within a type, also in another case, a warning at each element naming the other file (ThomasBirkmaier/ReqSeq-archive#305)",
-    tag: "[SR-088/AK4]",
+    tag: "[SR-088/AK-ng0m]",
     fixture: {
       ...IDENTIFIERS,
       files: {
@@ -275,7 +275,7 @@ scenariosOf("workspace.check", [
   },
   {
     name: "a status the type does not have is a warning with element and status, the file stays",
-    tag: "[SR-017/AK2]",
+    tag: "[SR-017/AK-n63m]",
     fixture: STATUSES,
     input: {},
     expect: "output",
@@ -291,7 +291,7 @@ scenariosOf("workspace.check", [
   },
   {
     name: "an element without status is a warning, except of a type with only invalid statuses, which gets one info",
-    tag: "[SR-017/AK3]",
+    tag: "[SR-017/AK-c9yr]",
     fixture: RETIRABLE,
     input: {},
     expect: "output",
@@ -319,7 +319,7 @@ scenariosOf("workspace.check", [
   },
   {
     name: "a reqseq: reference outside a Markdown link and outside code, with file and line (#633)",
-    tag: "[SR-021/AK3]",
+    tag: "[SR-021/AK-kh0r]",
     fixture: {
       fixture: "SR-004/one-repository",
       git: true,

@@ -11,7 +11,7 @@ scenariosOf("data.store", [
     fixture: EXPORT,
     root: "system",
     input: { folder: "out" },
-    tag: "[SR-062/AK1]",
+    tag: "[SR-062/AK-d6t4]",
     expect: "output",
     check: (results) => {
       const written = (results["core"]?.outcome as { output?: { files?: string[] } }).output?.files ?? [];

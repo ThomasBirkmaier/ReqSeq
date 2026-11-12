@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Checks the chain SR -> test -> verification record (CLAUDE.md, Traceability) before a merge: test names
-// [SR-xxx/AKn] and [SR-xxx/AK-<key>] (the criterion key, SR-029 AK10) point to an existing SR and AK, and the SRs given by --require or --stage have a test per
-// acceptance criterion with method Test and a record verification/SR-xxx.md otherwise. It reads no PR text:
-// which SR a PR completes is checked at the end of a milestone and in
-// ReqSeq's own verification status (D-072).
+// [SR-xxx/AK-<key>] (the criterion key from the element file, SR-029 AK10) point to an existing SR and to the one
+// acceptance criterion that carries the key, a tag by number [SR-xxx/AKn] is an error (SR-029 AK13), and the SRs
+// given by --require or --stage have a test per acceptance criterion with method Test and a record
+// verification/SR-xxx.md otherwise. It reads no PR text: which SR a PR completes is checked at the end
+// of a milestone and in ReqSeq's own verification status (D-072).
 // Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1] [--report <file>]
 //
 // The spec is the ReqSeq workspace in spec/ (D-064, ThomasBirkmaier/ReqSeq-archive#326). A system requirement is an element file of
@@ -151,8 +152,8 @@ export function stageMembers(spec, stage) {
     .sort();
 }
 
-// [SR-036/AK2] by number, [SR-036/AK-k7f3] by criterion key (SR-204 AK5 form).
-const TAG = /\[(SR-\d{3})\/AK(?:(\d+)|-([a-z][a-z0-9]{3,15}))\]/g;
+// [SR-036/AK-k7f3] by criterion key (SR-204 AK5 form); [SR-036/AK2] by number is read to be reported (SR-029 AK13).
+export const TAG = /\[(SR-\d{3})\/AK(?:(\d+)|-([a-z][a-z0-9]{3,15}))\]/g;
 // Cross-access scenarios carry their test name's tag in a `tag:` field (#689).
 const SCENARIO_FILE = /^packages\/cli\/test\/cross-access(\.test\.ts$|\/scenarios\/)/;
 // A call that names a test: `it(`, `test(`, or one of them through a call such as `.each(...)(`.
@@ -276,14 +277,36 @@ function closingBracket(code, open) {
   return code.length;
 }
 
+/** The offset of each line start of `text`, and the line (from 1) of an offset. */
+function lineIndex(text) {
+  const lineStarts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\n") {
+      lineStarts.push(i + 1);
+    }
+  }
+  return (offset) => {
+    let lo = 0;
+    let hi = lineStarts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (lineStarts[mid] <= offset) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo + 1;
+  };
+}
+
 /**
- * The tags [SR-xxx/AKn] that name an active test in a test file: those in the name (the first
- * argument) of an `it(`/`test(` call, plain or through `.each(...)`, `.skipIf(...)` or `.runIf(...)`,
- * outside a skipped `describe`; in a cross-access scenario file also those in a `tag:` field. Tags in
- * comments, in other strings and in `.skip`, `.todo`, `.fails` or `.only` tests do not count (#689).
- * Returns [{ id, ak, line }]: `ak` is the number, or `-` and the criterion key of a key tag.
+ * The string literals of a test file (`scanSource`) that are the name of an active test: the name
+ * (the first argument) of an `it(`/`test(` call, plain or through `.each(...)`, `.skipIf(...)` or
+ * `.runIf(...)`, outside a skipped `describe`; in a cross-access scenario file also a `tag:` field.
+ * Strings in `.skip`, `.todo`, `.fails` or `.only` tests and other strings are not (#689).
  */
-export function activeTags(text, file = "") {
+export function testNameStrings(text, file = "") {
   const { code, strings } = scanSource(text);
   const skipped = [...code.matchAll(SKIPPED_BLOCK)].map((m) => {
     const open = m.index + m[0].length - 1;
@@ -316,40 +339,28 @@ export function activeTags(text, file = "") {
     const open = openingBracket(code, callee.i);
     return open >= 0 && CALLED_TEST.test(upTo(open).tail);
   };
-  const lineStarts = [0];
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === "\n") {
-      lineStarts.push(i + 1);
-    }
-  }
-  const lineOf = (offset) => {
-    let lo = 0;
-    let hi = lineStarts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (lineStarts[mid] <= offset) {
-        lo = mid;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return lo + 1;
-  };
-  const tags = [];
-  for (const s of strings) {
-    if (!named(s) || skipped.some(([from, to]) => s.start > from && s.start < to)) {
-      continue;
-    }
-    for (const m of s.value.matchAll(TAG)) {
-      tags.push({ id: m[1], ak: m[2] ?? `-${m[3]}`, line: lineOf(s.start + m.index) });
-    }
-  }
-  return tags;
+  return strings.filter((s) => named(s) && !skipped.some(([from, to]) => s.start > from && s.start < to));
 }
 
 /**
- * Test references of active tests below root (activeTags): "SR-036/2" -> [file:line], and a key tag
- * as "SR-036/-k7f3" (`resolveKeyTags` turns it into the number).
+ * The tags that name an active test in a test file (`testNameStrings`); tags in comments, in other
+ * strings and in skipped tests do not count (#689). Returns [{ id, ak, line }]: `ak` is `-` and the
+ * criterion key of a key tag, or the number of a number tag.
+ */
+export function activeTags(text, file = "") {
+  const lineOf = lineIndex(text);
+  return testNameStrings(text, file).flatMap((s) =>
+    [...s.value.matchAll(TAG)].map((m) => ({
+      id: m[1],
+      ak: m[2] ?? `-${m[3]}`,
+      line: lineOf(s.start + m.index),
+    })),
+  );
+}
+
+/**
+ * Test references of active tests below root (activeTags): a key tag as "SR-036/-k7f3" -> [file:line]
+ * (`resolveTags` turns it into the number), a number tag as "SR-036/2".
  */
 export function testReferences(root) {
   const refs = new Map();
@@ -375,21 +386,31 @@ export function testReferences(root) {
 }
 
 /** The criterion key of an item of `acceptance-criteria` (`{ key, text }`, SR-204), else undefined. */
-const keyOf = (item) =>
+export const keyOf = (item) =>
   item !== null && typeof item === "object" && typeof item.key === "string" ? item.key : undefined;
 
 /**
  * `testRefs` with each key tag of a known SR counted for the number of the one criterion of spec/ that
- * carries the key; an error for a key no criterion carries, or several do (SR-204 AK10).
+ * carries the key; an error for a key no criterion carries, or several do (SR-204 AK10), and for a
+ * tag by number, which names the key to write where one criterion carries it (SR-029 AK13).
  */
-export function resolveKeyTags(spec, testRefs, errors) {
+export function resolveTags(spec, testRefs, errors) {
   const resolved = new Map();
   const add = (k, where) => resolved.set(k, [...(resolved.get(k) ?? []), ...where]);
   for (const [k, where] of testRefs) {
     const [id, ak] = k.split("/");
     const sr = spec.srs.get(id);
-    if (!ak.startsWith("-") || sr === undefined) {
+    if (sr === undefined) {
       add(k, where);
+      continue;
+    }
+    if (!ak.startsWith("-")) {
+      const key = keyOf(sr.criteria[Number(ak) - 1]);
+      const unique = key !== undefined && sr.criteria.filter((item) => keyOf(item) === key).length === 1;
+      errors.push(
+        `${where[0]}: [${id}/AK${ak}] names an acceptance criterion by its number; name it by its criterion key` +
+          (unique ? `: [${id}/AK-${key}]` : ` from the element file ${sr.file} in spec/`),
+      );
       continue;
     }
     const key = ak.slice(1);
@@ -407,12 +428,10 @@ export function resolveKeyTags(spec, testRefs, errors) {
 
 function checkTestRefs(spec, testRefs, errors, warnings) {
   for (const [k, where] of testRefs) {
-    const [id, ak] = k.split("/");
+    const [id] = k.split("/");
     const sr = spec.srs.get(id);
     if (!sr) {
       errors.push(`${where[0]}: test refers to unknown ${id}`);
-    } else if (Number(ak) < 1 || Number(ak) > sr.criteria.length) {
-      errors.push(`${where[0]}: ${id} has no acceptance criterion AK${ak}`);
     } else if (sr.invalid) {
       warnings.push(`${where[0]}: ${id} is ${sr.status}`);
     }
@@ -428,12 +447,13 @@ function checkRequired(root, spec, required, testRefs, errors) {
       continue;
     }
     if (sr.method === "test") {
-      sr.criteria.forEach((_, i) => {
+      sr.criteria.forEach((item, i) => {
         const where = testRefs.get(`${id}/${i + 1}`);
+        const ak = `AK${i + 1}${keyOf(item) === undefined ? "" : ` (${keyOf(item)})`}`;
         if (!where) {
-          errors.push(`${id} AK${i + 1} has no test`);
+          errors.push(`${id} ${ak} has no test`);
         }
-        rows.push(`| ${id} | AK${i + 1} | test | ${where ? where.join("<br>") : "missing"} |`);
+        rows.push(`| ${id} | ${ak} | test | ${where ? where.join("<br>") : "missing"} |`);
       });
       continue;
     }
@@ -466,7 +486,7 @@ export function traceCheck(root, args) {
   for (const id of spec.duplicates) {
     errors.push(`${id} is the spec ID of more than one system requirement`);
   }
-  const testRefs = resolveKeyTags(spec, testReferences(root), errors);
+  const testRefs = resolveTags(spec, testReferences(root), errors);
   checkTestRefs(spec, testRefs, errors, warnings);
 
   let required = (opt("--require") ?? "").split(",").filter(Boolean);

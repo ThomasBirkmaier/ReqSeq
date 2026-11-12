@@ -96,7 +96,7 @@ const importedTexts = async (
 };
 
 describe("acceptance criteria of a file of ReqSeq another tool edited (SR-204)", () => {
-  it("[SR-204/AK12] keeps the criterion keys of a requirement exported and imported again", async () => {
+  it("[SR-204/AK-s9d6] keeps the criterion keys of a requirement exported and imported again", async () => {
     const { fixture, workspace } = await open("SR-052/empty", { "in/1.reqif": await exported() });
     const first = (await invoke(
       "reqif.import",
@@ -109,7 +109,7 @@ describe("acceptance criteria of a file of ReqSeq another tool edited (SR-204)",
     ]);
   });
 
-  it("[SR-204/AK4] a repeated import of a file of ReqSeq another tool edited keeps the keys of the unchanged criteria", async () => {
+  it("[SR-204/AK-ftt1] a repeated import of a file of ReqSeq another tool edited keeps the keys of the unchanged criteria", async () => {
     const text = await exported();
     const edited = text.replace(
       `${PEAK}</xhtml:li>`,

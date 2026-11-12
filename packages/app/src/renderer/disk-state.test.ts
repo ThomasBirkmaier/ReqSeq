@@ -26,7 +26,7 @@ const state = (changes: Partial<DiskState>): DiskState => ({ ...DISK_START, ...c
 const shown: ShownFile = { element: { shortId: "SR-036" } as DataExportElement, sha: "one" };
 
 describe("a change on disk under the input (SR-106 AK2)", () => {
-  it("[SR-106/AK2] a conflict stops saving and is said once when it begins, not again while it lasts", () => {
+  it("[SR-106/AK-ydc8] a conflict stops saving and is said once when it begins, not again while it lasts", () => {
     const first = decided(state({ basis: "one" }), conflictOf(field("Text", "mine", "theirs")), "two");
     expect(first.begins).toBe(true);
     expect(first.disk.basis).toBe("one");
@@ -37,14 +37,14 @@ describe("a change on disk under the input (SR-106 AK2)", () => {
     expect(saveNote(again.disk, false, "SR-036")).toBe(RESOLVE_FIRST);
   });
 
-  it("[SR-106/AK2] input that the file now holds ends the conflict on the bytes read", () => {
+  it("[SR-106/AK-ydc8] input that the file now holds ends the conflict on the bytes read", () => {
     const during = state({ basis: "one", conflict: [field("Text", "mine", "theirs")] });
     const ended = decided(during, FOLLOW, "two");
     expect(ended).toEqual({ disk: state({ basis: "two" }), begins: false });
     expect(saveNote(ended.disk, false, "SR-036")).toBeUndefined();
   });
 
-  it("[SR-106/AK2] Take the file puts the file's value into every field in conflict, in order: an editor, or a choice or relation box as a value", () => {
+  it("[SR-106/AK-ydc8] Take the file puts the file's value into every field in conflict, in order: an editor, or a choice or relation box as a value", () => {
     const hasEditor = vi.fn((label: string) => label !== "status");
     const conflict = [
       field("Text", "mine", "theirs"),
@@ -85,7 +85,7 @@ describe("a change on disk under the input (SR-106 AK2)", () => {
 });
 
 describe("a file that is gone (SR-106 AK3)", () => {
-  it("[SR-106/AK3] the first read that finds the file gone waits GONE_CONFIRM_MS and asks again; a file still gone then is deleted", () => {
+  it("[SR-106/AK-v420] the first read that finds the file gone waits GONE_CONFIRM_MS and asks again; a file still gone then is deleted", () => {
     const first = goneRead(DISK_START, 5000);
     expect(first).toEqual({ kind: "wait", disk: state({ goneSince: 5000 }), wait: GONE_CONFIRM_MS });
     const early = goneRead(first.disk, 5500);
@@ -94,7 +94,7 @@ describe("a file that is gone (SR-106 AK3)", () => {
     expect(late).toEqual({ kind: "deleted", disk: state({ goneSince: 5000, deleted: true }) });
   });
 
-  it("[SR-106/AK3] a read that fails for another reason starts the count again", () => {
+  it("[SR-106/AK-v420] a read that fails for another reason starts the count again", () => {
     const waiting = state({ basis: "one", goneSince: 5000 });
     expect(readFailed(waiting, "ref.unknown")).toBe(waiting);
     expect(readFailed(waiting, "io.failed")).toEqual(state({ basis: "one" }));
@@ -104,7 +104,7 @@ describe("a file that is gone (SR-106 AK3)", () => {
     });
   });
 
-  it("[SR-106/AK3] a deleted file and a file that cannot be read now lock the element with their note; read-only comes first", () => {
+  it("[SR-106/AK-v420] a deleted file and a file that cannot be read now lock the element with their note; read-only comes first", () => {
     expect(lockedNote(DISK_START, false, "SR-036")).toBeUndefined();
     expect(lockedNote(state({ goneSince: 5 }), false, "SR-036")).toBe(unreadable("SR-036"));
     expect(lockedNote(state({ deleted: true, goneSince: 5 }), false, "SR-036")).toBe(deletedOnDisk("SR-036"));
@@ -114,7 +114,7 @@ describe("a file that is gone (SR-106 AK3)", () => {
     expect(saveNote(all, false, "SR-036")).toBe(deletedOnDisk("SR-036"));
   });
 
-  it("[SR-106/AK3] a buffer shown again with a draft after its file was deleted shows the draft's element, then follows the gone rule", () => {
+  it("[SR-106/AK-v420] a buffer shown again with a draft after its file was deleted shows the draft's element, then follows the gone rule", () => {
     expect(showsKept(false, "ref.unknown", shown)).toBe(true);
     // Once the kept element is applied, the buffer has loaded: the failure is the gone rule.
     expect(failure(true, "ref.unknown", false)).toBe("gone");
@@ -143,12 +143,12 @@ describe("a file that is gone (SR-106 AK3)", () => {
 });
 
 describe("leaving the buffer", () => {
-  it("[SR-105/AK1] leaving the buffer saves its input", () => {
+  it("[SR-105/AK-p4gn] leaving the buffer saves its input", () => {
     expect(leaveSaves(DISK_START)).toBe(true);
     expect(leaveSaves(state({ basis: "one" }))).toBe(true);
   });
 
-  it("[SR-106/AK2] [SR-106/AK3] leaving the buffer saves nothing over a change on disk, a deleted file or a file that cannot be read now", () => {
+  it("[SR-106/AK-ydc8] [SR-106/AK-v420] leaving the buffer saves nothing over a change on disk, a deleted file or a file that cannot be read now", () => {
     expect(leaveSaves(state({ conflict: [field("Text", "a", "b")] }))).toBe(false);
     expect(leaveSaves(state({ deleted: true }))).toBe(false);
     expect(leaveSaves(state({ goneSince: 5 }))).toBe(false);

@@ -252,7 +252,7 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
     return { seen: `${started.seen}${sandbox}`, stderr: started.stderr };
   };
 
-  it(`[SR-076/AK1] the app of the ${system} delivery starts after unpacking`, async (ctx) => {
+  it(`[SR-076/AK-sngx] the app of the ${system} delivery starts after unpacking`, async (ctx) => {
     if (reason !== undefined) {
       ctx.skip(reason);
     }
@@ -260,7 +260,7 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
     await ctx.annotate((await installAndStart()).seen);
   }, 120_000);
 
-  it(`[SR-078/AK2] the ${system} delivery installs without network and its app starts`, async (ctx) => {
+  it(`[SR-078/AK-n50j] the ${system} delivery installs without network and its app starts`, async (ctx) => {
     if (reason !== undefined) {
       ctx.skip(reason);
     }

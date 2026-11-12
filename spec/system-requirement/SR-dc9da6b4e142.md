@@ -7,8 +7,10 @@ spec-id: SR-176
 rationale: "In der Bereinigung der offenen Issues aus #678 als Wunsch ins Paket Später übernommen. Befund aus dem Pilot: ob ein öffentliches Repository Titel oder Text eines vertraulichen enthält, ließ sich nur mit einem eigenen Skript prüfen."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben zwei Repositories, das zweite in der Arbeitsbereichs-Datei als nur über IDs referenziert gekennzeichnet, und der Titel eines Elements des zweiten steht in einer Datei des ersten, wenn der Arbeitsbereich geprüft wird, dann meldet das Tool eine Warnung mit Datei und Zeile.
-  - Gegeben eine Textpassage aus einem Element des zweiten Repositories steht in einer Datei des ersten, die kein Element ist (zum Beispiel ein Nachweis-Datensatz oder eine README), wenn geprüft wird, dann meldet das Tool sie ebenso.
+  - key: vj14
+    text: Gegeben zwei Repositories, das zweite in der Arbeitsbereichs-Datei als nur über IDs referenziert gekennzeichnet, und der Titel eines Elements des zweiten steht in einer Datei des ersten, wenn der Arbeitsbereich geprüft wird, dann meldet das Tool eine Warnung mit Datei und Zeile.
+  - key: j47v
+    text: Gegeben eine Textpassage aus einem Element des zweiten Repositories steht in einer Datei des ersten, die kein Element ist (zum Beispiel ein Nachweis-Datensatz oder eine README), wenn geprüft wird, dann meldet das Tool sie ebenso.
 packages:
   - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:39b8c7c89788abe8, title: Ablage und Repositories }
 verification-method: test

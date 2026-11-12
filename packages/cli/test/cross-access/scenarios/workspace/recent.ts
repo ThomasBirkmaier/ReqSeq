@@ -8,7 +8,7 @@ import { scenariosOf } from "../../scenario.js";
 scenariosOf("workspace.recent", [
   {
     name: "the recent workspaces, the last opened first, one gone and one without a workspace file",
-    tag: "[SR-131/AK1]",
+    tag: "[SR-131/AK-y2k4]",
     input: {},
     expect: "output",
     prepare: async ({ top, root }) => {

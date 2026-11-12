@@ -54,7 +54,7 @@ describe("find in the element", () => {
     expect(hitsOf("İx ix", "ix")).toEqual([{ from: 3, to: 5 }]);
   });
 
-  it("[SR-189/AK1] marks every hit, Enter goes to the next, Shift+Enter to the one before, Escape leaves the caret there", () => {
+  it("[SR-189/AK-ctc8] marks every hit, Enter goes to the next, Shift+Enter to the one before, Escape leaves the caret there", () => {
     const view = viewOf("one two one two one");
     view.dispatch({ selection: { anchor: 5 } });
     expect(searchFor(view, "one", 5)).toBe(3);
@@ -97,7 +97,7 @@ describe("find in the element", () => {
     expect(searchStatus(view.state)).toBe("no match");
   });
 
-  it("[SR-189/AK2] Replace replaces the current hit and goes to the next one", () => {
+  it("[SR-189/AK-jm2n] Replace replaces the current hit and goes to the next one", () => {
     const view = viewOf("cat dog cat dog cat");
     searchFor(view, "cat", 1);
     expect(replaceHit(view, "cats")).toBe(true);
@@ -115,7 +115,7 @@ describe("find in the element", () => {
     expect(replaceHit(done, "b")).toBe(false);
   });
 
-  it("[SR-189/AK3] Replace all replaces every hit and says how many", () => {
+  it("[SR-189/AK-byc1] Replace all replaces every hit and says how many", () => {
     const view = viewOf("Ab ab AB");
     expect(replaceAll(view, "ab", "x")).toBe(3);
     expect(view.state.doc.toString()).toBe("x x x");
@@ -123,7 +123,7 @@ describe("find in the element", () => {
     expect(replaceAll(view, "q", "x")).toBe(0);
   });
 
-  it("[SR-189/AK4] one undo takes Replace all back, and one step each Replace", () => {
+  it("[SR-189/AK-mt6q] one undo takes Replace all back, and one step each Replace", () => {
     const view = viewOf("a a a");
     view.dispatch({ changes: { from: 5, insert: " a" }, userEvent: "input.type" });
     replaceAll(view, "a", "bb");

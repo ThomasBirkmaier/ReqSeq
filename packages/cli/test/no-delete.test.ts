@@ -90,7 +90,7 @@ const commandsOfHelp = (help: string): string[] =>
   [...(help.split("Commands:\n")[1] ?? "").matchAll(/^ {2}([a-z][a-z-]*)\b/gm)].map((m) => m[1] ?? "");
 
 describe("the command line offers no delete (SR-099)", () => {
-  it("[SR-099/AK1] offers exactly the catalog groups and actions, none of them a delete", async () => {
+  it("[SR-099/AK-nbg9] offers exactly the catalog groups and actions, none of them a delete", async () => {
     const top = await cli(["--help"]);
     expect(top.code).toBe(EXIT.ok);
     const groups = [...new Set(catalogNames.map((name) => name.split(".")[0] ?? ""))];
@@ -110,7 +110,7 @@ describe("the command line offers no delete (SR-099)", () => {
     }
   });
 
-  it("[SR-099/AK1] refuses `element delete` as a usage error and keeps the element file", async () => {
+  it("[SR-099/AK-nbg9] refuses `element delete` as a usage error and keeps the element file", async () => {
     for (const action of ["delete", "remove", "rm"]) {
       const result = await cli(["element", action, REF, "--workspace", fixture.root]);
       expect([action, result.code, result.stdout]).toEqual([action, EXIT.usage, ""]);
@@ -149,7 +149,7 @@ describe("the local API offers no delete (SR-099)", () => {
       req.end(body);
     });
 
-  it("[SR-099/AK1] lists only catalog commands and refuses DELETE and unknown delete commands", async () => {
+  it("[SR-099/AK-nbg9] lists only catalog commands and refuses DELETE and unknown delete commands", async () => {
     const workspace = new Workspace(fixture.root);
     const server = await startApiServer({ workspace, runtime, cacheFolder: cache });
     try {
@@ -180,7 +180,7 @@ describe("the local API offers no delete (SR-099)", () => {
 });
 
 describe("the MCP server offers no delete (SR-099)", () => {
-  it("[SR-099/AK1] offers one tool per implemented catalog command, none that deletes an element, and refuses a delete tool", async () => {
+  it("[SR-099/AK-nbg9] offers one tool per implemented catalog command, none that deletes an element, and refuses a delete tool", async () => {
     const workspace = new Workspace(fixture.root);
     const toServer = new PassThrough();
     const toClient = new PassThrough();
@@ -250,7 +250,7 @@ describe("the app offers no delete (SR-099)", () => {
     return { bridge, close: () => host.close() };
   };
 
-  it("[SR-099/AK1] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
+  it("[SR-099/AK-nbg9] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
     const app = connect(new Workspace(fixture.root));
     try {
       // Besides the catalog: the clipboard (SR-128), the paste into the focused field (SR-195), the recent

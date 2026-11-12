@@ -29,21 +29,21 @@ const MX = "5e125a7d-2b4f-4c61-9d08-";
 
 scenariosOf("trace.matrix", [
   {
-    tag: "[SR-125/AK6]",
+    tag: "[SR-125/AK-w9wp]",
     name: "a package gives the same rows, columns and cells",
     fixture: MATRIX,
     input: { selection: { package: "PKG-000001" } },
     expect: "output",
   },
   {
-    tag: "[SR-125/AK6]",
+    tag: "[SR-125/AK-w9wp]",
     name: "a saved filter with its own sort",
     fixture: MATRIX,
     input: { selection: { filter: "Stage SRs" } },
     expect: "output",
   },
   {
-    tag: "[SR-125/AK6]",
+    tag: "[SR-125/AK-w9wp]",
     name: "a list of IDs, the sort of the app's list",
     fixture: MATRIX,
     input: {
@@ -56,7 +56,7 @@ scenariosOf("trace.matrix", [
     expect: "output",
   },
   {
-    tag: "[SR-125/AK6]",
+    tag: "[SR-125/AK-w9wp]",
     name: "the derivation tree, one page, with the properties named",
     fixture: MATRIX,
     input: {
@@ -69,14 +69,14 @@ scenariosOf("trace.matrix", [
     expect: "output",
   },
   {
-    tag: "[SR-153/AK3]",
+    tag: "[SR-153/AK-qy0p]",
     name: "one page of gaps, with the head of a column with a minimum and of the columns without",
     fixture: MATRIX,
     input: { selection: { package: "PKG-000001" }, limit: 3, offset: 2 },
     expect: "output",
   },
   {
-    tag: "[SR-153/AK3]",
+    tag: "[SR-153/AK-qy0p]",
     name: "rows of a type without a minimum and the column of a minimum no row has",
     fixture: MATRIX,
     input: { selection: { ids: [`${MX}0b0000000003`, `${MX}0a0000000001`] } },
@@ -101,7 +101,7 @@ scenariosOf("trace.matrix", [
     expect: "output",
   },
   {
-    tag: "[SR-126/AK1]",
+    tag: "[SR-126/AK-mdgj]",
     name: "of several equally new runs of a test case the cell shows the failed one (SR-126 AK1)",
     fixture: TIED,
     input: { selection: { ids: ["5c0e1d2a-0126-4126-8126-000000126b01"] } },

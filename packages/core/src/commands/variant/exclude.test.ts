@@ -55,7 +55,7 @@ const read = (fixture: FixtureWorkspace, file: string): Promise<string> =>
   fs.readFile(path.join(fixture.root, file), "utf8");
 
 describe("variant.exclude (SR-042)", () => {
-  it("[SR-042/AK1] variant.exclude removes K3 from the view of A only", async () => {
+  it("[SR-042/AK-qj7v] variant.exclude removes K3 from the view of A only", async () => {
     const { workspace } = await open();
     const out = await exclude(workspace, { variant: A, refs: ["SR-0000a3"] });
     expect(out).toEqual({ files: [A_FILE], problems: [] });
@@ -64,7 +64,7 @@ describe("variant.exclude (SR-042)", () => {
     expect(await requirementsIn(workspace, "core")).toEqual(["a1", "a2", "a3", "a4"]);
   });
 
-  it("[SR-042/AK2] the exclusion is written into the variant file and K3's file is unchanged", async () => {
+  it("[SR-042/AK-jz12] the exclusion is written into the variant file and K3's file is unchanged", async () => {
     const { fixture, workspace } = await open();
     const core = await read(fixture, "requirements/SR-0000000000a3.md");
     await exclude(workspace, { variant: A, refs: ["SR-0000a3", "SR-0000a4"] });
@@ -84,7 +84,7 @@ describe("variant.exclude (SR-042)", () => {
     });
   });
 
-  it("[SR-042/AK3] coverage and degree in A do not count the excluded K2 and K3", async () => {
+  it("[SR-042/AK-mw1w] coverage and degree in A do not count the excluded K2 and K3", async () => {
     const { workspace } = await open();
     await exclude(workspace, { variant: A, refs: ["SR-0000a3"] });
     const selection = { view: A };
@@ -106,7 +106,7 @@ describe("variant.exclude (SR-042)", () => {
     expect(degree.degree.total).toBe(3);
   });
 
-  it("[SR-042/AK4] variant.exclude refuses a requirement with validity: only core requirements", async () => {
+  it("[SR-042/AK-xnqp] variant.exclude refuses a requirement with validity: only core requirements", async () => {
     const { fixture, workspace } = await open();
     const before = await read(fixture, A_FILE);
     const error = await refused(workspace, { variant: A, refs: ["SR-0000a3", "SR-0000b2", "N-0000d1"] });
@@ -120,7 +120,7 @@ describe("variant.exclude (SR-042)", () => {
     expect(await read(fixture, A_FILE)).toBe(before);
   });
 
-  it("[SR-042/AK6] variant.exclude with undo removes the entry and K2 is back in A", async () => {
+  it("[SR-042/AK-sq52] variant.exclude with undo removes the entry and K2 is back in A", async () => {
     const { fixture, workspace } = await open();
     const out = await exclude(workspace, { variant: A, refs: ["SR-0000a2", "SR-0000a3"], undo: true });
     expect(out.files).toEqual([A_FILE]);
@@ -135,7 +135,7 @@ describe("variant.exclude (SR-042)", () => {
     expect(await requirementsIn(workspace, A)).toEqual(["a2", "a3", "a4", "b1", "b2"]);
   });
 
-  it("[SR-042/AK7] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
+  it("[SR-042/AK-dh3f] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
     const { workspace } = await open({
       [A_FILE]:
         `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n` +

@@ -171,6 +171,9 @@ problems:
   evidence.unknown-criterion:
     cause: An evidence record names an acceptance criterion by a number that the version of the requirement it names does not have. That number counts for no criterion, and for a requirement without acceptance criteria the record counts for the whole requirement; the record stays readable.
     remedy: Correct the number in the record or the test name, or name the version the criterion belongs to.
+  evidence.invalid-criterion-name:
+    cause: The name of a JUnit test case names an acceptance criterion by its number (a number after `/AK` in brackets, or a name pattern whose `{ak}` reads a number), by a criterion key that no acceptance criterion or more than one carries in the current version of the requirement, or with an `AK` that is neither. `evidence.enrichJunit` leaves the test case unchanged, since a number points to another criterion once one is inserted.
+    remedy: Name the criterion by its criterion key from the element file, `[SR-036/AK-k7f3]` or `sr_348143_ak_k7f3` with a name pattern; the message gives the key where the number names a criterion that has one. Then run the test and enrich its file again.
   baseline.invalid:
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
