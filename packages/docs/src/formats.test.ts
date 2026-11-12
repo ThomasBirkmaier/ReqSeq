@@ -65,6 +65,53 @@ describe("formats", () => {
     expect(page).toContain("```json\nd.jsonl\n```");
   });
 
+  it("lists each object form of a definition with its fields, and names a form type once", () => {
+    const filter = schema("filter", {
+      $defs: {
+        condition: {
+          description: "Combinable condition.",
+          oneOf: [
+            {
+              type: "object",
+              required: ["not"],
+              properties: {
+                not: { $ref: "#/$defs/condition", description: "Condition that must not hold." },
+              },
+            },
+            {
+              type: "object",
+              required: ["type"],
+              properties: {
+                type: { type: "string", description: "Type key." },
+                subtypes: { type: "boolean" },
+              },
+            },
+            { type: "object", properties: { text: { type: "string", description: "A query." } } },
+            { $ref: "#/$defs/other" },
+          ],
+        },
+        other: { type: "object" },
+      },
+    });
+    const page = formatPage(filter, [], { schemas: [filter], base: String(filter["$id"]) }, 1);
+    expect(page).toContain("Type: `object` or `other`.");
+    expect(page).toContain(
+      "Its `object` forms with their fields; a type the type line links has its own heading:",
+    );
+    const single = schema("baseline", {
+      $defs: { ref: { anyOf: [{ type: "string" }, { properties: { id: {} } }] } },
+    });
+    expect(formatPage(single, [], { schemas: [single] }, 1)).toContain(
+      "Its `object` form with its fields; a type the type line links has its own heading:\n\n#### `ref`: `id`",
+    );
+    expect(page).toContain("#### `condition`: `not`\n\n| Field |");
+    expect(page).toContain("| `not` | `condition` | yes | Condition that must not hold. |");
+    expect(page).toContain("#### `condition`: `type`\n");
+    expect(page).toContain("| `subtypes` | `boolean` | no |");
+    expect(page).toContain("#### `condition`: `text`\n");
+    expect(page).not.toContain("#### `other`");
+  });
+
   it("gives every common definition an anchor and lists every format", () => {
     const common = schema("common", {
       $defs: { uuid: { type: "string", description: "An ID." }, isFlag: {} },

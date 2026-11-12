@@ -34,19 +34,33 @@
         {
           "type": "object",
           "required": ["all"],
-          "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/condition" } } },
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/condition" },
+              "description": "Conditions that must all hold; `[]` holds."
+            }
+          },
           "additionalProperties": false
         },
         {
           "type": "object",
           "required": ["any"],
-          "properties": { "any": { "type": "array", "items": { "$ref": "#/$defs/condition" } } },
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/condition" },
+              "description": "Conditions of which at least one must hold; `[]` does not."
+            }
+          },
           "additionalProperties": false
         },
         {
           "type": "object",
           "required": ["not"],
-          "properties": { "not": { "$ref": "#/$defs/condition" } },
+          "properties": {
+            "not": { "$ref": "#/$defs/condition", "description": "Condition that must not hold." }
+          },
           "additionalProperties": false
         },
         {
@@ -111,7 +125,10 @@
               "items": { "$ref": "common.schema.json#/$defs/verificationStatus" },
               "description": "Verification status in `variant`, else in the view of the selection, else in the core."
             },
-            "variant": { "$ref": "common.schema.json#/$defs/view" }
+            "variant": {
+              "$ref": "common.schema.json#/$defs/view",
+              "description": "View the verification status is computed in. Absent: the view of the selection, else the core."
+            }
           },
           "additionalProperties": false
         },

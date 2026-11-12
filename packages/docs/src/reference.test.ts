@@ -213,7 +213,7 @@ describe("reference", () => {
         ? {
             ...schema,
             properties: { ...(schema["properties"] as object), ...bare.properties },
-            $defs: { ...(schema["$defs"] as object), extra: bare },
+            $defs: { ...(schema["$defs"] as object), extra: bare, form: { oneOf: [bare] } },
           }
         : schemaName(schema) === "common"
           ? { ...schema, $defs: { ...(schema["$defs"] as object), extra: bare } }
@@ -223,7 +223,7 @@ describe("reference", () => {
       [
         "docs: reference pages",
         "reference/common-types.md: fields without a description: extra.bare",
-        "reference/formats/filter.md: fields without a description: fields.bare, extra.bare",
+        "reference/formats/filter.md: fields without a description: fields.bare, extra.bare, form.bare",
         "reference/commands/element-get.md: fields without a description: input.bare, output.bare",
       ].join("\n"),
     );
