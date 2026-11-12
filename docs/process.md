@@ -25,7 +25,7 @@ Every spec change and every fix of a bug against an AK starts with a check of wh
 
 | Path | Check | Then |
 | --- | --- | --- |
-| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | Risky (CLAUDE.md, How we work): concept with edge cases, review by `fable-reviewer` (spec and issues), decision card. Otherwise questions, then the spec PR, which names each touchpoint. |
+| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | Content change (CLAUDE.md, How we work): concept with edge cases, review by `fable-reviewer` (spec and issues), questions on that decision card, then the spec PR, which names the review and each touchpoint. Confirming relations, a status or a typo: the spec PR, which names each touchpoint. |
 | Bug against an AK | `trace related` parents and children, one `element search` per term of the AK (CLAUDE.md, Issues) | Fix it. A fix that needs an interpretation of the AK wording becomes a `question`. |
 | Bug without an SR | none | Fix it. |
 | Spec review, only when the product owner asks | `fable-reviewer` (prompt: `Case: spec review`, the packages, the result file) reads them and writes a finding list | An Opus agent at effort high checks each finding against code and tests; decision cards; one spec PR; implementation gaps become `bug` issues (#1298). |
