@@ -486,6 +486,17 @@ describe("the action of a shortcut", () => {
     expect(actionFor(context, () => false)).toBeUndefined();
     expect(actionFor(setup([list], {}, false).context, (shortcut) => shortcut.key === "p")).toBeUndefined();
   });
+
+  it("in an open prompt is only one that opens a prompt of its own (#1577)", () => {
+    const { context } = setup([list]);
+    expect(actionFor(context, (shortcut) => shortcut.key === "p", true)?.id).toBe("go-to");
+    expect(actionFor(context, (shortcut) => shortcut.key === "f", true)?.id).toBe("search");
+    const prompting = ACTIONS.filter((action) => action.shortcut !== undefined && action.inPrompt === true);
+    expect(prompting.map((action) => action.id).sort()).toEqual(["find-in-element", "go-to", "search"]);
+    for (const action of ACTIONS.filter((entry) => entry.shortcut !== undefined && entry.inPrompt !== true)) {
+      expect(actionFor(context, (shortcut) => shortcut === action.shortcut, true)).toBeUndefined();
+    }
+  });
 });
 
 /** An element as element.resolve gives it, for an answer without criterion. */
