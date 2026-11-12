@@ -60,7 +60,7 @@ const BASE = output({
 });
 
 describe("metamodelGraph", () => {
-  it("[SR-130/AK2] makes each type a node with its properties, the inherited ones marked, a name or the key", () => {
+  it("[SR-130/AK-s795] makes each type a node with its properties, the inherited ones marked, a name or the key", () => {
     const [item, req, sub, orphan] = metamodelGraph(BASE).nodes;
     expect(item).toMatchObject({ key: "type:item", any: false, name: "ITEM", prefix: "IT", abstract: true });
     expect(req?.properties).toEqual([
@@ -73,7 +73,7 @@ describe("metamodelGraph", () => {
     expect(orphan?.properties).toEqual([{ key: "title", name: "Title", inherited: false }]);
   });
 
-  it("[SR-130/AK2] draws inheritance, kinds and own relation properties as one edge per pair, without Any type when no side is open", () => {
+  it("[SR-130/AK-s795] draws inheritance, kinds and own relation properties as one edge per pair, without Any type when no side is open", () => {
     expect(edges(BASE)).toEqual([
       "type:req > type:item: extends | Derives | Package",
       "type:sub > type:req: extends",
@@ -84,7 +84,7 @@ describe("metamodelGraph", () => {
     expect(metamodelGraph(closed).nodes.map((node) => node.key)).not.toContain(ANY_KEY);
   });
 
-  it("[SR-130/AK3] adds Any type for a side a kind leaves open, a loop when both are", () => {
+  it("[SR-130/AK-j585] adds Any type for a side a kind leaves open, a loop when both are", () => {
     const open = output({
       types: [type("item", [])],
       properties: [],
