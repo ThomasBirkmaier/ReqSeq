@@ -382,7 +382,8 @@ const timedCli = (
       ].join("; ");
     const describe = (): string => `${name} after ${since()}: ${facts()}`;
     pending.add(describe);
-    const child = execFile(program, args, { env }, (error, stdout, stderr) => {
+    // The default buffer of 1 MiB cuts a large JSON output, such as the matrix of the own spec.
+    const child = execFile(program, args, { env, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
       clearTimeout(timer);
       pending.delete(describe);
       // After the bound the call has failed already: no second report of the killed process.
