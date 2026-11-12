@@ -20,7 +20,7 @@ acceptance-criteria:
   - key: tj6p
     text: Gegeben eine Perspektive, die einen gespeicherten Filter nennt, wenn der Filter neu gespeichert wurde, dann gilt beim nächsten Aufruf seine neue Bedingung; gibt es den Filter nicht oder ist seine Datei fehlerhaft, lehnt das Tool den Aufruf ab und nennt Perspektive und Filter.
   - key: zz87
-    text: Gegeben eine Perspektive mit einer Gruppierung nach einer Property, deren Werte sich nach SR-124 AK2 nicht mehr auswählen lassen, wenn sie in der App geöffnet wird, dann zeigt die App die Liste ohne Gruppen und meldet, dass sich danach nicht gruppieren lässt; die anderen Zugänge lehnen den Aufruf mit diesem Grund ab.
+    text: Gegeben eine Perspektive mit einer Gruppierung nach einer Property, deren Werte sich nach SR-124 AK2 nicht mehr auswählen lassen, wenn sie ohne eigene Gruppierung aufgerufen wird, dann liefert das Tool die Liste ohne Gruppen und meldet, dass sich danach nicht gruppieren lässt, in der App wie über die anderen Zugänge.
   - key: qp6d
     text: Gegeben eine fehlerhafte Perspektiven-Datei, wenn die Perspektiven aufgelistet werden, dann nennt das Tool Datei und Grund, listet die übrigen Perspektiven und überschreibt die Datei nie von selbst (SR-008).
 packages:
@@ -29,7 +29,7 @@ verification-method: test
 derives-from:
   - { id: 6adc50a5-7bcc-4472-8749-22e86aaf86bd, version: n2:f032ba6e52d789ed, title: Filter speichern }
 based-on:
-  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:93c9bf669dbb72fb, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:3bcd34b03d5f6b06, title: Aufbau der Dateien mit fester Länge des Dateinamens }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
 ---
 
