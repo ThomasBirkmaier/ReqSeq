@@ -1,32 +1,60 @@
-// Level 1 of the status model (#1394, epic #1389): the core's pure status functions against the reference model of
-// `@reqseq/testkit/status-model`, on generated elements. No test here names an [SR/AK] token: they are no evidence
-// of the tool (the model's rule table names the sources).
+// Level 1 of the status model (#1394, #1395, epic #1389): the core's pure status functions against the reference
+// model of `@reqseq/testkit/status-model`, on generated elements and workspaces. No test here names an [SR/AK] token:
+// they are no evidence of the tool (the model's rule table names the sources).
+//
+// The workspace test builds the inputs of `workspaceStatusOf` from the model and compares `verificationOf` per
+// requirement (and none for a need, W8), asking in a generated order. The adapter supplies, from the model: the child
+// rules (`childrenOf` by W1, `counts` by the invalid status), the source's `emergent`, `independent` and `criteriaOf`,
+// the scope (`includesIn` by W2 to W7, `removersOf`) and a version reader. So it checks what the core does with them:
+// own records per view (`holdsIn`, SR-173 pooling), the counted children (type, view, each once), indirect, missing
+// children, emergent, cycles, the shared neutral view of the variants, the entries per view (invalid variants), and
+// the walk of `prepare` (a second pass prepares each element alone).
 //
 // What level 1 does not check: the reader (records it refuses, Markdown and JUnit forms, criteria order as read),
-// the metamodel meanings, relation resolution and twins, views and variants (replacement, exclusion, SR-173),
-// version hashes and the Git walk behind older criteria (`older-criteria.ts`), and the index order of the store.
-// The level-2 tests of #1396 cover them through a workspace on disk.
+// the metamodel meanings, relation resolution and twins in the trace block (`childrenOf`), the real view rule index
+// (`viewRuleIndexOf`, `ruleScope`), files of one UUID with their own criteria and versions (R4: the generator gives
+// them one own part), version hashes and the Git walk behind older criteria (`older-criteria.ts`), and the index
+// order of the store. The level-2 tests of #1396 cover them through a workspace on disk.
 //
 // Runs: STATUS_MODEL_RUNS (default 1000) and STATUS_MODEL_SEED (default fixed); a failure names the seed.
 import {
+  CORE_VIEW,
   CURRENT,
   type ModelCriterion,
   type ModelCriterionRef,
   type ModelElement,
+  type ModelEntry,
   type ModelRecord,
+  type ModelVariant,
+  type ModelWorkspace,
+  type ModelWorkspaceElement,
+  appliesIn as modelAppliesIn,
   forAllElements,
+  forAllWorkspaces,
   instantOf,
+  isExcluded,
+  isReplaced,
   propertyParameters,
+  recordsInView,
+  resolveRef,
+  statusOfRecords,
   validationOf as modelValidationOf,
   verificationOf as modelVerificationOf,
+  workspaceStatusOf as modelWorkspaceStatusOf,
 } from "@reqseq/testkit/status-model";
 import { describe, expect, it } from "vitest";
-import type { CriterionRef, VersionForms } from "../model/index.js";
+import type { CriterionRef, ElementRecord, VersionForms } from "../model/index.js";
 import { compareCriterionRefs } from "../model/index.js";
 import type { View } from "../variants/index.js";
+import { evidenceIndex } from "./by-element.js";
+import type { ElementCriteria } from "./criteria.js";
 import { elementCriteria } from "./criteria.js";
+import type { ChildRules, ViewScope } from "./indirect.js";
+import { nodeKey } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
-import { criterionStatusesOf, ownVerificationOf, validationOf } from "./status.js";
+import type { RecordStatus, StatusSource, VerificationEntries } from "./status.js";
+import { criterionStatusesOf, ownVerificationOf, recordStatusOf, validationOf } from "./status.js";
+import { verificationOf, workspaceStatusOf } from "./verification.js";
 
 const ELEMENT = "6adc6c43-5d42-4c01-8c55-f332cc90a529";
 const CURRENT_FORMS: VersionForms = { n1: "n1:1111111111111111", n2: "n2:2222222222222222" };
@@ -122,6 +150,246 @@ describe("status model level 1: core against the reference model", () => {
         count === 0 ? [expected.status] : expected.criteria,
       );
       expect(validationOf(records, CURRENT_FORMS)).toEqual(modelValidationOf(element));
+    }, parameters);
+  });
+});
+
+/** The status a set of records gives as `recordStatusOf` names it. */
+function asRecordStatus(status: string): RecordStatus {
+  return status === "verified" || status === "validated" ? "passed" : (status as RecordStatus);
+}
+
+/** A file of the store for the adapter: type, repository, status and validity in the frontmatter. */
+function fileOf(
+  key: string,
+  id: string,
+  type: string,
+  repository: string,
+  data: Readonly<Record<string, unknown>>,
+): ElementRecord {
+  return {
+    id,
+    type,
+    repository,
+    file: `${key}.md`,
+    data: { id, type, ...data },
+    eol: "\n",
+    closingEol: "\n",
+    bom: false,
+    snapshot: { path: `${key}.md`, size: 0, mtimeMs: 0, sha256: "0".repeat(64) },
+  };
+}
+
+const VALIDITY = { key: "validity", many: true, label: "property Validity (validity)" };
+const INVALID = "obsolete";
+const READ_FORMS = { kind: "version" as const, forms: CURRENT_FORMS, images: [] };
+
+/**
+ * The core's inputs for a model workspace. Pure: the files, records and rules are functions of `ws` alone. The
+ * child rules resolve derivation items with the model's W1 and the scope applies the model's view rule, standing
+ * in for the trace block and the view rule index (level 2, #1396).
+ */
+function coreWorkspace(ws: ModelWorkspace) {
+  const variantFiles = new Map<ModelVariant, ElementRecord>(
+    ws.variants.map((variant) => [
+      variant,
+      fileOf(`variant-${variant.id}`, variant.id, "variant", variant.repository, {
+        status: variant.invalid ? INVALID : "draft",
+      }),
+    ]),
+  );
+  const files = new Map<ModelWorkspaceElement, ElementRecord>(
+    ws.elements.map((element) => [
+      element,
+      fileOf(element.key, element.id, element.type, element.repository, {
+        status: element.invalid ? INVALID : "draft",
+        ...(element.validity.length === 0
+          ? {}
+          : {
+              validity: element.validity.map((id) => ({
+                id,
+                repository: ws.variants.find((variant) => variant.id === id)?.repository,
+              })),
+            }),
+      }),
+    ]),
+  );
+  const modelOf = new Map([...files].map(([element, file]) => [file, element]));
+  // R4: one list of records per UUID, from the own part its files share.
+  const uuids = [...new Map(ws.elements.map((element) => [element.id, element.own])).entries()];
+  const records = uuids.flatMap(([id, own]) =>
+    own.records.map((record, position) => ({
+      ...recordOf(record, position),
+      element: id,
+      file: `evidence/${id}-${String(position).padStart(2, "0")}.md`,
+      ...(record.variant === undefined ? {} : { variant: record.variant }),
+    })),
+  );
+  const index = evidenceIndex(records);
+  const older = (id: string, version: string): readonly unknown[] | undefined => {
+    const name = Object.entries(OLDER).find(([, value]) => value === version)?.[0];
+    const own = uuids.find(([uuid]) => uuid === id)?.[1];
+    const known = own?.olderVersions.find((candidate) => candidate.id === name);
+    return known?.criteria === undefined ? undefined : itemsOf(known.criteria);
+  };
+  const criteria = new Map<string, ElementCriteria>(
+    uuids.map(([id, own]) => [id, elementCriteria(id, itemsOf(own.criteria), older)]),
+  );
+  const independent = new Set(ws.repositories.filter((r) => r.variantIndependent).map((r) => r.name));
+  const source: StatusSource = {
+    requirements: new Set(["requirement"]),
+    needs: new Set(["need"]),
+    invalid: new Set([INVALID]),
+    validity: VALIDITY,
+    recordsOf: (id) => index.byElement.get(id) ?? [],
+    emergent: (file) => modelOf.get(file)?.emergent === true,
+    independent: (file) => independent.has(file.repository),
+    criteriaOf: (file) => criteria.get(file.id) ?? elementCriteria(file.id, [], older),
+  };
+  const children: ChildRules = {
+    // Each derivation item once, so a child named twice comes twice; twins are named by no item (W1).
+    childrenOf: (file) =>
+      ws.elements.flatMap((child) =>
+        child.derivesFrom
+          .filter((ref) => resolveRef(ws, ref, child.repository) === modelOf.get(file))
+          .flatMap(() => [files.get(child)].filter((found) => found !== undefined)),
+      ),
+    counts: (file) => file.data["status"] !== INVALID,
+  };
+  const viewIdOf = (view: View): string => (view.kind === "core" ? CORE_VIEW : view.variant.id);
+  const scope: ViewScope = {
+    includesIn: (view) => (file) => {
+      const element = modelOf.get(file);
+      return element === undefined || modelAppliesIn(ws, element, viewIdOf(view));
+    },
+    removersOf: (file) => {
+      const element = modelOf.get(file);
+      return element === undefined
+        ? []
+        : [...variantFiles]
+            .filter(([variant]) => isExcluded(ws, element, variant) || isReplaced(ws, element, variant.id))
+            .map(([, variantFile]) => nodeKey(variantFile));
+    },
+  };
+  const status = workspaceStatusOf(
+    source,
+    [...variantFiles.values()],
+    children,
+    (wanted) => {
+      return Promise.resolve(new Map(wanted.map((file) => [file, READ_FORMS])));
+    },
+    scope,
+  );
+  const views: View[] = [
+    { kind: "core" },
+    ...[...variantFiles.values()].map((variant) => ({ kind: "variant" as const, variant })),
+  ];
+  return { files, source, status, views };
+}
+
+/** The model's entries as the core shows them: missing children by UUID, each once and sorted. */
+function expectedEntries(ws: ModelWorkspace, entries: readonly ModelEntry[]) {
+  const idOf = new Map(ws.elements.map((element) => [element.key, element.id]));
+  return entries.map(({ view, status, missingChildren, verified, total }) => ({
+    view,
+    status,
+    ...(missingChildren === undefined
+      ? {}
+      : { missingChildren: [...new Set(missingChildren.map((key) => idOf.get(key)))].sort() }),
+    ...(total === undefined ? {} : { criteria: { verified, total } }),
+  }));
+}
+
+/** The core's entries in the same shape; missing children sorted, after checking they hold no duplicate. */
+function actualEntries(entries: VerificationEntries | undefined) {
+  return (entries ?? []).map(({ view, status, missingChildren, criteria }) => {
+    if (missingChildren !== undefined) {
+      expect(new Set(missingChildren).size).toBe(missingChildren.length);
+    }
+    return {
+      view,
+      status,
+      ...(missingChildren === undefined ? {} : { missingChildren: [...missingChildren].sort() }),
+      ...(criteria === undefined ? {} : { criteria: { verified: criteria.verified, total: criteria.total } }),
+    };
+  });
+}
+
+describe("status model level 1: workspaces against the reference model", () => {
+  it("gives every requirement the model's entries in every view, whatever order the views are asked in", async () => {
+    await forAllWorkspaces(async (ws) => {
+      const { files, status, views } = coreWorkspace(ws);
+      const requirements = ws.elements.filter((element) => element.type === "requirement");
+      // The pairs of element and view in the generated order (sort keys of `ws.order`), so the memos of the
+      // evaluator fill in a different order each run.
+      const pairs = requirements
+        .flatMap((element) =>
+          views.map((view, v) => ({ element, view, at: ws.elements.indexOf(element) * 4 + v })),
+        )
+        .sort((a, b) => (ws.order[a.at] ?? 0) - (ws.order[b.at] ?? 0) || a.at - b.at);
+      const ordered = [...new Set(pairs.map(({ element }) => element))];
+      // As the commands that show elements do: their own versions too (`own`).
+      await status.prepare(
+        ordered.flatMap((element) => [files.get(element)].filter((file) => file !== undefined)),
+        { own: true },
+      );
+      for (const { element, view } of pairs) {
+        const file = files.get(element);
+        if (file !== undefined) {
+          status.evaluate(file, view);
+        }
+      }
+      const expected = modelWorkspaceStatusOf(ws);
+      const compare = (shown: typeof status, element: ModelWorkspaceElement, file: ElementRecord) => {
+        expect({ key: element.key, entries: actualEntries(verificationOf(shown, file)) }).toEqual({
+          key: element.key,
+          entries: expectedEntries(ws, expected.get(element.key) ?? []),
+        });
+      };
+      for (const element of ordered) {
+        const file = files.get(element);
+        expect(file).toBeDefined();
+        if (file !== undefined) {
+          compare(status, element, file);
+        }
+      }
+      // W8: a need has no verification entries at all.
+      for (const [element, file] of files) {
+        if (element.type === "need") {
+          expect(verificationOf(status, file)).toBeUndefined();
+        }
+      }
+      // The walk of `prepare`: a fresh status, each element prepared alone and compared at once, so the versions
+      // of its counted children come only from the walk below it (an element asked before may have read some).
+      const fresh = coreWorkspace(ws);
+      for (const element of ordered) {
+        const file = fresh.files.get(element);
+        if (file !== undefined) {
+          await fresh.status.prepare([file], { own: true });
+          compare(fresh.status, element, file);
+        }
+      }
+    }, parameters);
+  });
+
+  it("gives the record status of the model for each kind and view (recordStatusOf)", async () => {
+    await forAllWorkspaces((ws) => {
+      const { files, source, views } = coreWorkspace(ws);
+      for (const [element, file] of files) {
+        const records = source.recordsOf(file.id);
+        const independent = source.independent(file);
+        for (const view of views) {
+          const viewId = view.kind === "core" ? CORE_VIEW : view.variant.id;
+          expect(recordStatusOf(records, "verification", CURRENT_FORMS, view, independent)).toBe(
+            asRecordStatus(statusOfRecords(recordsInView(ws, element, viewId))),
+          );
+        }
+        // Validation records hold in the core only (SR-038 AK4: the reader refuses one with a variant).
+        expect(recordStatusOf(records, "validation", CURRENT_FORMS, CORE, independent)).toBe(
+          asRecordStatus(modelValidationOf(element.own).status),
+        );
+      }
+      return Promise.resolve();
     }, parameters);
   });
 });

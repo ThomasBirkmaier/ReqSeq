@@ -28,6 +28,8 @@ export interface ModelRecord {
   readonly reason?: string;
   /** Absent: the record names no criterion. */
   readonly criteria?: readonly ModelCriterionRef[];
+  /** The id of the variant the record is for; absent: the core (SR-047 AK2). Read by `workspace-model.ts` only. */
+  readonly variant?: string;
 }
 
 /** One requirement (or need) with its own records, in one view. */

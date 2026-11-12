@@ -1,6 +1,6 @@
 // The runner of the status model properties (#1394).
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RUNS, DEFAULT_SEED, forAllElements, propertyParameters } from "./index.js";
+import { DEFAULT_RUNS, DEFAULT_SEED, forAllElements, forAllWorkspaces, propertyParameters } from "./index.js";
 
 describe("status model runner", () => {
   it("takes runs and seed from the environment, with fixed defaults", () => {
@@ -38,5 +38,27 @@ describe("status model runner", () => {
         { numRuns: 50, seed: 3 },
       );
     }).toThrow(/replay with STATUS_MODEL_SEED=3 STATUS_MODEL_RUNS=50\n.*Counterexample/s);
+  });
+
+  it("runs an async check over generated workspaces and names the seed when it fails", async () => {
+    let runs = 0;
+    await forAllWorkspaces(
+      (workspace) => {
+        expect(workspace.elements.length).toBeGreaterThan(0);
+        runs += 1;
+        return Promise.resolve();
+      },
+      { numRuns: 5, seed: 3 },
+    );
+    expect(runs).toBe(5);
+    await expect(
+      forAllWorkspaces(
+        (workspace) => {
+          expect(workspace.elements).toHaveLength(1);
+          return Promise.resolve();
+        },
+        { numRuns: 50, seed: 3 },
+      ),
+    ).rejects.toThrow(/replay with STATUS_MODEL_SEED=3 STATUS_MODEL_RUNS=50\n.*Counterexample/s);
   });
 });
