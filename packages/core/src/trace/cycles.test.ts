@@ -163,12 +163,19 @@ describe("cycles in the derivations (SR-090)", () => {
       [B, "SR-000002"],
       [C, "SR-000003"],
     ]);
+    const titles = new Map([
+      [A, "Show wind speed"],
+      [B, "Show wind direction"],
+      [C, "Show gusts"],
+    ]);
     expect(out.problems).toEqual(
       problems.map((p) => ({
         ...p,
         elementShortId: shortIds.get(p.elementId ?? ""),
-        // The target named by its short ID too (#172).
+        elementTitle: titles.get(p.elementId ?? ""),
+        // The target named by its short ID and title too (#172, SR-026 AK6).
         targetShortId: shortIds.get(p.targetId ?? ""),
+        targetTitle: titles.get(p.targetId ?? ""),
       })),
     );
   });

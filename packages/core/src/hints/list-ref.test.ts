@@ -103,9 +103,10 @@ const sameByRef = async (
   const fresh = await open(options, root);
   const store = await fresh.get(elementStoreState);
   const ids = [...store.byId].filter(([, records]) => records.length === 1).map(([id]) => id);
-  const byRef = new Map<string, readonly Problem[]>();
+  const byRef = new Map<string, Pick<CommandOutput<"hint.list">, "kinds" | "hints">>();
   for (const id of ids) {
-    byRef.set(id, (await list(fresh, { ...filters, ref: id })).hints);
+    const { kinds, hints } = await list(fresh, { ...filters, ref: id });
+    byRef.set(id, { kinds, hints });
   }
   // The single-element path builds neither the cycles of the store nor the incoming index (ADR-0008).
   expect(fresh.peek(derivationCycleProblemsState)).toBeUndefined();
@@ -127,7 +128,17 @@ const sameByRef = async (
   for (const id of ids) {
     const record = whole.byId.get(id)?.[0];
     const expected = all.filter((hint) => isHint(hint) && problemElement(whole, hint) === record);
-    expect(byRef.get(id), `hint.list --ref ${id}`).toEqual(expected);
+    // The counts per kind of the element's hints, in the order of their first hint, then the kinds
+    // of the filter without one (SR-026 AK6).
+    const counted = new Map<string, number>();
+    for (const hint of expected) {
+      counted.set(hint.code, (counted.get(hint.code) ?? 0) + 1);
+    }
+    const named = (filters["kind"] ?? []) as readonly string[];
+    const kinds = [...counted, ...named.filter((c) => !counted.has(c)).map((c) => [c, 0] as const)].map(
+      ([code, count]) => ({ code, count }),
+    );
+    expect(byRef.get(id), `hint.list --ref ${id}`).toEqual({ kinds, hints: expected });
     for (const hint of expected) {
       codes.add(hint.code);
     }
@@ -203,6 +214,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       [2, 5],
     ] as const) {
       expect(await list(workspace, { ref: "SR-0000b1", offset, limit })).toEqual({
+        kinds: [{ code: "relation.outdated", count: 2 }],
         hints: all.hints.slice(offset, offset + limit),
         total: 2,
         incomplete: false,

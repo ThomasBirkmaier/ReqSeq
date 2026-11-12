@@ -44,6 +44,7 @@ const HINT = {
   file: ORPHAN_FILE,
   elementId: ORPHAN,
   elementShortId: "SR-00b004",
+  elementTitle: "Orphan",
 };
 
 describe("requirements without a parent (SR-022 AK6)", () => {

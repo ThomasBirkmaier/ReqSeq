@@ -250,6 +250,10 @@
           "type": "string",
           "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one."
         },
+        "elementTitle": {
+          "type": "string",
+          "description": "Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given with it, empty when the element has none or the metamodel gives no property the meaning `title`."
+        },
         "targetId": {
           "$ref": "#/$defs/uuid"
         },
@@ -264,6 +268,10 @@
         "targetIdentifier": {
           "type": "string",
           "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one."
+        },
+        "targetTitle": {
+          "type": "string",
+          "description": "Title of the element `targetId` names, for display next to `targetShortId` (SR-026 AK6); given with it, empty as `elementTitle`."
         },
         "storedVersion": {
           "$ref": "#/$defs/version"
@@ -339,6 +347,10 @@
           "type": "integer",
           "minimum": 0,
           "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171)."
+        },
+        "view": {
+          "$ref": "#/$defs/viewId",
+          "description": "The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026 AK6): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173)."
         }
       },
       "additionalProperties": false

@@ -582,6 +582,54 @@ describe("renderHuman: values", () => {
     );
   });
 
+  it("names the titles of element and target, after the counts per kind (SR-026 AK6)", () => {
+    expect(
+      renderHuman({
+        kinds: [
+          { code: "relation.target-superseded", count: 2 },
+          { code: "trace.cycle", count: 0 },
+        ],
+        hints: [
+          {
+            code: "relation.target-superseded",
+            severity: "warning",
+            message: "Points to a superseded decision",
+            file: "c.md",
+            elementShortId: "D-589cf2",
+            elementIdentifier: "D-017",
+            elementTitle: "Log in",
+            targetShortId: "D-fd8f46",
+            targetTitle: "Old login",
+          },
+          {
+            code: "relation.target-superseded",
+            severity: "warning",
+            message: "Points to a superseded decision",
+            file: "d.md",
+            elementShortId: "D-a1",
+            elementTitle: "",
+            targetShortId: "D-fd8f46",
+            targetTitle: "Old login",
+          },
+        ],
+        total: 2,
+        incomplete: false,
+      }),
+    ).toBe(
+      lines(
+        "kinds:",
+        "  - code: relation.target-superseded",
+        "    count: 2",
+        "  - code: trace.cycle",
+        "    count: 0",
+        "hints:",
+        "  D-589cf2 (D-017)  Log in → D-fd8f46  Old login  relation.target-superseded  Points to a superseded decision",
+        "  D-a1 → D-fd8f46  Old login  relation.target-superseded  Points to a superseded decision",
+        "total: 2",
+      ),
+    );
+  });
+
   it("notes a page of hints shorter than total (#146)", () => {
     const hint = { code: "element.unknown-property", severity: "warning", message: "Unknown", file: "b.md" };
     expect(renderHuman({ hints: [hint], total: 3, incomplete: false })).toContain(

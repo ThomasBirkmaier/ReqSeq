@@ -866,6 +866,7 @@ describe("element.bulkUpdate blank values and hints (#836)", () => {
         file: FILES[B1],
         elementId: B1,
         elementShortId: "SR-0000b1",
+        elementTitle: "Measure wind speed",
         key: "packages",
       },
     ];
@@ -903,6 +904,7 @@ describe("element.bulkUpdate blank values and hints (#836)", () => {
         file: FILES[B1],
         elementId: B1,
         elementShortId: "SR-0000b1",
+        elementTitle: "Measure wind speed",
       }),
       // The criteria held a value (#841).
       expect.objectContaining({ code: "element.text-emptied", elementId: B1, key: "acceptance-criteria" }),

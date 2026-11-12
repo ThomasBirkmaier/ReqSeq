@@ -381,9 +381,11 @@ describe("relation.add gives a stored target without a valid version its current
     line,
     elementId: MIGRATED.id,
     elementShortId: "SR-fffff1",
+    elementTitle: "Migrated",
     targetId: NEED.id,
     targetRepository: "system",
     targetShortId: "N-aaaaa1",
+    targetTitle: "Need one",
     currentVersion: version,
   });
 
@@ -491,12 +493,14 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     file: source.file,
     elementId: source.id,
     elementShortId: name(source === A ? 1 : 4).replace(/^.* /, ""),
+    elementTitle: source === A ? "Show wind speed" : "Show wind in large digits",
     ...(target === undefined
       ? {}
       : {
           targetId: target.id,
           targetRepository: "system",
           targetShortId: name(target === A ? 1 : 4).replace(/^.* /, ""),
+          targetTitle: target === A ? "Show wind speed" : "Show wind in large digits",
         }),
     line,
   });
@@ -642,6 +646,7 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
           file: LOGGED.file,
           elementId: LOGGED.id,
           elementShortId: "SR-c00003",
+          elementTitle: "Log wind speed",
           key: "derives-from",
           targetType: "use-case",
           count: 2,

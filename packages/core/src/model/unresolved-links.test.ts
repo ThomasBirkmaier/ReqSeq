@@ -202,6 +202,7 @@ describe("reqseq: references outside a Markdown link (#633)", () => {
       file: SOURCE,
       elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
       elementShortId: "SR-6e1f05",
+      elementTitle: "Show wind speed",
     };
     expect(check.ok).toBe(true);
     expect(check.problems.filter((p) => p.code === "relation.not-a-link")).toEqual([
@@ -290,6 +291,7 @@ describe("reference-style reqseq: links (#844)", () => {
       file: SOURCE,
       elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
       elementShortId: "SR-6e1f05",
+      elementTitle: "Show wind speed",
     };
     expect(check.ok).toBe(true);
     // The property topic is not marked markdown, so its definition does not count.

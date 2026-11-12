@@ -307,6 +307,8 @@ export interface Problem {
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
+  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given with it, empty when the element has none or the metamodel gives no property the meaning `title`. */
+  readonly elementTitle?: string;
   readonly targetId?: Uuid;
   /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */
   readonly targetRepository?: string;
@@ -314,6 +316,8 @@ export interface Problem {
   readonly targetShortId?: ShortId;
   /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one. */
   readonly targetIdentifier?: string;
+  /** Title of the element `targetId` names, for display next to `targetShortId` (SR-026 AK6); given with it, empty as `elementTitle`. */
+  readonly targetTitle?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
   /** Date of the stored version; null when unknown. */
@@ -345,6 +349,8 @@ export interface Problem {
   readonly criteria?: readonly DataExportCriterionName[];
   /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
+  /** The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026 AK6): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173). */
+  readonly view?: ViewId;
 }
 
 /**
@@ -3192,7 +3198,7 @@ export interface TraceMermaidOutput {
 }
 
 /**
- * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
+ * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.
  * Schema: `schemas/commands/hint.list.json input`.
  */
 export interface HintListInput {
@@ -3206,18 +3212,24 @@ export interface HintListInput {
   readonly variant?: ElementRef;
   /** Only the hints about this element. */
   readonly ref?: ElementRef;
-  /** Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations (D-013) are asked for the hints of the page alone. */
+  /** Hints of the page; total and kinds count all. Every page finds every hint again; only the dates of outdated relations (D-013) are asked for the hints of the page alone. */
   readonly limit: number;
   /** Hints skipped before the page, in the order of `hints`. */
   readonly offset: number;
 }
 
 /**
- * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
+ * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The number of hints that pass the filters per kind (SR-026 AK6), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`. */
+  readonly kinds: readonly {
+    readonly code: ProblemCode;
+    /** Hints of this kind that pass the filters. */
+    readonly count: number;
+  }[];
+  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), the view of an outdated evidence record (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;

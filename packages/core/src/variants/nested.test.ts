@@ -128,10 +128,12 @@ describe("a variant as an element (SR-039)", () => {
         line: 9,
         elementId: C,
         elementShortId: "VAR-0000c3",
+        elementTitle: "Mountain",
         targetId: A,
         targetRepository: "system",
         key: "validity",
         targetShortId: "VAR-0000a1",
+        targetTitle: "Coast",
       },
     ]);
     expect(await failure(opened, "element.bulkUpdate", { ...bulk, confirm: true })).toEqual(
@@ -197,9 +199,11 @@ describe("a variant as an element (SR-039)", () => {
       line: 7,
       elementId: B,
       elementShortId: "VAR-0000b2",
+      elementTitle: "North coast",
       targetId: A,
       targetRepository: "system",
       targetShortId: "VAR-0000a1",
+      targetTitle: "Coast",
       key: "validity",
     };
     const desert = (line: number, named: string): unknown => ({
@@ -211,6 +215,7 @@ describe("a variant as an element (SR-039)", () => {
       line,
       elementId: "39039039-0000-4000-8000-0000000000d4",
       elementShortId: "VAR-0000d4",
+      elementTitle: "Desert",
       key: "validity",
     });
     const expected = [hint, desert(7, "39039039-0000-4000-8000-0000000000ff"), desert(8, "no element")];

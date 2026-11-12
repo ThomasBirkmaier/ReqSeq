@@ -22,6 +22,14 @@ const open = async (files: Readonly<Record<string, string>> = {}): Promise<Opene
   return { fixture, workspace };
 };
 
+/** The titles of the elements with a hint, by the end of their UUID (SR-026 AK6). */
+const TITLES: Readonly<Record<string, string>> = {
+  ddd002: "Unknown status",
+  bbb002: "Status of decisions",
+  bbb003: "Without status",
+  eee002: "Term with a status",
+};
+
 const hint = (
   code: "element.status-not-allowed" | "element.missing-status",
   file: string,
@@ -36,6 +44,7 @@ const hint = (
   file: `elements/${file}`,
   elementId: id,
   elementShortId: `${file.replace(/-.*$/, "")}-${id.slice(-6)}`,
+  elementTitle: TITLES[id.slice(-6)] ?? "",
   ...(line === undefined ? {} : { line }),
 });
 

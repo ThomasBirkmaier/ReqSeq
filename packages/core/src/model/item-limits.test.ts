@@ -38,10 +38,11 @@ const hint = (count = 4, n = 1, line = 6): Problem => ({
   limit: 3,
 });
 
-/** A hint as a command gives it, with the element's short ID (ThomasBirkmaier/ReqSeq-archive#315). */
+/** A hint as a command gives it, with the element's short ID (ThomasBirkmaier/ReqSeq-archive#315) and title (SR-026 AK6). */
 const shown = (problem: Problem): Problem => ({
   ...problem,
   elementShortId: `SR-${String(problem.elementId).slice(-6)}`,
+  elementTitle: problem.elementId === SR2 ? "Show wind direction" : "Show wind speed",
 });
 
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>

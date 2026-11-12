@@ -24,6 +24,7 @@ const noParent = (out: Output): Record<string, unknown> => ({
   file: out.element.file,
   elementId: out.element.id,
   elementShortId: out.element.shortId,
+  elementTitle: out.element.title,
 });
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -402,6 +403,7 @@ describe("element.create", () => {
       file: out.element.file,
       elementId: out.element.id,
       elementShortId: out.element.shortId,
+      elementTitle: out.element.title,
       key,
       ...(line === undefined ? {} : { line }),
     });

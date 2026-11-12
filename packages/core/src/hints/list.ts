@@ -28,6 +28,11 @@
 //   the store) matches no element filter.
 // - Pages (#146, as `trace.chain`): every hint that passes the filters is found and counted (`total`);
 //   the output holds `limit` hints from `offset`, in the order above.
+// - Counts per kind (`kinds`, AK6): in the same pass, over every hint that passes, in the order of
+//   each kind's first hint; with `kind` also each named kind without a hint, count 0, after them in
+//   the order `kind` names them (AK6: "ohne passende Hinweise ist die Zahl 0"). The titles of the
+//   element and the target (`elementTitle`, `targetTitle`) are added with their short IDs by `invoke`,
+//   the view of outdated evidence (`view`) by its state (`evidence.ts`).
 // - The dates of outdated relations are asked of Git only for the hints of the page.
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
@@ -208,6 +213,31 @@ interface HintListInput {
   readonly offset: number;
 }
 
+/** The number of hints of one kind (`code`) that pass the filters. */
+export interface KindCount {
+  readonly code: Problem["code"];
+  readonly count: number;
+}
+
+/** What `hint.list` gives before `incomplete`: `kinds` first, so that readers show them before the hints. */
+export interface HintsFound {
+  readonly kinds: KindCount[];
+  readonly hints: Problem[];
+  readonly total: number;
+}
+
+/**
+ * The counts per kind of `counted` (in their order, the order of each kind's first hint), then each
+ * kind of `kinds` (the `kind` filter, in its order) without a hint, with 0.
+ */
+const kindCounts = (
+  counted: ReadonlyMap<string, number>,
+  kinds: ReadonlySet<string> | undefined,
+): KindCount[] => {
+  const zero = [...(kinds ?? [])].filter((code) => !counted.has(code)).map((code) => [code, 0] as const);
+  return [...counted, ...zero].map(([code, count]) => ({ code: code as Problem["code"], count }));
+};
+
 /** A page of hints: `limit` hints from `offset`. */
 export interface HintPage {
   readonly limit: number;
@@ -319,7 +349,8 @@ const filtersElements = (filter: HintFilter): boolean =>
 
 /**
  * The hints of `problems` and `outdated` (in this order) that pass `filter`: the page `page` (every
- * hint by default) and `total`, the number of all that pass. The outdated ones of the page carry the
+ * hint by default), `total`, the number of all that pass, and `kinds`, their number per kind
+ * (`kindCounts`). The outdated ones of the page carry the
  * dates of both versions (`datedProblems`, asked only for these). The short ID of each hint's
  * element (`elementShortId`) is added where every problem leaves the runtime (`invoke`, ThomasBirkmaier/ReqSeq-archive#315).
  */
@@ -330,7 +361,7 @@ export const hintsOf = async (
   problems: Iterable<Problem>,
   outdated: readonly OutdatedFinding[],
   page: HintPage = EVERY_HINT,
-): Promise<{ readonly hints: Problem[]; readonly total: number }> => {
+): Promise<HintsFound> => {
   const byElement = filtersElements(filter);
   const view =
     filter.variant === undefined ? undefined : viewRuleOf({ workspace, ...context }, filter.variant);
@@ -345,21 +376,29 @@ export const hintsOf = async (
     }
   }
   const late = outdated.filter((f) => passes(f.problem));
+  const counted = new Map<string, number>();
+  for (const { code } of [...found, ...late.map((f) => f.problem)]) {
+    counted.set(code, (counted.get(code) ?? 0) + 1);
+  }
   const end = page.offset + page.limit;
   const from = Math.max(0, page.offset - found.length);
   const dated = await datedProblems(workspace, late.slice(from, Math.max(from, end - found.length)));
-  return { hints: [...found.slice(page.offset, end), ...dated], total: found.length + late.length };
+  return {
+    kinds: kindCounts(counted, filter.kinds),
+    hints: [...found.slice(page.offset, end), ...dated],
+    total: found.length + late.length,
+  };
 };
 
 /**
- * The page `page` of the hints of `filter.ref` that pass `filter`, with `total`, by the
+ * The page `page` of the hints of `filter.ref` that pass `filter`, with `kinds` and `total`, by the
  * single-element path (see the file comment): no whole-workspace state of the hints is built.
  */
 const hintsOfElement = async (
   context: ShowContext,
   filter: HintFilter & { readonly ref: ElementRecord },
   page: HintPage,
-): Promise<{ readonly hints: Problem[]; readonly total: number }> => {
+): Promise<HintsFound> => {
   const { ref } = filter;
   const since = sinceBaselineVariants(context, filter).includes(ref);
   const shown = await showElement(
@@ -376,7 +415,7 @@ const hintsOfElement = async (
 export const listHints = async (
   workspace: Workspace,
   input: HintListInput,
-): Promise<{ readonly hints: Problem[]; readonly total: number; readonly incomplete: boolean }> => {
+): Promise<HintsFound & { readonly incomplete: boolean }> => {
   const [layout, metamodel, store, shortIds] = await Promise.all([
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
@@ -387,7 +426,7 @@ export const listHints = async (
   const incomplete = availableRepositories(layout).length < layout.repositories.length;
   if (!metamodel.valid) {
     // No hints against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
-    return { hints: [], total: 0, incomplete };
+    return { kinds: kindCounts(new Map(), filter.kinds), hints: [], total: 0, incomplete };
   }
   const page = { limit: input.limit, offset: input.offset };
   if (filter.ref !== undefined) {

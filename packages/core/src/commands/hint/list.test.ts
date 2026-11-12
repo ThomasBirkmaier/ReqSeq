@@ -4,7 +4,7 @@
 // version), R2 (no validity, in P2, no acceptance criteria, a relation to a missing UUID), R3 (valid
 // in VB and VO, refines the superseded OLD), and R4, a safety requirement (a subtype of system
 // requirement) valid in VB, in P1, with an unknown property. Every other stored version is current.
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
@@ -130,9 +130,11 @@ describe("hint.list (SR-026)", () => {
       line: 14,
       elementId: R1,
       elementShortId: "SR-0000b1",
+      elementTitle: "Show wind speed",
       targetId: N1,
       targetRepository: "system",
       targetShortId: "N-0000a1",
+      targetTitle: "See the wind",
       storedVersion: "n1:0000000000000000",
       currentVersion: (
         (await invoke("element.get", { ref: N1 }, { workspace })) as CommandOutput<"element.get">
@@ -280,6 +282,7 @@ describe("hint.list (SR-026)", () => {
     ] as const) {
       const page = await list(workspace, { offset, limit });
       expect(page).toEqual({
+        kinds: all.kinds,
         hints: all.hints.slice(offset, offset + limit),
         total: ALL.length,
         incomplete: false,
@@ -287,6 +290,106 @@ describe("hint.list (SR-026)", () => {
     }
     // The page of a filter counts the hints that pass it.
     expect(await list(workspace, { kind: ["relation.outdated"], limit: 1 })).toMatchObject({ total: 2 });
+  });
+
+  it("[SR-026/AK-mdtk] counts the hints per kind over every page, names the titles of element and target and the view of outdated evidence, says when it is incomplete, and counts 0 without a hint", async () => {
+    // R1 (valid in VA) and R2 (no validity) with a record of an older version each: R1's in the
+    // view of VA, R2's in the core.
+    const record = (element: string, variant?: string): string =>
+      `---\nreqseq-record: 1\nkind: verification\nelement: ${element}\nversion: n1:0000000000000000\nmethod: test\nitem: build-41\n` +
+      `${variant === undefined ? "" : `variant: ${variant}\n`}result: passed\ndate: 2026-11-02T12:00:00Z\n---\n`;
+    const workspace = await opened({
+      ...HINTS,
+      files: {
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          '  - { name: away, url: "git@git.example.com:ws/away.git", path: ../away }\n' +
+          "metamodel: { repository: system, path: metamodel }\n" +
+          "evidence:\n  - { repository: system, path: evidence }\n",
+        "evidence/r1-alpine.md": record(R1, VA),
+        "evidence/r2.md": record(R2),
+      },
+    });
+    const all = await list(workspace);
+    // A repository is not on this machine (SR-006 AK2).
+    expect(all.incomplete).toBe(true);
+    // The counts of a page of one hint are those of all hints, in the order of each kind's first hint.
+    const page = await list(workspace, { limit: 1, offset: 3 });
+    expect(page.hints).toHaveLength(1);
+    expect(page.kinds).toEqual([
+      { code: "element.missing-required", count: 1 },
+      { code: "element.unknown-property", count: 2 },
+      { code: "relation.target-superseded", count: 1 },
+      { code: "variant.superseded-in-validity", count: 1 },
+      { code: "trace.no-parent", count: 1 },
+      { code: "evidence.outdated", count: 2 },
+      { code: "relation.outdated", count: 2 },
+    ]);
+    expect(page.total).toBe(10);
+    // The titles of the element and of a target resolved to one element.
+    const superseded = all.hints.find((h) => h.code === "relation.target-superseded");
+    expect(superseded).toMatchObject({ elementTitle: "Show wind direction", targetTitle: "Show wind" });
+    // The view whose status is outdated: the variant VA for R1, the core for R2.
+    expect(all.hints.filter((h) => h.code === "evidence.outdated").map((h) => [h.elementId, h.view])).toEqual(
+      [
+        [R1, VA],
+        [R2, "core"],
+      ],
+    );
+    // No hint passes: count 0, for each kind the filter names too.
+    expect(await list(workspace, { kind: ["variant.nested"], ref: R2 })).toEqual({
+      kinds: [{ code: "variant.nested", count: 0 }],
+      hints: [],
+      total: 0,
+      incomplete: true,
+    });
+  });
+
+  it("puts the kinds the kind filter names without a hint after the others, in the order it names them", async () => {
+    const workspace = await opened();
+    const output = await list(workspace, {
+      kind: ["variant.nested", "trace.no-parent", "element.missing-required", "trace.cycle"],
+    });
+    expect(output.kinds).toEqual([
+      { code: "element.missing-required", count: 1 },
+      { code: "trace.no-parent", count: 1 },
+      { code: "variant.nested", count: 0 },
+      { code: "trace.cycle", count: 0 },
+    ]);
+    expect(output.total).toBe(2);
+    expect(Object.keys(output)).toEqual(["kinds", "hints", "total", "incomplete"]);
+    // Against a metamodel that is not valid as well.
+    const broken = await opened({
+      ...HINTS,
+      files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },
+    });
+    expect((await list(broken, { kind: ["trace.cycle"] })).kinds).toEqual([
+      { code: "trace.cycle", count: 0 },
+    ]);
+  });
+
+  it("gives an empty title for an element without one, and for every element without the meaning title", async () => {
+    const untitled = await opened({
+      ...HINTS,
+      files: {
+        "requirements/SR-0000000000e1.md":
+          "---\nid: 26a0b000-0000-4000-8000-0000000000e1\ntype: system-requirement\nstatus: draft\n---\n",
+      },
+    });
+    const hints = (await list(untitled, { ref: "26a0b000-0000-4000-8000-0000000000e1" })).hints;
+    expect(hints.length).toBeGreaterThan(0);
+    expect(hints.map((h) => h.elementTitle)).toEqual(hints.map(() => ""));
+    const ws = await fixture();
+    const model = ws.path("metamodel/standard-model.yaml");
+    const text = await readFile(model, "utf8");
+    expect(text).toContain("    meaning: title\n");
+    await writeFile(model, text.replace("    meaning: title\n", ""));
+    const meaningless = open(ws.root);
+    const all = (await list(meaningless)).hints;
+    expect(all.length).toBeGreaterThan(0);
+    expect(new Set(all.map((h) => h.elementTitle))).toEqual(new Set([""]));
+    expect(all.find((h) => h.targetId !== undefined)?.targetTitle).toBe("");
   });
 
   it("refuses an element that is no package or no variant, and an unknown one", async () => {
@@ -354,7 +457,7 @@ describe("hint.list (SR-026)", () => {
       files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },
     });
     expect((await workspace.get(metamodelState)).valid).toBe(false);
-    expect(await list(workspace)).toEqual({ hints: [], total: 0, incomplete: false });
+    expect(await list(workspace)).toEqual({ kinds: [], hints: [], total: 0, incomplete: false });
   });
 
   it("matches the element of a hint by its UUID, repository and file, or the only record of its UUID", async () => {
@@ -374,16 +477,23 @@ describe("hint.list (SR-026)", () => {
     // A file that holds no record of the UUID: the only record of the UUID is meant.
     const elsewhere: Problem = { ...stray, elementId: N2, file: "needs/elsewhere.md" };
     const context = { metamodel, store };
+    const one = [{ code: "element.unknown-property", count: 1 }];
     expect(await hintsOf(workspace, context, { types: ["need"] }, [stray, elsewhere], [])).toEqual({
+      kinds: one,
       hints: [elsewhere],
       total: 1,
     });
     // No record of the UUID: no element filter matches it.
     expect(await hintsOf(workspace, context, { types: ["need"] }, [stray], [])).toEqual({
+      kinds: [],
       hints: [],
       total: 0,
     });
-    expect(await hintsOf(workspace, context, {}, [stray], [])).toEqual({ hints: [stray], total: 1 });
+    expect(await hintsOf(workspace, context, {}, [stray], [])).toEqual({
+      kinds: one,
+      hints: [stray],
+      total: 1,
+    });
   });
 
   it("matches outdated evidence by the element it names, not by its record file", async () => {

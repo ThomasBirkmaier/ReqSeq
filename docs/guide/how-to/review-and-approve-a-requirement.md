@@ -107,9 +107,12 @@ reqseq hint list --kind relation.outdated
 ```
 
 ```text title="Output"
+kinds:
+  - code: relation.outdated
+    count: 2
 hints:
-  ... → N-7fe707  relation.outdated  ...
-  ... → N-7fe707  relation.outdated  ...
+  ... → N-7fe707  See the wind speed  relation.outdated  ...
+  ... → N-7fe707  See the wind speed  relation.outdated  ...
 total: 2
 ```
 
