@@ -171,7 +171,7 @@ test.describe("a graph of 500 nodes", () => {
     await fixture.cleanup();
   });
 
-  test("[SR-111/AK6] a graph of 500 nodes is laid out within 1 s", async () => {
+  test("[SR-111/AK-mfmf] a graph of 500 nodes is laid out within 1 s", async () => {
     test.setTimeout(180_000);
     running = await launchApp({ folder: fixture.folder });
     const { window } = running;
@@ -261,7 +261,7 @@ test.describe("the whole chain of 500 nodes", () => {
     await fixture.cleanup();
   });
 
-  test("[SR-111/AK6] the whole chain of 500 nodes is laid out within 1 s", async () => {
+  test("[SR-111/AK-mfmf] the whole chain of 500 nodes is laid out within 1 s", async () => {
     test.setTimeout(180_000);
     // An app of its own: the 500-node layouts of the wide test would warm dagre and the renderer.
     running = await launchApp({ folder: fixture.folder });

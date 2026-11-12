@@ -97,7 +97,7 @@ const open = async (git = false): Promise<{ fixture: FixtureWorkspace; workspace
 };
 
 describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
-  it("[SR-087/AK1] has a scenario for every implemented command except element.setStatus and element.supersede", () => {
+  it("[SR-087/AK-pjbh] has a scenario for every implemented command except element.setStatus and element.supersede", () => {
     const implemented = contracts.commands
       .map((c) => c.name)
       .filter((name) => runtime.commands.has(name))
@@ -108,7 +108,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     );
   });
 
-  it("[SR-087/AK2] hint.confirm and reqif.import get a scenario as soon as they are implemented", () => {
+  it("[SR-087/AK-v0p5] hint.confirm and reqif.import get a scenario as soon as they are implemented", () => {
     const names = contracts.commands.map((c) => c.name);
     for (const name of AK2_COMMANDS) {
       expect([name, names.includes(name)]).toEqual([name, true]);
@@ -117,8 +117,9 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
   });
 
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
-    const ak = AK2_COMMANDS.includes(name) ? "AK2" : "AK1";
-    it(`[SR-087/${ak}] ${name} changes no status`, async () => {
+    // The whole tag in one string, so that scripts/criterion-keys/rename-tags.mjs renames it (#1419).
+    const tag = AK2_COMMANDS.includes(name) ? "[SR-087/AK-v0p5]" : "[SR-087/AK-pjbh]";
+    it(`${tag} ${name} changes no status`, async () => {
       const { fixture, workspace } = await open(GIT_COMMANDS.has(name));
       expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
       if (name === "baseline.compare" || name === "baseline.get") {
@@ -153,7 +154,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     });
   }
 
-  it("[SR-087/AK2] hint.confirm writes the new version into the files of every status that has hints, and keeps each status", async () => {
+  it("[SR-087/AK-v0p5] hint.confirm writes the new version into the files of every status that has hints, and keeps each status", async () => {
     const { fixture, workspace } = await open();
     const sources = [
       ["requirements/SR-1d2e3f4a5b6c.md", GUSTS],
@@ -187,7 +188,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 
-  it("[SR-087/AK1] evidence.enrichJunit writes a JUnit file that names elements of every status and changes no status", async () => {
+  it("[SR-087/AK-pjbh] evidence.enrichJunit writes a JUnit file that names elements of every status and changes no status", async () => {
     const { fixture, workspace } = await open();
     const out = await runtime.invoke(
       "evidence.enrichJunit",
@@ -204,7 +205,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 
-  it("[SR-087/AK1] data.store stores elements of every status with Git, refuses a folder, and changes no status", async () => {
+  it("[SR-087/AK-pjbh] data.store stores elements of every status with Git, refuses a folder, and changes no status", async () => {
     const { fixture, workspace } = await open(true);
     const commit = await fixture.head();
     const out = await runtime.invoke("data.store", { folder: "out" }, { workspace });
@@ -224,7 +225,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 
-  it("[SR-087/AK1] element.setStatus and element.supersede change only the status of the elements they name", async () => {
+  it("[SR-087/AK-pjbh] element.setStatus and element.supersede change only the status of the elements they name", async () => {
     const { fixture, workspace } = await open();
     await runtime.invoke("element.setStatus", { refs: [WIND], status: "approved" }, { workspace });
     expect(statusLines(fixture.root)).toEqual({
@@ -243,7 +244,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     });
   });
 
-  it("[SR-087/AK1] keeps a status that the metamodel does not know", async () => {
+  it("[SR-087/AK-pjbh] keeps a status that the metamodel does not know", async () => {
     const { fixture, workspace } = await open();
     const store = await workspace.get(elementStoreState);
     expect(store.elements.find((e) => e.id === RETIRED)?.data["status"]).toBe("retired");
@@ -262,7 +263,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     });
   });
 
-  it("[SR-087/AK2] loading, the watcher and a changed metamodel change no status, and writes keep it", async () => {
+  it("[SR-087/AK-v0p5] loading, the watcher and a changed metamodel change no status, and writes keep it", async () => {
     const { fixture, workspace } = await open();
     const elementFiles = Object.keys(STATUS_LINES);
     const bytes = contents(fixture.root, elementFiles);

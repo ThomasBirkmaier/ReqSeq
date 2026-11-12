@@ -29,7 +29,7 @@ class FakeWindow extends EventEmitter {
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("closing the window (SR-105 AK1)", () => {
-  it("[SR-105/AK1] holds the close until the window saved its input, then closes it", async () => {
+  it("[SR-105/AK-p4gn] holds the close until the window saved its input, then closes it", async () => {
     const window = new FakeWindow();
     let answer: (saved: boolean | "timeout") => void = () => undefined;
     const save = vi.fn(

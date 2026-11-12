@@ -125,7 +125,7 @@ test.describe("the slash menu as the card of the command line", () => {
   });
 
   for (const scheme of ["light", "dark"] as const) {
-    test(`[SR-129/AK5] the menu is a soft card over the whole backdrop, dimmed as behind the command card and blurred in its seam, coming in at the caret within 200 ms (${scheme})`, async () => {
+    test(`[SR-129/AK-pk82] the menu is a soft card over the whole backdrop, dimmed as behind the command card and blurred in its seam, coming in at the caret within 200 ms (${scheme})`, async () => {
       running = await launchApp(FIXTURE, { colorScheme: scheme });
       const { window } = running;
       await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -227,7 +227,7 @@ test.describe("the slash menu as the card of the command line", () => {
     });
   }
 
-  test("[SR-129/AK5] on close the menu goes back faster than it came, and the dim and the blur go with it", async () => {
+  test("[SR-129/AK-pk82] on close the menu goes back faster than it came, and the dim and the blur go with it", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -254,7 +254,7 @@ test.describe("the slash menu as the card of the command line", () => {
     await expect(window.locator(".cm-line").last()).toHaveText("/");
   });
 
-  test("[SR-129/AK5] with reduced motion the menu stands at once, dimmed and blurred as at the end, and goes at once", async () => {
+  test("[SR-129/AK-pk82] with reduced motion the menu stands at once, dimmed and blurred as at the end, and goes at once", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "reduce" });

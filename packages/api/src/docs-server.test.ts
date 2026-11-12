@@ -63,7 +63,7 @@ const request = (port: number, target: string, method = "GET", host?: string): P
   });
 
 describe("startDocsServer", () => {
-  it("[SR-141/AK4] serves the site on 127.0.0.1 with nosniff and the CSP", async () => {
+  it("[SR-141/AK-dbrz] serves the site on 127.0.0.1 with nosniff and the CSP", async () => {
     server = await startDocsServer({ folder: at("site") });
     expect(server.url).toBe(`http://127.0.0.1:${String(server.port)}/`);
     const answer = await request(server.port, "/start/");
@@ -84,7 +84,7 @@ describe("startDocsServer", () => {
     });
   });
 
-  it("[SR-141/AK4] refuses a method other than GET and HEAD, with the CSP too", async () => {
+  it("[SR-141/AK-dbrz] refuses a method other than GET and HEAD, with the CSP too", async () => {
     server = await startDocsServer({ folder: at("site") });
     const answer = await request(server.port, "/", "POST");
     expect(answer).toMatchObject({ status: 405, body: "Use GET or HEAD\n" });
@@ -92,7 +92,7 @@ describe("startDocsServer", () => {
     expect(answer.headers["content-security-policy"]).toBe(docsContentSecurityPolicy());
   });
 
-  it("[SR-141/AK4] refuses a Host other than loopback with this port (DNS rebinding)", async () => {
+  it("[SR-141/AK-dbrz] refuses a Host other than loopback with this port (DNS rebinding)", async () => {
     server = await startDocsServer({ folder: at("site") });
     const port = String(server.port);
     for (const host of ["evil.example", `evil.example:${port}`, "127.0.0.1:1"]) {

@@ -131,7 +131,7 @@ const workspaceOnDisk = async (): Promise<{ readonly root: string; readonly insi
 };
 
 describe("the recent workspaces channels (SR-131)", () => {
-  it("[SR-131/AK1] the recent workspaces come from core in their order, the open one first and marked open", async () => {
+  it("[SR-131/AK-y2k4] the recent workspaces come from core in their order, the open one first and marked open", async () => {
     const { list, load, core } = setup();
     expect(await list()).toEqual([
       { root: "/req/station", state: "open" },
@@ -164,7 +164,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(load).toHaveBeenCalledOnce();
   });
 
-  it("[SR-131/AK2] opening a found root stops the running core process and opens the root in the same window", async () => {
+  it("[SR-131/AK-cssj] opening a found root stops the running core process and opens the root in the same window", async () => {
     const { open, core, module, window } = setup();
     expect(await open("/req/buoy")).toEqual({ ok: true });
     // The window saved its input first (AK3).
@@ -174,7 +174,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(module.workspaceExists).toHaveBeenCalledExactlyOnceWith("/req/buoy");
   });
 
-  it("[SR-131/AK4] opening a root that is gone answers missing and leaves the running core process alone", async () => {
+  it("[SR-131/AK-f722] opening a root that is gone answers missing and leaves the running core process alone", async () => {
     const { open, core, window } = setup({ exists: false });
     expect(await open("/req/gone")).toEqual({ ok: false, reason: "missing" });
     expect(core.open).not.toHaveBeenCalled();
@@ -209,7 +209,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(core.open).not.toHaveBeenCalled();
   });
 
-  it("[SR-131/AK3] the window saves its unsaved input before main opens another workspace, and nothing opens when it could not", async () => {
+  it("[SR-131/AK-nkm5] the window saves its unsaved input before main opens another workspace, and nothing opens when it could not", async () => {
     const { open, core, window, workspaces } = setup();
     const order: string[] = [];
     const send = window.send.bind(window);
@@ -233,7 +233,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(core.open).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-131/AK3] no answer from the window keeps the open workspace, says timeout and tells the window: the switch never carries on without it", async () => {
+  it("[SR-131/AK-nkm5] no answer from the window keeps the open workspace, says timeout and tells the window: the switch never carries on without it", async () => {
     vi.useFakeTimers();
     const { open, core, window, log } = setup();
     window.answer = undefined;
@@ -271,7 +271,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(window.sent).toHaveLength(3);
   });
 
-  it("[SR-105/AK1] before the window closes main asks it to save, with closing, and waits at most CLOSE_SAVE_TIMEOUT_MS, then tells it (ThomasBirkmaier/ReqSeq-archive#611 review N1)", async () => {
+  it("[SR-105/AK-p4gn] before the window closes main asks it to save, with closing, and waits at most CLOSE_SAVE_TIMEOUT_MS, then tells it (ThomasBirkmaier/ReqSeq-archive#611 review N1)", async () => {
     vi.useFakeTimers();
     const { window, workspaces, log } = setup();
     const closing = workspaces.saveBeforeClose();
@@ -306,7 +306,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(window.sent).toHaveLength(5);
   });
 
-  it("[SR-131/AK3] one switch at a time: a second one while the first waits answers busy and asks for no second save", async () => {
+  it("[SR-131/AK-nkm5] one switch at a time: a second one while the first waits answers busy and asks for no second save", async () => {
     const { open, core, window, workspaces } = setup();
     window.answer = undefined;
     const first = open("/req/buoy");
@@ -350,7 +350,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(core.open).toHaveBeenCalledTimes(3);
   });
 
-  it("[SR-131/AK5] a typed folder opens the workspace found from it upwards", async () => {
+  it("[SR-131/AK-sxyz] a typed folder opens the workspace found from it upwards", async () => {
     const { root, inside } = await workspaceOnDisk();
     const { typed, core, window, module } = setup();
     expect(await typed(inside)).toEqual({ ok: true });
@@ -365,7 +365,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(module.readRecentWorkspaces).not.toHaveBeenCalled();
   });
 
-  it("[SR-131/AK5] a typed folder without a workspace answers no-workspace and leaves the running core process alone", async () => {
+  it("[SR-131/AK-sxyz] a typed folder without a workspace answers no-workspace and leaves the running core process alone", async () => {
     const { inside } = await workspaceOnDisk();
     await fs.rm(path.join(path.dirname(path.dirname(inside)), "reqseq-workspace.yaml"));
     const { typed, core, window } = setup();

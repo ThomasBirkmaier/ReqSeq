@@ -103,7 +103,7 @@ const ID_A = "6b1f1b9e-2a39-4c4c-9a4e-0c1d2e3f4a5b";
 const ID_B = "7c2e2c0f-3b4a-4d5d-8b5f-1d2e3f4a5b6c";
 
 describe("element store", () => {
-  it("[SR-003/AK1] finds element files in any folder of the repository", async () => {
+  it("[SR-003/AK-h09c] finds element files in any folder of the repository", async () => {
     const ws = await fixture({ fixture: "SR-003/any-folder" });
     const s = await store(ws.root);
     expect(located(s)).toEqual([
@@ -138,7 +138,7 @@ describe("element store", () => {
     });
   });
 
-  it("[SR-003/AK1] finds an element file in a new folder after the workspace is read again", async () => {
+  it("[SR-003/AK-h09c] finds an element file in a new folder after the workspace is read again", async () => {
     const ws = await fixture({ fixture: "SR-003/any-folder" });
     const workspace = open(ws.root);
     expect((await workspace.get(elementStoreState)).byId.has(ID_A)).toBe(false);
@@ -151,7 +151,7 @@ describe("element store", () => {
     );
   });
 
-  it("[SR-003/AK1] finds element files in any folder of a repository that is not the main one", async () => {
+  it("[SR-003/AK-h09c] finds element files in any folder of a repository that is not the main one", async () => {
     const ws = await fixture({
       fixture: "SR-004/three-repositories",
       files: { "sensor/a/b/c/SR-0c1d2e3f4a5b.md": element(ID_A) },
@@ -160,7 +160,7 @@ describe("element store", () => {
     expect(only(s, ID_A)).toMatchObject({ repository: "sensor", file: "a/b/c/SR-0c1d2e3f4a5b.md" });
   });
 
-  it("[SR-003/AK2] does not count Markdown files without element frontmatter and leaves them unchanged", async () => {
+  it("[SR-003/AK-f4dt] does not count Markdown files without element frontmatter and leaves them unchanged", async () => {
     const ws = await fixture({ fixture: "SR-003/not-elements" });
     const before = await snapshotFiles(ws.root);
     const s = await store(ws.root);
@@ -185,7 +185,7 @@ describe("element store", () => {
     expect(await snapshotFiles(ws.root)).toEqual(before);
   });
 
-  it("[SR-003/AK3] keeps relations to an element valid after its file moved to another folder", async () => {
+  it("[SR-003/AK-twmf] keeps relations to an element valid after its file moved to another folder", async () => {
     const ws = await fixture({ fixture: "SR-003/moved" });
     const workspace = open(ws.root);
     const parentId = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
@@ -225,7 +225,7 @@ describe("element store", () => {
     expect(after.child).toEqual(before.child);
   });
 
-  it("[SR-003/AK3] keeps the relation valid when the target moves into a folder of another depth", async () => {
+  it("[SR-003/AK-twmf] keeps the relation valid when the target moves into a folder of another depth", async () => {
     const ws = await fixture({ fixture: "SR-003/moved" });
     await fs.rename(ws.path("needs/N-8beffcbd8c26.md"), ws.path("N-8beffcbd8c26.md"));
     const workspace = open(ws.root);
@@ -238,7 +238,7 @@ describe("element store", () => {
     expect(await versionOf(workspace, target, formOf(stored?.version ?? ""))).toBe(stored?.version);
   });
 
-  it("[SR-004/AK1] shows the elements of all three repositories of the workspace file together", async () => {
+  it("[SR-004/AK-rws1] shows the elements of all three repositories of the workspace file together", async () => {
     const ws = await fixture({ fixture: "SR-004/three-repositories", git: ["system", "product", "sensor"] });
     const s = await store(ws.path("system"));
     expect(located(s)).toEqual([
@@ -249,7 +249,7 @@ describe("element store", () => {
     expect(s.problems).toEqual([]);
   });
 
-  it("[SR-004/AK4] reads a repository from the place a local file names for it", async () => {
+  it("[SR-004/AK-hpgp] reads a repository from the place a local file names for it", async () => {
     const ws = await fixture({ fixture: "SR-004/three-repositories", git: ["system", "product", "sensor"] });
     await fs.mkdir(ws.path("checkouts"));
     await fs.rename(ws.path("sensor"), ws.path("checkouts/sensor"));

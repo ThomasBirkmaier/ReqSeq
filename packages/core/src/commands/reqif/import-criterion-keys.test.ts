@@ -116,7 +116,7 @@ const criteriaIn = async (made: FixtureWorkspace, file: string): Promise<unknown
 };
 
 describe("criterion keys on reqif.import (SR-204)", () => {
-  it("[SR-204/AK1] gives each acceptance criterion of a new element a key, and [SR-204/AK4] a repeated import keeps them", async () => {
+  it("[SR-204/AK-qg2w] gives each acceptance criterion of a new element a key, and [SR-204/AK-ftt1] a repeated import keeps them", async () => {
     const { fixture, workspace } = await open("SR-052/empty", { "in/x.reqif": await exported() });
     const first = (await invoke(
       "reqif.import",
@@ -140,7 +140,7 @@ describe("criterion keys on reqif.import (SR-204)", () => {
     expect(await written(fixture, first)).toEqual(before);
   });
 
-  it("[SR-204/AK12] keeps the criterion keys of a requirement exported and imported again", async () => {
+  it("[SR-204/AK-s9d6] keeps the criterion keys of a requirement exported and imported again", async () => {
     const text = await exported([
       "  - key: speed",
       '    text: "Given wind, when it blows, then the *speed* shows within 1 s."',
@@ -158,7 +158,7 @@ describe("criterion keys on reqif.import (SR-204)", () => {
       { key: "peaks", text: "Given a gust, then the peak shows for 10 s." },
     ]);
   });
-  it("[SR-204/AK5] refuses a file of ReqSeq whose criterion key is not in its form, or given twice, naming the object", async () => {
+  it("[SR-204/AK-b2q6] refuses a file of ReqSeq whose criterion key is not in its form, or given twice, naming the object", async () => {
     for (const [items, reason] of [
       [["  - key: speed", "    text: First.", "  - key: speed", "    text: Second."], "is given twice"],
       [["  - key: Peak1", "    text: First."], "is no criterion key"],
@@ -176,7 +176,7 @@ describe("criterion keys on reqif.import (SR-204)", () => {
     }
   });
 
-  it("[SR-204/AK4] a repeated import from another tool keeps the keys of the same texts at other positions", async () => {
+  it("[SR-204/AK-ftt1] a repeated import from another tool keeps the keys of the same texts at other positions", async () => {
     const { fixture, workspace } = await open("SR-004/one-repository", {
       "in/1.reqif": withCriteria(sample("lieferung-1.reqif"), ["Alpha", "Beta"]),
       "in/2.reqif": withCriteria(sample("lieferung-2.reqif"), ["Beta", "Gamma"]),

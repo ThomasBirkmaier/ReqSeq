@@ -52,7 +52,7 @@ test.describe("the difference of a variant in the app", () => {
     }
   };
 
-  test("[SR-044/AK1] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2 in the app", async () => {
+  test("[SR-044/AK-nxhm] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2 in the app", async () => {
     const result = await showDifference(running.window);
     await expect(result.locator(".line")).toHaveText([
       "added1",
@@ -73,7 +73,7 @@ test.describe("the difference of a variant in the app", () => {
     });
   });
 
-  test("[SR-044/AK2] Enter on a replaced row shows K1 and A1 read-only side by side in the split window", async () => {
+  test("[SR-044/AK-d2rh] Enter on a replaced row shows K1 and A1 read-only side by side in the split window", async () => {
     const { window } = running;
     const result = await showDifference(window);
     await expect(result.locator(".line.pair")).toBeVisible();

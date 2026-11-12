@@ -74,7 +74,7 @@ const statusHints = async (opened: Opened): Promise<readonly Problem[]> =>
   (await check(opened)).problems.filter((p) => CODES.has(p.code));
 
 describe("status hints of elements against the statuses of their type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
-  it("[SR-017/AK2] [SR-017/AK3] reports a status outside the type, a status on a type without status and a missing status as warnings, and changes no file", async () => {
+  it("[SR-017/AK-n63m] [SR-017/AK-c9yr] reports a status outside the type, a status on a type without status and a missing status as warnings, and changes no file", async () => {
     const opened = await open();
     const files = (): Promise<string[]> =>
       Promise.all(
@@ -91,7 +91,7 @@ describe("status hints of elements against the statuses of their type (ThomasBir
     expect(out.ok).toBe(true);
   });
 
-  it("[SR-017/AK2] lists them as hints", async () => {
+  it("[SR-017/AK-n63m] lists them as hints", async () => {
     const opened = await open();
     const out = (await invoke(
       "hint.list",

@@ -33,7 +33,7 @@ const keys = (window: Page) => {
 const titles = (window: Page): Promise<string[]> =>
   window.locator("tbody tr td.element .title").allTextContents();
 
-test("[SR-125/AK1] all system requirements of the package Editor as a matrix: from the overview and from the package page", async () => {
+test("[SR-125/AK-mzzq] all system requirements of the package Editor as a matrix: from the overview and from the package page", async () => {
   const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
   const { window } = running;
   try {

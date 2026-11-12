@@ -31,7 +31,7 @@ scenariosOf("evidence.record", [
       date: "2026-10-27T10:00:00Z",
       criteria: ["kfro", 1],
     },
-    tag: "[SR-030/AK4]",
+    tag: "[SR-030/AK-x088]",
     expect: "output",
   },
   {
@@ -46,7 +46,7 @@ scenariosOf("evidence.record", [
       date: "2026-10-27T10:00:00Z",
       criteria: [1],
     },
-    tag: "[SR-030/AK4]",
+    tag: "[SR-030/AK-x088]",
     expect: "error",
   },
   {
@@ -66,7 +66,7 @@ scenariosOf("evidence.record", [
       result: "passed",
       variant: "VAR-0000c1",
     },
-    tag: "[SR-047/AK4]",
+    tag: "[SR-047/AK-vd3h]",
     expect: "error",
   },
   {
@@ -80,14 +80,14 @@ scenariosOf("evidence.record", [
       result: "passed",
       variant: "VAR-0000c1",
     },
-    tag: "[SR-047/AK4]",
+    tag: "[SR-047/AK-vd3h]",
     expect: "error",
   },
   {
     name: "a record without variant of a requirement the core does not hold is refused (SR-047 AK5)",
     fixture: VARIANT_EVIDENCE,
     input: { ref: "SR-0000b1", kind: "verification", method: "test", item: "build-47", result: "passed" },
-    tag: "[SR-047/AK5]",
+    tag: "[SR-047/AK-y6zf]",
     expect: "error",
   },
   {
@@ -100,14 +100,14 @@ scenariosOf("evidence.record", [
       variant: "VAR-0000c1",
       date: "2026-10-27T10:00:00Z",
     },
-    tag: "[SR-038/AK4]",
+    tag: "[SR-038/AK-zv5h]",
     expect: "error",
   },
   {
     name: "an inconclusive validation without a reason is refused (SR-172 AK1)",
     fixture: EVIDENCE,
     input: { ref: "SR-e88fb3", kind: "validation", result: "inconclusive", date: "2026-10-27T10:00:00Z" },
-    tag: "[SR-172/AK1]",
+    tag: "[SR-172/AK-gy05]",
     expect: "error",
   },
   {
@@ -120,7 +120,7 @@ scenariosOf("evidence.record", [
       reason: "The field test needs frost; none so far.",
       date: "2026-10-27T10:00:00Z",
     },
-    tag: "[SR-172/AK1]",
+    tag: "[SR-172/AK-gy05]",
     expect: "output",
   },
 ]);

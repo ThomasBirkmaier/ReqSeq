@@ -71,7 +71,7 @@ const failFirstYamlLstat = (error: Error): void => {
 };
 
 describe("baseline files, read-only (SR-032 AK2)", () => {
-  it("[SR-032/AK2] reads every baseline file of the baselines folder in file order and tells which contain a version", async () => {
+  it("[SR-032/AK-nx9m] reads every baseline file of the baselines folder in file order and tells which contain a version", async () => {
     const { layout } = await open();
     const read = await readBaselines(layout);
     expect(shown(read)).toEqual({
@@ -90,7 +90,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     expect(baselinesContaining(read, A2, forms(V1))).toEqual([]);
   });
 
-  it("[SR-032/AK2] reads the baselines folder the workspace file names, also at the root of a repository, never the workspace file", async () => {
+  it("[SR-032/AK-nx9m] reads the baselines folder the workspace file names, also at the root of a repository, never the workspace file", async () => {
     const { layout } = await open({
       "reqseq-workspace.yaml": WORKSPACE("baselines: { repository: system, path: . }\n"),
       "root-baseline.yaml": baseline("Root", `{ id: ${A1}, version: ${V1}, repository: system }`),
@@ -146,7 +146,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     expect(read.problems[3]?.message).toBe("baselines/old.yml is not read: baseline files end in .yaml");
   });
 
-  it("[SR-008/AK4] reports a baseline file of an unknown format number as faulty and reads no baseline from it", async () => {
+  it("[SR-008/AK-pm64] reports a baseline file of an unknown format number as faulty and reads no baseline from it", async () => {
     const { layout } = await open({
       "baselines/future.yaml": baseline("Future", `{ id: ${A1}, version: ${V2} }`).replace(
         "reqseq-baseline: 1",

@@ -95,7 +95,7 @@ const setUp = async (): Promise<{
 };
 
 describe("reading Git starts no program the repository names (SR-208)", () => {
-  it("[SR-208/AK1] reads files, versions, commits and differences without a monitor, diff program or filter", async () => {
+  it("[SR-208/AK-z02x] reads files, versions, commits and differences without a monitor, diff program or filter", async () => {
     const { repo, markers, first, second } = await setUp();
     expect(await headCommit(repo)).toMatchObject({ known: true, commit: second });
     expect(await resolveCommit(repo, "HEAD")).toMatchObject({ known: true });

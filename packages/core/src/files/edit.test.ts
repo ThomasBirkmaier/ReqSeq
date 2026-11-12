@@ -102,7 +102,7 @@ Body
 const FIXTURES = { TYPICAL, ODD };
 
 describe("SR-102 AK1: only the lines of a changed property change", () => {
-  it("[SR-102/AK1] changes only the title line and keeps its trailing comment", () => {
+  it("[SR-102/AK-zts9] changes only the title line and keeps its trailing comment", () => {
     const out = edit(TYPICAL, { edits: [set("title", "Show wind speed in digits")] });
     expect(out).toBe(
       TYPICAL.replace(
@@ -116,7 +116,7 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
     });
   });
 
-  it("[SR-102/AK1] for every fixture and key, a new value changes only that key's lines", () => {
+  it("[SR-102/AK-zts9] for every fixture and key, a new value changes only that key's lines", () => {
     for (const [name, text] of Object.entries(FIXTURES)) {
       const file = fileOf(text);
       const lines = text.split("\n");
@@ -135,7 +135,7 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
     }
   });
 
-  it("[SR-102/AK1] setting the current value changes no byte", () => {
+  it("[SR-102/AK-zts9] setting the current value changes no byte", () => {
     for (const text of Object.values(FIXTURES)) {
       const file = fileOf(text);
       const edits = Object.entries(file.data as object).map(([key, value]) =>
@@ -149,14 +149,14 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
     expect(edit(ODD, { edits: [set("legacy-number", 815)] })).toBe(ODD);
   });
 
-  it("[SR-102/AK1] keeps leading zeros, flow lists, long lines and comments of untouched keys", () => {
+  it("[SR-102/AK-zts9] keeps leading zeros, flow lists, long lines and comments of untouched keys", () => {
     const out = edit(ODD, { edits: [set("id", "6adc7b13-3db0-4895-8087-1d4550912ce5")] });
     expect(out).toBe(
       ODD.replace("id: 102ee39b-773f-4cd0-b414-825b7146fb54", "id: 6adc7b13-3db0-4895-8087-1d4550912ce5"),
     );
   });
 
-  it("[SR-102/AK1] confirming a hint changes only that relation line", () => {
+  it("[SR-102/AK-zts9] confirming a hint changes only that relation line", () => {
     const out = edit(TYPICAL, {
       edits: [
         {
@@ -174,7 +174,7 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
     });
   });
 
-  it("[SR-102/AK1] replaces one hand-written item and keeps the others byte for byte", () => {
+  it("[SR-102/AK-zts9] replaces one hand-written item and keeps the others byte for byte", () => {
     const out = edit(ODD, {
       edits: [
         {
@@ -192,7 +192,7 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
     });
   });
 
-  it("[SR-102/AK1] adding a relation adds one line; two branches add different lines", () => {
+  it("[SR-102/AK-zts9] adding a relation adds one line; two branches add different lines", () => {
     const add = (id: string): string =>
       edit(TYPICAL, {
         edits: [
@@ -216,7 +216,7 @@ describe("SR-102 AK1: only the lines of a changed property change", () => {
 });
 
 describe("SR-102 AK2: a hand-written key order is kept", () => {
-  it("[SR-102/AK2] keeps the own key order and appends new keys in metamodel order", () => {
+  it("[SR-102/AK-x6bp] keeps the own key order and appends new keys in metamodel order", () => {
     const out = edit(ODD, {
       edits: [
         set("title", "New"),
@@ -838,7 +838,7 @@ describe("editElementFile: acceptance criteria with their keys (SR-204)", () => 
   const AK =
     "---\ntitle: T\nacceptance-criteria:\n  - 'Given A, then B.'\n  - key: keyb\n    text: \"Given C.\" # kept\n---\n";
 
-  it("[SR-204/AK11] writes a criterion with its key as a block mapping, key first, its text as a top-level value", () => {
+  it("[SR-204/AK-n6y5] writes a criterion with its key as a block mapping, key first, its text as a top-level value", () => {
     const text = edit("---\ntitle: T\n---\n", {
       edits: [
         set("acceptance-criteria", [

@@ -61,7 +61,7 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
     expect(ids.map(parseHintId)).toEqual(targets);
   });
 
-  it("[SR-127/AK3] names the property of a reference in a Markdown property behind @text:, apart from the text", () => {
+  it("[SR-127/AK-bd1x] names the property of a reference in a Markdown property behind @text:, apart from the text", () => {
     const id = (place: string, query = ""): string =>
       `relation.outdated/${PLACE}/${place}/${T}?version=${VERSION}${query}`;
     expect(

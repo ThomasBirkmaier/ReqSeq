@@ -234,7 +234,7 @@ const walk = async (count: number): Promise<(string | null)[]> => {
 };
 
 describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
-  it("[SR-115/AK4] after the app is opened again the buffers are back behind the overview: Ctrl+P lists them in order of use, and Alt+P walks them in that order", async () => {
+  it("[SR-115/AK-qtv5] after the app is opened again the buffers are back behind the overview: Ctrl+P lists them in order of use, and Alt+P walks them in that order", async () => {
     await render();
     await openFour();
     // The element is used last.
@@ -258,7 +258,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     }
   });
 
-  it("[SR-115/AK4] each workspace gets its own buffers back, also after a switch to another and back", async () => {
+  it("[SR-115/AK-qtv5] each workspace gets its own buffers back, also after a switch to another and back", async () => {
     await render();
     await openFour();
     // Another workspace starts with the overview alone, and the first one keeps its buffers.
@@ -279,7 +279,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     expect(await walk(2)).toEqual(["Overview", "All elements"]);
   });
 
-  it("[SR-115/AK4] the buffers come back after the name of the open workspace changed while it was open", async () => {
+  it("[SR-115/AK-qtv5] the buffers come back after the name of the open workspace changed while it was open", async () => {
     await render();
     await openFour();
     // Its file is edited: the workspace is renamed while it is open.
@@ -296,7 +296,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     expect(await walk(4)).toEqual(["Overview", "Search: wind", "SR-000001 Title 1", "All elements"]);
   });
 
-  it("[SR-115/AK4] a name that cannot be read at the start keeps the stored buffers for the next start", async () => {
+  it("[SR-115/AK-qtv5] a name that cannot be read at the start keeps the stored buffers for the next start", async () => {
     await render();
     await openFour();
     // The next start: core answers the reads of the names with an internal error (it is restarting).
@@ -317,7 +317,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     expect(await walk(4)).toEqual(["Overview", "Search: wind", "SR-000001 Title 1", "All elements"]);
   });
 
-  it("[SR-115/AK4] after Close all buffers only the overview comes back", async () => {
+  it("[SR-115/AK-qtv5] after Close all buffers only the overview comes back", async () => {
     await render();
     await openFour();
     await runCommand("Close all buffers");

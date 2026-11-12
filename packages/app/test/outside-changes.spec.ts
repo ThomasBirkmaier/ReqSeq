@@ -49,7 +49,7 @@ test.describe("changes from outside the app", () => {
     await running.close();
   });
 
-  test("[SR-116/AK1] an element changed through MCP shows its new content within 2 s and is highlighted", async () => {
+  test("[SR-116/AK-w091] an element changed through MCP shows its new content within 2 s and is highlighted", async () => {
     const { window } = running;
     const mcp = await running.mcp();
     // A list row: the title an agent gives an element is in the list within 2 s, and its row is marked.
@@ -88,7 +88,7 @@ test.describe("changes from outside the app", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText("");
   });
 
-  test("[SR-116/AK2] 3 s after the highlight no mark remains", async () => {
+  test("[SR-116/AK-g84w] 3 s after the highlight no mark remains", async () => {
     const { window } = running;
     const mcp = await running.mcp();
     await opened(window, TITLE);
@@ -146,7 +146,7 @@ test.describe("changes from outside the app", () => {
     expect((await marks()).map((mark) => mark.kind)).toEqual(["shown", "gone"]);
   });
 
-  test("[SR-106/AK1] without unsaved input an outside change shows the new content and the cursor keeps its place", async () => {
+  test("[SR-106/AK-m800] without unsaved input an outside change shows the new content and the cursor keeps its place", async () => {
     const { window } = running;
     await opened(window, TITLE);
     // The caret after "derives": Enter puts it into the text, then to the start of the text and right.

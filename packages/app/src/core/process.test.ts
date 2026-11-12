@@ -200,7 +200,7 @@ describe("serveCoreProcess", () => {
     }
   });
 
-  it("[SR-131/AK6] the core process records the root it opened, and stop waits for that write", async () => {
+  it("[SR-131/AK-w8h0] the core process records the root it opened, and stop waits for that write", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(fixture);
     let written: () => void = () => undefined;

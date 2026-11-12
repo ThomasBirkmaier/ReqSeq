@@ -167,7 +167,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     await expect(window.locator(".metamodel-text")).toBeVisible();
   });
 
-  test("[SR-199/AK3] Create relation in a cell of the matrix has the row and the column's kind and direction given, so only the other element is chosen", async () => {
+  test("[SR-199/AK-ngjy] Create relation in a cell of the matrix has the row and the column's kind and direction given, so only the other element is chosen", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await showMatrix(window);
@@ -214,7 +214,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     );
   });
 
-  test("[SR-199/AK4] Remove relation on a connected element of the matrix removes the relation between the row and it, after the element's entries", async () => {
+  test("[SR-199/AK-k1z8] Remove relation on a connected element of the matrix removes the relation between the row and it, after the element's entries", async () => {
     running = await launchApp(FIXTURE);
     let window = running.window;
     await showMatrix(window);

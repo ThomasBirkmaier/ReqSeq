@@ -5,8 +5,10 @@
 // states the practical ceiling on the default heap. No SR names a time or memory limit: recorded
 // (ADR-0011): the time and what the call adds to the heap and to the resident memory. Its own file,
 // so the Vitest process measures nothing else, and the generated tree is dropped before the call.
-// A second run (SR-029 AK5, #627) enriches 50,000 test cases named in the form `sr_<id>_ak1` through
-// the name pattern `{prefix}_{id}_ak{ak}`, plus two names of about 200 KB built against the matcher.
+// A second run (SR-029 AK5, #627) enriches 50,000 test cases named in the form `sr_<id>_check` through
+// the name pattern `{prefix}_{id}`, plus two names of about 200 KB built against the matcher. The
+// acceptance criteria of the generated requirements have no criterion keys, so a name with `{ak}`
+// would be refused (SR-029 AK13, #1419); this run does not measure reading `{ak}`.
 import {
   generateLargeWorkspace,
   measurePeakMemory,
@@ -34,8 +36,8 @@ const PATTERN_CASES = 50_000;
 
 /**
  * A JUnit file of `PATTERN_CASES` test cases, each naming one system requirement with a unique short ID
- * as `tests::sr_<id>_ak1_check_<n>`, and two names built against the matcher: hex runs longer than 32
- * digits, and near matches whose `{ak}` has no digit.
+ * as `tests::sr_<id>_check_<n>`, and two names built against the matcher: hex runs longer than 32
+ * digits, and near matches with too few.
  */
 const patternJunit = (elements: readonly GeneratedElement[]): string => {
   const tails = new Map<string, number>();
@@ -48,10 +50,10 @@ const patternJunit = (elements: readonly GeneratedElement[]): string => {
     const element = named[n % named.length];
     const [prefix = "", id = ""] = element === undefined ? [] : shortIdOf(element).split("-");
     cases.push(
-      `<testcase classname="tests" name="tests::${prefix.toLowerCase()}_${id}_ak1_check_${String(n)}"/>`,
+      `<testcase classname="tests" name="tests::${prefix.toLowerCase()}_${id}_check_${String(n)}"/>`,
     );
   }
-  for (const name of [`_sr_${"f".repeat(40)}`.repeat(5_000), "sr_123456_ak_".repeat(15_000)]) {
+  for (const name of [`_sr_${"f".repeat(40)}`.repeat(5_000), "sr_12345_ak_".repeat(15_000)]) {
     cases.push(`<testcase classname="tests" name="${name}"/>`);
   }
   return `<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="nextest">${cases.join("")}</testsuite></testsuites>\n`;
@@ -135,7 +137,7 @@ describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4
             file: patternFile,
             item: "build-627",
             date: "2026-11-01T10:00:00Z",
-            namePattern: "{prefix}_{id}_ak{ak}",
+            namePattern: "{prefix}_{id}",
           },
           { workspace: opened() },
         )) as CommandOutput<"evidence.enrichJunit">,
@@ -143,7 +145,7 @@ describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4
     const basis =
       "SR-029 AK5, #627 (evidence.enrichJunit with a name pattern; recorded, no limit in the spec)";
     await recordValue(
-      `SR-029: enrich of ${String(PATTERN_CASES)} test cases through the name pattern {prefix}_{id}_ak{ak}`,
+      `SR-029: enrich of ${String(PATTERN_CASES)} test cases through the name pattern {prefix}_{id}`,
       peak.ms,
       { basis },
     );

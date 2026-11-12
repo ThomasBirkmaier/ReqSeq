@@ -63,7 +63,7 @@ const settle = async (): Promise<void> => {
 };
 
 describe("paste as Markdown", () => {
-  it("[SR-190/AK1] writes formatted text as Markdown with GitHub extensions, no HTML", () => {
+  it("[SR-190/AK-wrfc] writes formatted text as Markdown with GitHub extensions, no HTML", () => {
     const view = viewOf("Vorher ");
     const { value, echoed } = host();
     const html =
@@ -108,7 +108,7 @@ describe("paste as Markdown", () => {
     }
   });
 
-  it("[SR-190/AK2] makes each selected text a Markdown link to a pasted address", () => {
+  it("[SR-190/AK-fzfw] makes each selected text a Markdown link to a pasted address", () => {
     const doc = "Siehe Quelle und Norm.";
     const view = viewOf(
       doc,
@@ -131,7 +131,7 @@ describe("paste as Markdown", () => {
     empty.destroy();
   });
 
-  it("[SR-190/AK3] copies a pasted image file and writes its reference where it was pasted", async () => {
+  it("[SR-190/AK-k05n] copies a pasted image file and writes its reference where it was pasted", async () => {
     const view = viewOf("a b", EditorSelection.single(1, 2));
     const { value, attached } = host();
     const file = new File([PNG], "", { type: "image/png" });
@@ -146,7 +146,7 @@ describe("paste as Markdown", () => {
     view.destroy();
   });
 
-  it("[SR-190/AK3] copies dropped image files, one per line, where they were dropped", async () => {
+  it("[SR-190/AK-k05n] copies dropped image files, one per line, where they were dropped", async () => {
     const view = viewOf("Text");
     const { value, attached } = host((image) =>
       image.name === "b.webp" ? undefined : `![a](F/${image.name})`,

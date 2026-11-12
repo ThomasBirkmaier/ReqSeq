@@ -70,7 +70,7 @@ test.describe("the command line by mouse", () => {
     await running.close();
   });
 
-  test("[SR-202/AK1] a click on the command line opens it empty with the commands, as Ctrl/Cmd+Shift+P does", async () => {
+  test("[SR-202/AK-vvw8] a click on the command line opens it empty with the commands, as Ctrl/Cmd+Shift+P does", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await openElement(window);
@@ -89,7 +89,7 @@ test.describe("the command line by mouse", () => {
     }
   });
 
-  test("[SR-202/AK2] the wheel scrolls the card of the empty command line to every command it would find", async () => {
+  test("[SR-202/AK-fgd8] the wheel scrolls the card of the empty command line to every command it would find", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -135,7 +135,7 @@ test.describe("the command line by mouse", () => {
     await expect(input(window)).toBeFocused();
   });
 
-  test("[SR-202/AK3] a click on a hit of the command line acts as Enter on it", async () => {
+  test("[SR-202/AK-dcyp] a click on a hit of the command line acts as Enter on it", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);

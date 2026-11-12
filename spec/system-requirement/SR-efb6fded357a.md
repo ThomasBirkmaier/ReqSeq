@@ -6,9 +6,12 @@ title: "Auswahl einheitlich bilden"
 spec-id: "SR-101"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Paket P, wenn Abdeckung, Nachweisgrad, Baseline, Export und Mehrfachänderung auf P angewendet werden, dann verarbeitet jede Funktion genau die Elemente von P."
-  - "Gegeben ein Filter und eine Variante zugleich, wenn die Auswahl gebildet wird, dann enthält sie nur Elemente, die beide Bedingungen erfüllen."
-  - "Gegeben eine Liste von Kurz-IDs über Kommandozeile oder API, wenn die Auswahl gebildet wird, dann enthält sie genau diese Elemente."
+  - key: dj6m
+    text: Gegeben ein Paket P, wenn Abdeckung, Nachweisgrad, Baseline, Export und Mehrfachänderung auf P angewendet werden, dann verarbeitet jede Funktion genau die Elemente von P.
+  - key: yfjm
+    text: Gegeben ein Filter und eine Variante zugleich, wenn die Auswahl gebildet wird, dann enthält sie nur Elemente, die beide Bedingungen erfüllen.
+  - key: w8dm
+    text: Gegeben eine Liste von Kurz-IDs über Kommandozeile oder API, wenn die Auswahl gebildet wird, dann enthält sie genau diese Elemente.
 verification-method: test
 packages:
   - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }

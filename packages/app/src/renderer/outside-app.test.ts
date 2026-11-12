@@ -353,7 +353,7 @@ const editorView = (): EditorView => {
 };
 
 describe("App, changes from outside (SR-116, SR-106)", () => {
-  it("[SR-106/AK1] shows the new content of an element without input, and the cursor keeps its place in the text", async () => {
+  it("[SR-106/AK-m800] shows the new content of an element without input, and the cursor keeps its place in the text", async () => {
     const { outside } = await start();
     await listAll();
     await openRow(0);
@@ -373,7 +373,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(editorView().state.doc.toString()).toBe("Now: The windX blows.");
   });
 
-  it("[SR-116/AK1] reads the shown element again only when the change names it, and highlights the field that changed", async () => {
+  it("[SR-116/AK-w091] reads the shown element again only when the change names it, and highlights the field that changed", async () => {
     const { outside, calls, send } = await start();
     await listAll();
     await openRow(0);
@@ -414,7 +414,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(editorView().state.doc.toString()).toBe("The wind blows.");
   });
 
-  it("[SR-116/AK1] reads the shown element again when its change and a later one arrive before the window renders", async () => {
+  it("[SR-116/AK-w091] reads the shown element again when its change and a later one arrive before the window renders", async () => {
     const { send, calls, disk } = await start();
     await listAll();
     await openRow(0);
@@ -430,7 +430,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(marked()).toEqual(["Text"]);
   });
 
-  it("[SR-106/AK3] a file being written is no deletion: removed in one batch, added in the next, the element and its editor stay editable", async () => {
+  it("[SR-106/AK-v420] a file being written is no deletion: removed in one batch, added in the next, the element and its editor stay editable", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { send, calls, disk } = await start();
     await listAll();
@@ -539,7 +539,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query('[data-field="rationale"]').textContent).toContain("Pilots ask.");
   });
 
-  it("[SR-116/AK1] reads a list again on any element change, keeps its rows and selection meanwhile, and highlights the row", async () => {
+  it("[SR-116/AK-w091] reads a list again on any element change, keeps its rows and selection meanwhile, and highlights the row", async () => {
     const { outside, calls, invoke } = await start();
     await listAll();
     await keyDown(query('[role="listbox"]'), "ArrowDown");
@@ -683,7 +683,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(marked()).toEqual(["Text"]);
   });
 
-  it("[SR-106/AK3] keeps the content of an element whose file was deleted, read-only, and names the deletion", async () => {
+  it("[SR-106/AK-v420] keeps the content of an element whose file was deleted, read-only, and names the deletion", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { remove, deleted, send } = await start();
     await listAll();
@@ -711,7 +711,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query('[aria-label="Modeline"]').textContent).not.toContain("deleted on disk");
   });
 
-  it("[SR-106/AK3] a buffer not shown when its file is deleted shows its input again, read-only, and names the deletion", async () => {
+  it("[SR-106/AK-v420] a buffer not shown when its file is deleted shows its input again, read-only, and names the deletion", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { remove, calls } = await start();
     await listAll();
@@ -742,7 +742,7 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(calls("element.update")).toEqual([]);
   });
 
-  it("[SR-116/AK3] with unsaved input a change from outside follows the conflict rule: no input is lost, nothing is saved over the file", async () => {
+  it("[SR-116/AK-vf1x] with unsaved input a change from outside follows the conflict rule: no input is lost, nothing is saved over the file", async () => {
     const { outside, calls, disk } = await start();
     await listAll();
     await openRow(0);

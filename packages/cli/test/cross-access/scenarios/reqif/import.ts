@@ -82,7 +82,7 @@ const unchangedDelivery =
 
 scenariosOf("reqif.import", [
   {
-    tag: "[SR-052/AK3]",
+    tag: "[SR-052/AK-n04g]",
     name: "a file of ReqSeq without a mapping: one to one, its mapping saved",
     fixture: ROUND_TRIP,
     input: { file: "in/all.reqif", delivery: "round trip" },
@@ -90,7 +90,7 @@ scenariosOf("reqif.import", [
     newElement: true,
   },
   {
-    tag: "[SR-053/AK1]",
+    tag: "[SR-053/AK-y54s]",
     name: "a delivery through its saved mapping: new element files in a folder named after the source",
     fixture: DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
@@ -98,7 +98,7 @@ scenariosOf("reqif.import", [
     newElement: true,
   },
   {
-    tag: "[SR-053/AK2]",
+    tag: "[SR-053/AK-gkxw]",
     name: "a delivery with content that is not taken over without loss lists each loss with its element and reason",
     fixture: GROUPED,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
@@ -150,7 +150,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-056/AK4]",
+    tag: "[SR-056/AK-wx64]",
     name: "a repeated delivery with a conflict and no choice is refused with reqif.conflict naming it",
     fixture: REPEATED,
     input: REPEAT,
@@ -166,7 +166,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-055/AK3]",
+    tag: "[SR-055/AK-ttn9]",
     name: "a repeated delivery refused for a conflict changes no file",
     fixture: REPEATED,
     input: REPEAT,
@@ -174,7 +174,7 @@ scenariosOf("reqif.import", [
     check: unchangedRepeat,
   },
   {
-    tag: "[SR-056/AK2]",
+    tag: "[SR-056/AK-c7b8]",
     name: "a repeated delivery with take updates the elements of the source in place and creates only the new one",
     fixture: REPEATED,
     input: { ...REPEAT, take: ["REQ-3"] },
@@ -198,7 +198,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-056/AK3]",
+    tag: "[SR-056/AK-sdgt]",
     name: "a repeated delivery lists the dropped requirement and leaves its file as it was",
     fixture: REPEATED,
     input: { ...REPEAT, keep: ["REQ-3"] },
@@ -222,7 +222,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-055/AK3]",
+    tag: "[SR-055/AK-ttn9]",
     name: "a file that is no ReqIF is refused (reqif.invalid), changing no file",
     fixture: DELIVERY,
     input: { file: "reqif/kunde-a.yaml", mapping: "reqif/kunde-a.yaml", delivery: "x" },
@@ -230,7 +230,7 @@ scenariosOf("reqif.import", [
     check: unchangedDelivery(String(DELIVERY.files?.["reqif/kunde-a.yaml"])),
   },
   {
-    tag: "[SR-055/AK1]",
+    tag: "[SR-055/AK-st6d]",
     name: "a mapping that leaves entries unmapped is refused with reqif.unmapped and the list of reqif.analyze",
     fixture: PARTIAL_DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
@@ -251,7 +251,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-055/AK3]",
+    tag: "[SR-055/AK-ttn9]",
     name: "a refusal with reqif.unmapped changes no file",
     fixture: PARTIAL_DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
@@ -259,7 +259,7 @@ scenariosOf("reqif.import", [
     check: unchangedDelivery(PARTIAL_MAPPING),
   },
   {
-    tag: "[SR-055/AK2]",
+    tag: "[SR-055/AK-mp8w]",
     name: "after every entry is mapped or omitted in the mapping file, the import runs",
     fixture: DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
@@ -267,7 +267,7 @@ scenariosOf("reqif.import", [
     newElement: true,
   },
   {
-    tag: "[SR-054/AK2]",
+    tag: "[SR-054/AK-vy8n]",
     name: "the same source again through the saved mapping the command names, without a question on types and attributes",
     fixture: FIRST_IMPORT,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-12" },
@@ -291,7 +291,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-054/AK3]",
+    tag: "[SR-054/AK-q7hs]",
     name: "reading the types and attributes of the source leaves the own metamodel as it was",
     fixture: DELIVERY,
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
@@ -307,7 +307,7 @@ scenariosOf("reqif.import", [
     },
   },
   {
-    tag: "[SR-054/AK3]",
+    tag: "[SR-054/AK-q7hs]",
     name: "a source type the mapping does not name is refused (reqif.unmapped), the own metamodel unchanged",
     fixture: { ...DELIVERY, files: { ...DELIVERY.files, "reqif/kunde-a.yaml": WITHOUT_HEADING } },
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },

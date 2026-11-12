@@ -81,7 +81,7 @@ const derivesFrom = (...targets: readonly string[]): string =>
   ["derives-from:", ...targets.map((t) => `  - { id: ${t}, version: ${V} }`)].join("\n");
 
 describe("trace.related (SR-023)", () => {
-  it("[SR-023/AK1] lists every element derived directly and indirectly from a parent, along every derivation kind", async () => {
+  it("[SR-023/AK-xzjq] lists every element derived directly and indirectly from a parent, along every derivation kind", async () => {
     const opened = await open();
     const out = await related(opened, { refs: ["N-0000a1"], direction: "children" });
     // A and B directly, C below both, D refines C; E only names N1 inline.
@@ -90,7 +90,7 @@ describe("trace.related (SR-023)", () => {
     expect(out.incomplete).toBe(false);
   });
 
-  it("[SR-023/AK1] lists the children only up to the given depth", async () => {
+  it("[SR-023/AK-xzjq] lists the children only up to the given depth", async () => {
     const opened = await open();
     const at = async (maxDepth: number): Promise<string[]> =>
       ids(await related(opened, { refs: [N1], direction: "children", maxDepth }));
@@ -101,7 +101,7 @@ describe("trace.related (SR-023)", () => {
     expect(await at(9)).toEqual([A, B, C, D]);
   });
 
-  it("[SR-023/AK1] lists an element of the selection that derives from another one of it", async () => {
+  it("[SR-023/AK-xzjq] lists an element of the selection that derives from another one of it", async () => {
     const opened = await open();
     const out = await related(opened, { refs: [N1, A], direction: "children" });
     expect(ids(out)).toEqual([A, B, C, D]);
@@ -115,7 +115,7 @@ describe("trace.related (SR-023)", () => {
     expect(ids(await related(opened, { refs: [A, N1], direction: "children" }))).toEqual([A, C, B, D]);
   });
 
-  it("[SR-023/AK1] follows the relation kinds with the meaning derivation of an own metamodel (SR-013)", async () => {
+  it("[SR-023/AK-xzjq] follows the relation kinds with the meaning derivation of an own metamodel (SR-013)", async () => {
     const wish = "13013013-0000-4000-8000-0000000000a1";
     const item = (tail: string, relation: string): string =>
       `---\nid: 13013013-0000-4000-8000-0000000000${tail}\ntype: spec-item\nstatus: draft\nlabel: I ${tail}\n${relation}:\n  - { id: ${wish}, version: ${V} }\n---\n`;
@@ -131,7 +131,7 @@ describe("trace.related (SR-023)", () => {
     expect(out.elements.map((e) => [e.shortId, e.title])).toEqual([["SPI-0000b1", "I b1"]]);
   });
 
-  it("[SR-023/AK1] lists an element of the selection that lies in a cycle as derived from itself, once", async () => {
+  it("[SR-023/AK-xzjq] lists an element of the selection that lies in a cycle as derived from itself, once", async () => {
     // fixtures/SR-090/cycle: A derives from the need and B, B from C, C from A; D from A.
     const cycle = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
     const opened = await open({ fixture: "SR-090/cycle" });
@@ -146,7 +146,7 @@ describe("trace.related (SR-023)", () => {
     ]);
   });
 
-  it("[SR-023/AK2] lists an element derived from two parents of the selection once", async () => {
+  it("[SR-023/AK-b545] lists an element derived from two parents of the selection once", async () => {
     const opened = await open();
     const out = await related(opened, { refs: [N1, N2], direction: "children" });
     // B derives from both needs, C from A and B: each once, by distance.
@@ -161,7 +161,7 @@ describe("trace.related (SR-023)", () => {
     ]);
   });
 
-  it("[SR-023/AK3] lists every parent a selection derives from, up to the top parents, each once", async () => {
+  it("[SR-023/AK-n8vt] lists every parent a selection derives from, up to the top parents, each once", async () => {
     const opened = await open();
     expect(ids(await related(opened, { refs: ["SR-0000b4"], direction: "parents" }))).toEqual([
       C,

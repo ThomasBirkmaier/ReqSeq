@@ -113,7 +113,7 @@ const selected = (view: EditorView): string | undefined => selectedCompletion(vi
 const doc = (view: EditorView): string => view.state.doc.toString();
 
 describe("the slash menu opens", () => {
-  it("[SR-129/AK1] when / is typed at an empty line: next to the caret, with the elements of the criterion in order", async () => {
+  it("[SR-129/AK-y6nx] when / is typed at an empty line: next to the caret, with the elements of the criterion in order", async () => {
     const view = await show("");
     await type(view, "/");
     expect(completionStatus(view.state)).toBe("active");
@@ -146,13 +146,16 @@ describe("the slash menu opens", () => {
     expect(container.querySelector(".cm-tooltip-autocomplete")?.classList.contains("cm-lr-slash")).toBe(true);
   });
 
-  it.each([["text "], ["- "], ["> "], ["1. "]])("[SR-129/AK1] when / is typed after %j", async (before) => {
-    const view = await show(before);
-    await type(view, "/");
-    expect(completionStatus(view.state)).toBe("active");
-  });
+  it.each([["text "], ["- "], ["> "], ["1. "]])(
+    "[SR-129/AK-y6nx] when / is typed after %j",
+    async (before) => {
+      const view = await show(before);
+      await type(view, "/");
+      expect(completionStatus(view.state)).toBe("active");
+    },
+  );
 
-  it("[SR-129/AK1] shows the Markdown of an entry as its detail, muted", async () => {
+  it("[SR-129/AK-y6nx] shows the Markdown of an entry as its detail, muted", async () => {
     const view = await show("");
     await type(view, "/");
     const row = container.querySelectorAll(".cm-tooltip-autocomplete li")[1];
@@ -165,7 +168,7 @@ describe("the slash menu opens", () => {
     ["in a fenced code block", "```\n", "/"],
     ["in inline code", "`code ", "/`"],
     ["in the text of a link", "[label ", "/](https://example.org)"],
-  ])("[SR-129/AK1] does not open %s", async (_where, before, typed) => {
+  ])("[SR-129/AK-y6nx] does not open %s", async (_where, before, typed) => {
     const view = await show(before);
     await type(view, typed);
     expect(completionStatus(view.state)).toBeNull();
@@ -173,7 +176,7 @@ describe("the slash menu opens", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK1] shows only the inline entries and the reference in a table row", async () => {
+  it("[SR-129/AK-y6nx] shows only the inline entries and the reference in a table row", async () => {
     const view = await show("| a | b |\n| --- | --- |\n| x | ");
     await type(view, "/");
     expect(labels(view)).toEqual([
@@ -187,7 +190,7 @@ describe("the slash menu opens", () => {
     ]);
   });
 
-  it("[SR-129/AK1] does not open for a pasted /x when typing goes on", async () => {
+  it("[SR-129/AK-y6nx] does not open for a pasted /x when typing goes on", async () => {
     const view = await show("");
     act(() => {
       view.dispatch({
@@ -200,7 +203,7 @@ describe("the slash menu opens", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK1] does not open again for a /query that undo brought back when typing goes on", async () => {
+  it("[SR-129/AK-y6nx] does not open again for a /query that undo brought back when typing goes on", async () => {
     const view = await show("");
     await type(view, "/h1");
     press(view, { key: "Enter" });
@@ -214,7 +217,7 @@ describe("the slash menu opens", () => {
     expect(doc(view)).toBe("/h1x");
   });
 
-  it("[SR-129/AK1] closes when the query has a space, when nothing matches, and when the caret leaves", async () => {
+  it("[SR-129/AK-y6nx] closes when the query has a space, when nothing matches, and when the caret leaves", async () => {
     const view = await show("");
     await type(view, "/h1 ");
     expect(completionStatus(view.state)).toBeNull();
@@ -234,7 +237,7 @@ describe("the slash menu opens", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK1] closes when the / is deleted and does not open on a second /", async () => {
+  it("[SR-129/AK-y6nx] closes when the / is deleted and does not open on a second /", async () => {
     const view = await show("");
     await type(view, "/h");
     act(() => {
@@ -249,7 +252,7 @@ describe("the slash menu opens", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK1] follows a / that moves when text is inserted before it", async () => {
+  it("[SR-129/AK-y6nx] follows a / that moves when text is inserted before it", async () => {
     const view = await show("a");
     await type(view, " /h");
     act(() => {
@@ -269,14 +272,14 @@ describe("the slash menu narrows and chooses", () => {
     ["/tsk", "Task list"],
     ["/qoute", "Quote"],
     ["/ref", "Reference to element"],
-  ])("[SR-129/AK2] %s finds %s first, as the command line does", async (typed, first) => {
+  ])("[SR-129/AK-v0gm] %s finds %s first, as the command line does", async (typed, first) => {
     const view = await show("");
     await type(view, typed);
     expect(completionStatus(view.state)).toBe("active");
     expect(selected(view)).toBe(first);
   });
 
-  it("[SR-129/AK2] marks the letters that matched", async () => {
+  it("[SR-129/AK-v0gm] marks the letters that matched", async () => {
     const view = await show("");
     await type(view, "/nl");
     const marked = [
@@ -285,14 +288,14 @@ describe("the slash menu narrows and chooses", () => {
     expect(marked.map((node) => node.textContent)).toEqual(["N", "l"]);
   });
 
-  it("[SR-129/AK2] a fast /h2 and Enter takes Heading 2", async () => {
+  it("[SR-129/AK-v0gm] a fast /h2 and Enter takes Heading 2", async () => {
     const view = await show("");
     await type(view, "/h2");
     expect(press(view, { key: "Enter" }).handled).toBe(true);
     expect(doc(view)).toBe("## ");
   });
 
-  it("[SR-129/AK2] an Enter right after the typing, before the menu has answered, takes the first entry and adds no new line", async () => {
+  it("[SR-129/AK-v0gm] an Enter right after the typing, before the menu has answered, takes the first entry and adds no new line", async () => {
     const view = await show("");
     for (const char of "/h2") {
       const head = view.state.selection.main.head;
@@ -326,7 +329,7 @@ describe("the slash menu narrows and chooses", () => {
     }
   };
 
-  it("[SR-129/AK2] an Enter before the menu has answered takes Reference to element for /ref", async () => {
+  it("[SR-129/AK-v0gm] an Enter before the menu has answered takes Reference to element for /ref", async () => {
     const view = await show("");
     typeAtOnce(view, "/ref");
     pickElement.mockClear();
@@ -335,7 +338,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(doc(view)).toBe("/ref");
   });
 
-  it("[SR-129/AK2] an Enter before the menu has answered is the editor's own when nothing matches", async () => {
+  it("[SR-129/AK-v0gm] an Enter before the menu has answered is the editor's own when nothing matches", async () => {
     const view = await show("x\n");
     typeAtOnce(view, "/zzzz");
     expect(completionStatus(view.state)).toBe("pending");
@@ -343,7 +346,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(doc(view)).toBe("x\n/zzzz\n");
   });
 
-  it("[SR-129/AK2] ArrowDown, Tab and Ctrl+N move down; ArrowUp and Ctrl+P move up", async () => {
+  it("[SR-129/AK-v0gm] ArrowDown, Tab and Ctrl+N move down; ArrowUp and Ctrl+P move up", async () => {
     const view = await show("");
     await type(view, "/");
     expect(press(view, { key: "ArrowDown" }).handled).toBe(true);
@@ -359,7 +362,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(view.state.selection.main.head).toBe(1);
   });
 
-  it("[SR-129/AK2] Ctrl+P while the menu is open is handled, so the window does not open Go to", async () => {
+  it("[SR-129/AK-v0gm] Ctrl+P while the menu is open is handled, so the window does not open Go to", async () => {
     const view = await show("");
     await type(view, "/");
     const { handled, event } = press(view, { key: "p", ctrlKey: true });
@@ -367,7 +370,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("[SR-129/AK2] Enter takes the chosen entry", async () => {
+  it("[SR-129/AK-v0gm] Enter takes the chosen entry", async () => {
     const view = await show("");
     await type(view, "/");
     press(view, { key: "ArrowDown" });
@@ -377,7 +380,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK2] a click takes an entry", async () => {
+  it("[SR-129/AK-v0gm] a click takes an entry", async () => {
     const view = await show("");
     await type(view, "/");
     const row = container.querySelectorAll<HTMLElement>(".cm-tooltip-autocomplete li")[11];
@@ -387,7 +390,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(doc(view)).toBe("```\n\n```");
   });
 
-  it("[SR-129/AK2] puts the selection back on the first entry when the query changes", async () => {
+  it("[SR-129/AK-v0gm] puts the selection back on the first entry when the query changes", async () => {
     const view = await show("");
     await type(view, "/h");
     press(view, { key: "ArrowDown" });
@@ -396,7 +399,7 @@ describe("the slash menu narrows and chooses", () => {
     expect(selected(view)).toBe("Heading 1");
   });
 
-  it("[SR-129/AK2] leaves the keys to the editor while the menu is closed: Ctrl+N, Ctrl+P, Tab, the arrows and Enter", async () => {
+  it("[SR-129/AK-v0gm] leaves the keys to the editor while the menu is closed: Ctrl+N, Ctrl+P, Tab, the arrows and Enter", async () => {
     const view = await show("one\ntwo");
     act(() => {
       view.dispatch({ selection: { anchor: 1 } });
@@ -420,7 +423,7 @@ describe("the slash menu narrows and chooses", () => {
 });
 
 describe("Escape", () => {
-  it("[SR-129/AK3] closes the menu and leaves the / and the query as typed, without leaving the editor", async () => {
+  it("[SR-129/AK-rbjm] closes the menu and leaves the / and the query as typed, without leaving the editor", async () => {
     onEscape.mockClear();
     const view = await show("");
     await type(view, "/h");
@@ -431,7 +434,7 @@ describe("Escape", () => {
     expect(onEscape).not.toHaveBeenCalled();
   });
 
-  it("[SR-129/AK3] does not open again while typing goes on after that /, and opens for a new /", async () => {
+  it("[SR-129/AK-rbjm] does not open again while typing goes on after that /, and opens for a new /", async () => {
     const view = await show("");
     await type(view, "/h");
     press(view, { key: "Escape" });
@@ -442,14 +445,14 @@ describe("Escape", () => {
     expect(completionStatus(view.state)).toBe("active");
   });
 
-  it("[SR-129/AK3] is the editor's own Escape when the menu is closed", async () => {
+  it("[SR-129/AK-rbjm] is the editor's own Escape when the menu is closed", async () => {
     onEscape.mockClear();
     const view = await show("text");
     expect(press(view, { key: "Escape" }).handled).toBe(true);
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-131/AK3] is the editor's own Escape right after typing that is no / query, while the source is still asked", async () => {
+  it("[SR-131/AK-nkm5] is the editor's own Escape right after typing that is no / query, while the source is still asked", async () => {
     onEscape.mockClear();
     const view = await show("text");
     // Any typing asks the menu's source: until it answers, the completion is pending.
@@ -471,7 +474,7 @@ describe("Escape", () => {
 });
 
 describe("taking an entry", () => {
-  it("[SR-129/AK4] replaces the / and its query: a heading, a table, a link and bold", async () => {
+  it("[SR-129/AK-nxbm] replaces the / and its query: a heading, a table, a link and bold", async () => {
     const view = await show("intro\n\n");
     await type(view, "/h2");
     press(view, { key: "Enter" });
@@ -495,7 +498,7 @@ describe("taking an entry", () => {
     ["/h1", "# "],
     ["/cb", "```\n\n```"],
   ])(
-    "[SR-129/AK4] takes one undo step for %s: one Ctrl+Z gives back the text with the query",
+    "[SR-129/AK-nxbm] takes one undo step for %s: one Ctrl+Z gives back the text with the query",
     async (typed, written) => {
       const view = await show("intro\n\n");
       await type(view, typed);
@@ -509,7 +512,7 @@ describe("taking an entry", () => {
     },
   );
 
-  it("[SR-129/AK4] keeps the undo step apart from typing that follows at once", async () => {
+  it("[SR-129/AK-nxbm] keeps the undo step apart from typing that follows at once", async () => {
     const view = await show("");
     await type(view, "/h1");
     press(view, { key: "Enter" });
@@ -550,7 +553,7 @@ describe("the reference to an element", () => {
     return { view, request };
   };
 
-  it("[SR-129/AK4] asks the app and keeps the / and the query until an element is picked", async () => {
+  it("[SR-129/AK-nxbm] asks the app and keeps the / and the query until an element is picked", async () => {
     const { view, request } = await ask("see ", "/ref");
     expect(doc(view)).toBe("see /ref");
     expect(completionStatus(view.state)).toBeNull();
@@ -563,7 +566,7 @@ describe("the reference to an element", () => {
     expect(awaitingReference(EditorState.create())).toBe(false);
   });
 
-  it("[SR-129/AK4] writes the reference in place of the / and its query, and the editor takes the focus", async () => {
+  it("[SR-129/AK-nxbm] writes the reference in place of the / and its query, and the editor takes the focus", async () => {
     const { view, request } = await ask("see ", "/ref");
     const focus = vi.spyOn(view, "focus");
     act(() => {
@@ -574,7 +577,7 @@ describe("the reference to an element", () => {
     expect(focus).toHaveBeenCalled();
   });
 
-  it("[SR-129/AK4] writes the short ID and the repository for a target in another repository", async () => {
+  it("[SR-129/AK-nxbm] writes the short ID and the repository for a target in another repository", async () => {
     const { view, request } = await ask("", "/ref");
     act(() => {
       request.insert({ ...target, repository: "other" });
@@ -582,7 +585,7 @@ describe("the reference to an element", () => {
     expect(doc(view)).toBe(`[SR-5555](reqseq:${target.id}?version=&repository=other)`);
   });
 
-  it("[SR-129/AK4] follows the / when the text before it changed while the question was open", async () => {
+  it("[SR-129/AK-nxbm] follows the / when the text before it changed while the question was open", async () => {
     const { view, request } = await ask("see ", "/ref");
     act(() => {
       view.dispatch({ changes: { from: 0, insert: ">> " } });
@@ -593,7 +596,7 @@ describe("the reference to an element", () => {
     expect(doc(view)).toBe(`>> see [The title](reqseq:${target.id})`);
   });
 
-  it("[SR-129/AK4] writes at the caret when the / and its query are gone", async () => {
+  it("[SR-129/AK-nxbm] writes at the caret when the / and its query are gone", async () => {
     const { view, request } = await ask("see ", "/ref");
     act(() => {
       view.dispatch({ changes: { from: 4, to: 8, insert: "other" }, selection: { anchor: 9 } });
@@ -604,7 +607,7 @@ describe("the reference to an element", () => {
     expect(doc(view)).toBe(`see other[The title](reqseq:${target.id})`);
   });
 
-  it("[SR-129/AK4] takes one undo step", async () => {
+  it("[SR-129/AK-nxbm] takes one undo step", async () => {
     const { view, request } = await ask("", "/ref");
     act(() => {
       request.insert(target);
@@ -616,7 +619,7 @@ describe("the reference to an element", () => {
     expect(completionStatus(view.state)).toBeNull();
   });
 
-  it("[SR-129/AK3] leaves the / and the query as typed when the question is cancelled, and gives the editor the focus", async () => {
+  it("[SR-129/AK-rbjm] leaves the / and the query as typed when the question is cancelled, and gives the editor the focus", async () => {
     const { view, request } = await ask("see ", "/ref");
     const focus = vi.spyOn(view, "focus");
     act(() => {
@@ -631,7 +634,7 @@ describe("the reference to an element", () => {
     expect(doc(view)).toBe(`see /ref[The title](reqseq:${target.id})`);
   });
 
-  it("[SR-129/AK4] does nothing when the editor is gone", async () => {
+  it("[SR-129/AK-nxbm] does nothing when the editor is gone", async () => {
     const { view, request } = await ask("see ", "/ref");
     const text = doc(view);
     act(() => {
@@ -658,7 +661,7 @@ describe("the image", () => {
     return { view, request };
   };
 
-  it("[SR-097/AK1] asks the app for the file, keeps the / until it answers and writes the Markdown in its place", async () => {
+  it("[SR-097/AK-zs31] asks the app for the file, keeps the / until it answers and writes the Markdown in its place", async () => {
     const { view, request } = await ask("see ");
     expect(doc(view)).toBe("see /image");
     expect(completionStatus(view.state)).toBeNull();
@@ -677,7 +680,7 @@ describe("the image", () => {
     expect(doc(view)).toBe("see /image");
   });
 
-  it("[SR-129/AK4] writes an image as CommonMark with GitHub extensions where /im stood (micromark)", async () => {
+  it("[SR-129/AK-nxbm] writes an image as CommonMark with GitHub extensions where /im stood (micromark)", async () => {
     pickImage.mockClear();
     const view = await show("see ");
     await type(view, "/im");
@@ -691,7 +694,7 @@ describe("the image", () => {
     expect(html.trim()).toBe('<p>see <img src="N-0000000000ed/wind.png" alt="wind" /></p>');
   });
 
-  it("[SR-129/AK3] leaves the / and the query when the question is cancelled", async () => {
+  it("[SR-129/AK-rbjm] leaves the / and the query when the question is cancelled", async () => {
     const { view, request } = await ask("see ");
     act(() => {
       request.cancel();
@@ -702,7 +705,7 @@ describe("the image", () => {
 });
 
 describe("accessibility", () => {
-  it("[SR-129/AK1] is a listbox of options that the keyboard operates, labelled for screen readers", async () => {
+  it("[SR-129/AK-y6nx] is a listbox of options that the keyboard operates, labelled for screen readers", async () => {
     const view = await show("");
     await type(view, "/");
     const content = container.querySelector(".cm-content");
@@ -730,7 +733,7 @@ describe("the dates of the slash menu (SR-200)", () => {
     calendarOf()?.querySelector<HTMLElement>('[aria-selected="true"]')?.dataset["day"];
   const key = (view: EditorView, name: string): boolean => press(view, { key: name }).handled;
 
-  it("[SR-200/AK1] Today writes today's date of the computer in place of the / and its query", async () => {
+  it("[SR-200/AK-dnvq] Today writes today's date of the computer in place of the / and its query", async () => {
     const view = await dated("Due ");
     await type(view, "/tod");
     expect(selected(view)).toBe("Today");
@@ -739,7 +742,7 @@ describe("the dates of the slash menu (SR-200)", () => {
     expect(view.state.selection.main.head).toBe(14);
   });
 
-  it("[SR-200/AK2] Date opens a month calendar at the caret with today chosen; the arrows move by a day and a week, across months", async () => {
+  it("[SR-200/AK-k8gq] Date opens a month calendar at the caret with today chosen; the arrows move by a day and a week, across months", async () => {
     const view = await dated("");
     await type(view, "/date");
     expect(selected(view)).toBe("Date");
@@ -770,7 +773,7 @@ describe("the dates of the slash menu (SR-200)", () => {
     expect(doc(view)).toBe("/date");
   });
 
-  it("[SR-200/AK3] Enter writes the chosen day as YYYY-MM-DD in place of the / and its query, in one undo step", async () => {
+  it("[SR-200/AK-gx03] Enter writes the chosen day as YYYY-MM-DD in place of the / and its query, in one undo step", async () => {
     const view = await dated("Due ");
     await type(view, "/da");
     key(view, "Enter");
@@ -787,7 +790,7 @@ describe("the dates of the slash menu (SR-200)", () => {
     expect(doc(view)).toBe("Due /da");
   });
 
-  it("[SR-200/AK3] a click on a day writes that day", async () => {
+  it("[SR-200/AK-gx03] a click on a day writes that day", async () => {
     const view = await dated("");
     await type(view, "/date");
     key(view, "Enter");
@@ -800,7 +803,7 @@ describe("the dates of the slash menu (SR-200)", () => {
     expect(calendarOf()).toBeNull();
   });
 
-  it("[SR-200/AK3] Escape closes the calendar and leaves the / and its query as typed", async () => {
+  it("[SR-200/AK-gx03] Escape closes the calendar and leaves the / and its query as typed", async () => {
     const view = await dated("");
     await type(view, "/date");
     key(view, "Enter");

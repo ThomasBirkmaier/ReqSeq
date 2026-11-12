@@ -9,7 +9,7 @@ export interface Scenario {
   /** Folder of the workspace inside the fixture; default its root. */
   readonly root?: string;
   readonly input: Readonly<Record<string, unknown>>;
-  /** The tag the test name starts with; default `[SR-080/AK2]`. */
+  /** The tag the test name starts with; default `[SR-080/AK-bb1t]`. */
   readonly tag?: string;
   /** What core gives; guards against a scenario that only ever compares the same error. */
   readonly expect: "output" | "error";

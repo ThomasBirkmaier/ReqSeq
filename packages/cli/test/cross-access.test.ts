@@ -489,7 +489,7 @@ describe(
     for (const entry of runtime.contracts.commands) {
       const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
       for (const scenario of [DEFAULT, ...explicit]) {
-        it(`${scenario.tag ?? "[SR-080/AK2]"} ${entry.name}, ${scenario.name}`, async () => {
+        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"} ${entry.name}, ${scenario.name}`, async () => {
           const results = await runAll(entry, scenario);
           const core = results["core"];
           if (scenario !== DEFAULT) {
@@ -515,7 +515,7 @@ describe(
 );
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-080/AK1] is a CLI subcommand, an API route, once implemented an MCP tool, and listed by the app", async () => {
+  it("[SR-080/AK-wxtg] is a CLI subcommand, an API route, once implemented an MCP tool, and listed by the app", async () => {
     const { root } = await copy(DEFAULT);
     const names = runtime.contracts.commands.map((e) => e.name);
     for (const entry of runtime.contracts.commands) {
@@ -621,7 +621,7 @@ const apiText = async (
 };
 
 describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-061/AK4] the CLI with --jsonl and the API with application/x-ndjson give the same lines, those of the core output", async () => {
+  it("[SR-061/AK-h1db] the CLI with --jsonl and the API with application/x-ndjson give the same lines, those of the core output", async () => {
     const lined = runtime.contracts.commands.filter((e) => e.jsonLines !== undefined);
     expect(lined.map((e) => e.name)).toEqual(["data.export"]);
     for (const entry of lined) {
@@ -723,7 +723,7 @@ const withNeeds = async (count: number): Promise<{ readonly root: string; readon
 };
 
 describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-166/AK1] the API, the MCP server and the app keep every relation that eight relation.add calls at once report", async () => {
+  it("[SR-166/AK-p44g] the API, the MCP server and the app keep every relation that eight relation.add calls at once report", async () => {
     // The API: eight requests at once.
     {
       const { root, needs } = await withNeeds(PARALLEL_CALLS);

@@ -295,7 +295,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-111/AK1] the root is marked, between its parents and children, and centred where its graph reaches around it", async () => {
+  test("[SR-111/AK-g4rk] the root is marked, between its parents and children, and centred where its graph reaches around it", async () => {
     const { window } = await launch();
     // A view small enough that the graph of S1 reaches half a view beyond it on every side.
     await resize(running, 760, 420);
@@ -317,7 +317,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await expect(window.locator("path.graph-edge")).toHaveCount(pairs.size);
   });
 
-  test("[SR-111/AK1] a root without parents stands on top of its children, the drawing's top a margin into the view", async () => {
+  test("[SR-111/AK-g4rk] a root without parents stands on top of its children, the drawing's top a margin into the view", async () => {
     const { window } = await launch();
     await resize(running, 900, 420);
     await openElement(window, "N-a0000000001", "See the wind");
@@ -328,7 +328,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await expectElementPlaced(window, output, key(REPOSITORY, ID.N1), { y: "start" });
   });
 
-  test("[SR-111/AK1] a root without children stands under its parents, the drawing's bottom a margin into the view", async () => {
+  test("[SR-111/AK-g4rk] a root without children stands under its parents, the drawing's bottom a margin into the view", async () => {
     const { window } = await launch();
     await resize(running, 900, 420);
     await openElement(window, "CR-c0000000005", "Heat the turn sensor");
@@ -339,7 +339,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await expectElementPlaced(window, output, key(REPOSITORY, ID.CR5), { y: "end" });
   });
 
-  test("[SR-111/AK1] a drawing smaller than the view stands in its middle, the root between parents and children", async () => {
+  test("[SR-111/AK-g4rk] a drawing smaller than the view stands in its middle, the root between parents and children", async () => {
     const { window } = await launch();
     await resize(running, 1280, 800);
     await openElement(window, "N-a0000000001", "See the wind");
@@ -349,7 +349,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await expectElementPlaced(window, output, key(REPOSITORY, ID.N1), { x: "fit", y: "fit", against: 0 });
   });
 
-  test("[SR-111/AK4] an outdated link keeps the accent colour, also as a link of the selected element", async () => {
+  test("[SR-111/AK-kq3w] an outdated link keeps the accent colour, also as a link of the selected element", async () => {
     const { window } = await launch();
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -401,7 +401,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(four.accent).not.toBe(four.text);
   });
 
-  test("[SR-111/AK4] each node shows title and type name, and the mark words only on marked nodes", async () => {
+  test("[SR-111/AK-kq3w] each node shows title and type name, and the mark words only on marked nodes", async () => {
     const { window } = await launch();
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -444,7 +444,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     );
   });
 
-  test("[SR-111/AK5] arrows move along edges and layers, Enter opens the node as current element", async () => {
+  test("[SR-111/AK-h6rz] arrows move along edges and layers, Enter opens the node as current element", async () => {
     const { window } = await launch();
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -486,7 +486,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await expect(window.locator("article h1")).toHaveText(node.title);
   });
 
-  test("[SR-111/AK2] + and - show the nodes the CLI gives for one level more or less", async () => {
+  test("[SR-111/AK-p2tx] + and - show the nodes the CLI gives for one level more or less", async () => {
     const { window } = await launch();
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const one = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -514,7 +514,7 @@ test.describe("the graph on the specification workspace", () => {
     await expect(window.locator("article h1")).toHaveText(title);
   };
 
-  test("[SR-111/AK4] never cuts an ID, a type or a mark, on the long IDs and types of spec/", async () => {
+  test("[SR-111/AK-kq3w] never cuts an ID, a type or a mark, on the long IDs and types of spec/", async () => {
     const running = await launchApp({ folder: SPEC });
     const { window } = running;
     try {
@@ -596,7 +596,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     return output;
   };
 
-  test("[SR-111/AK2] Graph depth shows the direct neighbours, a chosen number of levels or the whole chain, as the CLI gives them", async () => {
+  test("[SR-111/AK-p2tx] Graph depth shows the direct neighbours, a chosen number of levels or the whole chain, as the CLI gives them", async () => {
     const { window } = running;
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const one = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -612,7 +612,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     expect(two.nodes.length).toBeLessThan(all.nodes.length);
   });
 
-  test("[SR-111/AK3] Show only and Also show relation kind draw only those links, as the CLI gives them", async () => {
+  test("[SR-111/AK-h6n9] Show only and Also show relation kind draw only those links, as the CLI gives them", async () => {
     const { window } = running;
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const everything = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -665,7 +665,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
       .sort();
   };
 
-  test("[SR-111/AK3] Evidence in Also show and Show only draws a box below each node with the counts the CLI gives, which the keys skip", async () => {
+  test("[SR-111/AK-h6n9] Evidence in Also show and Show only draws a box below each node with the counts the CLI gives, which the keys skip", async () => {
     const { window } = running;
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const everything = await traced(running, { ref: ID.S1, maxDepth: 1 });
@@ -726,7 +726,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     await expect(window.locator(".graph-evidence")).toHaveCount(0);
   });
 
-  test("[SR-154/AK1] the mouse on a link and the key l name its relation kinds as the CLI and the metamodel give them", async () => {
+  test("[SR-154/AK-rhrj] the mouse on a link and the key l name its relation kinds as the CLI and the metamodel give them", async () => {
     const { window } = running;
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });

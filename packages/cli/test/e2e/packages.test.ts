@@ -60,7 +60,7 @@ const sha256 = async (ws: FixtureWorkspace, file: string): Promise<string> =>
     .digest("hex");
 
 describe("reqseq packages (SR-048, SR-049)", () => {
-  it("[SR-048/AK1] element.create of type package writes a package file", async () => {
+  it("[SR-048/AK-fbss] element.create of type package writes a package file", async () => {
     const ws = await workspace();
     const out = await json<{ element: { id: string; shortId: string }; files: string[] }>(ws, [
       "element",
@@ -74,7 +74,7 @@ describe("reqseq packages (SR-048, SR-049)", () => {
     );
   });
 
-  it("[SR-048/AK2] assigning a package writes it into the element file and leaves the package file unchanged", async () => {
+  it("[SR-048/AK-shpy] assigning a package writes it into the element file and leaves the package file unchanged", async () => {
     const ws = await workspace();
     const before = await sha256(ws, FILE.P1);
     await json(ws, [
@@ -91,7 +91,7 @@ describe("reqseq packages (SR-048, SR-049)", () => {
     expect(await ws.git(["status", "--porcelain"])).toBe(` M ${FILE.R3}\n`);
   });
 
-  it("[SR-048/AK3] removing the package with element.update drops it from the element and from the package's elements", async () => {
+  it("[SR-048/AK-sn10] removing the package with element.update drops it from the element and from the package's elements", async () => {
     const ws = await workspace();
     const before = await sha256(ws, FILE.P1);
     await json(ws, ["element", "update", "SR-0000b2", "--unset", "packages"]);
@@ -109,13 +109,13 @@ describe("reqseq packages (SR-048, SR-049)", () => {
     expect(await members(ws, "PKG-0000d2")).toEqual(["SR-0000b1"]);
   });
 
-  it("[SR-049/AK1] a requirement in P1 and P2 appears in both", async () => {
+  it("[SR-049/AK-sqcc] a requirement in P1 and P2 appears in both", async () => {
     const ws = await workspace();
     expect(await members(ws, "PKG-0000d1")).toEqual(["SR-0000b1", "SR-0000b2"]);
     expect(await members(ws, "PKG-0000d2")).toEqual(["SR-0000b1"]);
   });
 
-  it("[SR-049/AK2] after a change both packages show the same content and there is exactly one file", async () => {
+  it("[SR-049/AK-pm79] after a change both packages show the same content and there is exactly one file", async () => {
     const ws = await workspace();
     const sha = await fileSha256("SR-0000b1", { cwd: ws.root });
     await json(ws, [

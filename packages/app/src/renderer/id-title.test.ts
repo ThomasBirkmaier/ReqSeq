@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { idOfName, idTitle, shownId, shownIdTitle } from "./id-title.js";
 
 describe("shownId", () => {
-  it("[SR-084/AK4] is the short ID with the identifier in brackets behind it, the short ID alone without one", () => {
+  it("[SR-084/AK-c2s2] is the short ID with the identifier in brackets behind it, the short ID alone without one", () => {
     expect(shownId("SR-3c90b0", "SR-036")).toBe("SR-3c90b0 (SR-036)");
     expect(shownId("SR-3c90b0")).toBe("SR-3c90b0");
     expect(shownId("SR-3c90b0", " ")).toBe("SR-3c90b0");

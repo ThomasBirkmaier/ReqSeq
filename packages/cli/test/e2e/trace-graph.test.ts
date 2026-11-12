@@ -41,7 +41,7 @@ const graph = async (args: readonly string[]): Promise<{ run: Run; output: Outpu
 const nodes = (output: Output): unknown[] => output.nodes.map((n) => [n.shortId, n.level]);
 
 describe("reqseq trace graph (SR-111)", () => {
-  it("[SR-111/AK1] gives the element at level 0, its parents above and its children below", async () => {
+  it("[SR-111/AK-g4rk] gives the element at level 0, its parents above and its children below", async () => {
     const { run: result, output } = await graph(["SR-b0000000001", "--meanings", "derivation"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(nodes(output)).toEqual([
@@ -54,7 +54,7 @@ describe("reqseq trace graph (SR-111)", () => {
     expect([output.truncated, output.incomplete]).toEqual([false, false]);
   });
 
-  it("[SR-111/AK2] gives a chosen number of levels, the whole chain, and at most --limit nodes", async () => {
+  it("[SR-111/AK-p2tx] gives a chosen number of levels, the whole chain, and at most --limit nodes", async () => {
     const two = await graph(["SR-b0000000001", "--meanings", "derivation", "--max-depth", "2"]);
     expect(nodes(two.output).at(-1)).toEqual(["CR-000004", 2]);
     const all = await graph(["SR-b0000000001", "--meanings", "derivation", "--all-levels"]);
@@ -63,7 +63,7 @@ describe("reqseq trace graph (SR-111)", () => {
     expect([cut.output.nodes.length, cut.output.truncated]).toEqual([3, true]);
   });
 
-  it("[SR-111/AK3] follows only the chosen relation kinds", async () => {
+  it("[SR-111/AK-h6n9] follows only the chosen relation kinds", async () => {
     const { output } = await graph(["SR-b0000000001", "--kinds", "based-on"]);
     expect(nodes(output)).toEqual([
       ["SR-b0000000001", 0],
@@ -72,7 +72,7 @@ describe("reqseq trace graph (SR-111)", () => {
     expect(output.edges.map((e) => e.kind)).toEqual(["based-on"]);
   });
 
-  it("[SR-111/AK4] marks a node only when it is outdated or superseded", async () => {
+  it("[SR-111/AK-kq3w] marks a node only when it is outdated or superseded", async () => {
     const { output } = await graph(["SR-b0000000001"]);
     expect(output.nodes.filter((n) => n.marks.length > 0).map((n) => [n.shortId, n.marks])).toEqual([
       ["SR-b0000000001", ["outdated"]],

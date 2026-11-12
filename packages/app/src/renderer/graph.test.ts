@@ -33,7 +33,7 @@ import {
 const buffer = graphBuffer("uuid-S1", "spec", "S1 Title S1");
 
 describe("the input of trace.graph", () => {
-  it("[SR-111/AK2] asks for the element at its depth, at most 500 nodes", () => {
+  it("[SR-111/AK-p2tx] asks for the element at its depth, at most 500 nodes", () => {
     expect(GRAPH_LIMIT).toBe(500);
     expect(graphInput(buffer)).toEqual({ ref: "uuid-S1", repository: "spec", maxDepth: 1, limit: 500 });
     expect(graphInput({ ...buffer, depth: "all" })).toEqual({
@@ -44,7 +44,7 @@ describe("the input of trace.graph", () => {
     });
   });
 
-  it("[SR-111/AK3] passes the kinds, meanings and view the buffer holds", () => {
+  it("[SR-111/AK-h6n9] passes the kinds, meanings and view the buffer holds", () => {
     expect(
       graphInput({ ...buffer, depth: 3, kinds: ["based-on"], meanings: ["derivation"], view: "baseline" }),
     ).toEqual({
@@ -58,7 +58,7 @@ describe("the input of trace.graph", () => {
     });
   });
 
-  it("[SR-111/AK3] asks for the evidence while the buffer shows it", () => {
+  it("[SR-111/AK-h6n9] asks for the evidence while the buffer shows it", () => {
     expect(graphInput({ ...buffer, kinds: [], withEvidence: true })).toEqual({
       ref: "uuid-S1",
       repository: "spec",
@@ -71,7 +71,7 @@ describe("the input of trace.graph", () => {
 });
 
 describe("depth and filter", () => {
-  it("[SR-111/AK2] goes one level deeper up to 9, then the whole chain, and back", () => {
+  it("[SR-111/AK-p2tx] goes one level deeper up to 9, then the whole chain, and back", () => {
     const deep: GraphDepth[] = [1, 2, 8, 9, "all"];
     const shallow: GraphDepth[] = [1, 2, 9, "all"];
     const labelled: GraphDepth[] = [1, 2, "all"];
@@ -89,7 +89,7 @@ describe("depth and filter", () => {
     expect(filterLabel({ ...buffer, meanings: [] })).toBe("nothing followed");
   });
 
-  it("[SR-111/AK3] names the evidence after the kinds, by the name of its entry", () => {
+  it("[SR-111/AK-h6n9] names the evidence after the kinds, by the name of its entry", () => {
     const evidence = [{ name: "Nachweise", filter: { withEvidence: true as const } }];
     expect(filterLabel({ ...buffer, kinds: [], withEvidence: true })).toBe("only Evidence");
     expect(filterLabel({ ...buffer, kinds: [], withEvidence: true }, evidence)).toBe("only Nachweise");
@@ -102,7 +102,7 @@ describe("depth and filter", () => {
 });
 
 describe("what a node shows", () => {
-  it("[SR-111/AK4] is named by its short ID with the identifier, with its type, title and marks", () => {
+  it("[SR-111/AK-kq3w] is named by its short ID with the identifier, with its type, title and marks", () => {
     const [s1, , , pkg, o1] = S1_GRAPH.nodes;
     expect(nodeKey("spec", "uuid-S1")).toBe("spec:uuid-S1");
     expect(keyOfNode(graphNode("C1", 1))).toBe("spec:uuid-C1");
@@ -113,7 +113,7 @@ describe("what a node shows", () => {
     );
   });
 
-  it("[SR-111/AK3] sums up the evidence below a node with the counts of the CLI, and the node's name says it", () => {
+  it("[SR-111/AK-h6n9] sums up the evidence below a node with the counts of the CLI, and the node's name says it", () => {
     const summary = {
       id: "uuid-S1",
       repository: "spec",
@@ -179,7 +179,7 @@ describe("the text of a link", () => {
   ]);
   const nameOf = (key: string): string => key.replace("spec:uuid-", "");
 
-  it("[SR-154/AK1] reads along the arrow with the kind's name from the metamodel, and says outdated", () => {
+  it("[SR-154/AK-rhrj] reads along the arrow with the kind's name from the metamodel, and says outdated", () => {
     expect(
       edgeLines(
         [
@@ -194,7 +194,7 @@ describe("the text of a link", () => {
     ).toEqual(["S1 Derives from N1", "S1 Refers to D2 · outdated", "S1 Package PKG", "S1 based-on D1"]);
   });
 
-  it("[SR-154/AK2] gives one line for each link a curve draws", () => {
+  it("[SR-154/AK-yw64] gives one line for each link a curve draws", () => {
     expect(edgeLines([graphEdge("C1", "S1"), graphEdge("C1", "S1", BASED_ON)], nameOf, names)).toEqual([
       "C1 Derives from S1",
       "C1 based-on S1",
@@ -211,7 +211,7 @@ describe("the verification of a node", () => {
     return found;
   };
 
-  it("[SR-136/AK2] a requirement's ring counts its verified criteria, a need's its degree", () => {
+  it("[SR-136/AK-kvvw] a requirement's ring counts its verified criteria, a need's its degree", () => {
     expect(ringOf(node("R11"))).toEqual({ part: 2 / 3, text: "2 of 3" });
     expect(ringOf(node("N1"))).toEqual({ part: 0.6, text: "60 %" });
     expect([ringOf(node("I1")), ringOf(node("N2")), ringOf(node("D1"))]).toEqual([
@@ -221,7 +221,7 @@ describe("the verification of a node", () => {
     ]);
   });
 
-  it("[SR-136/AK1] the status of a requirement, failed and outdated in the accent colour", () => {
+  it("[SR-136/AK-h2xg] the status of a requirement, failed and outdated in the accent colour", () => {
     expect([statusOf(node("R11")), statusOf(node("N1"))]).toEqual(["open", undefined]);
     expect(["open", "verified", "indirect", "failed", "outdated"].map(accentStatus)).toEqual([
       false,

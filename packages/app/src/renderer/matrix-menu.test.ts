@@ -114,7 +114,7 @@ describe("the spot of the matrix's cursor (SR-199)", () => {
 });
 
 describe("the arguments the matrix's menu gives (SR-199)", () => {
-  it("[SR-199/AK3] gives Create relation in a cell the row and the column's kind and direction", () => {
+  it("[SR-199/AK-ngjy] gives Create relation in a cell the row and the column's kind and direction", () => {
     expect(matrixGiven("matrix-cell", cellSpot(row, column("out")), names)).toEqual({
       "relation.add": [
         { field: "source", value: "uuid-1", label: "SR-1" },
@@ -130,7 +130,7 @@ describe("the arguments the matrix's menu gives (SR-199)", () => {
     });
   });
 
-  it("[SR-199/AK4] gives Remove relation on a connected element the relation between the row and it", () => {
+  it("[SR-199/AK-k1z8] gives Remove relation on a connected element the relation between the row and it", () => {
     expect(matrixGiven("matrix-target", relationSpot(row, relation("out")), names)).toEqual({
       "relation.remove": [
         { field: "source", value: "uuid-1", label: "SR-1" },
@@ -187,13 +187,13 @@ describe("the entries of the matrix's menu (SR-199)", () => {
   }));
   const ids = (hit: MenuHit): string[] => menuEntries(hit, items).map((item) => item.id);
 
-  it("[SR-199/AK3] has Create relation only in a cell where a relation of its column can be created", () => {
+  it("[SR-199/AK-ngjy] has Create relation only in a cell where a relation of its column can be created", () => {
     expect(MENU_PLACES["matrix-cell"].map((entry) => entry.id)).toEqual(["command:relation.add"]);
     expect(ids(inCell("matrix-cell", CREATABLE))).toEqual(["command:relation.add"]);
     expect(ids(inCell("matrix-cell"))).toEqual([]);
   });
 
-  it("[SR-199/AK4] has Remove relation after the entries of the connected element", () => {
+  it("[SR-199/AK-k1z8] has Remove relation after the entries of the connected element", () => {
     expect(MENU_PLACES["matrix-target"].at(-1)?.id).toBe("command:relation.remove");
     expect(ids(inCell("matrix-target"))).toEqual([
       "entry-show",
@@ -221,7 +221,7 @@ describe("where a relation of a column can be created (SR-199 AK3)", () => {
   );
   const known = withOptions(requirement, { key: "type:need", ref: "n", type: "need" }, []);
 
-  it("[SR-199/AK3] is where relation.options lets the row's type be the source or the target of the column's kind", () => {
+  it("[SR-199/AK-ngjy] is where relation.options lets the row's type be the source or the target of the column's kind", () => {
     // An outgoing column: the row's type may have the kind; a need may not derive from anything.
     expect(creatable(known, "system-requirement", column("out"))).toBe(true);
     expect(creatable(known, "need", column("out"))).toBe(false);

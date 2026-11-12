@@ -22,7 +22,7 @@ const JUNIT =
 
 scenariosOf("reqif.export", [
   {
-    tag: "[SR-052/AK1]",
+    tag: "[SR-052/AK-hk4d]",
     name: "a package as one ReqIF file, its relations as SPEC-RELATIONs and their targets outside it as stubs",
     fixture: REQIF_EXPORT,
     input: { output: "s6.reqif", selection: { package: "52052052-0000-4000-8000-0000000052f1" } },
@@ -30,7 +30,7 @@ scenariosOf("reqif.export", [
     masks: EXPORT_MASKS,
   },
   {
-    tag: "[SR-058/AK1]",
+    tag: "[SR-058/AK-qb9p]",
     name: "the statements of the mapping's source by their source IDENTIFIERs, one without counted",
     fixture: STATEMENTS,
     input: { output: "back.reqif", mapping: "reqif/kunde-a.yaml", statements: true },
@@ -38,7 +38,7 @@ scenariosOf("reqif.export", [
     masks: EXPORT_MASKS,
   },
   {
-    tag: "[SR-207/AK1]",
+    tag: "[SR-207/AK-gbbc]",
     name: "an output that is an XML file but no ReqIF file is refused with the reason, and nothing is written",
     fixture: { ...REQIF_EXPORT, files: { "results.xml": JUNIT } },
     input: { output: "results.xml", selection: { ids: [WIND_S6] } },
@@ -62,7 +62,7 @@ scenariosOf("reqif.export", [
     expect: "error",
   },
   {
-    tag: "[SR-054/AK2]",
+    tag: "[SR-054/AK-vy8n]",
     name: "an export to the same source through the saved mapping the command names, without a question on types and attributes",
     fixture: {
       ...FIRST_IMPORT,
@@ -84,7 +84,7 @@ scenariosOf("reqif.export", [
     },
   },
   {
-    tag: "[SR-059/AK1]",
+    tag: "[SR-059/AK-d5s8]",
     name: "the properties to omit are missing from the file",
     fixture: REQIF_EXPORT,
     input: { output: "s6.reqif", selection: { package: PACKAGE_S6 }, omitProperties: ["rationale"] },
@@ -97,7 +97,7 @@ scenariosOf("reqif.export", [
     },
   },
   {
-    tag: "[SR-059/AK2]",
+    tag: "[SR-059/AK-trx1]",
     name: "a target outside the export is a SPEC-OBJECT with IDENTIFIER and type only",
     fixture: REQIF_EXPORT,
     input: { output: "wind.reqif", selection: { ids: [WIND_S6] } },
@@ -113,7 +113,7 @@ scenariosOf("reqif.export", [
     },
   },
   {
-    tag: "[SR-059/AK3]",
+    tag: "[SR-059/AK-d6kn]",
     name: "the properties to omit are saved in the mapping of the target",
     fixture: SUPPLIER,
     input: { output: "s6.reqif", mapping: "reqif/zulieferer.yaml", omitProperties: ["rationale"] },
@@ -126,7 +126,7 @@ scenariosOf("reqif.export", [
     },
   },
   {
-    tag: "[SR-059/AK3]",
+    tag: "[SR-059/AK-d6kn]",
     name: "a later delivery leaves out the properties the mapping saved",
     fixture: {
       ...SUPPLIER,

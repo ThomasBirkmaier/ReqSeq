@@ -6,10 +6,14 @@ title: "Mehrere Elemente gemeinsam ändern"
 spec-id: "SR-071"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Auswahl von Elementen, wenn eine Property für alle gesetzt, ergänzt oder entfernt wird, dann ändert das Tool jede Datei der Auswahl, die die Property zulässt, und darin nur diese Property, dazu höchstens die gespeicherten Titel umbenannter Ziele im selben Repository (D-042)."
-  - "Gegeben die Änderung, wenn sie ohne Bestätigung aufgerufen wird (App: in der Befehlszeile; CLI, API, MCP: `element.bulkUpdate`), dann nennt das Tool die Zahl der Elemente, die es ändern würde, und schreibt nichts; erst der Aufruf mit Bestätigung schreibt. Nennt die Bestätigung die Vorschau und hat sich seit der Vorschau geändert, welche Elemente oder welchen Inhalt die Änderung schreiben würde, oder lässt sich eine der Dateien nicht schreiben, lehnt das Tool die Bestätigung ab und schreibt keine Datei."
-  - "Gegeben ein Element der Auswahl lässt die Property nach dem Metamodell nicht zu oder hat einen Typ, den das Metamodell nicht kennt, wenn geändert wird, dann lässt das Tool es aus und nennt es."
-  - "Gegeben eine Mehrfachänderung soll ID, Typ oder Status setzen, ergänzen oder entfernen (App, CLI, API, MCP: `element.bulkUpdate`), dann lehnt das Tool das ab und schreibt nichts; den Status mehrerer Elemente setzt `element.setStatus` in einem Schritt."
+  - key: zbs4
+    text: Gegeben eine Auswahl von Elementen, wenn eine Property für alle gesetzt, ergänzt oder entfernt wird, dann ändert das Tool jede Datei der Auswahl, die die Property zulässt, und darin nur diese Property, dazu höchstens die gespeicherten Titel umbenannter Ziele im selben Repository (D-042).
+  - key: gdr6
+    text: "Gegeben die Änderung, wenn sie ohne Bestätigung aufgerufen wird (App: in der Befehlszeile; CLI, API, MCP: `element.bulkUpdate`), dann nennt das Tool die Zahl der Elemente, die es ändern würde, und schreibt nichts; erst der Aufruf mit Bestätigung schreibt. Nennt die Bestätigung die Vorschau und hat sich seit der Vorschau geändert, welche Elemente oder welchen Inhalt die Änderung schreiben würde, oder lässt sich eine der Dateien nicht schreiben, lehnt das Tool die Bestätigung ab und schreibt keine Datei."
+  - key: n129
+    text: Gegeben ein Element der Auswahl lässt die Property nach dem Metamodell nicht zu oder hat einen Typ, den das Metamodell nicht kennt, wenn geändert wird, dann lässt das Tool es aus und nennt es.
+  - key: f00k
+    text: "Gegeben eine Mehrfachänderung soll ID, Typ oder Status setzen, ergänzen oder entfernen (App, CLI, API, MCP: `element.bulkUpdate`), dann lehnt das Tool das ab und schreibt nichts; den Status mehrerer Elemente setzt `element.setStatus` in einem Schritt."
 verification-method: test
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }

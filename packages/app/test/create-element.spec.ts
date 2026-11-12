@@ -106,7 +106,7 @@ test.describe("Create element", () => {
     await running.close();
   });
 
-  test("[SR-064/AK1] asks after the type and the title only the required properties of the type, and shows the new element with its title, its text and the properties given", async () => {
+  test("[SR-064/AK-xjg5] asks after the type and the title only the required properties of the type, and shows the new element with its title, its text and the properties given", async () => {
     const { window } = running;
     const type = await systemRequirement(running);
     expect(type.required).toEqual(["requirement-type", "acceptance-criteria"]);
@@ -142,7 +142,7 @@ test.describe("Create element", () => {
     await expect(echo(window)).toContainText(new RegExp(`Created SR-\\w+ ${TITLE} · 1 hint$`, "u"));
   });
 
-  test("[SR-064/AK2] with the required properties left empty the element is saved anyway, and the minibuffer and the modeline show the hints", async () => {
+  test("[SR-064/AK-yhn7] with the required properties left empty the element is saved anyway, and the minibuffer and the modeline show the hints", async () => {
     const { window } = running;
     await createSystemRequirement(window);
     await expect(label(window)).toContainText("· requirement-type:");
@@ -174,7 +174,7 @@ test.describe("Create element", () => {
     await expect(modeline(window)).toContainText("3 hints");
   });
 
-  test("[SR-064/AK3] after reopening, Add property offers every other property of the type, and a value added is saved to the file", async () => {
+  test("[SR-064/AK-cs9n] after reopening, Add property offers every other property of the type, and a value added is saved to the file", async () => {
     const { window } = running;
     const type = await systemRequirement(running);
     await createSystemRequirement(window);

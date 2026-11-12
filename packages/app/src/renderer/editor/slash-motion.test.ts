@@ -54,7 +54,7 @@ const withMotion = (): void => {
 };
 
 describe("the slash menu in motion (SR-129 AK5)", () => {
-  it("[SR-129/AK5] puts a seam around the menu and a backdrop behind it, both starting the motion in", async () => {
+  it("[SR-129/AK-pk82] puts a seam around the menu and a backdrop behind it, both starting the motion in", async () => {
     const shown = menu();
     view.dom.append(shown);
     await settle();

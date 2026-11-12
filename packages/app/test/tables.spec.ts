@@ -72,7 +72,7 @@ test.describe("table editing in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-188/AK1] [SR-188/AK4] Tab after the last cell adds a row, and one undo takes it back", async () => {
+  test("[SR-188/AK-nnmv] [SR-188/AK-hhdn] Tab after the last cell adds a row, and one undo takes it back", async () => {
     const { window } = running;
     await caretIn(window, "Süd");
     await window.keyboard.press("Tab");
@@ -90,7 +90,7 @@ test.describe("table editing in the element buffer", () => {
     await expectSaved(running, /\| Süd \| 7 \|\n\| Ost +\| 3 *\|\n$/u);
   });
 
-  test("[SR-188/AK2] [SR-188/AK3] Align table and Insert column from the command prompt change the file", async () => {
+  test("[SR-188/AK-g6sz] [SR-188/AK-fk18] Align table and Insert column from the command prompt change the file", async () => {
     const { window } = running;
     await caretIn(window, "Nord");
     await command(window, "Align table");

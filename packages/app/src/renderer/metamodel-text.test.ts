@@ -19,7 +19,7 @@ const words = (row: TextRow): string =>
       ].join(" | ");
 
 describe("metamodelText", () => {
-  it("[SR-130/AK5] names for each type its key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and for each relation kind its source and target types", () => {
+  it("[SR-130/AK-y6rs] names for each type its key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and for each relation kind its source and target types", () => {
     const text = metamodelText(FIXTURE_METAMODEL);
     expect(text.rows.map(words)).toEqual([
       "type:item | Item ITM item abstract | extends - | Title title text required | statuses Draft · Approved · Retired",
@@ -89,7 +89,7 @@ describe("metamodelText", () => {
     ]);
   });
 
-  it("[SR-130/AK5] names the most entries of a list property and each limit of a relation kind (SR-171, SR-152)", () => {
+  it("[SR-130/AK-y6rs] names the most entries of a list property and each limit of a relation kind (SR-171, SR-152)", () => {
     const text = metamodelText(
       metamodelOutput({
         types: [

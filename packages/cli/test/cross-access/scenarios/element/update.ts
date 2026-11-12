@@ -83,7 +83,7 @@ scenariosOf("element.update", [
     },
     // The replaced criterion keeps its criterion key; the appended one gets a new key (masked), and
     // so the file another hash.
-    tag: "[SR-204/AK6]",
+    tag: "[SR-204/AK-ng0p]",
     expect: "output",
     masks: [...NEW_CRITERION_KEYS, /(?<="fileSha256":")[0-9a-f]{64}/g],
   },
@@ -100,7 +100,7 @@ scenariosOf("element.update", [
         ],
       },
     },
-    tag: "[SR-204/AK5]",
+    tag: "[SR-204/AK-b2q6]",
     expect: "output",
     check: (results) => {
       const output = (results["core"]?.outcome as { output: Written }).output;
@@ -119,7 +119,7 @@ scenariosOf("element.update", [
       ref: "SR-000177",
       set: { "acceptance-criteria": [{ key: "Bad-Key", text: "Given a key, then it is refused." }] },
     },
-    tag: "[SR-204/AK5]",
+    tag: "[SR-204/AK-b2q6]",
     expect: "error",
   },
   {
@@ -140,14 +140,14 @@ scenariosOf("element.update", [
   },
   {
     name: "a number given as text is refused, the file stays (#614)",
-    tag: "[SR-085/AK4]",
+    tag: "[SR-085/AK-jx8c]",
     fixture: FILTER,
     input: { ref: "SWR-0000f1", set: { priority: "3" } },
     expect: "error",
   },
   {
     name: "a property the type does not have is refused, the file stays",
-    tag: "[SR-016/AK4]",
+    tag: "[SR-016/AK-qdr5]",
     fixture: FILTER,
     input: { ref: "SR-0000b1", set: { colour: "red" } },
     expect: "error",
@@ -199,7 +199,7 @@ scenariosOf("element.update", [
   {
     name: "setting an origin property is refused: only reqif.import writes it",
     input: { ref: "SR-e88fb3", set: { source: "Kunde B" } },
-    tag: "[SR-057/AK3]",
+    tag: "[SR-057/AK-kvbv]",
     expect: "error",
   },
   {
@@ -210,7 +210,7 @@ scenariosOf("element.update", [
       title: "North",
       expectedFileSha256: fixtureSha256("SR-039/nested", "variants/VAR-0000000000b2.md"),
     },
-    tag: "[SR-039/AK2]",
+    tag: "[SR-039/AK-nvfq]",
     expect: "error",
   },
   {
@@ -221,7 +221,7 @@ scenariosOf("element.update", [
       title: "Mountains",
       expectedFileSha256: fixtureSha256("SR-039/nested", "variants/VAR-0000000000c3.md"),
     },
-    tag: "[SR-039/AK2]",
+    tag: "[SR-039/AK-nvfq]",
     expect: "output",
   },
   {
@@ -238,7 +238,7 @@ scenariosOf("element.update", [
     expect: "output",
   },
   {
-    tag: "[SR-072/AK2]",
+    tag: "[SR-072/AK-y5gr]",
     name: "update the successor of a superseded element: its own succession relation gets no hint",
     fixture: {
       fixture: "SR-072/supersede",
@@ -306,7 +306,7 @@ scenariosOf("element.update", [
   {
     name: "add a required and an optional property the element lacks; the hint of the filled one is gone",
     input: { ref: "SR-e88fb3", set: { "verification-method": "test", "requirement-type": "functional" } },
-    tag: "[SR-064/AK3]",
+    tag: "[SR-064/AK-cs9n]",
     expect: "output",
     check: (results) => {
       const output = (results["core"]?.outcome as { output: Written }).output;

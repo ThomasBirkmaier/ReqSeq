@@ -49,7 +49,7 @@ const P = "26a0b000-0000-4000-8000-0000000000";
 const rows = (output: Output): unknown[] => output.hints.map((h) => [h.code, h.elementId, h.targetId]);
 
 describe("reqseq hint list (SR-026)", () => {
-  it("[SR-026/AK1] prints every open hint with kind, element, target and reason, as JSON and readable, with exit code 0", async () => {
+  it("[SR-026/AK-vs4d] prints every open hint with kind, element, target and reason, as JSON and readable, with exit code 0", async () => {
     const ws = await fixture();
     const json = await reqseq(["hint", "list", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
@@ -88,7 +88,7 @@ describe("reqseq hint list (SR-026)", () => {
     expect(lines).toHaveLength(11);
   });
 
-  it("[SR-026/AK2] prints only the hints that pass the filters", async () => {
+  it("[SR-026/AK-g7cj] prints only the hints that pass the filters", async () => {
     const ws = await fixture();
     const filtered = await reqseq(
       [
@@ -117,7 +117,7 @@ describe("reqseq hint list (SR-026)", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
-  it("[SR-026/AK3] element get shows the outdated relation of the element", async () => {
+  it("[SR-026/AK-w590] element get shows the outdated relation of the element", async () => {
     const ws = await fixture();
     const json = await reqseq(["element", "get", "SR-0000b1", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
@@ -130,7 +130,7 @@ describe("reqseq hint list (SR-026)", () => {
 });
 
 describe("reqseq hint list with a changed core requirement (SR-045)", () => {
-  it("[SR-045/AK1] lists one hint at the replacement with both versions, also for its variant, and none beside it", async () => {
+  it("[SR-045/AK-yryh] lists one hint at the replacement with both versions, also for its variant, and none beside it", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-045/core-changed", git: true });
     fixtures.push(ws);
     const file = ws.path("requirements/SR-0000000000a1.md");

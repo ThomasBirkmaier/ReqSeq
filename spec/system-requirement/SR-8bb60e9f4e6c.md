@@ -6,11 +6,16 @@ title: "Nachweis mit Fassung, Prüfling und Baselines zeigen"
 spec-id: "SR-032"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise angezeigt werden, dann zeigt das Tool zu jedem Datensatz Fassung, Prüfling, Datum, Ergebnis und Beleg."
-  - "Gegeben die Fassung eines Datensatzes ist in Baselines enthalten, wenn er angezeigt wird, dann nennt das Tool diese Baselines."
-  - "Gegeben ein Requirement mit mehreren Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann stehen offen nur die Datensätze, die seinen Nachweisstatus tragen: je Akzeptanzkriterium und Variante alle Datensätze mit dem neuesten Datum zur aktuellen Fassung (D-072) oder, wenn es zu ihr keinen gibt, die mit dem neuesten Datum zu einer älteren Fassung; alle übrigen stehen in einem zugeklappten Abschnitt darunter, der die Zahl ihrer Läufe nennt, je Lauf (gleiches Datum und gleiche Fassung) eine Zeile zeigt, die zu ihren Datensätzen aufklappt, und sich per Klick und Tastatur auf- und zuklappen lässt."
-  - "Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann zeigen die offenen Datensätze je Akzeptanzkriterium eine Zeile (ohne Akzeptanzkriterien eine für das Requirement) mit Ergebnis und Zahl der Testfälle; das Ergebnis ist das schlechteste ihrer Datensätze (nicht bestanden vor nicht beurteilbar vor bestanden), eine Zeile, deren Nachweisstatus nicht bestanden oder veraltet ist, ist hervorgehoben und nennt die Varianten, in denen er es ist; ein Datensatz ohne Akzeptanzkriterium erscheint unter jedem, einer ohne Testfall zählt als eigener Testfall; die Zeile klappt per Klick und Tastatur auf zu je einer Zeile je Testfall und diese zu ihren Datensätzen."
-  - "Gegeben ein Requirement mit offenen Datensätzen, wenn sie in der App angezeigt werden, dann steht jede der Angaben Datum, Prüfling, Fassung und Baselines, die alle offenen Datensätze teilen, einmal über den Zeilen der Akzeptanzkriterien und nicht in jeder Zeile."
+  - key: z0d4
+    text: Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise angezeigt werden, dann zeigt das Tool zu jedem Datensatz Fassung, Prüfling, Datum, Ergebnis und Beleg.
+  - key: nx9m
+    text: Gegeben die Fassung eines Datensatzes ist in Baselines enthalten, wenn er angezeigt wird, dann nennt das Tool diese Baselines.
+  - key: hbdt
+    text: "Gegeben ein Requirement mit mehreren Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann stehen offen nur die Datensätze, die seinen Nachweisstatus tragen: je Akzeptanzkriterium und Variante alle Datensätze mit dem neuesten Datum zur aktuellen Fassung (D-072) oder, wenn es zu ihr keinen gibt, die mit dem neuesten Datum zu einer älteren Fassung; alle übrigen stehen in einem zugeklappten Abschnitt darunter, der die Zahl ihrer Läufe nennt, je Lauf (gleiches Datum und gleiche Fassung) eine Zeile zeigt, die zu ihren Datensätzen aufklappt, und sich per Klick und Tastatur auf- und zuklappen lässt."
+  - key: rbjn
+    text: Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann zeigen die offenen Datensätze je Akzeptanzkriterium eine Zeile (ohne Akzeptanzkriterien eine für das Requirement) mit Ergebnis und Zahl der Testfälle; das Ergebnis ist das schlechteste ihrer Datensätze (nicht bestanden vor nicht beurteilbar vor bestanden), eine Zeile, deren Nachweisstatus nicht bestanden oder veraltet ist, ist hervorgehoben und nennt die Varianten, in denen er es ist; ein Datensatz ohne Akzeptanzkriterium erscheint unter jedem, einer ohne Testfall zählt als eigener Testfall; die Zeile klappt per Klick und Tastatur auf zu je einer Zeile je Testfall und diese zu ihren Datensätzen.
+  - key: cd8f
+    text: Gegeben ein Requirement mit offenen Datensätzen, wenn sie in der App angezeigt werden, dann steht jede der Angaben Datum, Prüfling, Fassung und Baselines, die alle offenen Datensätze teilen, einmal über den Zeilen der Akzeptanzkriterien und nicht in jeder Zeile.
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }

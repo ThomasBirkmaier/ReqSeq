@@ -131,7 +131,7 @@ const writes = (): number =>
   vi.mocked(WorkspaceBlock.writeCacheFile).mock.calls.filter(([, name]) => name === ACTIVITY_FILE).length;
 
 describe("recording the last API or MCP access (SR-117)", () => {
-  it("[SR-117/AK1] an MCP or API read of one element writes it as the last access of the copy", async () => {
+  it("[SR-117/AK-knhb] an MCP or API read of one element writes it as the last access of the copy", async () => {
     const opened = await copy(ONE);
     await call(opened.workspace, "element.get", { ref: "SR-e88fb3" }, "mcp");
     const file = await recorded(opened);
@@ -154,7 +154,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect((await recorded(api))?.access).toMatchObject({ access: "api", command: "trace.chain" });
   });
 
-  it("[SR-117/AK1] a read names the copy its repository picks when two repositories share the UUID", async () => {
+  it("[SR-117/AK-knhb] a read names the copy its repository picks when two repositories share the UUID", async () => {
     const opened = await copy({ fixture: "SR-004/three-repositories" }, "system");
     const source = opened.fixture.path("system/requirements/SR-4b4da63a2dd1.md");
     await fs.copyFile(source, opened.fixture.path("sensor/SR-4b4da63a2dd1.md"));
@@ -172,7 +172,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect(await recorded(again)).toBeUndefined();
   });
 
-  it("[SR-117/AK1] a change records its subject, else the one element it wrote", async () => {
+  it("[SR-117/AK-knhb] a change records its subject, else the one element it wrote", async () => {
     const update = await copy(IDENTIFIERS);
     await call(update.workspace, "element.update", { ref: "SR-037", title: "Show IDs" }, "mcp");
     expect((await recorded(update))?.access).toMatchObject({
@@ -219,7 +219,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect(await recorded(two)).toBeUndefined();
   });
 
-  it("[SR-117/AK1] confirming a hint records the element whose file it wrote", async () => {
+  it("[SR-117/AK-knhb] confirming a hint records the element whose file it wrote", async () => {
     const opened = await copy(HINTS);
     const { hints } = (await call(opened.workspace, "hint.list", {}, "mcp")) as CommandOutput<"hint.list">;
     const hint = hints.find((p) => p.hintId !== undefined);
@@ -348,7 +348,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
     });
   });
 
-  it("[SR-117/AK1] records a created element, also in another repository than the main one", async () => {
+  it("[SR-117/AK-knhb] records a created element, also in another repository than the main one", async () => {
     const opened = await copy({ fixture: "SR-004/three-repositories" }, "system");
     const output = (await call(
       opened.workspace,
@@ -793,7 +793,7 @@ const activityFile = (
 });
 
 describe("watching the last access (SR-117)", () => {
-  it("[SR-117/AK1] reports an access another process records within 1 s, once", async () => {
+  it("[SR-117/AK-knhb] reports an access another process records within 1 s, once", async () => {
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
     const seen = accesses();
@@ -827,7 +827,7 @@ describe("watching the last access (SR-117)", () => {
     expect(ofSr037()).toHaveLength(1);
   });
 
-  it("[SR-117/AK1] reports a change only once the store of the watching process holds it", async () => {
+  it("[SR-117/AK-knhb] reports a change only once the store of the watching process holds it", async () => {
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
     const gate = await gateWorkspaceEvents("pass");
@@ -862,7 +862,7 @@ describe("watching the last access (SR-117)", () => {
     expect((await opened.workspace.get(elementStoreState)).byId.has(output.element.id)).toBe(true);
   });
 
-  it("[SR-117/AK1] reports a change the store does not show yet within 1 s of the access", async () => {
+  it("[SR-117/AK-knhb] reports a change the store does not show yet within 1 s of the access", async () => {
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
     // The store of the watching process never catches up: the hold alone must keep the 1 s.
@@ -1334,7 +1334,7 @@ describe("a watch that goes on or ends on its own", () => {
 });
 
 describe("following opens no network connection (SR-117 AK6)", () => {
-  it("[SR-117/AK6] recording and watching open no network connection", async () => {
+  it("[SR-117/AK-wzp3] recording and watching open no network connection", async () => {
     const spies = [
       vi.spyOn(net.Socket.prototype, "connect"),
       vi.spyOn(net.Server.prototype, "listen"),

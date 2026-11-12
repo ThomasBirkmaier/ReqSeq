@@ -30,7 +30,7 @@ const lists = (changed: string[], added: string[] = [], removed: string[] = []) 
 });
 
 describe("arrivals: what changed outside, for FRESH_MS", () => {
-  it("[SR-116/AK1] counts a changed or added element as fresh for 2 s, a removed one never", () => {
+  it("[SR-116/AK-w091] counts a changed or added element as fresh for 2 s, a removed one never", () => {
     let now = 1_000;
     const fresh = arrivals(() => now);
     fresh.record(lists(["a"], ["b"], ["c"]));
@@ -93,7 +93,7 @@ describe("nextChanges", () => {
     expect(namedSince(second, "c", 0)).toBe(false);
   });
 
-  it("[SR-106/AK3] notes the change that removed each UUID last, apart from the ones it added or changed", () => {
+  it("[SR-106/AK-v420] notes the change that removed each UUID last, apart from the ones it added or changed", () => {
     const fresh = (): boolean => true;
     const first = nextChanges(NO_CHANGES, lists([], [], ["a"]), fresh);
     const second = nextChanges(first, lists(["b"], [], ["c"]), fresh);
@@ -144,7 +144,7 @@ describe("fieldTexts and changedFields: what to highlight in an element buffer",
     expect(fieldTexts(element({ text: undefined })).get("Text")).toBe("");
   });
 
-  it("[SR-116/AK1] highlights the fields that differ, never one with input, and the title when nothing shown differs", () => {
+  it("[SR-116/AK-w091] highlights the fields that differ, never one with input, and the title when nothing shown differs", () => {
     const before = fieldTexts(element());
     const changed = fieldTexts(
       element({
@@ -182,7 +182,7 @@ describe("fieldTexts and changedFields: what to highlight in an element buffer",
 });
 
 describe("touchedSince and marksOnRead: what an element buffer does with a change from outside", () => {
-  it("[SR-116/AK1] a change from outside that names or removes the element asks for it again; one that names another element does not", () => {
+  it("[SR-116/AK-w091] a change from outside that names or removes the element asks for it again; one that names another element does not", () => {
     const changed = nextChanges(NO_CHANGES, lists(["a"]), () => false);
     expect(touchedSince(changed, "a", 0)).toBe(true);
     expect(touchedSince(changed, "b", 0)).toBe(false);
@@ -192,7 +192,7 @@ describe("touchedSince and marksOnRead: what an element buffer does with a chang
     expect(touchedSince(removed, "a", changed.seq)).toBe(false);
   });
 
-  it("[SR-116/AK1] a fresh read of other bytes highlights the fields that differ, never one with input; the app's own save and a late read none", () => {
+  it("[SR-116/AK-w091] a fresh read of other bytes highlights the fields that differ, never one with input; the app's own save and a late read none", () => {
     const before = fieldTexts(element());
     const after = fieldTexts(
       element({
@@ -243,7 +243,7 @@ describe("useOutsideMarks", () => {
     vi.useRealTimers();
   });
 
-  it("[SR-116/AK2] leaves no mark standing 3 s after it was set", () => {
+  it("[SR-116/AK-g84w] leaves no mark standing 3 s after it was set", () => {
     // Removed when the fade ends, with room before the bound for a timer that fires late.
     expect(MARK_MS).toBeLessThanOrEqual(MARK_BOUND_MS - 500);
     act(() => {

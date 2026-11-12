@@ -35,7 +35,7 @@ const run = (...steps: readonly Step[]): { shown: string | undefined; order: rea
 const open = (buffer: Buffers[number]): BufferAction => ({ type: "open", buffer });
 
 describe("the order in which the buffers were shown (SR-115 AK5)", () => {
-  it("[SR-115/AK5] Alt+P goes back to the buffer shown before, also when it was opened before others", () => {
+  it("[SR-115/AK-m5pg] Alt+P goes back to the buffer shown before, also when it was opened before others", () => {
     // Opened: overview, list, element, search; then back to the list and a reference followed.
     const start = [{ type: "reset", buffer: overview }, open(list), open(element), open(search)] as const;
     const back = [...start, { type: "switch", key: list.key }, open(other)] as const;
@@ -50,7 +50,7 @@ describe("the order in which the buffers were shown (SR-115 AK5)", () => {
     expect(run(...back, 1, 1, 1, 1, 1).shown).toBe(other.key);
   });
 
-  it("[SR-115/AK5] walking keeps the order; showing a buffer otherwise puts it first", () => {
+  it("[SR-115/AK-m5pg] walking keeps the order; showing a buffer otherwise puts it first", () => {
     const start = [{ type: "reset", buffer: overview }, open(list), open(element)] as const;
     const walked = run(...start, 1, 1);
     expect(walked.shown).toBe(overview.key);
@@ -61,14 +61,14 @@ describe("the order in which the buffers were shown (SR-115 AK5)", () => {
     expect(run(...start, 1, open(search), 1).shown).toBe(list.key);
   });
 
-  it("[SR-115/AK5] a buffer closed while walking leaves the order, the others keep their places", () => {
+  it("[SR-115/AK-m5pg] a buffer closed while walking leaves the order, the others keep their places", () => {
     const start = [{ type: "reset", buffer: overview }, open(list), open(element), open(search)] as const;
     const closed = run(...start, 1, { type: "close", key: overview.key });
     expect(closed.order).toEqual([search.key, element.key, list.key]);
     expect(run(...start, 1, { type: "close", key: overview.key }, 1).shown).toBe(list.key);
   });
 
-  it("[SR-115/AK5] buffers restored behind while walking end the walk", () => {
+  it("[SR-115/AK-m5pg] buffers restored behind while walking end the walk", () => {
     const walk: Walk = { order: [list.key, element.key], cycled: list.key };
     expect(cycleOrder(walk, [list, element, search])).toEqual({
       order: [list.key, element.key, search.key],
@@ -89,7 +89,7 @@ describe("the order in which the buffers were shown (SR-115 AK5)", () => {
     });
   });
 
-  it("[SR-115/AK5] gives no buffer with fewer than two, or when the shown one is not in the order", () => {
+  it("[SR-115/AK-m5pg] gives no buffer with fewer than two, or when the shown one is not in the order", () => {
     expect(cycleKey([overview.key], overview.key, 1)).toBeUndefined();
     expect(cycleKey([], undefined, -1)).toBeUndefined();
     expect(cycleKey([overview.key, list.key], other.key, 1)).toBeUndefined();

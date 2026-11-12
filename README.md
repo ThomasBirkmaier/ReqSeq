@@ -41,7 +41,7 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
    This is the macOS launcher. Give absolute paths of the launcher and the workspace, since MCP clients often start the server without your shell's path; [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/#mcp) has the line for each system.
 
 2. **Let it change the spec with commands.** `element create`, `element update`, `relation add` and `element supersede` keep IDs, versions and relations consistent; `element search` and `trace chain` let it read before it writes. A requirement is never deleted, only superseded, and a status is only ever set, never computed, so approving stays a decision someone makes.
-3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak1` where brackets do not fit.
+3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak_k7f3` where brackets do not fit.
 4. **Check it in CI.** On every pull request, as steps of a GitHub Actions job (checkout with `fetch-depth: 0`, workspace in `spec/`):
 
    ```yaml
@@ -54,7 +54,7 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
 
 Where this runs today:
 
-- **ReqSeq itself.** `spec/` holds the more than 200 system requirements of this repository as a ReqSeq workspace. The agents that build ReqSeq change it only through ReqSeq, every pull request checks it, and each acceptance criterion with the method Test has a test named after it (`[SR-036/AK2] ...`), which `pnpm trace-check` enforces.
+- **ReqSeq itself.** `spec/` holds the more than 200 system requirements of this repository as a ReqSeq workspace. The agents that build ReqSeq change it only through ReqSeq, every pull request checks it, and each acceptance criterion with the method Test has a test named after it (`[SR-036/AK-k7f3] ...`, with the criterion's key), which `pnpm trace-check` enforces.
 - **A pilot.** [reqseq-weight-and-balance](https://github.com/ThomasBirkmaier/reqseq-weight-and-balance) is a small web app built by agents that had not used ReqSeq before, from stakeholders and hazards down to Rust and Playwright tests. Its CI checks the workspace and enriches the JUnit results of both test suites.
 
 [Check a workspace in CI](https://thomasbirkmaier.github.io/ReqSeq/how-to/check-a-workspace-in-ci/) and [Record test evidence](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-evidence/) in the documentation have the details.

@@ -108,7 +108,7 @@ const findingsOf = async (
 };
 
 describe("relation types (SR-086)", () => {
-  it("[SR-086/AK1] gives a hint with source, target and relation kind when a need derives from a system requirement", async () => {
+  it("[SR-086/AK-yrxg] gives a hint with source, target and relation kind when a need derives from a system requirement", async () => {
     const workspace = await open();
     const context = await contextOf(workspace);
     const need = recordOf(context.store, NEED);
@@ -119,19 +119,19 @@ describe("relation types (SR-086)", () => {
     expect(await locateFindings(await workspace.get(workspaceLayoutState), findings)).toEqual([NEED_PROBLEM]);
   });
 
-  it("[SR-086/AK1] gives no hint for relations the metamodel allows", async () => {
+  it("[SR-086/AK-yrxg] gives no hint for relations the metamodel allows", async () => {
     const context = await contextOf(await open());
     expect(relationTypeFindings(recordOf(context.store, SR), context)).toEqual([]);
     expect(relationTypeFindings(recordOf(context.store, DECISION), context)).toEqual([]);
   });
 
-  it("[SR-086/AK1] allows the types that extend an allowed type", async () => {
+  it("[SR-086/AK-yrxg] allows the types that extend an allowed type", async () => {
     const context = await contextOf(await open());
     const safety = relationTypeFindings(recordOf(context.store, SAFETY), context);
     expect(safety.map((f) => f.path)).toEqual([["derives-from", 1]]);
   });
 
-  it("[SR-086/AK1] names what is allowed when only the source type or only the target type is wrong", async () => {
+  it("[SR-086/AK-yrxg] names what is allowed when only the source type or only the target type is wrong", async () => {
     expect(await findingsOf(NEED, { "derives-from": [TO_NEED] })).toEqual([
       [
         "derives-from/0",
@@ -148,7 +148,7 @@ describe("relation types (SR-086)", () => {
     ]);
   });
 
-  it("[SR-086/AK1] checks the target type of a relation-valued property", async () => {
+  it("[SR-086/AK-yrxg] checks the target type of a relation-valued property", async () => {
     expect(await findingsOf(SR, { "parent-item": TO_DECISION, "see-also": [TO_NEED, TO_SR] })).toEqual([
       [
         "parent-item",
@@ -159,7 +159,7 @@ describe("relation types (SR-086)", () => {
     expect(await findingsOf(DECISION, { "parent-item": TO_NEED }, "decision")).toEqual([]);
   });
 
-  it("[SR-086/AK1] names types the metamodel does not define by their key, an empty list as no type, and a restriction of the source alone", async () => {
+  it("[SR-086/AK-yrxg] names types the metamodel does not define by their key, an empty list as no type, and a restriction of the source alone", async () => {
     const workspace = await open();
     const context = await contextOf(workspace);
     const metamodel: Metamodel = {
@@ -176,7 +176,7 @@ describe("relation types (SR-086)", () => {
     ]);
   });
 
-  it("[SR-086/AK1] follows a property over a relation kind of the same key, as the value-kind check does", async () => {
+  it("[SR-086/AK-yrxg] follows a property over a relation kind of the same key, as the value-kind check does", async () => {
     const context = await contextOf(await open());
     const metamodel: Metamodel = {
       ...context.metamodel,
@@ -185,7 +185,7 @@ describe("relation types (SR-086)", () => {
     expect(relationTypeFindings(recordOf(context.store, NEED), { ...context, metamodel })).toEqual([]);
   });
 
-  it("[SR-086/AK1] checks the target type only when the target resolves to one element of a known type", async () => {
+  it("[SR-086/AK-yrxg] checks the target type only when the target resolves to one element of a known type", async () => {
     // Missing target (SR-089), target in another or a missing repository (SR-006), wrong format (SR-085).
     expect(
       await findingsOf(SR, {
@@ -206,7 +206,7 @@ describe("relation types (SR-086)", () => {
     expect(await findingsOf(NEED, { "derives-from": [TO_SR] }, "goal")).toEqual([]);
   });
 
-  it("[SR-086/AK1] skips the target type of a target of an unknown type and of a UUID that files share", async () => {
+  it("[SR-086/AK-yrxg] skips the target type of a target of an unknown type and of a UUID that files share", async () => {
     const context = await contextOf(await open());
     const sr = recordOf(context.store, SR);
     const unknownType = { ...sr, type: "goal" };
@@ -222,7 +222,7 @@ describe("relation types (SR-086)", () => {
     expect(check([sr, { ...sr, file: "requirements/copy.md" }])).toBe(0);
   });
 
-  it("[SR-086/AK1] reports a source type that is not allowed even when the target does not resolve", async () => {
+  it("[SR-086/AK-yrxg] reports a source type that is not allowed even when the target does not resolve", async () => {
     const context = await contextOf(await open());
     const sr = recordOf(context.store, SR);
     const element = withData(recordOf(context.store, NEED), {
@@ -258,12 +258,12 @@ describe("relation types (SR-086)", () => {
     );
   });
 
-  it("[SR-086/AK2] reports every relation between types that are not allowed as a finding of the workspace", async () => {
+  it("[SR-086/AK-wpfy] reports every relation between types that are not allowed as a finding of the workspace", async () => {
     const workspace = await open();
     expect(await workspace.get(relationTypeProblemsState)).toEqual([NEED_PROBLEM, SAFETY_PROBLEM]);
   });
 
-  it("[SR-086/AK2] checks the relations again after the element store is read again", async () => {
+  it("[SR-086/AK-wpfy] checks the relations again after the element store is read again", async () => {
     const fixture = await createFixtureWorkspace({ fixture: FIXTURE });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.path("system"));

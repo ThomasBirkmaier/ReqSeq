@@ -15,7 +15,7 @@ const rowOf = (page: string, does: string): string | undefined =>
   page.split("\n").find((line) => line.startsWith("| ") && line.endsWith(` | ${does} |`));
 
 describe("keyboard shortcuts page", () => {
-  it("[SR-139/AK5] lists every key of the app for Windows and Linux and for macOS with what it does, built from the app's tables", async () => {
+  it("[SR-139/AK-d0rz] lists every key of the app for Windows and Linux and for macOS with what it does, built from the app's tables", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(
       {

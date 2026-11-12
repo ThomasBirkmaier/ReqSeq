@@ -100,7 +100,7 @@ const refused = async (
 };
 
 describe("verification status per variant (SR-047)", () => {
-  it("[SR-047/AK1] a passed record for A leaves the status in B open", async () => {
+  it("[SR-047/AK-pr2q] a passed record for A leaves the status in B open", async () => {
     const { workspace } = await open();
     expect((await statusRows(workspace))["a3"]).toEqual([
       { view: "core", status: "open" },
@@ -110,7 +110,7 @@ describe("verification status per variant (SR-047)", () => {
     ]);
   });
 
-  it("[SR-047/AK2] a record without variant counts only for the core", async () => {
+  it("[SR-047/AK-k95w] a record without variant counts only for the core", async () => {
     const { workspace } = await open();
     expect((await statusRows(workspace))["a4"]).toEqual([
       { view: "core", status: "verified" },
@@ -120,7 +120,7 @@ describe("verification status per variant (SR-047)", () => {
     ]);
   });
 
-  it("[SR-047/AK3] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
+  it("[SR-047/AK-qncz] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
     const { workspace } = await open();
     const rows = await statusRows(workspace);
     // K2, excluded in A: core verified · B: failed · C: open, no row for A.
@@ -140,7 +140,7 @@ describe("verification status per variant (SR-047)", () => {
     expect([await getRows(workspace, "SR-0000a2"), await getRows(workspace, "SR-0000a1")]).toEqual([k2, k1]);
   });
 
-  it("[SR-047/AK4] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
+  it("[SR-047/AK-vd3h] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
     const { fixture, workspace } = await open();
     const excluded = await refused(fixture, workspace, "SR-0000a2", "VAR-0000c1");
     expect([excluded.code, excluded.message, excluded.details]).toEqual([
@@ -186,7 +186,7 @@ describe("verification status per variant (SR-047)", () => {
     expect(written.record.variant).toBe(B);
   });
 
-  it("[SR-047/AK5] workspace.check reports a record that counts in no view with record, requirement and view, and evidence.record refuses one", async () => {
+  it("[SR-047/AK-y6zf] workspace.check reports a record that counts in no view with record, requirement and view, and evidence.record refuses one", async () => {
     const { fixture, workspace } = await open();
     const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(
@@ -225,7 +225,7 @@ describe("verification status per variant (SR-047)", () => {
     expect(validation.record.variant).toBeUndefined();
   });
 
-  it("[SR-047/AK6] a variant with an invalid status gets no entry, and its view stays selectable", async () => {
+  it("[SR-047/AK-kp30] a variant with an invalid status gets no entry, and its view stays selectable", async () => {
     // C „Desert“ is obsolete, a status the metamodel marks invalid; K3 has a passed record for C.
     const { workspace } = await open({
       "variants/VAR-0000000000c3.md": `---\nid: ${C}\ntype: variant\nstatus: obsolete\ntitle: Desert\n---\n`,

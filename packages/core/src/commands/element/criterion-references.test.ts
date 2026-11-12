@@ -98,7 +98,7 @@ const keyed = (name: string): Got["criterionReferences"] => ({
 });
 
 describe("element.get: criteria with number, key, text and reference (SR-205 AK1)", () => {
-  it("[SR-205/AK1] gives each criterion its number, key, text and the reference with the identifier, else the short ID; none without key", async () => {
+  it("[SR-205/AK-npsp] gives each criterion its number, key, text and the reference with the identifier, else the short ID; none without key", async () => {
     const workspace = await open();
     expect((await get(workspace, "SR-901")).criterionReferences).toEqual(keyed("SR-901"));
     // Without identifier, and with one a test name cannot carry or that names two elements: the short ID.
@@ -117,7 +117,7 @@ describe("element.get: criteria with number, key, text and reference (SR-205 AK1
     expect((await get(workspace, "N-0e0008")).criterionReferences).toBeUndefined();
   });
 
-  it("[SR-205/AK1] each reference reads back as a test name and resolves to its requirement", async () => {
+  it("[SR-205/AK-npsp] each reference reads back as a test name and resolves to its requirement", async () => {
     const workspace = await open();
     const store = await workspace.get(elementStoreState);
     const shortIds = await workspace.get(shortIdState);
@@ -134,12 +134,12 @@ describe("element.get: criteria with number, key, text and reference (SR-205 AK1
     }
   });
 
-  it("[SR-205/AK1] element.resolve gives the same criteria as element.get", async () => {
+  it("[SR-205/AK-npsp] element.resolve gives the same criteria as element.get", async () => {
     const workspace = await open();
     expect((await resolveOf(workspace, { ref: "SR-901" })).criterionReferences).toEqual(keyed("SR-901"));
   });
 
-  it("[SR-205/AK3] numbers stay 1 to n without gaps when criteria are inserted, moved and removed, and keys move with their criteria", async () => {
+  it("[SR-205/AK-wyyz] numbers stay 1 to n without gaps when criteria are inserted, moved and removed, and keys move with their criteria", async () => {
     const workspace = await open();
     const { fileSha256 } = await get(workspace, "SR-901");
     await invoke(
@@ -177,7 +177,7 @@ describe("element.get: criteria with number, key, text and reference (SR-205 AK1
 });
 
 describe("element.resolve of a reference to a criterion (SR-205 AK5)", () => {
-  it("[SR-205/AK5] names the requirement, number and text of the criterion, with brackets or without, by identifier or short ID", async () => {
+  it("[SR-205/AK-ndnj] names the requirement, number and text of the criterion, with brackets or without, by identifier or short ID", async () => {
     const workspace = await open();
     const ak3 = {
       criterion: 3,
@@ -200,7 +200,7 @@ describe("element.resolve of a reference to a criterion (SR-205 AK5)", () => {
     expect(versioned.criterion).toEqual(ak3);
   });
 
-  it("[SR-205/AK5] a bracket token without a criterion names the element; a plain identifier with a `/` stays one, also one that reads as a criterion's", async () => {
+  it("[SR-205/AK-ndnj] a bracket token without a criterion names the element; a plain identifier with a `/` stays one, also one that reads as a criterion's", async () => {
     const workspace = await open();
     for (const ref of ["[SR-901]", "[SR-901/slow]"]) {
       const resolved = await resolveOf(workspace, { ref });
@@ -214,7 +214,7 @@ describe("element.resolve of a reference to a criterion (SR-205 AK5)", () => {
     expect(akLike.criterion).toBeUndefined();
   });
 
-  it("[SR-205/AK5] refuses an unknown key, a key two criteria carry, a number and another form, each with its own code", async () => {
+  it("[SR-205/AK-ndnj] refuses an unknown key, a key two criteria carry, a number and another form, each with its own code", async () => {
     const workspace = await open();
     const unknown = await resolveError(workspace, { ref: "[SR-901/AK-zzzz]" });
     expect(unknown.code).toBe("ref.unknown");
@@ -236,7 +236,7 @@ describe("element.resolve of a reference to a criterion (SR-205 AK5)", () => {
     expect((await resolveError(workspace, { ref: "[N-0e0008/AK-kred]" })).code).toBe("ref.unknown");
   });
 
-  it("[SR-205/AK5] an unknown element part is ref.unknown, with the candidate of an outdated prefix (SR-060 AK3)", async () => {
+  it("[SR-205/AK-ndnj] an unknown element part is ref.unknown, with the candidate of an outdated prefix (SR-060 AK3)", async () => {
     const workspace = await open();
     const error = await resolveError(workspace, { ref: "[N-0e0001/AK-kred]" });
     expect(error.code).toBe("ref.unknown");

@@ -130,7 +130,7 @@ const hint = (
 });
 
 describe("element.supersede sets the chosen invalid status and on request a relation from the successor (SR-072 AK1)", () => {
-  it("[SR-072/AK1] sets the chosen invalid status and changes only the status line", async () => {
+  it("[SR-072/AK-j9hc] sets the chosen invalid status and changes only the status line", async () => {
     const opened = await open();
     const [before, ...others] = await readAll(opened, [N_OLD.file, N_NEW.file, SR_OLD.file, SR_NEW.file]);
     const out = await supersede(opened, { ref: "N-d4e5f6", status: "obsolete" });
@@ -141,7 +141,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(store.byId.get(N_OLD.id)?.map((r) => r.data["status"])).toEqual(["obsolete"]);
   });
 
-  it("[SR-072/AK1] writes the relation with the element's UUID, current version and title into the successor's file", async () => {
+  it("[SR-072/AK-j9hc] writes the relation with the element's UUID, current version and title into the successor's file", async () => {
     const opened = await open();
     const before = await read(opened, N_NEW.file);
     // The status is not content (D-013), so the version stays the same when it changes.
@@ -163,7 +163,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(store.byId.get(N_NEW.id)?.map((r) => r.data["supersedes"])).toEqual([[target]]);
   });
 
-  it("[SR-072/AK1] uses the relation kind the caller names when several fit", async () => {
+  it("[SR-072/AK-j9hc] uses the relation kind the caller names when several fit", async () => {
     const opened = await open({ files: OBSOLETES });
     const before = await readAll(opened);
     const error = await supersedeError(opened, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
@@ -194,7 +194,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     );
   });
 
-  it("[SR-072/AK1] refuses a relation kind that has no meaning succession or does not fit the types", async () => {
+  it("[SR-072/AK-j9hc] refuses a relation kind that has no meaning succession or does not fit the types", async () => {
     const opened = await open({ files: OBSOLETES });
     const before = await readAll(opened);
     const notSuccession = await supersedeError(opened, {
@@ -242,7 +242,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(opened)).toEqual(before);
   });
 
-  it("[SR-072/AK1] refuses when no relation kind with the meaning succession fits or none has it", async () => {
+  it("[SR-072/AK-j9hc] refuses when no relation kind with the meaning succession fits or none has it", async () => {
     const restricted = await open({
       files: {
         [MODEL]: await changedModel((text) =>
@@ -278,7 +278,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect((await supersede(unassigned, { ref: N_OLD.id, status: "obsolete" })).files).toEqual([N_OLD.file]);
   });
 
-  it("[SR-072/AK1] keeps a relation the successor already has, with its stored version, and writes nothing twice", async () => {
+  it("[SR-072/AK-j9hc] keeps a relation the successor already has, with its stored version, and writes nothing twice", async () => {
     const stored = `  - { id: ${SR_OLD.id}, version: n1:3333333333333333, title: Old title }\n`;
     const successor = `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: New\nsupersedes:\n${stored}---\n`;
     const opened = await open({ files: { [SR_NEW.file]: successor } });
@@ -300,7 +300,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(again.problems).toEqual(out.problems);
   });
 
-  it("[SR-072/AK1] repeats without relation when the successor already has the relation under one of the kinds that fit", async () => {
+  it("[SR-072/AK-j9hc] repeats without relation when the successor already has the relation under one of the kinds that fit", async () => {
     const stored = (key: string): string =>
       `${key}:\n  - { id: ${SR_OLD.id}, version: n1:3333333333333333, title: Old title }\n`;
     const successor = (keys: readonly string[]): string =>
@@ -323,7 +323,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(both)).toEqual(before);
   });
 
-  it("[SR-072/AK1] writes the element's file back when the successor's file is refused at write time (read-only)", async () => {
+  it("[SR-072/AK-j9hc] writes the element's file back when the successor's file is refused at write time (read-only)", async () => {
     const opened = await open();
     const before = await readAll(opened);
     await fs.chmod(opened.fixture.path(N_NEW.file), 0o444);
@@ -340,7 +340,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(out.files).toEqual([N_OLD.file, N_NEW.file]);
   });
 
-  it("[SR-072/AK1] writes a relation to an element of another repository with the repository name and no title (D-058)", async () => {
+  it("[SR-072/AK-j9hc] writes a relation to an element of another repository with the repository name and no title (D-058)", async () => {
     const platformNeed = "4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e";
     const file = "needs/N-0a1b2c3d4e5f.md";
     const opened = await open(
@@ -373,7 +373,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     ]);
   });
 
-  it("[SR-072/AK1] refuses a status that is not marked invalid and writes no file", async () => {
+  it("[SR-072/AK-j9hc] refuses a status that is not marked invalid and writes no file", async () => {
     const opened = await open();
     const before = await readAll(opened);
     for (const [status, reason] of [
@@ -407,14 +407,14 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     ]);
   });
 
-  it("[SR-072/AK1] takes the display name of the invalid status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-072/AK-j9hc] takes the display name of the invalid status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const out = await supersede(opened, { ref: N_OLD.id, status: "OBSOLETE" });
     expect(out.files).toEqual([N_OLD.file]);
     expect(await read(opened, N_OLD.file)).toContain("\nstatus: obsolete\n");
   });
 
-  it("[SR-072/AK1] refuses a name that two statuses share, as element.setStatus does (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-072/AK-j9hc] refuses a name that two statuses share, as element.setStatus does (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open({
       files: { [MODEL]: await changedModel((text) => text.replace("name: Draft", "name: Obsolete")) },
     });
@@ -429,7 +429,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(opened)).toEqual(before);
   });
 
-  it("[SR-072/AK1] refuses the element as its own successor and an unknown successor", async () => {
+  it("[SR-072/AK-j9hc] refuses the element as its own successor and an unknown successor", async () => {
     const opened = await open();
     const before = await readAll(opened);
     const self = await supersedeError(opened, { ref: "N-d4e5f6", status: "obsolete", successor: N_OLD.id });
@@ -443,7 +443,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(opened)).toEqual(before);
   });
 
-  it("[SR-072/AK1] writes no file when the successor's file changed on disk since it was read", async () => {
+  it("[SR-072/AK-j9hc] writes no file when the successor's file changed on disk since it was read", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     const changed = `${await read(opened, N_NEW.file)}Changed by hand.\n`;
@@ -457,7 +457,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect([await read(opened, N_OLD.file), await read(opened, N_NEW.file)]).toEqual([before, changed]);
   });
 
-  it("[SR-016/AK3] refuses an element or a successor of an unknown type and writes no file", async () => {
+  it("[SR-016/AK-k7rx] refuses an element or a successor of an unknown type and writes no file", async () => {
     const opened = await open({ files: { [GADGET.file]: GADGET_FILE } });
     const before = await readAll(opened, [...FILES, GADGET.file]);
     for (const input of [
@@ -477,7 +477,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
 describe("relations to a superseded element get a hint each (SR-072 AK2)", () => {
   const SEE_THE_WIND = "Need N-d4e5f6, which is superseded (status Obsolete)";
 
-  it("[SR-072/AK2] element.supersede gives one hint per relation to the superseded element, with its line, none on the successor's own", async () => {
+  it("[SR-072/AK-y5gr] element.supersede gives one hint per relation to the superseded element, with its line, none on the successor's own", async () => {
     const opened = await open();
     const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
     const successor = "; successor: Need N-e5f6a7";
@@ -499,7 +499,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect((out.problems ?? []).map((p) => p.targetId)).not.toContain(SR_OLD.id);
   });
 
-  it("[SR-072/AK2] gives no hint on a relation from a source with an invalid status, in the command, the check and the source's view", async () => {
+  it("[SR-072/AK-y5gr] gives no hint on a relation from a source with an invalid status, in the command, the check and the source's view", async () => {
     const opened = await open();
     const { workspace } = opened;
     await invoke("element.setStatus", { refs: [SR_OLD.id], status: "obsolete" }, { workspace });
@@ -521,7 +521,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect((shown.element.problems ?? []).filter((p) => p.code === "relation.target-superseded")).toEqual([]);
   });
 
-  it("[SR-072/AK2] gives a hint for every relation kind and every relation to the element but the successor's own", async () => {
+  it("[SR-072/AK-y5gr] gives a hint for every relation kind and every relation to the element but the successor's own", async () => {
     const opened = await open({ files: OBSOLETES });
     const out = await supersede(opened, {
       ref: SR_OLD.id,
@@ -544,7 +544,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     ]);
   });
 
-  it("[SR-072/AK2] gives the same hints when element.setStatus sets the invalid status", async () => {
+  it("[SR-072/AK-y5gr] gives the same hints when element.setStatus sets the invalid status", async () => {
     const superseded = await open();
     const expected = (await supersede(superseded, { ref: N_OLD.id, status: "obsolete" })).problems;
     expect(expected).toHaveLength(2);
@@ -564,7 +564,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect(back).toEqual({ files: [N_OLD.file], problems: [] });
   });
 
-  it("[SR-072/AK2] element.update gives the hints on the relations of the element it writes", async () => {
+  it("[SR-072/AK-y5gr] element.update gives the hints on the relations of the element it writes", async () => {
     const opened = await open();
     await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
     const update = async (ref: string): Promise<readonly Problem[]> =>
@@ -590,7 +590,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect(await update(N_OLD.id)).toEqual([]);
   });
 
-  it("[SR-072/AK2] gives the same hints for a status set by hand in the file, for the whole workspace", async () => {
+  it("[SR-072/AK-y5gr] gives the same hints for a status set by hand in the file, for the whole workspace", async () => {
     const superseded = await open();
     const expected = (await supersede(superseded, { ref: N_OLD.id, status: "obsolete" })).problems;
     const byHand = await fs.readFile(superseded.fixture.path(N_OLD.file), "utf8");
@@ -638,7 +638,7 @@ describe("a superseded element names its successor without a relation of its own
     storedVersion: expect.stringMatching(WRITTEN_VERSION) as string,
   });
 
-  it("[SR-072/AK3] names the successor as an incoming relation Supersedes; the superseded file has no relation to it", async () => {
+  it("[SR-072/AK-k1fs] names the successor as an incoming relation Supersedes; the superseded file has no relation to it", async () => {
     const opened = await open();
     await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
     const before = await read(opened, N_OLD.file);
@@ -655,7 +655,7 @@ describe("a superseded element names its successor without a relation of its own
     expect(await read(opened, N_NEW.file)).toContain(`supersedes:\n  - { id: ${N_OLD.id}, `);
   });
 
-  it("[SR-072/AK3] names no successor when the element has none or is not superseded", async () => {
+  it("[SR-072/AK-k1fs] names no successor when the element has none or is not superseded", async () => {
     const without = await open();
     await supersede(without, { ref: N_OLD.id, status: "obsolete" });
     expect((await shown(without, N_OLD.id)).relations).toEqual([]);
@@ -683,7 +683,7 @@ describe("a superseded element names its successor without a relation of its own
     ]);
   });
 
-  it("[SR-072/AK3] names every successor under every relation kind with the meaning succession, after the element's own relations", async () => {
+  it("[SR-072/AK-k1fs] names every successor under every relation kind with the meaning succession, after the element's own relations", async () => {
     const target = `{ id: ${SR_OLD.id}, version: n1:2222222222222222, title: Show wind speed }`;
     const other = { id: "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a", file: "needs/N-0a0a0a0a0a0a.md" };
     const opened = await open({
@@ -730,7 +730,7 @@ describe("a superseded element names its successor without a relation of its own
     ]);
   });
 
-  it("[SR-072/AK3] names no successor for a relation Replaces to a superseded element: a variant replacement is no succession (D-020, D-059)", async () => {
+  it("[SR-072/AK-k1fs] names no successor for a relation Replaces to a superseded element: a variant replacement is no succession (D-020, D-059)", async () => {
     const target = `{ id: ${SR_OLD.id}, version: n1:2222222222222222, title: Show wind speed }`;
     const opened = await open({
       files: {
@@ -772,7 +772,7 @@ describe("a superseded element names its successor without a relation of its own
     ]);
   });
 
-  it("[SR-072/AK3] gives a successor whose UUID several files share as ambiguous, without short ID and title (SR-088)", async () => {
+  it("[SR-072/AK-k1fs] gives a successor whose UUID several files share as ambiguous, without short ID and title (SR-088)", async () => {
     const supersedes = `supersedes:\n  - { id: ${N_OLD.id}, version: n1:1111111111111111, title: See the wind }\n`;
     const successorFile = `---\nid: ${N_NEW.id}\ntype: need\nstatus: draft\ntitle: See wind and gusts\n${supersedes}---\n`;
     const opened = await open({
@@ -795,7 +795,7 @@ describe("a superseded element names its successor without a relation of its own
     expect((await shown(opened, N_OLD.id)).relations).toEqual([ambiguous, ambiguous]);
   });
 
-  it("[SR-072/AK3] names a successor in another repository with its short ID and title (D-058)", async () => {
+  it("[SR-072/AK-k1fs] names a successor in another repository with its short ID and title (D-058)", async () => {
     const platformNeed = "4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e";
     const file = "needs/N-0a1b2c3d4e5f.md";
     const successorId = "7a1e0c2b-4d3f-4a5b-8c6d-0a1b2c3d4e5f";

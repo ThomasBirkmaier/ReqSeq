@@ -92,7 +92,7 @@ const versionOf = async (opened: Opened, id: string): Promise<string | undefined
   (await run<CommandOutput<"element.get">>(opened, "element.get", { ref: id })).element.version;
 
 describe("element.assignCriterionKeys (SR-204 AK3)", () => {
-  it("[SR-204/AK3] gives every criterion of the selection a key, keeps the keys and versions, names the changed elements", async () => {
+  it("[SR-204/AK-jfrc] gives every criterion of the selection a key, keeps the keys and versions, names the changed elements", async () => {
     const opened = await open();
     const ids = [GUSTS.id, PLAIN.id, MIXED.id, KEYED.id];
     const before = await Promise.all(ids.map((id) => versionOf(opened, id)));
@@ -139,7 +139,7 @@ describe("element.assignCriterionKeys (SR-204 AK3)", () => {
     expect(await assign(opened, {})).toMatchObject({ count: 0, changed: [], files: [] });
   });
 
-  it("[SR-204/AK3] changes only the elements of the selection, with the same keys for the same file", async () => {
+  it("[SR-204/AK-jfrc] changes only the elements of the selection, with the same keys for the same file", async () => {
     const one = await open();
     const out = await assign(one, { ids: [PLAIN.id, KEYED.id] });
     expect([out.count, out.files]).toEqual([1, [PLAIN.file]]);

@@ -78,7 +78,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await answer(window, "topic", "Timing");
   };
 
-  test("[SR-124/AK1] package, type, status and property by keyboard give the list of the CLI for all four conditions", async () => {
+  test("[SR-124/AK-jz48] package, type, status and property by keyboard give the list of the CLI for all four conditions", async () => {
     await cascade();
     const listed = await listedBy(running, { all: [PACKAGE, TYPE, STATUS, TOPIC] });
     await expect(running.window.getByLabel("Modeline")).toContainText(
@@ -89,7 +89,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
   });
 
-  test("[SR-124/AK1] clear list filter removes only the last step", async () => {
+  test("[SR-124/AK-jz48] clear list filter removes only the last step", async () => {
     await cascade();
     await runCommand(running.window, "clear list filter");
     const listed = await listedBy(running, { all: [PACKAGE, TYPE, STATUS] });
@@ -101,7 +101,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     expect(listed.total).toBeGreaterThan(2);
   });
 
-  test("[SR-124/AK2] the property prompt offers topic, not the acceptance criteria", async () => {
+  test("[SR-124/AK-hxcz] the property prompt offers topic, not the acceptance criteria", async () => {
     const { window } = running;
     await runCommand(window, "filter list by type");
     await answer(window, "Type", "system-requirement");
@@ -116,7 +116,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-124/AK3] filter list by text search narrows the current list", async () => {
+  test("[SR-124/AK-mch4] filter list by text search narrows the current list", async () => {
     const { window } = running;
     await runCommand(window, "filter list by type");
     await answer(window, "Type", "system-requirement");

@@ -29,7 +29,7 @@ const cacheIn = (folder: string): CacheEnvironment => ({
 });
 
 describe("recordOpenedWorkspace", () => {
-  it("[SR-131/AK6] records the root of the opened workspace in the list of recent workspaces", async () => {
+  it("[SR-131/AK-w8h0] records the root of the opened workspace in the list of recent workspaces", async () => {
     const ws = await fixture();
     const cache = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-cache-")));
     cleanups.push(() => fs.rm(cache, { recursive: true, force: true }));

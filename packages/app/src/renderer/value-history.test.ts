@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NO_HISTORY, record, redo, undo } from "./value-history.js";
 
 describe("value history of a choice or relation box", () => {
-  it("[SR-105/AK2] steps back and forth through the values since the buffer was opened", () => {
+  it("[SR-105/AK-dmrq] steps back and forth through the values since the buffer was opened", () => {
     const history = record(record(NO_HISTORY, "draft", "approved"), "approved", "rejected");
     const back = undo(history, "rejected");
     expect(back?.doc).toBe("approved");

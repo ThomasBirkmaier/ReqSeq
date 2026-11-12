@@ -59,7 +59,7 @@ const objects = (file: ReqifFile): unknown[] =>
   ]);
 
 describe("reqif.export with statements (SR-058)", () => {
-  it("[SR-058/AK1] exports every element of the mapping's source by its source IDENTIFIER with only its statement, an empty one counted, as STRING or XHTML, narrowed by a selection", async () => {
+  it("[SR-058/AK-qb9p] exports every element of the mapping's source by its source IDENTIFIER with only its statement, an empty one counted, as STRING or XHTML, narrowed by a selection", async () => {
     const { fixture, workspace } = await open();
     const out = await run<Exported>(workspace, {
       output: "back.reqif",
@@ -119,7 +119,7 @@ describe("reqif.export with statements (SR-058)", () => {
     expect(xhtml.datatypes.map((d) => [d.identifier, d.kind])).toEqual([["_dt-xhtml", "xhtml"]]);
   });
 
-  it("[SR-058/AK2] writes a statements export valid against the ReqIF 1.2 schema, as STRING and as XHTML", async (context) => {
+  it("[SR-058/AK-s9sd] writes a statements export valid against the ReqIF 1.2 schema, as STRING and as XHTML", async (context) => {
     // A statement may embed an image: its link is written as the statement has it.
     const { fixture, workspace } = await open({
       "Kunde-A/SR-0000000058a6.md": `---\nid: 58058058-0000-4000-8000-0000000058a6\ntype: system-requirement\nstatus: draft\ntitle: Sketch\nsource: Kunde A\nsource-identifier: _cr-6\nstatement: "See ![sketch](sketch.png)."\n---\n`,

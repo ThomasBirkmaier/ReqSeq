@@ -47,7 +47,7 @@ const HINT = {
 };
 
 describe("requirements without a parent (SR-022 AK6)", () => {
-  it("[SR-022/AK6] workspace.check reports a requirement without a parent as a hint with its ID", async () => {
+  it("[SR-022/AK-bb3n] workspace.check reports a requirement without a parent as a hint with its ID", async () => {
     const workspace = await open(ORPHANED);
     const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(noParent(out.problems)).toEqual([HINT]);
@@ -64,14 +64,14 @@ describe("requirements without a parent (SR-022 AK6)", () => {
     expect(noParent(shown.element.problems)).toEqual([HINT]);
   });
 
-  it("[SR-022/AK6] reports nothing once the requirement has a parent", async () => {
+  it("[SR-022/AK-bb3n] reports nothing once the requirement has a parent", async () => {
     const workspace = await open(ORPHANED);
     await invoke("relation.add", { source: ORPHAN, kind: "derives-from", target: `${P}a001` }, { workspace });
     const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(noParent(out.problems)).toEqual([]);
   });
 
-  it("[SR-022/AK6] reports no superseded requirement: a retired element needs no origin", async () => {
+  it("[SR-022/AK-bb3n] reports no superseded requirement: a retired element needs no origin", async () => {
     const workspace = await open(ORPHANED);
     await invoke("element.setStatus", { refs: [ORPHAN], status: "obsolete" }, { workspace });
     const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;

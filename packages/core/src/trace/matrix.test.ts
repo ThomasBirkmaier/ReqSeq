@@ -44,7 +44,7 @@ const WITH_VAULT =
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
 
-it("[SR-125/AK2] leaves out a relation kind whose key a property of another kind has", async () => {
+it("[SR-125/AK-wzq6] leaves out a relation kind whose key a property of another kind has", async () => {
   const workspace = await open();
   const metamodel = await workspace.get(metamodelState);
   const keys = (kinds?: readonly string[]): string[] => matrixKeys(metamodel, kinds).map((k) => k.key);

@@ -44,7 +44,7 @@ scenariosOf("element.assignCriterionKeys", [
     name: "every criterion of the selection gets a key, the tool names the changed elements",
     fixture: UNKEYED,
     input: { selection: {} },
-    tag: "[SR-204/AK3]",
+    tag: "[SR-204/AK-jfrc]",
     expect: "output",
     check: (results) => {
       const { core } = results;
@@ -59,7 +59,7 @@ scenariosOf("element.assignCriterionKeys", [
     name: "only the elements of the selection change",
     fixture: UNKEYED,
     input: { selection: { ids: ["SR-000a02", "SR-000a03"] } },
-    tag: "[SR-204/AK3]",
+    tag: "[SR-204/AK-jfrc]",
     expect: "output",
   },
   {

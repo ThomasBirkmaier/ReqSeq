@@ -145,7 +145,7 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
     return { run, measurement, peak };
   };
 
-  it("[SR-062/AK1] stores the data of the state at N-036 as a file named after the commit, and replaces it on the same commit", async () => {
+  it("[SR-062/AK-d6t4] stores the data of the state at N-036 as a file named after the commit, and replaces it on the same commit", async () => {
     const first = await store("reqseq data store --json at N-036 (new CLI process, file written in chunks)");
     expect(first.run.stderr).toBe("");
     expect(first.run.code).toBe(0);

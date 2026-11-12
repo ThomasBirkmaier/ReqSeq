@@ -101,7 +101,7 @@ const versionOf = async (opened: Opened): Promise<string | undefined> =>
   (await run<Got>(opened, "element.get", { ref: SR.id })).element.version;
 
 describe("criterion keys (SR-204)", () => {
-  it("[SR-204/AK1] element.create gives every acceptance criterion a key no other one has, also to equal texts", async () => {
+  it("[SR-204/AK-qg2w] element.create gives every acceptance criterion a key no other one has, also to equal texts", async () => {
     const opened = await open(KEYED);
     const out = await run<CommandOutput<"element.create">>(opened, "element.create", {
       type: "system-requirement",
@@ -123,7 +123,7 @@ describe("criterion keys (SR-204)", () => {
     expect(keys.every((k) => KEY.test(k))).toBe(true);
   });
 
-  it("[SR-204/AK1] set, setItems and bulkUpdate give every criterion a key once the criteria are changed", async () => {
+  it("[SR-204/AK-qg2w] set, setItems and bulkUpdate give every criterion a key once the criteria are changed", async () => {
     const set = await open(UNKEYED);
     await update(set, { set: { "acceptance-criteria": ["Given a gust, then it is shown.", "New."] } });
     const setKeys = keysOf(await set.read());
@@ -159,7 +159,7 @@ describe("criterion keys (SR-204)", () => {
     }
   });
 
-  it("[SR-204/AK1] bulkUpdate confirms add, set and remove with the plan of its preview, which gives the same keys", async () => {
+  it("[SR-204/AK-qg2w] bulkUpdate confirms add, set and remove with the plan of its preview, which gives the same keys", async () => {
     const values = {
       add: ["Added.", "Also added."],
       set: ["Given a gust, then it is shown.", "New."],
@@ -186,7 +186,7 @@ describe("criterion keys (SR-204)", () => {
     }
   });
 
-  it("[SR-204/AK5] bulkUpdate add names the refused criterion by its place in the given items", async () => {
+  it("[SR-204/AK-b2q6] bulkUpdate add names the refused criterion by its place in the given items", async () => {
     const opened = await open(KEYED);
     const error = await refusal(
       run(opened, "element.bulkUpdate", {
@@ -211,7 +211,7 @@ describe("criterion keys (SR-204)", () => {
     expect(await opened.read()).toBe(KEYED);
   });
 
-  it("[SR-204/AK1] of two criteria with the same key the earlier one keeps it, also when the change moves them", async () => {
+  it("[SR-204/AK-qg2w] of two criteria with the same key the earlier one keeps it, also when the change moves them", async () => {
     const opened = await open(
       requirement(["  - key: twice", "    text: First.", "  - key: twice", "    text: Second."]),
     );
@@ -222,7 +222,7 @@ describe("criterion keys (SR-204)", () => {
     expect(new Set(criteria.map((c) => c.key)).size).toBe(3);
   });
 
-  it("[SR-204/AK2] a change of another property leaves the lines of the criteria without keys as they are", async () => {
+  it("[SR-204/AK-cc6x] a change of another property leaves the lines of the criteria without keys as they are", async () => {
     const opened = await open(UNKEYED);
     await update(opened, { set: { "requirement-type": "quality" } });
     await update(opened, { expectedFileSha256: await sha256(opened), title: "Show gusts and peaks" });
@@ -234,7 +234,7 @@ describe("criterion keys (SR-204)", () => {
     );
   });
 
-  it("[SR-204/AK4] set keeps the key of a criterion by its text at any position; another text gets a new key", async () => {
+  it("[SR-204/AK-ftt1] set keeps the key of a criterion by its text at any position; another text gets a new key", async () => {
     const opened = await open(KEYED);
     await update(opened, {
       set: {
@@ -251,7 +251,7 @@ describe("criterion keys (SR-204)", () => {
     expect(keys).not.toContain("none2");
   });
 
-  it("[SR-204/AK4] each previous key goes to one entry at most: the first equal text, unless an entry brings the key", async () => {
+  it("[SR-204/AK-ftt1] each previous key goes to one entry at most: the first equal text, unless an entry brings the key", async () => {
     const opened = await open(KEYED);
     await update(opened, {
       set: {
@@ -271,7 +271,7 @@ describe("criterion keys (SR-204)", () => {
     expect(new Set(keys).size).toBe(4);
   });
 
-  it("[SR-204/AK4] criteria set again with their texts unchanged write nothing", async () => {
+  it("[SR-204/AK-ftt1] criteria set again with their texts unchanged write nothing", async () => {
     const opened = await open(UNKEYED);
     const out = await update(opened, {
       set: {
@@ -285,7 +285,7 @@ describe("criterion keys (SR-204)", () => {
     expect([out.files, await opened.read()]).toEqual([[], UNKEYED]);
   });
 
-  it("[SR-204/AK5] stores a key it is given; refuses one in a wrong form, true, null or given twice and writes nothing", async () => {
+  it("[SR-204/AK-b2q6] stores a key it is given; refuses one in a wrong form, true, null or given twice and writes nothing", async () => {
     const opened = await open(KEYED);
     for (const [key, reason] of [
       ["Gust", "criterion-key-invalid"],
@@ -344,7 +344,7 @@ describe("criterion keys (SR-204)", () => {
     expect(keysOf(await opened.read())).toEqual([long]);
   });
 
-  it("[SR-204/AK6] a criterion changed by its number keeps its key", async () => {
+  it("[SR-204/AK-ng0p] a criterion changed by its number keeps its key", async () => {
     const opened = await open(KEYED);
     await update(opened, {
       expectedFileSha256: await sha256(opened),
@@ -357,7 +357,7 @@ describe("criterion keys (SR-204)", () => {
     ]);
   });
 
-  it("[SR-204/AK11] the file is valid YAML with each criterion as readable Markdown text at its key", async () => {
+  it("[SR-204/AK-n6y5] the file is valid YAML with each criterion as readable Markdown text at its key", async () => {
     const opened = await open(UNKEYED);
     await update(opened, {
       set: {
@@ -376,7 +376,7 @@ describe("criterion keys (SR-204)", () => {
     );
   });
 
-  it("[SR-091/AK6] giving, adding or swapping criterion keys leaves the version as it is", async () => {
+  it("[SR-091/AK-vv64] giving, adding or swapping criterion keys leaves the version as it is", async () => {
     const opened = await open(UNKEYED);
     const before = await versionOf(opened);
     // The criteria get keys: same texts, so the version stays.
@@ -414,12 +414,12 @@ describe("criterion key findings (SR-204 AK10)", () => {
       .filter((p) => p.code.startsWith("element.criterion-key") && p.elementId === SR.id)
       .map((p) => [p.code, p.severity, p.line, p.count]);
 
-  it("[SR-204/AK10] warns once of the criteria without key with their count, on the line of the property", async () => {
+  it("[SR-204/AK-r4d4] warns once of the criteria without key with their count, on the line of the property", async () => {
     const opened = await open(UNKEYED);
     expect(codes(await check(opened))).toEqual([["element.criterion-key-missing", "warning", 7, 3]]);
   });
 
-  it("[SR-204/AK10] [SR-205/AK2] reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning, naming the criteria", async () => {
+  it("[SR-204/AK-r4d4] [SR-205/AK-m2vv] reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning, naming the criteria", async () => {
     const opened = await open(
       requirement([
         "  - key: twice",

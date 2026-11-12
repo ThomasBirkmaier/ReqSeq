@@ -138,7 +138,7 @@ describe("the keys and commands of the text before the parse is done", () => {
     expect(referencesIn(cutShort(`${BEFORE}See ${REFERENCE}`)).map((found) => found.id)).toEqual([ID]);
   });
 
-  it("[SR-129/AK1] a / in a code block opens no slash menu", () => {
+  it("[SR-129/AK-y6nx] a / in a code block opens no slash menu", () => {
     const doc = `${BEFORE}\`\`\`\ncode /`;
     expect(opensMenu(cutShort(doc), doc.length - 1)).toBe(false);
   });

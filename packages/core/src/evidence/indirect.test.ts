@@ -103,7 +103,7 @@ const evaluator = (setup: Setup) => {
 const indirect: VerificationResult = { status: "indirect" };
 
 describe("indirect verification (SR-034)", () => {
-  it("[SR-034/AK1] a parent without own record whose valid children are all verified is indirect", () => {
+  it("[SR-034/AK-kkxv] a parent without own record whose valid children are all verified is indirect", () => {
     const [parent, a, b] = [element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([[parent, [a, b]]]),
@@ -113,7 +113,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(a, CORE)).toEqual({ status: "verified" });
   });
 
-  it("[SR-034/AK1] a child that is indirect counts as verified for its parent", () => {
+  it("[SR-034/AK-kkxv] a child that is indirect counts as verified for its parent", () => {
     const [top, middle, leaf, other] = [element(), element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([
@@ -126,7 +126,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(middle, CORE)).toEqual(indirect);
   });
 
-  it("[SR-034/AK2] a child open per acceptance criterion keeps its parent open and is named missing (SR-031 AK5)", () => {
+  it("[SR-034/AK-hk8z] a child open per acceptance criterion keeps its parent open and is named missing (SR-031 AK5)", () => {
     const [parent, a, b] = [element(), element(), element()];
     const setup = {
       children: new Map([[parent, [a, b]]]),
@@ -148,7 +148,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluator({ ...setup, criteria: new Map() })(parent, CORE)).toEqual(indirect);
   });
 
-  it("[SR-034/AK1] a child is measured against its own current version", () => {
+  it("[SR-034/AK-kkxv] a child is measured against its own current version", () => {
     const [parent, child] = [element(), element()];
     const setup = { children: new Map([[parent, [child]]]), records: [record(child, "passed")] };
     expect(evaluator(setup)(parent, CORE)).toEqual(indirect);
@@ -166,7 +166,7 @@ describe("indirect verification (SR-034)", () => {
       "outdated",
     ],
   ] as const)(
-    "[SR-034/AK2] a parent with one child %s is open and names exactly that child",
+    "[SR-034/AK-hk8z] a parent with one child %s is open and names exactly that child",
     (_name, recordsOf, childStatus) => {
       const [parent, verified, missing] = [element(), element(), element()];
       const evaluate = evaluator({
@@ -178,7 +178,7 @@ describe("indirect verification (SR-034)", () => {
     },
   );
 
-  it("[SR-034/AK2] a parent with a failed, an open and an outdated child names the three in child order", () => {
+  it("[SR-034/AK-hk8z] a parent with a failed, an open and an outdated child names the three in child order", () => {
     const [parent, failed, open, outdated, verified] = [
       element(),
       element(),
@@ -200,7 +200,7 @@ describe("indirect verification (SR-034)", () => {
     });
   });
 
-  it("[SR-034/AK2] a verified or indirect child is not named as missing", () => {
+  it("[SR-034/AK-hk8z] a verified or indirect child is not named as missing", () => {
     const [parent, verified, middle, leaf, open] = [element(), element(), element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([
@@ -212,7 +212,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual({ status: "open", missingChildren: [open.id] });
   });
 
-  it("[SR-034/AK2] only the direct children are named: a parent whose child is open because of a failed grandchild names the child, not the grandchild", () => {
+  it("[SR-034/AK-hk8z] only the direct children are named: a parent whose child is open because of a failed grandchild names the child, not the grandchild", () => {
     const [parent, child, grandchild] = [element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([
@@ -225,7 +225,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(child, CORE)).toEqual({ status: "open", missingChildren: [grandchild.id] });
   });
 
-  it("[SR-034/AK3] a child whose status is marked invalid does not count and is never named as missing", () => {
+  it("[SR-034/AK-s1b5] a child whose status is marked invalid does not count and is never named as missing", () => {
     const [parent, verified, invalid] = [element(), element(), element({ status: "obsolete" })];
     const evaluate = evaluator({
       children: new Map([[parent, [verified, invalid]]]),
@@ -236,7 +236,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(invalid, CORE)).toEqual({ status: "failed" });
   });
 
-  it("[SR-034/AK3] a parent whose only children are marked invalid is open without missing children", () => {
+  it("[SR-034/AK-s1b5] a parent whose only children are marked invalid is open without missing children", () => {
     const [parent, invalid] = [element(), element({ status: "obsolete" })];
     expect(evaluator({ children: new Map([[parent, [invalid]]]) })(parent, CORE)).toEqual({ status: "open" });
   });
@@ -267,7 +267,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual({ status: "verified" });
   });
 
-  it("[SR-034/AK1] a validation record of the parent does not block the indirect verification (D-007)", () => {
+  it("[SR-034/AK-kkxv] a validation record of the parent does not block the indirect verification (D-007)", () => {
     const [parent, child] = [element(), element()];
     const evaluate = evaluator({
       children: new Map([[parent, [child]]]),
@@ -276,7 +276,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual(indirect);
   });
 
-  it("[SR-034/AK1] a record of a variant does not block in the core, and a child counts only in the views it applies in (SR-047, SR-040)", () => {
+  it("[SR-034/AK-kkxv] a record of a variant does not block in the core, and a child counts only in the views it applies in (SR-047, SR-040)", () => {
     const parent = element();
     const both = element();
     const onlyV = element({ validity: [{ id: V }] });
@@ -306,7 +306,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluator({})(element(), CORE)).toEqual({ status: "open" });
   });
 
-  it("[SR-034/AK1] a child whose type has no meaning requirement does not count (ThomasBirkmaier/ReqSeq-archive#526 Q2)", () => {
+  it("[SR-034/AK-kkxv] a child whose type has no meaning requirement does not count (ThomasBirkmaier/ReqSeq-archive#526 Q2)", () => {
     const [parent, child, useCase] = [element(), element(), element({}, "use-case")];
     const evaluate = evaluator({
       children: new Map([[parent, [useCase, child]]]),
@@ -396,7 +396,7 @@ describe("indirect verification (SR-034)", () => {
 describe("emergent requirements need their own record (SR-035)", () => {
   const EMERGENT = { emergent: "yes" } as const;
 
-  it("[SR-035/AK1] an emergent requirement without own record whose children are all verified is open, not indirect", () => {
+  it("[SR-035/AK-m6h4] an emergent requirement without own record whose children are all verified is open, not indirect", () => {
     const [emergent, a, b] = [element(EMERGENT), element(), element()];
     const evaluate = evaluator({
       children: new Map([[emergent, [a, b]]]),
@@ -406,7 +406,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(evaluate(a, CORE)).toEqual({ status: "verified" });
   });
 
-  it("[SR-035/AK1] an emergent requirement without own record names no missing children", () => {
+  it("[SR-035/AK-m6h4] an emergent requirement without own record names no missing children", () => {
     const [emergent, verified, failed, none] = [element(EMERGENT), element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([[emergent, [verified, failed, none]]]),
@@ -415,7 +415,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(evaluate(emergent, CORE)).toEqual({ status: "open" });
   });
 
-  it("[SR-035/AK1] an emergent requirement with its own passed record of the current version is verified", () => {
+  it("[SR-035/AK-m6h4] an emergent requirement with its own passed record of the current version is verified", () => {
     const [emergent, child] = [element(EMERGENT), element()];
     const evaluate = evaluator({
       children: new Map([[emergent, [child]]]),
@@ -429,7 +429,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(older(emergent, CORE)).toEqual({ status: "outdated" });
   });
 
-  it("[SR-035/AK1] a parent whose emergent child has no own record is not indirect and names that child", () => {
+  it("[SR-035/AK-m6h4] a parent whose emergent child has no own record is not indirect and names that child", () => {
     const [parent, emergent, grandchild, sibling] = [element(), element(EMERGENT), element(), element()];
     const evaluate = evaluator({
       children: new Map([
@@ -451,7 +451,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(own(parent, CORE)).toEqual(indirect);
   });
 
-  it("[SR-035/AK1] in a variant view an emergent requirement needs a record for that variant; its core record does not count there", () => {
+  it("[SR-035/AK-m6h4] in a variant view an emergent requirement needs a record for that variant; its core record does not count there", () => {
     const [emergent, child] = [element(EMERGENT), element()];
     const evaluate = evaluator({
       children: new Map([[emergent, [child]]]),

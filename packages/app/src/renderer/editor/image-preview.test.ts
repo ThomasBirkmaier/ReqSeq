@@ -57,7 +57,7 @@ const images = (state: EditorState): Found[] => {
 };
 
 describe("imageTarget", () => {
-  it("[SR-184/AK3] loads nothing from the network, a data: address or outside the repository", () => {
+  it("[SR-184/AK-bjm1] loads nothing from the network, a data: address or outside the repository", () => {
     const file = "requirements/SR-1.md";
     expect(imageTarget(file, "https://example.com/a.png")).toEqual({ kind: "note", note: "network" });
     expect(imageTarget(file, "HTTP://example.com/a.png")).toEqual({ kind: "note", note: "network" });
@@ -106,7 +106,7 @@ describe("imageTarget", () => {
 });
 
 describe("image preview", () => {
-  it("[SR-184/AK1] shows an image of the repository in place of its source off the cursor's line", () => {
+  it("[SR-184/AK-n2k7] shows an image of the repository in place of its source off the cursor's line", () => {
     const doc = 'Before\n\n![pixel](SR-1/pixel.png)\n\nText ![p](<SR-1/pixel.png> "title") after';
     const found = images(stateOf(doc));
     expect(found).toEqual([
@@ -115,7 +115,7 @@ describe("image preview", () => {
     ]);
   });
 
-  it("[SR-184/AK2] keeps the source on the cursor's line and shows the image below it", () => {
+  it("[SR-184/AK-h2f8] keeps the source on the cursor's line and shows the image below it", () => {
     const doc = "![pixel](SR-1/pixel.png) and ![two](SR-1/two.png)\nnext";
     const found = images(stateOf(doc, 3));
     const line = doc.indexOf("\n");
@@ -125,12 +125,12 @@ describe("image preview", () => {
     ]);
   });
 
-  it("[SR-184/AK3] keeps the source with a quiet note for an address it does not load", () => {
+  it("[SR-184/AK-bjm1] keeps the source with a quiet note for an address it does not load", () => {
     const doc = "![a](https://example.com/a.png) ![b](data:image/png;base64,AA) ![c](../../c.png)";
     expect(images(stateOf(doc)).map((item) => item.detail)).toEqual(["network", "data", "outside"]);
   });
 
-  it("[SR-184/AK4] turns an image that does not load into its source with a quiet note", () => {
+  it("[SR-184/AK-vqh4] turns an image that does not load into its source with a quiet note", () => {
     const doc = "![pixel](SR-1/pixel.png)";
     const state = stateOf(doc);
     const view = new EditorView({ state, extensions: [livePreview(RULES)] });

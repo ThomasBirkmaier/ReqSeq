@@ -109,7 +109,7 @@ test.describe("the place of a search hit", () => {
     await running.close();
   });
 
-  test("[SR-174/AK1] a hit in the text says text and shows the snippet of its visible text, marked; the keys still open it", async () => {
+  test("[SR-174/AK-mxnw] a hit in the text says text and shows the snippet of its visible text, marked; the keys still open it", async () => {
     const { window } = running;
     const hits = await search(running, "gusts pulse");
     expect(hits.map((hit) => hit.snippet?.field)).toEqual(["text"]);
@@ -138,7 +138,7 @@ test.describe("the place of a search hit", () => {
     await expect(window.locator("article h1")).toHaveText("Measure the wind");
   });
 
-  test("[SR-174/AK1] a match deep in a snippet longer than the column stays in view: the words before it are left out", async () => {
+  test("[SR-174/AK-mxnw] a match deep in a snippet longer than the column stays in view: the words before it are left out", async () => {
     const { window } = running;
     const [hit] = await search(running, "squall");
     const full = hit?.snippet?.text ?? "";
@@ -164,7 +164,7 @@ test.describe("the place of a search hit", () => {
     ).toHaveAccessibleDescription(`text: ${text.slice("text: ".length)}`);
   });
 
-  test("[SR-174/AK2] a hit only in a property names the property and shows the snippet of the value with the match", async () => {
+  test("[SR-174/AK-f869] a hit only in a property names the property and shows the snippet of the value with the match", async () => {
     const { window } = running;
     const hits = await search(running, "hurricane");
     expect(await shown(window)).toEqual(expected(hits));
@@ -178,7 +178,7 @@ test.describe("the place of a search hit", () => {
     await shot(window, "search-snippets-property");
   });
 
-  test("[SR-174/AK4] a hit only in the title or an ID shows no snippet, and the title is marked", async () => {
+  test("[SR-174/AK-jtqc] a hit only in the title or an ID shows no snippet, and the title is marked", async () => {
     const { window } = running;
     const hits = await search(running, "icing");
     expect(await shown(window)).toEqual(expected(hits));

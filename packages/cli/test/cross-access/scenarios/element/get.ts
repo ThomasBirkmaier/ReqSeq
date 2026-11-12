@@ -5,7 +5,7 @@ import { CRITERIA, HINTS, IDENTIFIERS, IN_CRITERIA, MISSING_TARGETS, VARIANT_VIE
 
 scenariosOf("element.get", [
   {
-    tag: "[SR-205/AK1]",
+    tag: "[SR-205/AK-npsp]",
     name: "element.get gives each criterion its number, key, text and the reference for a test name",
     fixture: CRITERIA,
     input: { ref: "SR-0000e3" },
@@ -23,7 +23,7 @@ scenariosOf("element.get", [
     },
   },
   {
-    tag: "[SR-046/AK3]",
+    tag: "[SR-046/AK-msfv]",
     name: "element.get names A as replacing and B as excluding variant",
     fixture: {
       ...VARIANT_VIEWS,

@@ -68,7 +68,7 @@ test.describe("on a fixture workspace", () => {
     await expect(running.window.getByLabel("Minibuffer")).toHaveText("");
   });
 
-  test("[SR-080/AK2] an invoke round trip gives what the CLI gives, output and error alike", async () => {
+  test("[SR-080/AK-bb1t] an invoke round trip gives what the CLI gives, output and error alike", async () => {
     for (const [name, input, argv] of [
       ["workspace.status", {}, ["workspace", "status"]],
       ["element.get", { ref: "SR-e88fb3" }, ["element", "get", "SR-e88fb3"]],
@@ -85,7 +85,7 @@ test.describe("on a fixture workspace", () => {
     expect(app).toEqual({ ok: false, error: JSON.parse(cli.stderr) as unknown });
   });
 
-  test("[SR-099/AK1] the bridge offers the catalog commands and nothing else", async () => {
+  test("[SR-099/AK-nbg9] the bridge offers the catalog commands and nothing else", async () => {
     const offered = await running.window.evaluate(() => Object.keys(window.reqseq).sort());
     // Besides the catalog, the facilities of the window: `copyText` (SR-128), `pasteText` (SR-195), and the
     // recent workspaces, the switch between them and saving before it (SR-131), and the folders of a path
@@ -156,7 +156,7 @@ test.describe("on a fixture workspace", () => {
     expect(reach).toEqual({ require: "undefined", process: "undefined", module: "undefined" });
   });
 
-  test("[SR-078/AK1] the session cancels every request that is not local, and the app makes none", async () => {
+  test("[SR-078/AK-tnbh] the session cancels every request that is not local, and the app makes none", async () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     // The app itself asked for nothing outside its own protocols while it started and loaded the workspace.
     expect(running.stderr()).not.toContain("Blocked a request");

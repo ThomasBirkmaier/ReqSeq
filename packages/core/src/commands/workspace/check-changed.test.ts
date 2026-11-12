@@ -102,7 +102,7 @@ const selection = async (
 };
 
 describe("workspace.check restricted to changed elements (SR-092)", () => {
-  it("[SR-092/AK1] reports the relations to an old version of a changed element, and no other finding", async () => {
+  it("[SR-092/AK-jzpz] reports the relations to an old version of a changed element, and no other finding", async () => {
     const ws = await outdatedFixture();
     await append(ws, N_FILE, "Changed in the merge request.\n");
     const out = await check(open(ws.root), { changedSince: "HEAD", failOn: "warning" });
@@ -115,7 +115,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
     expect([out.ok, out.checkedElements]).toEqual([false, 1]);
   });
 
-  it("[SR-092/AK1] reports the findings of a changed element's targets, and not those of an unchanged one", async () => {
+  it("[SR-092/AK-jzpz] reports the findings of a changed element's targets, and not those of an unchanged one", async () => {
     const ws = await outdatedFixture();
     await append(ws, N_FILE, "Changed after the commit.\n");
     const workspace = open(ws.root);
@@ -482,7 +482,7 @@ describe("a workspace in a subfolder of a Git repository (ThomasBirkmaier/ReqSeq
 });
 
 describe("a restriction that cannot be made (SR-092)", () => {
-  it("[SR-092/AK2] fails with git.commit-not-found when no repository has the commit", async () => {
+  it("[SR-092/AK-fh11] fails with git.commit-not-found when no repository has the commit", async () => {
     const ws = await outdatedFixture();
     const missing = "0123456789abcdef0123456789abcdef01234567";
     await expect(check(open(ws.root), { changedSince: missing })).rejects.toMatchObject({
@@ -492,7 +492,7 @@ describe("a restriction that cannot be made (SR-092)", () => {
     });
   });
 
-  it("[SR-092/AK2] fails with git.commit-not-found for a name that is no commit, also in a shallow clone", async () => {
+  it("[SR-092/AK-fh11] fails with git.commit-not-found for a name that is no commit, also in a shallow clone", async () => {
     const ws = await outdatedFixture();
     const first = await ws.head();
     await append(ws, N_FILE, "Second.\n");
@@ -664,7 +664,7 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const TARGET = new RegExp(`\\{ id: (${UUID})|\\(reqseq:(${UUID})`, "g");
 
 describe("SR-092 AK1 on a generated workspace", () => {
-  it("[SR-092/AK1] reports only the findings of the 3 of 1,000 elements a merge request changed and of their targets", async () => {
+  it("[SR-092/AK-jzpz] reports only the findings of the 3 of 1,000 elements a merge request changed and of their targets", async () => {
     const tree = generateLargeWorkspace({
       version: versionOf(await standardModel()),
       elements: 1000,

@@ -87,7 +87,7 @@ const snapshot = async (fixture: FixtureWorkspace): Promise<Record<string, strin
 };
 
 describe("unknown types before a ReqIF import (SR-055)", () => {
-  it("[SR-055/AK1] reqif.analyze lists the types and attributes without mapping before any file is written, and reqif.import refuses with reqif.unmapped and the same list", async () => {
+  it("[SR-055/AK-st6d] reqif.analyze lists the types and attributes without mapping before any file is written, and reqif.import refuses with reqif.unmapped and the same list", async () => {
     const { fixture, workspace } = await open();
     const before = await snapshot(fixture);
     const analysis = await analyze(workspace, { file: IMPORT.file, mapping: IMPORT.mapping });
@@ -113,7 +113,7 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     expect(await snapshot(fixture)).toEqual(before);
   });
 
-  it("[SR-055/AK2] after each listed entry is mapped or omitted (a choice property with its values, in a second round), through reqif.saveMapping or in the YAML file, the import runs", async () => {
+  it("[SR-055/AK-mp8w] after each listed entry is mapped or omitted (a choice property with its values, in a second round), through reqif.saveMapping or in the YAML file, the import runs", async () => {
     const { fixture, workspace } = await open();
     await invoke(
       "reqif.saveMapping",
@@ -199,7 +199,7 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     expect(done.created).toHaveLength(2);
   });
 
-  it("[SR-055/AK3] a refused import changes no file: a missing mapping, an invalid file, a mapping the metamodel refuses", async () => {
+  it("[SR-055/AK-ttn9] a refused import changes no file: a missing mapping, an invalid file, a mapping the metamodel refuses", async () => {
     const { fixture, workspace } = await open({
       "in/broken.reqif": DELIVERY.slice(0, DELIVERY.length / 2),
       "reqif/wrong.yaml": FULL.replace("property: title", "property: requirement-type"),

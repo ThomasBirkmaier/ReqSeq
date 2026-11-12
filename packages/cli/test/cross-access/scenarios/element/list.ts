@@ -75,7 +75,7 @@ const BY_TITLE = [{ by: "title", order: "asc" }];
 scenariosOf("element.list", [
   {
     name: "a folder without a workspace file: workspace.not-found with the file, no element read",
-    tag: "[SR-004/AK5]",
+    tag: "[SR-004/AK-gm6w]",
     fixture: {
       files: {
         "README.md": "no workspace\n",
@@ -95,7 +95,7 @@ scenariosOf("element.list", [
   },
   {
     name: "a workspace file that cannot be read: file.faulty with the file and the reason, no element read",
-    tag: "[SR-004/AK5]",
+    tag: "[SR-004/AK-gm6w]",
     fixture: {
       files: {
         "reqseq-workspace.yaml": "reqseq-workspace: 1\nname: [unclosed\n",
@@ -132,7 +132,7 @@ scenariosOf("element.list", [
     expect: "output",
   },
   {
-    tag: "[SR-149/AK1]",
+    tag: "[SR-149/AK-yrzz]",
     name: "grouped by status: the statuses in metamodel order with their counts",
     fixture: GROUP,
     input: { group: "status", sort: BY_TITLE },
@@ -146,7 +146,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-149/AK1]",
+    tag: "[SR-149/AK-yrzz]",
     name: "grouped by a choice property: the choices in metamodel order, the elements without a value last",
     fixture: GROUP,
     input: { group: "requirement-type", sort: BY_TITLE },
@@ -163,7 +163,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-149/AK2]",
+    tag: "[SR-149/AK-n7tv]",
     name: "grouped by package and by a list property: an element with several values in each of their groups",
     fixture: GROUP,
     input: { group: "package", sort: BY_TITLE },
@@ -179,7 +179,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-149/AK2]",
+    tag: "[SR-149/AK-n7tv]",
     name: "grouped by a choice property with a list: SR-0000b1 in sensor and display",
     fixture: GROUP,
     input: { group: "area", sort: BY_TITLE },
@@ -192,7 +192,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-149/AK1]",
+    tag: "[SR-149/AK-yrzz]",
     name: "grouped by topic, a text property with shared values as element.facets offers it, the elements without a topic last",
     fixture: VALUES,
     input: {
@@ -210,7 +210,7 @@ scenariosOf("element.list", [
     },
   },
   ...["area", "type"].map((group) => ({
-    tag: "[SR-149/AK3]",
+    tag: "[SR-149/AK-pd1k]",
     name: `regrouped by ${group} with the same filter and sort: the same elements, in the sort order in each group`,
     fixture: GROUP,
     input: {
@@ -235,7 +235,7 @@ scenariosOf("element.list", [
     },
   })),
   {
-    tag: "[SR-149/AK5]",
+    tag: "[SR-149/AK-rdmd]",
     name: "grouping, with the texts and as trees per group, changes no file of the fixture",
     fixture: GROUP,
     input: { group: "package", sort: [{ by: "hierarchy", order: "asc" }], withText: true },
@@ -252,7 +252,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-041/AK1]",
+    tag: "[SR-041/AK-xqgg]",
     name: "the view of A lists A1 instead of K1",
     fixture: VARIANT_VIEWS,
     input: { selection: { view: "VAR-0000c1" } },
@@ -264,7 +264,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-043/AK1]",
+    tag: "[SR-043/AK-ymsc]",
     name: "the view of A holds K3, K4, A1 and A2 of the requirements",
     fixture: VARIANT_VIEWS,
     input: { selection: { view: "VAR-0000c1", where: { type: ["system-requirement"] } } },
@@ -317,7 +317,7 @@ scenariosOf("element.list", [
     { pkg: "PKG-0000d2", members: ["SR-0000b1"] },
   ].map(({ pkg, members }) => ({
     name: `a requirement in P1 and P2 appears in both: the elements of ${pkg}`,
-    tag: "[SR-049/AK1]",
+    tag: "[SR-049/AK-sqcc]",
     fixture: PACKAGES,
     input: { selection: { package: pkg } },
     expect: "output" as const,
@@ -334,21 +334,21 @@ scenariosOf("element.list", [
   },
   {
     name: "the elements with a topic, one item of a list included, as the app lists them (SR-132)",
-    tag: "[SR-132/AK2]",
+    tag: "[SR-132/AK-ymp3]",
     fixture: VALUES,
     input: { selection: { where: { property: "topic", op: "eq", value: "Timing" } }, sort: TYPE_AND_ID },
     expect: "output",
   },
   {
     name: "the elements with a status as the condition property equals value (SR-132)",
-    tag: "[SR-132/AK2]",
+    tag: "[SR-132/AK-ymp3]",
     fixture: VALUES,
     input: { selection: { where: { property: "status", op: "eq", value: "approved" } }, sort: TYPE_AND_ID },
     expect: "output",
   },
   {
     name: "the elements with the same package as target (SR-132)",
-    tag: "[SR-132/AK3]",
+    tag: "[SR-132/AK-q3fb]",
     fixture: VALUES,
     input: {
       selection: { where: { property: "packages", op: "eq", value: "PKG-0000d1" } },

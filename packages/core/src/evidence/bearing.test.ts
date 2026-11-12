@@ -20,7 +20,7 @@ const record = (date: string, more: Partial<EvidenceRecord> = {}): EvidenceRecor
 });
 
 describe("bearingRecords (SR-032 AK3)", () => {
-  it("[SR-032/AK3] keeps per kind and variant the newest record of the current version, else the newest of an older one", () => {
+  it("[SR-032/AK-hbdt] keeps per kind and variant the newest record of the current version, else the newest of an older one", () => {
     const records = [
       record("20", { version: OLD }),
       record("15"),
@@ -36,7 +36,7 @@ describe("bearingRecords (SR-032 AK3)", () => {
     expect(bearingRecords([], CURRENT, 3)).toEqual([]);
   });
 
-  it("[SR-032/AK3] keeps every record that shares the newest date, the whole run; an inconclusive verification is of no current version", () => {
+  it("[SR-032/AK-hbdt] keeps every record that shares the newest date, the whole run; an inconclusive verification is of no current version", () => {
     const records = [
       record("20", { result: "inconclusive" }),
       record("15"),

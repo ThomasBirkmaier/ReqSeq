@@ -116,7 +116,7 @@ const lineDiff = (before: string, after: string): { added: string[]; removed: st
 };
 
 describe("relation.add stores UUID and current version of the target in the source file (SR-021, SR-005, SR-041)", () => {
-  it("[SR-021/AK1] [SR-067/AK6] writes UUID, current version and title of a target in the same repository; the target file stays", async () => {
+  it("[SR-021/AK-srq1] [SR-067/AK-fcfh] writes UUID, current version and title of a target in the same repository; the target file stays", async () => {
     const opened = await open({ fixture: "SR-021/targets" }, "system");
     const [before, target] = await readAll(opened, [SR.file, SYSTEM_NEED.file]);
     const version = await versionOf(opened, SYSTEM_NEED.id);
@@ -132,7 +132,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     expect(await read(opened, SYSTEM_NEED.file)).toBe(target);
   });
 
-  it("[SR-005/AK1] writes only UUID, version and repository name of a target in another repository, no title", async () => {
+  it("[SR-005/AK-shd5] writes only UUID, version and repository name of a target in another repository, no title", async () => {
     const opened = await open({ fixture: "SR-021/targets" }, "system");
     const before = await read(opened, SR.file);
     const version = await versionOf(opened, SENSOR_NEED.id);
@@ -145,7 +145,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     expect(await read(opened, SR.file)).not.toContain("Measure gusts");
   });
 
-  it("[SR-041/AK2] a relation replaces stores the version of the replaced core requirement", async () => {
+  it("[SR-041/AK-c2jz] a relation replaces stores the version of the replaced core requirement", async () => {
     const opened = await open();
     const version = await versionOf(opened, WIND.id);
     const out = await add(opened, { source: GUSTS.id, kind: "replaces", target: "SR-e88fb3" });
@@ -155,7 +155,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     );
   });
 
-  it("[SR-102/AK1] changes only the line of the new relation in a file written by hand", async () => {
+  it("[SR-102/AK-zts9] changes only the line of the new relation in a file written by hand", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     const version = await versionOf(opened, NEED.id);
@@ -171,7 +171,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     );
   });
 
-  it("[SR-102/AK3] two branches that add different relations to one element each add one line; the conflict has one line per side, and keeping both reads the element with both relations", async () => {
+  it("[SR-102/AK-js7s] two branches that add different relations to one element each add one line; the conflict has one line per side, and keeping both reads the element with both relations", async () => {
     const opened = await open({ ...TWO, git: true });
     const { fixture } = opened;
     const base = await read(opened, GUSTS.file);
@@ -241,7 +241,7 @@ describe("relation.add stores UUID and current version of the target in the sour
 });
 
 describe("relation.add sets only relations the metamodel allows (SR-067 AK4, SR-086)", () => {
-  it("[SR-067/AK4] refuses a relation from a source type the kind does not allow, with source, target and kind, and writes nothing", async () => {
+  it("[SR-067/AK-r039] refuses a relation from a source type the kind does not allow, with source, target and kind, and writes nothing", async () => {
     const opened = await open();
     const before = await read(opened, NEED.file);
     const error = await addError(opened, { source: NEED.id, kind: "derives-from", target: WIND.id });
@@ -255,7 +255,7 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK4, SR-
     expect(await read(opened, NEED.file)).toBe(before);
   });
 
-  it("[SR-067/AK4] refuses a relation to a target type the kind does not allow, and writes nothing", async () => {
+  it("[SR-067/AK-r039] refuses a relation to a target type the kind does not allow, and writes nothing", async () => {
     const opened = await open();
     const before = await read(opened, WIND.file);
     const error = await addError(opened, { source: WIND.id, kind: "based-on", target: GUSTS.id });
@@ -345,7 +345,7 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK4, SR-
     expect(await read(opened, NEED2.file)).toBe(before);
   });
 
-  it("[SR-166/AK3] refuses to write a file that changed on disk since it was read", async () => {
+  it("[SR-166/AK-cwf8] refuses to write a file that changed on disk since it was read", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     const changed = `${await read(opened, WIND.file)}More.\n`;
@@ -387,7 +387,7 @@ describe("relation.add gives a stored target without a valid version its current
     currentVersion: version,
   });
 
-  it("[SR-021/AK1] writes the current version into the stored entry in place, changes only its line and says so", async () => {
+  it("[SR-021/AK-srq1] writes the current version into the stored entry in place, changes only its line and says so", async () => {
     const opened = await open(
       migrated([`{ id: ${NEED.id}, title: "Need one" }`, `{ id: ${NEED2.id}, title: "Need two" }`]),
     );
@@ -411,7 +411,7 @@ describe("relation.add gives a stored target without a valid version its current
     ]);
   });
 
-  it("[SR-021/AK1] replaces a version that is no version, and a second call keeps the stored one", async () => {
+  it("[SR-021/AK-srq1] replaces a version that is no version, and a second call keeps the stored one", async () => {
     const opened = await open(migrated([`{ id: ${NEED.id}, version: "2026-01-01", title: Need one }`]));
     const version = await versionOf(opened, NEED.id);
     const out = await add(opened, { source: MIGRATED.id, kind: "derives-from", target: "N-aaaaa1" });
@@ -435,7 +435,7 @@ describe("relation.add gives a stored target without a valid version its current
     expect(await read(opened, MIGRATED.file)).toBe(before);
   });
 
-  it("[SR-005/AK1] fills in the version of a target in another repository and keeps its repository name", async () => {
+  it("[SR-005/AK-shd5] fills in the version of a target in another repository and keeps its repository name", async () => {
     const opened = await open({ fixture: "SR-021/targets" }, "system");
     const stored = await read(opened, SR.file);
     await opened.fixture.write(
@@ -501,7 +501,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     line,
   });
 
-  it("[SR-067/AK3] writes the relation and names every element of the new cycle with the line of its relation", async () => {
+  it("[SR-067/AK-skrd] writes the relation and names every element of the new cycle with the line of its relation", async () => {
     const opened = await open(CYCLE);
     const out = await add(opened, { source: A.id, kind: "derives-from", target: D.id });
     expect(out.files).toEqual([A.file]);
@@ -522,7 +522,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     ]);
   });
 
-  it("[SR-067/AK3] follows every relation kind with the meaning derivation up from the target", async () => {
+  it("[SR-067/AK-skrd] follows every relation kind with the meaning derivation up from the target", async () => {
     const opened = await open(CYCLE);
     // The need refines D, which derives from A, which derives from the need.
     const out = await add(opened, { source: CYCLE_NEED.id, kind: "refines", target: D.id });
@@ -538,7 +538,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     );
   });
 
-  it("[SR-067/AK3] a relation of an element to itself is a cycle on its own", async () => {
+  it("[SR-067/AK-skrd] a relation of an element to itself is a cycle on its own", async () => {
     const opened = await open(CYCLE);
     const out = await add(opened, { source: D.id, kind: "derives-from", target: D.id });
     expect(out.problems).toEqual([
@@ -546,7 +546,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     ]);
   });
 
-  it("[SR-067/AK3] repeats the hint for a relation that is already there, and writes nothing", async () => {
+  it("[SR-067/AK-skrd] repeats the hint for a relation that is already there, and writes nothing", async () => {
     const opened = await open(CYCLE);
     const before = await read(opened, C.file);
     const out = await add(opened, { source: C.id, kind: "derives-from", target: A.id });
@@ -559,7 +559,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     expect(await read(opened, C.file)).toBe(before);
   });
 
-  it("[SR-067/AK3] finds a cycle across repositories and names each element in its own repository", async () => {
+  it("[SR-067/AK-skrd] finds a cycle across repositories and names each element in its own repository", async () => {
     const X = "0b7c6e1a-1111-4222-8333-000000000001";
     const Y = "0b7c6e1a-1111-4222-8333-000000000002";
     const requirement = (id: string, extra = ""): string =>
@@ -606,7 +606,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     );
   });
 
-  it("[SR-067/AK3] gives no hint for a derivation that closes no cycle, or a relation of another meaning", async () => {
+  it("[SR-067/AK-skrd] gives no hint for a derivation that closes no cycle, or a relation of another meaning", async () => {
     const opened = await open(CYCLE);
     expect(await add(opened, { source: D.id, kind: "derives-from", target: CYCLE_NEED.id })).toEqual({
       files: [D.file],
@@ -626,7 +626,7 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
   const L = "15200000-0000-4000-8000-000000";
   const LOGGED = { id: `${L}c00003`, file: "requirements/SR-000000c00003.md" };
 
-  it("[SR-152/AK3] writes a relation over the maximum and returns the hint of AK1 with its line", async () => {
+  it("[SR-152/AK-vqk3] writes a relation over the maximum and returns the hint of AK1 with its line", async () => {
     const opened = await open(LIMITS);
     const before = await read(opened, LOGGED.file);
     const out = await add(opened, { source: LOGGED.id, kind: "derives-from", target: `${L}b00001` });

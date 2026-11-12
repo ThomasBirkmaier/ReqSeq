@@ -42,7 +42,7 @@ test.describe("the main view on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-100/AK1] the main view shows only the list, the element and the search line", async () => {
+  test("[SR-100/AK-gyg5] the main view shows only the list, the element and the search line", async () => {
     const { window } = running;
     // Nothing that can be operated, besides the buffer itself and the minibuffer, is permanently visible.
     // The text of an element is edited in place (SR-065) and so are its text properties (SR-104): the editors,
@@ -273,7 +273,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(window.locator('[aria-selected="true"]')).toHaveCount(0);
   });
 
-  test("[SR-122/AK1] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt", async () => {
+  test("[SR-122/AK-kjhn] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt", async () => {
     const { window } = running;
     const selected = window.locator('.candidates [role="option"][aria-selected="true"]');
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -304,7 +304,7 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-123/AK2] [SR-123/AK3] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text", async () => {
+  test("[SR-123/AK-xbx2] [SR-123/AK-h0hj] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type("Measure wind speed");
@@ -404,7 +404,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(echo).not.toContainText("n1:");
   });
 
-  test("[SR-078/AK1] the app makes no request outside its own protocols while it is used", async () => {
+  test("[SR-078/AK-tnbh] the app makes no request outside its own protocols while it is used", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await window.keyboard.type("wind");

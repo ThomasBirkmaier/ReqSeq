@@ -70,7 +70,7 @@ const addRecords = async (workspace: Workspace, more: readonly EvidenceRecord[])
 };
 
 describe("evidence.withoutPassedTest (SR-120)", () => {
-  it("[SR-120/AK2] evidence.withoutPassedTest lists exactly the requirements without a passed test execution", async () => {
+  it("[SR-120/AK-h227] evidence.withoutPassedTest lists exactly the requirements without a passed test execution", async () => {
     const out = await run(await open());
     expect([shortIds(out), out.total, out.view, out.incomplete]).toEqual([LISTED, 5, "core", false]);
     // Not listed: b01 (failed, then passed), b03 (passed, older version), b08, b09 (passed), b10
@@ -81,13 +81,13 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
     expect(out.elements.map((e) => e.id)).not.toContain(U("a01"));
   });
 
-  it("[SR-120/AK2] a skipped JUnit test case is no passed test execution", async () => {
+  it("[SR-120/AK-h227] a skipped JUnit test case is no passed test execution", async () => {
     const out = await run(await open());
     const gusts = out.elements.find((e) => e.id === B("04"));
     expect(gusts?.verification).toEqual([{ view: "core", status: "open" }]);
   });
 
-  it("[SR-120/AK2] a requirement stays out after a passed test also when a newer run failed (a regression)", async () => {
+  it("[SR-120/AK-h227] a requirement stays out after a passed test also when a newer run failed (a regression)", async () => {
     const workspace = await open();
     const version = await versionOf(workspace, B("06"));
     await addRecords(workspace, [
@@ -241,7 +241,7 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
     expect(out.elements.every((e) => e.verification?.[0]?.status === "open")).toBe(true);
   });
 
-  it("[SR-006/AK2] is incomplete when a repository of the workspace is not available", async () => {
+  it("[SR-006/AK-q0f4] is incomplete when a repository of the workspace is not available", async () => {
     const file = await edited("reqseq-workspace.yaml", (text) =>
       text.replace(
         "main: true }",

@@ -199,7 +199,7 @@ const open = async () => {
 const modeline = (): string => query('[aria-label="Modeline"]').textContent;
 
 describe("the matrix in the app", () => {
-  it("[SR-125/AK1] Ctrl+T on a list shows its matrix with the keys in it, and Ctrl+T again the list", async () => {
+  it("[SR-125/AK-mzzq] Ctrl+T on a list shows its matrix with the keys in it, and Ctrl+T again the list", async () => {
     const fake = await open();
     await runCommand("List all elements");
     expect(container.querySelectorAll(".row")).toHaveLength(2);
@@ -223,7 +223,7 @@ describe("the matrix in the app", () => {
     expect(modeline()).not.toContain("matrix");
   });
 
-  it("[SR-125/AK1] a filter on the matrix keeps the matrix and asks it for the narrower selection", async () => {
+  it("[SR-125/AK-mzzq] a filter on the matrix keeps the matrix and asks it for the narrower selection", async () => {
     const fake = await open();
     await runCommand("List all elements");
     await keyDown(window, "t", { ctrlKey: true });
@@ -240,7 +240,7 @@ describe("the matrix in the app", () => {
     expect(modeline()).toContain("All elements · matrix");
   });
 
-  it("[SR-125/AK4] shows the outdated mark of a link, and Enter on the link opens its element", async () => {
+  it("[SR-125/AK-zs8y] shows the outdated mark of a link, and Enter on the link opens its element", async () => {
     await open();
     await runCommand("List all elements");
     await keyDown(window, "t", { ctrlKey: true });
@@ -251,7 +251,7 @@ describe("the matrix in the app", () => {
     expect(query("article h1").textContent).toBe("See the wind");
   });
 
-  it("[SR-125/AK1] a package page opens its members as a matrix with Ctrl+T", async () => {
+  it("[SR-125/AK-mzzq] a package page opens its members as a matrix with Ctrl+T", async () => {
     const fake = await open();
     await keyDown(window, "p", { ctrlKey: true });
     await type("Stage");

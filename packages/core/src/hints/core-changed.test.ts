@@ -47,7 +47,7 @@ const rows = (problems: readonly Problem[]): unknown[] =>
   problems.map((p) => [p.code, p.elementId, p.targetId]);
 
 describe("a changed core requirement at its replacement (SR-045)", () => {
-  it("[SR-045/AK1] a content change of SR-K gives one hint at SR-A with stored and current version, listed by hint.list for A", async () => {
+  it("[SR-045/AK-yryh] a content change of SR-K gives one hint at SR-A with stored and current version, listed by hint.list for A", async () => {
     const { workspace } = await open({ [K_FILE]: await changedK("within 10 ms.\n", "within 12 ms.\n") });
     const problems = await check(workspace);
     // One hint at A1, none `relation.outdated` beside it; B2 without validity replaces in no view (SR-041 AK6).
@@ -80,7 +80,7 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     expect(shown.element.problems?.map((p) => p.hintId ?? p.code)).toEqual(["trace.no-parent", hint?.hintId]);
   });
 
-  it("[SR-045/AK2] hint.confirm writes the current version and title of SR-K into replaces and the hint is gone", async () => {
+  it("[SR-045/AK-c59v] hint.confirm writes the current version and title of SR-K into replaces and the hint is gone", async () => {
     const changed = (await changedK("within 10 ms.\n", "within 12 ms.\n")).replace(
       "title: Response time at most 10 ms",
       "title: Response time at most 12 ms",
@@ -100,7 +100,7 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     );
   });
 
-  it("[SR-045/AK3] a title-only change of SR-K gives no hint, and the next write of SR-A's file stores the new title", async () => {
+  it("[SR-045/AK-snvd] a title-only change of SR-K gives no hint, and the next write of SR-A's file stores the new title", async () => {
     const { workspace, root } = await open({
       [K_FILE]: await changedK("title: Response time at most 10 ms", "title: Answer within 10 ms"),
     });
@@ -114,7 +114,7 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     expect(text).toContain(`{ id: ${K}, version: ${K_VERSION}, title: Answer within 10 ms }`);
   });
 
-  it("[SR-045/AK4] a superseded SR-K gives the superseded-target hint with its successor and no core-change hint", async () => {
+  it("[SR-045/AK-m7xp] a superseded SR-K gives the superseded-target hint with its successor and no core-change hint", async () => {
     const successor = (await changedK("10 ms", "5 ms"))
       .replace(`id: ${K}`, `id: ${P}a2`)
       .replaceAll("10 ms", "5 ms");

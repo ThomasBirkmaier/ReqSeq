@@ -40,7 +40,7 @@ const edit = (key: string, base: string, doc: string): BoxEdit => ({ key, info: 
 const EDITOR = { name: "the editor" };
 
 describe("a save (SR-105, SR-106)", () => {
-  it("[SR-105/AK1] a save writes when there is input and nothing stops it, and writes nothing without input", () => {
+  it("[SR-105/AK-p4gn] a save writes when there is input and nothing stops it, and writes nothing without input", () => {
     expect(saveStep({ editor: EDITOR, input: true, note: undefined, mode: "quiet" })).toEqual({
       kind: "write",
       editor: EDITOR,
@@ -51,7 +51,7 @@ describe("a save (SR-105, SR-106)", () => {
     });
   });
 
-  it("[SR-106/AK2] nothing is written during a conflict; Save element says how to resolve it, autosave says nothing", () => {
+  it("[SR-106/AK-ydc8] nothing is written during a conflict; Save element says how to resolve it, autosave says nothing", () => {
     expect(saveStep({ editor: EDITOR, input: true, note: RESOLVE_FIRST, mode: "asked" })).toEqual({
       kind: "done",
       result: false,
@@ -63,7 +63,7 @@ describe("a save (SR-105, SR-106)", () => {
     });
   });
 
-  it("[SR-106/AK2] a write refused because the file changed reads it once, and other bytes follow the outside-change rule", () => {
+  it("[SR-106/AK-ydc8] a write refused because the file changed reads it once, and other bytes follow the outside-change rule", () => {
     expect(afterRefusal("file.changed-on-disk")).toBe("check");
     expect(checkStep("two", "one", undefined)).toEqual({ kind: "apply" });
     expect(checkStep("two", "one", "refused before")).toEqual({ kind: "apply" });
@@ -167,7 +167,7 @@ describe("what a save says (D-062)", () => {
     });
   });
 
-  it("[SR-024/AK2] [SR-024/AK3] says the number of directly affected elements above 0, when quiet once while it stays the same", () => {
+  it("[SR-024/AK-mf7x] [SR-024/AK-jt0q] says the number of directly affected elements above 0, when quiet once while it stays the same", () => {
     expect(savedSpeech({}, "asked", "SR-036", undefined, 1)).toEqual({
       echo: "Saved SR-036: 1 element directly affected",
       said: { error: undefined, hint: undefined, affected: 1 },

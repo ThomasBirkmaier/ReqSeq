@@ -81,7 +81,7 @@ const sameAtElement = async (options: FixtureOptions, root = ""): Promise<Set<st
 };
 
 describe("hints at the element equal the hints hint.list lists for it (SR-026 AK3)", () => {
-  it("[SR-026/AK3] outdated relations, superseded variants and targets, unknown and required properties", async () => {
+  it("[SR-026/AK-w590] outdated relations, superseded variants and targets, unknown and required properties", async () => {
     expect([...(await sameAtElement({ fixture: "SR-026/hints" }))].sort()).toEqual([
       "element.missing-required",
       "element.unknown-property",
@@ -92,12 +92,12 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     ]);
   });
 
-  it("[SR-026/AK3] cycles of derivations", async () => {
+  it("[SR-026/AK-w590] cycles of derivations", async () => {
     const codes = await sameAtElement({ fixture: "SR-090/cycle" });
     expect(codes.has("trace.cycle")).toBe(true);
   });
 
-  it("[SR-026/AK3] values of the wrong kind, relations the metamodel does not allow, unknown types, and the fixtures of SR-072 and SR-040", async () => {
+  it("[SR-026/AK-w590] values of the wrong kind, relations the metamodel does not allow, unknown types, and the fixtures of SR-072 and SR-040", async () => {
     const codes = new Set([
       ...(await sameAtElement({ fixture: "SR-085/value-kinds" }, "system")),
       ...(await sameAtElement({ fixture: "SR-086/relation-types" }, "system")),
@@ -110,7 +110,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     }
   });
 
-  it("[SR-026/AK3] shows a cycle from the walk up and from the kept state alike", async () => {
+  it("[SR-026/AK-w590] shows a cycle from the walk up and from the kept state alike", async () => {
     const workspace = await open({ fixture: "SR-090/cycle" });
     const ids = await uniqueIds(workspace);
     const before = await Promise.all(ids.map((id) => shown(workspace, id)));
@@ -119,7 +119,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     expect(await Promise.all(ids.map((id) => shown(workspace, id)))).toEqual(before);
   });
 
-  it("[SR-026/AK3] shows a kept cycle at its relation as the file holds it now", async () => {
+  it("[SR-026/AK-w590] shows a kept cycle at its relation as the file holds it now", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-090/cycle" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
@@ -142,7 +142,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     expect(await lineOfCycle()).toBe(11);
   });
 
-  it("[SR-026/AK3] shows no cycle without a relation kind with the meaning derivation", async () => {
+  it("[SR-026/AK-w590] shows no cycle without a relation kind with the meaning derivation", async () => {
     const workspace = await open({
       fixture: "SR-090/cycle",
       files: { "metamodel/standard-model.yaml": STANDARD.replaceAll("    meaning: derivation\n", "") },
@@ -152,7 +152,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     expect(all.filter((p) => p.code === "trace.cycle")).toEqual([]);
   });
 
-  it("[SR-026/AK3] [SR-025/AK4] shows outdated evidence at its element, alone and from the kept state", async () => {
+  it("[SR-026/AK-w590] [SR-025/AK-tmds] shows outdated evidence at its element, alone and from the kept state", async () => {
     const A = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
     const records: EvidenceRecord[] = [
       {

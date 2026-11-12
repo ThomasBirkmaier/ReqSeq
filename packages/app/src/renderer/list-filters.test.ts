@@ -92,13 +92,13 @@ describe("the properties whose values can be chosen (#993)", () => {
 });
 
 describe("the property prompt (SR-124)", () => {
-  it("[SR-124/AK2] offers the status first, then the properties with values, in the order of the core", () => {
+  it("[SR-124/AK-hxcz] offers the status first, then the properties with values, in the order of the core", () => {
     const { items } = use(facets);
     expect(items.map((item) => item.name)).toEqual(["status", "topic", "requirement-type", "packages"]);
     expect(items.map((item) => item.hint)).toEqual(["2", "2", "1", "2"]);
   });
 
-  it("[SR-124/AK3] does not offer free text, which has no values, nor a property without a value in the list", () => {
+  it("[SR-124/AK-mch4] does not offer free text, which has no values, nor a property without a value in the list", () => {
     const names = use(facets).items.map((item) => item.name);
     expect(names).not.toContain("acceptance-criteria");
     expect(names).not.toContain("title");
@@ -166,11 +166,11 @@ describe("the property prompt (SR-124)", () => {
     ]);
   });
 
-  it("[SR-124/AK2] offers nothing when no property has values", () => {
+  it("[SR-124/AK-hxcz] offers nothing when no property has values", () => {
     expect(use({ ...facets, statuses: [], properties: facets.properties.slice(0, 1) }).items).toEqual([]);
   });
 
-  it("[SR-124/AK1] builds the steps with the labels of the list", () => {
+  it("[SR-124/AK-jz48] builds the steps with the labels of the list", () => {
     expect(typeStep("need")).toEqual({ label: "type: need", selection: { where: { type: ["need"] } } });
     expect(statusStep("draft").label).toBe("status: draft");
     expect(savedStep("open")).toEqual({ label: "filter: open", selection: { filter: "open" } });
@@ -179,7 +179,7 @@ describe("the property prompt (SR-124)", () => {
     expect(hasSavedFilter([typeStep("need"), savedStep("open")])).toBe(true);
   });
 
-  it("[SR-118/AK2] the step of a type line takes the elements of exactly that type, the type filter its subtypes too", () => {
+  it("[SR-118/AK-p9z9] the step of a type line takes the elements of exactly that type, the type filter its subtypes too", () => {
     expect(exactTypeStep("need")).toEqual({
       label: "type: need",
       selection: { where: { type: ["need"], subtypes: false } },

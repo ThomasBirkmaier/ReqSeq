@@ -57,7 +57,7 @@ describe("the lines of a requirement's variants", () => {
     expect(lines.verification).toBeUndefined();
   });
 
-  it("[SR-157/AK1] gives the verification status per view as a badge in core's order: the name, the status and its word", () => {
+  it("[SR-157/AK-c9cf] gives the verification status per view as a badge in core's order: the name, the status and its word", () => {
     const lines = variantLines(
       output(
         {
@@ -82,7 +82,7 @@ describe("the lines of a requirement's variants", () => {
     expect(lines.use).toBeUndefined();
   });
 
-  it("[SR-034/AK2] names the children missing for an indirect verification, each a link by its ID with ID and title on hover", () => {
+  it("[SR-034/AK-hk8z] names the children missing for an indirect verification, each a link by its ID with ID and title on hover", () => {
     const one = name("uuid-1", "SR-00b121", "Log wind", "SR-121");
     const lines = variantLines(
       output(
@@ -106,7 +106,7 @@ describe("the lines of a requirement's variants", () => {
     });
   });
 
-  it("[SR-031/AK5] counts the verified acceptance criteria and names those not verified", () => {
+  it("[SR-031/AK-yscc] counts the verified acceptance criteria and names those not verified", () => {
     const lines = variantLines(
       output({
         verification: [
@@ -125,7 +125,7 @@ describe("the lines of a requirement's variants", () => {
     ]);
   });
 
-  it("[SR-038/AK1] gives the validation status on a line of its own, apart from the verification status", () => {
+  it("[SR-038/AK-w0j6] gives the validation status on a line of its own, apart from the verification status", () => {
     const lines = variantLines(
       output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),
     );
@@ -134,7 +134,7 @@ describe("the lines of a requirement's variants", () => {
     expect(variantLines(output({})).validation).toBeUndefined();
   });
 
-  it("[SR-172/AK2] gives an inconclusive validation with its reason on one line, cut when long", () => {
+  it("[SR-172/AK-j3vg] gives an inconclusive validation with its reason on one line, cut when long", () => {
     const lines = variantLines(
       output({ validation: "inconclusive", validationReason: "No frost\n\tyet,\u0007 see notes" }),
     );
@@ -176,7 +176,7 @@ describe("the lines of a requirement's variants", () => {
     expect(lines.verification).toBeUndefined();
   });
 
-  it("[SR-103/AK1] gives a variant's hints since its newest baseline, core's messages in core's order, and no other hint", () => {
+  it("[SR-103/AK-grj7] gives a variant's hints since its newest baseline, core's messages in core's order, and no other hint", () => {
     const hint = (code: ProblemCode, message: string) => ({ code, severity: "warning" as const, message });
     const lines = variantLines(
       output({

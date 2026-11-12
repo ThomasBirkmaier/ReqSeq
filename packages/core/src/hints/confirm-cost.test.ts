@@ -27,7 +27,7 @@ const requirement = (id: string, extra: string, text = ""): string =>
   `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: R\nrequirement-type: functional\nacceptance-criteria: [R]\n${extra}---\n\n${text}\n`;
 
 describe("hint.confirm cost (SR-027 AK2, N-036)", () => {
-  it("[SR-027/AK2] plans every file of a call once, a ring of references included", async () => {
+  it("[SR-027/AK-q47h] plans every file of a call once, a ring of references included", async () => {
     const others = Object.fromEntries(
       Array.from({ length: OTHERS }, (_, i) => {
         const tail = `d${String(i).padStart(10, "0")}`;

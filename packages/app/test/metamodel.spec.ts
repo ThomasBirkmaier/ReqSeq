@@ -310,7 +310,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-130/AK1] choosing Show metamodel in the command prompt opens a buffer with the metamodel as a graph", async () => {
+  test("[SR-130/AK-dp8b] choosing Show metamodel in the command prompt opens a buffer with the metamodel as a graph", async () => {
     const { window } = await launch();
     await showMetamodel(window, 6);
     const modeline = window.getByLabel("Modeline");
@@ -325,7 +325,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-130/AK2] every type is a box with name, prefix and properties and every inheritance and relation kind a labelled curve, as reqseq metamodel get gives them", async () => {
+  test("[SR-130/AK-s795] every type is a box with name, prefix and properties and every inheritance and relation kind a labelled curve, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);
@@ -352,7 +352,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     expect(await drawingProblems(window)).toEqual([]);
   });
 
-  test("[SR-130/AK3] a relation kind open on a side appears once, at Any type", async () => {
+  test("[SR-130/AK-j585] a relation kind open on a side appears once, at Any type", async () => {
     const { window } = await launch();
     await showMetamodel(window, 6);
     const lines = await shownLines(window);
@@ -370,7 +370,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expect(window.locator("[data-any] .mm-name")).toHaveText("Any type");
   });
 
-  test("[SR-130/AK4] arrows move between the boxes of the metamodel graph", async () => {
+  test("[SR-130/AK-g9gk] arrows move between the boxes of the metamodel graph", async () => {
     const { window } = await launch();
     await showMetamodel(window, 6);
     await expectSelected(window, "item");
@@ -388,7 +388,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expect(window.locator(".metamodel")).toHaveAttribute("aria-activedescendant", "mm-type-0");
   });
 
-  test("[SR-130/AK4] Ctrl/Cmd+T switches between graph and text and keeps the selected type, by keys only", async () => {
+  test("[SR-130/AK-g9gk] Ctrl/Cmd+T switches between graph and text and keeps the selected type, by keys only", async () => {
     const { window } = await launch();
     const modeline = window.getByLabel("Modeline");
     await showMetamodel(window, 6);
@@ -441,7 +441,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expectSelected(window, "requirement");
   });
 
-  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind, required and whether they count to the version and statuses, and every relation kind's source and target types, as reqseq metamodel get gives them", async () => {
+  test("[SR-130/AK-y6rs] the text names every type's key, name, prefix, parent, properties with value kind, required and whether they count to the version and statuses, and every relation kind's source and target types, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);
@@ -453,7 +453,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     expect(await shownText(window)).toEqual(expectedText(model));
   });
 
-  test("[SR-130/AK6] the app shows the types, parents, properties, statuses and relation kinds that the CLI and the MCP server give", async () => {
+  test("[SR-130/AK-cmt2] the app shows the types, parents, properties, statuses and relation kinds that the CLI and the MCP server give", async () => {
     const { window } = await launch();
     const fromCli = await metamodel(running);
     const agent = await running.mcp();
@@ -472,7 +472,7 @@ test.describe("the metamodel on a fixture workspace", () => {
   });
 });
 
-test("[SR-130/AK2] on the specification every name, property and label line can be read whole, and the text names what the CLI gives", async () => {
+test("[SR-130/AK-s795] on the specification every name, property and label line can be read whole, and the text names what the CLI gives", async () => {
   const running = await launchApp({ folder: SPEC });
   try {
     const { window } = running;

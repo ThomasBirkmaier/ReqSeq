@@ -16,7 +16,7 @@ scenariosOf("element.resolve", [
   },
   { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
   {
-    tag: "[SR-205/AK5]",
+    tag: "[SR-205/AK-ndnj]",
     name: "a test name's reference to a criterion names the requirement, number and text",
     fixture: CRITERIA,
     input: { ref: "[SR-0000e3/AK-kfro]" },
@@ -37,7 +37,7 @@ scenariosOf("element.resolve", [
     },
   },
   {
-    tag: "[SR-205/AK5]",
+    tag: "[SR-205/AK-ndnj]",
     name: "a reference to a criterion by number is refused alike",
     fixture: CRITERIA,
     input: { ref: "[SR-0000e3/AK3]" },

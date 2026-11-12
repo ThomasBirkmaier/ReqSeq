@@ -57,7 +57,7 @@ const sound = (state: WindowState): void => {
 };
 
 describe("window layout (SR-115 AK3)", () => {
-  it("[SR-115/AK3] Split window shows the shown buffer and the one used before side by side; the shown one stays active", () => {
+  it("[SR-115/AK-cycg] Split window shows the shown buffer and the one used before side by side; the shown one stays active", () => {
     const state = run(opened(element(1), graph), { type: "split" });
     expect(isSplit(state.layout)).toBe(true);
     expect(shown(state)).toEqual([`${graph.key}*`, element(1).key]);
@@ -67,7 +67,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(state.buffers.map((buffer) => buffer.key)).toEqual([graph.key, element(1).key, overview.key]);
   });
 
-  it("[SR-115/AK3] with one buffer open the other area shows the overview; with only the overview nothing splits", () => {
+  it("[SR-115/AK-cycg] with one buffer open the other area shows the overview; with only the overview nothing splits", () => {
     const one = run(EMPTY_WINDOW, { type: "reset", buffer: element(1) }, { type: "split" });
     expect(shown(one)).toEqual([`${element(1).key}*`, overview.key]);
     const lone = opened();
@@ -77,7 +77,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(shown(lone)).toEqual([`${overview.key}*`]);
   });
 
-  it("[SR-115/AK3] choosing the other area's buffer (switch, open, Next buffer) makes that area active; a buffer is never in both areas", () => {
+  it("[SR-115/AK-cycg] choosing the other area's buffer (switch, open, Next buffer) makes that area active; a buffer is never in both areas", () => {
     let state = run(opened(element(1), element(2)), { type: "split" });
     expect(shown(state)).toEqual([`${element(2).key}*`, element(1).key]);
     // "Other window" and Next buffer dispatch a switch to the other area's buffer.
@@ -107,7 +107,7 @@ describe("window layout (SR-115 AK3)", () => {
     }
   });
 
-  it("[SR-115/AK3] opening or switching in the active area changes only that area", () => {
+  it("[SR-115/AK-cycg] opening or switching in the active area changes only that area", () => {
     let state = run(opened(element(1), element(2)), { type: "split" });
     state = reduceWindow(state, { type: "open", buffer: graph });
     expect(shown(state)).toEqual([`${graph.key}*`, element(1).key]);
@@ -127,7 +127,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(reduceWindow(moved, { type: "switch", key: "nothing" })).toBe(moved);
   });
 
-  it("[SR-115/AK3] a buffer in the inactive area that reads again stays there and does not become active", () => {
+  it("[SR-115/AK-cycg] a buffer in the inactive area that reads again stays there and does not become active", () => {
     const result = resultBuffer("trace.affected", {}, "Affected", { total: 0 }, 0);
     let state = run(opened(result, element(1)), { type: "split" });
     expect(shown(state)).toEqual([`${element(1).key}*`, result.key]);
@@ -139,7 +139,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(reduceWindow(state, { type: "update", buffer: element(9) })).toBe(state);
   });
 
-  it("[SR-115/AK3] Unsplit keeps the active area; Close buffer in a split leaves the other buffer alone; closing it, Close all, reset or push-out join the areas", () => {
+  it("[SR-115/AK-cycg] Unsplit keeps the active area; Close buffer in a split leaves the other buffer alone; closing it, Close all, reset or push-out join the areas", () => {
     const split = run(
       opened(element(1), element(2)),
       { type: "split" },
@@ -171,7 +171,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(reduceWindow(unsplit, { type: "open", buffer: graph }).layout).toEqual({ active: "right" });
   });
 
-  it("[SR-115/AK3] the inactive area's buffer closed or pushed out: the area shows the next buffer in the order of use, else the window has one area", () => {
+  it("[SR-115/AK-cycg] the inactive area's buffer closed or pushed out: the area shows the next buffer in the order of use, else the window has one area", () => {
     const split = run(opened(element(1), element(2), element(3)), { type: "split" });
     expect(shown(split)).toEqual([`${element(3).key}*`, element(2).key]);
     const closed = reduceWindow(split, { type: "close", key: element(2).key });
@@ -202,7 +202,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(shown(pushed)).toEqual([`${element(MAX_BUFFERS - 1).key}*`, element(MAX_BUFFERS - 2).key]);
   });
 
-  it("[SR-117/AK1] in a split, Follow agent opens its element in the area of the mode's buffer without making it active; the user's buffer stays", () => {
+  it("[SR-117/AK-knhb] in a split, Follow agent opens its element in the area of the mode's buffer without making it active; the user's buffer stays", () => {
     // The mode shows element 1; the user opens a list, splits, and the list's area is active.
     let follow = onAccess(startFollowing(FOLLOW_OFF), agent(1), undefined).state;
     let state = opened();
@@ -274,7 +274,7 @@ describe("window layout (SR-115 AK3)", () => {
     expect(placed.refresh).toBe(true);
   });
 
-  it("[SR-117/AK1] in a split, the mode's buffer in the active area takes the access there; with none shown the inactive area takes it", () => {
+  it("[SR-117/AK-knhb] in a split, the mode's buffer in the active area takes the access there; with none shown the inactive area takes it", () => {
     // The mode shows element 1 in one area; the user splits: its buffer stays in the active area.
     let follow = onAccess(startFollowing(FOLLOW_OFF), agent(1), undefined).state;
     let state = opened(list);
@@ -336,7 +336,7 @@ describe("window layout (SR-115 AK3)", () => {
     sound(state);
   });
 
-  it("[SR-117/AK1] Follow agent takes the place of the element a preview brought in and ends the preview (SR-150)", () => {
+  it("[SR-117/AK-knhb] Follow agent takes the place of the element a preview brought in and ends the preview (SR-150)", () => {
     const state = run(opened(list), { type: "beside", side: "right", buffer: element(1) });
     expect(state.layout.preview).toBe("brought");
     const next = run(state, { type: "agent", key: element(2).key, buffer: element(2) });
@@ -357,7 +357,7 @@ describe("window layout (SR-115 AK3)", () => {
     ]);
   });
 
-  it("[SR-044/AK2] side by side shows two buffers in two areas, the first on the left and active, from one area or from a split", () => {
+  it("[SR-044/AK-d2rh] side by side shows two buffers in two areas, the first on the left and active, from one area or from a split", () => {
     const core = readOnlyBuffer(element(1));
     const replacement = readOnlyBuffer(element(2));
     const from = opened(element(1), list);
@@ -387,7 +387,7 @@ describe("window layout (SR-115 AK3)", () => {
 describe("open beside and follow (SR-150)", () => {
   const keys = (state: WindowState): string[] => state.buffers.map((buffer) => buffer.key);
 
-  it("[SR-150/AK1] Open to the right splits the window: the shown buffer stays on the left and active, the marked element opens on the right", () => {
+  it("[SR-150/AK-skw8] Open to the right splits the window: the shown buffer stays on the left and active, the marked element opens on the right", () => {
     const from = opened(element(1), graph);
     const state = reduceWindow(from, { type: "beside", side: "right", buffer: element(2) });
     expect(shown(state)).toEqual([`${graph.key}*`, element(2).key]);
@@ -401,14 +401,14 @@ describe("open beside and follow (SR-150)", () => {
     );
   });
 
-  it("[SR-150/AK2] Open to the left: the marked element opens on the left, the shown buffer stands on the right and stays active", () => {
+  it("[SR-150/AK-xjdm] Open to the left: the marked element opens on the left, the shown buffer stands on the right and stays active", () => {
     const state = reduceWindow(opened(list), { type: "beside", side: "left", buffer: element(2) });
     expect(shown(state)).toEqual([element(2).key, `${list.key}*`]);
     expect(state.layout).toEqual({ active: "right", other: element(2).key, preview: "brought" });
     sound(state);
   });
 
-  it("[SR-150/AK3] in a split, the inactive side shows the marked element and the active area stays; the active side opens it as Enter does", () => {
+  it("[SR-150/AK-g2mr] in a split, the inactive side shows the marked element and the active area stays; the active side opens it as Enter does", () => {
     const split = run(opened(element(1), graph), { type: "split" });
     expect(split.layout.active).toBe("left");
     const right = reduceWindow(split, { type: "beside", side: "right", buffer: element(2) });
@@ -425,7 +425,7 @@ describe("open beside and follow (SR-150)", () => {
     sound(left);
   });
 
-  it("[SR-150/AK4] the preview follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
+  it("[SR-150/AK-xf7p] the preview follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
     const from = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(1) });
     const follow = (buffer: ElementBuffer, replace = true): WindowAction => ({
       type: "follow",
@@ -459,7 +459,7 @@ describe("open beside and follow (SR-150)", () => {
     expect(reduceWindow(twoElements, follow(element(1)))).toBe(twoElements);
   });
 
-  it("[SR-150/AK5] an inactive area that is no preview stays: entered, opened there by the reader, the comparison of SR-044, one area", () => {
+  it("[SR-150/AK-q26x] an inactive area that is no preview stays: entered, opened there by the reader, the comparison of SR-044, one area", () => {
     const follow = (): WindowAction => ({ type: "follow", buffer: element(2), replace: true });
     const listed = run(opened(list, element(1)), { type: "split" });
     expect(reduceWindow(listed, follow())).toBe(listed);
@@ -488,7 +488,7 @@ describe("open beside and follow (SR-150)", () => {
     expect(reduceWindow(EMPTY_WINDOW, follow())).toBe(EMPTY_WINDOW);
   });
 
-  it("[SR-150/AK6] Split window with a marked element: the shown buffer stays on the left and active, the preview of the element is on the right at once", () => {
+  it("[SR-150/AK-hpnz] Split window with a marked element: the shown buffer stays on the left and active, the preview of the element is on the right at once", () => {
     const state = reduceWindow(opened(element(1), list), { type: "split", marked: element(2) });
     expect(state).toEqual(
       reduceWindow(opened(element(1), list), { type: "beside", side: "right", buffer: element(2) }),

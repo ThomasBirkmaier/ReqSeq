@@ -48,7 +48,7 @@ function inputFor(element: string, files: readonly string[], missing: readonly s
 
 describe("version test vectors (ADR-0005)", () => {
   it.each(index.vectors)(
-    "[SR-091/AK1] $element gives the published canonical bytes and version",
+    "[SR-091/AK-q9fd] $element gives the published canonical bytes and version",
     (vector) => {
       const input = inputFor(vector.element, vector.files, vector.missing);
       expect(Buffer.from(canonicalContent(input, "n1"), "utf8")).toEqual(
@@ -58,7 +58,7 @@ describe("version test vectors (ADR-0005)", () => {
     },
   );
 
-  it("[SR-091/AK1] the CRLF vector has the same version as its LF form", () => {
+  it("[SR-091/AK-q9fd] the CRLF vector has the same version as its LF form", () => {
     const vector = index.vectors.find((v) => v.element === "N-42cdd0f51ca7.md");
     expect(vector).toBeDefined();
     const crlf = inputFor("N-42cdd0f51ca7.md", [], []);
@@ -66,7 +66,7 @@ describe("version test vectors (ADR-0005)", () => {
     expect(computeVersion({ ...crlf, text: crlf.text.replace(/\r\n/g, "\n") }, "n1")).toBe(vector?.version);
   });
 
-  it("[SR-091/AK1] the CR-only vector has the same version as its LF form", () => {
+  it("[SR-091/AK-q9fd] the CR-only vector has the same version as its LF form", () => {
     const vector = index.vectors.find((v) => v.element === "SR-9f0a1b2c3d4e.md");
     expect(vector).toBeDefined();
     const cr = inputFor("SR-9f0a1b2c3d4e.md", vector?.files ?? [], vector?.missing ?? []);
@@ -75,7 +75,7 @@ describe("version test vectors (ADR-0005)", () => {
     expect(computeVersion({ ...cr, text: cr.text.replace(/\r/g, "\n") }, "n1")).toBe(vector?.version);
   });
 
-  it("[SR-091/AK6] the vectors with criterion keys, also swapped, have the version of the one without", () => {
+  it("[SR-091/AK-vv64] the vectors with criterion keys, also swapped, have the version of the one without", () => {
     const original = inputFor("SR-825b7146fb54.md", ["SR-825b7146fb54/layout.png"], []);
     for (const twin of ["SR-825b7146fb55.md", "SR-825b7146fb56.md"]) {
       const keyed = inputFor(twin, ["SR-825b7146fb54/layout.png"], []);

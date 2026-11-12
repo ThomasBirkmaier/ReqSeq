@@ -57,7 +57,7 @@ scenariosOf("baseline.compare", [
     fixture: EXPORT,
     root: "system",
     input: { baseline: "Release 2", ref: "SR-0000b1" },
-    tag: "[SR-051/AK4]",
+    tag: "[SR-051/AK-dcx7]",
     expect: "output",
     prepare: changedSinceBaseline,
   },

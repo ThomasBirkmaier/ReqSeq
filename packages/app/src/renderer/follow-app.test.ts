@@ -258,7 +258,7 @@ const started = async (handlers = workspace(), commands: readonly unknown[] = []
 };
 
 describe("Follow agent in the window (SR-117)", () => {
-  it("[SR-117/AK2] an access while not following changes nothing, and the mode starts off", async () => {
+  it("[SR-117/AK-bhvp] an access while not following changes nothing, and the mode starts off", async () => {
     const fake = await started();
     expect(text("Modeline")).not.toContain("following agent");
     const before = container.innerHTML;
@@ -269,7 +269,7 @@ describe("Follow agent in the window (SR-117)", () => {
     expect(calls(fake.invoke, "workspace.activity")).toEqual([]);
   });
 
-  it("[SR-117/AK1] following, an access shows its element, and the buffer the mode opened before is closed", async () => {
+  it("[SR-117/AK-knhb] following, an access shows its element, and the buffer the mode opened before is closed", async () => {
     const fake = await started();
     await toggle();
     expect(calls(fake.invoke, "workspace.activity")).toEqual([{}]);
@@ -283,7 +283,7 @@ describe("Follow agent in the window (SR-117)", () => {
     expect(await openBuffers()).toEqual(["Overview"]);
   });
 
-  it('[SR-117/AK3] the modeline says "following agent" while on, and "waits for save" while a draft holds an access back', async () => {
+  it('[SR-117/AK-b5v1] the modeline says "following agent" while on, and "waits for save" while a draft holds an access back', async () => {
     const fake = await started();
     await toggle();
     expect(text("Modeline")).toContain("Weather stationfollowing agent");
@@ -295,7 +295,7 @@ describe("Follow agent in the window (SR-117)", () => {
     expect(text("Modeline")).not.toContain("following agent");
   });
 
-  it("[SR-117/AK4] the mode switches by the command prompt and by the key, and leaves the local storage as it was but the prompt's use", async () => {
+  it("[SR-117/AK-k2mf] the mode switches by the command prompt and by the key, and leaves the local storage as it was but the prompt's use", async () => {
     const fake = await started();
     // The prompt's use and the open buffers (SR-115 AK4: the element the mode showed is an open buffer)
     // change; nothing else does.
@@ -318,7 +318,7 @@ describe("Follow agent in the window (SR-117)", () => {
     expect(stored().map((name) => [name, window.localStorage.getItem(name)])).toEqual(before);
   });
 
-  it("[SR-117/AK5] with unsaved text an access to another element does not switch the view until Ctrl+S", async () => {
+  it("[SR-117/AK-x6y3] with unsaved text an access to another element does not switch the view until Ctrl+S", async () => {
     const fake = await started();
     await toggle();
     await fake.activity(access(1));
@@ -333,7 +333,7 @@ describe("Follow agent in the window (SR-117)", () => {
     expect(await openBuffers()).toEqual(["SR-000001 Title 1", "Overview"]);
   });
 
-  it("[SR-117/AK5] with the command prompt open an access waits until it closes", async () => {
+  it("[SR-117/AK-x6y3] with the command prompt open an access waits until it closes", async () => {
     const fake = await started();
     await toggle();
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });

@@ -241,7 +241,7 @@ describe("reqseq serve api", () => {
     }
   });
 
-  it("[SR-079/AK3] offers no option to listen on another address", async () => {
+  it("[SR-079/AK-yvqq] offers no option to listen on another address", async () => {
     const opts = options(["serve", "api", "--help"]);
     expect(await runCli(opts)).toBe(EXIT.ok);
     const flags = opts.out.text.match(/--[a-z-]+/g);
@@ -266,7 +266,7 @@ const fetchDocs = (port: number, target: string): Promise<{ status: number | und
   });
 
 describe("reqseq serve docs", () => {
-  it("[SR-141/AK4] serves the documentation site without a workspace, prints its address, and stops with the signal", async () => {
+  it("[SR-141/AK-dbrz] serves the documentation site without a workspace, prints its address, and stops with the signal", async () => {
     await fs.mkdir(fixture.path("site"));
     await fs.writeFile(fixture.path("site/index.html"), "<title>ReqSeq</title>");
     const controller = new AbortController();

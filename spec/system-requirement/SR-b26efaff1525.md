@@ -6,10 +6,14 @@ title: "Property-Werte nach Wertart prüfen"
 spec-id: "SR-085"
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben eine Property mit Wertart Text, Zahl, Datum oder Beziehung oder mit festen Werten, wenn in der Datei ein Wert der falschen Art steht, dann zeigt das Tool einen Hinweis.
-  - Gegeben eine Property mit den festen Werten low, medium und high, wenn in der Datei ein anderer Wert steht, dann zeigt das Tool einen Hinweis mit den erlaubten Werten.
-  - Gegeben ein solcher Wert, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint er als Befund.
-  - Gegeben eine Property mit Wertart Zahl oder Beziehung oder mit festen Werten, wenn über einen Schreibbefehl (App, CLI, API, MCP) ein Wert eingetragen wird, der nicht passt, zum Beispiel ein Text für eine Zahl, ein Wert, der nicht zu den festen Werten gehört, oder ein Eintrag, der nicht genau ein vorhandenes Element nennt, dann weist das Tool den Wert zurück und schreibt nichts; bei Wertart Text oder Datum speichert es den Wert und zeigt den Hinweis aus AK1, außer einem Kriterienschlüssel, den SR-204 AK5 zurückweist.
+  - key: q9jz
+    text: Gegeben eine Property mit Wertart Text, Zahl, Datum oder Beziehung oder mit festen Werten, wenn in der Datei ein Wert der falschen Art steht, dann zeigt das Tool einen Hinweis.
+  - key: x6jg
+    text: Gegeben eine Property mit den festen Werten low, medium und high, wenn in der Datei ein anderer Wert steht, dann zeigt das Tool einen Hinweis mit den erlaubten Werten.
+  - key: qr81
+    text: Gegeben ein solcher Wert, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint er als Befund.
+  - key: jx8c
+    text: Gegeben eine Property mit Wertart Zahl oder Beziehung oder mit festen Werten, wenn über einen Schreibbefehl (App, CLI, API, MCP) ein Wert eingetragen wird, der nicht passt, zum Beispiel ein Text für eine Zahl, ein Wert, der nicht zu den festen Werten gehört, oder ein Eintrag, der nicht genau ein vorhandenes Element nennt, dann weist das Tool den Wert zurück und schreibt nichts; bei Wertart Text oder Datum speichert es den Wert und zeigt den Hinweis aus AK1, außer einem Kriterienschlüssel, den SR-204 AK5 zurückweist.
 verification-method: test
 packages:
   - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:9a6d5b6b85dc5026, title: Metamodell und Prüfung }

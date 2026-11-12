@@ -52,7 +52,7 @@ test.describe("list editing in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-187/AK3] an item dragged by its bullet lands with its sub-items at the new place, and one undo takes it back", async () => {
+  test("[SR-187/AK-cryf] an item dragged by its bullet lands with its sub-items at the new place, and one undo takes it back", async () => {
     const { window } = running;
     const bullets = window.locator(".cm-lr-bullet");
     await expect(bullets).toHaveCount(4);
@@ -80,7 +80,7 @@ test.describe("list editing in the element buffer", () => {
     await expectSaved(running, TEXT);
   });
 
-  test("[SR-187/AK1] [SR-187/AK2] Tab indents the item at the caret, Alt+Up moves it with its sub-items", async () => {
+  test("[SR-187/AK-q9dn] [SR-187/AK-bck4] Tab indents the item at the caret, Alt+Up moves it with its sub-items", async () => {
     const { window } = running;
     await window.locator(".cm-line", { hasText: "Ost" }).click({ position: { x: 40, y: 5 } });
     await window.keyboard.press("End");

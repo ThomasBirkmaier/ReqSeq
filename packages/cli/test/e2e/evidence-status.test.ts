@@ -25,7 +25,7 @@ const status = async (args: readonly string[]): Promise<Run> => {
 };
 
 describe("reqseq evidence status (SR-031)", () => {
-  it("[SR-031/AK1] reqseq evidence status prints open for every requirement without records, apart from its own status", async () => {
+  it("[SR-031/AK-kbs6] reqseq evidence status prints open for every requirement without records, apart from its own status", async () => {
     const result = await status([]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
@@ -43,7 +43,7 @@ describe("reqseq evidence status (SR-031)", () => {
     );
   });
 
-  it("[SR-031/AK1] reqseq evidence status --json gives the status per view of one page", async () => {
+  it("[SR-031/AK-kbs6] reqseq evidence status --json gives the status per view of one page", async () => {
     const result = await status(["--limit", "1", "--offset", "2", "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as {

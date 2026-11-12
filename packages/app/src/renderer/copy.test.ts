@@ -45,13 +45,13 @@ const element = (extra: Record<string, unknown> = {}): DataExportElement =>
 const labels = (from: ReturnType<typeof copyable>): string[] => from.fields.map((field) => field.label);
 
 describe("copy", () => {
-  it("[SR-128/AK2] puts the values of a field one per line", () => {
+  it("[SR-128/AK-yqp3] puts the values of a field one per line", () => {
     expect(fieldText(["first", "second"])).toBe("first\nsecond");
     expect(fieldText(["only"])).toBe("only");
     expect(fieldText([])).toBe("");
   });
 
-  it("[SR-128/AK1] has a field for the title, the text, each property box and each group of relations", () => {
+  it("[SR-128/AK-sthw] has a field for the title, the text, each property box and each group of relations", () => {
     const from = copyable(element(), () => "doc");
     expect(labels(from)).toEqual([
       "Title",
@@ -73,7 +73,7 @@ describe("copy", () => {
     ]);
   });
 
-  it("[SR-128/AK2] copies what the editor of a box holds, the unsaved input included, else the lines as shown", () => {
+  it("[SR-128/AK-yqp3] copies what the editor of a box holds, the unsaved input included, else the lines as shown", () => {
     const docs = new Map([["criteria", "first\nsecond\nthird"]]);
     const from = copyable(
       element(),
@@ -93,7 +93,7 @@ describe("copy", () => {
     expect(from.fields.find((field) => field.label === "criteria")?.text()).toBe("");
   });
 
-  it("[SR-128/AK1] has a field for a relation property, and for a box that was added, in the order of the boxes", () => {
+  it("[SR-128/AK-sthw] has a field for a relation property, and for a box that was added, in the order of the boxes", () => {
     const stage = {
       kind: "packages",
       property: true,
@@ -123,7 +123,7 @@ describe("copy", () => {
     expect(shown.fields.map((field) => field.text()).slice(2, 4)).toEqual(["", "PKG-1 Stufe 3\nPKG-2 Zwei"]);
   });
 
-  it("[SR-128/AK2] copies the text as the editor holds it, and the heading as the buffer shows it", () => {
+  it("[SR-128/AK-yqp3] copies the text as the editor holds it, and the heading as the buffer shows it", () => {
     let doc = "saved";
     const from = copyable(element({ title: "" }), () => doc);
     doc = "saved and typed";
@@ -152,14 +152,14 @@ describe("copy", () => {
     expect(from.fields[0]?.text()).toBe("Measure wind");
   });
 
-  it("[SR-128/AK3] names the element by its identifier, else its short ID", () => {
+  it("[SR-128/AK-pk21] names the element by its identifier, else its short ID", () => {
     expect(idField(element()).label).toBe("ID");
     expect(idField(element()).text()).toBe("SR-000001");
     expect(idField(element({ identifier: undefined })).text()).toBe("SR-000001");
     expect(copyable(element(), () => "").id?.text()).toBe("SR-000001");
   });
 
-  it("[SR-128/AK3] hands the field with this label to the copy, else the ID, else nothing", () => {
+  it("[SR-128/AK-pk21] hands the field with this label to the copy, else the ID, else nothing", () => {
     const copy = vi.fn();
     const from = copyable(element(), () => "doc");
     copyField(from, "criteria", copy);
@@ -174,14 +174,14 @@ describe("copy", () => {
     expect(copy).toHaveBeenCalledTimes(3);
   });
 
-  it("[SR-128/AK2] says what was copied, or that the copy failed, for a short time", () => {
+  it("[SR-128/AK-yqp3] says what was copied, or that the copy failed, for a short time", () => {
     expect(copyNotice("criteria", true)).toBe("Copied criteria");
     expect(copyNotice("criteria", false)).toBe("Copy failed");
     expect(NOTICE_MS).toBeGreaterThan(0);
     expect(NOTICE_MS).toBeLessThanOrEqual(5000);
   });
 
-  it("[SR-128/AK3] takes the field the focus is in, the one before while the command prompt has the focus, else none", () => {
+  it("[SR-128/AK-pk21] takes the field the focus is in, the one before while the command prompt has the focus, else none", () => {
     document.body.innerHTML =
       '<article data-buffer><div data-field="topic"><span id="in-field"></span></div><p id="in-buffer"></p></article><input id="prompt-input"><input id="elsewhere">';
     const at = (id: string): Element | null => document.getElementById(id);

@@ -33,7 +33,7 @@ describe("withoutVersionParam", () => {
 });
 
 describe("withoutReferenceVersions", () => {
-  it("[SR-091/AK5] removes the stored version of every inline reference and nothing else", () => {
+  it("[SR-091/AK-g044] removes the stored version of every inline reference and nothing else", () => {
     const text = `See [a](reqseq:${U}?version=n1:aa) and [b](<reqseq:${U}?version=n1:bb> "t"), ![i](reqseq:${U}?version=x), \`[c](reqseq:${U}?version=y)\`.`;
     expect(withoutReferenceVersions(text)).toBe(
       `See [a](reqseq:${U}) and [b](<reqseq:${U}> "t"), ![i](reqseq:${U}?version=x), \`[c](reqseq:${U}?version=y)\`.`,
@@ -42,7 +42,7 @@ describe("withoutReferenceVersions", () => {
 });
 
 describe("n2Input", () => {
-  it("[SR-091/AK5] strips the text and every string of a property that counts, whatever its kind but relation", () => {
+  it("[SR-091/AK-g044] strips the text and every string of a property that counts, whatever its kind but relation", () => {
     const link = `[w](reqseq:${U}?version=n1:aa)`;
     const input: VersionInput = {
       text: `Text ${link}.`,
@@ -75,7 +75,7 @@ describe("n2Input", () => {
     });
   });
 
-  it("[SR-091/AK3] keeps a text change outside a version parameter visible in n2", () => {
+  it("[SR-091/AK-q8pb] keeps a text change outside a version parameter visible in n2", () => {
     const of = (text: string): string =>
       computeVersion(n2Input({ text, properties: {}, definitions: [], files: [] }), "n2");
     expect(of(`[w](reqseq:${U}?version=n1:aa)`)).toBe(of(`[w](reqseq:${U}?version=n1:bb)`));
@@ -125,7 +125,7 @@ function inputFor(element: string, files: readonly string[], missing: readonly s
 
 describe("version test vectors, normal form n2 (ADR-0005)", () => {
   it.each(index.vectors)(
-    "[SR-091/AK5] $element gives the published n2 canonical bytes and version",
+    "[SR-091/AK-g044] $element gives the published n2 canonical bytes and version",
     (vector) => {
       const input = n2Input(inputFor(vector.element, vector.files, vector.missing));
       expect(Buffer.from(canonicalContent(input, "n2"), "utf8")).toEqual(

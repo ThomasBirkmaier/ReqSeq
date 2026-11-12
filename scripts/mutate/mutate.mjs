@@ -27,7 +27,7 @@ const EXCLUDED_TESTS = [
 ];
 /** The same, only when a file of the package is mutated. */
 const EXCLUDED_TESTS_OF = {
-  // [SR-079/AK3] in api/src/server.test.ts reads server.ts, listen.ts, handler.ts and index.ts from disk and matches
+  // [SR-079/AK-yvqq] in api/src/server.test.ts reads server.ts, listen.ts, handler.ts and index.ts from disk and matches
   // their text; Stryker's instrumented copies hold its mutant switches (`process.env`, more `.listen(` calls).
   api: ["has no address option"],
 };

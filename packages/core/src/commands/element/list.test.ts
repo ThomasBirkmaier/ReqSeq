@@ -126,7 +126,7 @@ const derivation = (direction: string, exists: boolean, to?: unknown): unknown =
 });
 
 describe("element.list (SR-069)", () => {
-  it("[SR-069/AK1] filters on the type, with the types that extend it unless subtypes is false (SR-012)", async () => {
+  it("[SR-069/AK-f54m] filters on the type, with the types that extend it unless subtypes is false (SR-012)", async () => {
     const ws = await open();
     expect(await where(ws, { type: ["system-requirement"] })).toEqual([B1, B2, B3, B4, B5, F1, F2]);
     expect(await where(ws, { type: ["system-requirement"], subtypes: false })).toEqual([B1, B2, B3, B4, B5]);
@@ -136,7 +136,7 @@ describe("element.list (SR-069)", () => {
     expect(await where(ws, { type: ["nope"] })).toEqual([]);
   });
 
-  it("[SR-069/AK1] filters on the status and on statuses marked invalid (D-044)", async () => {
+  it("[SR-069/AK-f54m] filters on the status and on statuses marked invalid (D-044)", async () => {
     const ws = await open();
     expect(await where(ws, { status: ["draft"] })).toEqual([N2, P2, B2, B3, F1, V2]);
     expect(await where(ws, { status: ["obsolete", "approved"] })).toEqual([D1, N1, P1, B1, B4, B5, F2, V1]);
@@ -144,7 +144,7 @@ describe("element.list (SR-069)", () => {
     expect(await where(ws, { invalid: false })).toEqual(but(B4));
   });
 
-  it("[SR-069/AK1] filters on the package, named by a short ID in any case (D-040)", async () => {
+  it("[SR-069/AK-f54m] filters on the package, named by a short ID in any case (D-040)", async () => {
     const ws = await open();
     expect(await where(ws, { package: "pkg-0000D1" })).toEqual([B1, B2]);
     expect(await where(ws, { package: P2 })).toEqual([B2, B4]);
@@ -157,7 +157,7 @@ describe("element.list (SR-069)", () => {
     expect((await failure(ws, { selection: { where: { package: "PKG-ffffff" } } })).code).toBe("ref.unknown");
   });
 
-  it("[SR-069/AK1] filters on the validity: the core and each variant (SR-040)", async () => {
+  it("[SR-069/AK-f54m] filters on the validity: the core and each variant (SR-040)", async () => {
     const ws = await open();
     expect(await where(ws, { validFor: "core" })).toEqual(but(B2, B3));
     expect(await where(ws, { validFor: "VAR-0000c1" })).toEqual(but(B3));
@@ -170,7 +170,7 @@ describe("element.list (SR-069)", () => {
     });
   });
 
-  it("[SR-069/AK1] filters on any property: text, choice by display name, number, date, unknown", async () => {
+  it("[SR-069/AK-f54m] filters on any property: text, choice by display name, number, date, unknown", async () => {
     const ws = await open();
     expect(await where(ws, { property: "topic", op: "eq", value: "Wind" })).toEqual([B1]);
     expect(await where(ws, { property: "topic", op: "ne", value: "Wind" })).toEqual(but(B1));
@@ -217,7 +217,7 @@ describe("element.list (SR-069)", () => {
     expect(await where(ws, { source: "Supplier B" })).toEqual([]);
   });
 
-  it("[SR-069/AK1] filters on a property that holds relations by element references (D-058)", async () => {
+  it("[SR-069/AK-f54m] filters on a property that holds relations by element references (D-058)", async () => {
     const ws = await open();
     expect(await where(ws, { property: "packages", op: "eq", value: "PKG-0000d2" })).toEqual([B2, B4]);
     expect(await where(ws, { property: "packages", op: "in", value: [P1, "pkg-0000d2"] })).toEqual([
@@ -239,7 +239,7 @@ describe("element.list (SR-069)", () => {
     ]);
   });
 
-  it("[SR-069/AK1] filters on the verification status per view and the validation status, through the evidence provider", async () => {
+  it("[SR-069/AK-f54m] filters on the verification status per view and the validation status, through the evidence provider", async () => {
     const ws = await open();
     // Stage 3 has no evidence records: every requirement is open in each view it applies in, every need open.
     expect(await where(ws, { verification: ["open"] })).toEqual([B1, B4, B5, F1, F2]);
@@ -275,7 +275,7 @@ describe("element.list (SR-069)", () => {
     ).toEqual([N1]);
   });
 
-  it("[SR-069/AK2] combines conditions with and, or and not", async () => {
+  it("[SR-069/AK-jk9d] combines conditions with and, or and not", async () => {
     const ws = await open();
     const requirement = { type: ["system-requirement"] };
     expect(await where(ws, { all: [requirement, { status: ["approved"] }] })).toEqual([B1, B5, F2]);
@@ -293,7 +293,7 @@ describe("element.list (SR-069)", () => {
     expect(await where(ws, { not: { any: [] } })).toEqual(ALL);
   });
 
-  it("[SR-069/AK3] filters on relations: without child, without parent, with a parent or child that meets a condition", async () => {
+  it("[SR-069/AK-pjtc] filters on relations: without child, without parent, with a parent or child that meets a condition", async () => {
     const ws = await open();
     const requirement = { type: ["system-requirement"] };
     // Without child (SR-069 AK3 "ohne Child").
@@ -334,7 +334,7 @@ describe("element.list (SR-069)", () => {
     ).toEqual([B1, B2, B3, B5, F1, F2]);
   });
 
-  it("[SR-069/AK3] filters on elements without evidence, through the evidence provider", async () => {
+  it("[SR-069/AK-pjtc] filters on elements without evidence, through the evidence provider", async () => {
     const ws = await open();
     const noEvidence = { relation: { direction: "evidence" }, exists: false };
     // Stage 3 has no evidence records (SR-028, stage 4).
@@ -358,7 +358,7 @@ describe("element.list (SR-069)", () => {
     ).toEqual([B3, B4, B5, F1, F2]);
   });
 
-  it("[SR-101/AK2] a filter and a variant at once select only the elements that meet both", async () => {
+  it("[SR-101/AK-yfjm] a filter and a variant at once select only the elements that meet both", async () => {
     const ws = await open();
     expect(await where(ws, { status: ["draft"] }, { view: "VAR-0000c1" })).toEqual([N2, P2, B2, F1, V2]);
     expect(await where(ws, { status: ["draft"] }, { view: "core" })).toEqual([N2, P2, F1, V2]);
@@ -371,7 +371,7 @@ describe("element.list (SR-069)", () => {
     );
   });
 
-  it("[SR-101/AK3] a list of short IDs selects exactly these elements, each once, in workspace order", async () => {
+  it("[SR-101/AK-w8dm] a list of short IDs selects exactly these elements, each once, in workspace order", async () => {
     const ws = await open();
     const out = await list(ws, { selection: { ids: ["SR-0000b3", "sr-0000B1", "SR-0000b3", V1] } });
     expect(ids(out)).toEqual([B1, B3, V1]);
@@ -715,7 +715,7 @@ describe("element.list, the elements of a package in several repositories (SR-11
       "",
     ].join("\n");
 
-  it("[SR-112/AK1] where.package lists the members in another repository that name the package with its repository, and not those that name it without one (D-058)", async () => {
+  it("[SR-112/AK-fzbz] where.package lists the members in another repository that name the package with its repository, and not those that name it without one (D-058)", async () => {
     // The package lives in the repository `platform`; the two requirements are in `system`.
     const fixture = await createFixtureWorkspace({
       fixture: "SR-005/cross-repository",
@@ -740,7 +740,7 @@ describe("element.list, the elements of a package in several repositories (SR-11
 });
 
 describe("the condition emergent (SR-035)", () => {
-  it("[SR-035/AK2] the condition emergent true finds the requirements marked emergent, false all others", async () => {
+  it("[SR-035/AK-k81y] the condition emergent true finds the requirements marked emergent, false all others", async () => {
     const ws = await open();
     expect(await where(ws, { emergent: true })).toEqual([B3]);
     expect(await where(ws, { emergent: false })).toEqual(but(B3));
@@ -754,7 +754,7 @@ describe("the condition emergent (SR-035)", () => {
     expect(others.elements.filter((e) => "emergent" in e)).toEqual([]);
   });
 
-  it("[SR-035/AK2] emergent combines with the verification status: the emergent requirements without own record", async () => {
+  it("[SR-035/AK-k81y] emergent combines with the verification status: the emergent requirements without own record", async () => {
     const ws = await open({ fixture: "SR-035/emergent" });
     const E = "35353535-3535-4535-8535-00000000";
     expect(await where(ws, { all: [{ emergent: true }, { verification: ["open"] }] })).toEqual([
@@ -817,7 +817,7 @@ describe("element.list, evidence conditions without a chosen variant (SR-069 AK4
   const among = async (ws: Workspace, condition: unknown, view?: string): Promise<string[]> =>
     (await where(ws, condition, view === undefined ? {} : { view })).filter((e) => THREE.includes(e));
 
-  it("[SR-069/AK4] a filter on the verification status, or without evidence, and no chosen variant apply the status in the core", async () => {
+  it("[SR-069/AK-pvjw] a filter on the verification status, or without evidence, and no chosen variant apply the status in the core", async () => {
     const ws = await withProRecord();
     const noEvidence = { relation: { direction: "evidence" }, exists: false };
     // No variant: R09's record for Pro does not count, RV has no status in the core.

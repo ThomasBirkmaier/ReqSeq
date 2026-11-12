@@ -6,8 +6,10 @@ title: "Beziehungen nach erlaubten Typen prüfen"
 spec-id: "SR-086"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Beziehungsart derives-from, die nur von System Requirement auf Need erlaubt ist, wenn eine Datei sie von einem Need auf ein System Requirement setzt, dann zeigt das Tool einen Hinweis mit Quelle, Ziel und Beziehungsart."
-  - "Gegeben eine solche Beziehung, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint sie als Befund."
+  - key: yrxg
+    text: Gegeben eine Beziehungsart derives-from, die nur von System Requirement auf Need erlaubt ist, wenn eine Datei sie von einem Need auf ein System Requirement setzt, dann zeigt das Tool einen Hinweis mit Quelle, Ziel und Beziehungsart.
+  - key: wpfy
+    text: Gegeben eine solche Beziehung, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint sie als Befund.
 verification-method: test
 packages:
   - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:9a6d5b6b85dc5026, title: Metamodell und Prüfung }

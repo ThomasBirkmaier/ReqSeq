@@ -77,7 +77,7 @@ const TABLE = [
 const pos = (text: string): number => DOC.indexOf(text);
 
 describe("the place text of the context menu", () => {
-  it("[SR-195/AK1] has the editing and formatting entries, Cut and Copy only with text selected", () => {
+  it("[SR-195/AK-y58z] has the editing and formatting entries, Cut and Copy only with text selected", () => {
     const plain = textAt(pos("und"));
     expect(shown(plain)).toEqual(AK1);
     const selected = textAt(pos("und"), pos("und") + 3);
@@ -85,12 +85,12 @@ describe("the place text of the context menu", () => {
     expect(TEXT_MENU.selected(hitIn(selected))).toBe(true);
   });
 
-  it("[SR-195/AK4] puts Follow reference first on a reference to an element", () => {
+  it("[SR-195/AK-cqgh] puts Follow reference first on a reference to an element", () => {
     expect(shown(textAt(pos("Böe]")))).toEqual(["follow-reference", ...AK1]);
     expect(shown(textAt(pos("Siehe")))).toEqual(AK1);
   });
 
-  it("[SR-195/AK5] adds the table actions in a cell of a table", () => {
+  it("[SR-195/AK-s8c5] adds the table actions in a cell of a table", () => {
     expect(shown(textAt(pos("25")))).toEqual([...AK1, ...TABLE]);
     expect(shown(textAt(pos("Größe")))).toEqual([...AK1, ...TABLE]);
   });
@@ -117,7 +117,7 @@ describe("the place text of the context menu", () => {
     expect(openEntries({ hit: { ...open.hit } }, () => later, first.opened).entries).toHaveLength(AK1.length);
   });
 
-  it("[SR-195/AK6] adds Fold section on a heading with a section, Unfold section when it is folded", () => {
+  it("[SR-195/AK-z4cg] adds Fold section on a heading with a section, Unfold section when it is folded", () => {
     const heading = textAt(pos("Wind"));
     expect(shown(heading)).toEqual([...AK1, "fold-section"]);
     heading.dispatch({ effects: foldEffect.of({ from: pos("Wind") + 4, to: pos("| Sturm |") + 9 }) });
@@ -163,7 +163,7 @@ const drawnCell = (view: EditorView, head: boolean, row: number, column: number)
 };
 
 describe("pressedPosition", () => {
-  it("[SR-195/AK5] puts the caret in the cell of a drawn table that was pressed", () => {
+  it("[SR-195/AK-s8c5] puts the caret in the cell of a drawn table that was pressed", () => {
     const view = textAt(0);
     expect(pressedPosition(view, drawnCell(view, true, 0, 1), { x: 0, y: 0 })).toBe(pos("Wert"));
     expect(pressedPosition(view, drawnCell(view, false, 0, 1), { x: 0, y: 0 })).toBe(pos("25"));
@@ -189,7 +189,7 @@ describe("Cut, Copy and Paste", () => {
     return spy;
   };
 
-  it("[SR-195/AK3] Cut and Copy ask the browser for its own cut and copy in the focused editor", () => {
+  it("[SR-195/AK-qn9f] Cut and Copy ask the browser for its own cut and copy in the focused editor", () => {
     const spy = execCommand();
     const view = textAt(pos("und"), pos("und") + 3);
     const focus = vi.spyOn(view, "focus");
@@ -201,7 +201,7 @@ describe("Cut, Copy and Paste", () => {
     expect(copyText(view)).toBe(false);
   });
 
-  it("[SR-195/AK3] Paste gives the editor the focus and has main paste, not in an editor without input", () => {
+  it("[SR-195/AK-qn9f] Paste gives the editor the focus and has main paste, not in an editor without input", () => {
     const paste = vi.fn();
     const view = textAt(0);
     const focus = vi.spyOn(view, "focus");

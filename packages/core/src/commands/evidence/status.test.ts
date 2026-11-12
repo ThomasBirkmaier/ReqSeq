@@ -98,7 +98,7 @@ const ALL_OPEN = {
 };
 
 describe("evidence.status (SR-031)", () => {
-  it("[SR-031/AK1] evidence.status gives open for every requirement of a selection without records", async () => {
+  it("[SR-031/AK-kbs6] evidence.status gives open for every requirement of a selection without records", async () => {
     const ws = await open();
     const out = await status(ws);
     expect(out.elements.map((e) => e.id)).toEqual([N1, B1, B2, B3, V1, V2]);
@@ -116,14 +116,14 @@ describe("evidence.status (SR-031)", () => {
     ]);
   });
 
-  it("[SR-031/AK1] a requirement whose records name other elements stays open", async () => {
+  it("[SR-031/AK-kbs6] a requirement whose records name other elements stays open", async () => {
     const ws = await open();
     await withRecords(ws, [record(B1, await versionOf(ws, B1), "2026-01-01T10:00:00Z", "passed")]);
     const out = byId(await status(ws, { selection: { ids: [B3] } }));
     expect(out).toEqual({ [B3]: ALL_OPEN[B3] });
   });
 
-  it("[SR-031/AK2] evidence.status gives verified when the newest record of the current version passed", async () => {
+  it("[SR-031/AK-fnvr] evidence.status gives verified when the newest record of the current version passed", async () => {
     const ws = await open();
     const b1 = await versionOf(ws, B1);
     await withRecords(ws, [
@@ -137,7 +137,7 @@ describe("evidence.status (SR-031)", () => {
     ]);
   });
 
-  it("[SR-031/AK2] a record of normal form 2 of the current version gives verified in evidence.status, element.get and a write (ADR-0005)", async () => {
+  it("[SR-031/AK-fnvr] a record of normal form 2 of the current version gives verified in evidence.status, element.get and a write (ADR-0005)", async () => {
     const ws = await open();
     // A text with an image: the store has no version as read for it, the write answer reads it.
     const text = "Shows the wind speed. ![a](a.png)\n";
@@ -172,7 +172,7 @@ describe("evidence.status (SR-031)", () => {
     expect(written.verification).toEqual(shown.verification);
   });
 
-  it("[SR-031/AK3] evidence.status gives failed when the newest record of the current version failed", async () => {
+  it("[SR-031/AK-bt0c] evidence.status gives failed when the newest record of the current version failed", async () => {
     const ws = await open();
     const b3 = await versionOf(ws, B3);
     await withRecords(ws, [
@@ -187,7 +187,7 @@ describe("evidence.status (SR-031)", () => {
     ]);
   });
 
-  it("[SR-031/AK4] evidence.status gives outdated when there are only records of older versions", async () => {
+  it("[SR-031/AK-hn13] evidence.status gives outdated when there are only records of older versions", async () => {
     const ws = await open();
     await withRecords(ws, [
       record(B1, OLDER, "2026-01-01T10:00:00Z", "passed"),
@@ -202,7 +202,7 @@ describe("evidence.status (SR-031)", () => {
     expect(out[B2]).toEqual([{ view: V1, status: "outdated" }]);
   });
 
-  it("[SR-031/AK2] element.get shows the verification status of the core and of each variant", async () => {
+  it("[SR-031/AK-fnvr] element.get shows the verification status of the core and of each variant", async () => {
     const ws = await open();
     const [b1, b2] = [await versionOf(ws, B1), await versionOf(ws, B2)];
     await withRecords(ws, [
@@ -252,7 +252,7 @@ describe("evidence.status (SR-031)", () => {
     });
   });
 
-  it("[SR-031/AK4] a passed record becomes outdated when the requirement's file changes", async () => {
+  it("[SR-031/AK-hn13] a passed record becomes outdated when the requirement's file changes", async () => {
     const fixture = await createFixtureWorkspace(STATUS);
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
@@ -273,7 +273,7 @@ describe("evidence.status (SR-031)", () => {
     expect(shown.element.verification?.[0]).toEqual({ view: "core", status: "outdated" });
   });
 
-  it("[SR-093/AK3] a skipped JUnit test case does not count as passed for the verification status", async () => {
+  it("[SR-093/AK-d5w6] a skipped JUnit test case does not count as passed for the verification status", async () => {
     const fixture = await createFixtureWorkspace(STATUS);
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
@@ -440,7 +440,7 @@ describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
   const E3_3 = { criterion: 3, key: "kfro", text: "Given frost, then a mark shows." };
   const E4_2 = { criterion: 2, text: "Given no reading, then a dash shows." };
 
-  it("[SR-031/AK5] evidence.status, element.get and the filter show open with 2 of 3 criteria", async () => {
+  it("[SR-031/AK-yscc] evidence.status, element.get and the filter show open with 2 of 3 criteria", async () => {
     const workspace = await open(CRITERIA);
     expect(byId(await status(workspace))).toEqual({
       [E(1)]: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [E1_3] } }],
@@ -463,21 +463,21 @@ describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
     expect(filtered.elements.map((e) => e.shortId)).toEqual(["SR-0000e1"]);
   });
 
-  it("[SR-031/AK6] a record that names no criterion verifies every criterion through evidence.status", async () => {
+  it("[SR-031/AK-r51q] a record that names no criterion verifies every criterion through evidence.status", async () => {
     const workspace = await open(CRITERIA);
     expect(byId(await status(workspace, { selection: { ids: ["SR-0000e2"] } }))[E(2)]).toEqual([
       { view: "core", status: "verified", criteria: { verified: 2, total: 2 } },
     ]);
   });
 
-  it("[SR-031/AK7] a requirement without criteria is verified by its newest record, whatever it names", async () => {
+  it("[SR-031/AK-xth0] a requirement without criteria is verified by its newest record, whatever it names", async () => {
     const workspace = await open(CRITERIA);
     expect(byId(await status(workspace, { selection: { ids: ["SR-0000e5"] } }))[E(5)]).toEqual([
       { view: "core", status: "verified" },
     ]);
   });
 
-  it("[SR-031/AK8] a criterion with records of an older version only makes the requirement outdated", async () => {
+  it("[SR-031/AK-tt4x] a criterion with records of an older version only makes the requirement outdated", async () => {
     const workspace = await open(CRITERIA);
     expect(byId(await status(workspace, { selection: { ids: ["SR-0000e3"] } }))[E(3)]?.[0]?.status).toBe(
       "outdated",

@@ -40,7 +40,7 @@ test.describe("the mark emergent in the app", () => {
     await running.close();
   });
 
-  test("[SR-035/AK2] the element view shows the box Emergent of an emergent requirement, as the CLI gives the property", async () => {
+  test("[SR-035/AK-k81y] the element view shows the box Emergent of an emergent requirement, as the CLI gives the property", async () => {
     const { window } = running;
     const title = "Show the forecast";
     const got = JSON.parse((await running.cli(["element", "get", "SR-00b110", "--json"])).stdout) as {
@@ -56,7 +56,7 @@ test.describe("the mark emergent in the app", () => {
     await expect(window.locator('article [data-field="emergent"]')).toContainText("yes");
   });
 
-  test("[SR-035/AK2] a saved filter with the condition emergent true shows in the app the elements the CLI lists for it", async () => {
+  test("[SR-035/AK-k81y] a saved filter with the condition emergent true shows in the app the elements the CLI lists for it", async () => {
     const { window } = running;
     await listAll(window);
     await runCommand(window, "Filter list by saved filter");

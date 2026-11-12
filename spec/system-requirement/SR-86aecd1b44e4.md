@@ -6,11 +6,16 @@ title: "Validierungsstatus zeigen"
 spec-id: "SR-038"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Need mit einem Datensatz der Art Validierung zur aktuellen Fassung, wenn er angezeigt wird, dann zeigt das Tool seinen Validierungsstatus; bei einem Requirement getrennt vom Nachweisstatus."
-  - "Gegeben ein Element, dessen Validierungs-Datensätze alle zu älteren Fassungen gehören, wenn der Status berechnet wird, dann ist er veraltet."
-  - Gegeben die Validierungs-Datensätze eines Elements, wenn der Validierungsstatus berechnet wird, dann ist er offen ohne Datensatz, erfolgreich, nicht erfolgreich oder nicht beurteilbar (SR-172) nach dem neuesten Datensatz zur aktuellen Fassung, bei mehreren gleich neuen nach dem schlechtesten Ergebnis (nicht erfolgreich vor nicht beurteilbar vor erfolgreich), und veraltet, wenn es nur Datensätze zu älteren Fassungen gibt.
-  - Gegeben ein Datensatz der Art Validierung mit Angabe einer Variante, wenn er gelesen oder erfasst wird, dann weist das Tool ihn ab, nennt den Grund und er zählt für keinen Status.
-  - Gegeben ein Datensatz der Art Validierung zu einem Element, das weder Need noch Requirement ist, wenn die Datensätze gelesen werden, dann zählt er für keinen Status und das Tool meldet ihn als Befund.
+  - key: w0j6
+    text: Gegeben ein Need mit einem Datensatz der Art Validierung zur aktuellen Fassung, wenn er angezeigt wird, dann zeigt das Tool seinen Validierungsstatus; bei einem Requirement getrennt vom Nachweisstatus.
+  - key: g54k
+    text: Gegeben ein Element, dessen Validierungs-Datensätze alle zu älteren Fassungen gehören, wenn der Status berechnet wird, dann ist er veraltet.
+  - key: wb3p
+    text: Gegeben die Validierungs-Datensätze eines Elements, wenn der Validierungsstatus berechnet wird, dann ist er offen ohne Datensatz, erfolgreich, nicht erfolgreich oder nicht beurteilbar (SR-172) nach dem neuesten Datensatz zur aktuellen Fassung, bei mehreren gleich neuen nach dem schlechtesten Ergebnis (nicht erfolgreich vor nicht beurteilbar vor erfolgreich), und veraltet, wenn es nur Datensätze zu älteren Fassungen gibt.
+  - key: zv5h
+    text: Gegeben ein Datensatz der Art Validierung mit Angabe einer Variante, wenn er gelesen oder erfasst wird, dann weist das Tool ihn ab, nennt den Grund und er zählt für keinen Status.
+  - key: f98s
+    text: Gegeben ein Datensatz der Art Validierung zu einem Element, das weder Need noch Requirement ist, wenn die Datensätze gelesen werden, dann zählt er für keinen Status und das Tool meldet ihn als Befund.
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }

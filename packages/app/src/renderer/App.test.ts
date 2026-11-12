@@ -553,7 +553,7 @@ describe("App", () => {
     expect(query("label").textContent).toBe("Command");
   });
 
-  it("[SR-121/AK2] puts the command chosen for a text first the next time, and keeps that after a restart", async () => {
+  it("[SR-121/AK-ynwj] puts the command chosen for a text first the next time, and keeps that after a restart", async () => {
     const options = (): string[] => texts('[role="option"] .name');
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
@@ -590,7 +590,7 @@ describe("App", () => {
     expect(options()[0]).toBe("Filter list by type");
   });
 
-  it("[SR-108/AK3] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
+  it("[SR-108/AK-f6t5] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
     // Every reading of the clock is a minute later, so that the later choice is the more recent one.
     let clock = Date.UTC(2026, 9, 27);
     vi.spyOn(Date, "now").mockImplementation(() => (clock += 60_000));
@@ -615,7 +615,7 @@ describe("App", () => {
     ]);
   });
 
-  it("[SR-134/AK1] [SR-134/AK2] goes back one step on Escape in a later step, and closes in the first", async () => {
+  it("[SR-134/AK-trng] [SR-134/AK-ykbf] goes back one step on Escape in a later step, and closes in the first", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
     const lists = calls(invoke, "element.list").length;
@@ -668,14 +668,14 @@ describe("App", () => {
     expect(query('[aria-selected="true"]').id).toBe("row-1");
   });
 
-  it("[SR-114/AK1] the modeline of an open element names its ID, its type and its status", async () => {
+  it("[SR-114/AK-hqxs] the modeline of an open element names its ID, its type and its status", async () => {
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-104/AK1] shows the filled properties as boxes below the text, the title as its heading, short ID, type and status only in the modeline, no UUID or version, and a relation group per kind, the incoming with ←", async () => {
+  it("[SR-104/AK-df5n] shows the filled properties as boxes below the text, the title as its heading, short ID, type and status only in the modeline, no UUID or version, and a relation group per kind, the incoming with ←", async () => {
     const VERSION = "n2:0123456789abcdef";
     const handlers = workspace();
     handlers["element.get"] = () => ({
@@ -841,7 +841,7 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalled();
   });
 
-  it("[SR-131/AK2] the status of a workspace left while it loaded never overwrites the next one", async () => {
+  it("[SR-131/AK-cssj] the status of a workspace left while it loaded never overwrites the next one", async () => {
     const { bridge, invoke, change } = fakeBridge(workspace());
     await renderList(bridge);
     // Each status answers when the test says so: the first one opened hangs, the second answers first.
@@ -983,7 +983,7 @@ describe("App", () => {
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-122/AK2] [SR-145/AK3] on %s, Ctrl+N and Ctrl+P in an open prompt only move the selection",
+    "[SR-122/AK-h65p] [SR-145/AK-mk0f] on %s, Ctrl+N and Ctrl+P in an open prompt only move the selection",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       const { bridge } = fakeBridge(workspace());
@@ -1016,7 +1016,7 @@ describe("App", () => {
   /** The label of the open prompt, if one is. */
   const prompt = (): string | undefined => container.querySelector("label")?.textContent ?? undefined;
 
-  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the overview, the list and the search result like Down and Up; Ctrl+N first selects the first row", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P walk the overview, the list and the search result like Down and Up; Ctrl+N first selects the first row", async () => {
     const handlers = workspace();
     handlers["element.facets"] = () => ({
       total: 3,
@@ -1065,7 +1065,7 @@ describe("App", () => {
   });
 
   it.each(PLATFORMS)(
-    "[SR-122/AK5] [SR-145/AK3] on %s, with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it",
+    "[SR-122/AK-xm88] [SR-145/AK-mk0f] on %s, with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       const { bridge } = fakeBridge(workspace());
@@ -1098,7 +1098,7 @@ describe("App", () => {
   );
 
   it.each(["Win32", "Linux x86_64"])(
-    "[SR-122/AK5] on %s, with no row selected Ctrl+P is still Go to: on the overview after the start, and on a list without rows",
+    "[SR-122/AK-xm88] on %s, with no row selected Ctrl+P is still Go to: on the overview after the start, and on a list without rows",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       const handlers = workspace();
@@ -1118,7 +1118,7 @@ describe("App", () => {
     },
   );
 
-  it("[SR-145/AK1] on macOS, with no row selected the physical Ctrl+P is not Go to, Cmd+P is: on the overview after the start, and on a list without rows", async () => {
+  it("[SR-145/AK-bfb2] on macOS, with no row selected the physical Ctrl+P is not Go to, Cmd+P is: on the overview after the start, and on a list without rows", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     const handlers = workspace();
     await render(fakeBridge(handlers).bridge);
@@ -1138,7 +1138,7 @@ describe("App", () => {
     expect(prompt()).toBe("Go to");
   });
 
-  it("[SR-122/AK5] Ctrl+P on an overview without lines is Go to", async () => {
+  it("[SR-122/AK-xm88] Ctrl+P on an overview without lines is Go to", async () => {
     const handlers = workspace();
     handlers["element.facets"] = () => new Error("The workspace is not valid");
     await render(fakeBridge(handlers).bridge);
@@ -1146,7 +1146,7 @@ describe("App", () => {
     expect(prompt()).toBe("Go to");
   });
 
-  it("[SR-122/AK4] Enter on a fresh list opens its first row and keeps it selected", async () => {
+  it("[SR-122/AK-mqwc] Enter on a fresh list opens its first row and keeps it selected", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
@@ -1156,7 +1156,7 @@ describe("App", () => {
     expect(selectedRow()).toBe("row-0");
   });
 
-  it("[SR-122/AK1] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
+  it("[SR-122/AK-kjhn] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
     // Two more buffers behind the shown one.
@@ -1311,7 +1311,7 @@ describe("App, the overview (SR-118)", () => {
   };
   const known = (n: number) => ({ id: `uuid-${String(n)}`, repository: "spec" });
 
-  it("[SR-118/AK1] the first buffer of an opened workspace is the overview, one line per type with its count", async () => {
+  it("[SR-118/AK-yggg] the first buffer of an opened workspace is the overview, one line per type with its count", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
@@ -1323,7 +1323,7 @@ describe("App, the overview (SR-118)", () => {
     expect(container.querySelector(".group")).toBeNull();
   });
 
-  it("[SR-118/AK1] below the types the overview shows at most five recently opened elements, newest first", async () => {
+  it("[SR-118/AK-yggg] below the types the overview shows at most five recently opened elements, newest first", async () => {
     seed([1, 2, 3, 4, 5, 6, 7].map(known));
     const handlers = twoTypes();
     const get = handlers["element.get"];
@@ -1344,7 +1344,7 @@ describe("App, the overview (SR-118)", () => {
     expect(text("Minibuffer")).toBe("");
   });
 
-  it("[SR-118/AK1] remembers the elements that were shown, newest first, and shows them again on the overview", async () => {
+  it("[SR-118/AK-yggg] remembers the elements that were shown, newest first, and shows them again on the overview", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     await listAll();
@@ -1365,7 +1365,7 @@ describe("App, the overview (SR-118)", () => {
     expect(counts).toHaveLength(1);
   });
 
-  it("[SR-118/AK1] keeps the recent elements for the next start of the app", async () => {
+  it("[SR-118/AK-yggg] keeps the recent elements for the next start of the app", async () => {
     const first = fakeBridge(twoTypes());
     await render(first.bridge);
     await listAll();
@@ -1378,7 +1378,7 @@ describe("App, the overview (SR-118)", () => {
     expect(options().slice(2)).toEqual(["SR-000001Title 1"]);
   });
 
-  it("[SR-118/AK1] keeps the recent elements of each workspace apart, and none for a workspace that failed", async () => {
+  it("[SR-118/AK-yggg] keeps the recent elements of each workspace apart, and none for a workspace that failed", async () => {
     seed([known(1)]);
     const { bridge, handlers, change } = fakeBridge(twoTypes());
     await render(bridge);
@@ -1391,7 +1391,7 @@ describe("App, the overview (SR-118)", () => {
     expect(container.querySelector("[data-buffer]")).toBeNull();
   });
 
-  it("[SR-118/AK1] counts again when the workspace changed, and not when the overview is only shown again", async () => {
+  it("[SR-118/AK-yggg] counts again when the workspace changed, and not when the overview is only shown again", async () => {
     const { bridge, invoke, handlers, change } = fakeBridge(twoTypes());
     await render(bridge);
     await listAll();
@@ -1408,7 +1408,7 @@ describe("App, the overview (SR-118)", () => {
     expect(text("Modeline")).toBe("Overview6 elementsWeather stationread-only");
   });
 
-  it("[SR-118/AK1] says when a repository is missing, so that the counts are partial", async () => {
+  it("[SR-118/AK-yggg] says when a repository is missing, so that the counts are partial", async () => {
     const handlers = twoTypes();
     handlers["element.facets"] = () => ({ ...TWO_TYPES, incomplete: true });
     await render(fakeBridge(handlers).bridge);
@@ -1417,7 +1417,7 @@ describe("App, the overview (SR-118)", () => {
     );
   });
 
-  it("[SR-118/AK2] Enter on a type line opens the list of the elements of that type", async () => {
+  it("[SR-118/AK-p9z9] Enter on a type line opens the list of the elements of that type", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     await keyDown(query('[role="listbox"]'), "ArrowDown");
@@ -1434,7 +1434,7 @@ describe("App, the overview (SR-118)", () => {
     ]);
   });
 
-  it("[SR-118/AK2] a click on a type line opens its list, a click on a recent element the element", async () => {
+  it("[SR-118/AK-p9z9] a click on a type line opens its list, a click on a recent element the element", async () => {
     seed([known(3)]);
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
@@ -1446,7 +1446,7 @@ describe("App, the overview (SR-118)", () => {
     expect(query("article h1").textContent).toBe("Title 3");
   });
 
-  it("[SR-118/AK3] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {
+  it("[SR-118/AK-dr7c] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     await keyDown(window, "p", { ctrlKey: true });
@@ -1466,7 +1466,7 @@ describe("App, the overview (SR-118)", () => {
     });
   });
 
-  it("[SR-118/AK4] the overview shows no list of all elements and asks for none", async () => {
+  it("[SR-118/AK-t1qm] the overview shows no list of all elements and asks for none", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     expect(calls(invoke, "element.list")).toEqual([]);
@@ -1474,7 +1474,7 @@ describe("App, the overview (SR-118)", () => {
     expect(container.querySelector(".row .title")).toBeNull();
   });
 
-  it('[SR-118/AK4] "List all elements" opens the full list from the overview', async () => {
+  it('[SR-118/AK-t1qm] "List all elements" opens the full list from the overview', async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     await listAll();
@@ -1483,7 +1483,7 @@ describe("App, the overview (SR-118)", () => {
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
   });
 
-  it("[SR-118/AK5] the recent elements go to the storage of the app, and no write command is called", async () => {
+  it("[SR-118/AK-kftg] the recent elements go to the storage of the app, and no write command is called", async () => {
     const setItem = vi.spyOn(window.localStorage, "setItem");
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
@@ -1521,7 +1521,7 @@ describe("App, the overview (SR-118)", () => {
     expect(text("Modeline")).toBe("OverviewWeather stationread-only");
   });
 
-  it("[SR-118/AK1] closing the last buffer shows the overview again; the lone overview cannot be closed", async () => {
+  it("[SR-118/AK-yggg] closing the last buffer shows the overview again; the lone overview cannot be closed", async () => {
     const { bridge } = fakeBridge(twoTypes());
     await render(bridge);
     await listAll();
@@ -1624,7 +1624,7 @@ describe("App, the text editor", () => {
     }
   };
 
-  it("[SR-129/AK4] Reference to element asks Insert reference, finds elements as Go to does, and writes the reference of the pick", async () => {
+  it("[SR-129/AK-nxbm] Reference to element asks Insert reference, finds elements as Go to does, and writes the reference of the pick", async () => {
     const { invoke } = await openElement();
     editorView().focus();
     editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
@@ -1641,7 +1641,7 @@ describe("App, the text editor", () => {
     expect(document.activeElement).toBe(query(".cm-content"));
   });
 
-  it("[SR-129/AK3] Escape in Insert reference leaves the / as typed and gives the editor the focus", async () => {
+  it("[SR-129/AK-rbjm] Escape in Insert reference leaves the / as typed and gives the editor the focus", async () => {
     await openElement();
     editorView().focus();
     editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
@@ -1653,7 +1653,7 @@ describe("App, the text editor", () => {
     expect(document.activeElement).toBe(query(".cm-content"));
   });
 
-  it("[SR-105/AK1] Insert reference replaced by the command prompt holds autosave no longer (ThomasBirkmaier/ReqSeq-archive#604 review, S2)", async () => {
+  it("[SR-105/AK-p4gn] Insert reference replaced by the command prompt holds autosave no longer (ThomasBirkmaier/ReqSeq-archive#604 review, S2)", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     editorView().focus();
@@ -1682,7 +1682,7 @@ describe("App, the text editor", () => {
     vi.useRealTimers();
   });
 
-  it("[SR-066/AK1] [[ in the text opens Insert reference, which searches title and IDs of all elements", async () => {
+  it("[SR-066/AK-v40r] [[ in the text opens Insert reference, which searches title and IDs of all elements", async () => {
     const { invoke } = await openElement();
     editorView().focus();
     editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
@@ -1695,7 +1695,7 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.search")).toEqual([{ query: "title", fields: ["id", "title"], limit: 20 }]);
   });
 
-  it("[SR-066/AK2] a pick writes the reference in place of the [[; autosave waits while Insert reference is open", async () => {
+  it("[SR-066/AK-qdkx] a pick writes the reference in place of the [[; autosave waits while Insert reference is open", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     editorView().focus();
@@ -1725,7 +1725,7 @@ describe("App, the text editor", () => {
     ]);
   });
 
-  it("[SR-066/AK2] a reference to a local target in another repository shows its title; one that is not here its short ID", async () => {
+  it("[SR-066/AK-qdkx] a reference to a local target in another repository shows its title; one that is not here its short ID", async () => {
     const GUSTS = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
     const GONE = "11111111-2222-4333-8444-555555555555";
     const handlers = withText();
@@ -1816,7 +1816,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
   });
 
-  it("[SR-105/AK4] saves with Ctrl+S or Cmd+S at once: element.update, Saved in the minibuffer, no modified", async () => {
+  it("[SR-105/AK-znzt] saves with Ctrl+S or Cmd+S at once: element.update, Saved in the minibuffer, no modified", async () => {
     const { invoke, change } = await openElement();
     await typeText("!");
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
@@ -1839,7 +1839,7 @@ describe("App, the text editor", () => {
     ]);
   });
 
-  it("[SR-131/AK3] saves the unsaved text when main asks before a switch, and says so when it could not", async () => {
+  it("[SR-131/AK-nkm5] saves the unsaved text when main asks before a switch, and says so when it could not", async () => {
     const { invoke, savers, handlers } = await openElement();
     expect(savers).toHaveLength(1);
     await typeText("!");
@@ -1866,7 +1866,7 @@ describe("App, the text editor", () => {
     expect(query(".sheet").inert).toBe(false);
   });
 
-  it("[SR-105/AK1] saves the unsaved text when main asks before the window closes; text it cannot save keeps the window open once", async () => {
+  it("[SR-105/AK-p4gn] saves the unsaved text when main asks before the window closes; text it cannot save keeps the window open once", async () => {
     const { invoke, savers, handlers } = await openElement();
     await typeText("!");
     let saved: boolean | undefined;
@@ -1902,7 +1902,7 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.update")).toHaveLength(writes);
   });
 
-  it("[SR-105/AK1] when main gave up waiting before the close, the window says it stays open", async () => {
+  it("[SR-105/AK-p4gn] when main gave up waiting before the close, the window says it stays open", async () => {
     const { expire } = await openElement();
     await expire({ closing: true });
     expect(text("Minibuffer")).toBe(
@@ -1911,7 +1911,7 @@ describe("App, the text editor", () => {
     expect(query(".sheet").inert).toBe(false);
   });
 
-  it("[SR-105/AK1] a close while a workspace switch saves waits for that save and does not write the input twice (ThomasBirkmaier/ReqSeq-archive#611 review N3)", async () => {
+  it("[SR-105/AK-p4gn] a close while a workspace switch saves waits for that save and does not write the input twice (ThomasBirkmaier/ReqSeq-archive#611 review N3)", async () => {
     const { invoke, savers, handlers } = await openElement();
     await typeText("!");
     // The buffer is left and its save fails: its input stays as a draft of a buffer that is not shown.
@@ -1952,7 +1952,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).not.toContain("could not be saved");
   });
 
-  it("[SR-105/AK1] a close says the input could not be saved when a save throws", async () => {
+  it("[SR-105/AK-p4gn] a close says the input could not be saved when a save throws", async () => {
     const { savers, invoke } = await openElement();
     await typeText("!");
     const answer = invoke.getMockImplementation();
@@ -1970,7 +1970,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toContain("close the window again to discard the unsaved input");
   });
 
-  it("[SR-131/AK3] while it saves and the other workspace opens, the window takes no input and says so", async () => {
+  it("[SR-131/AK-nkm5] while it saves and the other workspace opens, the window takes no input and says so", async () => {
     const { invoke, savers, change } = await openElement();
     await typeText("!");
     let written: (result: InvokeResult) => void = () => undefined;
@@ -2035,7 +2035,7 @@ describe("App, the text editor", () => {
     expect(container.querySelector('.minibuffer [role="option"]')).not.toBeNull();
   });
 
-  it("[SR-131/AK3] says so when main gave up waiting for the save, and takes input again", async () => {
+  it("[SR-131/AK-nkm5] says so when main gave up waiting for the save, and takes input again", async () => {
     const { savers, expire, expired } = await openElement();
     expect(expired.size).toBe(1);
     await typeText("!");
@@ -2049,7 +2049,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe("The unsaved input was not saved in time; Weather station stays open");
   });
 
-  it("[SR-131/AK3] a save that throws keeps the open workspace and says so", async () => {
+  it("[SR-131/AK-nkm5] a save that throws keeps the open workspace and says so", async () => {
     const { invoke, savers } = await openElement();
     await typeText("!");
     invoke.mockImplementationOnce(() => Promise.reject(new Error("port closed")));
@@ -2090,7 +2090,7 @@ describe("App, the text editor", () => {
     expect(editorView().hasFocus).toBe(true);
   });
 
-  it("[SR-104/AK2] [SR-104/AK3] Ctrl+Alt+A adds a property by the minibuffer, the choice prompt has only the choices, and Ctrl+S saves it", async () => {
+  it("[SR-104/AK-k13x] [SR-104/AK-n97r] Ctrl+Alt+A adds a property by the minibuffer, the choice prompt has only the choices, and Ctrl+S saves it", async () => {
     const handlers = withText();
     handlers["metamodel.get"] = () => ({
       relations: [],
@@ -2143,7 +2143,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).not.toContain("modified");
   });
 
-  it("[SR-104/AK4] Clear property is in the command prompt for an element and empties the box the cursor was in", async () => {
+  it("[SR-104/AK-sxnr] Clear property is in the command prompt for an element and empties the box the cursor was in", async () => {
     const handlers = withText();
     handlers["metamodel.get"] = () => ({
       relations: [],
@@ -2175,7 +2175,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe("");
   });
 
-  it("[SR-105/AK1] leaving a buffer for another writes its input at once; shown again it has the file's text", async () => {
+  it("[SR-105/AK-p4gn] leaving a buffer for another writes its input at once; shown again it has the file's text", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2195,7 +2195,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-105/AK1] Alt+N to another buffer, without a prompt, writes the input at once (ThomasBirkmaier/ReqSeq-archive#604 review, N2)", async () => {
+  it("[SR-105/AK-p4gn] Alt+N to another buffer, without a prompt, writes the input at once (ThomasBirkmaier/ReqSeq-archive#604 review, N2)", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2207,7 +2207,7 @@ describe("App, the text editor", () => {
     ]);
   });
 
-  it("[SR-105/AK2] after leaving and coming back, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z step through the text since the buffer was opened", async () => {
+  it("[SR-105/AK-dmrq] after leaving and coming back, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z step through the text since the buffer was opened", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2235,7 +2235,7 @@ describe("App, the text editor", () => {
     expect(undo(editorView())).toBe(false);
   });
 
-  it("[SR-105/AK1] a buffer shown again while its save from leaving runs reads its element after that save: no change on disk", async () => {
+  it("[SR-105/AK-p4gn] a buffer shown again while its save from leaving runs reads its element after that save: no change on disk", async () => {
     const { handlers } = withStore();
     const fake = await openElement(handlers);
     await typeText("!");
@@ -2272,7 +2272,7 @@ describe("App, the text editor", () => {
     ]);
   });
 
-  it("[SR-106/AK2] leaving writes nothing over a file that changed outside; shown again, the buffer has the input and the conflict", async () => {
+  it("[SR-106/AK-ydc8] leaving writes nothing over a file that changed outside; shown again, the buffer has the input and the conflict", async () => {
     const { handlers, outside, files } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2295,7 +2295,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedchanged on diskWeather stationread-only");
   });
 
-  it("[SR-105/AK1] Close buffer writes the input and closes; it asks only when the input could not be written, and discards when closing is repeated", async () => {
+  it("[SR-105/AK-p4gn] Close buffer writes the input and closes; it asks only when the input could not be written, and discards when closing is repeated", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2323,7 +2323,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-105/AK1] Close buffer saves again the keys typed while its save ran, and closes only then (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
+  it("[SR-105/AK-p4gn] Close buffer saves again the keys typed while its save ran, and closes only then (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
     const { handlers, files } = withStore();
     const fake = await openElement(handlers);
     // Every write answers only when the test says so.
@@ -2389,7 +2389,7 @@ describe("App, the text editor", () => {
     expect(query("article")).not.toBeNull();
   });
 
-  it("[SR-123/AK1] Close all buffers from the command prompt closes them all; the overview is what remains", async () => {
+  it("[SR-123/AK-grm4] Close all buffers from the command prompt closes them all; the overview is what remains", async () => {
     await openElement();
     await runCommand("search elements");
     await type("title");
@@ -2408,7 +2408,7 @@ describe("App, the text editor", () => {
     ).toEqual(["SR-000001 Title 1"]);
   });
 
-  it('[SR-123/AK2] Close all buffers keeps a buffer in conflict: shown again, it says its change on disk after "Closed 1 buffer", and nothing is written', async () => {
+  it('[SR-123/AK-xbx2] Close all buffers keeps a buffer in conflict: shown again, it says its change on disk after "Closed 1 buffer", and nothing is written', async () => {
     const { handlers, outside } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2441,7 +2441,7 @@ describe("App, the text editor", () => {
     ]);
   });
 
-  it("[SR-123/AK2] [SR-105/AK1] Close all buffers writes the unsaved text first; only text that could not be written makes the minibuffer ask, without a dialog", async () => {
+  it("[SR-123/AK-xbx2] [SR-105/AK-p4gn] Close all buffers writes the unsaved text first; only text that could not be written makes the minibuffer ask, without a dialog", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2526,7 +2526,7 @@ describe("App, the text editor", () => {
     const asked = (invoke: ReturnType<typeof fakeBridge>["invoke"], ref: string): unknown[] =>
       calls(invoke, "element.get").filter((input) => (input as { ref: string }).ref === ref);
 
-    it("[SR-066/AK4] follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
+    it("[SR-066/AK-c5xd] follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
       const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
@@ -2552,7 +2552,7 @@ describe("App, the text editor", () => {
       ]);
     });
 
-    it("[SR-066/AK4] says when there is no reference at the cursor", async () => {
+    it("[SR-066/AK-c5xd] says when there is no reference at the cursor", async () => {
       // A reference in the text, the caret after it at the end of the text.
       const { invoke } = await openElement(
         withReference(`Before [Two](reqseq:${TARGET}?version=n1:aa) after`),
@@ -2588,7 +2588,7 @@ describe("App, the text editor", () => {
     const options = (): (string | null)[] =>
       [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
 
-    it("[SR-132/AK1] Ctrl+Shift+Enter on an element asks among its values, and the value taken opens its list", async () => {
+    it("[SR-132/AK-y207] Ctrl+Shift+Enter on an element asks among its values, and the value taken opens its list", async () => {
       const { invoke } = await openElement();
       // The facets of the element's own values, with its ID.
       expect(calls(invoke, "element.facets").at(-1)).toEqual({ selection: { ids: ["SR-000001"] } });
@@ -2606,7 +2606,7 @@ describe("App, the text editor", () => {
       expect(text("Modeline")).toContain("type: need");
     });
 
-    it("[SR-132/AK1] is in the command prompt with its key", async () => {
+    it("[SR-132/AK-y207] is in the command prompt with its key", async () => {
       await openElement();
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       expect(options()).toContain("List elements with this valueCtrl+Shift+Enter");
@@ -2615,7 +2615,7 @@ describe("App, the text editor", () => {
       expect(query("label").textContent).toBe("Elements with");
     });
 
-    it("[SR-132/AK5] a further filter narrows the list of a value like any list", async () => {
+    it("[SR-132/AK-xc4j] a further filter narrows the list of a value like any list", async () => {
       const { invoke } = await openElement();
       await keyDown(query("article"), "Enter", { ctrlKey: true, shiftKey: true });
       await type("status");
@@ -2722,7 +2722,7 @@ describe("App, the package page (SR-112)", () => {
   const memberTitles = (): string[] =>
     [...container.querySelectorAll(".members .row .title")].map((title) => title.textContent);
 
-  it("[SR-112/AK1] an opened package shows below its title and text every element that names it", async () => {
+  it("[SR-112/AK-fzbz] an opened package shows below its title and text every element that names it", async () => {
     const { invoke } = await openPackage();
     expect(query("article h1").textContent).toBe("Stufe-3");
     expect(memberCalls(invoke)).toEqual([
@@ -2743,7 +2743,7 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query("article"));
   });
 
-  it("[SR-112/AK1] an element that is no package asks for no elements", async () => {
+  it("[SR-112/AK-fzbz] an element that is no package asks for no elements", async () => {
     const fake = fakeBridge(withPackage());
     await render(fake.bridge);
     await keyDown(window, "p", { ctrlKey: true });
@@ -2754,7 +2754,7 @@ describe("App, the package page (SR-112)", () => {
     expect(memberCalls(fake.invoke)).toEqual([]);
   });
 
-  it("[SR-112/AK1] a package that no element names shows no heading", async () => {
+  it("[SR-112/AK-fzbz] a package that no element names shows no heading", async () => {
     await openPackage(withPackage(() => ({ elements: [], total: 0 })));
     expect(query("article h1").textContent).toBe("Stufe-3");
     expect(container.querySelector(".members h2")).toBeNull();
@@ -2828,7 +2828,7 @@ describe("App, the package page (SR-112)", () => {
     expect(EditorView.findFromDOM(query(".cm-editor"))?.hasFocus).toBe(true);
   });
 
-  it('[SR-112/AK2] "Sort list" sorts the elements of the package, and the page stays the same element', async () => {
+  it('[SR-112/AK-vv6f] "Sort list" sorts the elements of the package, and the page stays the same element', async () => {
     const { invoke } = await openPackage();
     await runCommand("sort list");
     expect(query("label").textContent).toBe("Sort by");
@@ -2848,7 +2848,7 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query("article"));
   });
 
-  it('[SR-112/AK2] "Hierarchy (tree)" shows the elements of the package as the derivation tree', async () => {
+  it('[SR-112/AK-vv6f] "Hierarchy (tree)" shows the elements of the package as the derivation tree', async () => {
     const { invoke } = await openPackage();
     await runCommand("sort list");
     await type("hier");
@@ -2867,7 +2867,7 @@ describe("App, the package page (SR-112)", () => {
     expect(query(".members h2").textContent).toBe("← packages 3 · tree");
   });
 
-  it("[SR-112/AK2] the sort and the row of the elements are kept while the buffer is open", async () => {
+  it("[SR-112/AK-vv6f] the sort and the row of the elements are kept while the buffer is open", async () => {
     await openPackage();
     await runCommand("sort list");
     await type("title desc");
@@ -2899,7 +2899,7 @@ describe("App, the package page (SR-112)", () => {
     expect(memberCalls(invoke)).toEqual([]);
   });
 
-  it("[SR-122/AK4] on a package page Ctrl+N selects the first element, walks the elements, and Ctrl+P on the first goes back to the page", async () => {
+  it("[SR-122/AK-mqwc] on a package page Ctrl+N selects the first element, walks the elements, and Ctrl+P on the first goes back to the page", async () => {
     await openPackage();
     const ctrlN = await pressed(query("article"), "n", { ctrlKey: true });
     expect(ctrlN.defaultPrevented).toBe(true);
@@ -2915,7 +2915,7 @@ describe("App, the package page (SR-112)", () => {
     expect(container.querySelector("label")).toBeNull();
   });
 
-  it("[SR-122/AK4] Ctrl+N on the page goes to the first element also when another one was used", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N on the page goes to the first element also when another one was used", async () => {
     await openPackage();
     await keyDown(query("article"), "ArrowDown");
     await keyDown(query(".members .list"), "ArrowDown");
@@ -2955,7 +2955,7 @@ describe("App, the package page (SR-112)", () => {
   };
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-155/AK4] on %s, Ctrl+N and Ctrl+P on a field act as Down and Up, from the last field into the elements",
+    "[SR-155/AK-zw14] on %s, Ctrl+N and Ctrl+P on a field act as Down and Up, from the last field into the elements",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await openPackage(withTopic());
@@ -2981,7 +2981,7 @@ describe("App, the package page (SR-112)", () => {
     },
   );
 
-  it("[SR-122/AK4] Ctrl+N on the last element stays there and goes no further", async () => {
+  it("[SR-122/AK-mqwc] Ctrl+N on the last element stays there and goes no further", async () => {
     await openPackage();
     await keyDown(query("article"), "n", { ctrlKey: true });
     await keyDown(query(".members .list"), "End");
@@ -2992,7 +2992,7 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query(".members .list"));
   });
 
-  it("[SR-155/AK2] Ctrl+N on an element that is no package, or on a package without elements, goes to its first field", async () => {
+  it("[SR-155/AK-tfxs] Ctrl+N on an element that is no package, or on a package without elements, goes to its first field", async () => {
     const fake = fakeBridge(withPackage());
     await render(fake.bridge);
     await keyDown(window, "p", { ctrlKey: true });
@@ -3007,7 +3007,7 @@ describe("App, the package page (SR-112)", () => {
   });
 
   it.each(["Win32", "Linux x86_64"])(
-    "[SR-122/AK5] on %s, Ctrl+P on a package page outside its elements is still Go to",
+    "[SR-122/AK-xm88] on %s, Ctrl+P on a package page outside its elements is still Go to",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await openPackage();
@@ -3017,7 +3017,7 @@ describe("App, the package page (SR-112)", () => {
     },
   );
 
-  it("[SR-145/AK1] on macOS, the physical Ctrl+P on a package page outside its elements is not Go to; Cmd+P is", async () => {
+  it("[SR-145/AK-bfb2] on macOS, the physical Ctrl+P on a package page outside its elements is not Go to; Cmd+P is", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await openPackage();
     expect((await pressed(query("article"), "p", { ctrlKey: true })).defaultPrevented).toBe(false);
@@ -3027,7 +3027,7 @@ describe("App, the package page (SR-112)", () => {
   });
 
   it.each(["ArrowDown", "n"])(
-    "[SR-155/AK4] %s at the last line of the text, the last field of a package page, goes into its elements",
+    "[SR-155/AK-zw14] %s at the last line of the text, the last field of a package page, goes into its elements",
     async (key) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
       await openPackage();
@@ -3040,7 +3040,7 @@ describe("App, the package page (SR-112)", () => {
     },
   );
 
-  it("[SR-155/AK4] Ctrl+N walks a package page through its editors into its elements, Ctrl+P back", async () => {
+  it("[SR-155/AK-zw14] Ctrl+N walks a package page through its editors into its elements, Ctrl+P back", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     await openPackage(withTopic());
     const field = query('.field[data-field="Title"]');
@@ -3094,7 +3094,7 @@ describe("App, copy field (SR-128)", () => {
   const modeline = (): string => text("Modeline") ?? "";
   const copyKeys = { ctrlKey: true, shiftKey: true };
 
-  it("[SR-128/AK1] shows a copy symbol with the ID in the modeline of an element, and none on a list", async () => {
+  it("[SR-128/AK-sthw] shows a copy symbol with the ID in the modeline of an element, and none on a list", async () => {
     await renderList(fakeBridge(withText()).bridge);
     expect(container.querySelector(".modeline .copy")).toBeNull();
     await keyDown(query('[role="listbox"]'), "Enter");
@@ -3105,7 +3105,7 @@ describe("App, copy field (SR-128)", () => {
     expect(modeline()).toBe("SR-000001 (SR-036) · Need · draftWeather stationread-only");
   });
 
-  it("[SR-128/AK2] copies the ID with the symbol in the modeline, and the modeline says so for a few seconds", async () => {
+  it("[SR-128/AK-yqp3] copies the ID with the symbol in the modeline, and the modeline says so for a few seconds", async () => {
     const { copyText } = await openElement();
     const symbol = query('.modeline [data-field="ID"] .copy');
     vi.useFakeTimers();
@@ -3126,7 +3126,7 @@ describe("App, copy field (SR-128)", () => {
     expect(modeline()).toBe("SR-000001 (SR-036) · Need · draftWeather stationread-only");
   });
 
-  it("[SR-128/AK2] a second copy restarts the time of the confirmation", async () => {
+  it("[SR-128/AK-yqp3] a second copy restarts the time of the confirmation", async () => {
     const { copyText } = await openElement();
     const symbol = query('.modeline [data-field="ID"] .copy');
     vi.useFakeTimers();
@@ -3149,7 +3149,7 @@ describe("App, copy field (SR-128)", () => {
     expect(copyText).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-128/AK2] says Copy failed when the main process could not copy", async () => {
+  it("[SR-128/AK-yqp3] says Copy failed when the main process could not copy", async () => {
     const { copyText } = await openElement();
     copyText.mockResolvedValueOnce(false);
     await click(query('.modeline [data-field="ID"] .copy'));
@@ -3157,7 +3157,7 @@ describe("App, copy field (SR-128)", () => {
     expect(modeline()).not.toContain("Copied");
   });
 
-  it("[SR-128/AK3] Ctrl+Shift+C in the text copies the text as it is stored, Markdown marks and all", async () => {
+  it("[SR-128/AK-pk21] Ctrl+Shift+C in the text copies the text as it is stored, Markdown marks and all", async () => {
     const { copyText } = await openElement();
     editorView().focus();
     await keyDown(query(".cm-content"), "C", copyKeys);
@@ -3165,14 +3165,14 @@ describe("App, copy field (SR-128)", () => {
     expect(modeline()).toContain("Copied Text");
   });
 
-  it("[SR-128/AK3] Cmd+Shift+C copies as well", async () => {
+  it("[SR-128/AK-pk21] Cmd+Shift+C copies as well", async () => {
     const { copyText } = await openElement();
     editorView().focus();
     await keyDown(query(".cm-content"), "c", { metaKey: true, shiftKey: true });
     expect(copyText).toHaveBeenCalledExactlyOnceWith("Hello\n**bold**");
   });
 
-  it("[SR-128/AK3] Copy field in the command prompt copies the field the cursor was in", async () => {
+  it("[SR-128/AK-pk21] Copy field in the command prompt copies the field the cursor was in", async () => {
     const { copyText } = await openElement();
     await act(async () => {
       query('[data-field="criteria"]').focus();
@@ -3188,14 +3188,14 @@ describe("App, copy field (SR-128)", () => {
     expect(modeline()).toContain("Copied criteria");
   });
 
-  it("[SR-128/AK3] copies the ID when the cursor is in no field", async () => {
+  it("[SR-128/AK-pk21] copies the ID when the cursor is in no field", async () => {
     const { copyText } = await openElement();
     await keyDown(window, "C", copyKeys);
     expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-000001");
     expect(modeline()).toContain("Copied ID");
   });
 
-  it("[SR-128/AK3] has no Copy field on a list", async () => {
+  it("[SR-128/AK-pk21] has no Copy field on a list", async () => {
     const { copyText } = await renderListOnly();
     await keyDown(window, "C", copyKeys);
     expect(copyText).not.toHaveBeenCalled();

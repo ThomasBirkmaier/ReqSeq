@@ -49,7 +49,7 @@ describe("rank", () => {
     expect(names("sotr")[0]).toBe("Sort list");
   });
 
-  it("[SR-121/AK1] finds an action by the beginnings of its words, skipping words", () => {
+  it("[SR-121/AK-yx6t] finds an action by the beginnings of its words, skipping words", () => {
     expect(names("lae")[0]).toBe("List all elements");
     expect(names("flp")).toEqual(["Filter list by property"]);
     expect(names("crel")).toEqual(["Create relation"]);
@@ -71,7 +71,7 @@ describe("rank", () => {
     ]);
   });
 
-  it("[SR-121/AK1] ranks the initials that skip no word before the ones that skip words (#246)", () => {
+  it("[SR-121/AK-yx6t] ranks the initials that skip no word before the ones that skip words (#246)", () => {
     const shown = ["Show traceability matrix", "Show metamodel", "Show element ID and version"];
     expect(matching(shown, "sm")).toEqual(["Show metamodel", "Show traceability matrix"]);
     expect(rank(shown, (name) => name, "sm")[0]?.ranges).toEqual([
@@ -91,7 +91,7 @@ describe("rank", () => {
     ]);
   });
 
-  it("[SR-108/AK1] finds the command among the first three for its initials or with a typo", () => {
+  it("[SR-108/AK-bs83] finds the command among the first three for its initials or with a typo", () => {
     // The names are the ones of the command prompt, with "Create relation" of the catalog commands.
     const first = (query: string): string[] => names(query).slice(0, 3);
     expect(first("crel")).toContain("Create relation");

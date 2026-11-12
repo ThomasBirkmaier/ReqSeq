@@ -63,7 +63,7 @@ describe("the places of the context menu", () => {
     }
   });
 
-  it("[SR-194/AK6] gives a place without entries of its own the buffer's", () => {
+  it("[SR-194/AK-r0g6] gives a place without entries of its own the buffer's", () => {
     // A press on no mark inside an area is the buffer's place, and a place whose block is still empty
     // (stubbed here, so the test holds once every place is filled) gets the buffer's entries too.
     expect(placeAt(pressed([], true))).toBe("buffer");
@@ -93,7 +93,7 @@ describe("the places of the context menu", () => {
     expect(placeAt(pressed([], false))).toBeUndefined();
   });
 
-  it("[SR-194/AK1] shows the entries the prompt has now, in the place's order, as the prompt names them", () => {
+  it("[SR-194/AK-dhq2] shows the entries the prompt has now, in the place's order, as the prompt names them", () => {
     const items = [choice("search", "Search elements"), choice("close"), choice("go-to"), choice("save")];
     expect(menuEntries(hit("buffer"), items).map((item) => item.id)).toEqual(["go-to", "search", "close"]);
     expect(menuEntries(hit("buffer"), items)[1]).toBe(items[0]);
@@ -140,23 +140,23 @@ describe("the menus of the fields (SR-196)", () => {
   });
   const ids = (at: MenuHit): string[] => menuEntries(at, items).map((item) => item.id);
 
-  it("[SR-196/AK1] puts Copy field first on every field", () => {
+  it("[SR-196/AK-sh81] puts Copy field first on every field", () => {
     for (const place of ["field", "field-property", "field-status", "field-short-id"] as const) {
       expect(ids(place === "field-property" ? inBox(false) : hit(place))[0]).toBe("copy-field");
     }
     expect(ids(hit("field"))).toEqual(["copy-field"]);
   });
 
-  it("[SR-196/AK2] has Add and Clear property on a box, and List elements with this value on one that lists", () => {
+  it("[SR-196/AK-ndw1] has Add and Clear property on a box, and List elements with this value on one that lists", () => {
     expect(ids(inBox(false))).toEqual(["copy-field", "add-property", "clear-property"]);
     expect(ids(inBox(true))).toEqual(["copy-field", "add-property", "clear-property", "list-value"]);
   });
 
-  it("[SR-196/AK3] has Set status on the status", () => {
+  it("[SR-196/AK-wz7v] has Set status on the status", () => {
     expect(ids(hit("field-status"))).toEqual(["copy-field", "command:element.setStatus"]);
   });
 
-  it("[SR-196/AK4] has Show element ID and version on the short ID", () => {
+  it("[SR-196/AK-t3nk] has Show element ID and version on the short ID", () => {
     expect(ids(hit("field-short-id"))).toEqual(["copy-field", "version"]);
   });
 });
@@ -164,7 +164,7 @@ describe("the menus of the fields (SR-196)", () => {
 describe("the press that opens the menu", () => {
   const press = (button: number, ctrlKey = false, metaKey = false) => ({ button, ctrlKey, metaKey });
 
-  it("[SR-194/AK7] is the right button, and on macOS the left one with Ctrl", () => {
+  it("[SR-194/AK-hkgb] is the right button, and on macOS the left one with Ctrl", () => {
     expect(opensMenu(press(2), false)).toBe(true);
     expect(opensMenu(press(0), true)).toBe(false);
     expect(opensMenu(press(0, true), true)).toBe(true);
@@ -180,7 +180,7 @@ describe("the place of the menu", () => {
   const size = { width: 200, height: 100 };
   const viewport = { width: 800, height: 600 };
 
-  it("[SR-194/AK1] opens right of and below the pointer", () => {
+  it("[SR-194/AK-dhq2] opens right of and below the pointer", () => {
     expect(menuPosition({ x: 100, y: 50 }, size, viewport)).toEqual({
       x: 100 + POINTER_GAP,
       y: 50 + POINTER_GAP,

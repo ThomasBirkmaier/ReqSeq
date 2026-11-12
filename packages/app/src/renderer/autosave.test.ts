@@ -27,7 +27,7 @@ describe("createAutosave", () => {
     vi.useRealTimers();
   });
 
-  it("[SR-105/AK1] saves once, one second after the last input, not before", async () => {
+  it("[SR-105/AK-p4gn] saves once, one second after the last input, not before", async () => {
     const save = vi.fn(() => Promise.resolve());
     const autosave = createAutosave({ save, held: () => false });
     autosave.input();
@@ -95,7 +95,7 @@ describe("createAutosave", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-105/AK1] saves at once when asked, after the save that runs, in place of the one that waits", async () => {
+  it("[SR-105/AK-p4gn] saves at once when asked, after the save that runs, in place of the one that waits", async () => {
     const { save, answer } = deferredSave();
     const autosave = createAutosave({ save, held: () => true });
     expect(await autosave.now(() => Promise.resolve("idle"))).toBe("idle");

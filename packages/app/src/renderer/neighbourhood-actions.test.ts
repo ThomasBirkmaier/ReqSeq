@@ -41,7 +41,7 @@ const names = (buffers: Buffers): string[] =>
   commandPrompt(context(buffers).full).items.map((item) => item.name);
 
 describe("Show neighbourhood and Show element", () => {
-  it("[SR-107/AK2] offers the neighbourhood on an element, and the element on a neighbourhood, never both", () => {
+  it("[SR-107/AK-bhct] offers the neighbourhood on an element, and the element on a neighbourhood, never both", () => {
     expect(names([element])).toContain("Show neighbourhood");
     expect(names([element])).not.toContain("Show element");
     expect(names([neighbourhood, element])).toContain("Show element");
@@ -52,7 +52,7 @@ describe("Show neighbourhood and Show element", () => {
     }
   });
 
-  it("[SR-107/AK2] is Ctrl+J or Cmd+J on both, and shows the shortcut as the platform writes it", async () => {
+  it("[SR-107/AK-bhct] is Ctrl+J or Cmd+J on both, and shows the shortcut as the platform writes it", async () => {
     const { matches } = await import("./keys.js");
     for (const [buffers, title] of [
       [[element], "Show neighbourhood"],

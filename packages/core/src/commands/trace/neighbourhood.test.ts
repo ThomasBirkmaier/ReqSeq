@@ -107,7 +107,7 @@ const N1_TEXT =
   "---\nid: 5e107a7d-2b4f-4c61-9d08-0a0000000001\ntype: need\nstatus: approved\ntitle: See the wind\n";
 
 describe("trace.neighbourhood (SR-107)", () => {
-  it("[SR-107/AK1] lists every parent up to the top need, each with title and ID", async () => {
+  it("[SR-107/AK-r2x1] lists every parent up to the top need, each with title and ID", async () => {
     const { workspace } = await open();
     const output = await neighbourhood(workspace, {
       ref: ID.C1,
@@ -156,7 +156,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     expect(output.incomplete).toBe(false);
   });
 
-  it("[SR-107/AK2] gives the children level by level from the same root", async () => {
+  it("[SR-107/AK-bhct] gives the children level by level from the same root", async () => {
     const { workspace } = await open();
     const base = { ref: ID.N1, direction: "down", meanings: ["derivation"] };
     const first = await neighbourhood(workspace, base);
@@ -186,7 +186,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     ]);
   });
 
-  it("[SR-107/AK2] gives the incoming relations and references of every kind, each with its kind", async () => {
+  it("[SR-107/AK-bhct] gives the incoming relations and references of every kind, each with its kind", async () => {
     const { workspace } = await open();
     const output = await neighbourhood(workspace, { ref: ID.S1, direction: "down" });
     expect(nodes(output)).toEqual([
@@ -203,7 +203,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     ]);
   });
 
-  it("[SR-107/AK3] marks the second edge into a child with two parents as repeated", async () => {
+  it("[SR-107/AK-ntyw] marks the second edge into a child with two parents as repeated", async () => {
     const { workspace } = await open();
     const output = await neighbourhood(workspace, {
       ref: ID.N1,
@@ -220,7 +220,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     );
   });
 
-  it("[SR-107/AK4] marks an outdated relation and an outdated reference as outdated", async () => {
+  it("[SR-107/AK-b9c5] marks an outdated relation and an outdated reference as outdated", async () => {
     const { workspace } = await open(NEIGHBOURHOOD, changeTargets);
     const up = await neighbourhood(workspace, { ref: ID.S1, direction: "up" });
     expect(nodes(up)).toEqual([
@@ -254,7 +254,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     expect(outdated).toHaveLength(hinted.length);
   });
 
-  it("[SR-107/AK4] marks no link outdated whose target has no current version", async () => {
+  it("[SR-107/AK-b9c5] marks no link outdated whose target has no current version", async () => {
     // A value that counts and has no normal form (`.inf`, ADR-0005): D1 has no current version.
     const { workspace } = await open(NEIGHBOURHOOD, async (ws) => {
       await ws.write(

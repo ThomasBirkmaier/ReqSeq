@@ -19,8 +19,12 @@ statuses:
   - { key: draft, name: Draft, initial: true }
   - { key: obsolete, name: Obsolete, invalid: true }
 `;
-// Built at run time, so that trace-check does not read this file as tests of real SRs.
-const tag = (id, ak) => `[${id}/AK${ak}]`;
+// The criterion keys of the SRs of `repo`, by position.
+const KEYS = { "SR-001": ["kone", "ktwo"], "SR-002": ["kdrei"] };
+// Built at run time, so that trace-check does not read this file as tests of real SRs: the key tag of
+// criterion n (a key no criterion carries for an unknown SR or position), and a tag by number.
+const tag = (id, n) => `[${id}/AK-${KEYS[id]?.[n - 1] ?? `kno${n}`}]`;
+const numberTag = (id, n) => `[${id}/AK${n}]`;
 const WORKSPACE = `reqseq-workspace: 1
 name: Spec
 repositories:
@@ -48,8 +52,10 @@ function repo(extra = {}) {
       'title: "Eins"',
       'spec-id: "SR-001"',
       "acceptance-criteria:",
-      '  - "Gegeben a, dann b."',
-      "  - 'Gegeben c: dann d.'",
+      "  - key: kone",
+      '    text: "Gegeben a, dann b."',
+      "  - key: ktwo",
+      "    text: 'Gegeben c: dann d.'",
       "verification-method: test",
       "packages:",
       `  - { id: ${STAGE_3}, version: n1:3b91c1fbe49a06cc, title: "Stufe 3" }`,
@@ -60,7 +66,7 @@ function repo(extra = {}) {
     ].join("\n"),
     // Written by hand or by ReqSeq: plain scalars, CRLF, another folder.
     "spec/elsewhere/SR-000000000002.md":
-      "---\r\nid: 00000000-0000-4000-8000-000000000002\r\ntype: system-requirement\r\nstatus: obsolete\r\ntitle: Zwei\r\nspec-id: SR-002\r\nacceptance-criteria:\r\n  - >-\r\n    Gegeben e,\r\n    dann f.\r\nverification-method: inspection\r\npackages:\r\n  - { id: " +
+      "---\r\nid: 00000000-0000-4000-8000-000000000002\r\ntype: system-requirement\r\nstatus: obsolete\r\ntitle: Zwei\r\nspec-id: SR-002\r\nacceptance-criteria:\r\n  - key: kdrei\r\n    text: >-\r\n      Gegeben e,\r\n      dann f.\r\nverification-method: inspection\r\npackages:\r\n  - { id: " +
       QS +
       " }\r\n---\r\n",
     "spec/README.md": "# Not an element\n",
@@ -78,12 +84,18 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     const spec = readSpec(path.join(repo(), "spec"));
     expect([...spec.srs.keys()].sort()).toEqual(["SR-001", "SR-002"]);
     expect(spec.srs.get("SR-001")).toMatchObject({
-      criteria: ["Gegeben a, dann b.", "Gegeben c: dann d."],
+      criteria: [
+        { key: "kone", text: "Gegeben a, dann b." },
+        { key: "ktwo", text: "Gegeben c: dann d." },
+      ],
       method: "test",
       packages: [STAGE_3],
       invalid: false,
     });
-    expect(spec.srs.get("SR-002")).toMatchObject({ criteria: ["Gegeben e, dann f."], invalid: true });
+    expect(spec.srs.get("SR-002")).toMatchObject({
+      criteria: [{ key: "kdrei", text: "Gegeben e, dann f." }],
+      invalid: true,
+    });
   });
 
   it("finds the members of a stage through its package, by number or identifier in any case", () => {
@@ -107,7 +119,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(result.report).toContain("| SR-002 | all | inspection | verification/SR-002.md |");
   });
 
-  it("counts a key tag [SR-xxx/AK-<key>] for the criterion that carries the key in spec/ (SR-029 AK10)", () => {
+  it("counts a key tag [SR-xxx/AK-<key>] for the criterion that carries the key in spec/, and reports a tag by number (SR-029 AK10, AK13)", () => {
     const keyed = [
       "---",
       "id: 00000000-0000-4000-8000-000000000003",
@@ -119,6 +131,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "  - { key: kaaa, text: Gegeben a. }",
       "  - { key: kdup, text: Gegeben b. }",
       "  - { key: kdup, text: Gegeben c. }",
+      "  - Gegeben d.",
       "verification-method: test",
       "---",
       "",
@@ -128,23 +141,32 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "spec/system-requirement/SR-000000000003.md": keyed,
       "packages/x/a.test.ts": [
         `it("${keyTag("SR-003", "kaaa")} a");`,
-        `it("${tag("SR-003", 1)} b");`,
+        `it("${keyTag("SR-003", "kaaa")} b");`,
         `it("${keyTag("SR-003", "kdup")} c");`,
         `it("${keyTag("SR-003", "kxyz")} d");`,
         `it("${keyTag("SR-009", "kaaa")} e");`,
-        `it("${tag("SR-003", 2)} f");`,
+        `it("${numberTag("SR-003", 1)} ${numberTag("SR-003", 2)} ${numberTag("SR-003", 4)} ${numberTag("SR-003", 7)} f");`,
+        `it("${numberTag("SR-009", 1)} g");`,
         "",
       ].join("\n"),
     });
     const result = traceCheck(root, ["--require", "SR-003"]);
+    const byNumber = "names an acceptance criterion by its number; name it by its criterion key";
     expect(result.errors).toEqual([
       "packages/x/a.test.ts:3: SR-003 has 2 acceptance criteria with the key kdup",
       "packages/x/a.test.ts:4: SR-003 has no acceptance criterion with the key kxyz",
+      `packages/x/a.test.ts:6: [SR-003/AK1] ${byNumber}: [SR-003/AK-kaaa]`,
+      `packages/x/a.test.ts:6: [SR-003/AK2] ${byNumber} from the element file system-requirement/SR-000000000003.md in spec/`,
+      `packages/x/a.test.ts:6: [SR-003/AK4] ${byNumber} from the element file system-requirement/SR-000000000003.md in spec/`,
+      `packages/x/a.test.ts:6: [SR-003/AK7] ${byNumber} from the element file system-requirement/SR-000000000003.md in spec/`,
       "packages/x/a.test.ts:5: test refers to unknown SR-009",
-      "SR-003 AK3 has no test",
+      "packages/x/a.test.ts:7: test refers to unknown SR-009",
+      "SR-003 AK2 (kdup) has no test",
+      "SR-003 AK3 (kdup) has no test",
+      "SR-003 AK4 has no test",
     ]);
     expect(result.report).toContain(
-      "| SR-003 | AK1 | test | packages/x/a.test.ts:1<br>packages/x/a.test.ts:2 |",
+      "| SR-003 | AK1 (kaaa) | test | packages/x/a.test.ts:1<br>packages/x/a.test.ts:2 |",
     );
   });
 
@@ -158,7 +180,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "verification/SR-002.md": "# SR-002\n",
     });
     const result = traceCheck(root, ["--require", "SR-001"]);
-    expect(result.errors).toEqual(["SR-001 AK2 has no test"]);
+    expect(result.errors).toEqual(["SR-001 AK2 (ktwo) has no test"]);
   });
 
   it("reports missing tests, unknown SRs and criteria, records, stages and invalid statuses", () => {
@@ -169,10 +191,10 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     const result = traceCheck(root, ["--stage", "Querschnitt", "--require", "SR-001,SR-404"]);
     expect(result.code).toBe(1);
     expect(result.errors).toEqual([
+      "packages/x/a.test.ts:2: SR-001 has no acceptance criterion with the key kno3",
       "packages/x/a.test.ts:1: test refers to unknown SR-009",
-      "packages/x/a.test.ts:2: SR-001 has no acceptance criterion AK3",
-      "SR-001 AK1 has no test",
-      "SR-001 AK2 has no test",
+      "SR-001 AK1 (kone) has no test",
+      "SR-001 AK2 (ktwo) has no test",
       "required SR-404 not found in spec/",
       "SR-002 (inspection) has no record verification/SR-002.md",
     ]);
@@ -246,8 +268,8 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "packages/x/tags.test.ts": `const scenario = { tag: "${tag("SR-001", 2)}" };\n`,
     });
     expect(traceCheck(root, ["--require", "SR-001"]).errors).toEqual([
-      "SR-001 AK1 has no test",
-      "SR-001 AK2 has no test",
+      "SR-001 AK1 (kone) has no test",
+      "SR-001 AK2 (ktwo) has no test",
     ]);
   });
 
@@ -266,8 +288,8 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "packages/cli/test/cross-access.test.ts": `const s = [{ name: "x", tag: "${tag("SR-001", 2)}" }];\n`,
     });
     const report = traceCheck(root, ["--require", "SR-001"]).report;
-    expect(report).toContain("| SR-001 | AK1 | test | pkg/a.test.ts:2 |");
-    expect(report).toContain("| SR-001 | AK2 | test | packages/cli/test/cross-access.test.ts:1 |");
+    expect(report).toContain("| SR-001 | AK1 (kone) | test | pkg/a.test.ts:2 |");
+    expect(report).toContain("| SR-001 | AK2 (ktwo) | test | packages/cli/test/cross-access.test.ts:1 |");
     expect(traceCheck(root, []).warnings).toEqual(["pkg/a.test.ts:6: SR-002 is obsolete"]);
   });
 

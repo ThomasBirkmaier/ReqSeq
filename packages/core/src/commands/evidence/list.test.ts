@@ -104,7 +104,7 @@ const listError = async (
 const named = (output: Output): unknown[] => output.records.map((r) => [r.item, r.version, r.baselines]);
 
 describe("evidence.list (SR-032)", () => {
-  it("[SR-032/AK1] shows each record of a requirement with version, item, date, result and evidence", async () => {
+  it("[SR-032/AK-z0d4] shows each record of a requirement with version, item, date, result and evidence", async () => {
     const workspace = await open(await fixture());
     const output = await list(workspace, { ref: "SR-0032a1" });
     expect(output.records.map((r) => [r.version, r.item, r.date, r.result, r.evidence])).toEqual([
@@ -133,7 +133,7 @@ describe("evidence.list (SR-032)", () => {
     expect([output.problems, output.incomplete]).toEqual([[], false]);
   });
 
-  it("[SR-032/AK1] shows only the records of the element asked for, by UUID or short ID alike", async () => {
+  it("[SR-032/AK-z0d4] shows only the records of the element asked for, by UUID or short ID alike", async () => {
     const workspace = await open(await fixture());
     expect(named(await list(workspace, { ref: A2 }))).toEqual([
       ["build-512", V2, ["Release 1.0", "Release 1.1"]],
@@ -146,7 +146,7 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
-  it("[SR-032/AK1] shows no record for a requirement without records", async () => {
+  it("[SR-032/AK-z0d4] shows no record for a requirement without records", async () => {
     const workspace = await open(await fixture(), [OTHER]);
     expect(await list(workspace, { ref: "SR-0032a1" })).toEqual({
       records: [],
@@ -158,7 +158,7 @@ describe("evidence.list (SR-032)", () => {
     });
   });
 
-  it("[SR-032/AK2] names the baselines that contain the version of each record, and none for a version no baseline holds", async () => {
+  it("[SR-032/AK-nx9m] names the baselines that contain the version of each record, and none for a version no baseline holds", async () => {
     const workspace = await open(await fixture());
     expect(named(await list(workspace, { ref: "SR-0032a1" }))).toEqual([
       ["build-512", V3, []],
@@ -168,7 +168,7 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
-  it("[SR-032/AK2] names a baseline committed after the first call, and no longer one that was removed or changed", async () => {
+  it("[SR-032/AK-nx9m] names a baseline committed after the first call, and no longer one that was removed or changed", async () => {
     const ws = await fixture();
     const workspace = await open(ws);
     expect(named(await list(workspace, { ref: A1 }))[0]).toEqual(["build-512", V3, []]);
@@ -192,7 +192,7 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
-  it("[SR-032/AK2] names a baseline of the other normal form when both are of the current version (ADR-0005)", async () => {
+  it("[SR-032/AK-nx9m] names a baseline of the other normal form when both are of the current version (ADR-0005)", async () => {
     const ws = await fixture();
     const probe = await open(ws, []);
     const versions = await probe.get(currentVersionsState);
@@ -217,7 +217,7 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
-  it("[SR-032/AK3] names the records that bear the status: per variant the newest of the current version, else the newest of an older one", async () => {
+  it("[SR-032/AK-hbdt] names the records that bear the status: per variant the newest of the current version, else the newest of an older one", async () => {
     const ws = await fixture();
     const probe = await open(ws, []);
     const versions = await probe.get(currentVersionsState);
@@ -234,7 +234,7 @@ describe("evidence.list (SR-032)", () => {
     expect((await list(await open(ws, [PASSED, FAILED]), { ref: A1 })).bearing).toEqual([0]);
   });
 
-  it("[SR-032/AK2] lists a faulty baseline file as a problem and names no baseline from it", async () => {
+  it("[SR-032/AK-nx9m] lists a faulty baseline file as a problem and names no baseline from it", async () => {
     const ws = await fixture({
       "baselines/broken.yaml": `reqseq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements:\n  - { id: ${A1}, version: ${V1} }\n`,
     });
@@ -354,7 +354,7 @@ describe("evidence.list: test cases (SR-033)", () => {
     return workspace;
   };
 
-  it("[SR-033/AK1] evidence.list gives the test cases of the element with all their executions", async () => {
+  it("[SR-033/AK-mvfg] evidence.list gives the test cases of the element with all their executions", async () => {
     const workspace = await openRead(await fixture(), [...RECORDS, RERUN, OF_A2]);
     const output = await list(workspace, { ref: A1 });
     expect(output.testCases).toEqual([
@@ -377,7 +377,7 @@ describe("evidence.list: test cases (SR-033)", () => {
     ]);
   });
 
-  it("[SR-033/AK3] evidence.list marks a test case without execution as not executed", async () => {
+  it("[SR-033/AK-jtx6] evidence.list marks a test case without execution as not executed", async () => {
     const skipped = {
       name: "test_shows_gusts",
       className: "tests.test_display",

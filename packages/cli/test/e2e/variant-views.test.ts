@@ -36,7 +36,7 @@ const requirements = async (
 };
 
 describe("variant views (SR-041, SR-043)", () => {
-  it("[SR-041/AK1] element list in the view of A shows A1 instead of K1", async () => {
+  it("[SR-041/AK-xqgg] element list in the view of A shows A1 instead of K1", async () => {
     const ws = await workspace();
     const result = await run(["element", "list", "--input", '{"selection":{"view":"VAR-0000c1"}}'], {
       cwd: ws.root,
@@ -46,7 +46,7 @@ describe("variant views (SR-041, SR-043)", () => {
     expect(result.stdout).not.toContain("SR-0000a1");
   });
 
-  it("[SR-043/AK9] the core view holds only requirements without validity", async () => {
+  it("[SR-043/AK-pyxy] the core view holds only requirements without validity", async () => {
     const ws = await workspace();
     expect(await requirements(ws, ["element", "list"], "core")).toEqual([
       "SR-0000a1",
@@ -56,7 +56,7 @@ describe("variant views (SR-041, SR-043)", () => {
     ]);
   });
 
-  it("[SR-043/AK8] data export in the view of A holds exactly K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-yrdn] data export in the view of A holds exactly K3, K4, A1 and A2", async () => {
     const ws = await workspace();
     expect(await requirements(ws, ["data", "export"], "VAR-0000c1")).toEqual([
       "SR-0000a3",
@@ -66,7 +66,7 @@ describe("variant views (SR-041, SR-043)", () => {
     ]);
   });
 
-  it("[SR-041/AK8] workspace check names a replaces onto a need at the line of the entry", async () => {
+  it("[SR-041/AK-g0cz] workspace check names a replaces onto a need at the line of the entry", async () => {
     const ws = await workspace({
       "requirements/SR-0000000000b3.md":
         "---\nid: 43043043-0000-4000-8000-0000000000b3\ntype: system-requirement\nstatus: draft\ntitle: R\n" +
@@ -80,7 +80,7 @@ describe("variant views (SR-041, SR-043)", () => {
     expect(result.stdout).toContain("this changes no view  system:requirements/SR-0000000000b3.md:7\n");
   });
 
-  it("[SR-046/AK3] element get names A as replacing and B as excluding variant", async () => {
+  it("[SR-046/AK-msfv] element get names A as replacing and B as excluding variant", async () => {
     const ws = await workspace({
       "variants/VAR-0000000000c2.md":
         "---\nid: 43043043-0000-4000-8000-0000000000c2\ntype: variant\nstatus: draft\ntitle: Mountain\n" +
@@ -128,23 +128,23 @@ describe("variant views (SR-041, SR-043)", () => {
   const SIX = ["a1", "a2", "a3", "a4", "b1", "b2"].map((tail) => `SR-0000${tail}`);
   const short = (id: unknown): string => `SR-${String(id).slice(-6)}`;
 
-  it("[SR-043/AK4] trace chain in the view of A holds of the six requirements only K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-xcpc] trace chain in the view of A holds of the six requirements only K3, K4, A1 and A2", async () => {
     const out = await json(["trace", "chain"], { ref: "SR-0000a0", direction: "down", view: "VAR-0000c1" });
     const nodes = (out["nodes"] as { id: string }[]).map((n) => short(n.id));
     expect(nodes).toEqual(["SR-0000a0", "SR-0000a3", "SR-0000a4", "SR-0000b1", "SR-0000b2"]);
   });
 
-  it("[SR-043/AK5] evidence coverage in the view of A counts exactly K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-g28v] evidence coverage in the view of A counts exactly K3, K4, A1 and A2", async () => {
     const out = await json(["evidence", "coverage"], { selection: { ids: SIX, view: "VAR-0000c1" } });
     expect(out["levels"]).toMatchObject([{ type: "system-requirement", total: 4, withChildren: 0 }]);
   });
 
-  it("[SR-043/AK6] evidence degree in the view of A counts exactly K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-sf70] evidence degree in the view of A counts exactly K3, K4, A1 and A2", async () => {
     const out = await json(["evidence", "degree"], { selection: { ids: SIX, view: "VAR-0000c1" } });
     expect(out["degree"]).toMatchObject({ total: 4, counts: { verified: 3, open: 1 } });
   });
 
-  it("[SR-043/AK7] evidence status in the view of A counts only children from K3, K4, A1 and A2", async () => {
+  it("[SR-043/AK-h552] evidence status in the view of A counts only children from K3, K4, A1 and A2", async () => {
     const out = await json(["evidence", "status"], { selection: { ids: ["SR-0000a0"] } });
     const [p] = out["elements"] as { verification: { view: string; missingChildren?: string[] }[] }[];
     const missing = (view: string) =>

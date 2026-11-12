@@ -62,7 +62,7 @@ test.describe("the hits of the search prompt", () => {
     await running.close();
   });
 
-  test("[SR-183/AK1] shows as many hits as fit the card at its size for commands, none chosen; fewer hits all", async () => {
+  test("[SR-183/AK-c47w] shows as many hits as fit the card at its size for commands, none chosen; fewer hits all", async () => {
     const { window } = running;
     // The card at its size for commands: the command prompt lists more commands than it holds.
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -85,7 +85,7 @@ test.describe("the hits of the search prompt", () => {
     expect((await measure(window)).scrolls).toBe(false);
   });
 
-  test("[SR-183/AK2] the hits are the first of the search buffer for the same text, in its order; [SR-183/AK5] Enter without a choice opens it", async () => {
+  test("[SR-183/AK-qq2p] the hits are the first of the search buffer for the same text, in its order; [SR-183/AK-bp5z] Enter without a choice opens it", async () => {
     const { window } = running;
     await preview(window, "gust", 5);
     const shown = await names(window);
@@ -103,7 +103,7 @@ test.describe("the hits of the search prompt", () => {
     expect(shown).toEqual(rows.slice(0, 5));
   });
 
-  test("[SR-183/AK2] the best hit in a folded status stands first, at its place by relevance; the search buffer shows it in the section at the end", async () => {
+  test("[SR-183/AK-qq2p] the best hit in a folded status stands first, at its place by relevance; the search buffer shows it in the section at the end", async () => {
     await running.close();
     running = await launchApp({ fixture: "SR-183/preview", files: { [GAUGE_FILE]: GAUGE } });
     const { window } = running;
@@ -153,7 +153,7 @@ test.describe("the hits of the search prompt", () => {
     expect((await rowNames()).at(-1)).toBe(shown[0]);
   });
 
-  test("[SR-183/AK3] a hit shows its title and, under it, the snippet around the match, as in the search buffer", async () => {
+  test("[SR-183/AK-xgxn] a hit shows its title and, under it, the snippet around the match, as in the search buffer", async () => {
     const { window } = running;
     await preview(window, "squall", 2);
     const options = card(window).getByRole("option");
@@ -189,7 +189,7 @@ test.describe("the hits of the search prompt", () => {
     await window.screenshot({ path: path.join(OUT, "search-preview.png") });
   });
 
-  test("[SR-183/AK4] Enter opens the hit chosen with Ctrl+N, Ctrl+P or the arrows", async () => {
+  test("[SR-183/AK-jrbc] Enter opens the hit chosen with Ctrl+N, Ctrl+P or the arrows", async () => {
     const { window } = running;
     await preview(window, "gust", 5);
     const [, second] = await names(window);

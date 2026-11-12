@@ -6,10 +6,14 @@ title: "Fehlerhafte Dateien melden"
 spec-id: "SR-008"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Markdown-Datei, die mit einem Kopf beginnt, der sich nicht als YAML lesen lässt oder nicht geschlossen ist, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool Datei, Zeile und Grund als Fehler."
-  - "Gegeben eine Datei mit Konfliktmarkern von Git, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool die Datei als ungelösten Konflikt mit dem Schweregrad Fehler."
-  - "Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst; ist es eine Element-Datei, lehnt der Import einer Lieferung ab (SR-053 AK3)."
-  - "Gegeben eine Datei des Tools mit einer Formatnummer, die das Tool nicht kennt, zum Beispiel `reqseq-filter: 2`, wenn das Tool sie liest, dann meldet es die Datei als fehlerhaft und verwendet ihren Inhalt nicht."
+  - key: kj61
+    text: Gegeben eine Markdown-Datei, die mit einem Kopf beginnt, der sich nicht als YAML lesen lässt oder nicht geschlossen ist, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool Datei, Zeile und Grund als Fehler.
+  - key: hw12
+    text: Gegeben eine Datei mit Konfliktmarkern von Git, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool die Datei als ungelösten Konflikt mit dem Schweregrad Fehler.
+  - key: kdrw
+    text: Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst; ist es eine Element-Datei, lehnt der Import einer Lieferung ab (SR-053 AK3).
+  - key: pm64
+    text: "Gegeben eine Datei des Tools mit einer Formatnummer, die das Tool nicht kennt, zum Beispiel `reqseq-filter: 2`, wenn das Tool sie liest, dann meldet es die Datei als fehlerhaft und verwendet ihren Inhalt nicht."
 verification-method: test
 packages:
   - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:39b8c7c89788abe8, title: Ablage und Repositories }

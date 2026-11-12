@@ -167,7 +167,7 @@ describe("bufferView", () => {
     ).toBe("1 hint");
   });
 
-  it("[SR-114/AK2] names the number of outdated references and of open hints as element.get gives them, each only when there are any, an outdated one not again as a hint", () => {
+  it("[SR-114/AK-bfpp] names the number of outdated references and of open hints as element.get gives them, each only when there are any, an outdated one not again as a hint", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     const parts = (problems: readonly object[], extra: object = {}): string[] =>
       bufferView(buffer, { kind: "element", element: element({ status: "draft", problems, ...extra }) });
@@ -213,7 +213,7 @@ describe("bufferView", () => {
     ).toEqual(["SR-000001 · system-requirement · draft"]);
   });
 
-  it("[SR-114/AK3] names a list by its name with the number of its elements, a graph with its number of nodes, a package page with its type and the number of its elements", () => {
+  it("[SR-114/AK-bcv4] names a list by its name with the number of its elements, a graph with its number of nodes, a package page with its type and the number of its elements", () => {
     expect(
       bufferView(listBuffer("type: need", { where: { type: ["need"] } }), {
         kind: "list",
@@ -249,7 +249,7 @@ describe("bufferView", () => {
     expect(bufferView(page, { kind: "element", element: pkg }, names)).toEqual(["PKG-1 · Package · draft"]);
   });
 
-  it("[SR-114/AK1] names the short ID or identifier, the type by its metamodel name and the status of an element", () => {
+  it("[SR-114/AK-hqxs] names the short ID or identifier, the type by its metamodel name and the status of an element", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     const names = new Map([["system-requirement", "System Requirement"]]);
     expect(
@@ -268,7 +268,7 @@ describe("bufferView", () => {
     ]);
   });
 
-  it("[SR-118/AK1] names the overview with the number of all elements, and says when the counts are partial", () => {
+  it("[SR-118/AK-yggg] names the overview with the number of all elements, and says when the counts are partial", () => {
     const overview = overviewBuffer();
     expect(bufferView(overview, undefined)).toEqual(["Overview"]);
     expect(bufferView(overview, { kind: "overview", total: 14, incomplete: false })).toEqual([
@@ -296,7 +296,7 @@ describe("bufferView", () => {
     ]);
   });
 
-  it("[SR-106/AK2] [SR-106/AK3] says that the file changed or is gone on disk, after the counts", () => {
+  it("[SR-106/AK-ydc8] [SR-106/AK-v420] says that the file changed or is gone on disk, after the counts", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     const hinted = element({ problems: [{ code: "x" }] });
     expect(bufferView(buffer, { kind: "element", element: hinted, modified: true, disk: "changed" })).toEqual(
@@ -308,7 +308,7 @@ describe("bufferView", () => {
     ]);
   });
 
-  it("[SR-105/AK5] says not saved with the reason when the last save of the input failed, after the counts", () => {
+  it("[SR-105/AK-phcy] says not saved with the reason when the last save of the input failed, after the counts", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     const notSaved = "Not written: requirements/SR-000001.md is read-only";
     expect(bufferView(buffer, { kind: "element", element: element(), modified: true, notSaved })).toEqual([
@@ -391,7 +391,7 @@ describe("shownElement", () => {
   } as unknown as DataExportElement;
   const buffer = elementBuffer("u1", "spec", "SR-000001 T");
 
-  it("[SR-128/AK1] is the element that the shown element buffer has loaded, and none otherwise", () => {
+  it("[SR-128/AK-sthw] is the element that the shown element buffer has loaded, and none otherwise", () => {
     expect(shownElement(buffer, { key: buffer.key, data: { kind: "element", element } })).toBe(element);
     // A list, nothing loaded yet, another buffer's data, no buffer at all.
     const data = { kind: "list", total: 1, incomplete: false } as const;

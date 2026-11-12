@@ -138,7 +138,7 @@ test.describe("the card of the command line in motion", () => {
     await running.close();
   });
 
-  test("[SR-182/AK1] the card rises from the command line into its place within 200 ms, easing out", async () => {
+  test("[SR-182/AK-zj1x] the card rises from the command line into its place within 200 ms, easing out", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -170,7 +170,7 @@ test.describe("the card of the command line in motion", () => {
   });
 
   for (const scheme of ["light", "dark"] as const) {
-    test(`[SR-182/AK2] the whole backdrop dims and a seam as wide as the shadow blurs, by the same progress (${scheme})`, async () => {
+    test(`[SR-182/AK-fhvv] the whole backdrop dims and a seam as wide as the shadow blurs, by the same progress (${scheme})`, async () => {
       running = await launchApp(FIXTURE, { colorScheme: scheme });
       const { window } = running;
       await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -242,7 +242,7 @@ test.describe("the card of the command line in motion", () => {
     });
   }
 
-  test("[SR-182/AK3] keys typed while the card rises are all in the input", async () => {
+  test("[SR-182/AK-hsfs] keys typed while the card rises are all in the input", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -254,7 +254,7 @@ test.describe("the card of the command line in motion", () => {
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter list by");
   });
 
-  test("[SR-182/AK4] the card does not rise again when the hits change or the prompt changes between elements and commands", async () => {
+  test("[SR-182/AK-ggcp] the card does not rise again when the hits change or the prompt changes between elements and commands", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -297,7 +297,7 @@ test.describe("the card of the command line in motion", () => {
     expect(await rises(window)).toHaveLength(shown + 1);
   });
 
-  test("[SR-182/AK5] the card of the next keys after the prefix key rises as the card of the hits", async () => {
+  test("[SR-182/AK-tg2g] the card of the next keys after the prefix key rises as the card of the hits", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -324,7 +324,7 @@ test.describe("the card of the command line in motion", () => {
     expect(parts.map((one) => one.part).sort()).toEqual(["backdrop", "card", "list", "seam"]);
   });
 
-  test("[SR-182/AK6] on close the motion runs back in less time, and the dim and the blur go with it", async () => {
+  test("[SR-182/AK-m5fk] on close the motion runs back in less time, and the dim and the blur go with it", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -349,7 +349,7 @@ test.describe("the card of the command line in motion", () => {
     await expect(window.locator(".card-backdrop")).toHaveCount(0);
   });
 
-  test("[SR-182/AK7] without motion the card stands at once, dimmed and blurred as at the end, and goes at once", async () => {
+  test("[SR-182/AK-f32v] without motion the card stands at once, dimmed and blurred as at the end, and goes at once", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "reduce" });

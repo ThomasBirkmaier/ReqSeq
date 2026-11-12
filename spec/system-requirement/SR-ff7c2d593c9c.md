@@ -6,15 +6,24 @@ title: "Kern-Requirement in einer Variante ersetzen"
 spec-id: "SR-041"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben das Kern-Requirement SR-K „Antwortzeit höchstens 10 ms“ und das Requirement SR-A „Antwortzeit höchstens 20 ms“ mit Gültigkeit [A] und der Beziehung ersetzt auf SR-K, wenn die Sicht von A berechnet wird (App, CLI, API, MCP: `selection.view` A, zum Beispiel mit `element.list`), dann erscheint SR-A statt SR-K."
-  - Gegeben die Beziehung ersetzt, wenn sie gespeichert wird, dann enthält sie die Fassung des ersetzten Kern-Requirements.
-  - Gegeben die Sicht des Kerns oder einer anderen Variante, wenn sie berechnet wird, dann bleibt das Kern-Requirement darin.
-  - Gegeben SR-A hat die Gültigkeit [A, B] und ersetzt SR-K, wenn die Sichten von A, B und einer weiteren Variante C berechnet werden, dann steht SR-A in A und B statt SR-K, und in C bleibt SR-K.
-  - "Gegeben SR-K hat Children und SR-A ersetzt SR-K in A, wenn Kette, Abdeckung oder indirekter Nachweis in der Sicht von A berechnet werden, dann hängen die Children von SR-K nicht unter SR-A: SR-A hat nur seine eigenen Beziehungen, und die Children von SR-K stehen dort, wo ihre eigene Gültigkeit sie hinstellt."
-  - "Gegeben ein Requirement ohne Gültigkeit mit der Beziehung ersetzt auf SR-K, wenn eine Sicht berechnet wird, dann bleibt SR-K in jeder Sicht: Ersetzen wirkt nur in den Varianten der Gültigkeit des ersetzenden Requirements. Soll ein Kern-Requirement für alle durch ein anderes abgelöst werden, geschieht das mit Ablösen (SR-072)."
-  - Gegeben SR-A1 und SR-A2 haben beide die Gültigkeit [A] und ersetzen SR-K, wenn die Sicht von A berechnet wird, dann erscheinen SR-A1 und SR-A2 statt SR-K, und das Tool gibt dazu keinen Hinweis.
-  - Gegeben SR-A mit Gültigkeit [A] hat die Beziehung ersetzt auf ein Requirement mit Gültigkeit oder auf ein Element ohne Property mit der Bedeutung Gültigkeit, zum Beispiel einen Need oder ein Paket, wenn eine Sicht berechnet wird oder `workspace.check` läuft, dann ändert sich keine Sicht, das Tool meldet einen Hinweis an der Zeile des Eintrags (wie SR-039 AK3), und im Unterschied von A zum Kern (SR-044) steht SR-A bei den ergänzten Requirements.
-  - "Gegeben SR-A mit Gültigkeit [A] ersetzt SR-K, und der Status von SR-A wird auf einen ungültigen Wert gesetzt (zum Beispiel abgelöst), wenn die Sicht von A berechnet wird, dann ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht; sie ändert sich erst, wenn die Beziehung „ersetzt“ oder die Gültigkeit entfernt wird oder ein Nachfolger SR-K ersetzt (Entscheidung des Produktverantwortlichen, 2026-10-30)."
+  - key: xqgg
+    text: "Gegeben das Kern-Requirement SR-K „Antwortzeit höchstens 10 ms“ und das Requirement SR-A „Antwortzeit höchstens 20 ms“ mit Gültigkeit [A] und der Beziehung ersetzt auf SR-K, wenn die Sicht von A berechnet wird (App, CLI, API, MCP: `selection.view` A, zum Beispiel mit `element.list`), dann erscheint SR-A statt SR-K."
+  - key: c2jz
+    text: Gegeben die Beziehung ersetzt, wenn sie gespeichert wird, dann enthält sie die Fassung des ersetzten Kern-Requirements.
+  - key: bs7h
+    text: Gegeben die Sicht des Kerns oder einer anderen Variante, wenn sie berechnet wird, dann bleibt das Kern-Requirement darin.
+  - key: dsdx
+    text: Gegeben SR-A hat die Gültigkeit [A, B] und ersetzt SR-K, wenn die Sichten von A, B und einer weiteren Variante C berechnet werden, dann steht SR-A in A und B statt SR-K, und in C bleibt SR-K.
+  - key: sg3q
+    text: "Gegeben SR-K hat Children und SR-A ersetzt SR-K in A, wenn Kette, Abdeckung oder indirekter Nachweis in der Sicht von A berechnet werden, dann hängen die Children von SR-K nicht unter SR-A: SR-A hat nur seine eigenen Beziehungen, und die Children von SR-K stehen dort, wo ihre eigene Gültigkeit sie hinstellt."
+  - key: cwgx
+    text: "Gegeben ein Requirement ohne Gültigkeit mit der Beziehung ersetzt auf SR-K, wenn eine Sicht berechnet wird, dann bleibt SR-K in jeder Sicht: Ersetzen wirkt nur in den Varianten der Gültigkeit des ersetzenden Requirements. Soll ein Kern-Requirement für alle durch ein anderes abgelöst werden, geschieht das mit Ablösen (SR-072)."
+  - key: hq24
+    text: Gegeben SR-A1 und SR-A2 haben beide die Gültigkeit [A] und ersetzen SR-K, wenn die Sicht von A berechnet wird, dann erscheinen SR-A1 und SR-A2 statt SR-K, und das Tool gibt dazu keinen Hinweis.
+  - key: g0cz
+    text: Gegeben SR-A mit Gültigkeit [A] hat die Beziehung ersetzt auf ein Requirement mit Gültigkeit oder auf ein Element ohne Property mit der Bedeutung Gültigkeit, zum Beispiel einen Need oder ein Paket, wenn eine Sicht berechnet wird oder `workspace.check` läuft, dann ändert sich keine Sicht, das Tool meldet einen Hinweis an der Zeile des Eintrags (wie SR-039 AK3), und im Unterschied von A zum Kern (SR-044) steht SR-A bei den ergänzten Requirements.
+  - key: h2nt
+    text: "Gegeben SR-A mit Gültigkeit [A] ersetzt SR-K, und der Status von SR-A wird auf einen ungültigen Wert gesetzt (zum Beispiel abgelöst), wenn die Sicht von A berechnet wird, dann ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht; sie ändert sich erst, wenn die Beziehung „ersetzt“ oder die Gültigkeit entfernt wird oder ein Nachfolger SR-K ersetzt (Entscheidung des Produktverantwortlichen, 2026-10-30)."
 verification-method: test
 packages:
   - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }

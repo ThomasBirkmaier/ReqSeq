@@ -10,7 +10,7 @@ Closes #
 
 ## Verification
 
-<!-- Which tests cover which AK ([SR-xxx/AKn]); records in verification/ for other methods. -->
+<!-- Which tests cover which AK ([SR-xxx/AK-<key>]); records in verification/ for other methods. -->
 
 ## Assumptions and spec questions
 

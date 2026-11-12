@@ -124,7 +124,7 @@ describe("older criteria (SR-031 AK11)", () => {
     ).toBe(NO_OLDER_CRITERIA);
   });
 
-  it("[SR-031/AK11] counts a number of an older version through its key in a status carried over the change that made the version older", async () => {
+  it("[SR-031/AK-jr2m] counts a number of an older version through its key in a status carried over the change that made the version older", async () => {
     const { ws, version } = await committed();
     // Without the fixture's record for every criterion, only the record by number counts.
     await fs.rm(ws.path("ci-results/evidence/2026-10-20-SR-000001-test.md"));
@@ -202,19 +202,19 @@ describe("older criteria (SR-031 AK11)", () => {
     return { before, after: (await workspace.get(verificationState)).versionBatches() };
   };
 
-  it("[SR-031/AK11] carries the status over a save that makes records older: only the saved element reads its version again (#1418)", async () => {
+  it("[SR-031/AK-jr2m] carries the status over a save that makes records older: only the saved element reads its version again (#1418)", async () => {
     const { before, after } = await olderAfterSave();
     // The versions read before are kept: one more batch for A, not a status built afresh.
     expect([before, after]).toEqual([1, 2]);
   });
 
-  it("[SR-031/AK11] builds the status afresh over such a save without derivation", async () => {
+  it("[SR-031/AK-jr2m] builds the status afresh over such a save without derivation", async () => {
     const { after } = await olderAfterSave((text) => text.replaceAll("meaning: derivation", ""));
     // Nothing is walked without derivation, so no batch is read.
     expect(after).toBe(0);
   });
 
-  it("[SR-205/AK2] names a criterion a record of an older version names by number, without key there, with that number and that version's text, where Git has the version", async () => {
+  it("[SR-205/AK-m2vv] names a criterion a record of an older version names by number, without key there, with that number and that version's text, where Git has the version", async () => {
     const ws = await createFixtureWorkspace({
       fixture: "SR-028/records",
       files: { [FILE]: elementA(["One.", "Two."]) },

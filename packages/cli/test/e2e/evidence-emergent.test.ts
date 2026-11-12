@@ -25,7 +25,7 @@ const reqseq = async (args: readonly string[]): Promise<Run> => {
 };
 
 describe("reqseq with emergent requirements (SR-035)", () => {
-  it("[SR-035/AK1] reqseq evidence status prints open for an emergent requirement whose children are verified, and its parent names it missing", async () => {
+  it("[SR-035/AK-m6h4] reqseq evidence status prints open for an emergent requirement whose children are verified, and its parent names it missing", async () => {
     const result = await reqseq(["evidence", "status"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
@@ -49,7 +49,7 @@ describe("reqseq with emergent requirements (SR-035)", () => {
     );
   });
 
-  it("[SR-035/AK2] reqseq element list with the condition emergent lists exactly the marked requirements, each with [emergent]", async () => {
+  it("[SR-035/AK-k81y] reqseq element list with the condition emergent lists exactly the marked requirements, each with [emergent]", async () => {
     const input = JSON.stringify({ selection: { where: { emergent: true } } });
     const result = await reqseq(["element", "list", "--input", input]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -77,7 +77,7 @@ describe("reqseq with emergent requirements (SR-035)", () => {
     ]);
   });
 
-  it("[SR-035/AK2] reqseq element get --json shows emergent true", async () => {
+  it("[SR-035/AK-k81y] reqseq element get --json shows emergent true", async () => {
     const result = await reqseq(["element", "get", "SR-00b110", "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as {

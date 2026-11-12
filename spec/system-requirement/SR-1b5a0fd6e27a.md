@@ -6,10 +6,14 @@ title: "Nach Property oder Hierarchie sortieren"
 spec-id: "SR-075"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Liste von Elementen, wenn nach einer Property sortiert wird, die keine Beziehungen hält, dann ordnet das Tool die Liste auf- oder absteigend nach ihrem Wert, bei mehreren Werten nach dem ersten: Typ, Status und feste Werte in der Reihenfolge des Metamodells, die Ziffernfolgen einer Kennung als Zahlen (SR-9 vor SR-10), sonst Zahlen vor Text und Text ohne Rücksicht auf Groß- und Kleinschreibung; Elemente ohne Wert stehen am Ende, nur absteigend nach der Kennung am Anfang, und Elemente mit gleichem Wert stehen bei jedem Aufruf in derselben Reihenfolge."
-  - Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
-  - "Gegeben eine Sortierung, wenn Elemente angelegt werden, dann speichert das Tool keine feste Reihenfolge in den Dateien."
-  - "Gegeben die Liste der Suchtreffer, wenn sie angezeigt wird, dann bietet das Tool für sie keine Sortierung an, auch nicht nach der Hierarchie; die Treffer stehen nach Relevanz (SR-124 AK4)."
+  - key: dmt0
+    text: "Gegeben eine Liste von Elementen, wenn nach einer Property sortiert wird, die keine Beziehungen hält, dann ordnet das Tool die Liste auf- oder absteigend nach ihrem Wert, bei mehreren Werten nach dem ersten: Typ, Status und feste Werte in der Reihenfolge des Metamodells, die Ziffernfolgen einer Kennung als Zahlen (SR-9 vor SR-10), sonst Zahlen vor Text und Text ohne Rücksicht auf Groß- und Kleinschreibung; Elemente ohne Wert stehen am Ende, nur absteigend nach der Kennung am Anfang, und Elemente mit gleichem Wert stehen bei jedem Aufruf in derselben Reihenfolge."
+  - key: f889
+    text: Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
+  - key: rffk
+    text: Gegeben eine Sortierung, wenn Elemente angelegt werden, dann speichert das Tool keine feste Reihenfolge in den Dateien.
+  - key: qgzh
+    text: Gegeben die Liste der Suchtreffer, wenn sie angezeigt wird, dann bietet das Tool für sie keine Sortierung an, auch nicht nach der Hierarchie; die Treffer stehen nach Relevanz (SR-124 AK4).
 verification-method: test
 packages:
   - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }

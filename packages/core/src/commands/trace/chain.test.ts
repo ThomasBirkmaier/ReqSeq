@@ -65,7 +65,7 @@ const chainError = async (workspace: Workspace, input: Record<string, unknown>):
 const levels = (output: Output): unknown[] => output.nodes.map((n) => [n.shortId, n.depth, n.direction]);
 
 describe("trace.chain (SR-022)", () => {
-  it("[SR-022/AK1] shows every level below a need with its depth, by short ID", async () => {
+  it("[SR-022/AK-rmkp] shows every level below a need with its depth, by short ID", async () => {
     const workspace = await open();
     const output = await chain(workspace, { ref: "N-00a001" });
     expect(output.root).toBe(SEE_WIND);
@@ -80,7 +80,7 @@ describe("trace.chain (SR-022)", () => {
     expect([output.incomplete, output.unresolved, output.problems]).toEqual([false, [], []]);
   });
 
-  it("[SR-022/AK2] shows every parent of a component requirement up to the needs", async () => {
+  it("[SR-022/AK-dqf1] shows every parent of a component requirement up to the needs", async () => {
     const workspace = await open();
     const output = await chain(workspace, { ref: STALL, direction: "up" });
     expect(levels(output)).toEqual([
@@ -93,7 +93,7 @@ describe("trace.chain (SR-022)", () => {
     expect(output.gaps).toEqual([]);
   });
 
-  it("[SR-022/AK3] marks a need without a child and requirements without a child and evidence", async () => {
+  it("[SR-022/AK-g8js] marks a need without a child and requirements without a child and evidence", async () => {
     const workspace = await open();
     // DIRECTION holds only in the variant d001: without a view it is not in the core's view (#674).
     const full = await chain(workspace, { ref: SEE_WIND });
@@ -111,7 +111,7 @@ describe("trace.chain (SR-022)", () => {
     expect([cut.nodes.map((n) => n.expanded), cut.gaps]).toEqual([[true, false, false], []]);
   });
 
-  it("[SR-022/AK4] stops at a cycle and reports it as a hint", async () => {
+  it("[SR-022/AK-vvhc] stops at a cycle and reports it as a hint", async () => {
     const component = (id: string, parents: readonly string[]): string =>
       [
         "---",
@@ -154,7 +154,7 @@ describe("trace.chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-006/AK2] marks the chain incomplete while a repository of the workspace is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] marks the chain incomplete while a repository of the workspace is not on this machine", async () => {
     const workspace = await open({
       ...CHAIN,
       files: {
@@ -249,7 +249,7 @@ describe("trace.chain in a view (SR-040 appliesIn)", () => {
     expect((await chain(workspace, { ref: TRUST })).nodes.map((n) => n.id)).toEqual([TRUST, SENSOR, STALL]);
   });
 
-  it("[SR-022/AK3] a requirement the view does not hold is not-in-view, not an evidence gap (#674)", async () => {
+  it("[SR-022/AK-g8js] a requirement the view does not hold is not-in-view, not an evidence gap (#674)", async () => {
     const workspace = await open();
     // With a view only the root can be outside it; `views` names every view that holds it.
     expect((await chain(workspace, { ref: DIRECTION, view: "core" })).gaps).toEqual([
@@ -275,7 +275,7 @@ describe("trace.chain in a view (SR-040 appliesIn)", () => {
     expect((await chainError(workspace, { ref: SEE_WIND, view: "VAR-ffffff" })).code).toBe("ref.unknown");
   });
 
-  it("[SR-013/AK3] names the meaning validity or variant that a view needs and no key has", async () => {
+  it("[SR-013/AK-bh0d] names the meaning validity or variant that a view needs and no key has", async () => {
     const model = (drop: string): FixtureOptions => ({
       ...CHAIN,
       files: {
@@ -329,7 +329,7 @@ describe("trace.chain follows the meaning derivation (SR-013)", () => {
     },
   };
 
-  it("[SR-013/AK1] follows an own relation kind with the meaning derivation, and no other", async () => {
+  it("[SR-013/AK-st9d] follows an own relation kind with the meaning derivation, and no other", async () => {
     const workspace = await open(OWN);
     const output = await chain(workspace, { ref: "W-0000f1" });
     expect(output.nodes.map((n) => [n.shortId, n.title, n.depth])).toEqual([
@@ -343,7 +343,7 @@ describe("trace.chain follows the meaning derivation (SR-013)", () => {
     ]);
   });
 
-  it("[SR-013/AK3] fails with metamodel.meaning-unassigned when no relation kind has the meaning derivation", async () => {
+  it("[SR-013/AK-bh0d] fails with metamodel.meaning-unassigned when no relation kind has the meaning derivation", async () => {
     const workspace = await open({
       ...OWN,
       files: {
@@ -442,7 +442,7 @@ const evidenceOf = (output: Output): unknown[] =>
 const gapsOf = (output: Output): unknown[] => output.gaps.map((g) => [g.id, g.kind]);
 
 describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
-  it("[SR-033/AK1] shows below a requirement each test case with all its executions, with date, result, item and evidence", async () => {
+  it("[SR-033/AK-mvfg] shows below a requirement each test case with all its executions, with date, result, item and evidence", async () => {
     const first = junit();
     const second = junit({
       item: "build-513",
@@ -501,7 +501,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect(first).not.toHaveProperty("evidenceSource");
   });
 
-  it("[SR-022/AK1] shows records without a test case below their requirement, one level deeper", async () => {
+  it("[SR-022/AK-rmkp] shows records without a test case below their requirement, one level deeper", async () => {
     const inspection = markdown({ element: DISPLAY, item: "Display sample B4" });
     const workspace = await withEvidence([inspection]);
     const output = await chain(workspace, { ref: "N-33a001" });
@@ -511,7 +511,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect(output.nodes.find((n) => n.id === DISPLAY)?.depth).toBe(1);
   });
 
-  it("[SR-033/AK2] shows a test case that names two requirements at each, with that requirement's executions and both in elements", async () => {
+  it("[SR-033/AK-mxnt] shows a test case that names two requirements at each, with that requirement's executions and both in elements", async () => {
     const ofShow = junit();
     const ofLog = junit({ element: LOG, version: "n1:c2c9e3127b7c60aa" });
     const workspace = await withEvidence([ofShow, ofLog]);
@@ -548,7 +548,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     ]);
   });
 
-  it("[SR-033/AK2] a test case that names two requirements closes the no-evidence gap of each", async () => {
+  it("[SR-033/AK-mxnt] a test case that names two requirements closes the no-evidence gap of each", async () => {
     // Control: without records every leaf requirement is a gap.
     const none = await chain(await withEvidence([]), { ref: WIND });
     expect(gapsOf(none)).toEqual([
@@ -584,7 +584,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     ]);
   });
 
-  it("[SR-033/AK3] marks a test case that was only skipped as not executed", async () => {
+  it("[SR-033/AK-jtx6] marks a test case that was only skipped as not executed", async () => {
     const workspace = await withEvidence([], [skippedGusts]);
     const output = await chain(workspace, { ref: WIND });
     expect(output.evidence).toEqual([
@@ -606,7 +606,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     ]);
   });
 
-  it("[SR-022/AK3] a requirement whose only test case was not executed is a no-evidence gap", async () => {
+  it("[SR-022/AK-g8js] a requirement whose only test case was not executed is a no-evidence gap", async () => {
     const workspace = await withEvidence([markdown({ element: DISPLAY })], [skippedGusts]);
     const output = await chain(workspace, { ref: WIND });
     // GUSTS shows its test case and keeps the gap; DISPLAY's record file closes its gap.
@@ -674,7 +674,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect([inCore.evidence, gapsOf(inCore)]).toEqual([[], [[SHOW, "no-evidence"]]]);
   });
 
-  it("[SR-022/AK3] a requirement that holds only in a variant with a passed test there is not in the core's view, and no gap in the variant (#674)", async () => {
+  it("[SR-022/AK-g8js] a requirement that holds only in a variant with a passed test there is not in the core's view, and no gap in the variant (#674)", async () => {
     // SR-33b001 of the fixture, valid only in the variant COAST.
     const onlyCoast = [
       "---",
@@ -779,7 +779,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect((await chain(workspace, { ref: SHOW })).validationRecords).toEqual([]);
   });
 
-  it("[SR-006/AK2] marks the chain incomplete when an evidence location lies in a repository that is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] marks the chain incomplete when an evidence location lies in a repository that is not on this machine", async () => {
     const workspace = await withEvidence([], [], { incomplete: true });
     expect((await chain(workspace, { ref: WIND })).incomplete).toBe(true);
     expect((await chain(workspace, { ref: WIND, direction: "down" })).incomplete).toBe(true);

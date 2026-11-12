@@ -79,7 +79,7 @@ test.describe("the package page on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-112/AK1] the package page shows below title and text every element that names the package, as the CLI lists them", async () => {
+  test("[SR-112/AK-fzbz] the package page shows below title and text every element that names the package, as the CLI lists them", async () => {
     const { window } = running;
     await openPackage(window);
     const listed = await listedBy(running);
@@ -120,7 +120,7 @@ test.describe("the package page on a fixture workspace", () => {
     await expect(window.locator("article h1")).toHaveText(listed.elements[2]?.title ?? "");
   });
 
-  test("[SR-112/AK2] the elements of the package sort by title descending, as the CLI sorts them", async () => {
+  test("[SR-112/AK-vv6f] the elements of the package sort by title descending, as the CLI sorts them", async () => {
     const { window } = running;
     await openPackage(window);
     await sortBy(window, "title desc");
@@ -134,7 +134,7 @@ test.describe("the package page on a fixture workspace", () => {
     await expect(window.locator("article h1")).toHaveText("Sensors");
   });
 
-  test("[SR-112/AK2] the elements of the package filter step by step as the CLI selects them, and the filters clear again", async () => {
+  test("[SR-112/AK-vv6f] the elements of the package filter step by step as the CLI selects them, and the filters clear again", async () => {
     const { window } = running;
     await openPackage(window);
     const command = async (title: string): Promise<void> => {
@@ -187,7 +187,7 @@ test.describe("the package page on a fixture workspace", () => {
     );
   });
 
-  test("[SR-112/AK2] the elements of the package show as the derivation tree, as the CLI gives it", async () => {
+  test("[SR-112/AK-vv6f] the elements of the package show as the derivation tree, as the CLI gives it", async () => {
     const { window } = running;
     await openPackage(window);
     await sortBy(window, "hierarchy");
@@ -252,7 +252,7 @@ test.describe("the line under the title of a package page", () => {
     );
   };
 
-  test("[SR-112/AK3] a package page shows „Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)“ equal to evidence.coverage and evidence.degree", async () => {
+  test("[SR-112/AK-s1rj] a package page shows „Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)“ equal to evidence.coverage and evidence.degree", async () => {
     const { window } = running;
     await openById(window, "PKG-00d003", "AK3");
     const line =
@@ -300,7 +300,7 @@ test.describe("the line under the title of a package page", () => {
     expect([heading, summary, row]).toEqual([...[heading, summary, row]].sort((a, b) => a - b));
   });
 
-  test("[SR-112/AK4] 10 requirements without records give the line with zeros; a package without requirements has none", async () => {
+  test("[SR-112/AK-cg1v] 10 requirements without records give the line with zeros; a package without requirements has none", async () => {
     const { window } = running;
     await openById(window, "PKG-00d004", "Ten open");
     const line = "Coverage 0 of 10 with evidence · Degree (core) 0 % (10 open)";
@@ -312,7 +312,7 @@ test.describe("the line under the title of a package page", () => {
     await expect(window.locator("article .package-summary")).toBeHidden();
     expect(await lineOfCli("PKG-00d005")).toBeUndefined();
   });
-  test("[SR-036/AK2] a click on a coverage number lists its requirements, those without coverage included", async () => {
+  test("[SR-036/AK-xbxh] a click on a coverage number lists its requirements, those without coverage included", async () => {
     const { window } = running;
     await openById(window, "PKG-00d004", "Ten open");
     const input = JSON.stringify({ selection: { package: "PKG-00d004" } });

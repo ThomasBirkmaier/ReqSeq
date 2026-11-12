@@ -53,7 +53,7 @@ const METAMODEL = {
 const CHOICES = graphFilterChoices(graphMeanings(CATALOG), METAMODEL);
 
 describe("Graph depth", () => {
-  it("[SR-111/AK2] Graph depth offers the direct neighbours, 2 to 9 levels and the whole chain, and asks again at the chosen depth", () => {
+  it("[SR-111/AK-p2tx] Graph depth offers the direct neighbours, 2 to 9 levels and the whole chain, and asks again at the chosen depth", () => {
     const entries = depthChoices({ ...graph, depth: 3 });
     expect(entries.map((entry) => entry.name)).toEqual([
       "Direct neighbours",
@@ -94,7 +94,7 @@ describe("Graph depth", () => {
 });
 
 describe("Show only relation kind", () => {
-  it("[SR-111/AK3] Show only relation kind offers everything, the meanings of trace.graph and every relation kind and relation property by its name, and replaces the filter", () => {
+  it("[SR-111/AK-h6n9] Show only relation kind offers everything, the meanings of trace.graph and every relation kind and relation property by its name, and replaces the filter", () => {
     expect(graphMeanings(CATALOG)).toEqual([
       "derivation",
       "replacement",
@@ -163,7 +163,7 @@ describe("Show only relation kind", () => {
 });
 
 describe("Also show relation kind", () => {
-  it("[SR-111/AK3] Also show relation kind adds a kind to the filter, without the ones it has, and offers no relation kind without a filter", () => {
+  it("[SR-111/AK-h6n9] Also show relation kind adds a kind to the filter, without the ones it has, and offers no relation kind without a filter", () => {
     // No filter: everything is followed, so there is nothing to add.
     expect(alsoChoices(graph, CHOICES)).toEqual([]);
     const derivations = { ...graph, meanings: ["derivation" as const] };
@@ -216,7 +216,7 @@ describe("Also show relation kind", () => {
     );
   });
 
-  it("[SR-111/AK3] Also show relation kind leaves out a relation kind whose meaning the filter follows, since it would change nothing", () => {
+  it("[SR-111/AK-h6n9] Also show relation kind leaves out a relation kind whose meaning the filter follows, since it would change nothing", () => {
     // A held relation kind does not hide its meaning: "Derivations" is offered, and so is "Refines".
     const derives = { ...graph, kinds: ["derives-from"] };
     const entries = alsoChoices(derives, CHOICES);
@@ -265,7 +265,7 @@ describe("Evidence", () => {
   );
   const input = (buffer: GraphBuffer): unknown => graphInput(buffer);
 
-  it("[SR-111/AK3] the kind prompts offer Evidence once trace.graph takes withEvidence, after the meanings", () => {
+  it("[SR-111/AK-h6n9] the kind prompts offer Evidence once trace.graph takes withEvidence, after the meanings", () => {
     expect(graphTakesEvidence(WITH_EVIDENCE)).toBe(true);
     expect(graphTakesEvidence(CATALOG)).toBe(false);
     expect(graphTakesEvidence([])).toBe(false);
@@ -284,7 +284,7 @@ describe("Evidence", () => {
     expect(CHOICES.some((choice) => choice.filter.withEvidence === true)).toBe(false);
   });
 
-  it("[SR-111/AK3] Show only Evidence follows no link and shows the evidence; any other entry turns it off", () => {
+  it("[SR-111/AK-h6n9] Show only Evidence follows no link and shows the evidence; any other entry turns it off", () => {
     const held = { ...graph, depth: 2, kinds: ["based-on"] };
     const entries = onlyChoices(held, choices);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
@@ -310,7 +310,7 @@ describe("Evidence", () => {
     });
   });
 
-  it("[SR-111/AK3] Also show Evidence keeps what the graph follows and adds the evidence, also to everything", () => {
+  it("[SR-111/AK-h6n9] Also show Evidence keeps what the graph follows and adds the evidence, also to everything", () => {
     // No filter: every link is followed, so only the evidence can be added; then nothing is left.
     const everything = alsoChoices(graph, choices);
     expect(everything.map((entry) => entry.name)).toEqual(["Evidence"]);
@@ -353,7 +353,7 @@ describe("Evidence", () => {
 });
 
 describe("the names of the relation kinds", () => {
-  it("[SR-154/AK1] names each relation kind and relation property by its name in the metamodel, apart from each other", () => {
+  it("[SR-154/AK-rhrj] names each relation kind and relation property by its name in the metamodel, apart from each other", () => {
     expect([...relationNames(METAMODEL)]).toEqual([
       ["refines", "Refines"],
       ["derives-from", "Derives from"],

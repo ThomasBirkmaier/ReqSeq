@@ -24,7 +24,7 @@ test.describe("the requirements without a passed test in the app", () => {
     await running.close();
   });
 
-  test("[SR-120/AK1] Ctrl+Shift+P, the text and Enter show the requirements without a passed test, as the CLI lists them", async () => {
+  test("[SR-120/AK-h5wt] Ctrl+Shift+P, the text and Enter show the requirements without a passed test, as the CLI lists them", async () => {
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -64,7 +64,7 @@ test.describe("the requirements without a passed test in the app", () => {
     await expect(window.locator("article h1")).toHaveText("Log wind speed");
   });
 
-  test("[SR-120/AK1] the prompt finds the command for the texts passed test and without test as well", async () => {
+  test("[SR-120/AK-h5wt] the prompt finds the command for the texts passed test and without test as well", async () => {
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     for (const text of ["passed test", "without test"]) {

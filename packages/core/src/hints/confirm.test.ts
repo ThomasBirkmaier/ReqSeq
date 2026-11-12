@@ -102,7 +102,7 @@ const tree = (folder: string): Record<string, string> =>
   );
 
 describe("hint.confirm (SR-027)", () => {
-  it("[SR-027/AK1] writes the current version and title of the confirmed target into its relation; besides, only the other stale titles of the file change (decision on ThomasBirkmaier/ReqSeq-archive#307)", async () => {
+  it("[SR-027/AK-t0wx] writes the current version and title of the confirmed target into its relation; besides, only the other stale titles of the file change (decision on ThomasBirkmaier/ReqSeq-archive#307)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     // N and V are renamed too. Since the decision on ThomasBirkmaier/ReqSeq-archive#307 the confirmed relation gets the current
@@ -138,7 +138,7 @@ describe("hint.confirm (SR-027)", () => {
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([VALIDITY, LINK]);
   });
 
-  it("[SR-027/AK1] writes into a relation-valued property and into an inline reference alike", async () => {
+  it("[SR-027/AK-t0wx] writes into a relation-valued property and into an inline reference alike", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -159,7 +159,7 @@ describe("hint.confirm (SR-027)", () => {
     ]);
   });
 
-  it("[SR-027/AK1] writes the current version in normal form 2 over a stored one of normal form 1 (ADR-0005)", async () => {
+  it("[SR-027/AK-t0wx] writes the current version in normal form 2 over a stored one of normal form 1 (ADR-0005)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -172,7 +172,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(read(ws, A_FILE)).toContain(`[See the wind](reqseq:${N}?version=${n})`);
   });
 
-  it("[SR-027/AK1] keeps the quoting, comments and layout of the item and the other parameters of the link", async () => {
+  it("[SR-027/AK-t0wx] keeps the quoting, comments and layout of the item and the other parameters of the link", async () => {
     const text = [
       "---",
       `id: ${A}`,
@@ -224,7 +224,7 @@ describe("hint.confirm (SR-027)", () => {
     );
   });
 
-  it("[SR-027/AK1] writes into a relation-valued property that holds one target", async () => {
+  it("[SR-027/AK-t0wx] writes into a relation-valued property that holds one target", async () => {
     const model = fromFixture("metamodel/standard-model.yaml");
     const ws = await fixture({
       files: {
@@ -241,7 +241,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(read(ws, B_FILE)).toContain(`origin: { id: ${N}, version: ${await versionOf(workspace, N)} }\n`);
   });
 
-  it("[SR-027/AK2] confirms each of several hints on its own, with one write per file", async () => {
+  it("[SR-027/AK-q47h] confirms each of several hints on its own, with one write per file", async () => {
     // C refines B: B is written and a target, but a relation item is no part of B's version (ADR-0005).
     const C_FILE = "requirements/SR-0b0000000003.md";
     const C = `${P}b0000000003`;
@@ -273,7 +273,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(await outdated(workspace)).toEqual([]);
   });
 
-  it("[SR-027/AK2] confirms one after the other along a chain of written sources, and a ring of references settles (#166)", async () => {
+  it("[SR-027/AK-q47h] confirms one after the other along a chain of written sources, and a ring of references settles (#166)", async () => {
     const C = `${P}b0000000003`;
     const C_FILE = "requirements/SR-0b0000000003.md";
     const ws = await fixture({
@@ -324,7 +324,7 @@ describe("hint.confirm (SR-027)", () => {
     ]);
   });
 
-  it("[SR-027/AK2] [SR-025/AK3] confirms both sides of a ring of references in one call, keeps the n2 versions of both, and the ring settles (#166)", async () => {
+  it("[SR-027/AK-q47h] [SR-025/AK-b8r6] confirms both sides of a ring of references in one call, keeps the n2 versions of both, and the ring settles (#166)", async () => {
     const ws = await fixture({
       files: {
         [A_FILE]: `${fromFixture(A_FILE)}\n[B](reqseq:${B}?version=${OLD})\n`,
@@ -353,7 +353,7 @@ describe("hint.confirm (SR-027)", () => {
     ]);
   });
 
-  it("[SR-027/AK2] confirms an ID in another spelling once, and writes the others when a file holds a version by a YAML alias or anchor", async () => {
+  it("[SR-027/AK-q47h] confirms an ID in another spelling once, and writes the others when a file holds a version by a YAML alias or anchor", async () => {
     const text = [
       "---",
       `id: ${A}`,
@@ -402,7 +402,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(read(ws, A_FILE)).toBe(text);
   });
 
-  it("[SR-027/AK2] gives a problem for each ID that confirms nothing and confirms the others", async () => {
+  it("[SR-027/AK-q47h] gives a problem for each ID that confirms nothing and confirms the others", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -435,7 +435,7 @@ describe("hint.confirm (SR-027)", () => {
     });
   });
 
-  it("[SR-027/AK2] writes nothing when one of the files changed on disk since it was read", async () => {
+  it("[SR-027/AK-q47h] writes nothing when one of the files changed on disk since it was read", async () => {
     const ws = await fixture({
       files: { [B_FILE]: fromFixture(B_FILE).replace(A_VERSION, OLD) },
     });
@@ -452,7 +452,7 @@ describe("hint.confirm (SR-027)", () => {
     expect([read(ws, A_FILE), read(ws, B_FILE)]).toEqual([before, changed]);
   });
 
-  it("[SR-027/AK2] refuses an element whose type the metamodel does not know (SR-016 AK3) and writes nothing", async () => {
+  it("[SR-027/AK-q47h] refuses an element whose type the metamodel does not know (SR-016 AK3) and writes nothing", async () => {
     const file = "requirements/X-0b0000000003.md";
     const id = `${P}b0000000003`;
     const text = `---\nid: ${id}\ntype: gadget\nstatus: draft\ntitle: Gadget\nderives-from:\n  - { id: ${N}, version: ${OLD} }\n---\n`;
@@ -464,7 +464,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(read(ws, file)).toBe(text);
   });
 
-  it("[SR-027/AK3] [SR-025/AK3] shows the new version as a normal change in Git, and the check reports the relation no more; .git stays as it was (D-036)", async () => {
+  it("[SR-027/AK-g3q5] [SR-025/AK-b8r6] shows the new version as a normal change in Git, and the check reports the relation no more; .git stays as it was (D-036)", async () => {
     const ws = await fixture({ git: true });
     await changeTargets(ws);
     await ws.commit(undefined, "Change N and V");
@@ -498,7 +498,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
       (error: unknown) => error,
     );
 
-  it("[SR-027/AK2] confirms every open hint about ref, as one call with their IDs does", async () => {
+  it("[SR-027/AK-q47h] confirms every open hint about ref, as one call with their IDs does", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const expected = await confirm(open(ws.root), [VALIDITY, DERIVES, LINK]);
@@ -512,7 +512,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
   });
 
-  it("[SR-027/AK2] confirms every open hint that points at target, and only those of ref when both are given", async () => {
+  it("[SR-027/AK-q47h] confirms every open hint that points at target, and only those of ref when both are given", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -530,7 +530,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
   });
 
-  it("[SR-027/AK2] narrows the selection by kind, and joins it with hintIds, each ID once", async () => {
+  it("[SR-027/AK-q47h] narrows the selection by kind, and joins it with hintIds, each ID once", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -556,7 +556,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     ]);
   });
 
-  it("[SR-027/AK2] lists a hint once whose relation is written twice, and writes both items", async () => {
+  it("[SR-027/AK-q47h] lists a hint once whose relation is written twice, and writes both items", async () => {
     const item = `  - { id: ${N}, version: ${N_VERSION}, title: See the wind }`;
     const ws = await fixture({ files: { [A_FILE]: fromFixture(A_FILE).replace(item, `${item}\n${item}`) } });
     await changeTargets(ws);
@@ -586,7 +586,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     expect(read(ws, A_FILE)).not.toContain(N_VERSION);
   });
 
-  it("[SR-027/AK2] lists a selected hint once when a given ID names it in another spelling", async () => {
+  it("[SR-027/AK-q47h] lists a selected hint once when a given ID names it in another spelling", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -600,7 +600,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     });
   });
 
-  it("[SR-027/AK2] warns when the selection finds no open hint to confirm, and still answers for the given IDs", async () => {
+  it("[SR-027/AK-q47h] warns when the selection finds no open hint to confirm, and still answers for the given IDs", async () => {
     const workspace = open((await fixture()).root);
     const out = await confirmBy(workspace, { hintIds: [DERIVES], ref: B, target: A });
     expect(out.confirmed).toEqual([]);
@@ -613,7 +613,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     ]);
   });
 
-  it("[SR-027/AK2] confirms every open hint of kind in the workspace with all, the hints hint.list gives for it (#644)", async () => {
+  it("[SR-027/AK-q47h] confirms every open hint of kind in the workspace with all, the hints hint.list gives for it (#644)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);

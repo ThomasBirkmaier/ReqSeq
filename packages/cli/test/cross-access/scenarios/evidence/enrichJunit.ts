@@ -21,31 +21,52 @@ const RAW_JUNIT: FixtureOptions = {
 };
 
 /**
- * The ThomasBirkmaier/ReqSeq-archive#535 workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5):
- * one names SR-e88fb3 in the form `{prefix}_{id}_ak{ak}`, one names nothing.
+ * The workspace of SR-029 (`fixtures/SR-029/enrich`), whose requirements have one acceptance criterion each with a criterion
+ * key: SR-46fb54 (`0b9e7a3c-…-825b7146fb54`) has `gdrb` (SR-204).
+ */
+const KEYED: FixtureOptions = { fixture: "SR-029/enrich", git: true };
+
+/**
+ * The keyed workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5): one names SR-46fb54
+ * and its criterion `gdrb` in the form `{prefix}_{id}_ak_{ak}`, one names nothing.
  */
 const PATTERN_JUNIT: FixtureOptions = {
-  ...EVIDENCE,
+  ...KEYED,
   files: {
-    "results/nextest.xml":
+    "results/rust.xml":
       '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" timestamp="2026-10-27T09:00:00">\n' +
-      '    <testcase classname="station" name="tests::sr_e88fb3_ak1_shows_the_wind_speed"/>\n' +
+      '    <testcase classname="station" name="tests::sr_46fb54_ak_gdrb_accepts_a_valid_password"/>\n' +
       '    <testcase classname="station" name="tests::adds_two_numbers"/>\n' +
       "  </testsuite>\n</testsuites>\n",
   },
 };
 
 /**
- * The ThomasBirkmaier/ReqSeq-archive#535 workspace with a JUnit file whose test case names an acceptance criterion of SR-e88fb3 in
- * its name and one by short ID in a hand-written property (SR-029 AK10, #961).
+ * The keyed workspace with a JUnit file whose test case names the acceptance criterion of SR-46fb54 by key in its name and
+ * by short ID and number in a hand-written property (SR-029 AK10, #961).
  */
 const CRITERION_JUNIT: FixtureOptions = {
-  ...EVIDENCE,
+  ...KEYED,
   files: {
     "results/criterion.xml":
       '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
-      '  <testcase classname="station" name="[SR-e88fb3/AK2] shows the wind speed">\n' +
-      '    <properties><property name="reqseq:criterion" value="SR-e88fb3:1"/></properties>\n  </testcase>\n</testsuite>\n',
+      '  <testcase classname="station" name="[SR-46fb54/AK-gdrb] accepts a valid password">\n' +
+      '    <properties><property name="reqseq:criterion" value="SR-46fb54:1"/></properties>\n  </testcase>\n</testsuite>\n',
+  },
+};
+
+/**
+ * The keyed workspace with a JUnit file whose test cases name the criterion of SR-46fb54 by number, by a number a name
+ * pattern reads, and by a key no criterion carries (SR-029 AK13).
+ */
+const NUMBER_JUNIT: FixtureOptions = {
+  ...KEYED,
+  files: {
+    "results/number.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+      '  <testcase classname="station" name="[SR-46fb54/AK1] accepts a valid password"/>\n' +
+      '  <testcase classname="station" name="tests::sr_46fb54_ak1_accepts_a_valid_password"/>\n' +
+      '  <testcase classname="station" name="[SR-46fb54/AK-kzzz] locks the account"/>\n</testsuite>\n',
   },
 };
 
@@ -194,9 +215,38 @@ scenariosOf("evidence.enrichJunit", [
       expect(enrichOutput(results)).toMatchObject({ testCases: 1, problems: [] });
       const file = results["core"]?.files["results/criterion.xml"] ?? "";
       expect(file.match(/reqseq:criterion" value="[^"]*"/g)).toEqual([
-        'reqseq:criterion" value="e8df96ea-a168-4d90-8d65-6328cee88fb3:1"',
-        'reqseq:criterion" value="e8df96ea-a168-4d90-8d65-6328cee88fb3:2"',
+        'reqseq:criterion" value="0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54:1"',
+        'reqseq:criterion" value="0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54:gdrb"',
       ]);
+    },
+  },
+  {
+    name: "a criterion named by number or by a key no criterion carries leaves the test case unchanged and is reported",
+    fixture: NUMBER_JUNIT,
+    input: {
+      file: "results/number.xml",
+      item: "build-1419",
+      date: "2026-11-11T10:00:00Z",
+      namePattern: "{prefix}_{id}_ak{ak}",
+    },
+    tag: "[SR-029/AK-zvy0]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({ testCases: 0, files: [] });
+      expect(
+        (enrichOutput(results)?.["problems"] as { code: string; severity: string }[]).map((p) => [
+          p.code,
+          p.severity,
+        ]),
+      ).toEqual(Array.from({ length: 3 }, () => ["evidence.invalid-criterion-name", "error"]));
+      expect(enrichMessages(results)).toEqual([
+        expect.stringContaining("by its number; name it by its criterion key, [SR-46fb54/AK-gdrb]"),
+        expect.stringContaining(
+          '"sr_46fb54_ak1" (read by the name pattern) names an acceptance criterion by its number',
+        ),
+        expect.stringContaining("names the criterion key kzzz, which no acceptance criterion of SR-46fb54"),
+      ]);
+      expect(results["core"]?.files["results/number.xml"]).not.toContain("reqseq:");
     },
   },
   {
@@ -209,24 +259,24 @@ scenariosOf("evidence.enrichJunit", [
     name: "a test case named in another form is assigned through a name pattern",
     fixture: PATTERN_JUNIT,
     input: {
-      file: "results/nextest.xml",
+      file: "results/rust.xml",
       item: "build-627",
       date: "2026-11-01T10:00:00Z",
-      namePattern: "{prefix}_{id}_ak{ak}",
+      namePattern: "{prefix}_{id}_ak_{ak}",
     },
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 1, unknown: [], problems: [] });
-      expect(results["core"]?.files["results/nextest.xml"]).toContain(
-        'name="tests::sr_e88fb3_ak1_shows_the_wind_speed"><properties><property name="reqseq:element" value="e8df96ea-a168-4d90-8d65-6328cee88fb3"/>',
+      expect(results["core"]?.files["results/rust.xml"]).toContain(
+        'name="tests::sr_46fb54_ak_gdrb_accepts_a_valid_password"><properties><property name="reqseq:element" value="0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54"/>',
       );
     },
   },
   {
     name: "the number of test cases that name no requirement",
     fixture: PATTERN_JUNIT,
-    input: { file: "results/nextest.xml", item: "build-627", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK4]",
+    input: { file: "results/rust.xml", item: "build-627", date: "2026-11-01T10:00:00Z" },
+    tag: "[SR-029/AK-srmd]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 0, withoutReference: 2 });
@@ -235,7 +285,7 @@ scenariosOf("evidence.enrichJunit", [
   {
     name: "a name pattern that is no template",
     fixture: PATTERN_JUNIT,
-    input: { file: "results/nextest.xml", item: "build-627", namePattern: "{prefix}_{id}{ak}" },
+    input: { file: "results/rust.xml", item: "build-627", namePattern: "{prefix}_{id}{ak}" },
     expect: "error",
   },
   {
@@ -247,7 +297,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK6]",
+    tag: "[SR-029/AK-r1s7]",
     expect: "output",
     check: (results) => {
       const run = results["core"]?.files["results/run.xml"] ?? "";
@@ -267,7 +317,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-09T10:00:00Z",
       variant: ["core", "VAR-0000c2"],
     },
-    tag: "[SR-029/AK6]",
+    tag: "[SR-029/AK-r1s7]",
     expect: "output",
     check: (results) => {
       // SR-0000b2 applies in neither view, SR-0000a5 not in Mountain: those test cases stay unchanged (AK9).
@@ -284,7 +334,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-09T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK8]",
+    tag: "[SR-029/AK-pb9c]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([
@@ -309,7 +359,7 @@ scenariosOf("evidence.enrichJunit", [
       variant: ["core", "VAR-0000c2"],
       skipNotInView: true,
     },
-    tag: "[SR-029/AK11]",
+    tag: "[SR-029/AK-djjh]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 4, notInView: 2, problems: [] });
@@ -339,7 +389,7 @@ scenariosOf("evidence.enrichJunit", [
       variant: ["core", "VAR-0000c2"],
       skipNotInView: true,
     },
-    tag: "[SR-029/AK12]",
+    tag: "[SR-029/AK-hx47]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 0, notInView: 2, problems: [] });
@@ -363,7 +413,7 @@ scenariosOf("evidence.enrichJunit", [
     name: "a reqseq:variant given by short ID becomes its UUID",
     fixture: VARIANT_JUNIT,
     input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK7]",
+    tag: "[SR-029/AK-w8pw]",
     expect: "output",
     check: (results) => {
       const run = results["core"]?.files["results/run.xml"] ?? "";
@@ -382,7 +432,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK8]",
+    tag: "[SR-029/AK-pb9c]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toContain(
@@ -399,7 +449,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK9]",
+    tag: "[SR-029/AK-h0h5]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([
@@ -414,7 +464,7 @@ scenariosOf("evidence.enrichJunit", [
     name: "a requirement not valid in the variant a test case names itself, or in the core without one, is reported",
     fixture: VARIANT_JUNIT,
     input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK9]",
+    tag: "[SR-029/AK-h0h5]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([

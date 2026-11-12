@@ -58,14 +58,14 @@ const viewsOf = (opened: Opened, element: ElementRecord): readonly string[] => {
 };
 
 describe("validity as a list of variants (SR-040)", () => {
-  it("[SR-040/AK1] a requirement without validity applies in the core and in every variant", async () => {
+  it("[SR-040/AK-tz3v] a requirement without validity applies in the core and in every variant", async () => {
     const opened = await open();
     expect(variantsOf(opened.store, opened.metamodel).map((v) => v.id)).toEqual([COAST, MOUNTAIN, DESERT]);
     const element = recordOf(opened.store, FOR_ALL);
     expect(viewsOf(opened, element)).toEqual(["core", "Coast", "Mountain", "Desert"]);
   });
 
-  it("[SR-040/AK1] an absent, null or empty validity is the same: it applies everywhere", async () => {
+  it("[SR-040/AK-tz3v] an absent, null or empty validity is the same: it applies everywhere", async () => {
     const opened = await open();
     const element = recordOf(opened.store, FOR_ALL);
     for (const validity of [undefined, null, []]) {
@@ -83,7 +83,7 @@ describe("validity as a list of variants (SR-040)", () => {
     }
   });
 
-  it("[SR-040/AK1] a validity property that holds no relations is no validity", async () => {
+  it("[SR-040/AK-tz3v] a validity property that holds no relations is no validity", async () => {
     const model = await fs.readFile(
       new URL("../../../../fixtures/SR-040/validity/metamodel/standard-model.yaml", import.meta.url),
       "utf8",
@@ -102,14 +102,14 @@ describe("validity as a list of variants (SR-040)", () => {
     expect(viewsOf(opened, listed)).toEqual(["core", "Coast", "Mountain", "Desert"]);
   });
 
-  it("[SR-040/AK2] a requirement with the validity Coast and Mountain applies only in these two views", async () => {
+  it("[SR-040/AK-hjrx] a requirement with the validity Coast and Mountain applies only in these two views", async () => {
     const opened = await open();
     const element = recordOf(opened.store, COAST_AND_MOUNTAIN);
     expect(viewsOf(opened, element)).toEqual(["Coast", "Mountain"]);
     expect(validityEntries(validityOf(opened.metamodel), element)).toHaveLength(2);
   });
 
-  it("[SR-040/AK2] matches a variant by UUID and repository, never by a free name", async () => {
+  it("[SR-040/AK-hjrx] matches a variant by UUID and repository, never by a free name", async () => {
     const opened = await open();
     const element = recordOf(opened.store, FOR_ALL);
     const validity = validityOf(opened.metamodel);
@@ -133,7 +133,7 @@ describe("validity as a list of variants (SR-040)", () => {
     expect(viewsOf(opened, names)).toEqual([]);
   });
 
-  it("[SR-040/AK2] reads one value under a list key as no entry, as the missing-target check does", async () => {
+  it("[SR-040/AK-hjrx] reads one value under a list key as no entry, as the missing-target check does", async () => {
     const opened = await open();
     const element = withValidity(recordOf(opened.store, FOR_ALL), {
       id: MOUNTAIN,
@@ -164,7 +164,7 @@ describe("validity as a list of variants (SR-040)", () => {
     expect(validityEntries(single, withValidity(element, null))).toEqual([]);
   });
 
-  it("[SR-040/AK2] counts subtypes of the variant type as variants and ignores other elements", async () => {
+  it("[SR-040/AK-hjrx] counts subtypes of the variant type as variants and ignores other elements", async () => {
     const model = [
       "reqseq-metamodel: 1",
       "types:",

@@ -88,7 +88,7 @@ const dragTo = (view: EditorView, index: number, line: number, to: number): void
 const docOf = (view: EditorView): string => view.state.doc.toString();
 
 describe("dragging list items (SR-187)", () => {
-  it("[SR-187/AK3] an item dragged by its bullet to another place of its list lands there with its sub-items", () => {
+  it("[SR-187/AK-cryf] an item dragged by its bullet to another place of its list lands there with its sub-items", () => {
     const view = viewOf("- a\n  - a1\n- b\n- c");
     // The bullet of b (line 3) into the gap before a: the upper half of line 1.
     dragTo(view, 2, 3, 5);
@@ -106,7 +106,7 @@ describe("dragging list items (SR-187)", () => {
     expect(docOf(view)).toBe("- b\n- c\n- a\n  - a1");
   });
 
-  it("[SR-187/AK3] drags an ordered item by its number and a task by its box, and numbers the list in sequence", () => {
+  it("[SR-187/AK-cryf] drags an ordered item by its number and a task by its box, and numbers the list in sequence", () => {
     const view = viewOf("1. one\n2. two\n3. three");
     dragTo(view, 2, 3, 2);
     mouse(window, "mouseup", 2);
@@ -117,7 +117,7 @@ describe("dragging list items (SR-187)", () => {
     expect(docOf(tasks)).toBe("- [x] b\n- [ ] a");
   });
 
-  it("[SR-187/AK3] in a loose list a pointer on a blank line between two items drops into that gap", () => {
+  it("[SR-187/AK-cryf] in a loose list a pointer on a blank line between two items drops into that gap", () => {
     const view = viewOf("- a\n\n- b\n\n- c");
     // Line 4 is the blank line between b and c.
     dragTo(view, 0, 1, 70);
@@ -132,7 +132,7 @@ describe("dragging list items (SR-187)", () => {
     expect(docOf(view)).toBe("- a\n- b");
   });
 
-  it("[SR-187/AK4] a drop is taken back in one undo step", () => {
+  it("[SR-187/AK-k3jk] a drop is taken back in one undo step", () => {
     const view = viewOf("- a\n- b\n- c");
     dragTo(view, 0, 1, 58);
     mouse(window, "mouseup", 58);
