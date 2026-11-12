@@ -307,7 +307,7 @@ export interface Problem {
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
-  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given by hint.list on the hints of its page whose element is in the workspace; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`. */
+  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`. */
   readonly elementTitle?: string;
   readonly targetId?: Uuid;
   /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */

@@ -14,7 +14,7 @@
 //   (SR-103, `since-baseline.ts`) follow the states, before the outdated relations; they are at the
 //   variant, which every view holds (SR-043 AK10), so the `variant` filter lists them only for that
 //   variant. Only the variants whose hints can pass the filters are computed (`sinceBaselineVariants`).
-// - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
+// - Each hint is the problem as the check gives it (AK1), with the titles below added: kind (`code`), the element (`elementId`,
 //   `repository`, `file`, `line`, and its short ID `elementShortId` for display, ThomasBirkmaier/ReqSeq-archive#310, added by
 //   `invoke` to every problem that names an element, ThomasBirkmaier/ReqSeq-archive#315), the target
 //   where it has one (`targetId`) and the reason (`message`; an outdated relation names both
@@ -33,9 +33,9 @@
 //   the order `kind` names them, so a kind asked for without a hint has count 0 (AK6).
 // - Titles (AK6, `withTitles`): the hints of the page get the titles of their element and of a target
 //   resolved to one element (`elementTitle`, `targetTitle`), the elements their short IDs name. Only
-//   here, so the output of `workspace.check`, which can hold every relation as outdated, does not grow
-//   by a title per problem (SR-020 AK1). The view of outdated evidence (`view`) comes from its state
-//   (`evidence.ts`).
+//   here: no other command, `workspace.check` among them, gives titles, so its output, which can
+//   hold every relation as outdated, does not grow by a title per problem. The view of outdated
+//   evidence (`view`) comes from its state (`evidence.ts`).
 // - The dates of outdated relations are asked of Git only for the hints of the page.
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
@@ -244,15 +244,15 @@ const kindCounts = (
 };
 
 /**
- * `hint` with the titles of its element and of its target (SR-026 AK6): of the elements that
- * `problemElement` and `problemTarget` find, which the short IDs `invoke` adds name too, so a target
- * not resolved to one element gets none; empty without a title that is a text or without the
- * meaning `title`, as `namesOfRecords` reads it. `hint` itself is not changed.
+ * A function that gives a hint with the titles of its element and of its target (SR-026 AK6): of
+ * the elements that `problemElement` and `problemTarget` find, which the short IDs `invoke` adds name
+ * too, so an element or target they do not find gets none; empty without a title that is a text or
+ * without the meaning `title`, as `namesOfRecords` reads it. The hint itself is not changed.
  */
-const withTitles = (
-  context: { readonly metamodel: Metamodel; readonly store: ElementStore },
-  hint: Problem & { readonly elementId: string },
-): Problem => {
+const withTitles = (context: {
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+}): ((hint: Problem & { readonly elementId: string }) => Problem) => {
   const titleKey = titleKeyOrEmpty(context.metamodel);
   const titleOf = (element: ElementRecord | undefined): string | undefined => {
     if (element === undefined) {
@@ -261,14 +261,16 @@ const withTitles = (
     const title = element.data[titleKey];
     return typeof title === "string" ? title : "";
   };
-  const { targetId } = hint;
-  const elementTitle = titleOf(problemElement(context.store, hint));
-  const targetTitle =
-    targetId === undefined ? undefined : titleOf(problemTarget(context.store, { ...hint, targetId }));
-  return {
-    ...hint,
-    ...(elementTitle === undefined ? {} : { elementTitle }),
-    ...(targetTitle === undefined ? {} : { targetTitle }),
+  return (hint) => {
+    const { targetId } = hint;
+    const elementTitle = titleOf(problemElement(context.store, hint));
+    const targetTitle =
+      targetId === undefined ? undefined : titleOf(problemTarget(context.store, { ...hint, targetId }));
+    return {
+      ...hint,
+      ...(elementTitle === undefined ? {} : { elementTitle }),
+      ...(targetTitle === undefined ? {} : { targetTitle }),
+    };
   };
 };
 
@@ -422,11 +424,12 @@ export const hintsOf = async (
   const end = page.offset + page.limit;
   const from = Math.max(0, page.offset - found.length);
   const dated = await datedProblems(workspace, late.slice(from, Math.max(from, end - found.length)));
+  const titled = withTitles(context);
   return {
     kinds: kindCounts(counted, filter.kinds),
     // Every hint of the page passed `passes`, so it names its element (`isHint`).
     hints: [...found.slice(page.offset, end), ...dated].map((hint) =>
-      withTitles(context, hint as Problem & { readonly elementId: string }),
+      titled(hint as Problem & { readonly elementId: string }),
     ),
     total: found.length + late.length,
   };

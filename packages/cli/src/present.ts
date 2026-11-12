@@ -504,8 +504,9 @@ const listedElementDetails = (element: Rec): string[] => {
 
 /**
  * A hint of a list: who, in the form of a problem line (`element → target`, #252; the element by
- * short ID with identifier and title, else its file, the target the same way when core names it,
- * #172), the kind, the message, the view of outdated evidence and the hint ID.
+ * short ID with identifier, and title where core gives one (the hints of hint.list), else its file,
+ * the target the same way when core names it, #172), the kind, the message, the view of outdated
+ * evidence and the hint ID.
  */
 const findingLine = (finding: Rec, style?: Style): string => {
   // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
