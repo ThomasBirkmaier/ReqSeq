@@ -1,8 +1,10 @@
 import type { DataExportElement, DataExportRelation } from "@reqseq/core";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import { TITLE_FIELD } from "./element-view.js";
 import { KEY_MARK } from "./criterion-doc.js";
+import { criterionKeys } from "./editor/criterion-keys.js";
 import {
   addableProperties,
   allBoxes,
@@ -15,6 +17,7 @@ import {
   editsOf,
   fieldBoxes,
   hintKeys,
+  isKeyedBox,
   isLocked,
   isNumberedList,
   inputValueOf,
@@ -149,6 +152,25 @@ describe("the criteria box (SR-204)", () => {
       "Given b.",
     ]);
     expect(inputValueOf(criteria, " ")).toBeUndefined();
+  });
+
+  it("keeps a criterion with a line break as its plain lines, which the box gives back unchanged", () => {
+    const stored = [{ key: "kaaa", text: "first\nsecond" }, "third"];
+    expect(boxValue(stored, true, true)).toEqual({ doc: "first\nsecond\nthird", lineBreak: true });
+    const [box] = editableBoxes(element({ "acceptance-criteria": stored }), requirements).values();
+    expect(box?.lineBreak).toBe(true);
+    expect(box !== undefined && isKeyedBox(box)).toBe(false);
+    expect(box !== undefined && isLocked(box)).toBe(true);
+  });
+
+  it("gives the document of a keyed box back unchanged through the criteria codec", () => {
+    const stored = [{ key: "kaaa", text: "first" }, "", "third"];
+    const [box] = editableBoxes(element({ "acceptance-criteria": stored }), requirements).values();
+    expect(box !== undefined && isKeyedBox(box)).toBe(true);
+    const doc = box?.doc ?? "";
+    const codec = criterionKeys();
+    const { text, init } = codec.decode(doc);
+    expect(codec.encode(EditorState.create({ doc: text, extensions: [init, codec.extension] }))).toBe(doc);
   });
 
   it("leaves criteria without keys out of the update when another box changes (SR-204 AK2)", () => {

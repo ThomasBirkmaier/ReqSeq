@@ -77,6 +77,8 @@ export interface DocCodec {
   };
   /** The whole document of a state. */
   readonly encode: (state: EditorState) => string;
+  /** Whether a transaction may change the rest of the document (an effect the codec keeps it with). */
+  readonly touches: (tr: Transaction) => boolean;
 }
 
 /** The plain document: what the editor shows is all of it. */
@@ -85,6 +87,7 @@ const PLAIN: DocCodec = {
   carry: [],
   decode: (doc) => ({ text: doc, effects: [], init: [] }),
   encode: (state) => state.doc.toString(),
+  touches: () => false,
 };
 
 export interface EditorProps {
@@ -158,11 +161,9 @@ const startState = (
  * Whether an update holds input: a change that is not `replace` (which adds no undo step), also one of only
  * the part of the document the editor does not show (`DocCodec`).
  */
-const typedIn = (transactions: readonly Transaction[], coded: boolean): boolean =>
+const typedIn = (transactions: readonly Transaction[], codec: DocCodec): boolean =>
   transactions.some(
-    (tr) =>
-      (tr.docChanged || (coded && tr.effects.length > 0)) &&
-      tr.annotation(Transaction.addToHistory) !== false,
+    (tr) => (tr.docChanged || codec.touches(tr)) && tr.annotation(Transaction.addToHistory) !== false,
   );
 
 const configuration = (
@@ -353,9 +354,7 @@ const replaceDocument = (editor: EditorView, doc: string, codec: DocCodec): void
 /** Whether an update changed the whole document: its text, or the rest the codec keeps. */
 const docChanged = (update: ViewUpdate, codec: DocCodec): boolean =>
   update.docChanged ||
-  (codec !== PLAIN &&
-    update.transactions.some((tr) => tr.effects.length > 0) &&
-    codec.encode(update.startState) !== codec.encode(update.state));
+  (update.transactions.some(codec.touches) && codec.encode(update.startState) !== codec.encode(update.state));
 
 export const Editor = ({
   text,
@@ -416,10 +415,7 @@ export const Editor = ({
           EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
           EditorView.updateListener.of((update) => {
             if (docChanged(update, coded)) {
-              latest.current.onChange(
-                coded.encode(update.state),
-                typedIn(update.transactions, coded !== PLAIN),
-              );
+              latest.current.onChange(coded.encode(update.state), typedIn(update.transactions, coded));
             }
             latest.current.onUpdate?.();
           }),

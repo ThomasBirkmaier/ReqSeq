@@ -15,7 +15,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorHandle, EditorProps } from "./Editor.js";
 import { Editor } from "./Editor.js";
 import { criterionKeys } from "./criterion-keys.js";
+import { editableBoxes, isKeyedBox } from "../property-edit.js";
 import { KEY_MARK } from "../criterion-doc.js";
+import type { DataExportElement } from "@reqseq/core";
 import type { PreviewRule } from "./plugins.js";
 import type { Reference } from "./references.js";
 import { focusEffect } from "./preview.js";
@@ -196,6 +198,40 @@ describe("Editor", () => {
     expect(given.busy()).toBe(false);
     vi.spyOn(view(), "composing", "get").mockReturnValue(true);
     expect(given.busy()).toBe(true);
+  });
+
+  it("reports no edit for a locked criteria box with a line break, which has no criteria codec", async () => {
+    const onChange = vi.fn();
+    const handle = vi.fn();
+    const box = editableBoxes(
+      {
+        type: "need",
+        properties: { criteria: [{ key: "kaaa", text: "first\nsecond" }] },
+        relations: [],
+      } as unknown as DataExportElement,
+      new Map([
+        [
+          "need",
+          new Map([
+            [
+              "criteria",
+              { kind: "text", many: true, markdown: true, meaning: "acceptance-criteria" } as const,
+            ],
+          ]),
+        ],
+      ]),
+    ).get("criteria");
+    expect(box).toBeDefined();
+    const keyed = box !== undefined && isKeyedBox(box);
+    await render({
+      text: box?.doc ?? "",
+      readOnly: true,
+      onChange,
+      handle,
+      ...(keyed ? { codec: criterionKeys() } : {}),
+    });
+    expect(handleOf(handle).doc()).toBe("first\nsecond");
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("[SR-204/AK-gnnw] with a codec gives and takes the whole document, and a new editor carries its keys and their undo", async () => {

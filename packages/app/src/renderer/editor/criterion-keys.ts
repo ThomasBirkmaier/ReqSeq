@@ -2,16 +2,20 @@
 // the key of each line; every edit carries them by the rules of core (`carryLineKeys`,
 // `@reqseq/core/criterion-lines`), so the renderer decides nothing itself (ADR-0002): a reworded, split,
 // merged or moved line keeps its key, a new, pasted or dropped one gets a new key, drawn here with Web
-// Crypto. The undo history keeps the keys before each edit (`invertedEffects`, anchored at the line starts
-// and mapped through later changes), so undo and redo bring the keys back with the text, also after the
-// edit was saved. The box hands its document to the buffer with the keys (`criterion-doc.ts`), and takes a
-// document with keys from it (`DocCodec` of `Editor`).
+// Crypto. The undo history keeps the lines and keys before each edit (`invertedEffects`), so undo and redo
+// bring the keys back with the text, also after the edit was saved. A change put in without an undo step
+// (the file changed outside) is not in those lines: undo then carries the kept keys to the text it gives
+// by the same rules, as one edit of the kept lines. (Positions kept in the history would not hold:
+// CodeMirror maps the effects of an undo step in the document after the step, not before it.) The box
+// hands its document to the buffer with the keys (`criterion-doc.ts`), and takes a document with keys from
+// it (`DocCodec` of `Editor`).
 import { invertedEffects } from "@codemirror/commands";
 import { EditorState, MapMode, StateEffect, StateField } from "@codemirror/state";
-import type { Text } from "@codemirror/state";
-import type { LineChange, RandomInt } from "@reqseq/core/criterion-lines";
+import type { StateEffectType, Text, Transaction } from "@codemirror/state";
+import type { KeyedLines, LineChange, RandomInt } from "@reqseq/core/criterion-lines";
 import { carryLineKeys, drawCriterionKey, isBlankLine } from "@reqseq/core/criterion-lines";
 import { criterionLines, keyedDoc } from "../criterion-doc.js";
+import { minimalChange } from "./diff.js";
 import type { DocCodec } from "./Editor.js";
 
 /** A key at the start of its line. */
@@ -34,6 +38,13 @@ export const setKeys = StateEffect.define<readonly LineKey[]>({
       return mapped === null ? [] : [{ pos: mapped, key }];
     }),
 });
+
+/** The lines and keys before an edit, kept in the undo history: put in again by undo or redo. */
+const keptKeys = StateEffect.define<KeyedLines>();
+
+/** The value of the last effect of `type` in a transaction. */
+const lastOf = <T>(tr: Transaction, type: StateEffectType<T>): T | undefined =>
+  tr.effects.reduce<T | undefined>((found, effect) => (effect.is(type) ? effect.value : found), undefined);
 
 /** The lines of a document. */
 const linesOf = (doc: Text): string[] => doc.toString().split("\n");
@@ -67,12 +78,7 @@ const withSeen = (seen: ReadonlySet<string>, keys: readonly (string | undefined)
 export const criterionKeysField = StateField.define<CriterionKeys>({
   create: (state) => ({ keys: keysAt(state.doc, []), seen: new Set() }),
   update: (value, tr) => {
-    let last: readonly LineKey[] | undefined;
-    for (const effect of tr.effects) {
-      if (effect.is(setKeys)) {
-        last = effect.value;
-      }
-    }
+    const last = lastOf(tr, setKeys);
     if (last === undefined && !tr.docChanged) {
       return value;
     }
@@ -100,34 +106,49 @@ export const webRandom: RandomInt = (below) => {
   }
 };
 
-/** Carries the keys through an edit that does not set them itself (undo, redo and a document put in do). */
+/**
+ * Carries the keys through an edit that does not set them itself (typing, undo, redo and a document put in).
+ * Undo and redo bring the kept lines and keys: as they are when the text is those lines, else carried to
+ * the text as one change of them.
+ */
 const carry = (random: RandomInt) =>
   EditorState.transactionExtender.of((tr) => {
-    if (!tr.docChanged || tr.effects.some((effect) => effect.is(setKeys))) {
+    const kept = lastOf(tr, keptKeys);
+    if (lastOf(tr, setKeys) !== undefined || (kept === undefined && !tr.docChanged)) {
       return null;
     }
-    const before = tr.startState.field(criterionKeysField);
+    if (kept?.lines.join("\n") === tr.newDoc.toString()) {
+      return { effects: setKeys.of(entriesOf(tr.newDoc, kept.keys)) };
+    }
+    const before = kept ?? { lines: linesOf(tr.startState.doc), keys: lineKeys(tr.startState) };
     const changes: LineChange[] = [];
-    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-      changes.push({ fromA, toA, insert: inserted.toString() });
+    if (kept === undefined) {
+      tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        changes.push({ fromA, toA, insert: inserted.toString() });
+      });
+    } else {
+      const { from, to, insert } = minimalChange(kept.lines.join("\n"), tr.newDoc.toString());
+      changes.push({ fromA: from, toA: to, insert });
+    }
+    const { seen } = tr.startState.field(criterionKeysField);
+    const taken = new Set([...seen, ...before.keys.filter((key) => key !== undefined)]);
+    const keys = carryLineKeys(before, changes, tr.isUserEvent("move"), () => {
+      const key = drawCriterionKey(taken, random);
+      taken.add(key);
+      return key;
     });
-    const taken = new Set([...before.seen, ...before.keys.filter((key) => key !== undefined)]);
-    const keys = carryLineKeys(
-      { lines: linesOf(tr.startState.doc), keys: before.keys },
-      changes,
-      tr.isUserEvent("move"),
-      () => {
-        const key = drawCriterionKey(taken, random);
-        taken.add(key);
-        return key;
-      },
-    );
     return { effects: setKeys.of(entriesOf(tr.newDoc, keys)) };
   });
 
-/** The keys before each edit go into the undo history, so undo and redo set them again (SR-204 AK9). */
+/**
+ * The lines and keys before each edit go into the undo history, so undo and redo set them again (SR-204
+ * AK9); also before a change of the keys alone ("Take the file", or undo of one, which the extender gives
+ * a `setKeys`).
+ */
 const remembered = invertedEffects.of((tr) =>
-  tr.docChanged ? [setKeys.of(entriesOf(tr.startState.doc, lineKeys(tr.startState)))] : [],
+  tr.docChanged || lastOf(tr, setKeys) !== undefined
+    ? [keptKeys.of({ lines: linesOf(tr.startState.doc), keys: lineKeys(tr.startState) })]
+    : [],
 );
 
 /** The text and the keys of a document with keys. */
@@ -166,4 +187,5 @@ export const criterionKeys = (random: RandomInt = webRandom): DocCodec => ({
     };
   },
   encode: (state) => keyedDoc(linesOf(state.doc), lineKeys(state)),
+  touches: (tr) => lastOf(tr, setKeys) !== undefined,
 });

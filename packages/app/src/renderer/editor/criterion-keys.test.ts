@@ -107,6 +107,37 @@ describe("criterion keys in the criteria box", () => {
     expect(b.keys()).toEqual(["kaaa", "kbbb", "kccc"]);
   });
 
+  it("[SR-204/AK-gnnw] undo brings back a deleted line with its key after the file changed at or after it", () => {
+    const outside = (from: number, insert: string): ReturnType<typeof box> => {
+      const b = box();
+      b.run({ changes: { from: 6, to: 11 } });
+      b.run({ changes: { from, insert }, annotations: Transaction.addToHistory.of(false) });
+      b.command(undo);
+      return b;
+    };
+    // At the start of "gamma": CodeMirror puts the outside text in front of the line that comes back.
+    const start = outside(6, "new ");
+    expect(start.text()).toBe("alpha\nnew beta\ngamma");
+    expect(start.keys()).toEqual(["kaaa", "kbbb", "kccc"]);
+    expect(outside(8, "X").keys()).toEqual(["kaaa", "kbbb", "kccc"]);
+    const added = outside(11, "\nomega");
+    expect(added.text()).toBe("alpha\nbeta\ngamma\nomega");
+    expect(added.keys().slice(0, 3)).toEqual(["kaaa", "kbbb", "kccc"]);
+    expect(added.keys()[3]).toMatch(/^[a-z][a-z0-9]{3}$/);
+  });
+
+  it("[SR-204/AK-gnnw] undo of a change of the keys alone brings back the keys before it", () => {
+    const b = box();
+    // "Take the file" with other keys and the same text: a step of its own.
+    const { effects } = b.codec.decode(STORED.replace("kbbb", "kzzz"));
+    b.run({ effects, userEvent: "input.set" });
+    expect(b.keys()).toEqual(["kaaa", "kzzz", "kccc"]);
+    b.command(undo);
+    expect(b.doc()).toBe(STORED);
+    b.command(redo);
+    expect(b.keys()).toEqual(["kaaa", "kzzz", "kccc"]);
+  });
+
   it("[SR-204/AK-gnnw] undo after a merge that was saved gives both lines their keys again", () => {
     const b = box();
     b.run({ changes: { from: 5, to: 6 } });

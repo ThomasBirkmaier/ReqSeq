@@ -123,7 +123,7 @@ import {
 import { ElementText } from "./ElementText.js";
 import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
-import { isCriteriaInfo, shownDoc } from "./criterion-doc.js";
+import { shownDoc } from "./criterion-doc.js";
 import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
@@ -161,6 +161,7 @@ import {
   fieldBoxes,
   hintKeys,
   isLocked,
+  isKeyedBox,
   isNumberedList,
   isValueBox,
   isValueKind,
@@ -2138,7 +2139,7 @@ export const ElementView = ({
                       many: editable.info.many,
                       numbered: editable.info.many && isNumberedList(view.element.properties[box.key]),
                       markdown: editable.info.markdown,
-                      criteria: isCriteriaInfo(editable.info),
+                      criteria: isKeyedBox(editable),
                       outdated: outdatedReferences(dated(view.element), box.key),
                       follow,
                       title,

@@ -62,7 +62,8 @@ export const PropertyField = ({
         <span className="key">{box.key}</span>
         <span className="value">
           {textBox !== undefined ? (
-            <TextBox {...textBox} />
+            // The editor takes its codec once: a criteria box whose value gets or loses a line break is made anew.
+            <TextBox key={textBox.criteria === true ? "criteria" : "plain"} {...textBox} />
           ) : editable?.info.kind === "relation" ? (
             <ul>
               {relationRows(box.key, value ?? editable.doc, element).map((row, at) => (

@@ -50,7 +50,8 @@ const storedItems = (value: unknown): number =>
 /**
  * The document of a stored value: a string as it is, a number as its text, a list with one item per line.
  * The acceptance criteria (`keyed`) hold the criterion key of each line too (`criterion-doc.ts`, SR-204):
- * the box keeps a key through every edit, and the save sends each line with its key. Undefined for a value
+ * the box keeps a key through every edit, and the save sends each line with its key; not a value with a
+ * line break, which the box shows read-only as its plain lines. Undefined for a value
  * that is not text (a mapping, a boolean, a list of lists).
  */
 export const boxValue = (
@@ -64,11 +65,16 @@ export const boxValue = (
     return undefined;
   }
   const texts = items.map(String);
-  return {
-    doc: keyed ? keyedDoc(texts, lineKeysOf(stored)) : texts.join("\n"),
-    lineBreak: (many || Array.isArray(value)) && texts.some((text) => text.includes("\n")),
-  };
+  const lineBreak = (many || Array.isArray(value)) && texts.some((text) => text.includes("\n"));
+  // A value with a line break is shown read-only as it is: one line per criterion would split it.
+  return { doc: keyed && !lineBreak ? keyedDoc(texts, lineKeysOf(stored)) : texts.join("\n"), lineBreak };
 };
+
+/**
+ * Whether a box holds the criterion keys of its lines (`criterion-doc.ts`): the acceptance criteria, but not
+ * a value with a line break, which is shown read-only as its plain lines (one key per line would split it).
+ */
+export const isKeyedBox = (box: EditableBox): boolean => isCriteriaInfo(box.info) && !box.lineBreak;
 
 /**
  * Whether a stored value is numbered on the element page (#615): a list of texts that is not empty, the
