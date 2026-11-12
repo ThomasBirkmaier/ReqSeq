@@ -83,6 +83,25 @@ test.describe("formatting the selection in the element buffer", () => {
     await expectSaved("**Sturm**\n");
   });
 
+  test("Ctrl/Cmd+I in the open command prompt leaves the text and the focus of the prompt alone (#1577)", async () => {
+    const { window } = running;
+    await window.keyboard.type("Wind");
+    await selectBack(window, 4);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    const input = window.getByRole("combobox");
+    await expect(input).toBeFocused();
+    await window.keyboard.press("ControlOrMeta+i");
+    await window.keyboard.press("ControlOrMeta+b");
+    await expect(input).toBeFocused();
+    await expect(window.locator(".cm-content")).toContainText("Wind");
+    await expect(window.locator(".cm-content")).not.toContainText("*");
+    // Ctrl+N still moves the selection of the prompt, and Escape still ends it.
+    await window.keyboard.press("Control+n");
+    await expect(window.locator('.candidates [role="option"][aria-selected="true"]')).toHaveCount(1);
+    await window.keyboard.press("Escape");
+    await expect(input).toHaveCount(0);
+  });
+
   test("[SR-186/AK-gbzd] Link asks for the address and writes the selection as a link to it", async () => {
     const { window } = running;
     await window.keyboard.type("die Norm");

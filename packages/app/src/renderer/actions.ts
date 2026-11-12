@@ -403,6 +403,12 @@ export interface Action {
   readonly systemKey?: Shortcut;
   /** Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85). */
   readonly covers?: readonly string[];
+  /**
+   * Its shortcut works also while a prompt is open, since it only opens a prompt of its own in place of that one.
+   * Every other shortcut does nothing then: the keys belong to the input of the prompt, and an action on the
+   * shown buffer would take the focus from it while the prompt stays open (#1577).
+   */
+  readonly inPrompt?: true;
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
@@ -912,6 +918,7 @@ export const ACTIONS: readonly Action[] = [
     id: "go-to",
     title: "Go to element or buffer",
     shortcut: { mod: true, shift: false, key: "p" },
+    inPrompt: true,
     covers: ["element.get"],
     available: hasWorkspace,
     run: (context: ActionContext): void => {
@@ -930,6 +937,7 @@ export const ACTIONS: readonly Action[] = [
     id: "search",
     title: "Search elements",
     shortcut: { mod: true, shift: true, key: "f" },
+    inPrompt: true,
     available: hasWorkspace,
     run: (context: ActionContext): void => {
       context.ask(searchPrompt(context));
@@ -1485,11 +1493,19 @@ export const commandPrompt = (
   ],
 });
 
-/** The action with a shortcut that `pressed` accepts, when it applies now. */
+/**
+ * The action with a shortcut that `pressed` accepts, when it applies now. While a prompt is open (`prompting`),
+ * only one that opens a prompt of its own (`inPrompt`).
+ */
 export const actionFor = (
   context: ActionContext,
   pressed: (shortcut: Shortcut) => boolean,
+  prompting = false,
 ): Action | undefined =>
   ACTIONS.find(
-    (action) => action.shortcut !== undefined && pressed(action.shortcut) && action.available(context),
+    (action) =>
+      action.shortcut !== undefined &&
+      (!prompting || action.inPrompt === true) &&
+      pressed(action.shortcut) &&
+      action.available(context),
   );
