@@ -16,7 +16,7 @@ derives-from:
 based-on:
   - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:dd7c650242a62a72, title: Kontextmenü per Rechtsklick }
 refines:
-  - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:65d911567e922297, title: Befehle per Rechtsklick am Ort aufrufen }
+  - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:3147fafc899c2f7b, title: Befehle per Rechtsklick am Ort aufrufen }
 ---
 
 Die App muss in der Spalte der Liste aller Elemente, einer gefilterten Liste, der Liste der Suchtreffer oder der Elemente einer Paketseite außerhalb der Zeilen der Elemente per Rechtsklick ein Kontextmenü mit den Befehlen zum Filtern, Sortieren und Gruppieren der Liste öffnen.
