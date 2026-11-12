@@ -19,7 +19,9 @@ describe("parseSrLine", () => {
   it("returns an empty map without an SR line and skips parts it cannot read", () => {
     expect(parseSrLine("no line").size).toBe(0);
     expect(parseSrLine(undefined).size).toBe(0);
-    expect([...parseSrLine("SR: SR-901 (AK2, see below)").get("SR-901")]).toEqual([2]);
+    const unreadable = [];
+    expect([...parseSrLine("SR: SR-901 (AK2, see below, AK3–AK1)", unreadable).get("SR-901")]).toEqual([2]);
+    expect(unreadable).toEqual(["SR-901 (see below)", "SR-901 (AK3–AK1)"]);
   });
 
   it("merges two entries of one SR and keeps all when one has no parentheses", () => {
@@ -49,12 +51,33 @@ describe("checkIssues", () => {
   it("checks a required SR against all its criteria, and an SR line without parentheses as all", () => {
     const epic = issue(10, "SR-902");
     const subs = [issue(11, "SR-902 (AK1, AK2)")];
-    expect(checkIssues({ epic, subs, required: ["SR-902", "SR-999"], counts })).toEqual([
-      "#10 names SR-902 AK3, but no sub-issue carries it",
-      "SR-902 AK3 is in no sub-issue",
-      "SR-999 is not in spec/",
+    const required = new Map([
+      ["SR-902", "all"],
+      ["SR-999", "all"],
     ]);
-    expect(checkIssues({ epic, subs: [issue(11, "SR-902")], required: ["SR-902"], counts })).toEqual([]);
+    expect(checkIssues({ epic, subs, required, counts })).toEqual([
+      "#10 names SR-902 AK3, but no sub-issue carries it",
+      "SR-999 is not in spec/",
+      "SR-902 AK3 is in no sub-issue",
+    ]);
+    const all = new Map([["SR-902", "all"]]);
+    expect(checkIssues({ epic, subs: [issue(11, "SR-902")], required: all, counts })).toEqual([]);
+  });
+
+  it("requires only the named criteria of a changed SR, and reports a number beyond the spec in the epic", () => {
+    const epic = issue(10, "SR-901 (AK2), SR-902 (AK1, AK4)");
+    const subs = [issue(11, "SR-901 (AK2), SR-902 (AK1)")];
+    const required = new Map([["SR-901", new Set([2])]]);
+    expect(checkIssues({ epic, subs, required, counts })).toEqual([
+      "#10 names SR-902 AK4, but no sub-issue carries it",
+      "SR-902 has 3 criteria in spec/, not AK4",
+    ]);
+  });
+
+  it("reports a part of an SR line it cannot read", () => {
+    expect(checkIssues({ epic: issue(10, "SR-901 (AK 2)"), subs: [], counts })).toEqual([
+      "cannot read SR-901 (AK 2) in an SR line",
+    ]);
   });
 
   it("treats an SR unknown to spec/ without parentheses as having no criteria", () => {
@@ -66,7 +89,7 @@ describe("run and parseArgs", () => {
   it("reads the epic and its sub-issues through the API", () => {
     const api = (route) =>
       route.endsWith("/sub_issues?per_page=100") ? [issue(11, "SR-901 (AK1)")] : issue(10, "SR-902");
-    const { problems, lines } = run({ epicNumber: 10, required: [], api, counts });
+    const { problems, lines } = run({ epicNumber: 10, required: new Map(), api, counts });
     expect(problems).toEqual([
       "#10 names SR-902 AK1, AK2, AK3, but no sub-issue carries it",
       "a sub-issue carries SR-901 AK1, but #10 does not name it",
@@ -85,10 +108,23 @@ describe("run and parseArgs", () => {
     expect(criterionCounts(path.join(process.cwd(), "spec")).get("SR-001")).toBeGreaterThan(0);
   });
 
-  it("parses the epic number and the required SRs", () => {
-    expect(parseArgs(["--epic", "1601", "--require", "SR-901", "--require", "SR-902"])).toEqual({
-      epicNumber: 1601,
-      required: ["SR-901", "SR-902"],
-    });
+  it("parses the epic number and the required SRs in the format of an SR line", () => {
+    const { epicNumber, required, error } = parseArgs([
+      "--epic",
+      "1601",
+      "--require",
+      "SR-901, SR-902 (AK2)",
+    ]);
+    expect(epicNumber).toBe(1601);
+    expect(error).toBeUndefined();
+    expect(required.get("SR-901")).toBe("all");
+    expect([...required.get("SR-902")]).toEqual([2]);
+  });
+
+  it("refuses an unknown argument and a part of --require it cannot read", () => {
+    expect(parseArgs(["--epic", "5", "--sr", "SR-901"]).error).toBe("unknown argument --sr");
+    expect(parseArgs(["--epic", "5", "--require", "SR-901 (AK x)"]).error).toBe(
+      "cannot read SR-901 (AK x) in --require",
+    );
   });
 });
