@@ -710,6 +710,88 @@ describe("Minibuffer", () => {
       });
     });
 
+    describe("the command help (SR-210 AK4)", () => {
+      const helped = (id: string, title: string): Choice =>
+        choice(id, title, { explain: { summary: `${title}.` }, help: { title, summary: `${title}.` } });
+      const drawer = (): HTMLElement => query("#command-help");
+      const open = (): boolean => drawer().dataset["open"] === "true";
+
+      it("[SR-210/AK-pxr7] closes when its command leaves the hits, and does not open again when it comes back", async () => {
+        let resolve: (parts: PromptFill) => void = () => undefined;
+        const fill = new Promise<PromptFill>((done) => {
+          resolve = done;
+        });
+        const first = helped("a", "List hints");
+        const other = helped("b", "Sort list");
+        await mount({ label: "Command", explains: true, items: [first, other], fill });
+        await press(input(), "h", { ctrlKey: true });
+        expect(open()).toBe(true);
+        expect(query("#command-help h2").textContent).toBe("List hints");
+        // The hits change without a key (the catalog arrives): the marked command is gone.
+        await act(async () => {
+          resolve({ items: [other] });
+          await Promise.resolve();
+        });
+        await flush();
+        expect(open()).toBe(false);
+        expect(drawer().getAttribute("aria-hidden")).toBe("true");
+        expect(texts('[role="option"] .name')).toEqual(["Sort list"]);
+        expect(first.run).not.toHaveBeenCalled();
+        expect(other.run).not.toHaveBeenCalled();
+      });
+
+      it("[SR-210/AK-pxr7] a key pressed while the help has the focus acts in the input; Ctrl/Cmd+C and a modifier alone stay with the help", async () => {
+        await mount({ label: "Command", explains: true, items: [helped("a", "List hints")] });
+        await press(input(), "h", { ctrlKey: true });
+        expect(open()).toBe(true);
+        // A selection in the help keeps its focus: the key that copies and the modifier before it.
+        act(() => {
+          drawer().focus();
+        });
+        for (const [key, init] of [
+          ["Control", { ctrlKey: true }],
+          ["Meta", { metaKey: true }],
+          ["c", { ctrlKey: true }],
+          ["c", { metaKey: true }],
+        ] as const) {
+          await press(drawer(), key, init);
+          expect(document.activeElement, key).toBe(drawer());
+        }
+        expect(open()).toBe(true);
+        // Any other key goes to the input and acts there: Escape closes the help, and the prompt stays.
+        await press(drawer(), "Escape");
+        expect(document.activeElement).toBe(input());
+        expect(open()).toBe(false);
+        expect(query("label").textContent).toBe("Command");
+      });
+
+      it("[SR-210/AK-pxr7] a click in the help that selects nothing gives the focus back to the input; one that selects keeps it", async () => {
+        await mount({ label: "Command", explains: true, items: [helped("a", "List hints")] });
+        await press(input(), "h", { ctrlKey: true });
+        const release = async (): Promise<void> => {
+          await act(async () => {
+            drawer().dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+            await Promise.resolve();
+          });
+        };
+        // Text selected in the help: the focus stays, so Ctrl/Cmd+C copies it.
+        act(() => {
+          drawer().focus();
+        });
+        const range = document.createRange();
+        range.selectNodeContents(query("#command-help .help-summary"));
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+        await release();
+        expect(document.activeElement).toBe(drawer());
+        // A plain click: the input has the focus again.
+        document.getSelection()?.removeAllRanges();
+        await release();
+        expect(document.activeElement).toBe(input());
+        expect(open()).toBe(true);
+      });
+    });
+
     it("ends a list argument with Enter on an empty input, and takes a candidate once something is typed", async () => {
       const empty = vi.fn();
       const refines = choice("a", "refines");

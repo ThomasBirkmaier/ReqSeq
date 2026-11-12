@@ -2495,8 +2495,8 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(several.items[0]?.explain).toEqual({ summary: "Does one or the other." });
     // Its command help names its key and the catalog commands it runs, with the display it runs each in.
     const runs = [
-      { display: "graph of an element", command: "trace.mermaid" },
-      { display: "graph of the metamodel", command: "metamodel.mermaid" },
+      { where: "in the graph of an element", command: "trace.mermaid" },
+      { where: "in the graph of the metamodel", command: "metamodel.mermaid" },
     ];
     const keyed = withExplanations(
       { label: "Command", items: [{ id: "both", name: "Both", hint: "Ctrl+M", run: vi.fn() }] },
@@ -2528,10 +2528,10 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   it("[SR-210/AK-r2d2] the actions that set what a shown list or graph shows name the catalog commands of each display", () => {
     const runsOf = (id: string) => ACTIONS.find((action) => action.id === id)?.runs;
     expect(runsOf("filter-type")).toEqual([
-      { display: "list", command: "element.list" },
-      { display: "traceability matrix", command: "trace.matrix" },
-      { display: "package page", command: "element.list" },
-      { display: "list of search hits", command: "element.search" },
+      { where: "in the list", command: "element.list" },
+      { where: "in the traceability matrix", command: "trace.matrix" },
+      { where: "on the package page", command: "element.list" },
+      { where: "in the list of search hits", command: "element.search" },
     ]);
     expect(runsOf("sort")?.map(({ command }) => command)).toEqual([
       "element.list",
@@ -2539,12 +2539,12 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       "element.list",
     ]);
     expect(runsOf("group")?.map(({ command }) => command)).toEqual(["element.list", "element.search"]);
-    expect(runsOf("matrix-list")).toEqual([{ display: "list", command: "element.list" }]);
-    expect(runsOf("graph-depth")).toEqual([{ display: "graph", command: "trace.graph" }]);
-    expect(runsOf("list-value")).toEqual([{ display: "list", command: "element.list" }]);
+    expect(runsOf("matrix-list")).toEqual([{ where: "in the list", command: "element.list" }]);
+    expect(runsOf("graph-depth")).toEqual([{ where: "in the graph", command: "trace.graph" }]);
+    expect(runsOf("list-value")).toEqual([{ where: "in the list", command: "element.list" }]);
     expect(runsOf("copy-mermaid")).toEqual([
-      { display: "graph of an element", command: "trace.mermaid" },
-      { display: "graph of the metamodel", command: "metamodel.mermaid" },
+      { where: "in the graph of an element", command: "trace.mermaid" },
+      { where: "in the graph of the metamodel", command: "metamodel.mermaid" },
     ]);
     // Every catalog command an action names is in the catalog.
     for (const action of ACTIONS) {

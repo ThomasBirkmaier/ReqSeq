@@ -383,10 +383,10 @@ const HelpContent = ({
         <h3>Catalog commands it runs</h3>
         <HelpRows
           className="help-runs"
-          rows={help.runs.map(({ display, command }) => ({
-            key: `${display} ${command}`,
+          rows={help.runs.map(({ where, command }) => ({
+            key: `${where} ${command}`,
             term: <code>{command}</code>,
-            text: `in the ${display}`,
+            text: where,
           }))}
         />
       </>

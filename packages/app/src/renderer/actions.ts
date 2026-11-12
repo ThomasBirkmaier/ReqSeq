@@ -127,9 +127,10 @@ export interface CommandHelp {
   readonly keyReference?: true;
 }
 
-/** A catalog command an action runs, with the display it runs it in ("list", SR-210 AK5). */
+/** A catalog command an action runs, with the display it runs it in ("in the list", SR-210 AK5). */
 export interface CommandIn {
-  readonly display: string;
+  /** The display, as the command help names it: "in the list", "on the package page". */
+  readonly where: string;
   readonly command: string;
 }
 
@@ -495,7 +496,7 @@ export interface Action {
 }
 
 /** What the actions that set what the shown graph follows run (SR-210 AK5). */
-const GRAPH_RUNS: readonly CommandIn[] = [{ display: "graph", command: "trace.graph" }];
+const GRAPH_RUNS: readonly CommandIn[] = [{ where: "in the graph", command: "trace.graph" }];
 
 /** Ctrl/Cmd+S saves the text of the shown element. */
 const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
@@ -1193,7 +1194,7 @@ export const ACTIONS: readonly Action[] = [
     id: "list-value",
     title: "List elements with this value",
     description: "Open the list of all elements that have the value at the cursor.",
-    runs: [{ display: "list", command: "element.list" }],
+    runs: [{ where: "in the list", command: "element.list" }],
     shortcut: LIST_VALUE_SHORTCUT,
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1411,8 +1412,8 @@ export const ACTIONS: readonly Action[] = [
     title: "Copy graph as Mermaid",
     description: "Copy the shown graph of an element or of the metamodel as a Mermaid flowchart.",
     runs: [
-      { display: "graph of an element", command: "trace.mermaid" },
-      { display: "graph of the metamodel", command: "metamodel.mermaid" },
+      { where: "in the graph of an element", command: "trace.mermaid" },
+      { where: "in the graph of the metamodel", command: "metamodel.mermaid" },
     ],
     covers: ["trace.mermaid", "metamodel.mermaid"],
     available: (context: ActionContext): boolean =>

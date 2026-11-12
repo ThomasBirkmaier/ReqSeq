@@ -411,7 +411,7 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     await expect(shown.locator(".help-runs dd")).toHaveText([
       "in the list",
       "in the traceability matrix",
-      "in the package page",
+      "on the package page",
     ]);
     await expect(shown.locator(".help-cli")).toHaveCount(0);
     await expect(shown.locator(".help-arguments")).toHaveCount(0);

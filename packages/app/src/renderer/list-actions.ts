@@ -106,10 +106,10 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
 
 /** The catalog command each display of a query target runs (SR-210 AK5). */
 const DISPLAY_COMMANDS: Readonly<Record<QueryView, CommandIn>> = {
-  list: { display: "list", command: "element.list" },
-  matrix: { display: "traceability matrix", command: "trace.matrix" },
-  members: { display: "package page", command: "element.list" },
-  search: { display: "list of search hits", command: "element.search" },
+  list: { where: "in the list", command: "element.list" },
+  matrix: { where: "in the traceability matrix", command: "trace.matrix" },
+  members: { where: "on the package page", command: "element.list" },
+  search: { where: "in the list of search hits", command: "element.search" },
 };
 
 /** The catalog commands an action that sets `part` of the query runs, by the displays that show that part. */
