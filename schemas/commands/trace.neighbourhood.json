@@ -20,7 +20,10 @@
   "input": {
     "type": "object",
     "properties": {
-      "ref": { "$ref": "../common.schema.json#/$defs/elementRef" },
+      "ref": {
+        "description": "The element whose neighbourhood is shown.",
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
       "repository": {
         "type": "string",
         "minLength": 1,
@@ -53,7 +56,10 @@
         "items": { "enum": ["derivation", "replacement", "succession", "exclusion", "reference"] },
         "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
-      "view": { "$ref": "../common.schema.json#/$defs/view" },
+      "view": {
+        "description": "Only the elements of the neighbourhood that this view holds: `core` or a variant ID; without it every element.",
+        "$ref": "../common.schema.json#/$defs/view"
+      },
       "limit": {
         "type": "integer",
         "minimum": 1,

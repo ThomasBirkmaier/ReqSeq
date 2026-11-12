@@ -20,6 +20,7 @@
     "type": "object",
     "properties": {
       "file": {
+        "description": "The ReqIF file to import.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "delivery": {

@@ -19,9 +19,11 @@
     "type": "object",
     "properties": {
       "output": {
+        "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "selection": {
+        "description": "The elements to export; without it every element.",
         "$ref": "../common.schema.json#/$defs/selection"
       },
       "profile": {
@@ -29,6 +31,7 @@
         "type": "string"
       },
       "mapping": {
+        "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "omitProperties": {

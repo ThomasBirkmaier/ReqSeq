@@ -17,6 +17,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element to supersede.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "status": {
@@ -24,6 +25,7 @@
         "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (ThomasBirkmaier/ReqSeq-archive#306)."
       },
       "successor": {
+        "description": "The element that follows the superseded one. Its file gets the relation with meaning succession.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "relation": {

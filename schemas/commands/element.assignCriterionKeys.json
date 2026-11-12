@@ -13,6 +13,7 @@
     "type": "object",
     "properties": {
       "selection": {
+        "description": "The elements whose acceptance criteria get criterion keys.",
         "$ref": "../common.schema.json#/$defs/selection"
       }
     },

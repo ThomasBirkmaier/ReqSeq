@@ -20,6 +20,7 @@
         "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
       },
       "selection": {
+        "description": "The elements to write; without it every element.",
         "$ref": "../common.schema.json#/$defs/selection"
       }
     },
