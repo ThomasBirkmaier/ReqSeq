@@ -102,10 +102,11 @@ export interface Choice {
 export interface CommandExplanation {
   /** The command's summary. */
   readonly summary: string;
-  /** The required arguments the prompt asks, in catalog order. */
-  readonly required: readonly string[];
-  /** The optional arguments, which Ctrl/Cmd+Enter offers, in catalog order. */
-  readonly optional: readonly string[];
+  /**
+   * The arguments of the command's own entry, in catalog order: the required ones the prompt asks, and the
+   * optional ones Ctrl/Cmd+Enter offers. An action that runs the command asks none of them (SR-210 AK5).
+   */
+  readonly arguments?: { readonly required: readonly string[]; readonly optional: readonly string[] };
 }
 
 /** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */

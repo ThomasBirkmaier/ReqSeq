@@ -28,16 +28,19 @@ export const coveringAction = (
   actions.find((action) => action.title === command.title || (action.covers ?? []).includes(command.name));
 
 /**
- * The catalog command `action` runs: the first it `covers`, else the one with its title (SR-210 AK5), when
- * `catalog` lists it.
+ * The catalog command `action` runs (SR-210 AK5): the one it `covers`, else the one with its title, when
+ * `catalog` lists it. An action that covers several runs one of them by the shown view: none.
  */
 export const coveredCommand = <C extends NamedCommand>(
   action: Action,
   catalog: readonly C[],
 ): C | undefined => {
-  const name = action.covers?.[0];
+  const { covers } = action;
+  if (covers !== undefined && covers.length !== 1) {
+    return undefined;
+  }
   return catalog.find((command) =>
-    name === undefined ? command.title === action.title : command.name === name,
+    covers === undefined ? command.title === action.title : command.name === covers[0],
   );
 };
 

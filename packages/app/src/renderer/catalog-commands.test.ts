@@ -2425,19 +2425,22 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     const items = entries(context);
     expect(item(items, "Show relation options").explain).toEqual({
       summary: command("relation.options").summary,
-      required: ["ref"],
-      optional: ["kind"],
+      arguments: { required: ["ref"], optional: ["kind"] },
     });
     // A write command without a required argument asks its first one: that is the one the prompt names.
     expect(item(items, "Confirm hints").explain).toEqual({
       summary: command("hint.confirm").summary,
-      required: ["ref"],
-      optional: ["target", "all", "kind", "expected", "hintIds"],
+      arguments: { required: ["ref"], optional: ["target", "all", "kind", "expected", "hintIds"] },
     });
     // No arguments at all.
     expect(item(items, "List baselines").explain).toEqual({
       summary: command("baseline.list").summary,
-      required: [],
+      arguments: { required: [], optional: [] },
+    });
+    // An argument given before the prompt asks (the source of the matrix's row, SR-199) is not asked: not named.
+    const given = { "relation.add": [{ field: "source", value: "uuid-1", label: "SR-1" }] };
+    expect(item(entries({ ...context, given }), "Create relation").explain?.arguments).toEqual({
+      required: ["kind", "target"],
       optional: [],
     });
   });
@@ -2448,11 +2451,24 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(item(items, "Open documentation").explain).toBeUndefined();
     // By the same title, and by `covers`.
     expect(item(items, "List all elements").explain?.summary).toBe(command("element.list").summary);
+    // The action asks the command's arguments its own way: the line names none of them.
     expect(item(items, "Go to element or buffer").explain).toEqual({
       summary: command("element.get").summary,
-      required: ["ref"],
-      optional: ["view", "versionDate", "hintDates", "repository", "file"],
     });
+    // An action that covers several commands runs one of them by the view: none.
+    const both = {
+      id: "both",
+      title: "Both",
+      covers: ["trace.mermaid", "metamodel.mermaid"],
+      available: () => true,
+      run: vi.fn(),
+    };
+    const several = withExplanations(
+      { label: "Command", items: [{ id: "both", name: "Both", run: vi.fn() }] },
+      CATALOG,
+      [both],
+    );
+    expect(several.items[0]?.explain).toBeUndefined();
     // An entry no action and no catalog command has, such as a hit of Go to, gets none.
     const other = withExplanations(
       { label: "Go to", items: [{ id: "uuid-1", name: "SR-1", run: vi.fn() }] },

@@ -1,6 +1,6 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   ArgumentExplanation,
   Choice,
@@ -170,9 +170,8 @@ const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: 
 
 /**
  * The explanation line of the marked catalog command (SR-210 AK1), under the hits: its summary, cut with "…"
- * where it does not fit, then the required arguments the prompt asks, and the number and names of the
- * optional ones with Ctrl/Cmd+Enter, which offers them; names that do not fit end with "…", the number stays.
- * The spaces between its parts are for the text a screen reader reads; the gap of the line shows them.
+ * where it does not fit, then, on the command's own entry, its arguments (`Arguments`). An action that runs
+ * the command shows its summary alone (AK5).
  */
 const CommandLine = ({
   explain,
@@ -180,35 +179,47 @@ const CommandLine = ({
 }: {
   readonly explain: CommandExplanation;
   readonly mac: boolean;
-}): React.JSX.Element => {
-  const { summary, required, optional } = explain;
-  return (
-    <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
-      <div className="explain-summary">{summary}</div>
-      <div className="explain-keys explain-arguments">
-        {required.length === 0 && optional.length === 0 ? (
-          <span>no arguments</span>
-        ) : (
+}): React.JSX.Element => (
+  <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+    <div className="explain-summary">{explain.summary}</div>
+    {explain.arguments === undefined ? null : <Arguments {...explain.arguments} mac={mac} />}
+  </div>
+);
+
+/**
+ * The arguments on the explanation line (AK1): the required ones the prompt asks, and the number and names of
+ * the optional ones with Ctrl/Cmd+Enter, which offers them; names that do not fit end with "…", the number
+ * stays. The spaces between its parts are for the text a screen reader reads; the gap of the line shows them.
+ */
+const Arguments = ({
+  required,
+  optional,
+  mac,
+}: {
+  readonly required: readonly string[];
+  readonly optional: readonly string[];
+  readonly mac: boolean;
+}): React.JSX.Element => (
+  <div className="explain-keys explain-arguments">
+    {required.length === 0 && optional.length === 0 ? (
+      <span>no arguments</span>
+    ) : (
+      <>
+        <span>{required.length === 0 ? "no required arguments" : `required: ${required.join(", ")}`}</span>
+        {optional.length === 0 ? null : (
           <>
+            {" "}
+            <span>·</span> <span>{`${String(optional.length)} optional:`}</span>{" "}
+            <span className="explain-names">{optional.join(", ")}</span>{" "}
             <span>
-              {required.length === 0 ? "no required arguments" : `required: ${required.join(", ")}`}
+              <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> to give them
             </span>
-            {optional.length === 0 ? null : (
-              <>
-                {" "}
-                <span>·</span> <span>{`${String(optional.length)} optional:`}</span>{" "}
-                <span className="explain-names">{optional.join(", ")}</span>{" "}
-                <span>
-                  <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> to give them
-                </span>
-              </>
-            )}
           </>
         )}
-      </div>
-    </div>
-  );
-};
+      </>
+    )}
+  </div>
+);
 
 /**
  * The explanation line of the argument asked (SR-210 AK2), where the command's stood: its name and catalog
@@ -240,10 +251,13 @@ const ArgumentLine = ({
       {keys.length === 0 ? null : (
         <div className="explain-keys">
           {keys.map(({ key, does }, at) => (
-            <span key={does}>
-              {at === 0 ? null : "· "}
-              <kbd>{key}</kbd> {does}
-            </span>
+            <Fragment key={does}>
+              {at === 0 ? null : " "}
+              <span>
+                {at === 0 ? null : "· "}
+                <kbd>{key}</kbd> {does}
+              </span>
+            </Fragment>
           ))}
         </div>
       )}

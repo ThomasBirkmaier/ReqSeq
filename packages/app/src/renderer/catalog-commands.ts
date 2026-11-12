@@ -246,22 +246,30 @@ const askable = (command: CommandListing): readonly Argument[] =>
   command.arguments.filter((arg) => arg.complete !== "selection");
 
 /**
- * The explanation line of `command` while it is marked (SR-210 AK1): its summary, the required arguments
- * the prompt asks (`askedOf`), and the optional ones, all as the catalog has them.
+ * The explanation line of the entry of `command` while it is marked (SR-210 AK1): its summary, the required
+ * arguments the prompt asks (`askedOf`) and the optional ones, as the catalog has them; not those `given`
+ * before the prompt asks (SR-199), which it does not ask.
  */
-export const commandExplanation = (command: CommandListing): CommandExplanation => {
+const commandExplanation = (
+  command: CommandListing,
+  given: readonly Prefilled[] = [],
+): CommandExplanation => {
   const asked = askedOf(command);
-  const args = askable(command);
+  const args = askable(command).filter((arg) => !given.some((value) => value.field === arg.field));
   return {
     summary: command.summary,
-    required: args.filter((arg) => asked.includes(arg.field)).map((arg) => arg.field),
-    optional: args.filter((arg) => !asked.includes(arg.field)).map((arg) => arg.field),
+    arguments: {
+      required: args.filter((arg) => asked.includes(arg.field)).map((arg) => arg.field),
+      optional: args.filter((arg) => !asked.includes(arg.field)).map((arg) => arg.field),
+    },
   };
 };
 
 /**
- * `prompt` with the explanation line on each entry that runs a catalog command (SR-210 AK1, AK5): the
- * command's own entry, or an action that covers it (`coveredCommand`). Other entries have none.
+ * `prompt` with the explanation line on each action that runs a catalog command (SR-210 AK5,
+ * `coveredCommand`): the command's summary. The action asks the command's arguments its own way, or not at
+ * all, so the line names none of them. The entries of catalog commands have theirs (`catalogItems`); other
+ * entries have none.
  */
 export const withExplanations = (
   prompt: Prompt,
@@ -271,11 +279,8 @@ export const withExplanations = (
   ...prompt,
   items: prompt.items.map((item) => {
     const action = actions.find((candidate) => candidate.id === item.id);
-    const command =
-      action === undefined
-        ? catalog.find((candidate) => `command:${candidate.name}` === item.id)
-        : coveredCommand(action, catalog);
-    return command === undefined ? item : { ...item, explain: commandExplanation(command) };
+    const command = action === undefined ? undefined : coveredCommand(action, catalog);
+    return command === undefined ? item : { ...item, explain: { summary: command.summary } };
   }),
 });
 
@@ -1492,6 +1497,7 @@ export const catalogItems = (
         name: command.title,
         ...(hint === undefined ? {} : { hint }),
         fits: fits(context, command),
+        explain: commandExplanation(command, context.given?.[command.name]),
         run: () => {
           startCommand(context, command, false, context.given?.[command.name]);
         },

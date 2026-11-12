@@ -137,7 +137,7 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     const kind = catalog("hint.list").input.properties?.["kind"]?.description ?? "";
     await expect(line.locator(".explain-description")).toHaveText(`kind · ${kind}`);
     await expect(line.locator(".explain-keys")).toHaveText(
-      `${ENTER} adds a value· ${MORE} more arguments· Escape back`,
+      `${ENTER} adds a value · ${MORE} more arguments · Escape back`,
     );
     // Once a value is given, Enter on an empty input ends the values.
     await window.keyboard.type("outdated");
@@ -145,7 +145,7 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("List hints relation.outdated · kind:");
     await expect(line.locator(".explain-keys")).toHaveText(
-      `${ENTER} adds a value· ${ENTER} on an empty input ends the values· ${MORE} more arguments· Escape back`,
+      `${ENTER} adds a value · ${ENTER} on an empty input ends the values · ${MORE} more arguments · Escape back`,
     );
     await window.screenshot({ path: path.join(SHOTS, "sr-210-argument-light.png") });
     // A write command's optional argument, asked after the required one, is skipped with Enter on an empty input.
@@ -170,6 +170,8 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     // "List all elements" is an action of the app that runs element.list.
     await mark(window, "List all elements", "List all elements");
     await expect(explanation(window).locator(".explain-summary")).toHaveText(catalog("element.list").summary);
+    // The action asks the command's arguments its own way: the line names none of them.
+    await expect(explanation(window).locator(".explain-arguments")).toHaveCount(0);
     await window.keyboard.press("Escape");
     // An element among the hits of Go to.
     await window.keyboard.press("ControlOrMeta+P");
