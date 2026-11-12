@@ -15,7 +15,7 @@ packages:
 derives-from:
   - { id: cbfe7443-9220-429d-a879-93d5c730a7fe, version: n1:f6c1a8f3adf322af, title: Einfacher Einstieg in die Daten }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:b80bc34e945e2950, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:723848211e07119a, title: Oberfläche als weißes Blatt }
 ---
 
 Das Tool muss ein bestimmtes Requirement und alle Requirements eines Needs mit wenigen Tastendrücken erreichen lassen.

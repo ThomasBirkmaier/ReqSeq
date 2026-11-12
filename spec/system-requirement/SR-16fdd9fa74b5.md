@@ -30,9 +30,9 @@ derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n1:49c90a7abf6c0e3c, title: Befehle finden und Kürzel lernen }
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:b80bc34e945e2950, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:723848211e07119a, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:03d6d606d8caf644, title: In Buffern arbeiten }
+  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:3eed09fb96e61f0a, title: In Buffern arbeiten }
 ---
 
 Die App muss das markierte Element per Befehl in einem Bereich neben dem aktuellen öffnen und im geteilten Fenster den anderen Bereich dem markierten Element folgen lassen.

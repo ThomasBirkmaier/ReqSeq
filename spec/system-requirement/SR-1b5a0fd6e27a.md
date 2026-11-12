@@ -20,7 +20,7 @@ packages:
 derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
-  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:a493a9e966643ed5, title: Keine feste Reihenfolge }
+  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:c968a2dc820271d1, title: Keine feste Reihenfolge }
 rationale: "Kennung absteigend (AK1): Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut."
 ---
 
