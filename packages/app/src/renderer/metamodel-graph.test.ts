@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MetamodelGetOutput } from "@reqseq/core";
-import type { MetamodelLink } from "./metamodel-graph.js";
-import { ANY_KEY, linkLabel, metamodelGraph } from "./metamodel-graph.js";
+import type { MetamodelLink } from "@reqseq/core/metamodel-graph";
+import { ANY_KEY, linkLabel, metamodelGraph } from "@reqseq/core/metamodel-graph";
 import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-test-data.js";
 
 type Relation = MetamodelGetOutput["relations"][number];

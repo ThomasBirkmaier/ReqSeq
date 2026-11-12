@@ -1,6 +1,6 @@
 // The metamodel buffer (SR-130): the types of the open workspace as boxes, joined by soft curves for the
 // inheritance, the relation kinds and the relation properties, on the white sheet. Everything shown is
-// one `metamodel.get` call (ADR-0002, SR-080 AK4); `metamodel-graph.ts` says which box and curve stand
+// one `metamodel.get` call (ADR-0002, SR-080 AK4); `@reqseq/core/metamodel-graph` says which box and curve stand
 // for which field, `metamodel-layout.ts` places them. HTML boxes and labels over one SVG of curves,
 // greys only (D-062): no value here means "outdated" or "gap". A box shows the name, the prefix, "abstract"
 // for an abstract type and every property, the inherited ones muted (AK2).
@@ -15,8 +15,8 @@ import type { Call } from "./call.js";
 import { spotlit } from "./graph.js";
 import { viewStart } from "./graph-layout.js";
 import { GRAPH_MOVES, graphStep } from "./graph-nav.js";
-import type { MetamodelLink, MetamodelNode } from "./metamodel-graph.js";
-import { linkLabel, metamodelGraph } from "./metamodel-graph.js";
+import type { MetamodelLink, MetamodelNode } from "@reqseq/core/metamodel-graph";
+import { linkLabel, metamodelGraph } from "@reqseq/core/metamodel-graph";
 import type { Measure, MetamodelLayout, PlacedType, TextFont } from "./metamodel-layout.js";
 import { RANK_SEP, layoutMetamodel } from "./metamodel-layout.js";
 import type { BufferData } from "./modeline.js";

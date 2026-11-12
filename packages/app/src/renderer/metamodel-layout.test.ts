@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Point } from "./dagre.js";
-import type { MetamodelEdge, MetamodelGraph, TypeNode } from "./metamodel-graph.js";
-import { metamodelGraph } from "./metamodel-graph.js";
+import type { MetamodelEdge, MetamodelGraph, TypeNode } from "@reqseq/core/metamodel-graph";
+import { metamodelGraph } from "@reqseq/core/metamodel-graph";
 import type { MetamodelLayout, PlacedType } from "./metamodel-layout.js";
 import {
   TYPE_HEADER,
