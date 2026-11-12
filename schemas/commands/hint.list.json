@@ -6,7 +6,7 @@
   "stage": 2,
   "implements": ["SR-026", "SR-040", "SR-045", "SR-072", "SR-103", "SR-205"],
   "arguments": [
-    { "field": "kind", "complete": "text" },
+    { "field": "kind", "complete": "choice" },
     { "field": "type", "complete": "type" },
     { "field": "package", "complete": "element" },
     { "field": "variant", "complete": "element" },

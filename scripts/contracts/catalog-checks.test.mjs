@@ -201,7 +201,21 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
     const choice = [ALL[0], arg("kind", "choice"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", choice))).toEqual([
-      'schemas/commands/test.one.json: arguments: "kind": choice needs an inline enum',
+      'schemas/commands/test.one.json: arguments: "kind": choice needs an enum, inline or as the definition its $ref names',
+    ]);
+    // An enum the field names by a `$ref` counts (#1575), one that leads to no enum does not.
+    const schemas = {
+      "common.schema.json": { $defs: { code: { enum: ["a.b"] }, uuid: { type: "string" } } },
+    };
+    const referred = (ref) => ({
+      ...input,
+      properties: { ...input.properties, kind: { type: "array", items: { $ref: ref } } },
+    });
+    const checkWith = (ref) =>
+      checkCatalog({ commands: [command("test.one", "One", choice, referred(ref))] }, schemas);
+    expect(checkWith("../common.schema.json#/$defs/code")).toEqual([]);
+    expect(checkWith("../common.schema.json#/$defs/uuid")).toEqual([
+      'schemas/commands/test.one.json: arguments: "kind": choice needs an enum, inline or as the definition its $ref names',
     ]);
   });
 
