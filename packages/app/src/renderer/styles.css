@@ -1043,6 +1043,7 @@ mark {
   }
 
   .card[data-motion="in"] > .card-list,
+  .card[data-motion="in"] > .card-hits > .card-list,
   .card[data-motion="in"] > .card-explain {
     animation: card-show var(--card-in) var(--card-ease) backwards;
   }
@@ -1061,8 +1062,9 @@ mark {
   }
 
   .card.card-leaving[data-motion="out"] > .card-list,
-  .card.card-leaving[data-motion="out"] > .card-explain,
-  .card.card-leaving[data-motion="out"] > .card-help {
+  .card.card-leaving[data-motion="out"] > .card-hits > .card-list,
+  .card.card-leaving[data-motion="out"] > .card-hits > .help-frame,
+  .card.card-leaving[data-motion="out"] > .card-explain {
     animation: card-show var(--card-out) var(--card-ease) reverse both;
   }
 
@@ -1343,7 +1345,7 @@ mark {
   font-size: 12px;
 }
 
-.card-list[data-explained="true"] + .card-explain {
+.card-hits:has(> .card-list[data-explained="true"]) + .card-explain {
   border-top: none;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
@@ -1406,72 +1408,193 @@ mark {
   text-decoration: underline;
 }
 
-/* The command help (SR-210 AK3) in place of the hits, in the same raised box; it scrolls when it is higher (AK4).
-   It comes into a card that stands, so it has no motion of its own when it comes or follows the mark (SR-182 AK4). */
-.card-help {
+/* The command help (SR-210 AK3): a panel that slides in from the right over the hits, 70 % of the card wide but
+   at most 72 characters of its text, while the card grows to its full height (SR-182 AK4: it does not rise again)
+   and the other hits are dimmed and slightly blurred. It comes in --card-in (at most 200 ms) and goes in the
+   shorter --card-out (AK4); without motion it stands at once, and so do the dim and the blur (AK7). Its body text
+   is 11.5px against the 13px of the hits (88 %). */
+:root {
+  --help-height: min(60vh, 420px);
+  --help-pad: 1rem;
+  --help-dim: 0.45;
+  --help-blur: 1.2px;
+}
+
+.card-hits {
   position: relative;
-  max-height: min(calc(var(--line) * 16), 60vh);
-  padding: 0.5rem 0.75rem;
+}
+
+.card-hits > .card-list {
+  /* A length, so that the growth to --help-height runs as a transition. */
+  min-height: 0;
+}
+
+.card-hits[data-help="open"] > .card-list {
+  min-height: var(--help-height);
+  /* The wheel over the hits scrolls the help, not the hits (AK4). */
+  overflow: hidden;
+}
+
+.card-hits[data-help="open"] > .card-list > li {
+  opacity: var(--help-dim);
+  filter: blur(var(--help-blur));
+}
+
+/* Clips the panel at the edge of the card while it is outside. */
+.help-frame {
+  position: absolute;
+  inset: 1px;
+  overflow: hidden;
+  border-top-right-radius: 7px;
+  pointer-events: none;
+}
+
+.help-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: min(70%, calc(72ch + 2 * var(--help-pad)));
+  padding: 0.75rem var(--help-pad) 1rem;
   overflow: auto;
-  background: var(--raised);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  box-shadow: 0 -6px 18px var(--shadow);
+  background: var(--sheet);
+  border-left: 1px solid var(--rule);
+  box-shadow: -8px 0 20px var(--shadow);
   color: var(--text);
-  font-size: 13px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  outline: none;
   overflow-wrap: anywhere;
+  pointer-events: auto;
+  /* The minibuffer does not wrap or select; the help does both. */
+  white-space: normal;
+  user-select: text;
+  cursor: auto;
 }
 
-.card-help h2 {
+.help-drawer[data-open="false"] {
+  visibility: hidden;
+  transform: translateX(calc(100% + 24px));
+}
+
+.help-drawer > * {
+  max-width: 72ch;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-hits > .card-list {
+    transition: min-height var(--card-out) var(--card-ease);
+  }
+
+  .card-hits[data-help="open"] > .card-list {
+    transition-duration: var(--card-in);
+  }
+
+  .card-hits > .card-list > li {
+    transition:
+      opacity var(--card-out) var(--card-ease),
+      filter var(--card-out) var(--card-ease);
+  }
+
+  .card-hits[data-help="open"] > .card-list > li {
+    transition-duration: var(--card-in);
+  }
+
+  .help-drawer {
+    transition:
+      transform var(--card-in) var(--card-ease),
+      visibility 0s;
+  }
+
+  .help-drawer[data-open="false"] {
+    transition:
+      transform var(--card-out) var(--card-ease),
+      visibility 0s linear var(--card-out);
+  }
+}
+
+.help-drawer h2 {
   margin: 0 0 0.25rem;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
-.card-help h3 {
-  margin: 0.6rem 0 0.2rem;
+.help-drawer h3 {
+  margin: 0.9rem 0 0.25rem;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.card-help p {
-  margin: 0 0 0.35rem;
+.help-drawer p {
+  margin: 0 0 0.4rem;
 }
 
-.help-arguments {
+.help-arguments,
+.help-runs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.2rem 0.75rem;
   margin: 0;
 }
 
-.help-arguments dt {
-  margin-top: 0.25rem;
+.help-arguments dt,
+.help-runs dt {
+  grid-column: 1;
 }
 
-.help-arguments dd {
-  margin: 0 0 0 1rem;
+.help-arguments dd,
+.help-runs dd {
+  grid-column: 2;
+  margin: 0;
 }
 
-.card-help code {
+.help-drawer code,
+.help-cli {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.help-cli {
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0.5rem;
+  background: var(--select);
+  border-radius: 6px;
+  white-space: pre-wrap;
 }
 
 .help-need,
 .help-keys {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10.5px;
 }
 
-.help-keys {
-  margin: 0.6rem 0 0;
+.help-need {
+  margin-left: 0.25rem;
 }
 
-.card-help kbd {
+.help-drawer .help-keys {
+  margin: 0.9rem 0 0;
+}
+
+.help-docs {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.help-docs:hover {
+  color: var(--text);
+}
+
+.help-drawer kbd {
   padding: 0 0.25rem;
   background: var(--select);
   border-radius: 3px;
   color: var(--text);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 /* The context menu (D-075, SR-194): the app's own quiet menu at the pointer, raised like the card. */

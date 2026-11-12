@@ -2459,9 +2459,14 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     const docs = ACTIONS.find((action) => action.id === "open-documentation");
     expect(docs?.description).toMatch(/^[A-Z][^.]*\.$/);
     expect(item(items, "Open documentation").explain).toEqual({ summary: docs?.description });
+    // Its key as the prompt shows it (F1, bound to it), and F1 opens its row of the keyboard reference.
     expect(item(items, "Open documentation").help).toEqual({
       title: "Open documentation",
       summary: docs?.description,
+      ...(item(items, "Open documentation").hint === undefined
+        ? {}
+        : { key: item(items, "Open documentation").hint }),
+      keyReference: true,
     });
     // By the same title, and by `covers`: the command's summary, without its arguments.
     expect(item(items, "List all elements").explain).toEqual({ summary: command("element.list").summary });
@@ -2488,6 +2493,23 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       [both],
     );
     expect(several.items[0]?.explain).toEqual({ summary: "Does one or the other." });
+    // Its command help names its key and the catalog commands it runs, with the display it runs each in.
+    const runs = [
+      { display: "graph of an element", command: "trace.mermaid" },
+      { display: "graph of the metamodel", command: "metamodel.mermaid" },
+    ];
+    const keyed = withExplanations(
+      { label: "Command", items: [{ id: "both", name: "Both", hint: "Ctrl+M", run: vi.fn() }] },
+      CATALOG,
+      [{ ...both, runs }],
+    );
+    expect(keyed.items[0]?.help).toEqual({
+      title: "Both",
+      summary: "Does one or the other.",
+      key: "Ctrl+M",
+      runs,
+      keyReference: true,
+    });
     // "Copy graph as Mermaid" is such an action of the app.
     expect(ACTIONS.find((action) => action.id === "copy-mermaid")?.covers).toHaveLength(2);
     // An action that runs one command has no description of its own, so the line cannot show another text.
@@ -2501,6 +2523,38 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     );
     expect(other.items[0]?.explain).toBeUndefined();
     expect(other.items[0]?.help).toBeUndefined();
+  });
+
+  it("[SR-210/AK-r2d2] the actions that set what a shown list or graph shows name the catalog commands of each display", () => {
+    const runsOf = (id: string) => ACTIONS.find((action) => action.id === id)?.runs;
+    expect(runsOf("filter-type")).toEqual([
+      { display: "list", command: "element.list" },
+      { display: "traceability matrix", command: "trace.matrix" },
+      { display: "package page", command: "element.list" },
+      { display: "list of search hits", command: "element.search" },
+    ]);
+    expect(runsOf("sort")?.map(({ command }) => command)).toEqual([
+      "element.list",
+      "trace.matrix",
+      "element.list",
+    ]);
+    expect(runsOf("group")?.map(({ command }) => command)).toEqual(["element.list", "element.search"]);
+    expect(runsOf("matrix-list")).toEqual([{ display: "list", command: "element.list" }]);
+    expect(runsOf("graph-depth")).toEqual([{ display: "graph", command: "trace.graph" }]);
+    expect(runsOf("list-value")).toEqual([{ display: "list", command: "element.list" }]);
+    expect(runsOf("copy-mermaid")).toEqual([
+      { display: "graph of an element", command: "trace.mermaid" },
+      { display: "graph of the metamodel", command: "metamodel.mermaid" },
+    ]);
+    // Every catalog command an action names is in the catalog.
+    for (const action of ACTIONS) {
+      for (const { command: name } of action.runs ?? []) {
+        expect(
+          CATALOG.some((entry) => entry.name === name),
+          `${action.id} ${name}`,
+        ).toBe(true);
+      }
+    }
   });
 
   it("[SR-210/AK-cbzd] an action of the app shows the text the keyboard reference gives it, without references to the specification", () => {

@@ -9,9 +9,16 @@ export const MORE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "enter" }
 /** F1 in the command prompt: the documentation of the chosen entry, in the browser (SR-141 AK3). */
 export const HELP_KEY = "F1";
 
+/** Ctrl/Cmd+C, which copies text selected in the command help (SR-210 AK4). */
+export const COPY_SHORTCUT: Shortcut = { mod: true, shift: false, key: "c" };
+
+/** Ctrl+N and Ctrl+P, the physical Ctrl key on every system (SR-122, SR-145 AK3), as the command help names them. */
+export const NEXT_KEY: KeyPress = press("n", true);
+export const PREVIOUS_KEY: KeyPress = press("p", true);
+
 /**
  * Ctrl+H in the command prompt: the command help of the marked command, or the description of an action of the
- * app, in the card, and back to the hits (SR-210 AK3, AK4, AK5). The physical Ctrl key on every system, also on
+ * app, slides in over the hits, and out again (SR-210 AK3, AK4, AK5). The physical Ctrl key on every system, also on
  * macOS, where Cmd+H hides the app (SR-145 AK4).
  */
 export const COMMAND_HELP_KEY: KeyPress = press("h", true);
@@ -38,7 +45,7 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Backspace") }], does: "In an empty input: back one argument" },
   {
     keys: [{ press: press("Escape") }],
-    does: "With the command help open: show the hits again; in a later step of a command: back one step, the prompt stays open; in the first step: close the prompt",
+    does: "With the command help open: close it; in a later step of a command: back one step, the prompt stays open; in the first step: close the prompt",
   },
   {
     keys: [{ press: press(HELP_KEY) }],
@@ -46,10 +53,10 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: COMMAND_HELP_KEY }],
-    does: "In the command prompt: show the command help of the chosen command in the card, or the hits again",
+    does: "In the command prompt: show the command help of the chosen command over the hits, or close it",
   },
   {
     keys: [{ press: press("PageDown") }, { press: press("PageUp") }],
-    does: "In the command help: scroll it down or up",
+    does: "In the command help: scroll it down or up, as the arrow keys, Ctrl+N and Ctrl+P do there",
   },
 ];

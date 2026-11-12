@@ -681,6 +681,20 @@ export const cardSettled = (window: Page): Promise<void> =>
     )
     .toBe(0);
 
+/** The transitions of the window, such as the command help sliding in or out (SR-210 AK3), have ended. */
+export const transitionsSettled = (window: Page): Promise<void> =>
+  expect
+    .poll(() =>
+      window.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((one) => one instanceof CSSTransition)
+            .filter((one) => one.playState === "running").length,
+      ),
+    )
+    .toBe(0);
+
 /**
  * The sort the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418), as the CLI takes it: a test that compares a list with
  * `element list` gives the CLI this input. A unit test pins the real `DEFAULT_SORT` of the renderer.

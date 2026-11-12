@@ -288,9 +288,10 @@ export const commandHelp = (command: CommandListing): CommandHelp => {
  * `prompt` with the explanation line (SR-210 AK1, AK5): the prompt keeps its place for it (`explains`), and each
  * action has one. An action that runs one catalog command (`coveredCommand`) has that command's summary, without
  * its arguments, which the action asks its own way or not at all; Ctrl+H shows the action's title with that summary,
- * without the arguments and the call on the command line, and F1 opens the command's reference page. Any other action has its own `description`, which the keyboard reference names too (SR-139
- * AK6), and Ctrl+H shows it. The entries of catalog commands have theirs (`catalogItems`); an element or a buffer
- * has none.
+ * without the arguments and the call on the command line, and F1 opens the command's reference page. Any other
+ * action has its own `description`, which the keyboard reference names too (SR-139 AK6); Ctrl+H shows it with the
+ * action's key and the catalog commands it runs by display, and F1 opens its row of the keyboard reference. The
+ * entries of catalog commands have theirs (`catalogItems`); an element or a buffer has none.
  */
 export const withExplanations = (
   prompt: Prompt,
@@ -313,10 +314,21 @@ export const withExplanations = (
         help: { title: action.title, summary: command.summary },
       };
     }
-    const { description } = action;
+    const { description, runs } = action;
     return description === undefined
       ? item
-      : { ...item, explain: { summary: description }, help: { title: action.title, summary: description } };
+      : {
+          ...item,
+          explain: { summary: description },
+          // Its key as the prompt shows it, and the catalog commands it runs by display (AK5).
+          help: {
+            title: action.title,
+            summary: description,
+            ...(item.hint === undefined ? {} : { key: item.hint }),
+            ...(runs === undefined ? {} : { runs }),
+            keyReference: true,
+          },
+        };
   }),
 });
 
