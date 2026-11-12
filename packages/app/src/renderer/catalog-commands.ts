@@ -54,6 +54,7 @@ import type {
   ArgumentExplanation,
   Choice,
   CommandExplanation,
+  CommandHelp,
   Prompt,
   PromptFill,
 } from "./actions.js";
@@ -266,9 +267,31 @@ const commandExplanation = (
 };
 
 /**
+ * The command help of `command` (SR-210 AK3), as the catalog has it: title, summary and details of its reference
+ * page, each argument with its description and whether the command requires it, and its call on the command line.
+ */
+export const commandHelp = (command: CommandListing): CommandHelp => {
+  const required = requiredOf(command);
+  return {
+    title: command.title,
+    summary: command.summary,
+    ...(command.details === undefined ? {} : { details: command.details }),
+    arguments: command.arguments.map(({ field }) => {
+      const { description } = schemaOf(command, field);
+      return {
+        name: field,
+        required: required.includes(field),
+        ...(typeof description === "string" ? { description } : {}),
+      };
+    }),
+    cli: command.cliUsage,
+  };
+};
+
+/**
  * `prompt` with the explanation line on each action that runs a catalog command (SR-210 AK5,
  * `coveredCommand`): the command's summary. The action asks the command's arguments its own way, or not at
- * all, so the line names none of them. The entries of catalog commands have theirs (`catalogItems`); other
+ * all, so the line names none of them; Ctrl+H shows the command's help, as F1 opens its reference page. The entries of catalog commands have theirs (`catalogItems`); other
  * entries have none.
  */
 export const withExplanations = (
@@ -280,7 +303,9 @@ export const withExplanations = (
   items: prompt.items.map((item) => {
     const action = actions.find((candidate) => candidate.id === item.id);
     const command = action === undefined ? undefined : coveredCommand(action, catalog);
-    return command === undefined ? item : { ...item, explain: { summary: command.summary } };
+    return command === undefined
+      ? item
+      : { ...item, explain: { summary: command.summary }, help: commandHelp(command) };
   }),
 });
 
@@ -1498,6 +1523,7 @@ export const catalogItems = (
         ...(hint === undefined ? {} : { hint }),
         fits: fits(context, command),
         explain: commandExplanation(command, context.given?.[command.name]),
+        help: commandHelp(command),
         run: () => {
           startCommand(context, command, false, context.given?.[command.name]);
         },

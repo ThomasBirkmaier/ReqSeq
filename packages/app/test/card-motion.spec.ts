@@ -255,7 +255,7 @@ test.describe("the card of the command line in motion", () => {
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter list by");
   });
 
-  test("[SR-182/AK-ggcp] the card does not rise again when the hits change or the prompt changes between elements and commands", async () => {
+  test("[SR-182/AK-ggcp] the card does not rise again when the hits change, the prompt changes between elements and commands, or the command help comes or goes", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -274,6 +274,17 @@ test.describe("the card of the command line in motion", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator("label.prompt-label")).not.toHaveText("Go to");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
+    // The command help comes in place of the hits and goes again (SR-210 AK3, AK4): the card stands.
+    await window.keyboard.type("List hints");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
+    await window.keyboard.press("Control+H");
+    await expect(window.getByRole("region", { name: "Command help" })).toBeVisible();
+    await cardSettled(window);
+    await window.keyboard.press("Control+H");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
+    await cardSettled(window);
+    expect(await rises(window)).toHaveLength(shown);
+    await window.locator("#prompt-input").fill("");
     await window.keyboard.type("filter");
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter");
     await window.keyboard.press("Backspace");
