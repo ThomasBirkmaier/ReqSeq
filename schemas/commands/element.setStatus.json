@@ -16,6 +16,7 @@
     "type": "object",
     "properties": {
       "refs": {
+        "description": "The elements whose status is set or removed, each by UUID, short ID or identifier.",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementRef"

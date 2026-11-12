@@ -64,6 +64,21 @@ const PATHS = new Set(["folder", "file"]);
 const choiceValues = (item, schemas) =>
   item.$ref === undefined ? item.enum : resolveRef(item.$ref, "commands/", schemas)?.schema.enum;
 
+/**
+ * A description for every argument (SR-210 AK6): its own, else the one of the type its field, or the
+ * items of a list field, names by a `$ref`, which the app's core host gives the windows with it.
+ */
+function checkDescription(arg, property, schemas) {
+  if (typeof property.description === "string" && property.description.trim() !== "") {
+    return [];
+  }
+  const ref = property.$ref ?? (property.type === "array" ? property.items?.$ref : undefined);
+  const type = ref === undefined ? undefined : resolveRef(ref, "commands/", schemas)?.schema;
+  return typeof type?.description === "string" && type.description.trim() !== ""
+    ? []
+    : [`"${arg.field}": needs a description, its own or one of the type its $ref names`];
+}
+
 /** The sources whose kind has to fit the type of the field. */
 function checkKind(arg, property, schemas) {
   const item = itemOf(property);
@@ -219,6 +234,7 @@ function checkArguments(cmd, schemas) {
     errors.push(
       ...checkContext(arg, cmd.arguments.slice(0, index)),
       ...checkKind(arg, property, schemas),
+      ...checkDescription(arg, property, schemas),
       ...checkReplaces(arg, cmd.arguments.slice(0, index), required),
     );
   });

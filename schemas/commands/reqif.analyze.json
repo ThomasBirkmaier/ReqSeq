@@ -14,9 +14,11 @@
     "type": "object",
     "properties": {
       "file": {
+        "description": "The ReqIF file to preview.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "mapping": {
+        "description": "The mapping file to preview the import with; without it a file of ReqSeq gets the mapping reqif.import would use, any other file none.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "source": {

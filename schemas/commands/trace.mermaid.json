@@ -45,6 +45,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element whose graph is written: its UUID, short ID or identifier.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {
@@ -79,6 +80,7 @@
         "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
       "view": {
+        "description": "Only the elements of the graph that this view holds: `core` or a variant ID; without it every element.",
         "$ref": "../common.schema.json#/$defs/view"
       },
       "limit": {

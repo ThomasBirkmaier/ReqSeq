@@ -15,6 +15,7 @@
     "type": "object",
     "properties": {
       "selection": {
+        "description": "The elements whose verification status is given: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
         "$ref": "../common.schema.json#/$defs/selection"
       },
       "limit": {

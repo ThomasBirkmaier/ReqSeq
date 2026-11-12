@@ -33,6 +33,7 @@
         "minimum": 0
       },
       "view": {
+        "description": "Only the elements that this view holds: `core` or a variant ID; without it every element.",
         "$ref": "../common.schema.json#/$defs/view"
       },
       "limit": {

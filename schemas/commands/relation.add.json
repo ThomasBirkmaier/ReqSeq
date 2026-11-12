@@ -16,12 +16,15 @@
     "type": "object",
     "properties": {
       "source": {
+        "description": "The element whose file gets the relation: its UUID, short ID or identifier.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "kind": {
+        "description": "The relation kind: its key in the metamodel.",
         "$ref": "../common.schema.json#/$defs/key"
       },
       "target": {
+        "description": "The element the relation points to: its UUID, short ID or identifier.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       }
     },

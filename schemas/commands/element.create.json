@@ -32,6 +32,7 @@
     "type": "object",
     "properties": {
       "type": {
+        "description": "Type of the new element: the key of a type of the metamodel.",
         "$ref": "../common.schema.json#/$defs/key"
       },
       "title": {
