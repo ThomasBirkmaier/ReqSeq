@@ -94,6 +94,33 @@ export interface Choice {
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
   readonly fits?: boolean;
+  /** The explanation line while it is marked: the catalog command it runs (SR-210 AK1, AK5). */
+  readonly explain?: CommandExplanation;
+}
+
+/** What the explanation line of a marked catalog command says, from the catalog (SR-210 AK1). */
+export interface CommandExplanation {
+  /** The command's summary. */
+  readonly summary: string;
+  /** The required arguments the prompt asks, in catalog order. */
+  readonly required: readonly string[];
+  /** The optional arguments, which Ctrl/Cmd+Enter offers, in catalog order. */
+  readonly optional: readonly string[];
+}
+
+/** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */
+export interface ArgumentExplanation {
+  readonly name: string;
+  /** The argument's description in the catalog. */
+  readonly description?: string;
+  /** It takes several values: Enter adds one. */
+  readonly list: boolean;
+  /** Enter on an empty input ends the values given (SR-108 AK6). */
+  readonly ends: boolean;
+  /** Enter on an empty input skips the optional argument. */
+  readonly skips: boolean;
+  /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
+  readonly more: boolean;
 }
 
 /** What the minibuffer asks for. */
@@ -137,6 +164,8 @@ export interface Prompt {
   readonly cancel?: () => void;
   /** Backspace in an empty input and Escape (SR-134 AK1): one argument back (catalog commands). */
   readonly back?: () => void;
+  /** The explanation line of the argument asked (SR-210 AK2). */
+  readonly explain?: ArgumentExplanation;
   /**
    * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
    * Escape ends the prompt (the first step, AK2).

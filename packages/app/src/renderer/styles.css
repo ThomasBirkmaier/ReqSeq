@@ -980,7 +980,8 @@ mark {
     animation: card-rise var(--card-in) var(--card-ease) backwards;
   }
 
-  .card[data-motion="in"] > .card-list {
+  .card[data-motion="in"] > .card-list,
+  .card[data-motion="in"] > .card-explain {
     animation: card-show var(--card-in) var(--card-ease) backwards;
   }
 
@@ -997,7 +998,8 @@ mark {
     animation: card-rise var(--card-out) var(--card-ease) reverse both;
   }
 
-  .card.card-leaving[data-motion="out"] > .card-list {
+  .card.card-leaving[data-motion="out"] > .card-list,
+  .card.card-leaving[data-motion="out"] > .card-explain {
     animation: card-show var(--card-out) var(--card-ease) reverse both;
   }
 
@@ -1248,6 +1250,78 @@ mark {
   white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* The explanation line of the command prompt (SR-210): under the hits, in the same raised box, which it
+   closes at the bottom; alone while an argument without candidates is asked. */
+/* The list keeps its bottom edge, the rule between the two, so its height stays that of the card for commands. */
+.card-list[data-explained="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.card-explain {
+  position: relative;
+  padding: 0.3rem 0.75rem 0.4rem;
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 -6px 18px var(--shadow);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-list[data-explained="true"] + .card-explain {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  box-shadow: none;
+}
+
+/* The summary: one line, cut with "…" where it does not fit (AK1). */
+.explain-summary {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explain-description {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.explain-keys {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.4em;
+}
+
+/* The arguments of a command: one line, where only the names of the optional ones give way, with "…",
+   and their number and key stay (AK1). */
+.explain-keys.explain-arguments {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.explain-arguments > span {
+  flex: none;
+}
+
+.explain-arguments > .explain-names {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-explain kbd {
+  padding: 0 0.25rem;
+  background: var(--select);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
 }
 
 /* The context menu (D-075, SR-194): the app's own quiet menu at the pointer, raised like the card. */

@@ -1,12 +1,19 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Choice, Found, Prompt, PromptFill } from "./actions.js";
+import type {
+  ArgumentExplanation,
+  Choice,
+  CommandExplanation,
+  Found,
+  Prompt,
+  PromptFill,
+} from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { isMac, listStep, matches } from "./keys.js";
+import { isMac, listStep, matches, shortcutLabel } from "./keys.js";
 import { HELP_KEY, MORE_SHORTCUT } from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
@@ -157,6 +164,125 @@ const Card = ({ children }: { readonly children: React.ReactNode }): React.JSX.E
     </>
   );
 };
+
+/** Enter as the explanation line names it: "Enter", or "↩" under macOS. */
+const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: false, key: "enter" }, mac);
+
+/**
+ * The explanation line of the marked catalog command (SR-210 AK1), under the hits: its summary, cut with "…"
+ * where it does not fit, then the required arguments the prompt asks, and the number and names of the
+ * optional ones with Ctrl/Cmd+Enter, which offers them; names that do not fit end with "…", the number stays.
+ * The spaces between its parts are for the text a screen reader reads; the gap of the line shows them.
+ */
+const CommandLine = ({
+  explain,
+  mac,
+}: {
+  readonly explain: CommandExplanation;
+  readonly mac: boolean;
+}): React.JSX.Element => {
+  const { summary, required, optional } = explain;
+  return (
+    <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+      <div className="explain-summary">{summary}</div>
+      <div className="explain-keys explain-arguments">
+        {required.length === 0 && optional.length === 0 ? (
+          <span>no arguments</span>
+        ) : (
+          <>
+            <span>
+              {required.length === 0 ? "no required arguments" : `required: ${required.join(", ")}`}
+            </span>
+            {optional.length === 0 ? null : (
+              <>
+                {" "}
+                <span>·</span> <span>{`${String(optional.length)} optional:`}</span>{" "}
+                <span className="explain-names">{optional.join(", ")}</span>{" "}
+                <span>
+                  <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> to give them
+                </span>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * The explanation line of the argument asked (SR-210 AK2), where the command's stood: its name and catalog
+ * description, then the keys of this step with what they do.
+ */
+const ArgumentLine = ({
+  explain,
+  back,
+  mac,
+}: {
+  readonly explain: ArgumentExplanation;
+  readonly back: boolean;
+  readonly mac: boolean;
+}): React.JSX.Element => {
+  const enter = enterLabel(mac);
+  const keys: { readonly key: string; readonly does: string }[] = [
+    ...(explain.list ? [{ key: enter, does: "adds a value" }] : []),
+    ...(explain.ends ? [{ key: enter, does: "on an empty input ends the values" }] : []),
+    ...(explain.skips ? [{ key: enter, does: "on an empty input skips it" }] : []),
+    ...(explain.more ? [{ key: shortcutLabel(MORE_SHORTCUT, mac), does: "more arguments" }] : []),
+    ...(back ? [{ key: "Escape", does: "back" }] : []),
+  ];
+  return (
+    <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+      <div className="explain-description">
+        <span className="explain-name">{explain.name}</span>
+        {explain.description === undefined ? null : ` · ${explain.description}`}
+      </div>
+      {keys.length === 0 ? null : (
+        <div className="explain-keys">
+          {keys.map(({ key, does }, at) => (
+            <span key={does}>
+              {at === 0 ? null : "· "}
+              <kbd>{key}</kbd> {does}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * The explanation line (SR-210): of the argument asked, else of the marked entry when it runs a catalog command
+ * (AK5: no other entry has one).
+ */
+const explanationOf = (
+  prompt: Prompt,
+  marked: Choice | undefined,
+  mac: boolean,
+): React.JSX.Element | null => {
+  if (prompt.explain !== undefined) {
+    return <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />;
+  }
+  const explain = marked?.inert === true ? undefined : marked?.explain;
+  return explain === undefined ? null : <CommandLine explain={explain} mac={mac} />;
+};
+
+/** The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one. */
+const PromptCard = ({
+  hits,
+  list,
+  explanation,
+}: {
+  readonly hits: boolean;
+  readonly list: React.JSX.Element;
+  readonly explanation: React.JSX.Element | null;
+}): React.JSX.Element | null =>
+  !hits && explanation === null ? null : (
+    <Card>
+      {hits ? list : null}
+      {explanation}
+    </Card>
+  );
 
 const PromptLine = ({
   prompt: given,
@@ -532,6 +658,8 @@ const PromptLine = ({
     }
   };
 
+  const explanation = explanationOf(prompt, current?.item, mac);
+
   return (
     <>
       <label className="prompt-label" htmlFor="prompt-input">
@@ -545,6 +673,7 @@ const PromptLine = ({
         aria-expanded={rows.length > 0}
         aria-controls="candidates"
         aria-activedescendant={current === undefined ? undefined : `candidate-${String(selected)}`}
+        aria-describedby={explanation === null ? undefined : "prompt-explain"}
         autoComplete="off"
         spellCheck={false}
         autoFocus
@@ -559,9 +688,17 @@ const PromptLine = ({
           searching…
         </span>
       ) : null}
-      {rows.length === 0 ? null : (
-        <Card>
-          <ul className="candidates card-list" id="candidates" role="listbox" aria-label={prompt.label}>
+      <PromptCard
+        hits={rows.length > 0}
+        explanation={explanation}
+        list={
+          <ul
+            className="candidates card-list"
+            data-explained={String(explanation !== null)}
+            id="candidates"
+            role="listbox"
+            aria-label={prompt.label}
+          >
             {rows.map((row, at) => (
               <li
                 key={row.item.id}
@@ -601,8 +738,8 @@ const PromptLine = ({
               </li>
             ))}
           </ul>
-        </Card>
-      )}
+        }
+      />
     </>
   );
 };

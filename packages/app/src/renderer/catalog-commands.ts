@@ -48,12 +48,20 @@ import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
-import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
-import { findElements } from "./actions.js";
+import type {
+  Action,
+  ActionContext,
+  ArgumentExplanation,
+  Choice,
+  CommandExplanation,
+  Prompt,
+  PromptFill,
+} from "./actions.js";
+import { ACTIONS, findElements } from "./actions.js";
 import { criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
-import { coveringAction } from "./command-entry.js";
+import { coveredCommand, coveringAction } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
@@ -76,6 +84,7 @@ type Source = Argument["complete"];
  */
 interface FieldSchema {
   readonly type?: unknown;
+  readonly description?: unknown;
   readonly enum?: readonly unknown[];
   readonly items?: { readonly enum?: readonly unknown[] };
 }
@@ -231,6 +240,44 @@ const follows = (entry: Entry, arg: Argument): boolean =>
 
 const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
+
+/** The arguments the prompt can ask: all but a `selection`, which the shown list or page gives (`shownSelection`). */
+const askable = (command: CommandListing): readonly Argument[] =>
+  command.arguments.filter((arg) => arg.complete !== "selection");
+
+/**
+ * The explanation line of `command` while it is marked (SR-210 AK1): its summary, the required arguments
+ * the prompt asks (`askedOf`), and the optional ones, all as the catalog has them.
+ */
+export const commandExplanation = (command: CommandListing): CommandExplanation => {
+  const asked = askedOf(command);
+  const args = askable(command);
+  return {
+    summary: command.summary,
+    required: args.filter((arg) => asked.includes(arg.field)).map((arg) => arg.field),
+    optional: args.filter((arg) => !asked.includes(arg.field)).map((arg) => arg.field),
+  };
+};
+
+/**
+ * `prompt` with the explanation line on each entry that runs a catalog command (SR-210 AK1, AK5): the
+ * command's own entry, or an action that covers it (`coveredCommand`). Other entries have none.
+ */
+export const withExplanations = (
+  prompt: Prompt,
+  catalog: readonly CommandListing[],
+  actions: readonly Action[] = ACTIONS,
+): Prompt => ({
+  ...prompt,
+  items: prompt.items.map((item) => {
+    const action = actions.find((candidate) => candidate.id === item.id);
+    const command =
+      action === undefined
+        ? catalog.find((candidate) => `command:${candidate.name}` === item.id)
+        : coveredCommand(action, catalog);
+    return command === undefined ? item : { ...item, explain: commandExplanation(command) };
+  }),
+});
 
 /** A list or a package page is shown: it gives the selection of a `selection` argument. */
 const givesSelection = (context: ActionContext): boolean =>
@@ -1101,6 +1148,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
   const label = `${entry.error === undefined ? "" : `${entry.error} · `}${lineOf(entry)} · ${field}:`;
   const shared = {
     label,
+    explain: argumentExplanation(entry, arg),
     back: () => {
       back(context, entry);
     },
@@ -1284,6 +1332,37 @@ const pathFill = (
   },
 });
 
+/**
+ * Whether the prompt of the optional arguments offers `arg`: one it can ask that has no value yet, and not the
+ * properties of a new element once its type asked them (SR-064).
+ */
+const offeredLater = (entry: Entry, arg: Argument): boolean =>
+  arg.complete !== "selection" &&
+  !entry.given.some((given) => given.field === arg.field && given.skipped !== true) &&
+  !(arg.field === PROPERTIES && entry.given.some((given) => given.asks !== undefined));
+
+/**
+ * The explanation line of `arg` while it is asked (SR-210 AK2): its name and catalog description, and what
+ * the keys of this step do, as `ask` sets them: Enter adds a value of a list, Enter on an empty input ends
+ * its values once one is given or skips an optional argument (`follows`), Ctrl/Cmd+Enter offers the optional
+ * arguments the command still has (`moreArguments`).
+ */
+const argumentExplanation = (entry: Entry, arg: Argument): ArgumentExplanation => {
+  const { description } = schemaOf(entry.command, arg.field);
+  const asked = askedOf(entry.command);
+  const ends = entry.collecting === arg.field;
+  return {
+    name: arg.field,
+    ...(typeof description === "string" ? { description } : {}),
+    list: isListField(entry.command, arg.field),
+    ends,
+    skips: !ends && follows(entry, arg),
+    more: entry.command.arguments.some(
+      (other) => other.field !== arg.field && !asked.includes(other.field) && offeredLater(entry, other),
+    ),
+  };
+};
+
 /** The prompt of the optional arguments: "Run" first, then each one not given yet. */
 const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
   const run = (): void => {
@@ -1297,11 +1376,8 @@ const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
     items: [
       { id: "run", name: "Run", run, more: run },
       ...entry.command.arguments.flatMap((arg, at) =>
-        arg.complete === "selection" ||
-        entry.given.some((given) => given.field === arg.field && given.skipped !== true) ||
-        (arg.field === PROPERTIES && entry.given.some((given) => given.asks !== undefined))
-          ? []
-          : [
+        offeredLater(entry, arg)
+          ? [
               {
                 id: arg.field,
                 name: arg.field,
@@ -1309,7 +1385,8 @@ const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
                   ask(context, entry, arg, at);
                 },
               },
-            ],
+            ]
+          : [],
       ),
     ],
   };

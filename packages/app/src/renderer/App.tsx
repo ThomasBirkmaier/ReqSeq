@@ -21,7 +21,7 @@ import {
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
-import { catalogItems } from "./catalog-commands.js";
+import { catalogItems, withExplanations } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
@@ -898,7 +898,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           ACTIONS,
         );
         return withHelp(
-          commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+          withExplanations(
+            commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+            catalog.current,
+          ),
           now,
           catalog.current,
         );
