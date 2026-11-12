@@ -7,8 +7,10 @@ spec-id: SR-119
 rationale: Gefragt ist der schnellste Weg zu einem bestimmten Requirement und zu allen Requirements eines Needs. Zielwege nach [ThomasBirkmaier/ReqSeq-archive#422, Kommentar](https://github.com/ThomasBirkmaier/ReqSeq-archive/issues/422#issuecomment-6425565888), Tastendrücke ohne den getippten Suchtext gezählt.
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Requirement, wenn es über Kurz-ID, Kennung oder Wörter des Titels gesucht wird, dann ist es mit zwei Tastendrücken und dem Suchtext geöffnet: Ctrl+P, Suchtext, Enter."
-  - "Gegeben ein Need, wenn seine Requirements gesucht werden, dann sind sie mit drei Tastendrücken und dem Suchtext zu sehen: Ctrl+P, Kurz-ID oder Titel des Needs, Enter, Kürzel für die Umgebung (SR-107)."
+  - key: mb64
+    text: "Gegeben ein Requirement, wenn es über Kurz-ID, Kennung oder Wörter des Titels gesucht wird, dann ist es mit zwei Tastendrücken und dem Suchtext geöffnet: Ctrl+P, Suchtext, Enter."
+  - key: mj1y
+    text: "Gegeben ein Need, wenn seine Requirements gesucht werden, dann sind sie mit drei Tastendrücken und dem Suchtext zu sehen: Ctrl+P, Kurz-ID oder Titel des Needs, Enter, Kürzel für die Umgebung (SR-107)."
 verification-method: test
 packages:
   - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }

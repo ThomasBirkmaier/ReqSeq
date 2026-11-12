@@ -6,8 +6,10 @@ title: "Zyklen in Ableitungen melden"
 spec-id: "SR-090"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben A leitet sich aus B ab, B aus C und C aus A, wenn geprüft wird, dann meldet das Tool einen Zyklus mit A, B und C."
-  - "Gegeben ein Zyklus, wenn über die Kommandozeile geprüft wird und die Prüfung schon bei Warnungen fehlschlagen soll (SR-019), dann endet die Prüfung mit Exit-Code 1."
+  - key: pm0f
+    text: Gegeben A leitet sich aus B ab, B aus C und C aus A, wenn geprüft wird, dann meldet das Tool einen Zyklus mit A, B und C.
+  - key: n7q5
+    text: Gegeben ein Zyklus, wenn über die Kommandozeile geprüft wird und die Prüfung schon bei Warnungen fehlschlagen soll (SR-019), dann endet die Prüfung mit Exit-Code 1.
 verification-method: test
 packages:
   - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:dd8ebe8868421160, title: Traceability }

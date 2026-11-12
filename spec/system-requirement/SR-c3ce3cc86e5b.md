@@ -6,11 +6,16 @@ title: "Datensatz im Tool erfassen"
 spec-id: "SR-030"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Requirement, wenn dafür ein Datensatz erfasst wird, dann sind ID und aktuelle Fassung schon eingetragen."
-  - "Gegeben ein erfasster Datensatz mit Art, Methode, Ergebnis, Prüfling, Datum und Verweis auf einen Beleg, wenn er gespeichert wird, dann entsteht eine Datei im offenen Format in der gewählten Ablage."
-  - "Gegeben ein Datensatz der Art Validierung, wenn er gespeichert wird, dann zählt er für den Validierungsstatus und nicht für den Nachweisstatus."
-  - "Gegeben ein Datensatz wird für eines oder mehrere Akzeptanzkriterien erfasst, über ihre Nummer oder ihren Kriterienschlüssel in der aktuellen Fassung, wenn er gespeichert wird, dann stehen ihre Kriterienschlüssel in der Datei, und das Tool nennt zu jedem Nummer, Kriterienschlüssel und den Anfang des Texts; hat eines von ihnen keinen Kriterienschlüssel, lehnt das Tool den Datensatz ab und schreibt nichts."
-  - "Gegeben ein Datensatz wird für einen Kriterienschlüssel erfasst, den in der aktuellen Fassung mehr als ein Akzeptanzkriterium des Requirements trägt, wenn er gespeichert werden soll, dann lehnt das Tool ihn ab und schreibt nichts."
+  - key: wm0j
+    text: Gegeben ein Requirement, wenn dafür ein Datensatz erfasst wird, dann sind ID und aktuelle Fassung schon eingetragen.
+  - key: k584
+    text: Gegeben ein erfasster Datensatz mit Art, Methode, Ergebnis, Prüfling, Datum und Verweis auf einen Beleg, wenn er gespeichert wird, dann entsteht eine Datei im offenen Format in der gewählten Ablage.
+  - key: bt7q
+    text: Gegeben ein Datensatz der Art Validierung, wenn er gespeichert wird, dann zählt er für den Validierungsstatus und nicht für den Nachweisstatus.
+  - key: x088
+    text: Gegeben ein Datensatz wird für eines oder mehrere Akzeptanzkriterien erfasst, über ihre Nummer oder ihren Kriterienschlüssel in der aktuellen Fassung, wenn er gespeichert wird, dann stehen ihre Kriterienschlüssel in der Datei, und das Tool nennt zu jedem Nummer, Kriterienschlüssel und den Anfang des Texts; hat eines von ihnen keinen Kriterienschlüssel, lehnt das Tool den Datensatz ab und schreibt nichts.
+  - key: m2qp
+    text: Gegeben ein Datensatz wird für einen Kriterienschlüssel erfasst, den in der aktuellen Fassung mehr als ein Akzeptanzkriterium des Requirements trägt, wenn er gespeichert werden soll, dann lehnt das Tool ihn ab und schreibt nichts.
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }

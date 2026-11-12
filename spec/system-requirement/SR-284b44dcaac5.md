@@ -6,9 +6,12 @@ title: "Testfälle und Durchführungen verfolgen"
 spec-id: "SR-033"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben Datensätze nennen einen Testfall, wenn die Kette eines Requirements angezeigt wird, dann erscheinen Testfall und alle seine Durchführungen mit Datum, Ergebnis, Prüfling und Beleg."
-  - "Gegeben ein Testfall weist mehrere Requirements nach, wenn einer seiner Datensätze gelesen wird, dann zählt er für jedes dieser Requirements."
-  - "Gegeben ein Testfall, der in einer Ergebnisdatei nur übersprungen vorkommt (SR-093 AK3), wenn er angezeigt wird, dann ist er als nicht durchgeführt gekennzeichnet."
+  - key: mvfg
+    text: Gegeben Datensätze nennen einen Testfall, wenn die Kette eines Requirements angezeigt wird, dann erscheinen Testfall und alle seine Durchführungen mit Datum, Ergebnis, Prüfling und Beleg.
+  - key: mxnt
+    text: Gegeben ein Testfall weist mehrere Requirements nach, wenn einer seiner Datensätze gelesen wird, dann zählt er für jedes dieser Requirements.
+  - key: jtx6
+    text: Gegeben ein Testfall, der in einer Ergebnisdatei nur übersprungen vorkommt (SR-093 AK3), wenn er angezeigt wird, dann ist er als nicht durchgeführt gekennzeichnet.
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }

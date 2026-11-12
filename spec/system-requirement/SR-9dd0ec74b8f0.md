@@ -7,9 +7,12 @@ spec-id: SR-207
 rationale: "Die Angriffsflächen ohne Requirement aus der Liste zu #1429 werden als Draft aufgenommen, mit den empfohlenen Antworten auf die offenen Fragen. Der Export gilt über alle Zugänge, wie die Regel für Dateien der Daten je Stand (SR-062). Die offenen Punkte nach dem Review werden wie empfohlen geklärt: was eine ReqIF-Datei ist, welches Lesen gilt und dass die Regel auch für den Ordner der Bilder gilt."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben am Zielort liegt eine Datei, die keine ReqIF-Datei ist, zum Beispiel ein JUnit-Ergebnis, wenn über Kommandozeile, API, MCP-Server oder App dorthin exportiert wird, dann lehnt das Tool ab, nennt den Grund und ändert die Datei nicht.
-  - Gegeben am Zielort liegt eine ReqIF-Datei, die unverändert ist, seit der Export sie vor dem Schreiben gelesen hat, wenn dorthin exportiert wird, dann ersetzt das Tool sie.
-  - Gegeben im Ordner für die Bilder neben der Zieldatei liegt eine Datei, die kein Bild ist, wenn exportiert wird, dann lehnt das Tool ab und ändert sie nicht.
+  - key: gbbc
+    text: Gegeben am Zielort liegt eine Datei, die keine ReqIF-Datei ist, zum Beispiel ein JUnit-Ergebnis, wenn über Kommandozeile, API, MCP-Server oder App dorthin exportiert wird, dann lehnt das Tool ab, nennt den Grund und ändert die Datei nicht.
+  - key: kyqf
+    text: Gegeben am Zielort liegt eine ReqIF-Datei, die unverändert ist, seit der Export sie vor dem Schreiben gelesen hat, wenn dorthin exportiert wird, dann ersetzt das Tool sie.
+  - key: h192
+    text: Gegeben im Ordner für die Bilder neben der Zieldatei liegt eine Datei, die kein Bild ist, wenn exportiert wird, dann lehnt das Tool ab und ändert sie nicht.
 packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 verification-method: test

@@ -6,9 +6,12 @@ title: "Unterschied einer Variante zum Kern zeigen"
 spec-id: "SR-044"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (App, CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements. Ergänzt sind die Requirements, deren Gültigkeit die Variante nennt und die kein Kern-Requirement ersetzen, das in der Variante nicht ausgeschlossen ist."
-  - Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander im geteilten Fenster (D-062), je in einem Buffer, nur lesend, mit Text und Akzeptanzkriterien beider.
-  - Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
+  - key: nxhm
+    text: "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (App, CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements. Ergänzt sind die Requirements, deren Gültigkeit die Variante nennt und die kein Kern-Requirement ersetzen, das in der Variante nicht ausgeschlossen ist."
+  - key: d2rh
+    text: Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander im geteilten Fenster (D-062), je in einem Buffer, nur lesend, mit Text und Akzeptanzkriterien beider.
+  - key: dc1n
+    text: Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
 verification-method: test
 packages:
   - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }
