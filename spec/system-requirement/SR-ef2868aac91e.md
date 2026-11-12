@@ -14,7 +14,7 @@ acceptance-criteria:
   - key: hsfs
     text: Gegeben die Trefferkarte fährt ein, wenn währenddessen getippt wird, dann geht kein Zeichen verloren.
   - key: ggcp
-    text: Gegeben die Trefferkarte ist zu sehen, wenn zwischen Befehlen und Elementen gewechselt wird, sich die Treffer ändern oder die Befehlshilfe (SR-210) erscheint oder verschwindet, dann fährt sie nicht noch einmal ein.
+    text: Gegeben die Trefferkarte ist zu sehen, wenn zwischen Befehlen und Elementen gewechselt wird, sich die Treffer ändern oder die Befehlshilfe (SR-210) einfährt oder ausfährt, dann fährt die Trefferkarte nicht noch einmal ein; beim Ein- und Ausfahren der Befehlshilfe ändert sie nur ihre Höhe (SR-210 AK3).
   - key: tg2g
     text: Gegeben die Karte der nächsten Tasten nach einem Präfix-Kürzel (SR-109), wenn sie erscheint, dann fährt sie ebenso ein wie die Trefferkarte.
   - key: m5fk
