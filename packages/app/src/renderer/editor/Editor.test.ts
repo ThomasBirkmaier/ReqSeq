@@ -14,6 +14,10 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorHandle, EditorProps } from "./Editor.js";
 import { Editor } from "./Editor.js";
+import { criterionKeys } from "./criterion-keys.js";
+import { editableBoxes, isKeyedBox } from "../property-edit.js";
+import { KEY_MARK } from "../criterion-doc.js";
+import type { DataExportElement } from "@reqseq/core";
 import type { PreviewRule } from "./plugins.js";
 import type { Reference } from "./references.js";
 import { focusEffect } from "./preview.js";
@@ -159,8 +163,8 @@ describe("Editor", () => {
     act(() => {
       root.render(null);
     });
-    const state = onClose.mock.calls[0]?.[0] as unknown;
-    expect(state).toMatchObject({ doc: "# Title\n\nbody!" });
+    const state = onClose.mock.calls[0]?.[0] as EditorState;
+    expect(state.doc.toString()).toBe("# Title\n\nbody!");
     // The file holds the saved text with a final line break: it is put in without an undo step.
     await render({ restore: state, text: "# Title\n\nbody!\n" });
     expect(view().state.doc.toString()).toBe("# Title\n\nbody!\n");
@@ -168,11 +172,11 @@ describe("Editor", () => {
       expect(undo(view())).toBe(true);
     });
     expect(view().state.doc.toString()).toBe("# Title\n\nbody\n");
-    // A state that is none of an editor starts fresh.
+    // A state without undo history starts one.
     act(() => {
       root.render(null);
     });
-    await render({ restore: { doc: 3 } });
+    await render({ restore: EditorState.create({ doc: "other" }) });
     expect(view().state.doc.toString()).toBe("# Title\n\nbody");
     expect(undo(view())).toBe(false);
   });
@@ -194,6 +198,80 @@ describe("Editor", () => {
     expect(given.busy()).toBe(false);
     vi.spyOn(view(), "composing", "get").mockReturnValue(true);
     expect(given.busy()).toBe(true);
+  });
+
+  it("reports no edit for a locked criteria box with a line break, which has no criteria codec", async () => {
+    const onChange = vi.fn();
+    const handle = vi.fn();
+    const box = editableBoxes(
+      {
+        type: "need",
+        properties: { criteria: [{ key: "kaaa", text: "first\nsecond" }] },
+        relations: [],
+      } as unknown as DataExportElement,
+      new Map([
+        [
+          "need",
+          new Map([
+            [
+              "criteria",
+              { kind: "text", many: true, markdown: true, meaning: "acceptance-criteria" } as const,
+            ],
+          ]),
+        ],
+      ]),
+    ).get("criteria");
+    expect(box).toBeDefined();
+    const keyed = box !== undefined && isKeyedBox(box);
+    await render({
+      text: box?.doc ?? "",
+      readOnly: true,
+      onChange,
+      handle,
+      ...(keyed ? { codec: criterionKeys() } : {}),
+    });
+    expect(handleOf(handle).doc()).toBe("first\nsecond");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("[SR-204/AK-gnnw] with a codec gives and takes the whole document, and a new editor carries its keys and their undo", async () => {
+    const onChange = vi.fn();
+    const onClose = vi.fn();
+    const handle = vi.fn();
+    const codec = criterionKeys();
+    const stored = `kaaa${KEY_MARK}alpha\nkbbb${KEY_MARK}beta`;
+    await render({ text: stored, codec, onChange, onClose, handle });
+    expect(view().state.doc.toString()).toBe("alpha\nbeta");
+    const given = handleOf(handle);
+    expect(given.doc()).toBe(stored);
+    // Only the keys differ: that is input too.
+    act(() => {
+      given.set(`kccc${KEY_MARK}alpha\nkbbb${KEY_MARK}beta`);
+    });
+    expect(onChange).toHaveBeenLastCalledWith(`kccc${KEY_MARK}alpha\nkbbb${KEY_MARK}beta`, true);
+    act(() => {
+      given.replace(stored);
+    });
+    expect(given.doc()).toBe(stored);
+    act(() => {
+      view().dispatch({ changes: { from: 5, to: 10 } });
+    });
+    expect(given.doc()).toBe(`kaaa${KEY_MARK}alpha`);
+    act(() => {
+      root.render(null);
+    });
+    const state = onClose.mock.calls[0]?.[0] as EditorState;
+    await render({
+      text: stored,
+      initial: `kaaa${KEY_MARK}alpha`,
+      codec: criterionKeys(),
+      restore: state,
+      handle,
+    });
+    act(() => {
+      expect(undo(view())).toBe(true);
+    });
+    expect(handleOf({ mock: { calls: handle.mock.calls.slice(-1) } }).doc()).toBe(stored);
   });
 
   it("shows a draft instead of the text when created with one", async () => {

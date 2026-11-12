@@ -12,16 +12,22 @@
 // A list of texts numbers its values from 1 in file order, one per line, the numbers `reqseq element get`
 // shows (#615): a muted gutter, no prefix; not a list with a line break in a value, nor numbers.
 //
-// Keys: Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
+// The box of the acceptance criteria keeps the criterion key of each line through every edit
+// (`editor/criterion-keys.ts`, SR-204 AK7 to AK9): its document holds the keys (`criterion-doc.ts`).
+//
+// Keys: Alt+Up and Alt+Down (Option on macOS) move the line with the caret, or the selected lines, in a
+// list (SR-187 AK2, as in the text); Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
 // box itself, where Enter enters again); Escape leaves the box; Up and Down at the first and last line move
 // to the box before and after (`editor/box-navigation.ts`). The box has one Tab stop, the field around it.
-import { insertNewline } from "@codemirror/commands";
+import { insertNewline, moveLineDown, moveLineUp } from "@codemirror/commands";
 import { Prec } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { useMemo, useRef } from "react";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { boxNavigation } from "./editor/box-navigation.js";
+import { criterionKeys } from "./editor/criterion-keys.js";
 import type { BoxNavigation } from "./editor/box-navigation.js";
 import { formatKeys } from "./editor/format.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -51,6 +57,8 @@ export interface TextBoxProps {
   readonly numbered: boolean;
   /** The property is marked `markdown` (SR-127). */
   readonly markdown: boolean;
+  /** The box holds the acceptance criteria: its document holds their criterion keys (SR-204). */
+  readonly criteria?: boolean;
   /** The outdated references in the values: `outdatedKey` to the message of the hint and the word. */
   readonly outdated: ReadonlyMap<string, OutdatedMark>;
   readonly follow: (reference: Reference) => void;
@@ -65,9 +73,9 @@ export interface TextBoxProps {
   /** Any update of the editor: a hold of autosave may have ended (`Editor`). */
   readonly onUpdate?: () => void;
   /** The state of the editor with its undo history, as it goes (`Editor`, SR-105 AK2). */
-  readonly onClose?: (state: unknown) => void;
+  readonly onClose?: (state: EditorState) => void;
   /** A state an editor of this box had: the new one starts from it (`Editor`). */
-  readonly restore?: unknown;
+  readonly restore?: EditorState | undefined;
   /** Escape, and Enter in a single value: the focus goes to the box itself. */
   readonly onLeave: () => void;
   /** Up and Down past the first and last line: false when there is nowhere to go. */
@@ -83,6 +91,7 @@ export const TextBox = ({
   many,
   numbered,
   markdown,
+  criteria = false,
   outdated,
   follow,
   title,
@@ -101,6 +110,8 @@ export const TextBox = ({
   const latest = useRef({ onLeave, navigation, pickElement, repository });
   latest.current = { onLeave, navigation, pickElement, repository };
   const signature = JSON.stringify([...outdated]);
+  // The editor takes its codec once, when it is made.
+  const codec = useMemo(() => (criteria ? criterionKeys() : undefined), [criteria]);
   // Made once per box: it holds the `[[` that waits, which a reconfiguration keeps only for the same extensions.
   const brackets = useMemo(
     () =>
@@ -129,7 +140,17 @@ export const TextBox = ({
         extensions: [
           // Before the Markdown keymap, which would continue a list or remove markup. Shift-Enter is Enter:
           // no key puts a line break inside a value.
-          Prec.highest(keymap.of([{ key: "Enter", run: enter, shift: enter }])),
+          Prec.highest(
+            keymap.of([
+              { key: "Enter", run: enter, shift: enter },
+              ...(many
+                ? [
+                    { key: "Alt-ArrowUp", run: moveLineUp, preventDefault: true },
+                    { key: "Alt-ArrowDown", run: moveLineDown, preventDefault: true },
+                  ]
+                : []),
+            ]),
+          ),
           boxNavigation({
             down: () => latest.current.navigation.down(),
             up: () => latest.current.navigation.up(),
@@ -152,6 +173,7 @@ export const TextBox = ({
       {...(onUpdate === undefined ? {} : { onUpdate })}
       {...(onClose === undefined ? {} : { onClose })}
       {...(restore === undefined ? {} : { restore })}
+      {...(codec === undefined ? {} : { codec })}
       onChange={onChange}
       onEscape={onLeave}
       handle={onHandle}

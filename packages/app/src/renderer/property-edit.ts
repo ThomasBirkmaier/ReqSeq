@@ -8,7 +8,9 @@
 // file. The title is a field like a single text box (ThomasBirkmaier/ReqSeq-archive#621): keyed `TITLE_FIELD`, compared with the file and
 // kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
 import { criterionText } from "@reqseq/core/criterion-items";
+import { criterionEntries, lineKeysOf } from "@reqseq/core/criterion-lines";
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@reqseq/core";
+import { criterionLines, isCriteriaInfo, keyedDoc } from "./criterion-doc.js";
 import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
 import {
   TITLE_FIELD,
@@ -46,23 +48,33 @@ const storedItems = (value: unknown): number =>
   Array.isArray(value) ? value.length : value === undefined || value === null || value === "" ? 0 : 1;
 
 /**
- * The document of a stored value: a string as it is, a number as its text, a list with one item per line,
- * an acceptance criterion with its key as its text. Undefined for a value that is not text (a mapping, a
- * boolean, a list of lists).
+ * The document of a stored value: a string as it is, a number as its text, a list with one item per line.
+ * The acceptance criteria (`keyed`) hold the criterion key of each line too (`criterion-doc.ts`, SR-204):
+ * the box keeps a key through every edit, and the save sends each line with its key; not a value with a
+ * line break, which the box shows read-only as its plain lines. Undefined for a value
+ * that is not text (a mapping, a boolean, a list of lists).
  */
-export const boxValue = (value: unknown, many: boolean): Omit<EditableBox, "key" | "info"> | undefined => {
-  // An acceptance criterion with its criterion key shows its text (SR-204); the save sends the texts,
-  // and core keeps the keys by text.
-  const items = (Array.isArray(value) ? (value as unknown[]) : [value]).map(criterionText);
+export const boxValue = (
+  value: unknown,
+  many: boolean,
+  keyed = false,
+): Omit<EditableBox, "key" | "info"> | undefined => {
+  const stored = Array.isArray(value) ? (value as unknown[]) : [value];
+  const items = stored.map(criterionText);
   if (!items.every((item) => typeof item === "string" || typeof item === "number")) {
     return undefined;
   }
   const texts = items.map(String);
-  return {
-    doc: texts.join("\n"),
-    lineBreak: (many || Array.isArray(value)) && texts.some((text) => text.includes("\n")),
-  };
+  const lineBreak = (many || Array.isArray(value)) && texts.some((text) => text.includes("\n"));
+  // A value with a line break is shown read-only as it is: one line per criterion would split it.
+  return { doc: keyed && !lineBreak ? keyedDoc(texts, lineKeysOf(stored)) : texts.join("\n"), lineBreak };
 };
+
+/**
+ * Whether a box holds the criterion keys of its lines (`criterion-doc.ts`): the acceptance criteria, but not
+ * a value with a line break, which is shown read-only as its plain lines (one key per line would split it).
+ */
+export const isKeyedBox = (box: EditableBox): boolean => isCriteriaInfo(box.info) && !box.lineBreak;
 
 /**
  * Whether a stored value is numbered on the element page (#615): a list of texts that is not empty, the
@@ -164,7 +176,7 @@ export const editableBoxes = (element: DataExportElement, model: PropertyModel):
       }
       continue;
     }
-    const value = boxValue(element.properties[box.key], info.many);
+    const value = boxValue(element.properties[box.key], info.many, isCriteriaInfo(info));
     if (value !== undefined && (TEXT_KINDS.includes(info.kind) || info.kind === "choice")) {
       found.set(box.key, { key: box.key, info, ...value });
     }
@@ -362,6 +374,12 @@ const valueOf = (kind: PropertyInfo["kind"], line: string): string | number => {
  */
 export const inputValueOf = (info: PropertyInfo, doc: string): ElementInputValue | undefined => {
   const { kind, many } = info;
+  if (isCriteriaInfo(info)) {
+    // Each line with its key (SR-204 AK5 keeps it); blank lines are dropped.
+    const { lines, keys } = criterionLines(doc);
+    const entries = criterionEntries(lines, keys);
+    return entries.length === 0 ? undefined : entries;
+  }
   if (kind === "relation") {
     // Core keeps the stored version of a target that stays and names the repository when it is another one.
     const targets = relationTargets(doc).map(({ id, repository }): { id: string; repository?: string } => ({

@@ -27,6 +27,8 @@ For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requir
 
 Show the requirements you want, for example with a filter, and run **Assign criterion keys** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS). It acts on the elements the list shows.
 
+When you edit the acceptance criteria in the editor, a reworded or moved criterion keeps its key (Alt+Up or Alt+Down moves a line, ⌥↑ or ⌥↓ on macOS); of a split criterion the first part keeps it, and of two merged ones the front one (SR-204 AK7). A criterion you add, duplicate or paste gets a new key, also when its text equals that of another one and also after a cut (SR-204 AK8). Undo gives the criteria their previous keys back, also after the change was saved (SR-204 AK9).
+
 ## CLI
 
 The commands start from a new workspace with a requirement written by hand.

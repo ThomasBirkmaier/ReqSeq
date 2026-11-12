@@ -5,9 +5,9 @@
 import { completionStatus } from "@codemirror/autocomplete";
 import { history, historyField, historyKeymap, redo, standardKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
-import type { Extension } from "@codemirror/state";
+import type { Extension, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import type { Command } from "@codemirror/view";
+import type { Command, ViewUpdate } from "@codemirror/view";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
@@ -59,6 +59,37 @@ export interface EditorHandle {
   readonly run: (command: Command, focus?: boolean) => boolean;
 }
 
+/**
+ * A document the editor shows only in part (the criteria box shows the texts of a document that holds their
+ * criterion keys too, `criterion-keys.ts`): what `doc()` and `onChange` give, and what `text`, `initial`,
+ * `replace` and `set` take, is the whole document; the rest of it lives in the state of the editor.
+ */
+export interface DocCodec {
+  /** What holds the rest of the document in the state. */
+  readonly extension: Extension;
+  /** The fields a state kept for the field (`restore`) carries into the new one, besides the undo history. */
+  readonly carry: readonly StateField<unknown>[];
+  /** The text the editor shows of `doc`, and the rest: as effects of a change, or as the start of a new state. */
+  readonly decode: (doc: string) => {
+    readonly text: string;
+    readonly effects: readonly StateEffect<unknown>[];
+    readonly init: Extension;
+  };
+  /** The whole document of a state. */
+  readonly encode: (state: EditorState) => string;
+  /** Whether a transaction may change the rest of the document (an effect the codec keeps it with). */
+  readonly touches: (tr: Transaction) => boolean;
+}
+
+/** The plain document: what the editor shows is all of it. */
+const PLAIN: DocCodec = {
+  extension: [],
+  carry: [],
+  decode: (doc) => ({ text: doc, effects: [], init: [] }),
+  encode: (state) => state.doc.toString(),
+  touches: () => false,
+};
+
 export interface EditorProps {
   /** The text as loaded or saved; a change of it replaces the document unless there is unsaved input. */
   readonly text: string;
@@ -74,12 +105,14 @@ export interface EditorProps {
   /** Any update of the editor (a key, a selection, the end of a composition): a hold may have ended. */
   readonly onUpdate?: () => void;
   /**
-   * The state of the editor with its undo history, as the editor goes (`EditorState.toJSON`): an editor
-   * made again with it as `restore` keeps undo and redo (SR-105 AK2).
+   * The state of the editor with its undo history, as the editor goes: an editor made again with it as
+   * `restore` keeps undo and redo (SR-105 AK2).
    */
-  readonly onClose?: (state: unknown) => void;
+  readonly onClose?: (state: EditorState) => void;
   /** A state an editor of this field had (`onClose`): the new one starts from it, on the document it shows. */
-  readonly restore?: unknown;
+  readonly restore?: EditorState | undefined;
+  /** A document the editor shows only in part (the criteria box); by default the editor shows all of it. */
+  readonly codec?: DocCodec;
   readonly plugins?: EditorPlugins;
   /** The built-in preview rules; all of them by default. A Markdown property box has the inline ones only (SR-127). */
   readonly rules?: readonly PreviewRule[];
@@ -92,30 +125,46 @@ export interface EditorProps {
 
 const NO_PLUGINS: EditorPlugins = {};
 
-/** What a state keeps in its JSON besides the document and the selection: the undo history. */
-const HISTORY = { history: historyField };
-
 /**
  * The state of a new editor with `doc`: from a state an editor of the field had (`restore`), so undo and
- * redo go on, else a fresh one. A document that differs from the restored one is put in without an undo
- * step, as `replace` does, so the history maps over it. A state that cannot be read starts fresh.
+ * redo go on, else a fresh one. Only the undo history and the fields of `codec` are carried (the effects in
+ * the history too, which a state in JSON would lose: SR-204 AK9); the rest is made new. A document that
+ * differs from the restored one is put in without an undo step, as `replace` does, so the history maps over it.
  */
-const startState = (doc: string, extensions: Extension, restore: unknown): EditorState => {
-  if (restore !== undefined) {
-    try {
-      const restored = EditorState.fromJSON(restore, { extensions }, HISTORY);
-      const change = minimalChange(restored.doc.toString(), doc);
-      return restored.update({ changes: change, annotations: Transaction.addToHistory.of(false) }).state;
-    } catch {
-      // Not a state of this editor: a fresh one.
-    }
+const startState = (
+  doc: string,
+  extensions: Extension,
+  restore: EditorState | undefined,
+  codec: DocCodec,
+): EditorState => {
+  const { text, effects, init } = codec.decode(doc);
+  if (restore === undefined) {
+    return EditorState.create({ doc: text, extensions: [init, extensions] });
   }
-  return EditorState.create({ doc, extensions });
+  const carried = [historyField, ...codec.carry].flatMap((field) => {
+    const value = restore.field(field, false);
+    return value === undefined ? [] : [field.init(() => value)];
+  });
+  const fresh = EditorState.create({
+    doc: restore.doc,
+    selection: restore.selection,
+    extensions: [carried, extensions],
+  });
+  return fresh.update({
+    changes: minimalChange(fresh.doc.toString(), text),
+    effects,
+    annotations: Transaction.addToHistory.of(false),
+  }).state;
 };
 
-/** Whether an update holds input: a change that is not `replace` (which adds no undo step). */
-const typedIn = (transactions: readonly Transaction[]): boolean =>
-  transactions.some((tr) => tr.docChanged && tr.annotation(Transaction.addToHistory) !== false);
+/**
+ * Whether an update holds input: a change that is not `replace` (which adds no undo step), also one of only
+ * the part of the document the editor does not show (`DocCodec`).
+ */
+const typedIn = (transactions: readonly Transaction[], codec: DocCodec): boolean =>
+  transactions.some(
+    (tr) => (tr.docChanged || codec.touches(tr)) && tr.annotation(Transaction.addToHistory) !== false,
+  );
 
 const configuration = (
   readOnly: boolean,
@@ -295,11 +344,17 @@ const theme = EditorView.theme({
   ".cm-completionDetail": { marginLeft: "0", fontStyle: "normal", fontSize: "12px", color: "var(--muted)" },
 });
 
-/** Replaces the document by `text` with the smallest change (the cursor stays), without an undo step. */
-const replaceDocument = (editor: EditorView, text: string): void => {
+/** Replaces the document by `doc` with the smallest change (the cursor stays), without an undo step. */
+const replaceDocument = (editor: EditorView, doc: string, codec: DocCodec): void => {
+  const { text, effects } = codec.decode(doc);
   const change = minimalChange(editor.state.doc.toString(), text);
-  editor.dispatch({ changes: change, annotations: Transaction.addToHistory.of(false) });
+  editor.dispatch({ changes: change, effects, annotations: Transaction.addToHistory.of(false) });
 };
+
+/** Whether an update changed the whole document: its text, or the rest the codec keeps. */
+const docChanged = (update: ViewUpdate, codec: DocCodec): boolean =>
+  update.docChanged ||
+  (update.transactions.some(codec.touches) && codec.encode(update.startState) !== codec.encode(update.state));
 
 export const Editor = ({
   text,
@@ -310,6 +365,7 @@ export const Editor = ({
   onUpdate,
   onClose,
   restore,
+  codec = PLAIN,
   plugins = NO_PLUGINS,
   rules = BUILT_IN_RULES,
   label = "Text",
@@ -321,6 +377,8 @@ export const Editor = ({
   const config = useRef(new Compartment());
   const applied = useRef({ readOnly, plugins });
   const lastText = useRef(text);
+  // The codec of the first render: the editor is made once, and so is how it holds its document.
+  const coded = useRef(codec).current;
   // The callbacks of the latest render, so the editor is created once.
   const latest = useRef({ onChange, onEscape, onUpdate, onClose, handle });
   latest.current = { onChange, onEscape, onUpdate, onClose, handle };
@@ -337,6 +395,7 @@ export const Editor = ({
         initial ?? text,
         [
           history(),
+          coded.extension,
           keymap.of([
             {
               key: "Escape",
@@ -355,8 +414,8 @@ export const Editor = ({
           releaseCaretSide,
           EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              latest.current.onChange(update.state.doc.toString(), typedIn(update.transactions));
+            if (docChanged(update, coded)) {
+              latest.current.onChange(coded.encode(update.state), typedIn(update.transactions, coded));
             }
             latest.current.onUpdate?.();
           }),
@@ -364,6 +423,7 @@ export const Editor = ({
           config.current.of(configuration(readOnly, plugins, rules)),
         ],
         restore,
+        coded,
       ),
     });
     // An ordinary text is shown formatted from the first paint, so its height does not change later (`parsed.ts`).
@@ -380,14 +440,16 @@ export const Editor = ({
         editor.focus();
       },
       hasFocus: () => editor.hasFocus,
-      doc: () => editor.state.doc.toString(),
+      doc: () => coded.encode(editor.state),
       state: () => editor.state,
       replace: (next) => {
-        replaceDocument(editor, next);
+        replaceDocument(editor, next, coded);
       },
       set: (next) => {
+        const { text: shown, effects } = coded.decode(next);
         editor.dispatch({
-          changes: minimalChange(editor.state.doc.toString(), next),
+          changes: minimalChange(editor.state.doc.toString(), shown),
+          effects,
           userEvent: "input.set",
         });
       },
@@ -408,7 +470,7 @@ export const Editor = ({
       },
     });
     return () => {
-      latest.current.onClose?.(editor.state.toJSON(HISTORY));
+      latest.current.onClose?.(editor.state);
       latest.current.handle?.(undefined);
       editor.destroy();
     };
@@ -429,8 +491,8 @@ export const Editor = ({
   // is no unsaved input, that is when it still is the text it was loaded as.
   useEffect(() => {
     if (view !== undefined) {
-      if (view.state.doc.toString() === lastText.current) {
-        replaceDocument(view, text);
+      if (coded.encode(view.state) === lastText.current) {
+        replaceDocument(view, text, coded);
       }
     }
     lastText.current = text;

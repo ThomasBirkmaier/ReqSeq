@@ -123,6 +123,6 @@ export const LIST_ITEM_KEYS: readonly KeyRow[] = [
       { press: { ...press("ArrowUp"), altKey: true } },
       { press: { ...press("ArrowDown"), altKey: true } },
     ],
-    does: "In the text: move the list item with its sub-items, or the line, one place up or down",
+    does: "In the text: move the list item with its sub-items, or the line, one place up or down; in a list box: move the value, or the selected values, one line up or down",
   },
 ];
