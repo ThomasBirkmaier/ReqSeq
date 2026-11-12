@@ -266,7 +266,7 @@ describe("evidence.record (SR-030)", () => {
     });
   });
 
-  it("[SR-028/AK6] refuses a verification of a need and any record of a use case (D-012), writing nothing", async () => {
+  it("[SR-028/AK-hdkt] refuses a verification of a need and any record of a use case (D-012), writing nothing", async () => {
     const { fixture, workspace } = await open();
     const need = await refusedLeavingNothing(
       fixture,
@@ -536,7 +536,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     ).toBe("40a0e000-0000-4000-8000-c3c3c3c3c3c3");
   });
 
-  it("[SR-038/AK4] refuses a validation record with a variant, names the reason and writes nothing", async () => {
+  it("[SR-038/AK-zv5h] refuses a validation record with a variant, names the reason and writes nothing", async () => {
     const { fixture, workspace } = await variants();
     const VALIDATION = { ref: "SR-000ab2", kind: "validation", result: "passed", date: DATE } as const;
     const error = await refusedLeavingNothing(fixture, () =>
@@ -549,7 +549,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     ]);
   });
 
-  it("[SR-047/AK4] refuses a variant not in the element's validity, naming the reason, and an element that is no variant", async () => {
+  it("[SR-047/AK-vd3h] refuses a variant not in the element's validity, naming the reason, and an element that is no variant", async () => {
     const { fixture, workspace } = await variants();
     // Given by UUID, as the app gives it: the message names short IDs, the details the variant (SR-047 AK4).
     const desert = await refusedLeavingNothing(
@@ -709,7 +709,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
   const WHY = "The field test needs frost:\nnone so far";
   const REQUIRED = "reason is required: a record with the result inconclusive needs a reason (SR-172 AK1)";
 
-  it("[SR-172/AK1] refuses an inconclusive validation without a reason, or with a blank one, naming reason, and writes nothing", async () => {
+  it("[SR-172/AK-gy05] refuses an inconclusive validation without a reason, or with a blank one, naming reason, and writes nothing", async () => {
     const { fixture, workspace } = await open();
     const missing = await refusedLeavingNothing(fixture, () => record(workspace, INCONCLUSIVE));
     expect([missing.message, missing.details]).toEqual([
@@ -733,7 +733,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
     expect(blank.details).toMatchObject({ errors: [{ path: "/reason", keyword: "pattern" }] });
   });
 
-  it("[SR-172/AK1] writes an inconclusive validation with its reason after the result, and reads it back", async () => {
+  it("[SR-172/AK-gy05] writes an inconclusive validation with its reason after the result, and reads it back", async () => {
     const { fixture, workspace } = await open();
     const out = await record(workspace, { ...INCONCLUSIVE, reason: WHY });
     expect(out.record).toMatchObject({ kind: "validation", result: "inconclusive", reason: WHY });
@@ -745,7 +745,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
     });
   });
 
-  it("[SR-172/AK3] refuses an inconclusive verification and a reason with another result, naming the field (#807 Q2, Q4)", async () => {
+  it("[SR-172/AK-r065] refuses an inconclusive verification and a reason with another result, naming the field (#807 Q2, Q4)", async () => {
     const { fixture, workspace } = await open();
     const verification = await refusedLeavingNothing(fixture, () =>
       record(workspace, { ...INSPECTION, ref: "SR-00c002", result: "inconclusive", reason: "no sample" }),

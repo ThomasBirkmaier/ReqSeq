@@ -42,12 +42,12 @@ const P1 = [
 ].join("\n");
 
 describe("reqseq evidence degree (SR-037)", () => {
-  it("[SR-037/AK1] reqseq evidence degree prints 60 % and the count per status for a package", async () => {
+  it("[SR-037/AK-zxtb] reqseq evidence degree prints 60 % and the count per status for a package", async () => {
     const result = await degree({ selection: { package: "PKG-00d001" } });
     expect([result.code, result.stderr, result.stdout]).toEqual([0, "", P1]);
   });
 
-  it("[SR-037/AK2] reqseq evidence degree --json counts indirect requirements as verified and apart", async () => {
+  it("[SR-037/AK-jrkd] reqseq evidence degree --json counts indirect requirements as verified and apart", async () => {
     const result = await degree({ selection: { package: "PKG-00d002" } }, ["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -57,7 +57,7 @@ describe("reqseq evidence degree (SR-037)", () => {
     });
   });
 
-  it("[SR-037/AK3] reqseq evidence degree leaves out the requirements with an obsolete status", async () => {
+  it("[SR-037/AK-s607] reqseq evidence degree leaves out the requirements with an obsolete status", async () => {
     const result = await degree({ selection: { package: "PKG-00d003" } });
     expect([result.code, result.stderr, result.stdout]).toEqual([0, "", P1]);
   });
@@ -70,7 +70,7 @@ describe("reqseq evidence degree (SR-037)", () => {
 });
 
 describe("the numbers of a package page (SR-112)", () => {
-  it("[SR-112/AK3] reqseq evidence coverage and evidence degree with selection.package give the numbers of the package page's line", async () => {
+  it("[SR-112/AK-s1rj] reqseq evidence coverage and evidence degree with selection.package give the numbers of the package page's line", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-037/degree" });
     fixtures.push(ws);
     const input = JSON.stringify({ selection: { package: "PKG-00d003" } });

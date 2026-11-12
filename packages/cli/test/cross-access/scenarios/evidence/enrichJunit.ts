@@ -226,7 +226,7 @@ scenariosOf("evidence.enrichJunit", [
     name: "the number of test cases that name no requirement",
     fixture: PATTERN_JUNIT,
     input: { file: "results/nextest.xml", item: "build-627", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK4]",
+    tag: "[SR-029/AK-srmd]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 0, withoutReference: 2 });
@@ -247,7 +247,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK6]",
+    tag: "[SR-029/AK-r1s7]",
     expect: "output",
     check: (results) => {
       const run = results["core"]?.files["results/run.xml"] ?? "";
@@ -267,7 +267,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-09T10:00:00Z",
       variant: ["core", "VAR-0000c2"],
     },
-    tag: "[SR-029/AK6]",
+    tag: "[SR-029/AK-r1s7]",
     expect: "output",
     check: (results) => {
       // SR-0000b2 applies in neither view, SR-0000a5 not in Mountain: those test cases stay unchanged (AK9).
@@ -284,7 +284,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-09T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK8]",
+    tag: "[SR-029/AK-pb9c]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([
@@ -309,7 +309,7 @@ scenariosOf("evidence.enrichJunit", [
       variant: ["core", "VAR-0000c2"],
       skipNotInView: true,
     },
-    tag: "[SR-029/AK11]",
+    tag: "[SR-029/AK-djjh]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 4, notInView: 2, problems: [] });
@@ -339,7 +339,7 @@ scenariosOf("evidence.enrichJunit", [
       variant: ["core", "VAR-0000c2"],
       skipNotInView: true,
     },
-    tag: "[SR-029/AK12]",
+    tag: "[SR-029/AK-hx47]",
     expect: "output",
     check: (results) => {
       expect(enrichOutput(results)).toMatchObject({ testCases: 0, notInView: 2, problems: [] });
@@ -363,7 +363,7 @@ scenariosOf("evidence.enrichJunit", [
     name: "a reqseq:variant given by short ID becomes its UUID",
     fixture: VARIANT_JUNIT,
     input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK7]",
+    tag: "[SR-029/AK-w8pw]",
     expect: "output",
     check: (results) => {
       const run = results["core"]?.files["results/run.xml"] ?? "";
@@ -382,7 +382,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK8]",
+    tag: "[SR-029/AK-pb9c]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toContain(
@@ -399,7 +399,7 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-11-01T10:00:00Z",
       variant: ["VAR-0000c1"],
     },
-    tag: "[SR-029/AK9]",
+    tag: "[SR-029/AK-h0h5]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([
@@ -414,7 +414,7 @@ scenariosOf("evidence.enrichJunit", [
     name: "a requirement not valid in the variant a test case names itself, or in the core without one, is reported",
     fixture: VARIANT_JUNIT,
     input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
-    tag: "[SR-029/AK9]",
+    tag: "[SR-029/AK-h0h5]",
     expect: "output",
     check: (results) => {
       expect(enrichMessages(results)).toEqual([

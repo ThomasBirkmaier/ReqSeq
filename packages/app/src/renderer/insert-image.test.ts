@@ -22,7 +22,7 @@ const COPIED: Answer<"element.addAttachment"> = {
 };
 
 describe("the prompt Insert image", () => {
-  it("[SR-097/AK1] copies the typed file with element.addAttachment for the element of its repository and inserts its Markdown", async () => {
+  it("[SR-097/AK-zs31] copies the typed file with element.addAttachment for the element of its repository and inserts its Markdown", async () => {
     const { prompt, calls, request, echo } = setup(COPIED);
     expect(prompt.label).toBe(INSERT_IMAGE_LABEL);
     expect(prompt.items).toEqual([]);

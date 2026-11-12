@@ -104,7 +104,7 @@ const graphOf = (keys: readonly string[], edges: readonly MetamodelEdge[]): Meta
 });
 
 describe("layoutMetamodel", () => {
-  it("[SR-130/AK2] places every parent and every target type above, each node as tall as its properties, a loop beside its node and every label on its curve", () => {
+  it("[SR-130/AK-s795] places every parent and every target type above, each node as tall as its properties, a loop beside its node and every label on its curve", () => {
     const graph = metamodelGraph(FIXTURE_METAMODEL);
     const layout = layoutMetamodel(graph);
     expect(layout.nodes.map((placed) => [placed.key, placed.width, placed.height])).toEqual([
@@ -157,7 +157,7 @@ describe("layoutMetamodel", () => {
     }
   });
 
-  it("[SR-130/AK2] keeps a parent above its subtype when a relation kind runs from the parent to the subtype, and draws that curve and the opposite of a ranked one afterwards, down to their targets", () => {
+  it("[SR-130/AK-s795] keeps a parent above its subtype when a relation kind runs from the parent to the subtype, and draws that curve and the opposite of a ranked one afterwards, down to their targets", () => {
     const layout = layoutMetamodel(metamodelGraph(FIXTURE_METAMODEL));
     expect(
       layout.paths.filter((path) => path.drawnAfter).map((path) => `${path.source} > ${path.target}`),

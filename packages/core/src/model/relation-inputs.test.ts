@@ -117,7 +117,7 @@ describe("relations in element.create (#175)", () => {
     ]);
   });
 
-  it("[SR-067/AK4] refuses an unknown kind, a property, an unknown target and a pair the metamodel does not allow, and creates nothing", async () => {
+  it("[SR-067/AK-r039] refuses an unknown kind, a property, an unknown target and a pair the metamodel does not allow, and creates nothing", async () => {
     const opened = await open();
     const input = (relations: Record<string, unknown>) => ({
       type: "system-requirement",

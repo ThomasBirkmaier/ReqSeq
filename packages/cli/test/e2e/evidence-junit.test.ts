@@ -52,7 +52,7 @@ const evidence = (output: Output): (string | number | undefined)[][] =>
     .map((p) => [p.code, p.elementId, p.file, p.line, p.storedVersion]);
 
 describe("reqseq reads JUnit XML as records (SR-093)", () => {
-  it("[SR-093/AK1] reqseq workspace check reads an enriched JUnit file from the evidence folder and assigns each test case to its requirement", async () => {
+  it("[SR-093/AK-tqm2] reqseq workspace check reads an enriched JUnit file from the evidence folder and assigns each test case to its requirement", async () => {
     const { code, output } = await check();
     // SR-46fb54 and SR-0b0036 have records of older versions (the second test case names two
     // requirements, each with its own version); SR-0c0037 has one of its current version. The skipped
@@ -65,7 +65,7 @@ describe("reqseq reads JUnit XML as records (SR-093)", () => {
     expect(code).toBe(0);
   });
 
-  it("[SR-093/AK2] reqseq workspace check passes over test cases that name no requirement without a problem", async () => {
+  it("[SR-093/AK-mtb4] reqseq workspace check passes over test cases that name no requirement without a problem", async () => {
     // A pytest file whose test cases name no requirement (parameter lists, a skipped one). Workspace
     // check shows the problems of the read state (SR-028's evidenceProblemsState), so this proves
     // that no record arises and that the reader reports nothing.

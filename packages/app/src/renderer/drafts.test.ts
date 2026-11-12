@@ -48,7 +48,7 @@ describe("sameDraft", () => {
 });
 
 describe("withShown", () => {
-  it("[SR-106/AK3] keeps the element the buffer shows with its draft, and nothing without a draft", () => {
+  it("[SR-106/AK-v420] keeps the element the buffer shows with its draft, and nothing without a draft", () => {
     const shown = { element: { id: "uuid-1" } as DataExportElement, sha: "sha-1" };
     expect(withShown(draft("b", "a"), shown)).toEqual({ ...draft("b", "a"), shown });
     expect(withShown(draft("b", "a"), undefined)).toEqual(draft("b", "a"));
@@ -92,7 +92,7 @@ describe("rebased", () => {
     docs: new Map(Object.entries(docs)),
   });
 
-  it("[SR-105/AK1] drops the input a save that answered after the buffer was left has written", () => {
+  it("[SR-105/AK-p4gn] drops the input a save that answered after the buffer was left has written", () => {
     expect(
       rebased(
         { ...draft("a!", "a", [["topic", "Gusts", "Wind"]]), sha: "sha-0" },

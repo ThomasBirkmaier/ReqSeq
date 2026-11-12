@@ -212,7 +212,7 @@ const toRequirements = async (): Promise<void> => {
 };
 
 describe("the neighbourhood in the app", () => {
-  it("[SR-119/AK2] shows the requirements of a need after Ctrl+P, its ID, Enter and Ctrl+J", async () => {
+  it("[SR-119/AK-mj1y] shows the requirements of a need after Ctrl+P, its ID, Enter and Ctrl+J", async () => {
     await open();
     await toRequirements();
     expect(query(".neighbourhood h1").textContent).toBe("N-000001 (N-001) See the wind");
@@ -227,7 +227,7 @@ describe("the neighbourhood in the app", () => {
     );
   });
 
-  it("[SR-107/AK2] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
+  it("[SR-107/AK-bhct] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
     await open();
     await toRequirements();
     await keyDown(window, "j", true);
@@ -252,7 +252,7 @@ describe("the neighbourhood in the app", () => {
 });
 
 describe("the graph in the app", () => {
-  it("[SR-111/AK1] shows the graph of the element with Ctrl+Shift+G, with the type names, and goes back the same way", async () => {
+  it("[SR-111/AK-g4rk] shows the graph of the element with Ctrl+Shift+G, with the type names, and goes back the same way", async () => {
     const fake = await open();
     await keyDown(window, "p", true);
     await type("N-001");
@@ -277,7 +277,7 @@ describe("the graph in the app", () => {
     expect(query("article h1").textContent).toBe("See the wind");
   });
 
-  it("[SR-111/AK3] shows only a relation kind, and also another one, by their names from the catalog and the metamodel", async () => {
+  it("[SR-111/AK-h6n9] shows only a relation kind, and also another one, by their names from the catalog and the metamodel", async () => {
     const fake = await open([GRAPH_LISTING]);
     await keyDown(window, "p", true);
     await type("N-001");

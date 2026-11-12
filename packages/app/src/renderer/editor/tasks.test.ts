@@ -55,7 +55,7 @@ const box = (view: EditorView, index = 0): HTMLElement => {
 };
 
 describe("tasks (SR-185)", () => {
-  it("[SR-185/AK1] a click on the box of a task switches its marker in the file between [ ] and [x], and nothing else", () => {
+  it("[SR-185/AK-mpnv] a click on the box of a task switches its marker in the file between [ ] and [x], and nothing else", () => {
     const doc = "Intro\n\n- [ ] one\n- [X] two\n";
     const view = viewOf(doc);
     expect(box(view).textContent).toBe("☐");
@@ -92,7 +92,7 @@ describe("tasks (SR-185)", () => {
     expect(tasksOnSelectedLines(view.state)).toEqual([2]);
   });
 
-  it("[SR-185/AK1] a click ticks a task in a quote too, which cannot be dragged", () => {
+  it("[SR-185/AK-mpnv] a click ticks a task in a quote too, which cannot be dragged", () => {
     const view = viewOf("> - [ ] t\n");
     press(box(view));
     expect(view.state.doc.toString()).toBe("> - [x] t\n");
@@ -105,7 +105,7 @@ describe("tasks (SR-185)", () => {
     expect(view.state.doc.toString()).toBe("- [x] one\n- plain");
   });
 
-  it("[SR-185/AK2] undo after a click brings the tick before back, in one step of its own", () => {
+  it("[SR-185/AK-nr1h] undo after a click brings the tick before back, in one step of its own", () => {
     const view = viewOf("- [ ] one", 9);
     view.dispatch({ changes: { from: 9, insert: "!" }, userEvent: "input.type" });
     press(box(view));
@@ -116,7 +116,7 @@ describe("tasks (SR-185)", () => {
     expect(view.state.doc.toString()).toBe("- [ ] one");
   });
 
-  it("[SR-185/AK3] Toggle task with the caret on the line of a task switches it as a click does; false off a task", () => {
+  it("[SR-185/AK-jxg0] Toggle task with the caret on the line of a task switches it as a click does; false off a task", () => {
     const view = viewOf("- [ ] one\n  - [x] two\n\ntext", 4);
     expect(toggleTask(view)).toBe(true);
     expect(view.state.doc.toString()).toBe("- [x] one\n  - [x] two\n\ntext");

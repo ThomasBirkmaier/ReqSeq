@@ -67,7 +67,7 @@ describe("trace.related with 50,000 elements and 200,000 relations (SR-023, N-03
   const needs = (): string[] => tree.elements.filter((e) => e.type === "need").map((e) => e.id);
   const basis = "SR-023, N-036 (recorded; compare SR-082 AK4, 500 ms)";
 
-  it("[SR-082/AK4] lists the first page of all children of a need within 500 ms", async () => {
+  it("[SR-082/AK-h27y] lists the first page of all children of a need within 500 ms", async () => {
     const [need = ""] = needs();
     // The incoming relation index and the short IDs are built once per store, not per call (ADR-0008).
     await measure(

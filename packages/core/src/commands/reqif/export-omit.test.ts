@@ -70,7 +70,7 @@ const valuesOf = (file: ReqifFile, id: string): Record<string, unknown> => {
 };
 
 describe("reqif.export (SR-059)", () => {
-  it("[SR-059/AK1] leaves the listed properties out of the file: no attribute, no value, nothing in reqseq-values, no SPEC-RELATION of a relation-valued one", async () => {
+  it("[SR-059/AK-d5s8] leaves the listed properties out of the file: no attribute, no value, nothing in reqseq-values, no SPEC-RELATION of a relation-valued one", async () => {
     const { exported, text, parsed } = await open();
     const selection = { package: PACKAGE };
     await exported({ output: "full.reqif", selection });
@@ -93,7 +93,7 @@ describe("reqif.export (SR-059)", () => {
     expect(valuesOf(file, WIND)["topic"]).toBe("Display");
   });
 
-  it("[SR-059/AK2] names a target outside the export by its ID only: a SPEC-OBJECT with IDENTIFIER and type, and no title or text of it anywhere in the file", async () => {
+  it("[SR-059/AK-trx1] names a target outside the export by its ID only: a SPEC-OBJECT with IDENTIFIER and type, and no title or text of it anywhere in the file", async () => {
     const { exported, text, parsed } = await open();
     await exported({ output: "wind.reqif", selection: { ids: [WIND] } });
     const file = await parsed("wind.reqif");
@@ -125,7 +125,7 @@ describe("reqif.export (SR-059)", () => {
     ]);
   });
 
-  it("[SR-059/AK3] saves the omitted properties in the mapping of the target and leaves them out of later deliveries", async () => {
+  it("[SR-059/AK-d6kn] saves the omitted properties in the mapping of the target and leaves them out of later deliveries", async () => {
     const { exported, text } = await open({ "reqif/zulieferer.yaml": MAPPING });
     const selection = { package: PACKAGE };
     const first = await exported({

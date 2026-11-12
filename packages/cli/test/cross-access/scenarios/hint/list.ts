@@ -21,7 +21,7 @@ scenariosOf("hint.list", [
     expect: "output",
   },
   {
-    tag: "[SR-025/AK5]",
+    tag: "[SR-025/AK-n45t]",
     name: "no outdated reference of an obsolete source",
     fixture: OBSOLETE_SOURCE,
     input: { kind: ["relation.outdated"] },
@@ -74,7 +74,7 @@ scenariosOf("hint.list", [
   },
   { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
   {
-    tag: "[SR-045/AK1]",
+    tag: "[SR-045/AK-yryh]",
     name: "a changed core requirement is one hint at its replacement, listed for the variant",
     fixture: CORE_CHANGED,
     input: { variant: "VAR-0000c1", kind: ["variant.core-changed", "relation.outdated"] },
@@ -90,7 +90,7 @@ scenariosOf("hint.list", [
     },
   },
   {
-    tag: "[SR-103/AK1]",
+    tag: "[SR-103/AK-grj7]",
     name: "a core requirement changed since the variant's newest baseline is a hint at the variant",
     fixture: SINCE_BASELINE,
     input: { variant: "VAR-0000c1" },

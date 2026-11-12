@@ -82,7 +82,7 @@ const originOf = (got: Got): Record<string, unknown> =>
   Object.fromEntries(ORIGIN.map((key) => [key, got.element.properties[key]]));
 
 describe("origin of imported elements (SR-057)", () => {
-  it("[SR-057/AK1] each imported element holds source, source IDENTIFIER, import date, delivery and import version as properties", async () => {
+  it("[SR-057/AK-gqmv] each imported element holds source, source IDENTIFIER, import date, delivery and import version as properties", async () => {
     atLocal(new Date(2026, 10, 2, 23, 30));
     const workspace = await open();
     const out = await run(workspace, "reqif.import", INPUT);
@@ -117,7 +117,7 @@ describe("origin of imported elements (SR-057)", () => {
     expect(other.element.properties["import-version"]).toBe(one.element.version);
   });
 
-  it("[SR-057/AK4] every type of the standard model has the five origin properties", async () => {
+  it("[SR-057/AK-dgrm] every type of the standard model has the five origin properties", async () => {
     const metamodel = await (
       await open({ "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT })
     ).get(metamodelState);
@@ -130,7 +130,7 @@ describe("origin of imported elements (SR-057)", () => {
     ).toEqual([]);
   });
 
-  it("[SR-057/AK4] refuses a mapping to a type that cannot hold the origin, and an origin property of another kind", async () => {
+  it("[SR-057/AK-dgrm] refuses a mapping to a type that cannot hold the origin, and an origin property of another kind", async () => {
     const without = await open({
       "metamodel/standard-model.yaml": METAMODEL.replace(
         "        import-version,\n        topic,",
@@ -168,7 +168,7 @@ describe("origin of imported elements (SR-057)", () => {
     expect([error.code, error.details?.["meaning"]]).toEqual(["metamodel.meaning-unassigned", "delivery"]);
   });
 
-  it("[SR-057/AK2] the filter on the source gives exactly the elements of that source", async () => {
+  it("[SR-057/AK-dt6f] the filter on the source gives exactly the elements of that source", async () => {
     const workspace = await open();
     const a = await run(workspace, "reqif.import", INPUT);
     const b = await run(workspace, "reqif.import", { ...INPUT, mapping: "reqif/kunde-b.yaml" });
@@ -182,7 +182,7 @@ describe("origin of imported elements (SR-057)", () => {
     expect(await ids({ source: "Kunde C" })).toEqual([]);
   });
 
-  it("[SR-057/AK3] a changed imported element shows its origin unchanged, and every other command that would write the origin is refused", async () => {
+  it("[SR-057/AK-kvbv] a changed imported element shows its origin unchanged, and every other command that would write the origin is refused", async () => {
     const workspace = await open();
     const out = await run(workspace, "reqif.import", INPUT);
     const id = out.created[0]?.id ?? "";

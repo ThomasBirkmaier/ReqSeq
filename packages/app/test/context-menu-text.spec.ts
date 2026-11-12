@@ -157,7 +157,7 @@ test.describe("the context menu in the text", () => {
     }
   });
 
-  test("[SR-195/AK1] a right-click in the text offers editing and formatting, Cut and Copy only with text selected", async () => {
+  test("[SR-195/AK-y58z] a right-click in the text offers editing and formatting, Cut and Copy only with text selected", async () => {
     const { window } = running;
     await rightClickOn(window, "Siehe");
     expect(await entryNames(window)).toEqual([...AK1, ALL]);
@@ -173,7 +173,7 @@ test.describe("the context menu in the text", () => {
     expect(hints.slice(0, 5)).toEqual([`${mod}X`, `${mod}C`, `${mod}V`, `${mod}B`, `${mod}I`]);
   });
 
-  test("[SR-195/AK2] a right-click keeps the selection it lands in, and elsewhere puts the caret at the pointer", async () => {
+  test("[SR-195/AK-rm5c] a right-click keeps the selection it lands in, and elsewhere puts the caret at the pointer", async () => {
     const { window } = running;
     await select(window, "Böe", 3);
     // Inside the selection: it stays, and Bold acts on it.
@@ -192,7 +192,7 @@ test.describe("the context menu in the text", () => {
     await expect.poll(read).toContain(") und die **Böe**.");
   });
 
-  test("[SR-195/AK3] Cut, Copy and Paste from the menu and the command line do what the system's keys do", async () => {
+  test("[SR-195/AK-qn9f] Cut, Copy and Paste from the menu and the command line do what the system's keys do", async () => {
     const { window } = running;
     // Copy from the menu: the selection is on the clipboard, the text unchanged.
     await select(window, "Böe", 3);
@@ -217,7 +217,7 @@ test.describe("the context menu in the text", () => {
     await expect.poll(read).toContain("\nSturm Wind Siehe [Messung]");
   });
 
-  test("[SR-195/AK3] Paste from the menu copies an image from the clipboard as in SR-190", async () => {
+  test("[SR-195/AK-qn9f] Paste from the menu copies an image from the clipboard as in SR-190", async () => {
     const { window, app } = running;
     await app.evaluate(async ({ clipboard: system, ClipboardItem }, png) => {
       const blob = new Blob([Buffer.from(png, "base64")], { type: "image/png" });
@@ -234,7 +234,7 @@ test.describe("the context menu in the text", () => {
     expect(copy.subarray(1, 4).toString("ascii")).toBe("PNG");
   });
 
-  test("[SR-195/AK4] on a reference to an element, Follow reference is the first entry and opens it", async () => {
+  test("[SR-195/AK-cqgh] on a reference to an element, Follow reference is the first entry and opens it", async () => {
     const { window } = running;
     await rightClickOn(window, "Siehe");
     expect(await entryNames(window)).not.toContain("Follow reference");
@@ -245,7 +245,7 @@ test.describe("the context menu in the text", () => {
     await expect(window.locator("article h1").first()).toHaveText(TARGET_TITLE);
   });
 
-  test("[SR-195/AK5] in a table cell the menu adds the table actions, which act on that cell", async () => {
+  test("[SR-195/AK-s8c5] in a table cell the menu adds the table actions, which act on that cell", async () => {
     const { window } = running;
     // The table is drawn while the caret is elsewhere: the right-click goes to the cell of the drawing.
     await rightClickOn(window, "25", window.locator(".cm-lr-table"));
@@ -262,7 +262,7 @@ test.describe("the context menu in the text", () => {
     await expect.poll(read).not.toContain("Wert");
   });
 
-  test("[SR-195/AK6] on a heading the menu adds Fold section, and Unfold section once it is folded", async () => {
+  test("[SR-195/AK-z4cg] on a heading the menu adds Fold section, and Unfold section once it is folded", async () => {
     const { window } = running;
     await rightClickOn(window, "Wind");
     expect(await entryNames(window)).toEqual([...AK1, "Fold section", ALL]);

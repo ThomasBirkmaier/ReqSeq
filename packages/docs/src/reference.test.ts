@@ -41,7 +41,7 @@ const codesOf = (pages: readonly { path: string; text: string }[]): string =>
   pages.find((page) => page.path === "reference/problem-codes.md")?.text ?? "";
 
 describe("reference", () => {
-  it("[SR-139/AK1] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
+  it("[SR-139/AK-t2cv] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
     expect(pages).toHaveLength(runtime.contracts.commands.length + 3 + FORMATS.length + 4);
@@ -79,7 +79,7 @@ describe("reference", () => {
     expect(section(pageOf(pages, "element.get"), "Example")).toBe("No example.");
   });
 
-  it("[SR-139/AK2] gives every problem code and every error code its cause and remedy", async () => {
+  it("[SR-139/AK-g958] gives every problem code and every error code its cause and remedy", async () => {
     const pages = await referencePages(await sources(getCommandRuntime()), "/ReqSeq");
     const page = codesOf(pages);
     const common = contractsBundle.schemas.find((schema) =>
@@ -103,7 +103,7 @@ describe("reference", () => {
     expect(pages[0]?.text).toContain("](/ReqSeq/reference/problem-codes/)");
   });
 
-  it("[SR-139/AK3] describes every file format with its fields, definitions and examples, and every part of the standard model", async () => {
+  it("[SR-139/AK-g0sh] describes every file format with its fields, definitions and examples, and every part of the standard model", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
     const examples = await readExamples(repoRoot);
@@ -148,7 +148,7 @@ describe("reference", () => {
     }
   });
 
-  it("[SR-139/AK4] shows a changed summary of a command and a changed remedy of a code, a changed format description and a changed standard model description without a page changed by hand", async () => {
+  it("[SR-139/AK-k3sw] shows a changed summary of a command and a changed remedy of a code, a changed format description and a changed standard model description without a page changed by hand", async () => {
     const catalog = structuredClone(contractsBundle.catalog) as {
       commands: { name: string; summary: string }[];
     };

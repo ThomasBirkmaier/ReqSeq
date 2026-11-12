@@ -40,7 +40,7 @@ const DRAFT: Hold = { draft: true };
 const PROMPT: Hold = { draft: false };
 
 describe("follow agent (SR-117)", () => {
-  it("[SR-117/AK2] an access while not following changes nothing, and the mode starts off", () => {
+  it("[SR-117/AK-bhvp] an access while not following changes nothing, and the mode starts off", () => {
     expect(FOLLOW_OFF.on).toBe(false);
     expect(onAccess(FOLLOW_OFF, access(1), FREE)).toEqual({ state: FOLLOW_OFF });
     expect(followMark(FOLLOW_OFF, 0)).toBeUndefined();
@@ -57,7 +57,7 @@ describe("follow agent (SR-117)", () => {
     });
   });
 
-  it("[SR-117/AK1] an access while following switches to its open buffer, else opens it and closes the buffer the mode opened before", () => {
+  it("[SR-117/AK-knhb] an access while following switches to its open buffer, else opens it and closes the buffer the mode opened before", () => {
     // Not open: looked up and opened; the mode owns it.
     const first = onAccess(on(), access(1), FREE);
     expect(first.show).toEqual(access(1));
@@ -89,7 +89,7 @@ describe("follow agent (SR-117)", () => {
     expect(switched.state.showing).toBe(key(3));
   });
 
-  it("[SR-117/AK1] a change of the shown element asks it again, and a read of it does nothing", () => {
+  it("[SR-117/AK-knhb] a change of the shown element asks it again, and a read of it does nothing", () => {
     const write = access(1, { command: "element.update", effect: "write-files" });
     const shown: Buffers = [buffer(1)];
     // A change is always looked up: its name may have changed.
@@ -127,7 +127,7 @@ describe("follow agent (SR-117)", () => {
     ]);
   });
 
-  it("[SR-117/AK5] with a draft or an open prompt the latest access waits and is shown once the input is saved", () => {
+  it("[SR-117/AK-x6y3] with a draft or an open prompt the latest access waits and is shown once the input is saved", () => {
     expect(holdOf(0, false)).toBeUndefined();
     expect(holdOf(1, false)).toEqual(DRAFT);
     expect(holdOf(0, true)).toEqual(PROMPT);
@@ -186,7 +186,7 @@ describe("follow agent (SR-117)", () => {
     });
   });
 
-  it("[SR-117/AK5] input that comes while the element is looked up holds it back", () => {
+  it("[SR-117/AK-x6y3] input that comes while the element is looked up holds it back", () => {
     const step = onAccess(on(), access(1), FREE);
     const held = place(step.state, step.state.generation, access(1), buffer(1), [], DRAFT, none);
     expect(held.actions).toEqual([]);

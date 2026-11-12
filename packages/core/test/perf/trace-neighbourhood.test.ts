@@ -50,7 +50,7 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
 
   const firstNeed = (): string => tree.elements.find((e) => e.type === "need")?.id ?? "";
 
-  it("[SR-082/AK4] gives the first page of the direct neighbours over every kind within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the first page of the direct neighbours over every kind within 500 ms", async () => {
     // The incoming relation index and the short IDs are built once per store, not per call (ADR-0008).
     await neighbourhood({ ref: firstNeed() });
     const { result, measurement } = await measure(
@@ -67,7 +67,7 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] gives the first page of the derivation chain to depth 3 within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the first page of the derivation chain to depth 3 within 500 ms", async () => {
     const { result, measurement } = await measure(
       "neighbourhood: first page (200) of the derivations of the first need to depth 3",
       () => neighbourhood({ ref: firstNeed(), meanings: ["derivation"], maxDepth: 3 }),

@@ -86,7 +86,7 @@ const failure = async (
 };
 
 describe("data.export: every element of a workspace (SR-061 AK1)", () => {
-  it("[SR-061/AK1] gives every element of both repositories with its properties, relations, version, verification status and validity", async () => {
+  it("[SR-061/AK-cjrr] gives every element of both repositories with its properties, relations, version, verification status and validity", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace);
     expect(out["reqseq-data"]).toBe(5);
@@ -158,7 +158,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     expect(element(out, "c1")).toMatchObject({ validity: [], packages: [] });
   });
 
-  it("[SR-061/AK1] gives the same verification and validation status per element as evidence.status", async () => {
+  it("[SR-061/AK-cjrr] gives the same verification and validation status per element as evidence.status", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace);
     const status = (await invoke(
@@ -171,7 +171,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     );
   });
 
-  it("[SR-061/AK1] marks a relation whose stored version is older than its target as outdated", async () => {
+  it("[SR-061/AK-cjrr] marks a relation whose stored version is older than its target as outdated", async () => {
     const workspace = open(await fixture());
     const outdated = {
       kind: "derives-from",
@@ -200,7 +200,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     ]);
   });
 
-  it("[SR-061/AK1] names each repository with its commit and is complete when every repository is here", async () => {
+  it("[SR-061/AK-cjrr] names each repository with its commit and is complete when every repository is here", async () => {
     const ws = await fixture();
     const out = await exportOf(open(ws));
     expect(out.repositories).toEqual([
@@ -233,7 +233,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     ]);
   });
 
-  it("[SR-006/AK2] marks the export incomplete when a repository of the workspace is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] marks the export incomplete when a repository of the workspace is not on this machine", async () => {
     const ws = await fixture();
     await rm(ws.path("sensor"), { recursive: true });
     const out = await exportOf(open(ws));
@@ -299,7 +299,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
 });
 
 describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
-  it("[SR-061/AK2] a saved filter gives only its elements", async () => {
+  it("[SR-061/AK-t65h] a saved filter gives only its elements", async () => {
     const workspace = open(await fixture());
     expect(names(await exportOf(workspace, { selection: { filter: "Functional" } }))).toEqual([
       "b1",
@@ -308,19 +308,19 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     ]);
   });
 
-  it("[SR-061/AK2] a package gives only the elements of the package", async () => {
+  it("[SR-061/AK-t65h] a package gives only the elements of the package", async () => {
     const workspace = open(await fixture());
     expect(names(await exportOf(workspace, { selection: { package: "PKG-0000d1" } }))).toEqual(["b1", "b2"]);
   });
 
-  it("[SR-101/AK1] data.export processes exactly the elements of package P", async () => {
+  it("[SR-101/AK-dj6m] data.export processes exactly the elements of package P", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace, { selection: { package: "PKG-0000d1" } });
     expect(out.elements.map((e) => e.packages)).toEqual([[ID.d1], [ID.d1]]);
     expect(names(out)).toEqual(["b1", "b2"]);
   });
 
-  it("[SR-061/AK2] a baseline gives only the elements it lists, by name and by file", async () => {
+  it("[SR-061/AK-t65h] a baseline gives only the elements it lists, by name and by file", async () => {
     const workspace = open(await fixture());
     for (const baseline of ["Release 1", "release 1", "release-1", "release-1.yaml"]) {
       const out = await exportOf(workspace, { selection: { baseline } });
@@ -330,7 +330,7 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     }
   });
 
-  it("[SR-061/AK2] a baseline gives the copy each entry names, as baseline.get takes it (SR-088, #690)", async () => {
+  it("[SR-061/AK-t65h] a baseline gives the copy each entry names, as baseline.get takes it (SR-088, #690)", async () => {
     const ws = await fixture();
     const b1 = await readFile(ws.path("system/requirements/SR-0000000000b1.md"), "utf8");
     const e1 = await readFile(ws.path("sensor/requirements/SR-0000000000e1.md"), "utf8");
@@ -357,7 +357,7 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     ]);
   });
 
-  it("[SR-061/AK2] a variant view gives only the elements valid in it", async () => {
+  it("[SR-061/AK-t65h] a variant view gives only the elements valid in it", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace, { selection: { view: "VAR-0000c1" } });
     expect(names(out)).toEqual(ALL.filter((n) => n !== "b3"));
@@ -365,7 +365,7 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     expect(element(out, "b2").verification?.map((v) => v.view)).toEqual(["core", ID.c1, ID.c2]);
   });
 
-  it("[SR-101/AK2] a saved filter and a variant together give only the elements meeting both", async () => {
+  it("[SR-101/AK-yfjm] a saved filter and a variant together give only the elements meeting both", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace, { selection: { filter: "Functional", view: "VAR-0000c1" } });
     expect(names(out)).toEqual(["b1", "b4"]);
@@ -393,7 +393,7 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
 });
 
 describe("data.export: the documented schema (SR-061 AK3)", () => {
-  it("[SR-061/AK3] the export of the fixture matches the shipped data-export.schema.json", async () => {
+  it("[SR-061/AK-zmv6] the export of the fixture matches the shipped data-export.schema.json", async () => {
     const workspace = open(await fixture());
     const validate = fileSchemaValidator("data-export.schema.json");
     for (const input of [{}, { selection: { baseline: "Release 1" } }]) {

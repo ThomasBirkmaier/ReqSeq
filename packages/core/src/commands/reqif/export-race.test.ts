@@ -63,7 +63,7 @@ describe("reqif.export of an image that changes (SR-052)", () => {
 });
 
 describe("reqif.export to a ReqIF file that changes (SR-207)", () => {
-  it("[SR-207/AK2] replaces a ReqIF file only while it is unchanged since the export read it", async () => {
+  it("[SR-207/AK-kyqf] replaces a ReqIF file only while it is unchanged since the export read it", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-052/package" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);

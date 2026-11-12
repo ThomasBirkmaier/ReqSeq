@@ -38,7 +38,7 @@ const action = (id: string): Action => {
 };
 
 describe("the entries of an element (SR-197)", () => {
-  it("[SR-197/AK1] are the same, in the same order, on every entry and on a connected element of the matrix", () => {
+  it("[SR-197/AK-w7yx] are the same, in the same order, on every entry and on a connected element of the matrix", () => {
     const names = [
       "entry-show",
       "entry-graph",
@@ -107,7 +107,7 @@ describe("the actions on the element of the entry", () => {
     }
   });
 
-  it("[SR-197/AK2] Show element opens the entry's element as Enter does, in the active area", () => {
+  it("[SR-197/AK-pz85] Show element opens the entry's element as Enter does, in the active area", () => {
     const { context, dispatched } = contextOf([listBuffer("All elements")], entry);
     action("entry-show").run(context);
     expect(dispatched).toEqual([{ type: "open", buffer: entry }]);

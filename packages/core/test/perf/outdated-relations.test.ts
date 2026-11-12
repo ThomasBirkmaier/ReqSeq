@@ -4,7 +4,7 @@
 // relation and inline reference to them is outdated: the check reports each with the dates of both
 // versions (D-013, `versionDates`). Times are recorded with `measure` against SR-020 (check ≤ 60 s);
 // like the other component times of this suite they record and do not fail a test (the tagged
-// `[SR-020/AK1]` CLI tests assert the threshold, also for the worst case below). Correctness is
+// `[SR-020/AK-srb3]` CLI tests assert the threshold, also for the worst case below). Correctness is
 // asserted as usual. Besides the outdated relations, each generated system requirement without a
 // derivation is a `trace.no-parent` hint (SR-022 AK6, #659); the tests count those apart.
 //
@@ -12,7 +12,7 @@
 // core's), with Git. Its parts are recorded one by one: the current versions, the findings with
 // their lines, and the dates of every stored and current version (`datedProblems`, one walk per
 // target file: every element is a target). The check without Git in this case is the second
-// `[SR-020/AK1]` CLI test.
+// `[SR-020/AK-srb3]` CLI test.
 import fs from "node:fs/promises";
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {

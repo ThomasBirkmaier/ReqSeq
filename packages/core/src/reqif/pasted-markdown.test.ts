@@ -13,7 +13,7 @@ const h = (name: string, attributes: Record<string, string> = {}, ...children: X
 const md = (...nodes: XhtmlNode[]): string | undefined => pastedMarkdown(nodes)?.markdown;
 
 describe("pastedMarkdown", () => {
-  it("[SR-190/AK1] writes headings, emphasis, lists, links and tables as GFM, and nothing as HTML", () => {
+  it("[SR-190/AK-wrfc] writes headings, emphasis, lists, links and tables as GFM, and nothing as HTML", () => {
     const markdown = md(
       h("h2", {}, "Wind"),
       h(

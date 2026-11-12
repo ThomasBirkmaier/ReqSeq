@@ -74,7 +74,7 @@ const filesOf = async (root: string): Promise<Map<string, string>> => {
 };
 
 describe("element.list grouped (SR-149 AK1)", () => {
-  it("[SR-149/AK1] groups by status in metamodel order, each heading with its value, name and count", async () => {
+  it("[SR-149/AK-yrzz] groups by status in metamodel order, each heading with its value, name and count", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { group: "status", sort: BY_TITLE });
     expect(output.groups).toEqual([
@@ -86,7 +86,7 @@ describe("element.list grouped (SR-149 AK1)", () => {
     expect([output.rows, output.total, output.offset]).toEqual([7, 7, 0]);
   });
 
-  it("[SR-149/AK1] groups by a choice property: choices in metamodel order, other values after them, no value last", async () => {
+  it("[SR-149/AK-yrzz] groups by a choice property: choices in metamodel order, other values after them, no value last", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { group: "requirement-type", sort: BY_TITLE });
     expect(output.groups?.map((g) => [g.value, g.name, g.count])).toEqual([
@@ -99,7 +99,7 @@ describe("element.list grouped (SR-149 AK1)", () => {
     expect(groupLines(output).at(-1)).toBe("-: d2 a1 d1");
   });
 
-  it("[SR-149/AK1] groups by type in metamodel order, a subtype as a group of its own", async () => {
+  it("[SR-149/AK-yrzz] groups by type in metamodel order, a subtype as a group of its own", async () => {
     const { workspace } = await open({
       ...GROUP,
       files: {
@@ -120,7 +120,7 @@ describe("element.list grouped (SR-149 AK1)", () => {
     ]);
   });
 
-  it("[SR-149/AK1] groups by package by title ignoring case, the elements without an available package last", async () => {
+  it("[SR-149/AK-yrzz] groups by package by title ignoring case, the elements without an available package last", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { group: "package", sort: BY_TITLE });
     expect(output.groups).toEqual([
@@ -218,7 +218,7 @@ describe("element.list grouped by a property with few shared values (SR-149 AK1)
           .join(" ")}`,
     );
 
-  it("[SR-149/AK1] groups by topic, a text property element.facets offers values of, in text order", async () => {
+  it("[SR-149/AK-yrzz] groups by topic, a text property element.facets offers values of, in text order", async () => {
     const { workspace } = await open(TOPICS);
     const output = await list(workspace, {
       group: "topic",
@@ -327,7 +327,7 @@ describe("element.list grouped by a property with few shared values (SR-149 AK1)
 });
 
 describe("element.list grouped with several values (SR-149 AK2)", () => {
-  it("[SR-149/AK2] lists an element with several packages or values in each of their groups", async () => {
+  it("[SR-149/AK-n7tv] lists an element with several packages or values in each of their groups", async () => {
     const { workspace } = await open();
     const packages = await list(workspace, { group: "package", sort: BY_TITLE });
     expect(packages.elements.filter((e) => e.id === B1)).toHaveLength(2);
@@ -336,7 +336,7 @@ describe("element.list grouped with several values (SR-149 AK2)", () => {
     expect([packages.rows, area.rows, area.total]).toEqual([8, 8, 7]);
   });
 
-  it("[SR-149/AK2] gives both rows of an element on one page, each the whole element", async () => {
+  it("[SR-149/AK-n7tv] gives both rows of an element on one page, each the whole element", async () => {
     const { workspace } = await open();
     const output = await list(workspace, { group: "package", sort: BY_TITLE, offset: 1, limit: 2 });
     expect(output.elements.map((e) => e.id)).toEqual([B1, B1]);
@@ -348,7 +348,7 @@ describe("element.list grouped with several values (SR-149 AK2)", () => {
 });
 
 describe("element.list regrouped (SR-149 AK3)", () => {
-  it("[SR-149/AK3] another grouping, or none, gives the same elements with the same filter and the same order in each group", async () => {
+  it("[SR-149/AK-pd1k] another grouping, or none, gives the same elements with the same filter and the same order in each group", async () => {
     const { workspace } = await open();
     const selection = { where: { type: ["system-requirement", "need"] } };
     const sort = [{ by: "status" }, { by: "title", order: "desc" }];
@@ -365,7 +365,7 @@ describe("element.list regrouped (SR-149 AK3)", () => {
     }
   });
 
-  it("[SR-149/AK3] keeps the sort of a saved filter inside the groups", async () => {
+  it("[SR-149/AK-pd1k] keeps the sort of a saved filter inside the groups", async () => {
     const { workspace } = await open({
       ...GROUP,
       files: {
@@ -398,7 +398,7 @@ describe("element.list regrouped (SR-149 AK3)", () => {
 });
 
 describe("element.list grouping writes nothing (SR-149 AK5)", () => {
-  it("[SR-149/AK5] choosing and changing a grouping changes no file", async () => {
+  it("[SR-149/AK-rdmd] choosing and changing a grouping changes no file", async () => {
     const { workspace, root } = await open();
     const before = await filesOf(root);
     for (const group of ["status", "package", "area", "type"]) {

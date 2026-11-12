@@ -21,7 +21,7 @@ const hint = (key: string) => ({
 });
 
 describe("creating an element (SR-064)", () => {
-  it("[SR-064/AK1] offers the types that can have elements, in metamodel order, each with its required properties but the title", () => {
+  it("[SR-064/AK-xjg5] offers the types that can have elements, in metamodel order, each with its required properties but the title", () => {
     const types = creatableTypes(CREATE_METAMODEL);
     // The abstract "item" has no elements.
     expect(types.map((type) => [type.key, type.name])).toEqual([
@@ -85,7 +85,7 @@ describe("creating an element (SR-064)", () => {
     expect(propertiesInput(report, [])).toEqual({});
   });
 
-  it("[SR-064/AK2] says that the element is created and how many hints core gave", () => {
+  it("[SR-064/AK-yhn7] says that the element is created and how many hints core gave", () => {
     expect(createdEcho({ element: element("Wind"), problems: [hint("severity"), hint("component")] })).toBe(
       "Created REP-000009 Wind · 2 hints",
     );

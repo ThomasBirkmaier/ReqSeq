@@ -3,7 +3,7 @@ import type { UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 
 describe("memoryOf and forgetClosed", () => {
-  it("[SR-105/AK2] keeps one undo memory per open buffer and drops those of closed buffers", () => {
+  it("[SR-105/AK-dmrq] keeps one undo memory per open buffer and drops those of closed buffers", () => {
     const all = new Map<string, UndoMemory>();
     const one = memoryOf(all, "a");
     one.editors.set("Text", { doc: "x" });

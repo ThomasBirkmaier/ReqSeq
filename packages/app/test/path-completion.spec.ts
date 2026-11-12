@@ -61,7 +61,7 @@ test.describe("Path completion", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  test('[SR-143/AK1] "Open workspace" offers the folders of the folder typed last, and a choice completes the path without opening it', async () => {
+  test('[SR-143/AK-dfk5] "Open workspace" offers the folders of the folder typed last, and a choice completes the path without opening it', async () => {
     const { window } = running;
     await make(home, "projects/", "prose/", "zebra/", "proposal.txt");
     await openWorkspacePrompt(window);
@@ -79,7 +79,7 @@ test.describe("Path completion", () => {
     await expect(names(window).first()).toHaveText("Open ~/projects/x");
   });
 
-  test("[SR-143/AK2] a file argument completes relative from the workspace root and absolute, with files, and ~ is the home folder", async () => {
+  test("[SR-143/AK-zhpy] a file argument completes relative from the workspace root and absolute, with files, and ~ is the home folder", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     await make(home, "notes.txt", "drafts/");
@@ -117,7 +117,7 @@ test.describe("Path completion", () => {
     await expect(fs.stat(path.join(root, "~"))).rejects.toThrow();
   });
 
-  test("[SR-143/AK3] folders come before files, and the matched letters are marked as for commands", async () => {
+  test("[SR-143/AK-r68p] folders come before files, and the matched letters are marked as for commands", async () => {
     const { window } = running;
     await make(dir, "alpha.reqif", "salad/", "palace/");
     await exportPrompt(window);
@@ -136,7 +136,7 @@ test.describe("Path completion", () => {
     await window.screenshot({ path: path.join(SHOTS, "path-completion-light.png") });
   });
 
-  test("[SR-143/AK4] a missing folder gives no entries, says it is missing, and the typed path is still taken", async () => {
+  test("[SR-143/AK-hfz0] a missing folder gives no entries, says it is missing, and the typed path is still taken", async () => {
     const { window } = running;
     await openWorkspacePrompt(window);
     const gone = path.join(dir, "gone");
@@ -149,7 +149,7 @@ test.describe("Path completion", () => {
     );
   });
 
-  test("[SR-143/AK4] an unreadable folder gives no entries, says it is not readable, and the typed path is still taken", async () => {
+  test("[SR-143/AK-hfz0] an unreadable folder gives no entries, says it is not readable, and the typed path is still taken", async () => {
     // Windows has no mode bits that deny reading a folder: chmod changes only the read-only flag there.
     test.skip(process.platform === "win32", "chmod does not make a folder unreadable on Windows");
     const { window } = running;
@@ -177,7 +177,7 @@ test.describe("Path completion", () => {
     });
   });
 
-  test('[SR-143/AK6] names that start with "." are offered only when the typed name starts with "."', async () => {
+  test('[SR-143/AK-gdy1] names that start with "." are offered only when the typed name starts with "."', async () => {
     const { window } = running;
     await make(dir, ".hidden/", ".env", "visible/", "plain.txt");
     await exportPrompt(window);

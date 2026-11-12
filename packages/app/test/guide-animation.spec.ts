@@ -66,7 +66,7 @@ const heading = (window: Page) => window.locator("article h1");
 
 test.skip(process.platform !== "linux", "the guide's images are made on Linux only (ADR-0017)");
 
-test("[SR-203/AK1] the README animation: Get started in the app, ending in the graph of the need", async () => {
+test("[SR-203/AK-vj7k] the README animation: Get started in the app, ending in the graph of the need", async () => {
   // About a hundred frames: more than the default minute on a slow runner.
   test.setTimeout(120_000);
   // The README shows the animation.

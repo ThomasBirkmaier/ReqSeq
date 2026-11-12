@@ -296,7 +296,7 @@ describe("pathState: what the walk says about one changed path, without a walk (
 });
 
 describe("listsFile (ThomasBirkmaier/ReqSeq-archive#166)", () => {
-  it("[SR-003/AK1] agrees with listMarkdownFiles for every rule of the walk, checking only the path", async () => {
+  it("[SR-003/AK-h09c] agrees with listMarkdownFiles for every rule of the walk, checking only the path", async () => {
     const ws = await fixture({
       "a.md": "",
       "deep/er/b.md": "",

@@ -76,7 +76,7 @@ scenariosOf("hint.confirm", [
     expect: "error",
   },
   {
-    tag: "[SR-103/AK5]",
+    tag: "[SR-103/AK-q8d1]",
     name: "a since-baseline hint is refused: a new baseline settles it",
     fixture: SINCE_BASELINE,
     input: { ref: "VAR-0000c1", kind: ["variant.core-changed-since-baseline"] },

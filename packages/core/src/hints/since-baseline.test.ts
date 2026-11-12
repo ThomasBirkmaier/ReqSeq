@@ -105,7 +105,7 @@ const currentOf = async (workspace: Workspace, id: string): Promise<string> => {
 const changedK1 = async (): Promise<string> => edited(String(K1), "every minute.\n", "every 30 seconds.\n");
 
 describe("core requirements changed since a variant's newest baseline (SR-103)", () => {
-  it("[SR-103/AK1] an adopted core requirement changed since A's newest baseline is a hint at A with both versions", async () => {
+  it("[SR-103/AK-grj7] an adopted core requirement changed since A's newest baseline is a hint at A with both versions", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
       [fileOf(String(K1))]: await changedK1(),
@@ -137,7 +137,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(rows(k1.element.problems ?? [])).toEqual([]);
   });
 
-  it("[SR-103/AK1] hint.list --variant A lists the since-baseline hints of A and none of B", async () => {
+  it("[SR-103/AK-grj7] hint.list --variant A lists the since-baseline hints of A and none of B", async () => {
     const { workspace } = await open({
       "baselines/coast.yaml": baseline("coast", "2026-11-02T10:00:00Z", OF_COAST),
       // A hand-written view by short ID.
@@ -163,7 +163,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(rows(await listed(workspace, { ref: "VAR-0000c1" }))).toEqual([[changed, COAST, K1]]);
   });
 
-  it("[SR-103/AK2] a new baseline of A clears the hint", async () => {
+  it("[SR-103/AK-wvtw] a new baseline of A clears the hint", async () => {
     const { workspace, fixture } = await open({}, true);
     const create = (name: string): Promise<unknown> =>
       invoke("baseline.create", { name, selection: { view: "VAR-0000c1" } }, { workspace });
@@ -176,13 +176,13 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(await listed(after)).toEqual([]);
   });
 
-  it("[SR-103/AK3] a variant without baseline gets no hint", async () => {
+  it("[SR-103/AK-m54m] a variant without baseline gets no hint", async () => {
     const { workspace } = await open({ [fileOf(String(K1))]: await changedK1() });
     expect(rows(await check(workspace))).toEqual([]);
     expect(await listed(workspace, { variant: "VAR-0000c1" })).toEqual([]);
   });
 
-  it("[SR-103/AK4] the newest baseline is the latest date, on a tie the last file", async () => {
+  it("[SR-103/AK-sqsx] the newest baseline is the latest date, on a tie the last file", async () => {
     const stale = { [String(K1)]: OLD };
     const files = {
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST, stale),
@@ -227,7 +227,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(hint?.message).toContain("its newest baseline R2b:");
   });
 
-  it("[SR-103/AK5] hint.confirm of the hint is refused: a new baseline settles it", async () => {
+  it("[SR-103/AK-q8d1] hint.confirm of the hint is refused: a new baseline settles it", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
       [fileOf(String(K1))]: await changedK1(),
@@ -255,7 +255,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(rows(await listed(workspace))).toHaveLength(1);
   });
 
-  it("[SR-103/AK5] hint.confirm all of the kind is refused with the reason, whatever expected says (#644)", async () => {
+  it("[SR-103/AK-q8d1] hint.confirm all of the kind is refused with the reason, whatever expected says (#644)", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
       [fileOf(String(K1))]: await changedK1(),
@@ -281,7 +281,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     });
   });
 
-  it("[SR-103/AK5] hint.confirm of the hints of A is refused with the reason, and confirms nothing else", async () => {
+  it("[SR-103/AK-q8d1] hint.confirm of the hints of A is refused with the reason, and confirms nothing else", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
       [fileOf(String(K1))]: await changedK1(),
@@ -307,7 +307,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     }
   });
 
-  it("[SR-103/AK6] excluded or replaced core requirements give no hint here", async () => {
+  it("[SR-103/AK-gghk] excluded or replaced core requirements give no hint here", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST, {
         [String(K3)]: OLD,
@@ -325,7 +325,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     ]);
   });
 
-  it("[SR-103/AK7] a core requirement that came into the view of A since the baseline is named new since the baseline with its current version only", async () => {
+  it("[SR-103/AK-bvjw] a core requirement that came into the view of A since the baseline is named new since the baseline with its current version only", async () => {
     const k5 = (await edited(String(K1), `id: ${String(K1)}`, `id: ${String(K5)}`)).replace(
       "title: Wind speed every minute",
       "title: Wind direction every minute",
@@ -494,7 +494,7 @@ describe("what hint.list computes (N-036)", () => {
 });
 
 describe("copies of a core requirement in two repositories (SR-088)", () => {
-  it("[SR-103/AK1] compares a baseline entry of normal form 2 in that form (ADR-0005)", async () => {
+  it("[SR-103/AK-grj7] compares a baseline entry of normal form 2 in that form (ADR-0005)", async () => {
     const { workspace: first } = await open();
     const versions = await first.get(currentVersionsState);
     const n2 = Object.fromEntries(

@@ -40,7 +40,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await running.close();
   });
 
-  test("[SR-122/AK4] Ctrl+N and Ctrl+P walk the overview, the list, the search result and the matrix like Down and Up; Ctrl+N first selects the first row", async () => {
+  test("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P walk the overview, the list, the search result and the matrix like Down and Up; Ctrl+N first selects the first row", async () => {
     const { window } = running;
     // The overview after the start: no line is selected.
     await expect(selectedRow(window)).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test("[SR-122/AK4] on a package page Ctrl+N selects the first element of the package, then walks its list; Ctrl+P on the first goes back to the page", async () => {
+  test("[SR-122/AK-mqwc] on a package page Ctrl+N selects the first element of the package, then walks its list; Ctrl+P on the first goes back to the page", async () => {
     const { window } = running;
     await openPackage(window);
     const listed = await running.cli([
@@ -114,7 +114,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test("[SR-122/AK5] [SR-145/AK3] with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it", async () => {
+  test("[SR-122/AK-xm88] [SR-145/AK-mk0f] with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it", async () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("Control+N");
@@ -145,7 +145,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test('[SR-122/AK5] [SR-145/AK1] with no row selected Ctrl+P is still "Go to" on Linux and Windows (Cmd+P on macOS): after the start, and on a package page outside its list', async () => {
+  test('[SR-122/AK-xm88] [SR-145/AK-bfb2] with no row selected Ctrl+P is still "Go to" on Linux and Windows (Cmd+P on macOS): after the start, and on a package page outside its list', async () => {
     const { window } = running;
     // macOS: the physical Ctrl+P is never "Go to" (see the test of macOS below); Cmd+P is.
     const goTo = process.platform === "darwin" ? "Meta+P" : "Control+P";
@@ -172,7 +172,7 @@ test.describe("Ctrl+N and Ctrl+P in the neighbourhood", () => {
     await running.close();
   });
 
-  test("[SR-122/AK4] in the neighbourhood Ctrl+N and Ctrl+P move through the tree and the incoming links", async () => {
+  test("[SR-122/AK-mqwc] in the neighbourhood Ctrl+N and Ctrl+P move through the tree and the incoming links", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+P");
     // Show wind speed has a child and incoming links ("← excludes", "← inline reference").
@@ -226,7 +226,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await running.close();
   });
 
-  test('[SR-145/AK1] under macOS Ctrl+P on an element and in its text editor is not "Go to": the editor moves the caret a line up; Cmd+P jumps', async () => {
+  test('[SR-145/AK-bfb2] under macOS Ctrl+P on an element and in its text editor is not "Go to": the editor moves the caret a line up; Cmd+P jumps', async () => {
     const { window } = running;
     await window.keyboard.press("Meta+P");
     await expect(promptLabel(window)).toHaveText("Go to");
@@ -273,7 +273,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-145/AK3] under macOS the physical Ctrl+N and Ctrl+P move the selection of the slash menu, not the caret", async () => {
+  test("[SR-145/AK-mk0f] under macOS the physical Ctrl+N and Ctrl+P move the selection of the slash menu, not the caret", async () => {
     const { window } = running;
     await window.keyboard.press("Meta+P");
     await window.keyboard.type(DEMO_TITLE);

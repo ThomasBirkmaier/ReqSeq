@@ -1660,7 +1660,7 @@ describe("blobs of a commit (#439)", () => {
 describe("whether Git tracks a file (SR-004 AK8, #1456)", () => {
   const FILE = ".reqseq/local.yaml";
 
-  it("[SR-004/AK8] finds a committed file, a staged one, one staged for removal and an unmerged one; an untracked one is not", async () => {
+  it("[SR-004/AK-m7c2] finds a committed file, a staged one, one staged for removal and an unmerged one; an untracked one is not", async () => {
     const ws = await fixture(["repo"]);
     const folder = ws.path("repo");
     await ws.write(`repo/${FILE}`, "reqseq-local: 1\n");
@@ -1693,7 +1693,7 @@ describe("whether Git tracks a file (SR-004 AK8, #1456)", () => {
     ]);
   });
 
-  it("[SR-004/AK8] finds an index entry under another name for the same file on disk, and no other file", async () => {
+  it("[SR-004/AK-m7c2] finds an index entry under another name for the same file on disk, and no other file", async () => {
     const ws = await fixture(["repo"]);
     const folder = ws.path("repo");
     await ws.write(`repo/${FILE}`, "reqseq-local: 1\n");
@@ -1740,7 +1740,7 @@ describe("whether Git tracks a file (SR-004 AK8, #1456)", () => {
     expect(await trackedFile(ws.path("repo"), FILE)).toEqual({ known: true, tracked: false });
   });
 
-  it("[SR-004/AK8] asks a repository without commits about its index", async () => {
+  it("[SR-004/AK-m7c2] asks a repository without commits about its index", async () => {
     const ws = await fixture();
     await ws.git(["init", "--quiet", "--template="], "plain");
     await ws.write(`plain/${FILE}`, "reqseq-local: 1\n");

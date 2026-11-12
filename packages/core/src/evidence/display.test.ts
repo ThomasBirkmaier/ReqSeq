@@ -51,7 +51,7 @@ const display = (
   });
 
 describe("displayOf", () => {
-  it("[SR-032/AK3] keeps the whole newest run open and folds older records by run, newest first", () => {
+  it("[SR-032/AK-hbdt] keeps the whole newest run open and folds older records by run, newest first", () => {
     const records = [
       record({ testCase: "a", criteria: [1] }),
       record({ testCase: "b", criteria: [1] }),

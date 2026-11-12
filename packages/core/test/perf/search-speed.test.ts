@@ -209,7 +209,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     expect(result.hits).toHaveLength(50);
   });
 
-  it("[SR-098/AK1] shows the first hits of every search term within 300 ms (median of 7 runs)", async () => {
+  it("[SR-098/AK-pqx4] shows the first hits of every search term within 300 ms (median of 7 runs)", async () => {
     const { terms, record } = perfTerms();
     const title = String(record.data["title"]);
     const shortId = `${String(findType(metamodel, record.type)?.prefix)}-${record.id.slice(-6)}`;
@@ -241,7 +241,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
-  it("[SR-098/AK1] shows the first 50 and 500 hits with their snippets from texts of 5 KB, also hard-wrapped, within 300 ms (SR-174, median of 7 runs)", async () => {
+  it("[SR-098/AK-pqx4] shows the first 50 and 500 hits with their snippets from texts of 5 KB, also hard-wrapped, within 300 ms (SR-174, median of 7 runs)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");
     }
@@ -272,7 +272,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
-  it("[SR-098/AK1] shows the first grouped hits of the costliest terms within 300 ms (SR-149 AK6, median of 7 runs)", async () => {
+  it("[SR-098/AK-pqx4] shows the first grouped hits of the costliest terms within 300 ms (SR-149 AK6, median of 7 runs)", async () => {
     // A grouped search sorts every hit and deals them into groups (element.search `group`): the
     // costliest terms find (almost) every element. By status, by package (the targets looked up) and
     // by a choice property, the first page of 50 rows and one page deep in the rows.
@@ -338,7 +338,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     expect(compared).toBeGreaterThan(0);
   });
 
-  it("[SR-098/AK1] shows the first hits of the first search after a save within 300 ms (median of 5 saves)", async () => {
+  it("[SR-098/AK-pqx4] shows the first hits of the first search after a save within 300 ms (median of 5 saves)", async () => {
     // A save carries the index (`carrySearchIndex`): the first search after it, once the carry is done
     // (it runs in the background and a search waits for it, which the test does before it measures),
     // reads arrays that the carry built. A search of the largest term, after the save of an element.

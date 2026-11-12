@@ -151,7 +151,7 @@ const generatedUuids = (count: number, seed: number): string[] => {
 const metamodelOf = async (): Promise<Metamodel> => open((await moved([])).root).get(metamodelState);
 
 describe("short IDs", () => {
-  it("[SR-084/AK1] shows the prefix of the element's type and the last 6 digits of its UUID", async () => {
+  it("[SR-084/AK-rmv3] shows the prefix of the element's type and the last 6 digits of its UUID", async () => {
     const { store, shortIds } = await read(open((await moved([PAIR_1])).root));
     expect(shown(store, shortIds)).toEqual({
       [MOVED_N]: "N-bd8c26",
@@ -163,7 +163,7 @@ describe("short IDs", () => {
     }
   });
 
-  it("[SR-084/AK1] shows the prefix of their type for elements of every repository of the workspace", async () => {
+  it("[SR-084/AK-rmv3] shows the prefix of their type for elements of every repository of the workspace", async () => {
     const ws = await fixture({ fixture: "SR-004/three-repositories" });
     const { store, shortIds } = await read(open(ws.path("system")));
     expect(store.elements.map((e) => [e.repository, shortIds.of(e)])).toEqual([
@@ -173,7 +173,7 @@ describe("short IDs", () => {
     ]);
   });
 
-  it("[SR-084/AK2] lengthens both short forms of UUIDs that end on the same 6 digits until they differ", async () => {
+  it("[SR-084/AK-x9py] lengthens both short forms of UUIDs that end on the same 6 digits until they differ", async () => {
     const { store, shortIds } = await read(open((await moved([PAIR_1, PAIR_2])).root));
     expect(shown(store, shortIds)).toEqual({
       [MOVED_N]: "N-bd8c26",
@@ -183,7 +183,7 @@ describe("short IDs", () => {
     });
   });
 
-  it("[SR-084/AK2] keeps the short form unique in the whole workspace, across repositories and types", async () => {
+  it("[SR-084/AK-x9py] keeps the short form unique in the whole workspace, across repositories and types", async () => {
     // The new need in `product` ends like the system requirement in `system` (3a2dd1).
     const need = "6f1c2a3b-4d5e-4f60-9a7b-c0ffe03a2dd1";
     const ws = await fixture({
@@ -199,7 +199,7 @@ describe("short IDs", () => {
     ]);
   });
 
-  it("[SR-084/AK2] gives each element of a group the shortest tail that no other UUID ends with", async () => {
+  it("[SR-084/AK-x9py] gives each element of a group the shortest tail that no other UUID ends with", async () => {
     const { store, shortIds } = await read(open((await moved([GROUP_A, GROUP_B, GROUP_C])).root));
     expect(shown(store, shortIds)).toMatchObject({
       [GROUP_A]: "SR-a1abc123",
@@ -213,7 +213,7 @@ describe("short IDs", () => {
     }
   });
 
-  it("[SR-084/AK2] lengthens across the dashes of the UUID, digits only", async () => {
+  it("[SR-084/AK-x9py] lengthens across the dashes of the UUID, digits only", async () => {
     const { store, shortIds } = await read(open((await longPair()).root));
     expect(shown(store, shortIds)).toMatchObject({
       [LONG_X]: "SR-a01abcdefabcdef",
@@ -222,7 +222,7 @@ describe("short IDs", () => {
     expect(isShortId("SR-a01abcdefabcdef")).toBe(true);
   });
 
-  it("[SR-084/AK2] gives the same short IDs whatever the order of the elements", async () => {
+  it("[SR-084/AK-x9py] gives the same short IDs whatever the order of the elements", async () => {
     const metamodel = await metamodelOf();
     const records = [PAIR_2, GROUP_C, LONG_Y, PAIR_1, GROUP_A, LONG_X, GROUP_B].map((id) =>
       record(id, "system-requirement"),
@@ -241,7 +241,7 @@ describe("short IDs", () => {
     ]);
   });
 
-  it("[SR-084/AK2] gives 50,000 elements unique, minimal short IDs that find their element (N-036)", async () => {
+  it("[SR-084/AK-x9py] gives 50,000 elements unique, minimal short IDs that find their element (N-036)", async () => {
     const metamodel = await metamodelOf();
     const ids = generatedUuids(50_000, 84);
     const records = ids.map((id, i) => record(id, i % 2 === 0 ? "system-requirement" : "need"));
@@ -271,7 +271,7 @@ describe("short IDs", () => {
     // (ThomasBirkmaier/ReqSeq-archive#199), so it gets a bound that only a hang reaches.
   }, 30_000);
 
-  it("[SR-084/AK3] changes no file name and no file when a short ID is lengthened in the display", async () => {
+  it("[SR-084/AK-z8t5] changes no file name and no file when a short ID is lengthened in the display", async () => {
     const ws = await moved([PAIR_1]);
     const workspace = open(ws.root);
     const before = await read(workspace);
@@ -292,7 +292,7 @@ describe("short IDs", () => {
     expect(only(after.store, PAIR_1).file).toBe("requirements/SR-000001abc123.md");
   });
 
-  it("[SR-084/AK3] keeps file names of 12 digits when the short IDs are longer than that", async () => {
+  it("[SR-084/AK-z8t5] keeps file names of 12 digits when the short IDs are longer than that", async () => {
     const ws = await longPair();
     const files = await filesBelow(ws.root);
     const { store, shortIds } = await read(open(ws.root));
@@ -395,7 +395,7 @@ describe("ShortIds.find", () => {
     expect(shortIds.withTail(PAIR_1)).toEqual([]);
   });
 
-  it("[SR-060/AK1] finds a short ID in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-060/AK-sct7] finds a short ID in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const { shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
     const found = shortIds.find("SR-1abc123");
     expect(found.kind).toBe("found");

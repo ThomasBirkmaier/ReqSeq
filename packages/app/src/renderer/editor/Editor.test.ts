@@ -150,7 +150,7 @@ describe("Editor", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-105/AK2] gives its state with the undo history when it goes, and a new editor started from it undoes on its document", async () => {
+  it("[SR-105/AK-dmrq] gives its state with the undo history when it goes, and a new editor started from it undoes on its document", async () => {
     const onClose = vi.fn();
     await render({ onClose });
     act(() => {
@@ -323,7 +323,7 @@ describe("Editor", () => {
     expect(given.doc()).toBe("# Title\n\nbody");
   });
 
-  it("[SR-097/AK1] inserts text at the caret as one undo step and takes the focus", async () => {
+  it("[SR-097/AK-zs31] inserts text at the caret as one undo step and takes the focus", async () => {
     const handle = vi.fn<(handle: EditorHandle | undefined) => void>();
     await render({ handle });
     const given = handleOf(handle);
@@ -439,7 +439,7 @@ describe("Editor", () => {
       expect(element(".cm-content").textContent).toBe("Before D-017 outdated after" + "second line");
     });
 
-    it("[SR-110/AK2] shows the date of the version an outdated reference stores after it, and both dates on request", async () => {
+    it("[SR-110/AK-j1xs] shows the date of the version an outdated reference stores after it, and both dates on request", async () => {
       const message =
         "points to an older version: stored version from 2026-03-04T10:00:00Z, current version from 2026-05-06T08:00:00Z";
       await mount(

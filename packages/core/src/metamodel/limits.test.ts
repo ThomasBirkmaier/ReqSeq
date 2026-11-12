@@ -172,7 +172,7 @@ relations:
     });
   });
 
-  it("[SR-153/AK1] gives the minima per type and relation kind: limits with min 1 or more only", async () => {
+  it("[SR-153/AK-mcfm] gives the minima per type and relation kind: limits with min 1 or more only", async () => {
     const metamodel = await load({
       "metamodel/z-more.yaml": `reqseq-metamodel: 1
 relations:
@@ -211,7 +211,7 @@ relations:
 });
 
 describe("max-items in the metamodel (SR-171)", () => {
-  it("[SR-171/AK3] reports max-items on a single value and on kind relation, and gives the others by key", async () => {
+  it("[SR-171/AK-hkzd] reports max-items on a single value and on kind relation, and gives the others by key", async () => {
     const metamodel = await load({
       "metamodel/z-more.yaml": `reqseq-metamodel: 1
 properties:

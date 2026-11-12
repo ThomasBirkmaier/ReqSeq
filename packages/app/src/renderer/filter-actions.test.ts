@@ -105,7 +105,7 @@ const start = (list: ListBuffer | SearchBuffer, answers: Record<string, unknown>
 const titles = (context: ActionContext): string[] => commandPrompt(context).items.map((item) => item.name);
 
 describe("cascading list filters (SR-124)", () => {
-  it("[SR-124/AK1] type, status and property: each step narrows the current list", async () => {
+  it("[SR-124/AK-jz48] type, status and property: each step narrows the current list", async () => {
     const { shown, choose, call, asked } = start(listBuffer("All elements"), {
       "metamodel.get": { types: [{ key: "system-requirement" }] },
       "element.facets": FACETS,
@@ -139,7 +139,7 @@ describe("cascading list filters (SR-124)", () => {
     });
   });
 
-  it("[SR-124/AK2] asks element.facets for the list and offers topic, not acceptance criteria", async () => {
+  it("[SR-124/AK-hxcz] asks element.facets for the list and offers topic, not acceptance criteria", async () => {
     const { run, call } = start(filteredList([typeStep("system-requirement")]), { "element.facets": FACETS });
     const prompt = await run("filter-property");
     expect(call).toHaveBeenCalledWith("element.facets", {
@@ -149,7 +149,7 @@ describe("cascading list filters (SR-124)", () => {
     expect(prompt.items.map((item) => item.name)).toEqual(["status", "topic"]);
   });
 
-  it("[SR-124/AK2] asks without a selection on the list of all elements", async () => {
+  it("[SR-124/AK-hxcz] asks without a selection on the list of all elements", async () => {
     const { run, call } = start(listBuffer("All elements"), { "element.facets": FACETS });
     await run("filter-property");
     expect(call).toHaveBeenCalledWith("element.facets", {});
@@ -169,7 +169,7 @@ describe("cascading list filters (SR-124)", () => {
     expect(none.asked).toEqual([]);
   });
 
-  it("[SR-124/AK3] narrows by text search within the list; empty text does nothing", async () => {
+  it("[SR-124/AK-mch4] narrows by text search within the list; empty text does nothing", async () => {
     const { run, shown } = start(filteredList([typeStep("system-requirement")]));
     const prompt = await run("filter-text");
     expect(prompt.label).toBe("Text");
@@ -235,7 +235,7 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
     return current;
   };
 
-  it("[SR-124/AK4] a filter narrows the search: the same query, the step as its selection, the facets of its hits", async () => {
+  it("[SR-124/AK-mtm9] a filter narrows the search: the same query, the step as its selection, the facets of its hits", async () => {
     const { context, choose, call } = start(searchBuffer("wind"), { "element.facets": FACETS });
     await choose("filter-status", "draft");
     // The values offered are those of the hits: the selection with the search's own text.
@@ -252,7 +252,7 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
     ).toBe("Search: wind · Need · status: draft");
   });
 
-  it("[SR-149/AK6] [SR-075/AK4] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {
+  it("[SR-149/AK-byyt] [SR-075/AK-qgzh] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {
     const { context, choose } = start(searchBuffer("wind", [statusStep("draft")]), {
       "element.facets": FACETS,
       "metamodel.get": { meanings: { packages: ["packages"] } },

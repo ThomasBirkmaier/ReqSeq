@@ -54,7 +54,7 @@ const UNKNOWN_PROBLEM: Problem = {
 };
 
 describe("SR-028 findings of the evidence records", () => {
-  it("[SR-028/AK3] a record that names an unknown UUID gives the hint evidence.unknown-element", async () => {
+  it("[SR-028/AK-h59k] a record that names an unknown UUID gives the hint evidence.unknown-element", async () => {
     const workspace = await open({ "ci-results/evidence/2026-10-23-unknown-test.md": recordFile(UNKNOWN) });
     expect(await workspace.get(evidenceProblemsState)).toEqual([UNKNOWN_PROBLEM]);
     // workspace.check shows it: a warning, so `ok` stays true by default and is false with failOn warning.
@@ -142,7 +142,7 @@ describe("SR-028 findings of the evidence records", () => {
     expect(checked.ok).toBe(false);
   });
 
-  it("[SR-028/AK6] a verification record of a need counts for no status and is a finding, a validation of a need is not (#628)", async () => {
+  it("[SR-028/AK-hdkt] a verification record of a need counts for no status and is a finding, a validation of a need is not (#628)", async () => {
     const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
     const workspace = await open({
       "system/needs/N-0d00000000a1.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: Weigh the load\n---\n`,
@@ -163,7 +163,7 @@ describe("SR-028 findings of the evidence records", () => {
     );
   });
 
-  it("[SR-038/AK5] a validation record of an element that is neither need nor requirement counts for no status and is a finding", async () => {
+  it("[SR-038/AK-f98s] a validation record of an element that is neither need nor requirement counts for no status and is a finding", async () => {
     const decision = "3c3c3c3c-3333-4333-8333-0d00000000a2";
     const workspace = await open({
       "system/decisions/D-0d00000000a2.md": `---\nid: ${decision}\ntype: decision\nstatus: draft\ntitle: Use kg\n---\n`,
@@ -246,7 +246,7 @@ describe("SR-028 findings of the evidence records", () => {
       return element === undefined ? "" : String(currentVersionOf(versions, element));
     };
 
-    it("[SR-028/AK5] a Markdown record naming a number the current version does not have gives evidence.unknown-criterion at the line of criteria", async () => {
+    it("[SR-028/AK-w61w] a Markdown record naming a number the current version does not have gives evidence.unknown-criterion at the line of criteria", async () => {
       const workspace = await open({
         "ci-results/evidence/2026-10-23-a-test.md": withCriteria("[1, 9, 4]", "n1:de6d3ed288b0f3de"),
         "ci-results/evidence/2026-10-23-b-test.md": withCriteria("[1]", "n1:de6d3ed288b0f3de"),
@@ -272,7 +272,7 @@ describe("SR-028 findings of the evidence records", () => {
       ]);
     });
 
-    it("[SR-028/AK5] a JUnit test case naming a number the current version does not have gives evidence.unknown-criterion at the line of the property", async () => {
+    it("[SR-028/AK-w61w] a JUnit test case naming a number the current version does not have gives evidence.unknown-criterion at the line of the property", async () => {
       const junit =
         '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="s">\n<testcase classname="c" name="t">\n<properties>\n' +
         `<property name="reqseq:element" value="${A}"/>\n<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n` +
@@ -352,7 +352,7 @@ describe("SR-028 findings of the evidence records", () => {
       ]);
     });
 
-    it("[SR-028/AK5] checks a record of an older version against the criteria of that version in the Git history", async () => {
+    it("[SR-028/AK-w61w] checks a record of an older version against the criteria of that version in the Git history", async () => {
       const ws = await createFixtureWorkspace({
         fixture: "SR-028/records",
         files: { "system/requirements/SR-0d0000000001.md": elementA(["One.", "Two.", "Three."]) },
@@ -390,7 +390,7 @@ describe("SR-028 findings of the evidence records", () => {
       expect(await olderCriterionProblems(await open())).toEqual([]);
     });
 
-    it("[SR-028/AK5] a record naming a key that no criterion of the current version carries gives evidence.unknown-criterion", async () => {
+    it("[SR-028/AK-w61w] a record naming a key that no criterion of the current version carries gives evidence.unknown-criterion", async () => {
       const workspace = await open({
         // The fixture's criterion with a key: the same version (a key never counts to it, D-027).
         "system/requirements/SR-0d0000000001.md": elementA([
@@ -410,7 +410,7 @@ describe("SR-028 findings of the evidence records", () => {
       ]);
     });
 
-    it("[SR-028/AK5] checks the keys of an older version against its newest commit, where a key was added in the same version", async () => {
+    it("[SR-028/AK-w61w] checks the keys of an older version against its newest commit, where a key was added in the same version", async () => {
       const ws = await createFixtureWorkspace({
         fixture: "SR-028/records",
         files: { "system/requirements/SR-0d0000000001.md": elementA(["One.", "Two."]) },

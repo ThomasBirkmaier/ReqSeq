@@ -59,7 +59,7 @@ const filesOf = async (root: string): Promise<Record<string, string>> => {
 };
 
 describe("workspace.recent (SR-131)", () => {
-  it("[SR-131/AK1] workspace.recent lists the recent workspaces, the last opened first, with whether each still holds a workspace", async () => {
+  it("[SR-131/AK-y2k4] workspace.recent lists the recent workspaces, the last opened first, with whether each still holds a workspace", async () => {
     const wind = await folder("wind");
     const rain = await folder("rain");
     const gone = await folder("gone", false);

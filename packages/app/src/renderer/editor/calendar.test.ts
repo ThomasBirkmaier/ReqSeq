@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { addDays, monthOf, WEEKDAYS } from "./calendar.js";
 
 describe("the days of the calendar (SR-200)", () => {
-  it("[SR-200/AK2] moves by days and weeks across months and years", () => {
+  it("[SR-200/AK-k8gq] moves by days and weeks across months and years", () => {
     expect(addDays("2026-11-30", 1)).toBe("2026-12-01");
     expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
     expect(addDays("2026-03-02", -7)).toBe("2026-02-23");

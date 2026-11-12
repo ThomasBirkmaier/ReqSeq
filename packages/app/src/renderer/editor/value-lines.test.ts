@@ -16,7 +16,7 @@ const names = (doc: string): string[] => {
 };
 
 describe("valueLines", () => {
-  it("[SR-127/AK1] makes every line a paragraph of its own, so a mark never pairs across two values", () => {
+  it("[SR-127/AK-kjw4] makes every line a paragraph of its own, so a mark never pairs across two values", () => {
     expect(names("*a*\nb*")).toEqual([
       "Document",
       "Paragraph",
@@ -29,7 +29,7 @@ describe("valueLines", () => {
     expect(names("a\nb\nc").filter((name) => name === "Paragraph")).toHaveLength(3);
   });
 
-  it("[SR-127/AK1] leaves the block syntax of a text to the text: it is a paragraph in a value", () => {
+  it("[SR-127/AK-kjw4] leaves the block syntax of a text to the text: it is a paragraph in a value", () => {
     for (const value of [
       "# x",
       "- x",

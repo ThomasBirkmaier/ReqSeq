@@ -40,7 +40,7 @@ const fixtureModel = (): Promise<string> =>
   fs.readFile(new URL(`../../../../fixtures/SR-040/validity/${MODEL}`, import.meta.url), "utf8");
 
 describe("hints on validities that list a superseded variant (SR-040 AK3)", () => {
-  it("[SR-040/AK3] gives a hint at every requirement whose validity lists the superseded variant", async () => {
+  it("[SR-040/AK-j33h] gives a hint at every requirement whose validity lists the superseded variant", async () => {
     const other = "40a0e000-0000-4000-8000-000000000bb3";
     const out = await hints({
       ...MOUNTAIN_OBSOLETE,
@@ -79,11 +79,11 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     ]);
   });
 
-  it("[SR-040/AK3] gives no hint while no variant is superseded", async () => {
+  it("[SR-040/AK-j33h] gives no hint while no variant is superseded", async () => {
     expect(await hints({})).toEqual([]);
   });
 
-  it("[SR-040/AK3] gives no hint when the metamodel marks no status invalid or has no validity", async () => {
+  it("[SR-040/AK-j33h] gives no hint when the metamodel marks no status invalid or has no validity", async () => {
     const model = await fixtureModel();
     expect(
       await hints({ ...MOUNTAIN_OBSOLETE, [MODEL]: model.replace("      invalid: true,\n", "") }),
@@ -93,7 +93,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     ).toEqual([]);
   });
 
-  it("[SR-040/AK3] gives a hint for every entry for which the view of the superseded variant applies", async () => {
+  it("[SR-040/AK-j33h] gives a hint for every entry for which the view of the superseded variant applies", async () => {
     const coast = variant(COAST, "obsolete", "Coast");
     // Entries of every shape: the hint must follow `appliesIn`, whatever SR-085 says of the shape.
     const entries = [
@@ -137,7 +137,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     expect(out.map((p) => p.line)).toEqual(expected);
   });
 
-  it("[SR-040/AK3] reads one value under a list key as no entry, as the missing-target check does", async () => {
+  it("[SR-040/AK-j33h] reads one value under a list key as no entry, as the missing-target check does", async () => {
     const out = await hints({
       ...MOUNTAIN_OBSOLETE,
       "requirements/SR-000000000ab2.md": requirement(
@@ -148,7 +148,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     expect(out).toEqual([]);
   });
 
-  it("[SR-040/AK3] gives no hint for a superseded element that is no variant", async () => {
+  it("[SR-040/AK-j33h] gives no hint for a superseded element that is no variant", async () => {
     const need = "40a0e000-0000-4000-8000-0000000000e1";
     const out = await hints({
       "variants/VAR-b2b2b2b2b2b2.md": `---\nid: ${MOUNTAIN}\ntype: gadget\nstatus: obsolete\ntitle: Mountain\n---\n`,
@@ -161,7 +161,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     expect(out).toEqual([]);
   });
 
-  it("[SR-040/AK3] names the variant by the name of its type, also a subtype", async () => {
+  it("[SR-040/AK-j33h] names the variant by the name of its type, also a subtype", async () => {
     const out = await hints({
       "metamodel/island.yaml":
         "reqseq-metamodel: 1\ntypes:\n  - { key: island, name: Island, prefix: ISL, extends: variant }\n",
@@ -172,7 +172,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     ]);
   });
 
-  it("[SR-040/AK3] gives the hint as soon as the store has the new status", async () => {
+  it("[SR-040/AK-j33h] gives the hint as soon as the store has the new status", async () => {
     const workspace = await open({});
     expect(await workspace.get(supersededValidityProblemsState)).toEqual([]);
     await fs.writeFile(
@@ -183,7 +183,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     expect(await workspace.get(supersededValidityProblemsState)).toMatchObject([{ targetId: MOUNTAIN }]);
   });
 
-  it("[SR-040/AK3] looks the variant up in the repository the entry names, not by UUID alone", async () => {
+  it("[SR-040/AK-j33h] looks the variant up in the repository the entry names, not by UUID alone", async () => {
     const workspace = await open({});
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
@@ -214,7 +214,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
     expect(supersededValidityFindings({ store: mixed, metamodel, shortIds })).toEqual([]);
   });
 
-  it("[SR-040/AK3] checks 50,000 elements in one pass within a sanity bound (N-036)", async () => {
+  it("[SR-040/AK-j33h] checks 50,000 elements in one pass within a sanity bound (N-036)", async () => {
     const workspace = await open(MOUNTAIN_OBSOLETE);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);

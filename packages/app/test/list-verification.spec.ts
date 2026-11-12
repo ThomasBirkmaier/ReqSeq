@@ -72,7 +72,7 @@ const openP1 = async (running: Running): Promise<{ title: string; verification: 
   return expected;
 };
 
-test("[SR-137/AK3] the rows of a package page show the status and ring of their nodes, as the CLI gives them", async () => {
+test("[SR-137/AK-gq6h] the rows of a package page show the status and ring of their nodes, as the CLI gives them", async () => {
   const running = await launchApp({ fixture: "SR-136/graph" }, { colorScheme: "light" });
   try {
     const rows = await openP1(running);
@@ -84,7 +84,7 @@ test("[SR-137/AK3] the rows of a package page show the status and ring of their 
   }
 });
 
-test("[SR-137/AK2] the statuses in the rows of a package page count as its degree line", async () => {
+test("[SR-137/AK-pvch] the statuses in the rows of a package page count as its degree line", async () => {
   const running = await launchApp({ fixture: "SR-136/graph" }, { colorScheme: "light" });
   try {
     const rows = await openP1(running);
@@ -130,7 +130,7 @@ const line = async (running: Running, cell: string, side: "left" | "right"): Pro
 };
 
 for (const colorScheme of ["light", "dark"] as const) {
-  test(`[SR-137/AK3] the status, verification status and ring stand in one line in every row (${colorScheme})`, async () => {
+  test(`[SR-137/AK-gq6h] the status, verification status and ring stand in one line in every row (${colorScheme})`, async () => {
     const running = await launchApp({ fixture: "SR-136/graph" }, { colorScheme });
     try {
       const rows = await openP1(running);

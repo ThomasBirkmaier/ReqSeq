@@ -38,7 +38,7 @@ test.describe("packages on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-048/AK1] element.create of type package writes a package file", async () => {
+  test("[SR-048/AK-fbss] element.create of type package writes a package file", async () => {
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -66,7 +66,7 @@ test.describe("packages on a fixture workspace", () => {
     expect(got.element.file).toMatch(/^package\/PKG-[0-9a-f]{12}\.md$/);
   });
 
-  test("[SR-049/AK1] a requirement in P1 and P2 appears in both", async () => {
+  test("[SR-049/AK-sqcc] a requirement in P1 and P2 appears in both", async () => {
     const { window } = running;
     await openPackage(window, "Release 1");
     expect(await memberTitles(window)).toEqual(["Measure wind speed", "Measure wind direction"]);
@@ -74,7 +74,7 @@ test.describe("packages on a fixture workspace", () => {
     expect(await memberTitles(window)).toEqual(["Measure wind speed"]);
   });
 
-  test("[SR-049/AK2] after a change both packages show the same content and there is exactly one file", async () => {
+  test("[SR-049/AK-pm79] after a change both packages show the same content and there is exactly one file", async () => {
     const { window } = running;
     await cliJson(running, [
       "element",

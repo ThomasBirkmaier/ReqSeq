@@ -303,7 +303,7 @@ const twoElements = async (): Promise<void> => {
 };
 
 describe("App, Split window (SR-115 AK3)", () => {
-  it("[SR-163/AK1] the mouse button Back over the inactive area neither activates it nor closes an open prompt", async () => {
+  it("[SR-163/AK-xtth] the mouse button Back over the inactive area neither activates it nor closes an open prompt", async () => {
     await twoElements();
     await press(window, { key: "p", ctrlKey: true });
     const target = query('[data-area="right"] [data-buffer]');
@@ -318,7 +318,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(areas()).toEqual(["SR-000001 Title 1*", "SR-000002 Title 2"]);
   });
 
-  it("[SR-115/AK3] after Split window an element and its graph stand side by side; the modeline names the active one; Other window and a click switch it; the element view is not mounted again", async () => {
+  it("[SR-115/AK-cycg] after Split window an element and its graph stand side by side; the modeline names the active one; Other window and a click switch it; the element view is not mounted again", async () => {
     await openElement();
     await press(window, { key: "G", ctrlKey: true, shiftKey: true });
     expect(areas()).toEqual(["Graph: SR-000001 Title 1*"]);
@@ -352,7 +352,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(reads.get("uuid-1")).toBe(readsAfterSplit);
   });
 
-  it("[SR-115/AK3] two elements side by side: Save element and element commands act on the active one, input goes to its own element", async () => {
+  it("[SR-115/AK-cycg] two elements side by side: Save element and element commands act on the active one, input goes to its own element", async () => {
     await twoElements();
     await typeIn("left", " ONE");
     await press(window, { key: "s", ctrlKey: true });
@@ -373,7 +373,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(areas()).toEqual(["SR-000001 Title 1", "T-2 Target 2*"]);
   });
 
-  it("[SR-105/AK1] leaving an element for the other area saves its input at once", async () => {
+  it("[SR-105/AK-p4gn] leaving an element for the other area saves its input at once", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
     expect(writes).toEqual([]);
@@ -384,7 +384,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(editorIn("left").state.doc.toString()).toBe("Hello LEFT");
   });
 
-  it("[SR-105/AK1] Close all buffers in a split saves the input of the element in the inactive area once", async () => {
+  it("[SR-105/AK-p4gn] Close all buffers in a split saves the input of the element in the inactive area once", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
     await runCommand("Other window");
@@ -395,7 +395,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(areas()).toEqual(["Overview*"]);
   });
 
-  it("[SR-115/AK3] a result beside an element that reads again stays in its area; the modeline still names the element and the editor keeps the focus", async () => {
+  it("[SR-115/AK-cycg] a result beside an element that reads again stays in its area; the modeline still names the element and the editor keeps the focus", async () => {
     await render();
     await runCommand("List saved filters");
     await runCommand("List all elements");
@@ -424,7 +424,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(document.activeElement?.closest('[data-area="left"] .cm-editor')).not.toBeNull();
   });
 
-  it("[SR-115/AK2] a split window has no tab bar: two areas, no tab, tablist or heading naming a buffer", async () => {
+  it("[SR-115/AK-xn0m] a split window has no tab bar: two areas, no tab, tablist or heading naming a buffer", async () => {
     await render();
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
@@ -449,7 +449,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     }
   });
 
-  it("[SR-115/AK3] a package page that comes back in the inactive area takes no focus; the active area stays active", async () => {
+  it("[SR-115/AK-cycg] a package page that comes back in the inactive area takes no focus; the active area stays active", async () => {
     await render();
     await runCommand("List all elements");
     const list = (): HTMLElement => query('[role="listbox"]');
@@ -493,7 +493,7 @@ describe("App, Split window (SR-115 AK3)", () => {
 });
 
 describe("App, Open to the right and follow (SR-150)", () => {
-  it("[SR-150/AK4] in the app, Open to the right opens the marked row beside the list, the list stays active, and the element on the right follows the row marked next", async () => {
+  it("[SR-150/AK-xf7p] in the app, Open to the right opens the marked row beside the list, the list stays active, and the element on the right follows the row marked next", async () => {
     await render();
     await runCommand("List all elements");
     const list = areas()[0] ?? "";
@@ -505,7 +505,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000002 Title 2"]);
   });
 
-  it("[SR-150/AK2] in the app, Open to the left opens the marked row on the left as a preview; the list stands on the right and stays active", async () => {
+  it("[SR-150/AK-xjdm] in the app, Open to the left opens the marked row on the left as a preview; the list stands on the right and stays active", async () => {
     await render();
     await runCommand("List all elements");
     const list = (areas()[0] ?? "").replace("*", "");
@@ -518,7 +518,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual(["SR-000002 Title 2", `${list}*`]);
   });
 
-  it("[SR-150/AK3] in a split, Open to the left shows the marked row in the inactive left area and the list stays active; Open to the right on the active side opens it there as Enter does", async () => {
+  it("[SR-150/AK-g2mr] in a split, Open to the left shows the marked row in the inactive left area and the list stays active; Open to the right on the active side opens it there as Enter does", async () => {
     await render();
     await runCommand("List all elements");
     const list = (areas()[0] ?? "").replace("*", "");
@@ -547,7 +547,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual(["SR-000002 Title 2", "SR-000003 Title 3*"]);
   });
 
-  it("[SR-150/AK6] with only the overview open there is no Split window, also with a row of the overview marked", async () => {
+  it("[SR-150/AK-hpnz] with only the overview open there is no Split window, also with a row of the overview marked", async () => {
     await render();
     expect(await offered("Split window")).toBe(false);
     // An element opened and closed again: the overview is the only buffer, with the element as a recent row.
@@ -563,7 +563,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(await offered("Split window")).toBe(true);
   });
 
-  it("[SR-150/AK1] Open to the right from a graph opens its selected node's element beside it; the element follows a node selected next, and a graph opened in the active area moves nothing", async () => {
+  it("[SR-150/AK-skw8] Open to the right from a graph opens its selected node's element beside it; the element follows a node selected next, and a graph opened in the active area moves nothing", async () => {
     await twoElements();
     await press(window, { key: "G", ctrlKey: true, shiftKey: true });
     // The graph marks its own element when it opens: the element on the right stays.
@@ -576,7 +576,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()[1]).toMatch(/Title 2$/);
   });
 
-  it("[SR-150/AK6] Split window shows the preview of the marked row at once, and it follows the next row", async () => {
+  it("[SR-150/AK-hpnz] Split window shows the preview of the marked row at once, and it follows the next row", async () => {
     await openElement();
     await press(window, { key: "p", code: "KeyP", altKey: true });
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
@@ -588,7 +588,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000002 Title 2"]);
   });
 
-  it("[SR-150/AK4] a package page in the preview follows on: the next row replaces it", async () => {
+  it("[SR-150/AK-xf7p] a package page in the preview follows on: the next row replaces it", async () => {
     await render();
     await runCommand("List all elements");
     const list = (areas()[0] ?? "").replace("*", "");
@@ -602,7 +602,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
   });
 
-  it("[SR-150/AK7] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
+  it("[SR-150/AK-mpfv] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
     const content = query('[data-area="left"] .cm-content');
@@ -614,7 +614,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(editorIn("left").state.doc.toString()).toBe("Hello LEFT");
   });
 
-  it("[SR-150/AK5] once entered with Alt+O, the element there stays: two elements stand side by side", async () => {
+  it("[SR-150/AK-q26x] once entered with Alt+O, the element there stays: two elements stand side by side", async () => {
     await render();
     await runCommand("List all elements");
     const list = (areas()[0] ?? "").replace("*", "");

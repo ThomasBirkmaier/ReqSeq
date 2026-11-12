@@ -43,7 +43,7 @@ scenariosOf("trace.graph", [
     name: "the derivation chain with the evidence below each node (SR-111 AK3)",
     fixture: GRAPH,
     input: { ref: `${GR}0b0000000001`, allLevels: true, meanings: ["derivation"], withEvidence: true },
-    tag: "[SR-111/AK3]",
+    tag: "[SR-111/AK-h6n9]",
     expect: "output",
     check: (results) => {
       const output = (results["core"]?.outcome as { output: { evidence: unknown[] } }).output;
@@ -71,7 +71,7 @@ scenariosOf("trace.graph", [
     name: "the status of each requirement and the degree of a need, whatever is followed (SR-136)",
     fixture: { fixture: "SR-136/graph", git: true },
     input: { ref: "37373737-3737-4737-8737-00000000a001", maxDepth: 1, kinds: ["packages"] },
-    tag: "[SR-136/AK3]",
+    tag: "[SR-136/AK-thr6]",
     expect: "output",
     check: (results) => {
       const output = (
@@ -88,7 +88,7 @@ scenariosOf("trace.graph", [
     name: "the status and the count of criteria of a requirement (SR-136)",
     fixture: { fixture: "SR-136/graph", git: true },
     input: { ref: "37373737-3737-4737-8737-00000000b011", maxDepth: 0 },
-    tag: "[SR-136/AK1]",
+    tag: "[SR-136/AK-h2xg]",
     expect: "output",
     check: (results) => {
       const output = (

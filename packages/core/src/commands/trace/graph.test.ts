@@ -120,7 +120,7 @@ const ALL_LEVELS: Level[] = [
 ];
 
 describe("trace.graph (SR-111)", () => {
-  it("[SR-111/AK1] the element is the one node at level 0, what it links to at negative levels, what links to it at positive levels", async () => {
+  it("[SR-111/AK-g4rk] the element is the one node at level 0, what it links to at negative levels, what links to it at positive levels", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1 });
     expect(output.root).toBe(ID.S1);
@@ -131,7 +131,7 @@ describe("trace.graph (SR-111)", () => {
     expect([output.truncated, output.incomplete, output.problems]).toEqual([false, false, []]);
   });
 
-  it("[SR-111/AK1] places an element at its smaller distance, and a link against the levels stays an edge", async () => {
+  it("[SR-111/AK-g4rk] places an element at its smaller distance, and a link against the levels stays an edge", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, maxDepth: 2 });
     // C1 is two steps up (S1 references D2, D2 references C1) and one step down: below S1.
@@ -139,14 +139,14 @@ describe("trace.graph (SR-111)", () => {
     expect(edges(output)).toContainEqual(["D2", "C1", "reference", "-", "reference", false]);
   });
 
-  it("[SR-111/AK1] a node the down walk places nearer than the up walk keeps the down walk's order", async () => {
+  it("[SR-111/AK-g4rk] a node the down walk places nearer than the up walk keeps the down walk's order", async () => {
     const workspace = await open(withD2ReferencingE1);
     // E1 is two steps up (S1 references D2, D2 references E1) and one step down: below S1, after C3.
     const output = await graph(workspace, { ref: ID.S1, maxDepth: 2 });
     expect(levels(output)).toEqual(ALL_LEVELS.slice(0, 11));
   });
 
-  it("[SR-111/AK1] lists every link between two nodes once, also those the walks did not take, by source in node order", async () => {
+  it("[SR-111/AK-g4rk] lists every link between two nodes once, also those the walks did not take, by source in node order", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, allLevels: true });
     expect(edges(output)).toEqual([
@@ -174,7 +174,7 @@ describe("trace.graph (SR-111)", () => {
     ).toBe(true);
   });
 
-  it("[SR-111/AK2] maxDepth 1 gives the direct neighbours, 2 two levels, allLevels the whole chain", async () => {
+  it("[SR-111/AK-p2tx] maxDepth 1 gives the direct neighbours, 2 two levels, allLevels the whole chain", async () => {
     const workspace = await open();
     const one = await graph(workspace, { ref: ID.S1, maxDepth: 1 });
     expect(levels(one)).toEqual(ALL_LEVELS.slice(0, 10));
@@ -198,7 +198,7 @@ describe("trace.graph (SR-111)", () => {
     ]);
   });
 
-  it("[SR-111/AK2] limit keeps the nearest nodes; a node whose links lead to a node left out is not expanded", async () => {
+  it("[SR-111/AK-p2tx] limit keeps the nearest nodes; a node whose links lead to a node left out is not expanded", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, allLevels: true, limit: 8 });
     // Neither walk reaches 8 elements: the final cut leaves out C3, E1, G1 and GG1.
@@ -228,7 +228,7 @@ describe("trace.graph (SR-111)", () => {
     ]);
   });
 
-  it("[SR-111/AK2] limit cuts a level in walk order, also for a node the up walk reached first", async () => {
+  it("[SR-111/AK-p2tx] limit cuts a level in walk order, also for a node the up walk reached first", async () => {
     const workspace = await open(withD2ReferencingE1);
     const output = await graph(workspace, { ref: ID.S1, allLevels: true, limit: 8 });
     // E1 is one step down and comes last at +1, so the cut keeps C1 and C2, not E1.
@@ -236,7 +236,7 @@ describe("trace.graph (SR-111)", () => {
     expect(output.truncated).toBe(true);
   });
 
-  it("[SR-111/AK2] limit stops each walk once it has reached that many elements", async () => {
+  it("[SR-111/AK-p2tx] limit stops each walk once it has reached that many elements", async () => {
     const workspace = await open();
     // Both walks reach five elements from S1, then stop: nothing beyond was looked at.
     const output = await graph(workspace, { ref: ID.S1, allLevels: true, limit: 3 });
@@ -250,7 +250,7 @@ describe("trace.graph (SR-111)", () => {
     expect([expansion(root), root.edges, root.truncated]).toEqual([[["S1", 0, false]], [], true]);
   });
 
-  it("[SR-111/AK3] meanings and kinds keep only those links and the nodes they reach", async () => {
+  it("[SR-111/AK-h6n9] meanings and kinds keep only those links and the nodes they reach", async () => {
     const workspace = await open();
     const derivations = await graph(workspace, { ref: ID.S1, allLevels: true, meanings: ["derivation"] });
     expect(levels(derivations)).toEqual([
@@ -287,7 +287,7 @@ describe("trace.graph (SR-111)", () => {
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["kinds"]]);
   });
 
-  it("[SR-111/AK4] nodes carry title and type and marks only when outdated or superseded", async () => {
+  it("[SR-111/AK-kq3w] nodes carry title and type and marks only when outdated or superseded", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, allLevels: true });
     expect(output.nodes.map((n) => [nameOf(n.id), n.type, n.title, n.marks])).toEqual([
@@ -308,7 +308,7 @@ describe("trace.graph (SR-111)", () => {
     expect(output.nodes.find((n) => n.id === ID.O1)?.status).toBe("obsolete");
   });
 
-  it("[SR-111/AK4] marks are the same whatever depth or kinds are shown", async () => {
+  it("[SR-111/AK-kq3w] marks are the same whatever depth or kinds are shown", async () => {
     const workspace = await open();
     // Only derivations are followed, and S1 still stores an outdated reference.
     const one = await graph(workspace, { ref: ID.S1, maxDepth: 1, meanings: ["derivation"] });
@@ -318,7 +318,7 @@ describe("trace.graph (SR-111)", () => {
     expect(need.nodes.map((n) => [nameOf(n.id), n.marks])).toEqual([["N1", []]]);
   });
 
-  it("[SR-111/AK4] a node is outdated exactly when element.get gives it a relation.outdated hint", async () => {
+  it("[SR-111/AK-kq3w] a node is outdated exactly when element.get gives it a relation.outdated hint", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, allLevels: true });
     const hinted: string[] = [];
@@ -336,7 +336,7 @@ describe("trace.graph (SR-111)", () => {
     expect(hinted).toEqual(["S1", "C2"]);
   });
 
-  it("[SR-111/AK3] withEvidence gives the evidence trace.chain lists in the same view, also with a test case of C3", async () => {
+  it("[SR-111/AK-h6n9] withEvidence gives the evidence trace.chain lists in the same view, also with a test case of C3", async () => {
     const workspace = await open(async (fixture) => {
       await fixture.write(
         "evidence/ci/run-c3.xml",
@@ -371,7 +371,7 @@ describe("trace.graph (SR-111)", () => {
     }
   });
 
-  it("[SR-111/AK3] withEvidence gives a summary of the evidence below each node, in the view", async () => {
+  it("[SR-111/AK-h6n9] withEvidence gives a summary of the evidence below each node, in the view", async () => {
     const workspace = await open();
     const summaries = async (input: Record<string, unknown>): Promise<unknown[]> =>
       ((await graph(workspace, { ...input, withEvidence: true })).evidence ?? []).map((e) => [
@@ -406,7 +406,7 @@ describe("trace.graph (SR-111)", () => {
     expect("evidence" in (await graph(workspace, { ref: ID.S1 }))).toBe(false);
   });
 
-  it("[SR-111/AK4] is incomplete, as trace.chain, while an evidence location is not on this machine", async () => {
+  it("[SR-111/AK-kq3w] is incomplete, as trace.chain, while an evidence location is not on this machine", async () => {
     const workspace = await open(async (fixture) => {
       const { readFile } = await import("node:fs/promises");
       const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
@@ -427,7 +427,7 @@ describe("trace.graph (SR-111)", () => {
     expect([output.incomplete, chain.incomplete]).toEqual([true, true]);
   });
 
-  it("[SR-111/AK3] withEvidence is incomplete while an evidence location is not on this machine, also without derivations", async () => {
+  it("[SR-111/AK-h6n9] withEvidence is incomplete while an evidence location is not on this machine, also without derivations", async () => {
     const workspace = await open(async (fixture) => {
       const { readFile } = await import("node:fs/promises");
       const model = await readFile(fixture.path("metamodel/standard-model.yaml"), "utf8");
@@ -517,7 +517,7 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     outdated,
   });
 
-  it("[SR-136/AK1] each requirement node carries its status in the view as element.get gives it, other nodes none", async () => {
+  it("[SR-136/AK-h2xg] each requirement node carries its status in the view as element.get gives it, other nodes none", async () => {
     const workspace = await openGraph();
     const output = await graph(workspace, { ref: U("a001"), allLevels: true });
     const requirements = output.nodes.filter((n) => n.type === "system-requirement");
@@ -543,7 +543,7 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     expect(inV1.nodes.find((n) => n.id === ID.GG1)?.verification?.[0]?.view).toBe(ID.V1);
   });
 
-  it("[SR-136/AK7] without a variant each requirement node shows its status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
+  it("[SR-136/AK-dfzw] without a variant each requirement node shows its status in the core, one not in the core's view none and no ring; with one, in its view", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-136/graph", files: IN_VARIANT_ONLY });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
@@ -564,7 +564,7 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     ]);
   });
 
-  it("[SR-136/AK2] a requirement with acceptance criteria counts its verified ones, 2 of 3, and 0 of n without a record", async () => {
+  it("[SR-136/AK-kvvw] a requirement with acceptance criteria counts its verified ones, 2 of 3, and 0 of n without a record", async () => {
     const workspace = await openGraph();
     const r11 = await nodeOf(workspace, U("b011"));
     expect([r11.verification?.[0]?.status, r11.criteria]).toEqual([
@@ -579,7 +579,7 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     expect((await nodeOf(workspace, U("b001"))).criteria).toEqual({ verified: 1, total: 1 });
   });
 
-  it("[SR-136/AK3] a need with 10 derived requirements shows 60 %, the same at every depth and choice of kinds", async () => {
+  it("[SR-136/AK-thr6] a need with 10 derived requirements shows 60 %, the same at every depth and choice of kinds", async () => {
     const workspace = await openGraph();
     const expected = { share: 0.6, total: 10, counts: counts(2, 6, 0, 1, 1) };
     for (const input of [
@@ -604,19 +604,19 @@ describe("trace.graph: the verification of the nodes (SR-136)", () => {
     expect(fromR01.nodes.find((n) => n.id === U("a001"))?.degree).toEqual(expected);
   });
 
-  it("[SR-136/AK4] an indirectly verified requirement carries its status and no criteria", async () => {
+  it("[SR-136/AK-w6gh] an indirectly verified requirement carries its status and no criteria", async () => {
     const workspace = await openGraph();
     const i1 = await nodeOf(workspace, U("b101"));
     expect([i1.verification?.[0]?.status, i1.criteria]).toEqual(["indirect", undefined]);
   });
 
-  it("[SR-136/AK5] a requirement without acceptance criteria carries its status and no criteria", async () => {
+  it("[SR-136/AK-qgyd] a requirement without acceptance criteria carries its status and no criteria", async () => {
     const workspace = await openGraph();
     const r12 = await nodeOf(workspace, U("b012"));
     expect([r12.verification?.[0]?.status, r12.criteria]).toEqual(["verified", undefined]);
   });
 
-  it("[SR-136/AK6] a need from which no valid requirement derives has a degree without share", async () => {
+  it("[SR-136/AK-t58p] a need from which no valid requirement derives has a degree without share", async () => {
     const workspace = await openGraph();
     const n2 = await nodeOf(workspace, U("a002"));
     expect(n2.degree).toEqual({ total: 0, counts: counts(0, 0, 0, 0, 0) });

@@ -105,7 +105,7 @@ describe("headings", () => {
 });
 
 describe("Fold section and Unfold section", () => {
-  it("[SR-191/AK1] folds the section at the cursor to a hint up to the next heading of the same level, the text unchanged", () => {
+  it("[SR-191/AK-twyq] folds the section at the cursor to a hint up to the next heading of the same level, the text unchanged", () => {
     const target = editor(TEXT, at(TEXT, "Der Zweck."));
     expect(foldSection(target)).toBe(true);
     expect(folds(target)).toEqual(["\n\nDer Zweck.\n\n### Detail\n\nMehr."]);
@@ -118,7 +118,7 @@ describe("Fold section and Unfold section", () => {
     expect(target.contentDOM.textContent).toContain("## Umfang");
   });
 
-  it("[SR-191/AK1] folds with a click on the toggle left of the heading, which is there for headings with a section", () => {
+  it("[SR-191/AK-twyq] folds with a click on the toggle left of the heading, which is there for headings with a section", () => {
     const target = editor(TEXT);
     const toggles = target.dom.querySelectorAll<HTMLElement>(".cm-lr-fold-toggle");
     // "# Leer" has nothing under it and no toggle.
@@ -139,7 +139,7 @@ describe("Fold section and Unfold section", () => {
     expect(target.state.doc.toString()).toBe(TEXT);
   });
 
-  it("[SR-191/AK2] unfolds with Unfold section, with a click on the hint, and when the cursor moves in", () => {
+  it("[SR-191/AK-wyyz] unfolds with Unfold section, with a click on the hint, and when the cursor moves in", () => {
     const target = editor(TEXT, at(TEXT, "Der Zweck."));
     foldSection(target);
     expect(unfoldSection(target)).toBe(true);
@@ -193,7 +193,7 @@ describe("Fold section and Unfold section", () => {
 });
 
 describe("Tab on a heading", () => {
-  it("[SR-193/AK1] folds the section of the heading the cursor is on, unfolds it on the next Tab, the file unchanged", () => {
+  it("[SR-193/AK-qhkh] folds the section of the heading the cursor is on, unfolds it on the next Tab, the file unchanged", () => {
     const target = editor(TEXT, at(TEXT, "Zweck ##"));
     expect(toggleSectionOnHeading(target)).toBe(true);
     expect(folds(target)).toEqual(["\n\nDer Zweck.\n\n### Detail\n\nMehr."]);
@@ -216,7 +216,7 @@ describe("Tab on a heading", () => {
     expect(folds(target)).toEqual(["\n\nMehr."]);
   });
 
-  it("[SR-193/AK3] leaves Tab to the others off a heading, on a heading with nothing under it and a selection beyond it", () => {
+  it("[SR-193/AK-vh54] leaves Tab to the others off a heading, on a heading with nothing under it and a selection beyond it", () => {
     expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "Der Zweck.")))).toBe(false);
     expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "- Liste")))).toBe(false);
     expect(toggleSectionOnHeading(editor(TEXT, TEXT.length))).toBe(false);
@@ -236,7 +236,7 @@ describe("Tab on a heading", () => {
 });
 
 describe("Go to heading", () => {
-  it("[SR-191/AK3] puts the cursor at the start of the chosen heading, and a fold around it opens", () => {
+  it("[SR-191/AK-hgpr] puts the cursor at the start of the chosen heading, and a fold around it opens", () => {
     const target = editor(TEXT, at(TEXT, "Einleitung"));
     foldSection(target);
     const detail = headings(target.state).find((heading) => heading.name === "Detail");

@@ -86,7 +86,7 @@ test.describe("the slash menu in the element buffer", () => {
     }
   });
 
-  test("[SR-129/AK1] / opens a menu next to the caret with the Markdown elements of the criterion", async () => {
+  test("[SR-129/AK-y6nx] / opens a menu next to the caret with the Markdown elements of the criterion", async () => {
     const { window } = running;
     await window.keyboard.type("/");
     await expect(menu(window)).toBeVisible();
@@ -98,14 +98,14 @@ test.describe("the slash menu in the element buffer", () => {
     await expectNextToLine(menu(window), lastLine(window));
   });
 
-  test("[SR-129/AK1] / in the middle of a word does not open the menu", async () => {
+  test("[SR-129/AK-y6nx] / in the middle of a word does not open the menu", async () => {
     const { window } = running;
     await window.keyboard.type("und/oder x");
     await expect(menu(window)).toHaveCount(0);
     await expect(lastLine(window)).toHaveText("und/oder x");
   });
 
-  test("[SR-129/AK2] letters narrow the entries as in the command line; Ctrl+N, Ctrl+P and the arrows choose, Enter takes", async () => {
+  test("[SR-129/AK-v0gm] letters narrow the entries as in the command line; Ctrl+N, Ctrl+P and the arrows choose, Enter takes", async () => {
     const { window } = running;
     await window.keyboard.type("/nl");
     await expect(selectedEntry(window)).toHaveText("Numbered list");
@@ -126,7 +126,7 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(lastLine(window)).not.toContainText("/nl");
   });
 
-  test("[SR-129/AK2] a fast /h2 and Enter takes Heading 2", async () => {
+  test("[SR-129/AK-v0gm] a fast /h2 and Enter takes Heading 2", async () => {
     const { window } = running;
     await window.keyboard.type("/h2");
     await window.keyboard.press("Enter");
@@ -135,7 +135,7 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(menu(window)).toHaveCount(0);
   });
 
-  test("[SR-129/AK3] Escape closes the menu; the / and the query stay, and the editor keeps the focus", async () => {
+  test("[SR-129/AK-rbjm] Escape closes the menu; the / and the query stay, and the editor keeps the focus", async () => {
     const { window } = running;
     await window.keyboard.type("/b");
     await window.keyboard.type("o");
@@ -152,7 +152,7 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(menu(window)).toBeVisible();
   });
 
-  test("[SR-129/AK4] a heading, a table and a reference are in the saved file as CommonMark with GitHub extensions", async () => {
+  test("[SR-129/AK-nxbm] a heading, a table and a reference are in the saved file as CommonMark with GitHub extensions", async () => {
     const { window, workspace } = running;
     await window.keyboard.type("/h2");
     await window.keyboard.press("Enter");
@@ -193,7 +193,7 @@ test.describe("the slash menu in the element buffer", () => {
     expect(html).toContain(`<a href="reqseq:${REFERENCE_TARGET_ID}?version=`);
   });
 
-  test("[SR-129/AK3] Escape in Insert reference leaves the / and the query, and the focus in the editor", async () => {
+  test("[SR-129/AK-rbjm] Escape in Insert reference leaves the / and the query, and the focus in the editor", async () => {
     const { window } = running;
     await window.keyboard.type("/reference");
     await window.keyboard.press("Enter");
@@ -204,7 +204,7 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(lastLine(window)).toHaveText("/reference");
   });
 
-  test("[SR-129/AK4] one Ctrl/Cmd+Z undoes a taken entry and brings back the / with its query", async () => {
+  test("[SR-129/AK-nxbm] one Ctrl/Cmd+Z undoes a taken entry and brings back the / with its query", async () => {
     const { window } = running;
     await window.keyboard.type("/table");
     await window.keyboard.press("Enter");
@@ -228,7 +228,7 @@ const tokenColour = (window: Page, token: string): Promise<string> =>
   }, token);
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`[SR-129/AK1] the menu uses the colours of the sheet in ${scheme} mode`, async () => {
+  test(`[SR-129/AK-y6nx] the menu uses the colours of the sheet in ${scheme} mode`, async () => {
     const running = await launchApp(FIXTURE, { colorScheme: scheme });
     try {
       const { window } = running;

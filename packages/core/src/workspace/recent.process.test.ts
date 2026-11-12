@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("the existence checkers of the process", () => {
-  it("[SR-131/AK5] a typed path on a hung mount blocks only further typed paths, by default too, never a chosen root", async () => {
+  it("[SR-131/AK-sxyz] a typed path on a hung mount blocks only further typed paths, by default too, never a chosen root", async () => {
     let typed: string | undefined | null = null;
     void findTypedWorkspace("/top/nfs", { platform: "linux" }).then((found) => {
       typed = found;

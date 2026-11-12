@@ -105,7 +105,7 @@ describe("nameMatcher (SR-029 AK5)", () => {
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak")).toEqual([]);
   });
 
-  it("[SR-029/AK10] reads a criterion key as {ak}, all of the run of lower-case letters and digits, possessively", () => {
+  it("[SR-029/AK-zyp3] reads a criterion key as {ak}, all of the run of lower-case letters and digits, possessively", () => {
     const found = nameMatcher(parseNamePattern("{prefix}_{id}_ak_{ak}"), PREFIXES);
     expect(found("sr_348143_ak_k7f3 sr_348143_ak_m2x9")).toEqual([
       { shortId: "SR-348143", matched: "sr_348143_ak_k7f3", ak: "k7f3" },

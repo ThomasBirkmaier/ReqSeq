@@ -88,7 +88,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     await running.close();
   });
 
-  test("[SR-105/AK1] keyboard only: Tab to the title, Enter, a new title, Enter, and a second later the file has it; only its line changed", async () => {
+  test("[SR-105/AK-p4gn] keyboard only: Tab to the title, Enter, a new title, Enter, and a second later the file has it; only its line changed", async () => {
     const { window } = running;
     await opened(window);
     const before = await onDisk();
@@ -135,7 +135,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     await expect.poll(onDisk).toContain(`title: ${TITLE}!\n`);
   });
 
-  test('[SR-064/AK2] an emptied title is saved as title: "" with the hint: Saved names it, the modeline counts one hint more, the heading shows the short ID', async () => {
+  test('[SR-064/AK-yhn7] an emptied title is saved as title: "" with the hint: Saved names it, the modeline counts one hint more, the heading shows the short ID', async () => {
     const { window } = running;
     await opened(window);
     const hints = await hintCount(window);
@@ -151,7 +151,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     await expect(heading(window)).toHaveText(ELEMENT);
   });
 
-  test('[SR-106/AK2] input in the title and the file changed outside: nothing is saved, "On disk" shows the file\'s title, and "Keep my input" writes the typed title while the outside change of the text stays', async () => {
+  test('[SR-106/AK-ydc8] input in the title and the file changed outside: nothing is saved, "On disk" shows the file\'s title, and "Keep my input" writes the typed title while the outside change of the text stays', async () => {
     const { window } = running;
     await opened(window);
     await enterTitle(window);
@@ -170,7 +170,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     expect(await onDisk()).toContain("Theirs.");
   });
 
-  test("[SR-105/AK2] after the title was saved, Ctrl/Cmd+Z brings the old title back and it is saved again", async () => {
+  test("[SR-105/AK-dmrq] after the title was saved, Ctrl/Cmd+Z brings the old title back and it is saved again", async () => {
     const { window } = running;
     await opened(window);
     await enterTitle(window);

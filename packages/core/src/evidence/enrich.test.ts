@@ -177,7 +177,7 @@ const enrichedNames = (bytes: Uint8Array): string[] =>
     .map(([name]) => name);
 
 describe("SR-029: enriching JUnit XML (pure)", () => {
-  it("[SR-029/AK1] adds UUID, version, item and date to a test case that names only a short ID", async () => {
+  it("[SR-029/AK-x1rh] adds UUID, version, item and date to a test case that names only a short ID", async () => {
     const xml = suite(
       '<testcase classname="c" name="[SR-46fb54] logs in"/>' +
         '<testcase classname="c" name="by property"><properties><property name="reqseq:element" value="SR-0b0036"/></properties></testcase>' +
@@ -204,7 +204,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     });
   });
 
-  it("[SR-029/AK2] lists a test case whose short ID names no element and leaves it unchanged", async () => {
+  it("[SR-029/AK-nyrs] lists a test case whose short ID names no element and leaves it unchanged", async () => {
     const unknownCase = '<testcase classname="c" name="[SR-ffffff] names no element"/>';
     const xml = suite(`\n${unknownCase}\n<testcase name="[SR-46fb54] logs in"/>`);
     const result = await enrich(xml, { unknownNote: "; the workspace is incomplete" });
@@ -226,7 +226,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(enrichedNames(result.bytes)).toEqual(["[SR-46fb54] logs in"]);
   });
 
-  it("[SR-029/AK3] the JUnit reader assigns every test case of an enriched file to its requirements", async () => {
+  it("[SR-029/AK-pbxf] the JUnit reader assigns every test case of an enriched file to its requirements", async () => {
     // The round trip of the ThomasBirkmaier/ReqSeq-archive#41 comment: a test case named by a name token and a property, and one
     // that names two requirements.
     const xml = suite(
@@ -243,7 +243,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("[SR-029/AK4] counts the test cases that name no element, apart from the listed, refused and kept ones", async () => {
+  it("[SR-029/AK-srmd] counts the test cases that name no element, apart from the listed, refused and kept ones", async () => {
     const xml = suite(
       '<testcase name="names nothing"/><testcase name="test_add[1-2]"/><testcase name="skipped"><skipped/></testcase>' +
         '<testcase name="[SR-ffffff] unknown"/><testcase name="[SR-46fb54] enriched"/>' +
@@ -699,7 +699,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
   });
 
-  it("[SR-029/AK6] writes one reqseq:variant per given view, the core among them, and keeps or rewrites those named already", async () => {
+  it("[SR-029/AK-r1s7] writes one reqseq:variant per given view, the core among them, and keeps or rewrites those named already", async () => {
     const xml = suite(
       `<testcase name="[SR-46fb54] a"/>` +
         `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", "VAR-0aaaaa")}${prop("reqseq:variant", "core")}</properties></testcase>`,
@@ -742,7 +742,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
   });
 
-  it("[SR-029/AK8] reports a test case that names a view not among the given ones, the core among them, and leaves it unchanged", async () => {
+  it("[SR-029/AK-pb9c] reports a test case that names a view not among the given ones, the core among them, and leaves it unchanged", async () => {
     const xml = suite(
       `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", "VAR-0aaaaa")}${prop("reqseq:variant", "VAR-0bbbbb")}</properties></testcase>` +
         `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", "core")}</properties></testcase>`,
@@ -908,7 +908,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("[SR-029/AK11] with skipNotInView leaves out an element that applies in none of the given views, counts it, and enriches the rest", async () => {
+  it("[SR-029/AK-djjh] with skipNotInView leaves out an element that applies in none of the given views, counts it, and enriches the rest", async () => {
     const xml = suite(
       `<testcase name="[SR-46fb54] [SR-036] login and spec"/>` +
         `<testcase name="[SR-036/AK2] spec only"/>` +
@@ -954,7 +954,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
   });
 
-  it("[SR-029/AK11] removes the hand-written element and criterion properties of an element it leaves out, with their lines", async () => {
+  it("[SR-029/AK-djjh] removes the hand-written element and criterion properties of an element it leaves out, with their lines", async () => {
     const xml =
       "<testsuite>\r\n" +
       '  <testcase name="[SR-46fb54/AK1] login">\r\n' +
@@ -984,7 +984,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
   });
 
-  it("[SR-029/AK11] keeps an enriched test case whose element applies in one of its views, and reports one in none, with the option", async () => {
+  it("[SR-029/AK-djjh] keeps an enriched test case whose element applies in one of its views, and reports one in none, with the option", async () => {
     const kept = (name: string, id: keyof typeof V, views: readonly string[]): string =>
       `<testcase name="${name}"><properties>${four(id, V[id])}${views.map((v) => prop("reqseq:variant", v)).join("")}</properties></testcase>`;
     const xml = suite(kept("some", REPORT, ["core", COAST]) + kept("none", SPEC, ["core", COAST]));
@@ -1001,7 +1001,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("[SR-029/AK12] with skipNotInView marks a test case whose requirements apply in none of the given views with each of them, keeps the rest of it, and a re-run changes nothing", async () => {
+  it("[SR-029/AK-hx47] with skipNotInView marks a test case whose requirements apply in none of the given views with each of them, keeps the rest of it, and a re-run changes nothing", async () => {
     const xml =
       "<testsuite>\r\n" +
       '  <testcase name="[SR-036/AK2] spec">\r\n' +
@@ -1039,7 +1039,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(read.records.map((r) => r.testCase)).toEqual(["[SR-46fb54] login", "[SR-46fb54] login"]);
   });
 
-  it("[SR-029/AK12] writes the core as a mark when it is the only given view", async () => {
+  it("[SR-029/AK-hx47] writes the core as a mark when it is the only given view", async () => {
     const result = await enrichViews(suite('<testcase name="[SR-036] spec"/>'), {
       views: [GIVEN_CORE],
       skipNotInView: true,
@@ -1479,7 +1479,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       }
     });
 
-    it("[SR-029/AK10] writes the criterion keys of a name, for each requirement it names, and none for one named without", async () => {
+    it("[SR-029/AK-zyp3] writes the criterion keys of a name, for each requirement it names, and none for one named without", async () => {
       const result = await enrich(
         suite(
           '<testcase name="[SR-46fb54/AK-k7f3] [SR-46fb54/ak-m2x9] [SR-036/AK-k7f3] a"/><testcase name="[SR-46fb54] [SR-46fb54/AK-k7f3] whole"/>',
@@ -1502,7 +1502,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ]);
     });
 
-    it("[SR-029/AK5] [SR-029/AK10] writes the key of a criterion a name pattern reads, and a word {ak} reads as a key", async () => {
+    it("[SR-029/AK-m9gw] [SR-029/AK-zyp3] writes the key of a criterion a name pattern reads, and a word {ak} reads as a key", async () => {
       const result = await enrich(
         suite(
           '<testcase name="tests::sr_46fb54_ak_k7f3_and_sr_46fb54_ak_m2x9"/><testcase name="sr_0b0036_ak_verify"/>',

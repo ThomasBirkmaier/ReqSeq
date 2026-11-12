@@ -44,7 +44,7 @@ test.describe("affected elements after a save", () => {
     await open(running.window, TITLE);
   });
 
-  test("[SR-024/AK2] a save of a changed text says the number of directly affected elements that element.update gives", async () => {
+  test("[SR-024/AK-mf7x] a save of a changed text says the number of directly affected elements that element.update gives", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
     await window.keyboard.type(" In knots.");
@@ -76,7 +76,7 @@ test.describe("affected elements after a save", () => {
     await expect(window.getByLabel("Modeline")).not.toContainText(/modified|on disk/);
   });
 
-  test("[SR-024/AK2] leaving the element saves its text at once and says the number", async () => {
+  test("[SR-024/AK-mf7x] leaving the element saves its text at once and says the number", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
     await window.keyboard.type(" In knots.");
@@ -84,7 +84,7 @@ test.describe("affected elements after a save", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText(SAVED);
   });
 
-  test("[SR-024/AK3] a change of only the title after a changed text shows no number", async () => {
+  test("[SR-024/AK-jt0q] a change of only the title after a changed text shows no number", async () => {
     const { window } = running;
     const minibuffer = window.getByLabel("Minibuffer");
     await window.keyboard.press("Enter");

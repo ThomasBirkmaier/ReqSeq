@@ -41,7 +41,7 @@ const INPUT = JSON.stringify({
 const B1 = "requirements/SR-0000000000b1.md";
 
 describe("reqseq element bulk-update (SR-071)", () => {
-  it("[SR-071/AK2] previews the number of affected elements, then writes on --confirm with its plan", async () => {
+  it("[SR-071/AK-gdr6] previews the number of affected elements, then writes on --confirm with its plan", async () => {
     const ws = await workspace();
     const before = await fs.readFile(ws.path(B1), "utf8");
     const preview = await run(["element", "bulk-update", "topic", "set", "--input", INPUT], { cwd: ws.root });
@@ -91,11 +91,11 @@ describe("reqseq element bulk-update (SR-071)", () => {
     const output = JSON.parse(done.stdout) as Output;
     expect(output).toMatchObject({ applied: true, count: 7, plan });
     expect(output.files).toContain(B1);
-    // [SR-071/AK3] the decision is left out and named.
+    // [SR-071/AK-n129] the decision is left out and named.
     expect(output.skipped).toEqual([
       expect.objectContaining({ shortId: "D-0000e1", reason: "not-a-property" }),
     ]);
-    // [SR-071/AK1] only the topic line changed.
+    // [SR-071/AK-zbs4] only the topic line changed.
     expect(await fs.readFile(ws.path(B1), "utf8")).toBe(before.replace("topic: Wind", "topic: Gusts"));
   });
 });

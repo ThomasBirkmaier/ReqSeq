@@ -348,7 +348,7 @@ describe("the command prompt", () => {
     expect(COMMAND_SHORTCUT).toEqual({ mod: true, shift: true, key: "p" });
   });
 
-  it("[SR-109/AK1] shows each action that has a shortcut with its shortcut, as the platform writes it", () => {
+  it("[SR-109/AK-d5b0] shows each action that has a shortcut with its shortcut, as the platform writes it", () => {
     const shown = new Set<string>();
     // The keys that work only in the buffer are those commands' shortcuts there (ThomasBirkmaier/ReqSeq-archive#472 Q2), pinned literally.
     const bufferKeys: Readonly<Record<string, string>> = {
@@ -384,7 +384,7 @@ describe("the command prompt", () => {
     expect([...bufferKeysShown].sort()).toEqual(Object.keys(bufferKeys).sort());
   });
 
-  it("[SR-109/AK2] shows nothing next to an action without a shortcut", () => {
+  it("[SR-109/AK-hxz3] shows nothing next to an action without a shortcut", () => {
     // A letter after the prefix key is a shortcut too ("Ctrl+K O" for "Show overview", SR-121 AK3).
     const bound = new Set(PREFIX_BINDINGS.map((binding) => binding.id));
     const plain = new Set<string>();
@@ -408,7 +408,7 @@ describe("the command prompt", () => {
     expect(plain).not.toContain("overview");
   });
 
-  it("[SR-108/AK1] finds each action among the first three by its initials and by a typo, on the real names", () => {
+  it("[SR-108/AK-bs83] finds each action among the first three by its initials and by a typo, on the real names", () => {
     // Every action that applies somewhere: a list, a chained filter, an element with unsaved text on a package page, the overview.
     const contexts = [
       setup([list]).context,
@@ -451,7 +451,7 @@ describe("the command prompt", () => {
     }
   });
 
-  it("[SR-121/AK2] carries what was used to the prompt, and has none without", () => {
+  it("[SR-121/AK-ynwj] carries what was used to the prompt, and has none without", () => {
     const use = { score: () => 0, remembered: () => undefined, record: vi.fn() };
     expect(commandPrompt(setup([list]).context, use).use).toBe(use);
     expect(commandPrompt(setup([list]).context)).not.toHaveProperty("use");
@@ -468,7 +468,7 @@ describe("the command prompt", () => {
 });
 
 describe("Show overview", () => {
-  it("[SR-118/AK1] opens the overview, and is offered when it is not the shown buffer", () => {
+  it("[SR-118/AK-yggg] opens the overview, and is offered when it is not the shown buffer", () => {
     const { context, dispatched } = setup([list, overviewBuffer()]);
     expect(action("overview").available(context)).toBe(true);
     runAction(action("overview"), context);
@@ -549,7 +549,7 @@ describe("go to element or buffer", () => {
     ]);
   });
 
-  it("[SR-115/AK1] Go to offers every open buffer but the shown one, the one used last first, then the elements shown last that are not open, and finds any element through element.search", async () => {
+  it("[SR-115/AK-gxzy] Go to offers every open buffer but the shown one, the one used last first, then the elements shown last that are not open, and finds any element through element.search", async () => {
     const search = searchBuffer("wind");
     const hit = {
       id: "u9",
@@ -597,7 +597,7 @@ describe("go to element or buffer", () => {
     expect(found?.map((choice) => choice.name)).toEqual(["SR-000009 Survive icing"]);
   });
 
-  it("[SR-205/AK5] Go to resolves a test name's reference to a criterion and names the requirement, number and text", async () => {
+  it("[SR-205/AK-ndnj] Go to resolves a test name's reference to a criterion and names the requirement, number and text", async () => {
     const resolved = {
       element: { id: "u1", repository: "spec", shortId: "SR-000001", identifier: "SR-036", title: "Wind" },
       criterion: { criterion: 2, key: "k7f3", text: "Given a gust.", reference: "[SR-036/AK-k7f3]" },
@@ -618,7 +618,7 @@ describe("go to element or buffer", () => {
     ]);
   });
 
-  it("[SR-205/AK5] Go to asks element.resolve only for a reference with a key, and echoes its refusal of a bracket token", async () => {
+  it("[SR-205/AK-ndnj] Go to asks element.resolve only for a reference with a key, and echoes its refusal of a bracket token", async () => {
     const { context, call, echoed } = setup([list], {
       "element.resolve": new Error("SR-036 has no acceptance criterion with the criterion key zzzz"),
       "element.search": { hits: [], total: 0, incomplete: false },
@@ -640,7 +640,7 @@ describe("go to element or buffer", () => {
     ).toEqual([]);
   });
 
-  it("[SR-115/AK1] Go to offers no element shown last that is open, nor the shown buffer, and none without recent elements", () => {
+  it("[SR-115/AK-gxzy] Go to offers no element shown last that is open, nor the shown buffer, and none without recent elements", () => {
     const { context } = setup([element, list], {}, true, { recent: () => [element] });
     expect(jumpPrompt(context).items.map((item) => item.name)).toEqual(["All elements"]);
     expect(jumpPrompt(setup([list, element]).context).items.map((item) => item.name)).toEqual([
@@ -670,7 +670,7 @@ describe("insert reference (SR-129)", () => {
     terms: ["wind"],
   };
 
-  it("[SR-129/AK4] finds elements as Go to does, and a pick hands the element to the editor", async () => {
+  it("[SR-129/AK-nxbm] finds elements as Go to does, and a pick hands the element to the editor", async () => {
     const { context, call } = setup([list], {
       "element.search": { hits: [hit], total: 1, incomplete: false },
     });
@@ -696,7 +696,7 @@ describe("insert reference (SR-129)", () => {
     expect(request.cancel).not.toHaveBeenCalled();
   });
 
-  it("[SR-129/AK3] cancels through the request, and echoes why the search failed", async () => {
+  it("[SR-129/AK-rbjm] cancels through the request, and echoes why the search failed", async () => {
     const { context, echoed } = setup([list], {
       "element.search": new Error("The search index is not ready"),
     });
@@ -929,7 +929,7 @@ describe("list actions", () => {
     const sort = [{ by: "title" as const, order: "asc" as const }];
     const sorted = filteredList(steps, sort);
 
-    it("[SR-149/AK4] the command line offers type, status, package and the properties with values to choose of the listed elements", async () => {
+    it("[SR-149/AK-mfr6] the command line offers type, status, package and the properties with values to choose of the listed elements", async () => {
       const { context, asked, call } = setup([sorted], {
         "element.facets": facets,
         "metamodel.get": metamodel,
@@ -949,7 +949,7 @@ describe("list actions", () => {
       ]);
     });
 
-    it("[SR-149/AK4] offers no package but the packages property when the metamodel cannot be read or names none, and says why facets fail", async () => {
+    it("[SR-149/AK-mfr6] offers no package but the packages property when the metamodel cannot be read or names none, and says why facets fail", async () => {
       const failing = setup([list], { "element.facets": facets, "metamodel.get": new Error("no metamodel") });
       action("group").run(failing.context);
       await flush();
@@ -976,7 +976,7 @@ describe("list actions", () => {
       expect(broken.echoed).toEqual(["facets failed"]);
     });
 
-    it("[SR-149/AK3] choosing another grouping or ungrouping keeps the filter steps and the sort", async () => {
+    it("[SR-149/AK-pd1k] choosing another grouping or ungrouping keeps the filter steps and the sort", async () => {
       const { context, asked, dispatched } = setup([sorted], {
         "element.facets": facets,
         "metamodel.get": metamodel,
@@ -996,7 +996,7 @@ describe("list actions", () => {
       expect(again.dispatched).toEqual([{ type: "open", buffer: sorted }]);
     });
 
-    it("[SR-149/AK3] filtering and sorting a grouped list keep the grouping", () => {
+    it("[SR-149/AK-pd1k] filtering and sorting a grouped list keep the grouping", () => {
       const grouped = withGroup(sorted, "status");
       const { context, asked, dispatched } = setup([grouped]);
       action("sort").run(context);
@@ -1022,7 +1022,7 @@ describe("list actions", () => {
       expect(dispatched).toEqual([]);
     });
 
-    it("[SR-149/AK5] choosing a grouping only reads, and the grouping is not kept with the buffers", async () => {
+    it("[SR-149/AK-rdmd] choosing a grouping only reads, and the grouping is not kept with the buffers", async () => {
       const { context, asked, call, dispatched } = setup([list], {
         "element.facets": facets,
         "metamodel.get": metamodel,
@@ -1052,7 +1052,7 @@ describe("list actions", () => {
     };
     const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
 
-    it('[SR-112/AK2] "Sort list" and the filters are offered on a package page and not on another element', () => {
+    it('[SR-112/AK-vv6f] "Sort list" and the filters are offered on a package page and not on another element', () => {
       const onPage = setup([element, list], {}, true, { element: page }).context;
       expect(action("sort").available(onPage)).toBe(true);
       expect(titles(onPage)).toContain("Sort list");
@@ -1074,7 +1074,7 @@ describe("list actions", () => {
       ).toBe(false);
     });
 
-    it("[SR-112/AK2] a filter on a package page narrows its elements step by step and keeps the element buffer", async () => {
+    it("[SR-112/AK-vv6f] a filter on a package page narrows its elements step by step and keeps the element buffer", async () => {
       const first = setup([element], { "element.facets": { statuses: [{ key: "draft", count: 2 }] } }, true, {
         element: page,
       });
@@ -1100,7 +1100,7 @@ describe("list actions", () => {
       });
     });
 
-    it("[SR-112/AK2] clearing the filters of a package page takes back the last step, then all", () => {
+    it("[SR-112/AK-vv6f] clearing the filters of a package page takes back the last step, then all", () => {
       const twice = { ...element, memberSteps: [statusStep("draft"), typeStep("need")], memberCursor: 3 };
       const { context, dispatched } = setup([twice], {}, true, { element: page });
       expect(action("clear-filters").available(context)).toBe(true);
@@ -1112,7 +1112,7 @@ describe("list actions", () => {
       ]);
     });
 
-    it("[SR-112/AK2] the matrix of a filtered package page shows the elements its list shows", () => {
+    it("[SR-112/AK-vv6f] the matrix of a filtered package page shows the elements its list shows", () => {
       const once = { ...element, memberSteps: [statusStep("draft")] };
       const { context, dispatched } = setup([once], {}, true, { element: page });
       action("matrix").run(context);
@@ -1124,7 +1124,7 @@ describe("list actions", () => {
       });
     });
 
-    it("[SR-112/AK2] sorting on a package page sorts its elements and keeps the element buffer", () => {
+    it("[SR-112/AK-vv6f] sorting on a package page sorts its elements and keeps the element buffer", () => {
       const { context, asked, dispatched } = setup([element], {}, true, { element: page });
       action("sort").run(context);
       expect(asked[0]?.label).toBe("Sort by");
@@ -1143,7 +1143,7 @@ describe("list actions", () => {
       ]);
     });
 
-    it("[SR-112/AK2] the sort prompt on a package page offers the same choices as on a list", () => {
+    it("[SR-112/AK-vv6f] the sort prompt on a package page offers the same choices as on a list", () => {
       const onList = setup([filtered]);
       action("sort").run(onList.context);
       const onPage = setup([element], {}, true, { element: page });
@@ -1204,7 +1204,7 @@ describe("close buffer with unsaved changes", () => {
     expect(mac.echoed[0]).toContain("⌘S saves them");
   });
 
-  it("[SR-105/AK1] saves the input first and closes; asks once only when it could not be saved", async () => {
+  it("[SR-105/AK-p4gn] saves the input first and closes; asks once only when it could not be saved", async () => {
     const saved = setup([element, list], {}, true, {
       modified: true,
       saveDraft: () => Promise.resolve(true),
@@ -1246,7 +1246,7 @@ describe("close all buffers", () => {
     return prompt.items;
   };
 
-  it("[SR-123/AK1] closes every open buffer and says so", () => {
+  it("[SR-123/AK-grm4] closes every open buffer and says so", () => {
     const { context, dispatched, discarded, echoed, asked } = setup([element, other, list]);
     action("close-all").run(context);
     expect(closes(dispatched)).toEqual([
@@ -1262,7 +1262,7 @@ describe("close all buffers", () => {
     expect(one.echoed).toEqual(["Closed 1 buffer"]);
   });
 
-  it("[SR-123/AK2] with unsaved text it asks in the minibuffer: keep the unsaved buffers, or discard and close all", () => {
+  it("[SR-123/AK-xbx2] with unsaved text it asks in the minibuffer: keep the unsaved buffers, or discard and close all", () => {
     const drafted = (key: string): boolean => key === other.key;
     const { context, dispatched, discarded, echoed, asked } = setup([element, other, list], {}, true, {
       drafted,
@@ -1295,7 +1295,7 @@ describe("close all buffers", () => {
     expect(echoed.at(-1)).toBe("Closed 3 buffers");
   });
 
-  it("[SR-105/AK1] [SR-123/AK2] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
+  it("[SR-105/AK-p4gn] [SR-123/AK-xbx2] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
     const drafted = (key: string): boolean => key !== list.key;
     const saving: string[] = [];
     const all = setup([element, other, list], {}, true, {
@@ -1330,7 +1330,7 @@ describe("close all buffers", () => {
     expect(three.asked[0]?.label).toBe("3 buffers with unsaved changes (SR-001 T, SR-002 T, SR-003 T)");
   });
 
-  it('[SR-123/AK3] "cab" ranks Close all buffers first in the command prompt', () => {
+  it('[SR-123/AK-h0hj] "cab" ranks Close all buffers first in the command prompt', () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1353,7 +1353,7 @@ describe("close all buffers", () => {
     expect(action("close-all").available(setup([]).context)).toBe(false);
   });
 
-  it("[SR-118/AK1] leaves the overview open and out of the count; the lone overview has nothing to close", () => {
+  it("[SR-118/AK-yggg] leaves the overview open and out of the count; the lone overview has nothing to close", () => {
     const overview = overviewBuffer();
     const { context, dispatched, discarded, echoed } = setup([element, overview]);
     action("close-all").run(context);
@@ -1429,7 +1429,7 @@ describe("save element and edit text", () => {
     expect(controls.follow).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-132/AK1] [SR-145/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
+  it("[SR-132/AK-y207] [SR-145/AK-bfb2] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1469,7 +1469,7 @@ describe("save element and edit text", () => {
     ).toBe("⌘⇧↩");
   });
 
-  it("[SR-128/AK3] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
+  it("[SR-128/AK-pk21] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1517,7 +1517,7 @@ describe("save element and edit text", () => {
     expect(copy).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-104/AK2] Add property runs the controls with Ctrl/Cmd+Alt+A, on an element with a loaded text only", () => {
+  it("[SR-104/AK-k13x] Add property runs the controls with Ctrl/Cmd+Alt+A, on an element with a loaded text only", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1553,7 +1553,7 @@ describe("save element and edit text", () => {
     ).toBe("⌥⌘A");
   });
 
-  it("[SR-104/AK4] Clear property runs the controls, has no shortcut, and applies to an element with a loaded text only", () => {
+  it("[SR-104/AK-sxnr] Clear property runs the controls, has no shortcut, and applies to an element with a loaded text only", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1579,7 +1579,7 @@ describe("save element and edit text", () => {
     expect(controls.clearProperty).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-097/AK1] Insert image runs the controls on an element with a loaded text only and covers Add attachment", () => {
+  it("[SR-097/AK-zs31] Insert image runs the controls on an element with a loaded text only and covers Add attachment", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1605,7 +1605,7 @@ describe("save element and edit text", () => {
     expect(controls.insertImage).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-128/AK3] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {
+  it("[SR-128/AK-pk21] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {
     const contexts = everyContext();
     // Shortcuts as written: `shift` may be left out.
     const written = (shortcut: { mod: boolean; shift?: boolean; key: string }): string =>
@@ -1627,7 +1627,7 @@ describe("save element and edit text", () => {
     }
   });
 
-  it("[SR-121/AK3] shows the fixed shortcut next to each of the most frequent commands where it applies", () => {
+  it("[SR-121/AK-q4xh] shows the fixed shortcut next to each of the most frequent commands where it applies", () => {
     const seen = new Set<string>();
     for (const context of everyContext()) {
       for (const mac of [false, true]) {
@@ -1714,7 +1714,7 @@ describe("show element ID and version", () => {
 });
 
 describe("light and dark", () => {
-  it('[SR-113/AK2] "Toggle dark mode" switches to the other scheme and says so', () => {
+  it('[SR-113/AK-szv3] "Toggle dark mode" switches to the other scheme and says so', () => {
     const light = setup([list], {}, true, { theme: fakeTheme(false) });
     runAction(action("toggle-dark-mode"), light.context);
     expect(light.context.theme.shown()).toBe("dark");
@@ -1726,7 +1726,7 @@ describe("light and dark", () => {
     expect(dark.context.theme.shown()).toBe("light");
   });
 
-  it('[SR-113/AK2] "Follow system light or dark mode" is offered only after a choice, and drops it', () => {
+  it('[SR-113/AK-szv3] "Follow system light or dark mode" is offered only after a choice, and drops it', () => {
     const theme = fakeTheme(true);
     const { context, echoed } = setup([list], {}, true, { theme });
     expect(titles(context)).toContain("Toggle dark mode");
@@ -1754,7 +1754,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
   const cycleOrder = [element.key, search.key, list.key, overview.key];
   const used: Buffers = [element, search, list, overview];
 
-  it("[SR-115/AK5] Previous buffer shows the buffer shown before the shown one, after the oldest the newest; Next buffer the one after", () => {
+  it("[SR-115/AK-m5pg] Previous buffer shows the buffer shown before the shown one, after the oldest the newest; Next buffer the one after", () => {
     const previous = setup(used, {}, true, { cycleOrder });
     runAction(action("previous-buffer"), previous.context);
     expect(previous.dispatched).toEqual([{ type: "switch", key: search.key }]);
@@ -1774,14 +1774,14 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(newest.dispatched).toEqual([{ type: "switch", key: overview.key }]);
   });
 
-  it("[SR-115/AK5] the focus leaves a text editor before the switch, so that the editor gets nothing of the key", () => {
+  it("[SR-115/AK-m5pg] the focus leaves a text editor before the switch, so that the editor gets nothing of the key", () => {
     const { context, left, dispatched } = setup(used, {}, true, { cycleOrder });
     runAction(action("next-buffer"), context);
     expect(left).toEqual([true]);
     expect(dispatched).toHaveLength(1);
   });
 
-  it("[SR-115/AK5] are commands of the prompt with their keys while several buffers are open", () => {
+  it("[SR-115/AK-m5pg] are commands of the prompt with their keys while several buffers are open", () => {
     const linux = commandPrompt(setup(used, {}, true, { cycleOrder }).context).items;
     expect(linux.find((item) => item.name === "Next buffer")?.hint).toBe("Alt+N");
     expect(linux.find((item) => item.name === "Previous buffer")?.hint).toBe("Alt+P");
@@ -1793,7 +1793,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(names.indexOf("Previous buffer")).toBe(names.indexOf("Next buffer") + 1);
   });
 
-  it("[SR-115/AK5] are not offered and take no key with one buffer, or without a workspace", () => {
+  it("[SR-115/AK-m5pg] are not offered and take no key with one buffer, or without a workspace", () => {
     expect(titles(setup([overview]).context)).not.toContain("Next buffer");
     expect(titles(setup([list]).context)).not.toContain("Previous buffer");
     const alone = setup([overview]).context;
@@ -1802,7 +1802,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(actionFor(none, (shortcut) => shortcut === PREVIOUS_BUFFER_SHORTCUT)).toBeUndefined();
   });
 
-  it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
+  it("[SR-115/AK-m5pg] [SR-145/AK-kbdf] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
     const { context } = setup(used, {}, true, { cycleOrder });
     const press = (key: string, code: string) => ({
       key,
@@ -1820,7 +1820,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(found("π", "KeyP")).toBe("previous-buffer");
   });
 
-  it("[SR-115/AK5] switches nothing when the shown buffer is not in the order, and leaves the focus where it is", () => {
+  it("[SR-115/AK-m5pg] switches nothing when the shown buffer is not in the order, and leaves the focus where it is", () => {
     const { context, dispatched, left, cycledTo } = setup(used, {}, true, {
       cycleOrder: [list.key, search.key],
     });
@@ -1909,12 +1909,12 @@ describe("Split window (SR-115 AK3)", () => {
     };
   };
 
-  it("[SR-150/AK7] Other window has the key Alt+O on every platform", () => {
+  it("[SR-150/AK-mpfv] Other window has the key Alt+O on every platform", () => {
     expect(action("other-window").shortcut).toEqual({ mod: false, shift: false, alt: true, key: "o" });
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "o" }, true)).toBe("⌥O");
   });
 
-  it("[SR-115/AK3] Split window, Other window and Unsplit window are prompt commands, available only when they apply", () => {
+  it("[SR-115/AK-cycg] Split window, Other window and Unsplit window are prompt commands, available only when they apply", () => {
     for (const id of ["split-window", "unsplit-window"]) {
       expect(action(id).shortcut).toBeUndefined();
       expect(action(id).covers).toBeUndefined();
@@ -1956,7 +1956,7 @@ describe("Split window (SR-115 AK3)", () => {
     runAction(action("split-window"), setup([element]).context);
   });
 
-  it("[SR-150/AK1] Open to the right and Open to the left open the marked element beside, prompt commands without a key", () => {
+  it("[SR-150/AK-skw8] Open to the right and Open to the left open the marked element beside, prompt commands without a key", () => {
     const marked = elementBuffer("u2", "spec", "SR-037 Other");
     const one = layoutOf(undefined);
     const shown = setup([overview], {}, true, { layout: one.layout, marked });
@@ -2023,7 +2023,7 @@ describe("Choose view (SR-043 AK1)", () => {
 });
 
 describe("Mouse buttons Back and Forward (SR-163)", () => {
-  it("[SR-163/AK1] [SR-163/AK2] Back runs Previous buffer, Forward Next buffer, where they apply; other buttons nothing", () => {
+  it("[SR-163/AK-xtth] [SR-163/AK-v661] Back runs Previous buffer, Forward Next buffer, where they apply; other buttons nothing", () => {
     const { context } = setup([list, overviewBuffer()]);
     expect(mouseButtonAction(context, 3)?.id).toBe("previous-buffer");
     expect(mouseButtonAction(context, 4)?.id).toBe("next-buffer");
@@ -2046,7 +2046,7 @@ describe("Cmd+[ and Cmd+] on macOS (SR-163 AK3)", () => {
     shiftKey: false,
     ...init,
   });
-  it("[SR-163/AK3] Cmd+[ is Previous buffer, Cmd+] Next buffer, by character or physical key, on macOS only", () => {
+  it("[SR-163/AK-bh0y] Cmd+[ is Previous buffer, Cmd+] Next buffer, by character or physical key, on macOS only", () => {
     const { context } = setup([list, overviewBuffer()]);
     const mac = { ...context, mac: true };
     expect(historyKeyAction(mac, key({ key: "[" }))?.id).toBe("previous-buffer");

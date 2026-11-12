@@ -29,20 +29,20 @@ describe("text actions", () => {
     expect(hasText(contextOf("list", text))).toBe(false);
   });
 
-  it("[SR-185/AK3] Toggle task runs the toggle on the text, and says when there is no task on the line", () => {
+  it("[SR-185/AK-jxg0] Toggle task runs the toggle on the text, and says when there is no task on the line", () => {
     const text = vi.fn();
     const action = TEXT_ACTIONS.find((entry) => entry.title === "Toggle task");
     action?.run(contextOf("element", text));
     expect(text).toHaveBeenCalledWith(toggleTask, "No task on this line");
   });
 
-  it("[SR-188/AK2] Align table in the command line runs the alignment on the text, and says when the cursor is off a table", () => {
+  it("[SR-188/AK-g6sz] Align table in the command line runs the alignment on the text, and says when the cursor is off a table", () => {
     const text = vi.fn();
     TEXT_ACTIONS.find((entry) => entry.title === "Align table")?.run(contextOf("element", text));
     expect(text).toHaveBeenCalledWith(alignTable, NOT_IN_TABLE);
   });
 
-  it("[SR-188/AK3] Insert row, Insert column, Delete row and Delete column in the command line run their commands on the text", () => {
+  it("[SR-188/AK-fk18] Insert row, Insert column, Delete row and Delete column in the command line run their commands on the text", () => {
     const text = vi.fn();
     for (const title of ["Insert row", "Insert column", "Delete row", "Delete column"]) {
       TEXT_ACTIONS.find((entry) => entry.title === title)?.run(contextOf("element", text));
@@ -55,7 +55,7 @@ describe("text actions", () => {
     ]);
   });
 
-  it("[SR-195/AK3] Cut, Copy and Paste are in the command prompt with the system's keys, which the window leaves to the field", () => {
+  it("[SR-195/AK-qn9f] Cut, Copy and Paste are in the command prompt with the system's keys, which the window leaves to the field", () => {
     const named = (title: string) => CLIPBOARD_ACTIONS.find((entry) => entry.title === title);
     for (const [title, key] of [
       ["Cut", "x"],
@@ -76,7 +76,7 @@ describe("text actions", () => {
     expect(mac.find((item) => item.id === "paste")?.hint).toBe("⌘V");
   });
 
-  it("[SR-195/AK3] Cut and Copy run the browser's cut and copy on the field, Copy also where it takes no input", () => {
+  it("[SR-195/AK-qn9f] Cut and Copy run the browser's cut and copy on the field, Copy also where it takes no input", () => {
     const text = vi.fn();
     for (const title of ["Cut", "Copy"]) {
       CLIPBOARD_ACTIONS.find((entry) => entry.title === title)?.run(contextOf("element", text));
@@ -87,7 +87,7 @@ describe("text actions", () => {
     ]);
   });
 
-  it("[SR-195/AK3] Paste has main paste into the field, and says so where the window cannot", () => {
+  it("[SR-195/AK-qn9f] Paste has main paste into the field, and says so where the window cannot", () => {
     const text = vi.fn();
     const paste = vi.fn();
     const echo = vi.fn();
@@ -111,7 +111,7 @@ describe("text actions", () => {
     expect(textAction({ id: "x", title: "X", command, none: "n" }).shortcut).toBeUndefined();
   });
 
-  it("[SR-186/AK1] Bold, Italic and Inline code run their format on the text", () => {
+  it("[SR-186/AK-vzm9] Bold, Italic and Inline code run their format on the text", () => {
     const text = vi.fn();
     const named = (title: string) => TEXT_ACTIONS.find((entry) => entry.title === title);
     for (const title of ["Bold", "Italic", "Inline code"]) {
@@ -120,14 +120,14 @@ describe("text actions", () => {
     expect(text).toHaveBeenCalledTimes(3);
   });
 
-  it("[SR-186/AK2] Bold and Italic have Ctrl/Cmd+B and Ctrl/Cmd+I outside an editor, Inline code no key", () => {
+  it("[SR-186/AK-ykwj] Bold and Italic have Ctrl/Cmd+B and Ctrl/Cmd+I outside an editor, Inline code no key", () => {
     const named = (title: string) => TEXT_ACTIONS.find((entry) => entry.title === title);
     expect(named("Bold")?.shortcut).toEqual({ mod: true, shift: false, key: "b" });
     expect(named("Italic")?.shortcut).toEqual({ mod: true, shift: false, key: "i" });
     expect(named("Inline code")?.shortcut).toBeUndefined();
   });
 
-  it("[SR-186/AK5] Link asks for the address and writes the link with it; an empty address writes nothing", () => {
+  it("[SR-186/AK-gbzd] Link asks for the address and writes the link with it; an empty address writes nothing", () => {
     const text = vi.fn();
     const ask = vi.fn();
     linkAction.run({ ...contextOf("element", text), ask });

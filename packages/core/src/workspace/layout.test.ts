@@ -129,7 +129,7 @@ describe("loadWorkspaceLayout", () => {
     expect(layout.problems.map((p) => p.severity)).toEqual(["warning"]);
   });
 
-  it("[SR-004/AK4] applies relative and absolute paths of .reqseq/local.yaml", async () => {
+  it("[SR-004/AK-hpgp] applies relative and absolute paths of .reqseq/local.yaml", async () => {
     const ws = await setup(
       yaml(`${MAIN}  - { name: a, url: u }\n  - { name: b, url: u, path: ../b }\n  - { name: c, url: u }\n`),
       {
@@ -171,7 +171,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("[SR-008/AK4] ignores a local file of an unknown format number with a warning", async () => {
+  it("[SR-008/AK-pm64] ignores a local file of an unknown format number with a warning", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), {
       local: "reqseq-local: 2\nrepositories:\n  a: { path: ../elsewhere }\n",
       folders: ["a", "elsewhere"],
@@ -316,7 +316,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("[SR-004/AK7] ignores an absolute path in the committed workspace file with a warning", async () => {
+  it("[SR-004/AK-w2fk] ignores an absolute path in the committed workspace file with a warning", async () => {
     const ws = await setup(undefined, { folders: ["a", "elsewhere"] });
     for (const absolute of [ws.path("elsewhere"), "/abs/a", "C:/abs/a"]) {
       await ws.write(
@@ -331,7 +331,7 @@ describe("loadWorkspaceLayout", () => {
     }
   });
 
-  it("[SR-004/AK7] ignores a committed path out of the folder of the main repository or through a link out of a repository (#294)", async () => {
+  it("[SR-004/AK-w2fk] ignores a committed path out of the folder of the main repository or through a link out of a repository (#294)", async () => {
     const ws = await setup(undefined, { folders: ["a", "outside/a", "clone"] });
     await fs.symlink(ws.path("outside"), ws.path("main/vendor"), "junction");
     await fs.symlink(ws.path("outside"), ws.path("clone/x"), "junction");
@@ -620,7 +620,7 @@ describe("loadWorkspaceLayout", () => {
     expect(error.message).toMatch(/^reqseq-workspace\.yaml is faulty: Invalid YAML at line/);
   });
 
-  it("[SR-008/AK4] fails with file.faulty for a workspace file that does not match its schema, also one of an unknown format number", async () => {
+  it("[SR-008/AK-pm64] fails with file.faulty for a workspace file that does not match its schema, also one of an unknown format number", async () => {
     const ws = await setup("reqseq-workspace: 2\nname: W\nrepositories: []\n");
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.code).toBe("file.faulty");

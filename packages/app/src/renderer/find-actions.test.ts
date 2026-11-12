@@ -70,7 +70,7 @@ describe("find and replace in the element", () => {
     expect(findAction.shortcut).toEqual({ mod: true, shift: false, key: "f" });
   });
 
-  it("[SR-189/AK1] typing marks the hits, Enter and Shift+Enter step through them, Escape leaves the caret at the hit", () => {
+  it("[SR-189/AK-ctc8] typing marks the hits, Enter and Shift+Enter step through them, Escape leaves the caret at the hit", () => {
     const { view, context, last, notify, focused, reads } = setup("ab x ab x ab", 3);
     findAction.run(context);
     const prompt = last();
@@ -102,7 +102,7 @@ describe("find and replace in the element", () => {
     last().typing?.("");
   });
 
-  it("[SR-189/AK2] Replace asks for the search (the last one first) and the replacement, replaces the current hit and goes to the next", () => {
+  it("[SR-189/AK-jm2n] Replace asks for the search (the last one first) and the replacement, replaces the current hit and goes to the next", () => {
     const { context, last, notify, doc, reads } = setup("cat dog cat dog", 0);
     findAction.run(context);
     last().typing?.("cat");
@@ -133,7 +133,7 @@ describe("find and replace in the element", () => {
     expect(last().label).toBe("Replace");
   });
 
-  it("[SR-189/AK3] Replace all replaces every hit and says how many in the status line", () => {
+  it("[SR-189/AK-byc1] Replace all replaces every hit and says how many in the status line", () => {
     const { view, context, last, notify, doc, focused } = setup("a1 a2 a3", 0);
     replaceAllAction.run(context);
     last().text?.("a");
@@ -150,7 +150,7 @@ describe("find and replace in the element", () => {
     last().text?.("q");
     last().text?.("c");
     expect(notify).toHaveBeenLastCalledWith("No hit of “q”");
-    // [SR-189/AK4] in `editor/find.test.ts`; here the whole of it through the prompts: one undo each.
+    // [SR-189/AK-mt6q] in `editor/find.test.ts`; here the whole of it through the prompts: one undo each.
     undo(view);
     expect(doc()).toBe("b1 b2 b3");
   });

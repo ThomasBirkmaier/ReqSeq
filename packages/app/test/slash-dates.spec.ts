@@ -63,7 +63,7 @@ test.describe("the dates of the slash menu", () => {
     await running.close();
   });
 
-  test("[SR-200/AK1] Today writes today's date of the computer as YYYY-MM-DD in place of the / and its query", async () => {
+  test("[SR-200/AK-dnvq] Today writes today's date of the computer as YYYY-MM-DD in place of the / and its query", async () => {
     const { window } = running;
     await window.keyboard.type("/today");
     await expect(window.locator('.cm-tooltip-autocomplete li[aria-selected="true"]')).toContainText("Today");
@@ -72,7 +72,7 @@ test.describe("the dates of the slash menu", () => {
     await expect(lastLine(window)).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  test("[SR-200/AK2] Date opens a month calendar at the caret with today chosen; Left, Right, Up and Down move by a day and a week", async () => {
+  test("[SR-200/AK-k8gq] Date opens a month calendar at the caret with today chosen; Left, Right, Up and Down move by a day and a week", async () => {
     const { window } = running;
     await openCalendar(window);
     await expect(chosen(window)).toHaveAttribute("data-day", await day(window));
@@ -99,7 +99,7 @@ test.describe("the dates of the slash menu", () => {
     await expect(lastLine(window)).toHaveText("/date");
   });
 
-  test("[SR-200/AK3] Enter writes the chosen day in place of the / and its query", async () => {
+  test("[SR-200/AK-gx03] Enter writes the chosen day in place of the / and its query", async () => {
     const { window } = running;
     await openCalendar(window);
     await window.keyboard.press("ArrowRight");
@@ -109,7 +109,7 @@ test.describe("the dates of the slash menu", () => {
     await expect(window.locator(".cm-content")).toBeFocused();
   });
 
-  test("[SR-200/AK3] a click on a day writes that day", async () => {
+  test("[SR-200/AK-gx03] a click on a day writes that day", async () => {
     const { window } = running;
     await openCalendar(window);
     // The last day shown that is not today.
@@ -121,7 +121,7 @@ test.describe("the dates of the slash menu", () => {
     await expect(lastLine(window)).toHaveText(target);
   });
 
-  test("[SR-200/AK3] Escape closes the calendar, and the / and its query stay as typed", async () => {
+  test("[SR-200/AK-gx03] Escape closes the calendar, and the / and its query stay as typed", async () => {
     const { window } = running;
     await openCalendar(window);
     await window.keyboard.press("Escape");

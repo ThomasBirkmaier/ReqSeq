@@ -123,20 +123,20 @@ const misdefined = async (): Promise<FixtureOptions> => ({
 });
 
 describe("emergent requirements need their own record (SR-035)", () => {
-  it("[SR-035/AK1] evidence.status gives open, not indirect, for an emergent requirement whose children are verified, and its parent names it missing", async () => {
+  it("[SR-035/AK-m6h4] evidence.status gives open, not indirect, for an emergent requirement whose children are verified, and its parent names it missing", async () => {
     const out = await status(await open());
     expect(byId(out)).toEqual(FROM_FILES);
     expect(out.total).toBe(12);
   });
 
-  it("[SR-035/AK1] element.get gives an emergent requirement the status of its own record", async () => {
+  it("[SR-035/AK-m6h4] element.get gives an emergent requirement the status of its own record", async () => {
     const ws = await open();
     expect((await get(ws, E2)).element.verification).toEqual(core("verified"));
     expect((await get(ws, E3)).element.verification).toEqual(core("outdated"));
     expect((await get(ws, E1)).element.verification).toEqual(core("open"));
   });
 
-  it("[SR-035/AK1] marking a requirement emergent with element.update takes away its indirect verification", async () => {
+  it("[SR-035/AK-m6h4] marking a requirement emergent with element.update takes away its indirect verification", async () => {
     const ws = await open();
     expect((await get(ws, P1)).element.verification).toEqual(core("indirect"));
     expect(await where(ws, { verification: ["indirect"] })).toEqual([P1]);
@@ -147,7 +147,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(await where(ws, { emergent: true })).toEqual([E1, P1, E2, E3, E4]);
   });
 
-  it("[SR-035/AK2] element.get, element.list and evidence.status show emergent true for a marked requirement and leave it out for the others", async () => {
+  it("[SR-035/AK-k81y] element.get, element.list and evidence.status show emergent true for a marked requirement and leave it out for the others", async () => {
     const ws = await open();
     const listed = (await invoke("element.list", { limit: 5000 }, { workspace: ws })) as FullList;
     expect(marked(listed.elements)).toEqual(EMERGENT);

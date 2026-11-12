@@ -50,7 +50,7 @@ const opened = async (root: string, minute: number): Promise<void> => {
 };
 
 describe("reqseq workspace recent (SR-131)", () => {
-  it("[SR-131/AK1] prints the recent workspaces, the last opened first, with whether each still holds a workspace", async () => {
+  it("[SR-131/AK-y2k4] prints the recent workspaces, the last opened first, with whether each still holds a workspace", async () => {
     const gone = path.join(home, "gone");
     await opened(gone, 1);
     await opened(fixture.root, 2);

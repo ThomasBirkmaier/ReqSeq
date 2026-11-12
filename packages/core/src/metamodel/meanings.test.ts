@@ -35,7 +35,7 @@ import {
 // ThomasBirkmaier/ReqSeq-archive#127 option 1: SR-013 AK1 and AK2 are tested here, at the lowest existing level, where the core
 // resolves a meaning to the keys of the metamodel. The chain (trace.chain, stage 2) and the variant
 // view (SR-040, SR-043, stage 5) build on these functions and add end-to-end tests with the same
-// [SR-013/AK1] and [SR-013/AK2] prefixes.
+// [SR-013/AK-st9d] and [SR-013/AK-tm7f] prefixes.
 
 const fixture = async (options: FixtureOptions = {}): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-013/own-meanings", ...options });
@@ -76,7 +76,7 @@ const invalid = (message: string, file: string, line: number): Problem => ({
 });
 
 describe("built-in meanings", () => {
-  it("[SR-013/AK1] follows an own relation kind marked with the meaning derivation", async () => {
+  it("[SR-013/AK-st9d] follows an own relation kind marked with the meaning derivation", async () => {
     const metamodel = await load();
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     // The chain follows exactly the relation kinds with the meaning derivation, whatever their key.
@@ -85,7 +85,7 @@ describe("built-in meanings", () => {
     expect(metamodel.meanings.derivation).toEqual(["satisfies"]);
   });
 
-  it("[SR-013/AK1] follows every relation kind that shares the meaning derivation, never one without it", async () => {
+  it("[SR-013/AK-st9d] follows every relation kind that shares the meaning derivation, never one without it", async () => {
     const metamodel = await load({
       files: {
         "model/relations.yaml": [
@@ -108,7 +108,7 @@ describe("built-in meanings", () => {
     expect(relationKindsWithMeaning(metamodel, "replacement").map((r) => r.key)).toEqual(["obsoletes"]);
   });
 
-  it("[SR-013/AK2] resolves the own property marked with the meaning validity, not the one keyed validity", async () => {
+  it("[SR-013/AK-tm7f] resolves the own property marked with the meaning validity, not the one keyed validity", async () => {
     const metamodel = await load();
     // The variant view reads the validity from this property of each requirement.
     expect(propertyWithMeaning(metamodel, "validity")).toEqual({
@@ -126,7 +126,7 @@ describe("built-in meanings", () => {
     expect(typesWithMeaning(metamodel, "variant").map((t) => t.key)).toEqual(["edition"]);
   });
 
-  it("[SR-013/AK3] names the missing assignment when a function needs a meaning that no key has", async () => {
+  it("[SR-013/AK-bh0d] names the missing assignment when a function needs a meaning that no key has", async () => {
     const metamodel = await load({
       files: {
         "model/relations.yaml": "reqseq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
@@ -146,7 +146,7 @@ describe("built-in meanings", () => {
     expect(errorClass("metamodel.meaning-unassigned")).toBe("conflict");
   });
 
-  it("[SR-013/AK3] names a missing property and a missing type meaning the same way", async () => {
+  it("[SR-013/AK-bh0d] names a missing property and a missing type meaning the same way", async () => {
     const metamodel = await load({
       files: {
         "model/types.yaml":
@@ -660,7 +660,7 @@ describe("built-in meanings", () => {
     expect(await load({ fixture: "SR-035/emergent" })).toMatchObject({ valid: true, problems: [] });
   });
 
-  it("[SR-013/AK4] the meaning acceptance-criteria wants kind text with many, else a warning, and the standard model assigns it", async () => {
+  it("[SR-013/AK-rbh2] the meaning acceptance-criteria wants kind text with many, else a warning, and the standard model assigns it", async () => {
     const lines: Readonly<Record<string, number>> = { kind: 4, many: 5 };
     const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
       definition,
@@ -686,7 +686,7 @@ describe("built-in meanings", () => {
     expect(standard.meanings["acceptance-criteria"]).toEqual(["acceptance-criteria"]);
   });
 
-  it("[SR-127/AK5] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {
+  it("[SR-127/AK-mdr7] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {
     const at = (definition: MetamodelProperty, line?: number): Located<MetamodelProperty> => ({
       definition,
       file: "model/properties.yaml",

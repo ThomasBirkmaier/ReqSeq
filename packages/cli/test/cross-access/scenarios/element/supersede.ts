@@ -6,7 +6,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("element.supersede", [
   {
-    tag: "[SR-072/AK2]",
+    tag: "[SR-072/AK-y5gr]",
     name: "supersede with a successor: a hint on each relation but the successor's own",
     fixture: { fixture: "SR-072/supersede", git: true },
     input: { ref: "N-d4e5f6", status: "obsolete", successor: "N-e5f6a7" },
@@ -21,7 +21,7 @@ scenariosOf("element.supersede", [
     },
   },
   {
-    tag: "[SR-072/AK2]",
+    tag: "[SR-072/AK-y5gr]",
     name: "no hint on the relation of an obsolete source",
     fixture: {
       fixture: "SR-072/supersede",

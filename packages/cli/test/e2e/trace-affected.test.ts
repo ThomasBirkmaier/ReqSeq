@@ -41,7 +41,7 @@ beforeAll(() => {
 const P = "5c0e1d2a-0024-4024-8024-00000000";
 
 describe("reqseq trace affected (SR-024)", () => {
-  it("[SR-024/AK1] prints the affected elements of an element with way and distance, as JSON and readable", async () => {
+  it("[SR-024/AK-zsx0] prints the affected elements of an element with way and distance, as JSON and readable", async () => {
     const ws = await fixture();
     const json = await reqseq(["trace", "affected", "SR-00b001", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
@@ -77,14 +77,14 @@ describe("reqseq trace affected (SR-024)", () => {
     );
   });
 
-  it("[SR-024/AK1] names an unknown element with exit code 2", async () => {
+  it("[SR-024/AK-zsx0] names an unknown element with exit code 2", async () => {
     const ws = await fixture();
     const unknown = await reqseq(["trace", "affected", "SR-ffffff"], ws.root);
     expect(unknown.code).toBe(2);
     expect(unknown.stderr).toContain("error ref.unknown");
   });
 
-  it("[SR-024/AK2] prints the number of directly affected elements after a change of the text", async () => {
+  it("[SR-024/AK-mf7x] prints the number of directly affected elements after a change of the text", async () => {
     const ws = await fixture();
     const sha = ["--expected-file-sha256", await fileSha256("SR-00b001", { cwd: ws.root })];
     const json = await reqseq(
@@ -109,7 +109,7 @@ describe("reqseq trace affected (SR-024)", () => {
     expect(human.stdout).toContain("\naffected: 2\n");
   });
 
-  it("[SR-024/AK3] prints no affected elements after a change of the title only", async () => {
+  it("[SR-024/AK-jt0q] prints no affected elements after a change of the title only", async () => {
     const ws = await fixture();
     const json = await reqseq(
       [

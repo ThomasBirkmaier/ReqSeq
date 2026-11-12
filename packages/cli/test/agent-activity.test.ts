@@ -124,7 +124,7 @@ const withApi = async <T>(use: (port: number, token: string) => Promise<T>): Pro
 };
 
 describe("no access but the app switches the mode „Agent folgen“ (SR-117 AK4)", () => {
-  it("[SR-117/AK4] no catalog command, API path or MCP tool switches the follow mode", async () => {
+  it("[SR-117/AK-k2mf] no catalog command, API path or MCP tool switches the follow mode", async () => {
     const { commands } = runtime.contracts;
     expect(commands.filter((c) => FOLLOW.test(c.name) || FOLLOW.test(c.title))).toEqual([]);
     // The one command of SR-117 only reads, and takes nothing that could switch a mode.

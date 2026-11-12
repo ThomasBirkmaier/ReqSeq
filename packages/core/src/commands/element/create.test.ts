@@ -127,7 +127,7 @@ const foldNormalForm = (onDisk: readonly string[], ignoreCase = false): void => 
 };
 
 describe("element.create", () => {
-  it("[SR-001/AK1] writes exactly one file named by prefix and UUID, properties as frontmatter, text below", async () => {
+  it("[SR-001/AK-kptm] writes exactly one file named by prefix and UUID, properties as frontmatter, text below", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     const out = await create(opened, {
@@ -202,7 +202,7 @@ describe("element.create", () => {
     expect(out.problems).toEqual([noParent(out)]);
   });
 
-  it("[SR-002/AK1] gives every new element a new random UUID of version 4", async () => {
+  it("[SR-002/AK-t5gq] gives every new element a new random UUID of version 4", async () => {
     const opened = await standard();
     const ids = new Set<string>();
     for (let i = 0; i < 5; i++) {
@@ -246,7 +246,7 @@ describe("element.create", () => {
     }
   });
 
-  it("[SR-064/AK5] puts the file into the type folder by default, creating it, or into the given folder", async () => {
+  it("[SR-064/AK-p5w1] puts the file into the type folder by default, creating it, or into the given folder", async () => {
     const opened = await standard();
     const inType = await create(opened, { type: "decision", title: "Use YAML" });
     expect(inType.files).toEqual([`decision/D-${tail12(inType.element.id)}.md`]);
@@ -268,7 +268,7 @@ describe("element.create", () => {
     expect(await filesBelow(path.dirname(opened.root))).toEqual(before);
   });
 
-  it("[SR-064/AK5] writes into another repository of the workspace and refuses unknown or missing ones", async () => {
+  it("[SR-064/AK-p5w1] writes into another repository of the workspace and refuses unknown or missing ones", async () => {
     const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
     const out = await create(opened, {
       type: "system-requirement",
@@ -313,7 +313,7 @@ describe("element.create", () => {
     ]);
   });
 
-  it("[SR-016/AK4] refuses properties the type does not have, structural keys, relation kinds and the title key", async () => {
+  it("[SR-016/AK-qdr5] refuses properties the type does not have, structural keys, relation kinds and the title key", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     const cases: [Record<string, unknown>, string][] = [
@@ -391,7 +391,7 @@ describe("element.create", () => {
     expect(out.element.properties).toEqual({ weight: 2, "parent-item": stored });
   });
 
-  it("[SR-064/AK2] saves with every required property empty (absent, null, an empty list, an empty title) and gives one element.missing-required hint per key", async () => {
+  it("[SR-064/AK-yhn7] saves with every required property empty (absent, null, an empty list, an empty title) and gives one element.missing-required hint per key", async () => {
     const opened = await standard();
     /** The hint for the required property `key` of a system requirement, on `line` when the file has the key. */
     const missing = (out: Output, key: string, name: string, line?: number): Record<string, unknown> => ({
@@ -451,7 +451,7 @@ describe("element.create", () => {
     }
   });
 
-  it("[SR-064/AK2] saves an empty or blank string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
+  it("[SR-064/AK-yhn7] saves an empty or blank string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
     const opened = await standard();
     for (const empty of ["", "  "]) {
       const out = await create(opened, {
@@ -471,7 +471,7 @@ describe("element.create", () => {
     }
   });
 
-  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
+  it("[SR-012/AK-f3bs] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await standard();
     const out = await create(opened, {
       type: "system-requirement",
@@ -488,7 +488,7 @@ describe("element.create", () => {
     expect((out.problems ?? []).filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
-  it("[SR-085/AK4] refuses a choice value that names no choice and writes no file (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
+  it("[SR-085/AK-jx8c] refuses a choice value that names no choice and writes no file (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     for (const value of ["sometimes", 5, ["functional", "Sometimes"]]) {
@@ -558,7 +558,7 @@ describe("element.create", () => {
     ]);
   });
 
-  it("[SR-085/AK4] stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
+  it("[SR-085/AK-jx8c] stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
     const opened = await standard();
     // A number where the metamodel wants a text in a list of texts (one text where it wants the list is
     // stored as a list of one, #1209); a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309).
@@ -581,7 +581,7 @@ describe("element.create", () => {
     expect(out.element.problems).toEqual(out.problems);
   });
 
-  it("[SR-012/AK4] refuses unknown and abstract types and writes nothing; a type that inherits from an abstract one is not abstract", async () => {
+  it("[SR-012/AK-hwvc] refuses unknown and abstract types and writes nothing; a type that inherits from an abstract one is not abstract", async () => {
     const opened = await open({
       fixture: "SR-013/own-meanings",
       files: {
@@ -744,7 +744,7 @@ describe("element.create", () => {
       expect(await treeBelow(opened.root)).toEqual(before);
     };
 
-    it("[SR-083/AK4] never writes below .git, at the top or in any folder (D-036: ReqSeq never writes to Git)", async () => {
+    it("[SR-083/AK-s4q9] never writes below .git, at the top or in any folder (D-036: ReqSeq never writes to Git)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       await refused(opened, [
         ...inFolder("skipped-name", ".git"),
@@ -756,7 +756,7 @@ describe("element.create", () => {
       expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
     });
 
-    it("[SR-083/AK4] never writes below a name that Windows or macOS take for .git or node_modules (D-036)", async () => {
+    it("[SR-083/AK-s4q9] never writes below a name that Windows or macOS take for .git or node_modules (D-036)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       await refused(opened, [
         [{ folder: ".GIT/objects" }, "skipped-name", ".GIT"],

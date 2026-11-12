@@ -163,11 +163,11 @@ describe("the command prompt's search with 50,000 elements (SR-108 AK5, N-036)",
     }
   };
 
-  it("[SR-108/AK5] updates the hits of every typed character within 100 ms (median of 7 runs)", async () => {
+  it("[SR-108/AK-nqmj] updates the hits of every typed character within 100 ms (median of 7 runs)", async () => {
     await measureEveryPrefix("(id and title, 20 hits)", undefined);
   });
 
-  it("[SR-108/AK5] updates the hits of a target step, limited to the allowed types, within 100 ms (median of 7 runs)", async () => {
+  it("[SR-108/AK-nqmj] updates the hits of a target step, limited to the allowed types, within 100 ms (median of 7 runs)", async () => {
     const all = await promptSearch("wind");
     const limited = await promptSearch("wind", types);
     expect(limited.total).toBeGreaterThan(0);

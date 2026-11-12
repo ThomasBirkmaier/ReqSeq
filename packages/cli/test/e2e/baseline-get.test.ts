@@ -87,7 +87,7 @@ const state = (shown: Shown, tail: string): Shown["elements"][number] | undefine
   shown.elements.find((e) => e.id === `${ID}${tail}`);
 
 describe("reqseq baseline get", () => {
-  it("[SR-051/AK1] baseline.get shows each element with its baseline version and that version's date", async () => {
+  it("[SR-051/AK-n6cm] baseline.get shows each element with its baseline version and that version's date", async () => {
     const { ws, first } = await fixture();
     const seconds = Number((await ws.git(["log", "-1", "--format=%ct", first], "system")).trim());
     const date = `${new Date(seconds * 1000).toISOString().slice(0, 19)}Z`;
@@ -102,7 +102,7 @@ describe("reqseq baseline get", () => {
     expect(human.stdout).not.toContain("then it shows the speed.");
   });
 
-  it("[SR-051/AK2] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
+  it("[SR-051/AK-c0xb] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
     const { ws } = await fixture();
     const shown = await get(ws, "Release 2");
     expect([state(shown, "b1")?.state, state(shown, "b2")?.state, state(shown, "b3")?.state]).toEqual([
@@ -117,7 +117,7 @@ describe("reqseq baseline get", () => {
     expect(human.stdout).toContain("selectionKnown: false");
   });
 
-  it("[SR-051/AK3] baseline.get marks SR-W removed; without stored selection no removed", async () => {
+  it("[SR-051/AK-ntjw] baseline.get marks SR-W removed; without stored selection no removed", async () => {
     const { ws } = await fixture();
     const a1 = state(await get(ws, "Release 2"), "a1");
     expect(a1).toMatchObject({ state: "removed", version: "n1:9d97d0ccf9b75591" });
@@ -127,7 +127,7 @@ describe("reqseq baseline get", () => {
 });
 
 describe("reqseq baseline get --with-evidence", () => {
-  it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
+  it("[SR-094/AK-wm63] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-094/baseline", git: true });
     fixtures.push(ws);
     const result = await run(["baseline", "get", "Release 1", "--with-evidence", "--json"], { cwd: ws.root });
@@ -163,7 +163,7 @@ describe("reqseq baseline get --with-evidence", () => {
 });
 
 describe("reqseq baseline compare", () => {
-  it("[SR-051/AK4] baseline.compare gives both commits and the git command", async () => {
+  it("[SR-051/AK-dcx7] baseline.compare gives both commits and the git command", async () => {
     const { ws, first, second } = await fixture();
     const result = await run(["baseline", "compare", "Release 2", "SR-0000b1", "--json"], {
       cwd: ws.path("system"),

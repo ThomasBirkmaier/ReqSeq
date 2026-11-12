@@ -36,7 +36,7 @@ const listFiles = async (root: string): Promise<string[]> =>
     .sort();
 
 describe("workspace.init", () => {
-  it("[SR-014/AK1] creates the standard model as metamodel files in an empty folder", async () => {
+  it("[SR-014/AK-yh7s] creates the standard model as metamodel files in an empty folder", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
@@ -65,7 +65,7 @@ describe("workspace.init", () => {
     );
   });
 
-  it("[SR-014/AK1] opens the new workspace writable, with the standard model as its metamodel", async () => {
+  it("[SR-014/AK-yh7s] opens the new workspace writable, with the standard model as its metamodel", async () => {
     const ws = await emptyFolder();
     const workspace = open(ws.root);
     await init(workspace, { path: ws.root, name: "Weather station" });
@@ -114,7 +114,7 @@ describe("workspace.init", () => {
     expect(out.problems).toEqual([]);
   });
 
-  it("[SR-014/AK1] takes a relative path from the workspace root (API, MCP) and writes nothing to Git", async () => {
+  it("[SR-014/AK-yh7s] takes a relative path from the workspace root (API, MCP) and writes nothing to Git", async () => {
     const ws = await createFixtureWorkspace({ files: { "new/.keep": "" } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: "new", name: "New" });
@@ -129,7 +129,7 @@ describe("workspace.init", () => {
     await expect(fs.lstat(ws.path("new/.git"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("[SR-083/AK3] [SR-083/AK4] creates no workspace inside a .git folder, in any case and through a linked folder (#1449)", async () => {
+  it("[SR-083/AK-zp6z] [SR-083/AK-s4q9] creates no workspace inside a .git folder, in any case and through a linked folder (#1449)", async () => {
     const ws = await createFixtureWorkspace({ files: { ".git/hooks/keep": "" } });
     onTestFinished(() => ws.cleanup());
     await fs.symlink(ws.path(".git"), ws.path("linked"), "junction");
@@ -201,7 +201,7 @@ describe("workspace.init", () => {
     expect(await fs.readFile(ws.path(WORKSPACE_FILE), "utf8")).toBe(before);
   });
 
-  it("[SR-014/AK1] adds the missing lines for temp files and the local file to an existing .gitignore once, with its line ending (#271, #1456)", async () => {
+  it("[SR-014/AK-yh7s] adds the missing lines for temp files and the local file to an existing .gitignore once, with its line ending (#271, #1456)", async () => {
     const ws = await createFixtureWorkspace({
       files: {
         "a/.gitignore": "node_modules/\r\ndist/",

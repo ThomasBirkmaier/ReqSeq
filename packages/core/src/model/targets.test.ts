@@ -129,7 +129,7 @@ const watching = async (opened: Opened): Promise<void> => {
 };
 
 describe("relation targets with ID and version (SR-021)", () => {
-  it("[SR-021/AK1] element.create stores UUID and current version of a new target in the source file", async () => {
+  it("[SR-021/AK-srq1] element.create stores UUID and current version of a new target in the source file", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
       type: "system-requirement",
@@ -152,7 +152,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     ]);
   });
 
-  it("[SR-021/AK1] [SR-021/AK2] stores the version of a new relation target and of a new reference in normal form 2 (ADR-0005)", async () => {
+  it("[SR-021/AK-srq1] [SR-021/AK-xd28] stores the version of a new relation target and of a new reference in normal form 2 (ADR-0005)", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
       type: "system-requirement",
@@ -169,7 +169,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(file).toContain(`Like [the wind](${ref(NEED.id, need)}).\n`);
   });
 
-  it("[SR-091/AK5] keeps the version element.get shows when an update changes only the stored version of a reference or the order of the validity targets", async () => {
+  it("[SR-091/AK-g044] keeps the version element.get shows when an update changes only the stored version of a reference or the order of the validity targets", async () => {
     const LITE = { id: "9d4e6a1b-3c2f-4b8a-a1d7-52e8c0f4b9a4", title: "Lite" };
     const opened = await open({
       "system/variants/VAR-52e8c0f4b9a4.md": `---\nid: ${LITE.id}\ntype: variant\nstatus: draft\ntitle: Lite\n---\n\nThe small one.\n`,
@@ -201,7 +201,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(await versionNow()).toBe(before);
   });
 
-  it("[SR-021/AK1] element.update stores the current version of new targets and keeps stored ones, whatever version is sent", async () => {
+  it("[SR-021/AK-srq1] element.update stores the current version of new targets and keeps stored ones, whatever version is sent", async () => {
     const opened = await open();
     const before = await read(opened, SOURCE.file);
     await run(opened, "element.update", {
@@ -222,7 +222,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     ]);
   });
 
-  it("[SR-021/AK1] gives a relation target in another repository UUID, version and repository, no title (D-058)", async () => {
+  it("[SR-021/AK-srq1] gives a relation target in another repository UUID, version and repository, no title (D-058)", async () => {
     const opened = await open();
     const ctx = await context(opened);
     expect(await currentTarget(ctx, "system", { id: SENSOR_NEED.id, repository: "sensor" })).toEqual({
@@ -243,7 +243,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     });
   });
 
-  it("[SR-021/AK1] stores the version the element view shows for a target with properties that count", async () => {
+  it("[SR-021/AK-srq1] stores the version the element view shows for a target with properties that count", async () => {
     const opened = await open();
     const ctx = await context(opened);
     // The source of the fixture has requirement type, acceptance criteria and validity, which count.
@@ -254,7 +254,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(shown).not.toBe(versionOf({ text }));
   });
 
-  it("[SR-021/AK1] keys stored targets by UUID and repository, keeps single values and items that are no targets", async () => {
+  it("[SR-021/AK-srq1] keys stored targets by UUID and repository, keeps single values and items that are no targets", async () => {
     const opened = await open();
     const ctx = await context(opened);
     const stored = { id: NEED.id, version: STORED_NEED, title: NEED.title };
@@ -283,7 +283,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     ).toEqual({ id: NEED.id, version: versionOf(NEED), repository: "system" });
   });
 
-  it("[SR-021/AK1] keeps a stored entry without valid version whose target cannot be found, and passes other errors on", async () => {
+  it("[SR-021/AK-srq1] keeps a stored entry without valid version whose target cannot be found, and passes other errors on", async () => {
     const opened = await open();
     const ctx = await context(opened);
     const malformed = { id: UNKNOWN, version: "old" };
@@ -298,7 +298,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect((error as CommandError).code).toBe("internal");
   });
 
-  it("[SR-021/AK1] writes a target given twice in one list once, items that are no targets as given", async () => {
+  it("[SR-021/AK-srq1] writes a target given twice in one list once, items that are no targets as given", async () => {
     const opened = await open();
     const ctx = await context(opened);
     const pkg = { id: PKG.id, version: versionOf(PKG), title: PKG.title };
@@ -328,7 +328,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     ).toEqual([{ id: NEED.id, version: versionOf(NEED), repository: "system" }]);
   });
 
-  it("[SR-021/AK1] stores the version of a target changed by another editor, as the watcher reports it", async () => {
+  it("[SR-021/AK-srq1] stores the version of a target changed by another editor, as the watcher reports it", async () => {
     const opened = await open();
     await watching(opened);
     const sha = async (): Promise<string | undefined> =>
@@ -350,7 +350,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     );
   });
 
-  it("[SR-021/AK2] element.create stores UUID and version of the target in a reference in the text", async () => {
+  it("[SR-021/AK-xd28] element.create stores UUID and version of the target in a reference in the text", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
       type: "need",
@@ -362,7 +362,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     );
   });
 
-  it("[SR-021/AK2] element.update keeps references as stored and gives every other one the current version", async () => {
+  it("[SR-021/AK-xd28] element.update keeps references as stored and gives every other one the current version", async () => {
     const opened = await open();
     const text = [
       `The display follows [${NEED.title}](${ref(NEED.id, STORED_NEED)}).`,
@@ -382,7 +382,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${out.element.text ?? ""}`)).toBe(true);
   });
 
-  it("[SR-021/AK2] finds references with any label and keeps other query parameters", async () => {
+  it("[SR-021/AK-xd28] finds references with any label and keeps other query parameters", async () => {
     const opened = await open();
     const text = [
       `[Release [1.0]](${ref(PKG.id)}) and [a \\] b](<${ref(NEED.id)}> "title")`,
@@ -399,7 +399,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     );
   });
 
-  it("[SR-021/AK2] leaves links in code, images, escaped links and links that name no UUID as they are", async () => {
+  it("[SR-021/AK-xd28] leaves links in code, images, escaped links and links that name no UUID as they are", async () => {
     const opened = await open();
     const text = [
       `Code: \`[x](${ref(NEED.id)})\` and \`\`[y](${ref(PKG.id)})\`\`.`,
@@ -510,7 +510,7 @@ describe("relation targets with ID and version (SR-021)", () => {
     );
   });
 
-  it("[SR-021/AK2] keeps a stored reference without version whose target cannot be found, and refuses a new one", async () => {
+  it("[SR-021/AK-xd28] keeps a stored reference without version whose target cannot be found, and refuses a new one", async () => {
     const stored = `Old [gone](${ref(UNKNOWN)}) and [shared](${ref(VAR.id)}) stay.\n`;
     const opened = await open({
       [`system/${SOURCE.file}`]: await sourceWithText(stored),
@@ -669,7 +669,7 @@ describe("relation targets with ID and version (SR-021)", () => {
 });
 
 describe("a reference written by the [[ search (SR-066)", () => {
-  it("[SR-066/AK2] (save part) element.update saves [Title](reqseq:<uuid>) with the current version of its target, the label as written", async () => {
+  it("[SR-066/AK-qdkx] (save part) element.update saves [Title](reqseq:<uuid>) with the current version of its target, the label as written", async () => {
     const opened = await open();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
@@ -680,7 +680,7 @@ describe("a reference written by the [[ search (SR-066)", () => {
     expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${saved}`)).toBe(true);
   });
 
-  it("[SR-066/AK2] [SR-005/AK3] (save part) element.update fills the empty version= of a reference to another repository in its place, before the repository", async () => {
+  it("[SR-066/AK-qdkx] [SR-005/AK-spnq] (save part) element.update fills the empty version= of a reference to another repository in its place, before the repository", async () => {
     const opened = await open();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
@@ -697,7 +697,7 @@ const across = (id: string, repository: string, version?: string): string =>
   `reqseq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;
 
 describe("inline references across repositories (D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
-  it("[SR-005/AK1] names the repository of a target in another repository, and none within the source's own", async () => {
+  it("[SR-005/AK-shd5] names the repository of a target in another repository, and none within the source's own", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
       type: "need",
@@ -809,7 +809,7 @@ describe("inline references across repositories (D-058, decision on ThomasBirkma
 });
 
 describe("inline references without repository (D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
-  it("[SR-005/AK1] puts the repository right after the version and keeps other parameters", async () => {
+  it("[SR-005/AK-shd5] puts the repository right after the version and keeps other parameters", async () => {
     const opened = await open();
     const ctx = await context(opened);
     expect(

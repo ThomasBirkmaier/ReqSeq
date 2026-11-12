@@ -3,10 +3,10 @@
 // of the testkit (`variantRules`: 100 variants, 5,000 exclusions and 5,000 replacements, about
 // 210,000 relations in all) and the evidence records of `withEvidenceRecords`.
 //
-// - Tagged `[SR-082/AK4]` and asserted at 500 ms: `element.list` with a filter and `trace.chain`,
+// - Tagged `[SR-082/AK-h27y]` and asserted at 500 ms: `element.list` with a filter and `trace.chain`,
 //   each in the view of the variant that removes the most core requirements, the first call after
 //   the start (it builds the view rule index of the store) and again.
-// - Tagged `[SR-098/AK1]` and asserted at 300 ms (quality goal 3): `element.search` in that view, the
+// - Tagged `[SR-098/AK-pqx4]` and asserted at 300 ms (quality goal 3): `element.search` in that view, the
 //   median of 7 runs as search-speed.test.ts does.
 // - `evidence.coverage` and `evidence.status` (indirect, the top requirements) in that view: recorded
 //   with AK4's 500 ms for comparison only (spec question ThomasBirkmaier/ReqSeq-archive#693, as evidence.test.ts).
@@ -181,7 +181,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     await fs.rm(cacheFolder, { recursive: true, force: true });
   });
 
-  it("[SR-082/AK4] applies a filter in the view of a variant within 500 ms (SR-043 AK3)", async () => {
+  it("[SR-082/AK-h27y] applies a filter in the view of a variant within 500 ms (SR-043 AK3)", async () => {
     const { result: cold, measurement: first } = await measure(
       "filter in the view of a variant (draft system requirements by title), first page: first after the start (builds the view rule index)",
       () => run("element.list", filter()),
@@ -229,7 +229,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     );
   });
 
-  it("[SR-082/AK4] computes a chain in the view of a variant within 500 ms (SR-043 AK4)", async () => {
+  it("[SR-082/AK-h27y] computes a chain in the view of a variant within 500 ms (SR-043 AK4)", async () => {
     // The need of the largest chain (open-filter-chain.test.ts): the first one the generator wrote.
     const need = tree.elements.find((e) => e.type === "need")?.id ?? "";
     const { result: first, measurement: firstCall } = await measure(
@@ -256,7 +256,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-098/AK1] shows the first hits of a search in the view of a variant within 300 ms, median of 7 (SR-043 AK2)", async () => {
+  it("[SR-098/AK-pqx4] shows the first hits of a search in the view of a variant within 300 ms, median of 7 (SR-043 AK2)", async () => {
     // A requirement of the variant itself, from the middle of the store: its title names it alone.
     const own = store.elements
       .slice(ELEMENTS / 2)

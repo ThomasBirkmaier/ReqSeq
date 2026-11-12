@@ -47,7 +47,7 @@ describe("the heading actions", () => {
     }
   });
 
-  it("[SR-191/AK1] Fold section and [SR-191/AK2] Unfold section run their command on the text", () => {
+  it("[SR-191/AK-twyq] Fold section and [SR-191/AK-wyyz] Unfold section run their command on the text", () => {
     const headings = controls();
     action("Fold section").run(contextOf("element", headings).context);
     expect(headings.run).toHaveBeenCalledWith(foldSection, "No section to fold here");
@@ -55,7 +55,7 @@ describe("the heading actions", () => {
     expect(headings.run).toHaveBeenCalledWith(unfoldSection, "No folded section here");
   });
 
-  it("[SR-191/AK3] Go to heading offers the headings in their order, and the choice moves the cursor there", () => {
+  it("[SR-191/AK-hgpr] Go to heading offers the headings in their order, and the choice moves the cursor there", () => {
     const headings = controls();
     const { context, ask } = contextOf("element", headings);
     action("Go to heading").run(context);

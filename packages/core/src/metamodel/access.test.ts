@@ -85,7 +85,7 @@ describe("read-only workspace", () => {
     runs.length = 0;
   });
 
-  it("[SR-011/AK3] refuses write commands while the metamodel has faulty YAML, and still runs read commands", async () => {
+  it("[SR-011/AK-jt29] refuses write commands while the metamodel has faulty YAML, and still runs read commands", async () => {
     const ws = await fixture({ files: FAULTY_STATUSES });
     const workspace = open(ws.root);
     const error: unknown = await runtime.invoke("test.write", {}, { workspace }).catch((e: unknown) => e);
@@ -113,7 +113,7 @@ describe("read-only workspace", () => {
     await expect(runtime.invoke("test.read", {}, { workspace })).resolves.toEqual({ ran: true });
   });
 
-  it("[SR-011/AK3] lets write commands run again once the fixed metamodel is read", async () => {
+  it("[SR-011/AK-jt29] lets write commands run again once the fixed metamodel is read", async () => {
     const ws = await fixture({ files: FAULTY_STATUSES });
     const workspace = open(ws.root);
     await expect(runtime.invoke("test.write", {}, { workspace })).rejects.toMatchObject({
@@ -132,7 +132,7 @@ describe("read-only workspace", () => {
     });
   });
 
-  it("[SR-011/AK4] names a missing metamodel folder as the reason", async () => {
+  it("[SR-011/AK-vhvd] names a missing metamodel folder as the reason", async () => {
     const ws = await fixture();
     await fs.rm(ws.path("model"), { recursive: true });
     expect(await workspaceAccess(open(ws.root))).toEqual({

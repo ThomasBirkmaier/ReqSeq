@@ -67,7 +67,7 @@ test.describe("folding and jumping to headings", () => {
     await running.close();
   });
 
-  test("[SR-191/AK1] Fold section and the toggle under the pointer fold a section to a hint up to the next heading of its level, and the file stays", async () => {
+  test("[SR-191/AK-twyq] Fold section and the toggle under the pointer fold a section to a hint up to the next heading of its level, and the file stays", async () => {
     const { window } = running;
     await line(window, "Der Zweck der Messung.").click();
     await runCommand(window, "Fold section");
@@ -98,7 +98,7 @@ test.describe("folding and jumping to headings", () => {
     expect(await fileOf(running)).toBe(FILE);
   });
 
-  test("[SR-191/AK1] the toggle stays while the pointer moves from the heading onto it, and a click there folds and unfolds the section", async () => {
+  test("[SR-191/AK-twyq] the toggle stays while the pointer moves from the heading onto it, and a click there folds and unfolds the section", async () => {
     const { window } = running;
     const scope = window.locator(".cm-line.cm-lr-h2", { hasText: "Zweck" });
     const toggle = scope.locator(".cm-lr-fold-toggle");
@@ -137,7 +137,7 @@ test.describe("folding and jumping to headings", () => {
     expect(await fileOf(running)).toBe(FILE);
   });
 
-  test("[SR-191/AK2] a folded section opens with Unfold section, a click on its hint, and the cursor moving in", async () => {
+  test("[SR-191/AK-wyyz] a folded section opens with Unfold section, a click on its hint, and the cursor moving in", async () => {
     const { window } = running;
     await line(window, "Der Zweck der Messung.").click();
     await runCommand(window, "Fold section");
@@ -162,7 +162,7 @@ test.describe("folding and jumping to headings", () => {
     expect(await fileOf(running)).toBe(FILE);
   });
 
-  test("[SR-191/AK3] Go to heading offers the headings with fuzzy matching, and the choice puts the cursor there", async () => {
+  test("[SR-191/AK-hgpr] Go to heading offers the headings with fuzzy matching, and the choice puts the cursor there", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Go to heading");
@@ -221,7 +221,7 @@ test.describe("Tab on a line that folds", () => {
     }
   };
 
-  test("[SR-193/AK1] [SR-193/AK4] Tab on a heading folds its section and Tab again unfolds it, the focus and the file stay", async () => {
+  test("[SR-193/AK-qhkh] [SR-193/AK-wyfx] Tab on a heading folds its section and Tab again unfolds it, the focus and the file stay", async () => {
     const { window } = running;
     await window.locator(".cm-line.cm-lr-h1", { hasText: "Messpunkte" }).click();
     await window.keyboard.press("Tab");
@@ -238,7 +238,7 @@ test.describe("Tab on a line that folds", () => {
     expect(await fileOf(running)).toBe(TAB_FILE);
   });
 
-  test("[SR-193/AK3] off a heading Tab indents a list item and goes to the next cell of a table, as before", async () => {
+  test("[SR-193/AK-vh54] off a heading Tab indents a list item and goes to the next cell of a table, as before", async () => {
     const { window } = running;
     await window.locator(".cm-line", { hasText: "Ost" }).click({ position: { x: 40, y: 5 } });
     await window.keyboard.press("End");

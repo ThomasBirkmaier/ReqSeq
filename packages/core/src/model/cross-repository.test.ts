@@ -120,7 +120,7 @@ const relationsOfSource = async (opened: Opened): Promise<unknown> =>
     .element.relations;
 
 describe("relations across repositories (SR-005)", () => {
-  it("[SR-005/AK1] element.create stores a target in another repository with UUID, version and the workspace name of its repository only", async () => {
+  it("[SR-005/AK-shd5] element.create stores a target in another repository with UUID, version and the workspace name of its repository only", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
       type: "system-requirement",
@@ -148,7 +148,7 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
-  it("[SR-005/AK1] element.update adds a target in another repository without title or text", async () => {
+  it("[SR-005/AK-shd5] element.update adds a target in another repository without title or text", async () => {
     const opened = await open();
     const before = await read(opened, SOURCE.file);
     await run(opened, "element.update", {
@@ -162,7 +162,7 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
-  it("[SR-005/AK2] shows the title of a relation target in another repository that is available locally", async () => {
+  it("[SR-005/AK-trhc] shows the title of a relation target in another repository that is available locally", async () => {
     const opened = await open();
     expect(await relationsOfSource(opened)).toEqual([
       {
@@ -180,7 +180,7 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
-  it("[SR-005/AK2] looks a relation target up in the repository it names", async () => {
+  it("[SR-005/AK-trhc] looks a relation target up in the repository it names", async () => {
     const opened = await open({
       "system/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "System copy"),
       "platform-checkout/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "Platform copy"),
@@ -247,7 +247,7 @@ describe("relations across repositories (SR-005)", () => {
     });
   });
 
-  it("[SR-005/AK2] shows the title and short ID of validity and packages targets in another repository that are available locally", async () => {
+  it("[SR-005/AK-trhc] shows the title and short ID of validity and packages targets in another repository that are available locally", async () => {
     const opened = await open({ [`system/${SOURCE.file}`]: sourceWithPropertyTargets() });
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
@@ -331,7 +331,7 @@ const followedFromSource = async (opened: Opened): Promise<FollowedTargets> => {
 };
 
 describe("missing access (SR-006)", () => {
-  it("[SR-006/AK1] shows a target whose repository is not on this machine only with its short ID and as not accessible", async () => {
+  it("[SR-006/AK-fbb3] shows a target whose repository is not on this machine only with its short ID and as not accessible", async () => {
     const opened = await openWithoutPlatform();
     // Prefix UNKNOWN: the type of the target is not known here (decision on ThomasBirkmaier/ReqSeq-archive#154).
     expect(await relationsOfSource(opened)).toEqual([
@@ -349,7 +349,7 @@ describe("missing access (SR-006)", () => {
     ]);
   });
 
-  it("[SR-006/AK1] shows validity and packages targets whose repository is not on this machine only with their short ID and as not accessible", async () => {
+  it("[SR-006/AK-fbb3] shows validity and packages targets whose repository is not on this machine only with their short ID and as not accessible", async () => {
     const opened = await openWithoutPlatform({ [`system/${SOURCE.file}`]: sourceWithPropertyTargets() });
     const relations = (await relationsOfSource(opened)) as readonly Record<string, unknown>[];
     expect(relations).toEqual([
@@ -384,7 +384,7 @@ describe("missing access (SR-006)", () => {
     expect(relation).toMatchObject({ targetState: "inaccessible", repository: "platform" });
   });
 
-  it("[SR-006/AK1] tells a target in a repository not on this machine from a missing target and an unknown repository", async () => {
+  it("[SR-006/AK-fbb3] tells a target in a repository not on this machine from a missing target and an unknown repository", async () => {
     const opened = await openWithoutPlatform({
       [`system/${SOURCE.file}`]: sourceDerivingFrom(
         `{ id: ${NEED.id}, version: ${STORED_NEED}, repository: platform }`,
@@ -403,7 +403,7 @@ describe("missing access (SR-006)", () => {
     }
   });
 
-  it("[SR-006/AK2] marks what is followed from an element as incomplete when a target lies in a repository not on this machine", async () => {
+  it("[SR-006/AK-q0f4] marks what is followed from an element as incomplete when a target lies in a repository not on this machine", async () => {
     const opened = await openWithoutPlatform({
       [`system/${LOCAL.file}`]: element(LOCAL.id, "need", "Local need"),
       [`system/${SOURCE.file}`]: sourceDerivingFrom(
@@ -416,7 +416,7 @@ describe("missing access (SR-006)", () => {
     expect(followed.elements.map((e) => e.id)).toEqual([LOCAL.id]);
   });
 
-  it("[SR-006/AK2] marks what is followed as incomplete when a target names a repository the workspace does not list", async () => {
+  it("[SR-006/AK-q0f4] marks what is followed as incomplete when a target names a repository the workspace does not list", async () => {
     const opened = await open({
       [`system/${SOURCE.file}`]: sourceDerivingFrom(
         `{ id: ${NEED.id}, version: ${STORED_NEED}, repository: elsewhere }`,
@@ -425,7 +425,7 @@ describe("missing access (SR-006)", () => {
     expect(await followedFromSource(opened)).toEqual({ elements: [], incomplete: true });
   });
 
-  it("[SR-006/AK2] keeps a result complete when every target is available or only missing", async () => {
+  it("[SR-006/AK-q0f4] keeps a result complete when every target is available or only missing", async () => {
     const opened = await open({
       [`system/${LOCAL.file}`]: element(LOCAL.id, "need", "Local need"),
       [`system/${SOURCE.file}`]: sourceDerivingFrom(
@@ -442,7 +442,7 @@ describe("missing access (SR-006)", () => {
     });
   });
 
-  it("[SR-006/AK3] changes an element and its status with a target in a repository not on this machine and keeps that target as stored", async () => {
+  it("[SR-006/AK-h08g] changes an element and its status with a target in a repository not on this machine and keeps that target as stored", async () => {
     const opened = await openWithoutPlatform();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
@@ -461,7 +461,7 @@ describe("missing access (SR-006)", () => {
     expect(approved).toContain(`derives-from:\n${STORED_LINE}\n`);
   });
 
-  it("[SR-006/AK3] keeps a stored target in a repository not on this machine when its property is set again", async () => {
+  it("[SR-006/AK-h08g] keeps a stored target in a repository not on this machine when its property is set again", async () => {
     const stored = `  - { id: ${PKG.id}, version: ${STORED_NEED}, repository: platform }`;
     const opened = await openWithoutPlatform({
       [`system/${LOCAL.file}`]: element(LOCAL.id, "package", "Local release"),
@@ -479,7 +479,7 @@ describe("missing access (SR-006)", () => {
     expect(file).toContain(`derives-from:\n${STORED_LINE}\n`);
   });
 
-  it("[SR-006/AK3] opens the workspace with the repository marked not available and creates elements", async () => {
+  it("[SR-006/AK-h08g] opens the workspace with the repository marked not available and creates elements", async () => {
     const opened = await openWithoutPlatform();
     const status = await run(opened, "workspace.status", {});
     expect(status.repositories.map((r) => [r.name, r.available])).toEqual([

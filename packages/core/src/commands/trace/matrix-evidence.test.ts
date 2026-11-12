@@ -113,7 +113,7 @@ const ALL_SR_DEGREE = {
 };
 
 describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
-  it("[SR-126/AK1] gives each requirement of the selection its test cases, each with result and date of its last execution, and its verification status", async () => {
+  it("[SR-126/AK-mdgj] gives each requirement of the selection its test cases, each with result and date of its last execution, and its verification status", async () => {
     const output = await matrix(await open(), { selection: SR });
     expect(rowOf(output, "B01").testCases).toEqual([
       {
@@ -154,7 +154,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
     expect(output.evidence?.view).toBe("core");
   });
 
-  it("[SR-126/AK1] of several equally new executions the cell shows the worst, as the status counts it", async () => {
+  it("[SR-126/AK-mdgj] of several equally new executions the cell shows the worst, as the status counts it", async () => {
     // A second run of B01's test case at the same instant as run-2's passed one, failed.
     const run3 =
       '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" tests="1" failures="1">\n' +
@@ -177,7 +177,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
     expect(statusOf(output, "B01")).toEqual(["core failed"]);
   });
 
-  it("[SR-126/AK1] gives the test cases the chain shows for the requirement in the same view", async () => {
+  it("[SR-126/AK-mdgj] gives the test cases the chain shows for the requirement in the same view", async () => {
     const workspace = await open({ ...MATRIX, files: COAST_FILES });
     const index = await workspace.get(evidenceIndexState);
     const names = (view: View, id: string): string[] =>
@@ -329,7 +329,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
     expect([testCasesOf(coast, "B14"), statusOf(coast, "B14")]).toEqual([[], [`${ID.COAST} open`]]);
   });
 
-  it("[SR-006/AK2] marks the matrix incomplete when an evidence location lies in a repository that is not on this machine", async () => {
+  it("[SR-006/AK-q0f4] marks the matrix incomplete when an evidence location lies in a repository that is not on this machine", async () => {
     const workspace = await open();
     const before = workspace.get(evidenceReadState);
     const read = await before;
@@ -343,21 +343,21 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
 });
 
 describe("trace.matrix marks (SR-126 AK2)", () => {
-  it("[SR-126/AK2] leaves the test case cell of a requirement without test case empty", async () => {
+  it("[SR-126/AK-mp13] leaves the test case cell of a requirement without test case empty", async () => {
     const output = await matrix(await open(), { selection: SR });
     // b05 has only an inspection record (no test case, ThomasBirkmaier/ReqSeq-archive#528 Q3), b06 no evidence at all.
     expect([testCasesOf(output, "B05"), statusOf(output, "B05")]).toEqual([[], ["core verified"]]);
     expect([testCasesOf(output, "B06"), statusOf(output, "B06")]).toEqual([[], ["core open"]]);
   });
 
-  it("[SR-126/AK2] marks a test case without execution as not executed", async () => {
+  it("[SR-126/AK-mp13] marks a test case without execution as not executed", async () => {
     const output = await matrix(await open(), { selection: SR });
     expect(rowOf(output, "B04").testCases).toEqual([
       { name: "test_gusts[SR-126b04]", className: "tests.test_wind", executed: false, mark: "not-executed" },
     ]);
   });
 
-  it("[SR-126/AK2] marks a test case whose last execution failed as failed", async () => {
+  it("[SR-126/AK-mp13] marks a test case whose last execution failed as failed", async () => {
     const output = await matrix(await open(), { selection: SR });
     expect(testCasesOf(output, "B02")).toEqual([
       ["test_log[SR-126b02]", "failed", "2026-10-22T09:00:00Z", "failed"],
@@ -369,7 +369,7 @@ describe("trace.matrix marks (SR-126 AK2)", () => {
     ]);
   });
 
-  it("[SR-126/AK2] marks a test case whose last execution belongs to an older version as outdated", async () => {
+  it("[SR-126/AK-mp13] marks a test case whose last execution belongs to an older version as outdated", async () => {
     const output = await matrix(await open(), { selection: SR });
     expect(testCasesOf(output, "B03")).toEqual([
       ["test_trend[SR-126b03]", "passed", "2026-10-21T09:00:00Z", "outdated"],
@@ -380,7 +380,7 @@ describe("trace.matrix marks (SR-126 AK2)", () => {
 });
 
 describe("trace.matrix indirect verification (SR-126 AK3)", () => {
-  it("[SR-126/AK3] marks the verification status of an indirectly verified requirement as indirect", async () => {
+  it("[SR-126/AK-pmhn] marks the verification status of an indirectly verified requirement as indirect", async () => {
     const output = await matrix(await open(), { selection: SR });
     expect([testCasesOf(output, "B07"), rowOf(output, "B07").verification]).toEqual([
       [],
@@ -420,7 +420,7 @@ describe("trace.matrix indirect verification (SR-126 AK3)", () => {
 });
 
 describe("trace.matrix verification degree (SR-126 AK4)", () => {
-  it("[SR-126/AK4] gives above the status column the degree of the whole selection with the count per status", async () => {
+  it("[SR-126/AK-s18z] gives above the status column the degree of the whole selection with the count per status", async () => {
     const workspace = await open();
     for (const page of [{}, { limit: 2 }, { offset: 8 }]) {
       const output = await matrix(workspace, { selection: SR, ...page });
@@ -430,7 +430,7 @@ describe("trace.matrix verification degree (SR-126 AK4)", () => {
     }
   });
 
-  it("[SR-126/AK4] gives the degree evidence.degree gives for the same selection", async () => {
+  it("[SR-126/AK-s18z] gives the degree evidence.degree gives for the same selection", async () => {
     const workspace = await open({ ...MATRIX, files: COAST_FILES });
     for (const selection of [
       SR,

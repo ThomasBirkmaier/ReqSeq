@@ -385,7 +385,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     await expectCarried(fixture, workspace);
   });
 
-  it("[SR-127/AK3] equals a fresh build after a save and after a change from outside that add and drop a reference in an acceptance criterion (SR-082 AK4)", async () => {
+  it("[SR-127/AK-bd1x] equals a fresh build after a save and after a change from outside that add and drop a reference in an acceptance criterion (SR-082 AK4)", async () => {
     const { fixture, workspace } = await openFixture();
     await indexNow(workspace);
     await updateElement(workspace, {

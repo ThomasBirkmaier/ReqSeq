@@ -26,7 +26,7 @@ const element = (n: number, extra: object = {}) => ({
 });
 
 describe("listRows", () => {
-  it("[SR-084/AK4] shows the short ID with the identifier in brackets, else the short ID, with title and status as given", () => {
+  it("[SR-084/AK-c2s2] shows the short ID with the identifier in brackets, else the short ID, with title and status as given", () => {
     const output: ElementListOutput = {
       elements: [element(1, { identifier: "SR-036" }), element(2, { status: undefined })] as never,
       total: 2,

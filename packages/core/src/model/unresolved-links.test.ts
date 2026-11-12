@@ -165,7 +165,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
 });
 
 describe("reqseq: references outside a Markdown link (#633)", () => {
-  it("[SR-021/AK3] warns through workspace.check with file and line about one in the text outside links and code", async () => {
+  it("[SR-021/AK-kh0r] warns through workspace.check with file and line about one in the text outside links and code", async () => {
     const fixture = await createFixtureWorkspace({
       fixture: "SR-021/targets",
       files: {

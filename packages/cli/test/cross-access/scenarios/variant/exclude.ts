@@ -5,7 +5,7 @@ import { VARIANT_VIEWS } from "../../fixtures.js";
 
 scenariosOf("variant.exclude", [
   {
-    tag: "[SR-042/AK1]",
+    tag: "[SR-042/AK-qj7v]",
     name: "variant.exclude writes the exclusion of K3 into the file of A",
     fixture: VARIANT_VIEWS,
     input: { variant: "VAR-0000c1", refs: ["SR-0000a3"] },
@@ -16,7 +16,7 @@ scenariosOf("variant.exclude", [
     },
   },
   {
-    tag: "[SR-042/AK6]",
+    tag: "[SR-042/AK-sq52]",
     name: "variant.exclude with undo removes the exclusion of K2 from the file of A",
     fixture: VARIANT_VIEWS,
     input: { variant: "VAR-0000c1", refs: ["SR-0000a2"], undo: true },

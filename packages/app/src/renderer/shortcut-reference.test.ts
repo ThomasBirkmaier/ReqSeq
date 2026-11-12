@@ -265,7 +265,7 @@ describe("shortcutReference", () => {
     });
   });
 
-  it("[SR-193/AK4] names Tab for folding in the text, the neighbourhood tree and a line with a whole reason", () => {
+  it("[SR-193/AK-wyfx] names Tab for folding in the text, the neighbourhood tree and a line with a whole reason", () => {
     const sections = shortcutReference(COMMANDS);
     const tabRows = (title: string): string[] =>
       (sections.find((section) => section.title === title)?.rows ?? [])
@@ -288,7 +288,7 @@ describe("shortcutReference", () => {
     expect(actions.some((row) => row.does === "Close all buffers")).toBe(false);
   });
 
-  it("[SR-139/AK6] [SR-141/AK3] anchors each action at its first row, a keyless one too, for F1 on it in the command prompt", () => {
+  it("[SR-139/AK-kdr8] [SR-141/AK-c1s5] anchors each action at its first row, a keyless one too, for F1 on it in the command prompt", () => {
     const sections = shortcutReference(COMMANDS);
     const anchors = sections.flatMap((section) => section.rows.flatMap((row) => row.actions ?? []));
     expect(new Set(anchors).size).toBe(anchors.length);

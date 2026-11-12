@@ -188,7 +188,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(index.testCases.size).toBe(counts.testCases);
   });
 
-  it("[SR-082/AK4] applies the filter on the verification status within 500 ms once its state is built (SR-031, SR-034)", async () => {
+  it("[SR-082/AK-h27y] applies the filter on the verification status within 500 ms once its state is built (SR-031, SR-034)", async () => {
     const where = { verification: ["verified"] };
     const { result: cold } = await measure(
       "filter verification [verified], first page: first filter after the start (status state built: walk and one version batch)",
@@ -250,7 +250,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect((await ws().get(verificationState)).versionBatches()).toBe(0);
   });
 
-  it("[SR-082/AK4] applies the filter on the validation status within 500 ms once its state is built (SR-038)", async () => {
+  it("[SR-082/AK-h27y] applies the filter on the validation status within 500 ms once its state is built (SR-038)", async () => {
     await reopen();
     await readEvidence(ws());
     const where = { validation: ["validated"] };
@@ -328,7 +328,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     return answer.element;
   };
 
-  it("[SR-082/AK5] [SR-082/AK3] opens the top requirement of the tree within 1 s on the first open after the start, and within 200 ms again and right after one changed file (SR-034)", async () => {
+  it("[SR-082/AK-csnf] [SR-082/AK-tndr] opens the top requirement of the tree within 1 s on the first open after the start, and within 200 ms again and right after one changed file (SR-034)", async () => {
     await reopen();
     await readEvidence(ws());
     const top = evidence.parents[0] ?? "";
@@ -483,7 +483,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(afterChange.ms, thresholdMessage(afterChange)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK3] opens a need with validation records within 200 ms on its first open (SR-038)", async () => {
+  it("[SR-082/AK-tndr] opens a need with validation records within 200 ms on its first open (SR-038)", async () => {
     const needs = new Set(byType("need"));
     const [warmed, need] = evidence.validated.filter((id) => needs.has(id));
     // Another need first, so the states every open shares are built; `need` itself is opened once.
@@ -501,7 +501,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK3] opens an automated requirement within 200 ms on its first open (SR-031)", async () => {
+  it("[SR-082/AK-tndr] opens an automated requirement within 200 ms on its first open (SR-031)", async () => {
     // A leaf with JUnit records, not opened before; the status state is built (the opens above).
     const leaf = evidence.automated[0] ?? "";
     const { result: shown, measurement } = await measure(
@@ -517,7 +517,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK3] opens a requirement within 200 ms right after recording evidence for it (SR-030)", async () => {
+  it("[SR-082/AK-tndr] opens a requirement within 200 ms right after recording evidence for it (SR-030)", async () => {
     const id = evidence.manual[0] ?? "";
     const before = await ws().get(evidenceRecordsState);
     const read = ws().peek(evidenceReadState);
@@ -553,7 +553,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK4] computes a chain with the evidence of each node within 500 ms (SR-033)", async () => {
+  it("[SR-082/AK-h27y] computes a chain with the evidence of each node within 500 ms (SR-033)", async () => {
     const need = byType("need")[0] ?? "";
     const chainOf = (input: Readonly<Record<string, unknown>>): Promise<Output<"trace.chain">> =>
       run("trace.chain", { ref: need, ...input });

@@ -181,7 +181,7 @@ const need = (agent: number, access: string, n: number): string =>
   `Need ${String(n)} of agent ${String(agent)} via ${access}`;
 
 describe("separate working copies used at the same time (SR-081)", { timeout: 120_000 }, () => {
-  it("[SR-081/AK1] five copies of one repository, used at the same time through CLI, MCP and API, do not disturb each other", async () => {
+  it("[SR-081/AK-mxry] five copies of one repository, used at the same time through CLI, MCP and API, do not disturb each other", async () => {
     const { base, env } = await sharedCache();
     const { copies } = await clones(AGENTS);
     // Each agent starts its API and its MCP server; all ten run side by side.
@@ -266,7 +266,7 @@ describe("separate working copies used at the same time (SR-081)", { timeout: 12
     }
   });
 
-  it("[SR-081/AK2] after a copy was moved, a new clone at its old path and the moved copy each run their own API", async () => {
+  it("[SR-081/AK-kscy] after a copy was moved, a new clone at its old path and the moved copy each run their own API", async () => {
     const { env } = await sharedCache();
     const { origin, copies } = await clones(1);
     const copy = nth(copies, 0);

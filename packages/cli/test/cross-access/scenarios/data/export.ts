@@ -8,7 +8,7 @@ scenariosOf("data.export", [
     fixture: EXPORT,
     root: "system",
     input: {},
-    tag: "[SR-061/AK1]",
+    tag: "[SR-061/AK-cjrr]",
     expect: "output",
   },
   {
@@ -16,7 +16,7 @@ scenariosOf("data.export", [
     fixture: EXPORT,
     root: "system",
     input: { selection: { baseline: "release-1", view: "VAR-0000c1" } },
-    tag: "[SR-061/AK2]",
+    tag: "[SR-061/AK-t65h]",
     expect: "output",
   },
   {

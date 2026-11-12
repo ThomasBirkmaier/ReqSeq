@@ -49,7 +49,7 @@ const hits = async (
 ): Promise<string[]> => (await search(workspace, { query, ...extra, limit: 500 })).hits.map((hit) => hit.id);
 
 describe("element.search (SR-068)", () => {
-  it("[SR-068/AK1] finds an element by a word that occurs only in one of its properties", async () => {
+  it("[SR-068/AK-fxhq] finds an element by a word that occurs only in one of its properties", async () => {
     const ws = await open();
     // `source` of b5, the unknown property `owner` of b4 (SR-016), a choice by its name.
     const supplier = await search(ws, { query: "supplier" });
@@ -86,7 +86,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "Software Requirement")).toEqual([F1, F2]);
   });
 
-  it("[SR-068/AK1] finds an element by its short ID only, in any case, also by a longer tail", async () => {
+  it("[SR-068/AK-fxhq] finds an element by its short ID only, in any case, also by a longer tail", async () => {
     const ws = await open();
     const out = await search(ws, { query: "sr-0000B3" });
     expect(out.hits.map((hit) => [hit.id, hit.shortId, hit.fields, hit.terms, hit.score])).toEqual([
@@ -96,7 +96,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "N-0000a2")).toEqual([N2]);
   });
 
-  it("[SR-068/AK1] finds an element by its identifier only (a spec ID, ThomasBirkmaier/ReqSeq-archive#305), first, in any case", async () => {
+  it("[SR-068/AK-fxhq] finds an element by its identifier only (a spec ID, ThomasBirkmaier/ReqSeq-archive#305), first, in any case", async () => {
     const ws = await open(IDENTIFIERS);
     const out = await search(ws, { query: "sr-036" });
     expect(out.hits.map((hit) => [hit.id, hit.shortId, hit.identifier, hit.fields])).toEqual([
@@ -107,7 +107,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "037")).toEqual([SR037]);
   });
 
-  it("[SR-068/AK1] finds every element with an identifier: types may share one (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
+  it("[SR-068/AK-fxhq] finds every element with an identifier: types may share one (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const ws = await open({
       ...IDENTIFIERS,
       files: {
@@ -127,7 +127,7 @@ describe("element.search (SR-068)", () => {
     ]);
   });
 
-  it("[SR-068/AK1] finds both the element with a short ID and the one with it as identifier (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
+  it("[SR-068/AK-fxhq] finds both the element with a short ID and the one with it as identifier (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const ws = await open({
       ...IDENTIFIERS,
       files: {
@@ -142,7 +142,7 @@ describe("element.search (SR-068)", () => {
     ]);
   });
 
-  it("[SR-068/AK2] finds the elements despite a typo or another case", async () => {
+  it("[SR-068/AK-jxr3] finds the elements despite a typo or another case", async () => {
     const ws = await open();
     // One edit in a word of 4 to 7 letters, two from 8 (ADR-0008).
     expect(await hits(ws, "Mesure")).toEqual([B1, B2]);
@@ -154,7 +154,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "wind")).toEqual([B1, N1]);
   });
 
-  it("[SR-068/AK3] searches only within an active view", async () => {
+  it("[SR-068/AK-bvx3] searches only within an active view", async () => {
     const ws = await open();
     // b2 is valid for V1 only; b1 has no validity and applies everywhere (SR-040).
     expect(await hits(ws, "measure", { selection: { view: "VAR-0000c1" } })).toEqual([B1, B2]);
@@ -165,7 +165,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "SR-0000b2", { selection: { view: "VAR-0000c2" } })).toEqual([N1]);
   });
 
-  it("[SR-068/AK3] searches only within an active filter, package or list of elements", async () => {
+  it("[SR-068/AK-bvx3] searches only within an active filter, package or list of elements", async () => {
     const ws = await open();
     expect(await hits(ws, "measure", { selection: { where: { status: ["draft"] } } })).toEqual([B2]);
     expect(await hits(ws, "measure", { selection: { package: "PKG-0000d2" } })).toEqual([B2]);
@@ -178,7 +178,7 @@ describe("element.search (SR-068)", () => {
     ).toEqual([]);
   });
 
-  it("[SR-068/AK3] the condition text selects in element.list what element.search finds", async () => {
+  it("[SR-068/AK-bvx3] the condition text selects in element.list what element.search finds", async () => {
     const ws = await open();
     const listed = async (where: unknown): Promise<string[]> => {
       const out = (await invoke("element.list", { selection: { where } }, { workspace: ws })) as FullList;
@@ -201,7 +201,7 @@ describe("element.search (SR-068)", () => {
     expect(await listed({ not: { text: "" } })).toHaveLength(14);
   });
 
-  it("[SR-068/AK3] searches only within a saved filter, by name, with its view and its own text condition (SR-070)", async () => {
+  it("[SR-068/AK-bvx3] searches only within a saved filter, by name, with its view and its own text condition (SR-070)", async () => {
     const ws = await open({
       ...FILTER,
       files: {
@@ -222,7 +222,7 @@ describe("element.search (SR-068)", () => {
     ]);
   });
 
-  it("[SR-066/AK1] (search scope) the link search finds by title and IDs only: a short ID and a title word, not a text word", async () => {
+  it("[SR-066/AK-v40r] (search scope) the link search finds by title and IDs only: a short ID and a title word, not a text word", async () => {
     const ws = await open();
     expect(await hits(ws, "supplier", { fields: ["title", "id"] })).toEqual([]);
     expect(await hits(ws, "SR-0000b5", { fields: ["title", "id"] })).toEqual([B5]);

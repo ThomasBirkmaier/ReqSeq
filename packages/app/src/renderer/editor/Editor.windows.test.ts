@@ -8,7 +8,7 @@ import { expect, it, vi } from "vitest";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-it("[SR-105/AK2] under Windows Ctrl+Shift+Z redoes as Ctrl+Y does; CodeMirror binds it only on Linux and macOS", async () => {
+it("[SR-105/AK-dmrq] under Windows Ctrl+Shift+Z redoes as Ctrl+Y does; CodeMirror binds it only on Linux and macOS", async () => {
   Object.defineProperty(navigator, "platform", { value: "Win32", configurable: true });
   const { EditorView } = await import("@codemirror/view");
   const { Editor } = await import("./Editor.js");

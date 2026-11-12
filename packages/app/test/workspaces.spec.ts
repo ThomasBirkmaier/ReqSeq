@@ -88,7 +88,7 @@ test.describe("Open workspace", () => {
     await buoy.cleanup();
   });
 
-  test('[SR-131/AK1] "Open workspace" lists the recent workspaces, the last opened first, and narrows them as typed', async () => {
+  test('[SR-131/AK-y2k4] "Open workspace" lists the recent workspaces, the last opened first, and narrows them as typed', async () => {
     running = await launchApp(STATION, { recent: [buoy.root] });
     const { window } = running;
     const station = running.workspace?.root ?? "";
@@ -105,7 +105,7 @@ test.describe("Open workspace", () => {
     await expect(names(window)).toHaveText([station]);
   });
 
-  test("[SR-131/AK2] choosing another workspace replaces the open one in the same window", async () => {
+  test("[SR-131/AK-cssj] choosing another workspace replaces the open one in the same window", async () => {
     running = await launchApp(STATION, { recent: [buoy.root] });
     const { app, window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -128,7 +128,7 @@ test.describe("Open workspace", () => {
     await expect(options(window).first().locator(".hint")).toHaveText("open");
   });
 
-  test("[SR-131/AK4] a recent workspace that is gone is marked not found, and choosing it keeps the open workspace", async () => {
+  test("[SR-131/AK-f722] a recent workspace that is gone is marked not found, and choosing it keeps the open workspace", async () => {
     const gone = path.join(os.tmpdir(), `reqseq-app-gone-${String(process.pid)}`, "harbour");
     running = await launchApp(STATION, { recent: [gone, buoy.root] });
     const { app, window } = running;
@@ -147,7 +147,7 @@ test.describe("Open workspace", () => {
     expect(await goToFinds(window, "Survive icing")).toBe(true);
   });
 
-  test('[SR-131/AK6] after a restart "Open workspace" lists the same workspaces in the same order', async () => {
+  test('[SR-131/AK-w8h0] after a restart "Open workspace" lists the same workspaces in the same order', async () => {
     running = await launchApp(STATION, { recent: [buoy.root] });
     let { window } = running;
     const station = running.workspace?.root ?? "";
@@ -172,7 +172,7 @@ test.describe("Open workspace", () => {
     await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
   });
 
-  test("[SR-131/AK3] unsaved input in the editor is in the file before the workspace changes", async () => {
+  test("[SR-131/AK-nkm5] unsaved input in the editor is in the file before the workspace changes", async () => {
     running = await launchApp(STATION, { recent: [buoy.root] });
     const { window } = running;
     const file = path.join(running.workspace?.root ?? "", ...ICING.file.split("/"));
@@ -187,7 +187,7 @@ test.describe("Open workspace", () => {
     expect(await fs.readFile(file, "utf8")).toContain("Typed before the switch.");
   });
 
-  test("[SR-131/AK3] File > Open Workspace saves the unsaved input first too, in the same window", async () => {
+  test("[SR-131/AK-nkm5] File > Open Workspace saves the unsaved input first too, in the same window", async () => {
     running = await launchApp(STATION);
     const { app, window } = running;
     const file = path.join(running.workspace?.root ?? "", ...ICING.file.split("/"));
@@ -204,7 +204,7 @@ test.describe("Open workspace", () => {
     expect(await fs.readFile(file, "utf8")).toContain("Typed before the dialog.");
   });
 
-  test("[SR-131/AK5] a typed folder path opens its workspace and lists it first afterwards", async () => {
+  test("[SR-131/AK-sxyz] a typed folder path opens its workspace and lists it first afterwards", async () => {
     running = await launchApp(STATION);
     const { app, window } = running;
     const station = running.workspace?.root ?? "";

@@ -139,7 +139,7 @@ const NEW_VERSION: unknown = expect.stringMatching(WRITTEN_VERSION);
 const outdated = (out: Output): Problem[] => out.problems.filter((p) => p.code === "relation.outdated");
 
 describe("a reference written by the [[ search (SR-066)", () => {
-  it("[SR-066/AK3] a reference in the text whose target changed is outdated like the relation to that target: same code, severity and versions", async () => {
+  it("[SR-066/AK-w5yz] a reference in the text whose target changed is outdated like the relation to that target: same code, severity and versions", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const problems = outdated(await check(open(ws.root)));
@@ -160,7 +160,7 @@ describe("a reference written by the [[ search (SR-066)", () => {
     });
   });
 
-  it("[SR-066/AK3] a reference that stores normal form 2 stays current when its target changes only the stored version of its own reference, and is outdated after a real change (ADR-0005)", async () => {
+  it("[SR-066/AK-w5yz] a reference that stores normal form 2 stays current when its target changes only the stored version of its own reference, and is outdated after a real change (ADR-0005)", async () => {
     const ws = await fixture();
     const withLink = (version: string, text = "The operator sees the wind."): string =>
       need(`${text} [Pro](reqseq:${V}?version=${version})`);
@@ -184,7 +184,7 @@ describe("a reference written by the [[ search (SR-066)", () => {
     expect(await links()).toEqual([[N, n.n2]]);
   });
 
-  it("[SR-066/AK3] trace.affected of a target lists an element that references it only in its text", async () => {
+  it("[SR-066/AK-w5yz] trace.affected of a target lists an element that references it only in its text", async () => {
     const ws = await fixture();
     // A without its relation to N: the reference in the text is all that ties A to N.
     await ws.write(A_FILE, requirementA({ link: N_VERSION }).replace(/derives-from:\n.*\n/u, ""));
@@ -200,7 +200,7 @@ describe("a reference written by the [[ search (SR-066)", () => {
 });
 
 describe("outdated relations and references (SR-025)", () => {
-  it("[SR-025/AK1] reports nothing and is ok when every relation and reference is current, stored in normal form 1 as an earlier version of the tool wrote it", async () => {
+  it("[SR-025/AK-rvw7] reports nothing and is ok when every relation and reference is current, stored in normal form 1 as an earlier version of the tool wrote it", async () => {
     const ws = await fixture({ git: true });
     // The fixture stores the n1 versions of the unchanged targets; the tool writes n2 (ADR-0005).
     expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
@@ -208,7 +208,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK1] reports nothing when every relation and reference stores the current version in normal form 2 (ADR-0005)", async () => {
+  it("[SR-025/AK-rvw7] reports nothing when every relation and reference stores the current version in normal form 2 (ADR-0005)", async () => {
     const ws = await fixture();
     const formsOf = async (id: string) => {
       const versions = await open(ws.root).get(currentVersionsState);
@@ -234,12 +234,12 @@ describe("outdated relations and references (SR-025)", () => {
     ]);
   });
 
-  it("[SR-025/AK1] reports nothing without Git either", async () => {
+  it("[SR-025/AK-rvw7] reports nothing without Git either", async () => {
     const ws = await fixture();
     expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK2] names source, target and the dates of the stored and the current version, and is not ok", async () => {
+  it("[SR-025/AK-zmvt] names source, target and the dates of the stored and the current version, and is not ok", async () => {
     const ws = await fixture({ git: true });
     const stored = await headDate(ws);
     const storedCommit = await headCommit(ws);
@@ -326,7 +326,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(out.problems).toEqual(problems);
   });
 
-  it("[SR-025/AK2] gives the date of the commit of the current version once it is committed", async () => {
+  it("[SR-025/AK-zmvt] gives the date of the commit of the current version once it is committed", async () => {
     const ws = await fixture({ git: true });
     const stored = await headDate(ws);
     const storedCommit = await headCommit(ws);
@@ -352,7 +352,7 @@ describe("outdated relations and references (SR-025)", () => {
     );
   });
 
-  it("[SR-015/AK4] names a later change of the metamodel when the stored version has no date (#252, P-2-09)", async () => {
+  it("[SR-015/AK-pm03] names a later change of the metamodel when the stored version has no date (#252, P-2-09)", async () => {
     // N has a rationale from the start; the stored versions are those without it counting.
     const ws = await fixture({
       git: true,
@@ -385,7 +385,7 @@ describe("outdated relations and references (SR-025)", () => {
     );
   });
 
-  it("[SR-004/AK6] reads and writes the elements of a repository without Git, gives no dates, and the outdated hint says Git cannot read it", async () => {
+  it("[SR-004/AK-mkv1] reads and writes the elements of a repository without Git, gives no dates, and the outdated hint says Git cannot read it", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);
@@ -405,7 +405,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(await readFile(path.join(ws.root, B_FILE), "utf8")).toContain("Refines it, written without Git.");
   });
 
-  it("[SR-025/AK2] gives no dates without Git", async () => {
+  it("[SR-025/AK-zmvt] gives no dates without Git", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const problems = outdated(await check(open(ws.root)));
@@ -416,7 +416,7 @@ describe("outdated relations and references (SR-025)", () => {
     ]);
   });
 
-  it("[SR-025/AK2] reports a relation whose target changed after it was set in a later state of the same workspace", async () => {
+  it("[SR-025/AK-zmvt] reports a relation whose target changed after it was set in a later state of the same workspace", async () => {
     const ws = await fixture();
     const workspace = open(ws.root);
     expect((await check(workspace)).ok).toBe(true);
@@ -432,7 +432,7 @@ describe("outdated relations and references (SR-025)", () => {
     ]);
   });
 
-  it("[SR-025/AK3] reports a relation no more once its stored version is the current one (what confirming writes, D-042)", async () => {
+  it("[SR-025/AK-b8r6] reports a relation no more once its stored version is the current one (what confirming writes, D-042)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const before = outdated(await check(open(ws.root)));
@@ -562,7 +562,7 @@ describe("outdated relations and references (SR-025)", () => {
     ]);
   });
 
-  it("[SR-025/AK5] reports no outdated relation or reference of a source with an invalid status, in the check, hint.list, element.get and hint.confirm; trace.graph keeps them visible", async () => {
+  it("[SR-025/AK-n45t] reports no outdated relation or reference of a source with an invalid status, in the check, hint.list, element.get and hint.confirm; trace.graph keeps them visible", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const workspace = open(ws.root);

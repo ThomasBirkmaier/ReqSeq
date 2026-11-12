@@ -72,7 +72,7 @@ const statusLine = async (ws: FixtureWorkspace, ref: string): Promise<string | u
 };
 
 describe("reqseq evidence status and record per variant (SR-047)", () => {
-  it("[SR-047/AK1] a passed record for A leaves the status in B open", async () => {
+  it("[SR-047/AK-pr2q] a passed record for A leaves the status in B open", async () => {
     const ws = await open();
     await recorded(ws, "SR-0000a3", "passed", "VAR-0000c1");
     expect(await statusLine(ws, "SR-0000a3")).toBe(
@@ -80,7 +80,7 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
     );
   });
 
-  it("[SR-047/AK2] a record without variant counts only for the core", async () => {
+  it("[SR-047/AK-k95w] a record without variant counts only for the core", async () => {
     const ws = await open();
     await recorded(ws, "SR-0000a4", "passed");
     expect(await statusLine(ws, "SR-0000a4")).toBe(
@@ -88,7 +88,7 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
     );
   });
 
-  it("[SR-047/AK3] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
+  it("[SR-047/AK-qncz] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
     const ws = await open();
     await recorded(ws, "SR-0000a2", "passed");
     await recorded(ws, "SR-0000a2", "failed", "VAR-0000c2");
@@ -104,7 +104,7 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
     ]);
   });
 
-  it("[SR-047/AK4] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
+  it("[SR-047/AK-vd3h] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement", async () => {
     const ws = await open();
     const excluded = await record(ws, "SR-0000a2", "passed", "VAR-0000c1");
     const replaced = await record(ws, "SR-0000a1", "passed", "VAR-0000c1");
@@ -123,7 +123,7 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
 });
 
 describe("reqseq evidence status in a variant-independent repository (SR-173)", () => {
-  it("[SR-047/AK2] [SR-173/AK1] a record without variant counts for the core and every variant the requirement applies in", async () => {
+  it("[SR-047/AK-k95w] [SR-173/AK-g2t9] a record without variant counts for the core and every variant the requirement applies in", async () => {
     const ws = await open();
     await ws.write(
       "reqseq-workspace.yaml",

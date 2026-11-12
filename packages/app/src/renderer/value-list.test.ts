@@ -134,7 +134,7 @@ const box = (key: string, extra: Omit<Extract<Pointer, { kind: "box" }>, "kind" 
 });
 
 describe("the values of an element that open a list (SR-132)", () => {
-  it("[SR-132/AK2] are the status, the type, then each value of a choice, a relation and a few-valued text property, in the order of the boxes", () => {
+  it("[SR-132/AK-ymp3] are the status, the type, then each value of a choice, a relation and a few-valued text property, in the order of the boxes", () => {
     expect(values.map((value) => value.name)).toEqual([
       "status: approved",
       "type: system-requirement",
@@ -160,7 +160,7 @@ describe("the values of an element that open a list (SR-132)", () => {
     ]);
   });
 
-  it('[SR-132/AK2] each value opens the step that "Filter list by property", "by status" or the overview builds for it', () => {
+  it('[SR-132/AK-ymp3] each value opens the step that "Filter list by property", "by status" or the overview builds for it', () => {
     expect(named("status: approved").step).toEqual(statusStep("approved"));
     expect(named("type: system-requirement").step).toEqual(
       exactTypeStep("system-requirement", "System Requirement"),
@@ -174,13 +174,13 @@ describe("the values of an element that open a list (SR-132)", () => {
     expect(named("labels: Safety").step).toEqual(propertyStep("labels", "Safety", "Safety"));
   });
 
-  it("[SR-132/AK3] a relation target opens the step of its short ID, labelled with its title", () => {
+  it("[SR-132/AK-q3fb] a relation target opens the step of its short ID, labelled with its title", () => {
     expect(named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche").step).toEqual(
       propertyStep("packages", "Stufe 3: Oberfläche", "PKG-089f89"),
     );
   });
 
-  it("[SR-132/AK4] rationale, acceptance criteria and title give no value, nor does a property without values", () => {
+  it("[SR-132/AK-k3w0] rationale, acceptance criteria and title give no value, nor does a property without values", () => {
     expect(values.map((value) => value.key)).not.toContain("rationale");
     expect(values.map((value) => value.key)).not.toContain("acceptance-criteria");
     expect(values.map((value) => value.key)).not.toContain("title");
@@ -191,14 +191,14 @@ describe("the values of an element that open a list (SR-132)", () => {
 describe("what the key and the command do at the cursor (SR-132)", () => {
   const relations = [relation()];
 
-  it("[SR-132/AK1] the line with the caret in the topic box opens its list", () => {
+  it("[SR-132/AK-y207] the line with the caret in the topic box opens its list", () => {
     expect(pointedValue(values, box("topic", { line: "Bearbeiten und Finden" }), relations)).toEqual({
       kind: "open",
       value: named("topic: Bearbeiten und Finden"),
     });
   });
 
-  it("[SR-132/AK2] the line with the caret in a list property opens that value; the box as a whole asks among its values", () => {
+  it("[SR-132/AK-ymp3] the line with the caret in a list property opens that value; the box as a whole asks among its values", () => {
     expect(pointedValue(values, box("labels", { line: "Safety" }), relations)).toEqual({
       kind: "open",
       value: named("labels: Safety"),
@@ -209,7 +209,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     });
   });
 
-  it("[SR-132/AK2] a box with one value opens it; a line that is no stored value (input not saved) asks among the values of the box", () => {
+  it("[SR-132/AK-ymp3] a box with one value opens it; a line that is no stored value (input not saved) asks among the values of the box", () => {
     expect(pointedValue(values, box("requirement-type"), relations)).toEqual({
       kind: "open",
       value: named("requirement-type: functional"),
@@ -220,7 +220,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     });
   });
 
-  it("[SR-132/AK3] the focused target of a relation box opens the list of its short ID", () => {
+  it("[SR-132/AK-q3fb] the focused target of a relation box opens the list of its short ID", () => {
     const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
     expect(pointedValue(values, pointer, relations)).toEqual({
       kind: "open",
@@ -228,7 +228,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     });
   });
 
-  it("[SR-132/AK3] a target that the element does not name as that property asks among the values of the box", () => {
+  it("[SR-132/AK-q3fb] a target that the element does not name as that property asks among the values of the box", () => {
     const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
     const ask = { kind: "ask", values: [named("packages: PKG-089f89 (Stufe-3) Stufe 3: Oberfläche")] };
     expect(pointedValue(values, pointer, [without(relation(), "property")])).toEqual(ask);
@@ -244,7 +244,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
     });
   });
 
-  it("[SR-132/AK4] on a free-text box or on no box it asks among all the values, never the free text", () => {
+  it("[SR-132/AK-k3w0] on a free-text box or on no box it asks among all the values, never the free text", () => {
     expect(pointedValue(values, box("rationale", { line: "Weil" }), relations)).toEqual({
       kind: "ask",
       values,
@@ -261,7 +261,7 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
 describe("what Ctrl/Cmd+click does on a value (SR-132)", () => {
   const relations = [relation()];
 
-  it("[SR-132/AK1] a click on a line of the topic box or on a package target opens the list of that value", () => {
+  it("[SR-132/AK-y207] a click on a line of the topic box or on a package target opens the list of that value", () => {
     expect(clickedValue(values, box("topic", { line: "Bearbeiten und Finden" }), relations)).toEqual({
       kind: "open",
       value: named("topic: Bearbeiten und Finden"),
@@ -273,14 +273,14 @@ describe("what Ctrl/Cmd+click does on a value (SR-132)", () => {
     });
   });
 
-  it("[SR-132/AK1] a click on a box without a value line asks only among the values of that box", () => {
+  it("[SR-132/AK-y207] a click on a box without a value line asks only among the values of that box", () => {
     expect(clickedValue(values, box("labels"), relations)).toEqual({
       kind: "ask",
       values: [named("labels: Timing"), named("labels: Safety")],
     });
   });
 
-  it("[SR-132/AK4] a click on a free-text box or on no box offers no list, not even the other values", () => {
+  it("[SR-132/AK-k3w0] a click on a free-text box or on no box offers no list, not even the other values", () => {
     expect(clickedValue(values, box("rationale", { line: "Weil" }), relations)).toEqual({ kind: "none" });
     expect(clickedValue(values, NO_POINTER, relations)).toEqual({ kind: "none" });
   });

@@ -57,7 +57,7 @@ const layout: GraphLayout = {
 const step = (from: string, key: string): string | undefined => graphStep(layout, "R", from, key);
 
 describe("graphStep", () => {
-  it("[SR-111/AK5] moves along links up and down to the node nearest in x", () => {
+  it("[SR-111/AK-h6rz] moves along links up and down to the node nearest in x", () => {
     expect(step("R", "ArrowUp")).toBe("P1");
     expect(step("R", "ArrowDown")).toBe("C2");
     expect(step("C3", "ArrowUp")).toBe("P2");
@@ -66,7 +66,7 @@ describe("graphStep", () => {
     expect(step("C1", "ArrowDown")).toBeUndefined();
   });
 
-  it("[SR-111/AK5] moves through a layer with Left and Right, from layer to layer with Page Up and Page Down, Home to the element", () => {
+  it("[SR-111/AK-h6rz] moves through a layer with Left and Right, from layer to layer with Page Up and Page Down, Home to the element", () => {
     expect(step("C2", "ArrowLeft")).toBe("C1");
     expect(step("C2", "ArrowRight")).toBe("C3");
     expect(step("C1", "ArrowLeft")).toBeUndefined();
@@ -80,7 +80,7 @@ describe("graphStep", () => {
     expect(step("C3", "Home")).toBe("R");
   });
 
-  it("[SR-111/AK5] reaches every node from the element", () => {
+  it("[SR-111/AK-h6rz] reaches every node from the element", () => {
     const reached = new Set(["R"]);
     let before = 0;
     while (reached.size > before) {
@@ -112,7 +112,7 @@ describe("graphStep on the metamodel graph", () => {
   const move = (from: string, key: string): string | undefined =>
     graphStep(metamodel, "type:item", from, key);
 
-  it("[SR-130/AK4] arrows move along the curves and layers of the metamodel graph, Home goes to the first type", () => {
+  it("[SR-130/AK-g9gk] arrows move along the curves and layers of the metamodel graph, Home goes to the first type", () => {
     expect(metamodel.layers.map((layer) => layer.map((placed) => placed.key))).toEqual([
       ["type:package", "type:item"],
       ["type:requirement", "type:decision"],

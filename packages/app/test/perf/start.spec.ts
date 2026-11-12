@@ -270,7 +270,7 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
   // One test for all four criteria: Playwright starts a new worker after a failed test, whose `beforeAll` would
   // generate the workspace again, and the second start needs the cache of the first. Every time is recorded
   // before the thresholds are asserted, softly.
-  test("[SR-082/AK2] [SR-082/AK1] [SR-082/AK5] [SR-082/AK3] the app is usable within 30 s without the cache and 3 s with it, shows the first element within 1 s and later ones within 200 ms", async () => {
+  test("[SR-082/AK-r2jc] [SR-082/AK-m65x] [SR-082/AK-csnf] [SR-082/AK-tndr] the app is usable within 30 s without the cache and 3 s with it, shows the first element within 1 s and later ones within 200 ms", async () => {
     test.setTimeout(600_000);
     const root = fixture?.workspaceRoot ?? "";
     const modelCache = path.join(

@@ -51,7 +51,7 @@ describe("propertyLines", () => {
 });
 
 describe("propertyBoxes", () => {
-  it("[SR-104/AK1] leaves out empty properties and has a box with its targets for a relation property", () => {
+  it("[SR-104/AK-df5n] leaves out empty properties and has a box with its targets for a relation property", () => {
     const stage = relation({ kind: "packages", property: true, id: "p", shortId: "PKG-1", title: "Stufe 3" });
     const element = {
       properties: {
@@ -100,7 +100,7 @@ describe("relationGroups", () => {
     expect(relationGroups([])).toEqual([]);
   });
 
-  it("[SR-104/AK1] leaves out the targets of a relation property, which are boxes, and keeps the incoming ones", () => {
+  it("[SR-104/AK-df5n] leaves out the targets of a relation property, which are boxes, and keeps the incoming ones", () => {
     const groups = relationGroups([
       relation({ id: "1", kind: "packages", property: true }),
       relation({ id: "2", kind: "packages", property: true, direction: "in" }),
@@ -188,7 +188,7 @@ describe("outdatedReferences", () => {
 });
 
 describe("relationLabel", () => {
-  it("[SR-084/AK4] is the short ID with the identifier, else the short ID, else the UUID, then the title when there is one", () => {
+  it("[SR-084/AK-c2s2] is the short ID with the identifier, else the short ID, else the UUID, then the title when there is one", () => {
     expect(relationLabel(relation({ identifier: "N-1", shortId: "N-000001", title: "Need" }))).toBe(
       "N-000001 (N-1) Need",
     );
@@ -221,7 +221,7 @@ describe("rowOfRelation", () => {
 describe("propertyModel", () => {
   const property = (key: string, extra: object = {}) => ({ key, name: key, kind: "text", ...extra });
 
-  it("[SR-127/AK5] gives, per type, kind, list and markdown of each property of the type, as the metamodel says", () => {
+  it("[SR-127/AK-mdr7] gives, per type, kind, list and markdown of each property of the type, as the metamodel says", () => {
     const model = propertyModel({
       properties: [
         property("title", { meaning: "title" }),
@@ -270,7 +270,7 @@ describe("propertyModel", () => {
 });
 
 describe("propertyModel for choices and relations (SR-104)", () => {
-  it("[SR-104/AK3] gives the choices in the order of the metamodel, the target types and the display name", () => {
+  it("[SR-104/AK-n97r] gives the choices in the order of the metamodel, the target types and the display name", () => {
     const model = propertyModel({
       properties: [
         {
@@ -331,7 +331,7 @@ describe("outdatedReferences in a property (SR-127)", () => {
     ],
   } as unknown as DataExportElement;
 
-  it("[SR-127/AK3] keeps the hints of the text and of each property apart", () => {
+  it("[SR-127/AK-bd1x] keeps the hints of the text and of each property apart", () => {
     const key = `${TARGET} n1:aa `;
     expect(outdatedReferences(element)).toEqual(new Map([[key, undatedMark("in the text")]]));
     expect(outdatedReferences(element, "acceptance-criteria")).toEqual(
@@ -371,7 +371,7 @@ describe("the version at an outdated reference (ThomasBirkmaier/ReqSeq-archive#7
   const elementOf = (problems: object[], relations: DataExportRelation[] = []): DataExportElement =>
     ({ repository: "spec", problems, relations }) as unknown as DataExportElement;
 
-  it("[SR-110/AK2] the word names the date of the version the reference stores once the hint has it (D-013)", () => {
+  it("[SR-110/AK-j1xs] the word names the date of the version the reference stores once the hint has it (D-013)", () => {
     const text = hint("@text", { hintId: `${SOURCE}/@text/${TARGET}?version=n1:aa&n=1` });
     expect(outdatedWord(text)).toBe("link outdated");
     expect(outdatedWord(dated(text))).toBe("link outdated · version of 2026-03-04");
@@ -379,7 +379,7 @@ describe("the version at an outdated reference (ThomasBirkmaier/ReqSeq-archive#7
     expect(outdatedWord(dated(text, null))).toBe("link outdated · version of unknown date");
   });
 
-  it("[SR-110/AK2] an inline reference in the text and in a Markdown property carries the dated hint", () => {
+  it("[SR-110/AK-j1xs] an inline reference in the text and in a Markdown property carries the dated hint", () => {
     const text = hint("@text", { hintId: `${SOURCE}/@text/${TARGET}?version=n1:aa&n=1` });
     const criterion = hint("@text:acceptance-criteria", {
       hintId: `${SOURCE}/@text:acceptance-criteria/${TARGET}?version=n1:aa&n=1`,
@@ -432,7 +432,7 @@ describe("the version at an outdated reference (ThomasBirkmaier/ReqSeq-archive#7
     expect(withHintDates(done, [dated(relationHint)]).problems).toEqual([dated(relationHint, null)]);
   });
 
-  it("[SR-110/AK2] marks an outgoing relation item that a hint names, with the date of its stored version", () => {
+  it("[SR-110/AK-j1xs] marks an outgoing relation item that a hint names, with the date of its stored version", () => {
     const stored = relation({ kind: "derives-from", id: TARGET, storedVersion: "n1:aa", repository: "spec" });
     const element = elementOf([dated(hint("derives-from"))]);
     expect(outdatedRelation(element, stored)).toEqual({
@@ -483,7 +483,7 @@ describe("the version at an outdated reference (ThomasBirkmaier/ReqSeq-archive#7
     expect(outdatedRelation(across, stored)).toBeUndefined();
   });
 
-  it("[SR-110/AK2] the parents line takes the mark of the element's own derivation to the parent", () => {
+  it("[SR-110/AK-j1xs] the parents line takes the mark of the element's own derivation to the parent", () => {
     const derivation = relation({
       kind: "derives-from",
       meaning: "derivation",

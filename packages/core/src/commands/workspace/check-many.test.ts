@@ -25,7 +25,7 @@ vi.mock("../../variants/index.js", async (importOriginal) => {
 });
 
 describe("workspace.check with many findings", () => {
-  it("[SR-019/AK2] reports more than 200,000 findings without overflowing the stack", async () => {
+  it("[SR-019/AK-pt9j] reports more than 200,000 findings without overflowing the stack", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-072/supersede" });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);

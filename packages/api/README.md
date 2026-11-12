@@ -30,4 +30,4 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/x-ndjs
 
 ## Tests
 
-`src/docs-server.test.ts` on a fixture site (Host, methods, HEAD, 404 page, port). `src/*.test.ts` of the API with a test-only catalog: listening addresses (`[SR-079/AK1]`), the constant bind addresses (`[SR-079/AK3]`), every refusal and status, aborts. The e2e test `packages/cli/test/e2e/servers.test.ts` connects to the addresses of the machine that other machines use and expects no connection (`[SR-079/AK2]`). The cross-access test (`packages/cli/test/cross-access.test.ts`) compares the API with core, CLI and MCP (SR-080).
+`src/docs-server.test.ts` on a fixture site (Host, methods, HEAD, 404 page, port). `src/*.test.ts` of the API with a test-only catalog: listening addresses (`[SR-079/AK-g12j]`), the constant bind addresses (`[SR-079/AK-yvqq]`), every refusal and status, aborts. The e2e test `packages/cli/test/e2e/servers.test.ts` connects to the addresses of the machine that other machines use and expects no connection (`[SR-079/AK-m34t]`). The cross-access test (`packages/cli/test/cross-access.test.ts`) compares the API with core, CLI and MCP (SR-080).

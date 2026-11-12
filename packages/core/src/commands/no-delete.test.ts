@@ -185,7 +185,7 @@ const filesBelow = (root: string): string[] =>
     .sort();
 
 describe("no delete of an element (SR-099, D-045)", () => {
-  it("[SR-099/AK1] the catalog offers no command that deletes an element", () => {
+  it("[SR-099/AK-nbg9] the catalog offers no command that deletes an element", () => {
     const names = contracts.commands.map((c) => c.name);
     const deleteLike = names.filter((name) => DELETE_LIKE.test(name.split(".")[1] ?? ""));
     expect(deleteLike.filter((name) => !(name in NOT_AN_ELEMENT_DELETE))).toEqual([]);
@@ -195,7 +195,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
     expect(contracts.entry("element.supersede")?.summary).toContain("There is no delete.");
   });
 
-  it("[SR-099/AK1] has a scenario for every implemented write command", () => {
+  it("[SR-099/AK-nbg9] has a scenario for every implemented write command", () => {
     const writes = contracts.commands
       .filter((c) => c.effect === "write-files" && runtime.commands.has(c.name))
       .map((c) => c.name)
@@ -204,7 +204,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
   });
 
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
-    it(`[SR-099/AK1] ${name} never removes or moves a file`, async () => {
+    it(`[SR-099/AK-nbg9] ${name} never removes or moves a file`, async () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
         files: {
@@ -245,7 +245,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
     });
   }
 
-  it("[SR-099/AK1] only the files module removes or renames files", () => {
+  it("[SR-099/AK-nbg9] only the files module removes or renames files", () => {
     const src = path.resolve(import.meta.dirname, "..");
     const removing = fs
       .readdirSync(src, { recursive: true, withFileTypes: true })

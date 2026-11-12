@@ -477,7 +477,7 @@ describe("reqseq <group> <action>", () => {
     expect(JSON.parse(both.stderr)).toMatchObject({ code: "input.invalid" });
   });
 
-  it("[SR-061/AK4] prints one line per item with --jsonl, where the catalog offers JSON Lines (#319)", async () => {
+  it("[SR-061/AK-h1db] prints one line per item with --jsonl, where the catalog offers JSON Lines (#319)", async () => {
     expect(await run(["test", "rows", "--jsonl"])).toEqual({
       code: EXIT.ok,
       stdout: '{"mark":2,"a":1}\n{"mark":2,"a":"Größe"}\n',
@@ -836,7 +836,7 @@ describe("reqseq <group> <action>", () => {
     expect(exitCodeFor(new CommandError("internal", "x", { aborted: true }))).toBe(EXIT.aborted);
   });
 
-  it("[SR-092/AK2] ends with exit code 4 of its own for a commit that is not available locally", () => {
+  it("[SR-092/AK-fh11] ends with exit code 4 of its own for a commit that is not available locally", () => {
     expect(exitCodeFor(new CommandError("git.commit-not-found", "no commit"))).toBe(4);
     expect(EXIT.commitNotFound).toBe(4);
     // Every other code keeps the exit code of its class.

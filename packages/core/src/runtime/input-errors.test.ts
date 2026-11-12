@@ -105,7 +105,7 @@ const messages = (contracts: Contracts, name: string, input: unknown): string[] 
 const field = (input: Record<string, unknown>): string[] => messages(keywords, "test.fields", input);
 
 describe("readable messages of an input that fails its schema (ThomasBirkmaier/ReqSeq-archive#309)", () => {
-  it("[SR-060/AK3] says what an element reference looks like, without a regular expression", () => {
+  it("[SR-060/AK-c573] says what an element reference looks like, without a regular expression", () => {
     // An identifier may be any text (ThomasBirkmaier/ReqSeq-archive#305): only an empty reference, spaces at either end, control
     // characters and more than 256 characters fail.
     expect(product.validator("element.get", "input")({ ref: "SR-036" })).toBe(true);

@@ -14,7 +14,7 @@ const ids = (target: Element, offered: readonly string[]): string[] =>
   menuEntries(hitOn(target), offered.map(choice)).map((item) => item.id);
 
 describe("the menu of a list", () => {
-  it("[SR-198/AK1] has the filters, Sort and Group, Ungroup on a grouped list and Clear all on a filtered one", () => {
+  it("[SR-198/AK-qc75] has the filters, Sort and Group, Ungroup on a grouped list and Clear all on a filtered one", () => {
     expect(MENU_PLACES.list).toEqual(LIST_MENU);
     document.body.innerHTML = `<div data-menu="list"><h1 id="plain">All</h1></div><div data-menu="list" ${GROUPED}><h1 id="grouped">All</h1></div>`;
     const at = (id: string): Element => document.getElementById(id) as Element;

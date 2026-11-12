@@ -123,7 +123,7 @@ test.describe("property boxes of an element", () => {
     await running.close();
   });
 
-  test("[SR-104/AK1] shows every filled property as a box below the text and none for an empty one, as the CLI gives them", async () => {
+  test("[SR-104/AK-df5n] shows every filled property as a box below the text and none for an empty one, as the CLI gives them", async () => {
     const { window } = running;
     const got = await cliGet(running);
     const filled = Object.entries(got.element.properties)
@@ -212,7 +212,7 @@ test.describe("property boxes of an element", () => {
     await expect(lines).toHaveCount(4);
   });
 
-  test("[SR-104/AK4] emptying a box and saving removes the property from the file, and the box is gone", async () => {
+  test("[SR-104/AK-sxnr] emptying a box and saving removes the property from the file, and the box is gone", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     await criteria.locator(".cm-line").first().click();
@@ -248,7 +248,7 @@ test.describe("property boxes of an element", () => {
     window.locator('.candidates [role="option"] .name').allInnerTexts();
   const promptLabel = (window: Page): Locator => window.getByLabel("Minibuffer").locator("label");
 
-  test("[SR-104/AK2] Ctrl/Cmd+Alt+A adds a text property: an empty box with the caret in it at the place of the type, the file unchanged until it is saved", async () => {
+  test("[SR-104/AK-k13x] Ctrl/Cmd+Alt+A adds a text property: an empty box with the caret in it at the place of the type, the file unchanged until it is saved", async () => {
     const { window } = running;
     const before = await readFile(running);
     await window.keyboard.press("ControlOrMeta+Alt+A");
@@ -289,7 +289,7 @@ test.describe("property boxes of an element", () => {
     await expect(field(window, "rationale").locator(".cm-content")).toHaveText("Lieferung");
   });
 
-  test("[SR-104/AK2] adding a choice puts the empty box in the page and opens the prompt with the choices at once; Escape leaves the focus on the box", async () => {
+  test("[SR-104/AK-k13x] adding a choice puts the empty box in the page and opens the prompt with the choices at once; Escape leaves the focus on the box", async () => {
     const { window } = running;
     const before = await readFile(running);
     await window.keyboard.press("ControlOrMeta+Alt+A");
@@ -320,7 +320,7 @@ test.describe("property boxes of an element", () => {
     expect(await readFile(running)).toContain("verification-method: inspection");
   });
 
-  test("[SR-104/AK2] Add property is also in the command prompt, by its name", async () => {
+  test("[SR-104/AK-k13x] Add property is also in the command prompt, by its name", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+P");
     // The prompt's input takes the keys only once it is mounted and focused.
@@ -332,7 +332,7 @@ test.describe("property boxes of an element", () => {
     await expect(promptLabel(window)).toHaveText("Add property");
   });
 
-  test("[SR-104/AK3] the prompt of a choice offers only the values of the metamodel, with the one that is set first, and takes no free text", async () => {
+  test("[SR-104/AK-n97r] the prompt of a choice offers only the values of the metamodel, with the one that is set first, and takes no free text", async () => {
     const { window } = running;
     await field(window, "requirement-type").focus();
     await window.keyboard.press("Enter");
@@ -364,7 +364,7 @@ test.describe("property boxes of an element", () => {
     expect(await readFile(running)).toContain("legacy: Altlast");
   });
 
-  test("[SR-156/AK1] a click on the value of a choice box, also an empty one, opens the prompt Enter opens; a click on its copy symbol does not", async () => {
+  test("[SR-156/AK-mj56] a click on the value of a choice box, also an empty one, opens the prompt Enter opens; a click on its copy symbol does not", async () => {
     const { window } = running;
     const box = field(window, "requirement-type");
     // The copy symbol shows while the pointer is over the box.
@@ -408,7 +408,7 @@ test.describe("property boxes of an element", () => {
     await expect(promptLabel(window)).toHaveText("Verification Method");
   });
 
-  test("[SR-156/AK2] a click on a value of the prompt opened by a click sets it as the keys do", async () => {
+  test("[SR-156/AK-gwds] a click on a value of the prompt opened by a click sets it as the keys do", async () => {
     const { window } = running;
     await field(window, "requirement-type").locator(".value").click();
     await expect(promptLabel(window)).toHaveText("Requirement Type");
@@ -419,13 +419,13 @@ test.describe("property boxes of an element", () => {
     await expect(modeline(window)).toContainText("modified");
     await window.keyboard.press("ControlOrMeta+S");
     await expect(modeline(window)).not.toContainText("modified");
-    // The same result as [SR-104/AK3] with the keys: the key in the file, the other properties keep their bytes.
+    // The same result as [SR-104/AK-n97r] with the keys: the key in the file, the other properties keep their bytes.
     expect((await cliGet(running)).element.properties["requirement-type"]).toBe("quality");
     expect(await readFile(running)).toContain("requirement-type: quality");
     expect(await readFile(running)).toContain("legacy: Altlast");
   });
 
-  test("[SR-156/AK3] Escape or a click outside the command line closes the prompt opened by a click and leaves the value", async () => {
+  test("[SR-156/AK-bfmz] Escape or a click outside the command line closes the prompt opened by a click and leaves the value", async () => {
     const { window } = running;
     const before = await readFile(running);
     const box = field(window, "requirement-type");
@@ -484,7 +484,7 @@ test.describe("property boxes of an element", () => {
     expect(text).toContain("69069069-0000-4000-8000-0000000000d2");
   });
 
-  test("[SR-104/AK4] Clear property empties a choice and a relation box, Ctrl/Cmd+S removes both from the file, and the boxes are gone", async () => {
+  test("[SR-104/AK-sxnr] Clear property empties a choice and a relation box, Ctrl/Cmd+S removes both from the file, and the boxes are gone", async () => {
     const { window } = running;
     await field(window, "requirement-type").focus();
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -523,7 +523,7 @@ test.describe("property boxes of an element", () => {
     await expect(modeline(window)).not.toContainText("modified");
   });
 
-  test("[SR-104/AK4] a property the type does not know takes no typing, but Clear property empties it and the save removes it from the file (#189)", async () => {
+  test("[SR-104/AK-sxnr] a property the type does not know takes no typing, but Clear property empties it and the save removes it from the file (#189)", async () => {
     const { window } = running;
     // Enter on the box opens no editor in it: the caret goes into the text, as on a box that is not edited.
     await field(window, "legacy").focus();
@@ -552,7 +552,7 @@ test.describe("property boxes of an element", () => {
     expect(Object.keys(got.element.properties)).not.toContain("legacy");
   });
 
-  test("[SR-104/AK3] the prompt of a choice over the page, next to a relation box (screenshot, light)", async () => {
+  test("[SR-104/AK-n97r] the prompt of a choice over the page, next to a relation box (screenshot, light)", async () => {
     const { window } = running;
     await fs.mkdir(OUT, { recursive: true });
     await running.app.evaluate(({ BrowserWindow }) => {
@@ -624,7 +624,7 @@ test.describe("property boxes of an element", () => {
     await expect(field(window, "Text").locator(".cm-content")).toBeFocused();
   });
 
-  test("[SR-127/AK1] the source of a criterion shows on the line with the caret only (screenshot)", async () => {
+  test("[SR-127/AK-kjw4] the source of a criterion shows on the line with the caret only (screenshot)", async () => {
     const { window } = running;
     await fs.mkdir(OUT, { recursive: true });
     await running.app.evaluate(({ BrowserWindow }) => {

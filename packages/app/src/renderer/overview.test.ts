@@ -14,7 +14,7 @@ const recent = (n: number): RecentRow => ({
 });
 
 describe("the rows of the overview", () => {
-  it("[SR-118/AK1] gives a line per type in the order given, then the recent elements", () => {
+  it("[SR-118/AK-yggg] gives a line per type in the order given, then the recent elements", () => {
     const rows = overviewRows(types, [recent(1), recent(2)]);
     expect(rows.map((row) => row.kind)).toEqual(["type", "type", "recent", "recent"]);
     expect(rows.slice(0, 2).map((row) => (row.kind === "type" ? typeLine(row) : ""))).toEqual([
@@ -23,7 +23,7 @@ describe("the rows of the overview", () => {
     ]);
   });
 
-  it("[SR-118/AK1] shows at most five recent elements, in the order given", () => {
+  it("[SR-118/AK-yggg] shows at most five recent elements, in the order given", () => {
     const rows = overviewRows([], [1, 2, 3, 4, 5, 6, 7].map(recent));
     expect(rows.map((row) => (row.kind === "recent" ? row.label : ""))).toEqual([
       "SR-1",
@@ -38,7 +38,7 @@ describe("the rows of the overview", () => {
     expect(overviewRows([], [])).toEqual([]);
   });
 
-  it("[SR-118/AK2] a type line opens the list of the elements of exactly that type", () => {
+  it("[SR-118/AK-p9z9] a type line opens the list of the elements of exactly that type", () => {
     const [need, requirement] = overviewRows(types, []);
     expect(need && openRow(need)).toMatchObject({
       kind: "list",
@@ -51,7 +51,7 @@ describe("the rows of the overview", () => {
     });
   });
 
-  it("[SR-118/AK1] a recent line opens the element", () => {
+  it("[SR-118/AK-yggg] a recent line opens the element", () => {
     const shown = recent(3);
     const [row] = overviewRows([], [shown]);
     expect(row && openRow(row)).toBe(shown.buffer);

@@ -79,7 +79,7 @@ const properties = (xml: string): Record<string, Record<string, string[]>> => {
 };
 
 describe("reqseq evidence enrich-junit (SR-029)", () => {
-  it("[SR-029/AK1] reqseq evidence enrich-junit writes UUID, version, item and date into each test case of a pytest file", async () => {
+  it("[SR-029/AK-x1rh] reqseq evidence enrich-junit writes UUID, version, item and date into each test case of a pytest file", async () => {
     const ws = await open();
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE, "--json"]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
@@ -111,7 +111,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(props["test_add[1-2]"]).toEqual({});
   });
 
-  it("[SR-029/AK2] reqseq evidence enrich-junit names the test case with an unknown short ID and exits with code 1", async () => {
+  it("[SR-029/AK-nyrs] reqseq evidence enrich-junit names the test case with an unknown short ID and exits with code 1", async () => {
     const ws = await open();
     const json = await enrich(ws, ["results/unknown.xml", "build-512", "--date", DATE, "--json"]);
     expect(json.code).toBe(1);
@@ -131,7 +131,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(readable.stdout + readable.stderr).toContain("[SR-ffffff] names no element");
   });
 
-  it("[SR-029/AK3] reqseq workspace check and evidence coverage read the enriched file without further input", async () => {
+  it("[SR-029/AK-pbxf] reqseq workspace check and evidence coverage read the enriched file without further input", async () => {
     const ws = await open();
     const coverage = async (): Promise<readonly string[] | undefined> => {
       const run = await reqseq(["evidence", "coverage", "--json"], { cwd: ws.root });
@@ -197,7 +197,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(await fs.readFile(ws.path("results/pytest.xml"))).toEqual(before);
   });
 
-  it("[SR-029/AK8] [SR-029/AK9] reqseq evidence enrich-junit names a test case whose variant does not fit and exits with code 1", async () => {
+  it("[SR-029/AK-pb9c] [SR-029/AK-h0h5] reqseq evidence enrich-junit names a test case whose variant does not fit and exits with code 1", async () => {
     const ws = await createFixtureWorkspace({
       fixture: "SR-043/example",
       files: {
@@ -216,7 +216,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(run.stdout + run.stderr).toContain("SR-0000a2 is excluded in VAR-0000c1");
   });
 
-  it("[SR-029/AK6] [SR-029/AK11] reqseq evidence enrich-junit takes --variant repeated with core, and with --skip-not-in-view leaves out a requirement of another variant and exits with 0", async () => {
+  it("[SR-029/AK-r1s7] [SR-029/AK-djjh] reqseq evidence enrich-junit takes --variant repeated with core, and with --skip-not-in-view leaves out a requirement of another variant and exits with 0", async () => {
     const ws = await createFixtureWorkspace({
       fixture: "SR-043/example",
       files: {
@@ -252,7 +252,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     ]);
   });
 
-  it("[SR-029/AK12] reqseq evidence enrich-junit --skip-not-in-view marks a test case of only another variant with each given view, and a re-run leaves the file byte for byte", async () => {
+  it("[SR-029/AK-hx47] reqseq evidence enrich-junit --skip-not-in-view marks a test case of only another variant with each given view, and a re-run leaves the file byte for byte", async () => {
     const ws = await createFixtureWorkspace({
       fixture: "SR-043/example",
       files: {
@@ -288,7 +288,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(await fs.readFile(ws.path("results/run.xml"))).toEqual(written);
   });
 
-  it("[SR-029/AK4] reqseq evidence enrich-junit prints the number of test cases that name no requirement", async () => {
+  it("[SR-029/AK-srmd] reqseq evidence enrich-junit prints the number of test cases that name no requirement", async () => {
     const ws = await open();
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE]);
     expect([run.code, run.stderr]).toEqual([0, ""]);

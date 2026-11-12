@@ -87,7 +87,7 @@ const failure = async (workspace: Workspace, input: Record<string, unknown>): Pr
 };
 
 describe("filter.list (SR-070)", () => {
-  it("[SR-070/AK2] makes a saved filter available to another person who opens the repository", async () => {
+  it("[SR-070/AK-y5g1] makes a saved filter available to another person who opens the repository", async () => {
     const { fixture, workspace } = await open({ fixture: "SR-069/filter", git: true });
     const where = { all: [{ type: ["system-requirement"] }, { status: ["draft"] }] };
     const saved = await run<CommandOutput<"filter.save">>(workspace, "filter.save", {
@@ -113,7 +113,7 @@ describe("filter.list (SR-070)", () => {
     expect(mine).toEqual([B2, B3, F1]);
   });
 
-  it("[SR-070/AK2] lists hand-written filter files, each with its definition, and reports faulty ones", async () => {
+  it("[SR-070/AK-y5g1] lists hand-written filter files, each with its definition, and reports faulty ones", async () => {
     const { workspace } = await open({
       fixture: "SR-069/filter",
       files: {
@@ -237,7 +237,7 @@ describe("a saved filter called by name in a selection (SR-070 AK3)", () => {
     "filters/broken.yaml": filterFile("name: Broken", "where: { nope: 1 }"),
   };
 
-  it("[SR-070/AK3] gives the elements of its definition, in its order, as the same condition given inline", async () => {
+  it("[SR-070/AK-dmn0] gives the elements of its definition, in its order, as the same condition given inline", async () => {
     const { workspace } = await open({ fixture: "SR-069/filter", files: FILES });
     const drafts = await elements(workspace, { selection: { filter: "drafts" } });
     expect(drafts).toEqual(
@@ -279,7 +279,7 @@ describe("a saved filter called by name in a selection (SR-070 AK3)", () => {
     ]);
   });
 
-  it("[SR-070/AK3] takes its own view for its verification conditions, else the view of the selection", async () => {
+  it("[SR-070/AK-dmn0] takes its own view for its verification conditions, else the view of the selection", async () => {
     const { workspace } = await open({ fixture: "SR-069/filter", files: FILES });
     await withEvidence(workspace, {
       verification: (_element, view) => (view.kind === "variant" ? "verified" : "open"),
@@ -298,7 +298,7 @@ describe("a saved filter called by name in a selection (SR-070 AK3)", () => {
     );
   });
 
-  it("[SR-070/AK3] works in every command that takes a selection, such as a bulk update", async () => {
+  it("[SR-070/AK-dmn0] works in every command that takes a selection, such as a bulk update", async () => {
     const { workspace } = await open({ fixture: "SR-069/filter", files: FILES });
     const preview = await run<CommandOutput<"element.bulkUpdate">>(workspace, "element.bulkUpdate", {
       selection: { filter: "sensor drafts" },

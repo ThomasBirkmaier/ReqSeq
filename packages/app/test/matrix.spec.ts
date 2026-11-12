@@ -150,7 +150,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await running.close();
   });
 
-  test("[SR-125/AK1] Ctrl+T on a filtered list shows one row per list element in the order of the list, and Ctrl+T shows the list again", async () => {
+  test("[SR-125/AK-mzzq] Ctrl+T on a filtered list shows one row per list element in the order of the list, and Ctrl+T shows the list again", async () => {
     const { window } = running;
     await requirements(window);
     const listed = await window.locator(".row .title").allTextContents();
@@ -173,7 +173,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(window.locator("table")).toHaveCount(0);
   });
 
-  test("[SR-125/AK2] the columns and cells of the window are those of trace matrix (SR-080/AK2)", async () => {
+  test("[SR-125/AK-wzq6] the columns and cells of the window are those of trace matrix (SR-080/AK2)", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
@@ -188,7 +188,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(await shown(window)).toEqual(expected(cli));
   });
 
-  test("[SR-153/AK1] [SR-153/AK3] the window marks the gaps of trace matrix in the accent colour, and its heads are the CLI's", async () => {
+  test("[SR-153/AK-mcfm] [SR-153/AK-qy0p] the window marks the gaps of trace matrix in the accent colour, and its heads are the CLI's", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
@@ -212,7 +212,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     );
   });
 
-  test("[SR-125/AK3] [SR-153/AK2] an empty cell of a column without a minimum is a grey dash, no gap, and its head is the count", async () => {
+  test("[SR-125/AK-ps48] [SR-153/AK-zx11] an empty cell of a column without a minimum is a grey dash, no gap, and its head is the count", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
@@ -232,7 +232,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect((await shown(window)).heads.find((head) => head.name === "Refines")?.count).toBe("1");
   });
 
-  test("[SR-125/AK4] an outdated relation is marked outdated and one to a missing target missing, in its cell", async () => {
+  test("[SR-125/AK-zs8y] an outdated relation is marked outdated and one to a missing target missing, in its cell", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
@@ -252,7 +252,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(colours.outdated).not.toBe(colours.text);
   });
 
-  test("[SR-125/AK5] Enter on a row opens its element; Right then Enter opens a link; a click opens a link; a missing link opens nothing", async () => {
+  test("[SR-125/AK-k8sg] Enter on a row opens its element; Right then Enter opens a link; a click opens a link; a missing link opens nothing", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
@@ -288,7 +288,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(window.locator("tbody tr")).toHaveCount(6);
   });
 
-  test("[SR-125/AK6] the matrix of a package page and of a saved filter is what the CLI gives for the same selection", async () => {
+  test("[SR-125/AK-w9wp] the matrix of a package page and of a saved filter is what the CLI gives for the same selection", async () => {
     const { window } = running;
     // The package Stage 3: Ctrl+P, its title, Enter, Ctrl+T.
     await window.keyboard.press("ControlOrMeta+P");
@@ -327,7 +327,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(ids.rows.map((row) => row.cells)).toEqual(bySaved.rows.map((row) => row.cells));
   });
 
-  test("[SR-125/AK1] a filter and a sort on the matrix keep the matrix and change its rows as they change the list", async () => {
+  test("[SR-125/AK-mzzq] a filter and a sort on the matrix keep the matrix and change its rows as they change the list", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);

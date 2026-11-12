@@ -60,7 +60,7 @@ test.describe("the counts of the modeline", () => {
     await running.close();
   });
 
-  test("[SR-114/AK2] the modeline names the outdated references and the open hints of an element as element get counts them, and nothing for an element without", async () => {
+  test("[SR-114/AK-bfpp] the modeline names the outdated references and the open hints of an element as element get counts them, and nothing for an element without", async () => {
     const { window } = running;
     // An element with an outdated relation and another hint, one with another hint only, one with an
     // outdated inline reference, one without.
@@ -98,7 +98,7 @@ test.describe("the counts of the modeline", () => {
     await expect(parts(window).nth(1)).toHaveText("1 outdated");
   });
 
-  test("[SR-114/AK3] the modeline names kind and count of a list, a graph and a package page as the CLI gives them", async () => {
+  test("[SR-114/AK-bcv4] the modeline names kind and count of a list, a graph and a package page as the CLI gives them", async () => {
     const { window } = running;
     // The list of all elements: its name and the total of `element list`.
     await listAll(window);
@@ -149,7 +149,7 @@ test.describe("the counts of the modeline", () => {
     ]);
   });
 
-  test("[SR-114/AK3] in a list and on a package page the count takes in the elements of the folded section at the end", async () => {
+  test("[SR-114/AK-bcv4] in a list and on a package page the count takes in the elements of the folded section at the end", async () => {
     const { window } = running;
     const folded = (text: string): Locator => shownBuffer(window).locator(".row.fold-row", { hasText: text });
     // The list of all elements: one obsolete element is folded, and counted.

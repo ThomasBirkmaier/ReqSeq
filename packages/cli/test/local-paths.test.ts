@@ -173,7 +173,7 @@ const refusedFor = (fields: readonly string[]): unknown => ({
 });
 
 describe("local paths through API and MCP only inside the repositories (SR-142)", () => {
-  it("[SR-142/AK1] the MCP server refuses an absolute path outside the repositories and reads and writes nothing", async () => {
+  it("[SR-142/AK-dx5g] the MCP server refuses an absolute path outside the repositories and reads and writes nothing", async () => {
     const ws = await fixture();
     const before = await state(ws);
     const reply = await mcp(ws, "evidence.enrichJunit", {
@@ -192,7 +192,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(await state(ws)).toEqual(before);
   });
 
-  it("[SR-142/AK1] the API refuses a path that leaves the repositories through ..", async () => {
+  it("[SR-142/AK-dx5g] the API refuses a path that leaves the repositories through ..", async () => {
     const ws = await fixture();
     const before = await state(ws);
     await withApi(ws, async (api) => {
@@ -211,7 +211,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(await state(ws)).toEqual(before);
   });
 
-  it("[SR-142/AK1] the API and the MCP server refuse a path through a link inside a repository that leads out", async () => {
+  it("[SR-142/AK-dx5g] the API and the MCP server refuse a path through a link inside a repository that leads out", async () => {
     const ws = await fixture();
     await fs.symlink(ws.path("outside"), ws.path("system/out"), "junction");
     const before = await state(ws);
@@ -231,7 +231,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(await state(ws)).toEqual(before);
   });
 
-  it("[SR-142/AK1] reqif.import over MCP refuses ~/Downloads/lieferung.reqif and a path outside, reqif.export over the API an output outside", async () => {
+  it("[SR-142/AK-dx5g] reqif.import over MCP refuses ~/Downloads/lieferung.reqif and a path outside, reqif.export over the API an output outside", async () => {
     const ws = await fixture();
     // A real delivery in the home folder (`~`, stubbed above) and outside the repositories.
     const delivery = await fs.readFile(
@@ -261,7 +261,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect({ ws: await state(ws), home: await home() }).toEqual(before);
   });
 
-  it("[SR-142/AK1] workspace.listFolder lists a folder outside the repositories on the command line only", async () => {
+  it("[SR-142/AK-dx5g] workspace.listFolder lists a folder outside the repositories on the command line only", async () => {
     const ws = await fixture();
     await fs.mkdir(path.join(cacheHome, "projects"), { recursive: true });
     for (const input of [{ path: "../outside/" }, { path: "~/", absolute: true }]) {
@@ -281,7 +281,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(JSON.parse(listed.out)).toMatchObject({ entries: [{ name: "delivery.xml", kind: "file" }] });
   });
 
-  it("[SR-142/AK2] the API and the MCP server run a command on a path inside a repository", async () => {
+  it("[SR-142/AK-y4s6] the API and the MCP server run a command on a path inside a repository", async () => {
     const ws = await fixture();
     await withApi(ws, async (api) => {
       const viaApi = await api("evidence.enrichJunit", { file: "evidence/ci/run.xml", item: "b1" });
@@ -296,7 +296,7 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(await fs.readdir(ws.path("sensor/states"))).toHaveLength(1);
   });
 
-  it("[SR-142/AK3] the command line accepts the same path outside the repositories", async () => {
+  it("[SR-142/AK-x2rz] the command line accepts the same path outside the repositories", async () => {
     const ws = await fixture();
     const enrich = await cli(ws, ["evidence", "enrich-junit", ws.path("outside/delivery.xml"), "b1"]);
     expect(enrich.code, enrich.out).toBe(EXIT.ok);

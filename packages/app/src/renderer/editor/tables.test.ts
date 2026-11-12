@@ -67,7 +67,7 @@ const isTable = (doc: string): boolean => {
 const TABLE = "| a | b |\n|---|---|\n| 1 | 2 |";
 
 describe("tables (SR-188)", () => {
-  it("[SR-188/AK1] Tab and Shift+Tab go to the next and the cell before; Tab after the last cell adds a row", () => {
+  it("[SR-188/AK-nnmv] Tab and Shift+Tab go to the next and the cell before; Tab after the last cell adds a row", () => {
     const view = viewOf(`${TABLE}\n\nafter`, 2);
     expect(key(view, "Tab")).toBe(true);
     expect(selected(view)).toBe("b");
@@ -91,7 +91,7 @@ describe("tables (SR-188)", () => {
     expect(key(view, "Tab", true)).toBe(false);
   });
 
-  it("[SR-188/AK1] leaves Tab to a menu open at the caret", async () => {
+  it("[SR-188/AK-nnmv] leaves Tab to a menu open at the caret", async () => {
     const menu = autocompletion({
       override: [() => ({ from: 2, options: [{ label: "entry" }] })],
       interactionDelay: 0,
@@ -110,7 +110,7 @@ describe("tables (SR-188)", () => {
     expect(text(view)).toBe(TABLE);
   });
 
-  it("[SR-188/AK2] Align table lines the pipes up, keeps the alignment colons, escaped pipes and code", () => {
+  it("[SR-188/AK-g6sz] Align table lines the pipes up, keeps the alignment colons, escaped pipes and code", () => {
     const [doc, caret] = at(
       "x\n\n| a | long header |c\n|:--|:-:|--:\n| `x\\|y` | 2 |\n| é^ | \\| |\n\nafter",
     );
@@ -142,7 +142,7 @@ describe("tables (SR-188)", () => {
     expect(isTable(text(view).slice(3, -7))).toBe(true);
   });
 
-  it("[SR-188/AK2] aligns nothing without Align table: Insert row, Insert column and Tab's new row leave the other rows as they are", () => {
+  it("[SR-188/AK-g6sz] aligns nothing without Align table: Insert row, Insert column and Tab's new row leave the other rows as they are", () => {
     const doc = "| a | long |\n|-|-|\n| 1 | 2 |";
     const rows = (view: EditorView): string[] => text(view).split("\n");
     const row = viewOf(doc, 2);
@@ -156,7 +156,7 @@ describe("tables (SR-188)", () => {
     expect(rows(tab).slice(0, 3)).toEqual(doc.split("\n"));
   });
 
-  it("[SR-188/AK3] Insert row and column add empty ones below and right of the caret; Delete removes its row or column", () => {
+  it("[SR-188/AK-fk18] Insert row and column add empty ones below and right of the caret; Delete removes its row or column", () => {
     const [doc, caret] = at("| a | b |\n|---|--:|\n| 1^ | 2 |\n| 3 | 4 |");
     const view = viewOf(doc, caret);
     expect(insertRow(view)).toBe(true);
@@ -173,7 +173,7 @@ describe("tables (SR-188)", () => {
     expect(view.state.sliceDoc(view.state.selection.main.head, view.state.selection.main.head + 1)).toBe("3");
   });
 
-  it("[SR-188/AK4] undo takes each table change back in one step", () => {
+  it("[SR-188/AK-hhdn] undo takes each table change back in one step", () => {
     const view = viewOf(`${TABLE}\n`, 2);
     view.dispatch({ changes: { from: 2, insert: "!" }, userEvent: "input.type" });
     const commands: readonly Command[] = [alignTable, insertRow, insertColumn, deleteColumn];
@@ -257,7 +257,7 @@ describe("tables (SR-188)", () => {
     expect(text(gap)).toBe("| a | b |  |\n|---|---| --- |\n| 1 |");
   });
 
-  it("[SR-188/AK1] Tab goes into the cell a short row lacks, giving it empty cells up to there", () => {
+  it("[SR-188/AK-nnmv] Tab goes into the cell a short row lacks, giving it empty cells up to there", () => {
     const view = viewOf("| a | b | c |\n|---|---|---|\n| 1 |\n| 4 | 5 | 6 |", 28);
     key(view, "Tab");
     expect(text(view)).toBe("| a | b | c |\n|---|---|---|\n| 1 |  |\n| 4 | 5 | 6 |");

@@ -65,7 +65,7 @@ const many = (n: number, status: VerificationStatus): [ElementRecord, Verificati
   Array.from({ length: n }, () => [element(), status]);
 
 describe("degreeOf (SR-037)", () => {
-  it("[SR-037/AK1] 6 verified, 1 failed, 1 outdated and 2 open of 10 requirements give 0.6 and the count per status", () => {
+  it("[SR-037/AK-zxtb] 6 verified, 1 failed, 1 outdated and 2 open of 10 requirements give 0.6 and the count per status", () => {
     const statuses = new Map([
       ...many(6, "verified"),
       ...many(1, "failed"),
@@ -79,7 +79,7 @@ describe("degreeOf (SR-037)", () => {
     });
   });
 
-  it("[SR-037/AK2] indirect requirements count as verified in the share and have a count of their own", () => {
+  it("[SR-037/AK-jrkd] indirect requirements count as verified in the share and have a count of their own", () => {
     const statuses = new Map([...many(2, "verified"), ...many(1, "indirect"), ...many(1, "open")]);
     expect(degreeOf(statusOf(statuses), [...statuses.keys()], CORE)).toEqual({
       share: 0.75,
@@ -88,7 +88,7 @@ describe("degreeOf (SR-037)", () => {
     });
   });
 
-  it("[SR-037/AK3] requirements whose status is marked invalid count neither in the share nor in the counts", () => {
+  it("[SR-037/AK-s607] requirements whose status is marked invalid count neither in the share nor in the counts", () => {
     const valid = new Map([...many(1, "verified"), ...many(1, "open")]);
     // Verified but obsolete, failed but rejected: both marked invalid by the metamodel (D-044).
     const invalid = new Map<ElementRecord, VerificationStatus>([

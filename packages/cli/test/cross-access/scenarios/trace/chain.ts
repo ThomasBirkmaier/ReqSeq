@@ -26,7 +26,7 @@ scenariosOf("trace.chain", [
     name: "up from a component requirement to a requirement without a parent, marked as a gap",
     fixture: ORPHANED_CHAIN,
     input: { ref: "CR-00c003", direction: "up" },
-    tag: "[SR-022/AK5]",
+    tag: "[SR-022/AK-s38c]",
     expect: "output",
     check: (results) => {
       const output = (results["core"]?.outcome as { output: { gaps: { id: string; kind: string }[] } })
@@ -40,7 +40,7 @@ scenariosOf("trace.chain", [
     name: "a requirement that only a variant holds is not in the core's view, no evidence gap (#674)",
     fixture: CHAIN,
     input: { ref: "SR-00b002", view: "core" },
-    tag: "[SR-022/AK3]",
+    tag: "[SR-022/AK-g8js]",
     expect: "output",
     check: (results) => {
       const output = (

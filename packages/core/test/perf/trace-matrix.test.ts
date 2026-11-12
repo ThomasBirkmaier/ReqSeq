@@ -68,7 +68,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
 
   const basis = "SR-125, N-036 (recorded; compare SR-082 AK4, 500 ms)";
 
-  it("[SR-082/AK4] gives the first page of all elements in the app's sort within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the first page of all elements in the app's sort within 500 ms", async () => {
     // The incoming relation index and the short IDs are built once per store, not per call (ADR-0008).
     await matrix({ sort: APP_SORT });
     const { result, measurement } = await measureMedian(
@@ -89,7 +89,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] gives the first page of all system requirements within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the first page of all system requirements within 500 ms", async () => {
     const input = { selection: { where: { type: ["system-requirement"] } }, sort: APP_SORT };
     await matrix(input);
     const { result, measurement } = await measureMedian(
@@ -127,7 +127,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
   });
 
   // Last: it changes the metamodel of the generated workspace and puts it back afterwards.
-  it("[SR-082/AK4] gives the first page of all system requirements with a minimum within 500 ms (SR-153)", async () => {
+  it("[SR-082/AK-h27y] gives the first page of all system requirements with a minimum within 500 ms (SR-153)", async () => {
     const file = fixture?.path("system/metamodel/standard-model.yaml") ?? "";
     const model = await fs.readFile(file, "utf8");
     const kind = "    target-types: [need, use-case, system-requirement]\n    meaning: derivation\n";

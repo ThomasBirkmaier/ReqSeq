@@ -3,7 +3,7 @@
 // relations. The time is the whole process, from spawn to exit: Node start, reading every file, all
 // finding states of stage 1 and the JSON output. Runs with `pnpm test:perf` after `pnpm build`, nightly
 // and on pull requests labelled `perf` (.github/workflows/perf.yml), never in the required test run.
-// The test is tagged `[SR-020/AK1]`, so it asserts its threshold (ADR-0011): a time over 60 s fails it,
+// The test is tagged `[SR-020/AK-srb3]`, so it asserts its threshold (ADR-0011): a time over 60 s fails it,
 // after `measure` has recorded the time for verification/performance.md. The ubuntu-24.04 runner of the
 // perf job has 4 vCPU and 16 GB, the machine of AK1. Exit code and output are asserted too.
 //
@@ -113,7 +113,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     }
   });
 
-  it("[SR-020/AK1] checks the workspace from the command line in at most 60 s", async () => {
+  it("[SR-020/AK-srb3] checks the workspace from the command line in at most 60 s", async () => {
     const root = fixture?.workspaceRoot ?? "";
     // An empty cache folder of its own, so that the ReqSeq cache is cold once the model cache exists
     // (SR-082). The page cache of the operating system is warm: the fixture was just written.
@@ -142,7 +142,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
   }, 600_000);
 
-  it("[SR-020/AK1] checks a workspace in which every relation is outdated in at most 60 s", async () => {
+  it("[SR-020/AK-srb3] checks a workspace in which every relation is outdated in at most 60 s", async () => {
     const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
     const outdated = await writeLargeWorkspace(tree);
     const own = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-020-cache-"));

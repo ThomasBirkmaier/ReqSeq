@@ -282,7 +282,7 @@ const choose = async (asked: Prompt[], name: string): Promise<void> => {
 };
 
 describe("autosave in the element buffer (SR-105)", () => {
-  it("[SR-105/AK1] one second without input writes the text and the changed boxes with one element.update", async () => {
+  it("[SR-105/AK-p4gn] one second without input writes the text and the changed boxes with one element.update", async () => {
     const { updates, echoed, file } = await mountView();
     await typeAt(textView(), " more");
     await settle(400);
@@ -339,7 +339,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(drafts.at(-1)).toBeUndefined();
   });
 
-  it("[SR-105/AK2] an undo while a save runs, back to the text before it, stays in the editors and is saved next", async () => {
+  it("[SR-105/AK-dmrq] an undo while a save runs, back to the text before it, stays in the editors and is saved next", async () => {
     const { updates, call } = await mountView();
     let answer: (() => void) | undefined;
     const real = call.getMockImplementation();
@@ -377,7 +377,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     ]);
   });
 
-  it("[SR-105/AK5] a failed save says why once and leaves not saved with the reason in the modeline; the next input tries again, no loop", async () => {
+  it("[SR-105/AK-phcy] a failed save says why once and leaves not saved with the reason in the modeline; the next input tries again, no loop", async () => {
     const { updates, echoed, data, file } = await mountView();
     file.refuse = new Error("effort must be a number");
     await typeAt(textView(), "!");
@@ -409,7 +409,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(echoed).toEqual([`Saved ${NAME}. topic: the value is unusual`]);
   });
 
-  it("[SR-024/AK2] says the number of directly affected elements after a save: once while it stays the same, and on Ctrl+S", async () => {
+  it("[SR-024/AK-mf7x] says the number of directly affected elements after a save: once while it stays the same, and on Ctrl+S", async () => {
     const { echoed, file, controls } = await mountView();
     file.affected = 2;
     await typeAt(textView(), "!");
@@ -449,7 +449,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(updates()).toEqual([{ ref: "uuid-1", text: "first日", expectedFileSha256: "sha-0" }]);
   });
 
-  it("[SR-105/AK1] a prompt that opens saves the input at once (binding review point 6)", async () => {
+  it("[SR-105/AK-p4gn] a prompt that opens saves the input at once (binding review point 6)", async () => {
     const { updates, controls } = await mountView();
     await typeAt(textView(), "!");
     await act(async () => {
@@ -465,7 +465,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(updates()).toHaveLength(1);
   });
 
-  it("[SR-105/AK1] closing saves at once (flush): true when nothing is left unsaved", async () => {
+  it("[SR-105/AK-p4gn] closing saves at once (flush): true when nothing is left unsaved", async () => {
     const { updates, controls, file } = await mountView();
     await typeAt(textView(), "!");
     let flushed: boolean | undefined;
@@ -482,7 +482,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(flushed).toBe(false);
   });
 
-  it("[SR-105/AK1] a flush says input is left when keys were typed while its save ran, and the draft keeps them (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
+  it("[SR-105/AK-p4gn] a flush says input is left when keys were typed while its save ran, and the draft keeps them (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
     const { updates, controls, call, drafts } = await mountView();
     let answer: (() => void) | undefined;
     const real = call.getMockImplementation();
@@ -523,7 +523,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(updates().at(-1)).toEqual({ ref: "uuid-1", text: "first!?", expectedFileSha256: "sha-1" });
   });
 
-  it("[SR-106/AK2] a conflict stops autosave: nothing is written until the user chose", async () => {
+  it("[SR-106/AK-ydc8] a conflict stops autosave: nothing is written until the user chose", async () => {
     const { updates, file, reload, echoed, controls } = await mountView();
     await typeAt(textView(), "!");
     file.text = "theirs";
@@ -542,7 +542,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(updates()).toEqual([]);
   });
 
-  it("[SR-106/AK3] a deleted file stops autosave; while the buffer asks again, Ctrl+S says why it writes nothing", async () => {
+  it("[SR-106/AK-v420] a deleted file stops autosave; while the buffer asks again, Ctrl+S says why it writes nothing", async () => {
     const { updates, file, reload, echoed, controls } = await mountView();
     await typeAt(textView(), "!");
     file.gone = true;
@@ -639,7 +639,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(updates()).toEqual([]);
   });
 
-  it("[SR-105/AK2] Ctrl/Cmd+Z after an autosave restores the text before it, and autosave writes that", async () => {
+  it("[SR-105/AK-dmrq] Ctrl/Cmd+Z after an autosave restores the text before it, and autosave writes that", async () => {
     const { file } = await mountView();
     await typeAt(textView(), " more");
     await settle(AUTOSAVE_MS);
@@ -659,7 +659,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(file.text).toBe("first more");
   });
 
-  it("[SR-105/AK2] Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on a choice step through its values since the buffer was opened", async () => {
+  it("[SR-105/AK-dmrq] Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on a choice step through its values since the buffer was opened", async () => {
     const { file, asked } = await mountView();
     const area = query('[data-field="area"]');
     await act(async () => {
@@ -684,7 +684,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(area.textContent).toContain("interface");
   });
 
-  it('[SR-106/AK2] "Take the file" on a choice is a change Ctrl/Cmd+Z takes back', async () => {
+  it('[SR-106/AK-ydc8] "Take the file" on a choice is a change Ctrl/Cmd+Z takes back', async () => {
     const { file, asked, reload, controls } = await mountView();
     const area = query('[data-field="area"]');
     await act(async () => {
@@ -756,7 +756,7 @@ describe("the buffer and what the app keeps of it (SR-105)", () => {
     return { keep, left, changes, memory };
   };
 
-  it("[SR-105/AK2] a buffer shown again starts from the undo history its editors had", async () => {
+  it("[SR-105/AK-dmrq] a buffer shown again starts from the undo history its editors had", async () => {
     const kept = keepOf();
     const first = await mountView({ keep: kept.keep });
     await typeAt(textView(), " more");
@@ -778,7 +778,7 @@ describe("the buffer and what the app keeps of it (SR-105)", () => {
     expect(textView().state.doc.toString()).toBe("first\n");
   });
 
-  it("[SR-105/AK1] a save that answers after the buffer was left says whether its kept draft still holds input (ThomasBirkmaier/ReqSeq-archive#604 review)", async () => {
+  it("[SR-105/AK-p4gn] a save that answers after the buffer was left says whether its kept draft still holds input (ThomasBirkmaier/ReqSeq-archive#604 review)", async () => {
     // The app's draft of the buffer, which the answer rebases (`keep.update`).
     const flushLeft = async (
       kept: Draft,

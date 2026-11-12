@@ -77,7 +77,7 @@ const textOf = async (fixture: FixtureWorkspace, file: string): Promise<string> 
 const stem = (file: string): string => path.posix.basename(file, ".md");
 
 describe("reqif.import of XHTML as Markdown (SR-095)", () => {
-  it("[SR-095/AK1] writes headings, nested lists, a simple table and emphasis as Markdown into the element file; a table Markdown cannot hold is simplified or listed as a loss", async () => {
+  it("[SR-095/AK-c4pp] writes headings, nested lists, a simple table and emphasis as Markdown into the element file; a table Markdown cannot hold is simplified or listed as a loss", async () => {
     const { fixture, workspace } = await open(
       delivery([
         {
@@ -149,7 +149,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
     ]);
   });
 
-  it("[SR-095/AK2] copies each embedded image next to the element like a pasted image and links the text to it; an image not copied is a loss and keeps only its alt text", async () => {
+  it("[SR-095/AK-tvd2] copies each embedded image next to the element like a pasted image and links the text to it; an image not copied is a loss and keeps only its alt text", async () => {
     const { fixture, workspace } = await open(
       delivery([
         {
@@ -217,7 +217,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
     await expect(fs.stat(fixture.path(`Kunde-A/${stem(out.files[1] ?? "")}`))).rejects.toThrow();
   });
 
-  it("[SR-095/AK2] keeps no link for an image outside the folder of the ReqIF file, even when the link would reach a file of the repository, so the import version is the element's version", async () => {
+  it("[SR-095/AK-tvd2] keeps no link for an image outside the folder of the ReqIF file, even when the link would reach a file of the repository, so the import version is the element's version", async () => {
     const { fixture, workspace } = await open(
       delivery([
         {
@@ -239,7 +239,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
     expect(got.element.properties["import-version"]).toBe(got.element.version);
   });
 
-  it("[SR-095/AK3] lists an XHTML element without Markdown form, such as a colour in style, as a loss and keeps its text", async () => {
+  it("[SR-095/AK-xzp8] lists an XHTML element without Markdown form, such as a colour in style, as a loss and keeps its text", async () => {
     const { fixture, workspace } = await open(
       delivery([
         {

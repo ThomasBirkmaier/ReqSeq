@@ -21,7 +21,7 @@ acceptance-criteria:
 
 API and MCP give them as `criterionReferences`.
 
-For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**. A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
+For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**. A reference by number, `[SR-036/AK-xbxh]`, is refused, since a number points at another criterion once criteria move.
 
 ## App
 

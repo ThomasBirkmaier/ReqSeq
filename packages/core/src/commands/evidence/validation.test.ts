@@ -70,7 +70,7 @@ const FROM_FILES: Record<string, readonly unknown[]> = {
 };
 
 describe("validation status in element.get, element.resolve, evidence.status and the filter (SR-038)", () => {
-  it("[SR-038/AK1] element.get shows the validation status of a need with a validation of the current version, apart from the verification status", async () => {
+  it("[SR-038/AK-w0j6] element.get shows the validation status of a need with a validation of the current version, apart from the verification status", async () => {
     const ws = await open();
     const need = (await get(ws, N1)).element;
     // N1 also has a failed verification record: a need has no verification status (D-012).
@@ -79,7 +79,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect([requirement.validation, requirement.verification]).toEqual(["validated", core("failed")]);
   });
 
-  it("[SR-038/AK1] element.resolve shows the validation status as element.get does", async () => {
+  it("[SR-038/AK-w0j6] element.resolve shows the validation status as element.get does", async () => {
     const ws = await open();
     const out = (await invoke(
       "element.resolve",
@@ -95,13 +95,13 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect([s1.element.validation, s1.element.verification]).toEqual(["validated", core("failed")]);
   });
 
-  it("[SR-038/AK2] element.get gives outdated for a need validated on an older version", async () => {
+  it("[SR-038/AK-g54k] element.get gives outdated for a need validated on an older version", async () => {
     const out = (await get(await open(), N3)).element;
     expect(out.validation).toBe("outdated");
     expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
   });
 
-  it("[SR-038/AK2] a validated need becomes outdated when its file changes", async () => {
+  it("[SR-038/AK-g54k] a validated need becomes outdated when its file changes", async () => {
     const ws = await open();
     expect((await get(ws, N1)).element.validation).toBe("validated");
     await invoke(
@@ -113,13 +113,13 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect(await where(ws, { validation: ["outdated"] })).toEqual([N1, N3]);
   });
 
-  it("[SR-038/AK3] evidence.status gives open, validated, failed and outdated by the newest record of the current version", async () => {
+  it("[SR-038/AK-wb3p] evidence.status gives open, validated, failed and outdated by the newest record of the current version", async () => {
     const out = await status(await open());
     expect(statuses(out.elements)).toEqual(FROM_FILES);
     expect(out.total).toBe(9);
   });
 
-  it("[SR-038/AK3] the filter condition validation finds the elements by their computed status", async () => {
+  it("[SR-038/AK-wb3p] the filter condition validation finds the elements by their computed status", async () => {
     const ws = await open();
     expect(await where(ws, { validation: ["validated"] })).toEqual([N1, N6, S1]);
     expect(await where(ws, { validation: ["failed"] })).toEqual([N2, N5]);
@@ -151,7 +151,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
     });
   });
 
-  it("[SR-038/AK4] a validation record with a variant is refused when read, names the reason and counts for no status", async () => {
+  it("[SR-038/AK-zv5h] a validation record with a variant is refused when read, names the reason and counts for no status", async () => {
     const plain = await open();
     const current = String((await get(plain, N4)).element.version);
     const record = (version: string): string =>
@@ -245,7 +245,7 @@ describe("an inconclusive validation (SR-172) on fixtures/SR-172/inconclusive", 
   const INCONCLUSIVE: FixtureOptions = { fixture: "SR-172/inconclusive" };
   const FROST = "The frost sensor was replaced; the field test starts again.";
 
-  it("[SR-038/AK3] [SR-172/AK2] element.get shows the status inconclusive and the reason of the newest record of the current version", async () => {
+  it("[SR-038/AK-wb3p] [SR-172/AK-j3vg] element.get shows the status inconclusive and the reason of the newest record of the current version", async () => {
     const ws = await open(INCONCLUSIVE);
     expect((await get(ws, "N-00a003")).element).toMatchObject({
       validation: "inconclusive",
@@ -255,7 +255,7 @@ describe("an inconclusive validation (SR-172) on fixtures/SR-172/inconclusive", 
     expect([rain.validation, rain.validationReason]).toEqual(["validated", undefined]);
   });
 
-  it("[SR-172/AK1] a hand-written inconclusive record without reason is refused when read and counts for no status", async () => {
+  it("[SR-172/AK-gy05] a hand-written inconclusive record without reason is refused when read and counts for no status", async () => {
     const ws = await open(INCONCLUSIVE);
     expect((await get(ws, "N-00a005")).element.validation).toBe("open");
     const checked = (await invoke(

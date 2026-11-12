@@ -63,7 +63,7 @@ const read = (opened: Opened, file: string): Promise<string> =>
   fs.readFile(opened.fixture.path(file), "utf8");
 
 describe("a variant as an element (SR-039)", () => {
-  it("[SR-039/AK1] element.create of type variant writes a variant file in the workspace of the core", async () => {
+  it("[SR-039/AK-w7mx] element.create of type variant writes a variant file in the workspace of the core", async () => {
     const opened = await open({ fixture: "SR-040/validity", git: true });
     const head = await opened.fixture.head();
     const out = await run(opened, "element.create", { type: "variant", title: "Valley" });
@@ -79,7 +79,7 @@ describe("a variant as an element (SR-039)", () => {
     expect((await opened.fixture.git(["branch", "--list"])).trim()).toBe("* main");
   });
 
-  it("[SR-039/AK2] element.create, update and bulkUpdate refuse a variant whose validity names a variant, naming the reason; a relation between variants is allowed", async () => {
+  it("[SR-039/AK-nvfq] element.create, update and bulkUpdate refuse a variant whose validity names a variant, naming the reason; a relation between variants is allowed", async () => {
     const opened = await nested();
     const before = await Promise.all([FILE_B, FILE_C].map((f) => read(opened, f)));
     const refused = (message: string, command: CommandName, elements: readonly string[]): unknown => ({
@@ -155,7 +155,7 @@ describe("a variant as an element (SR-039)", () => {
     expect([fixed.files, fixed.element.relations.map((r) => r.kind)]).toEqual([[FILE_B], ["relates-to"]]);
   });
 
-  it("[SR-039/AK2] in the standard model a variant has no validity, so the case does not arise", async () => {
+  it("[SR-039/AK-nvfq] in the standard model a variant has no validity, so the case does not arise", async () => {
     // A validity key written by hand on a variant is an unknown property there (SR-016): kept, not refused.
     const opened = await open({
       fixture: "SR-040/validity",
@@ -183,7 +183,7 @@ describe("a variant as an element (SR-039)", () => {
     expect([out.count, out.skipped.length, out.problems]).toEqual([0, 3, []]);
   });
 
-  it("[SR-039/AK3] workspace.check and hint.list report a hand-written validity of a variant at its line", async () => {
+  it("[SR-039/AK-jfrf] workspace.check and hint.list report a hand-written validity of a variant at its line", async () => {
     const opened = await nested({
       // An entry whose target is no element of the workspace, and one that names none.
       "variants/VAR-0000000000d4.md": `---\nid: 39039039-0000-4000-8000-0000000000d4\ntype: variant\nstatus: draft\ntitle: Desert\nvalidity:\n  - { id: 39039039-0000-4000-8000-0000000000ff }\n  - Coast\n---\n`,

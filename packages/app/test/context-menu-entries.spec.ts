@@ -152,7 +152,7 @@ test.describe("the context menu of an element as an entry", () => {
     await running.close();
   });
 
-  test("[SR-197/AK1] a list row, a search hit, a graph node, a package entry and the matrix's heads and connected elements have the same entries for that element", async () => {
+  test("[SR-197/AK-w7yx] a list row, a search hit, a graph node, a package entry and the matrix's heads and connected elements have the same entries for that element", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     // A row of a list; its commands act on it: "Show graph" shows its graph.
@@ -219,7 +219,7 @@ test.describe("the context menu of an element as an entry", () => {
     expect(graphId).not.toBe(rowId);
   });
 
-  test("[SR-197/AK1] a row of the overview and of the neighbourhood have the same entries for that element", async () => {
+  test("[SR-197/AK-w7yx] a row of the overview and of the neighbourhood have the same entries for that element", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -239,7 +239,7 @@ test.describe("the context menu of an element as an entry", () => {
     await expect(window.locator("article h1").first()).toHaveText("See the wind");
   });
 
-  test("[SR-197/AK3] [SR-197/AK4] a connected element in a group of relations or a relation box has the field's menu; a result row and a parent title have the buffer's", async () => {
+  test("[SR-197/AK-frfw] [SR-197/AK-tzn9] a connected element in a group of relations or a relation box has the field's menu; a result row and a parent title have the buffer's", async () => {
     running = await launchApp(WITH_LINKS);
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -286,7 +286,7 @@ test.describe("the context menu of an element as an entry", () => {
     expect(names).not.toContain("Copy field");
   });
 
-  test("[SR-197/AK2] in a split window, Show element opens the element in the area of the entry, as Enter on it does", async () => {
+  test("[SR-197/AK-pz85] in a split window, Show element opens the element in the area of the entry, as Enter on it does", async () => {
     /** The list of all elements in the inactive area of a split window, the overview in the active one. */
     const splitWithList = async (window: Page): Promise<Locator> => {
       await listAll(window);

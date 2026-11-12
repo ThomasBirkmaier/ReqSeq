@@ -56,7 +56,7 @@ test.describe("formatting the selection in the element buffer", () => {
     );
   };
 
-  test("[SR-186/AK2] Ctrl/Cmd+B and Ctrl/Cmd+I format the selection in the text, and one undo takes it back", async () => {
+  test("[SR-186/AK-ykwj] Ctrl/Cmd+B and Ctrl/Cmd+I format the selection in the text, and one undo takes it back", async () => {
     const { window } = running;
     await window.keyboard.type("Wind ");
     await selectBack(window, 5);
@@ -73,7 +73,7 @@ test.describe("formatting the selection in the element buffer", () => {
     await expectSaved("**Wind** \n");
   });
 
-  test("[SR-186/AK1] Bold from the command prompt formats the selection the text had, and the text keeps the focus", async () => {
+  test("[SR-186/AK-vzm9] Bold from the command prompt formats the selection the text had, and the text keeps the focus", async () => {
     const { window } = running;
     await window.keyboard.type("Böe");
     await selectBack(window, 3);
@@ -83,7 +83,7 @@ test.describe("formatting the selection in the element buffer", () => {
     await expectSaved("**Sturm**\n");
   });
 
-  test("[SR-186/AK5] Link asks for the address and writes the selection as a link to it", async () => {
+  test("[SR-186/AK-gbzd] Link asks for the address and writes the selection as a link to it", async () => {
     const { window } = running;
     await window.keyboard.type("die Norm");
     await selectBack(window, 4);

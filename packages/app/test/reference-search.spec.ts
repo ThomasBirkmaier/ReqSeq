@@ -82,7 +82,7 @@ test.describe("the [[ search in the element buffer", () => {
     await running.close();
   });
 
-  test("[SR-066/AK1] [[ in the text opens Insert reference; a title word and a short ID both find the element", async () => {
+  test("[SR-066/AK-v40r] [[ in the text opens Insert reference; a title word and a short ID both find the element", async () => {
     const { window } = running;
     await window.keyboard.type("[[");
     await expect(prompt(window)).toBeVisible();
@@ -102,7 +102,7 @@ test.describe("the [[ search in the element buffer", () => {
     await expect(lastLine(window)).toHaveText("[[");
   });
 
-  test("[SR-066/AK2] the saved file holds [Title](reqseq:<uuid>?version=n2:…) where [[ was typed, and the editor shows the title", async () => {
+  test("[SR-066/AK-qdkx] the saved file holds [Title](reqseq:<uuid>?version=n2:…) where [[ was typed, and the editor shows the title", async () => {
     const { window } = running;
     await window.keyboard.type("Siehe ");
     const file = await insertAndSave(
@@ -133,7 +133,7 @@ test.describe("the [[ search with a second repository", () => {
     await running.close();
   });
 
-  test("[SR-005/AK3] [SR-066/AK2] a local target in another repository is saved with its short ID and shown with its title", async () => {
+  test("[SR-005/AK-spnq] [SR-066/AK-qdkx] a local target in another repository is saved with its short ID and shown with its title", async () => {
     const { window } = running;
     const file = await insertAndSave(
       running,

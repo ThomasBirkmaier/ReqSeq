@@ -111,12 +111,12 @@ const changedLines = (before: string, after: string): { removed: string[]; added
 };
 
 describe("unknown properties and types (SR-016)", () => {
-  it("[SR-016/AK1] gives a hint with the key for every property the type of the element does not know", async () => {
+  it("[SR-016/AK-nr6q] gives a hint with the key for every property the type of the element does not know", async () => {
     const { workspace } = await open();
     expect(await workspace.get(unknownProblemsState)).toEqual([...GUSTS_PROBLEMS, ...GADGET_PROBLEMS]);
   });
 
-  it("[SR-016/AK1] gives the line of the key, also for a nested value, and none for a key written as an alias", async () => {
+  it("[SR-016/AK-nr6q] gives the line of the key, also for a nested value, and none for a key written as an alias", async () => {
     const { ws, workspace } = await open({
       [GUSTS_FILE]: `---\nid: ${GUSTS}\ntype: system-requirement\nstatus: draft\nname: &k remark\n*k : x\nlegacy:\n  source: DOORS\n---\n`,
       "notes/list.md": "---\n- a\n---\n",
@@ -133,7 +133,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(keyLineOf((read as { file: ParsedFile }).file, "a")).toBeUndefined();
   });
 
-  it("[SR-016/AK1] does not report a property the type inherits from its parent", async () => {
+  it("[SR-016/AK-nr6q] does not report a property the type inherits from its parent", async () => {
     const id = "9d1c2b3a-4e5f-4a6b-8c7d-0e1f2a3b4c5d";
     const { workspace } = await open({
       "requirements/SAF-0e1f2a3b4c5d.md": `---\nid: ${id}\ntype: safety-requirement\nstatus: draft\ntitle: Stop at storm\npriority: high\nweight: 2\n---\n`,
@@ -142,7 +142,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(unknownFindings(recordOf(store, id), metamodel)).toEqual([]);
   });
 
-  it("[SR-016/AK1] checks again after the metamodel is read again", async () => {
+  it("[SR-016/AK-nr6q] checks again after the metamodel is read again", async () => {
     const { ws, workspace } = await open();
     expect(await workspace.get(unknownProblemsState)).toHaveLength(6);
     const model = await fs.readFile(ws.path("metamodel/model.yaml"), "utf8");
@@ -159,7 +159,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(problems).toHaveLength(5);
   });
 
-  it("[SR-016/AK1] gives no hint for structural keys, known properties and relation kinds", async () => {
+  it("[SR-016/AK-nr6q] gives no hint for structural keys, known properties and relation kinds", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     // The clean element has a title, a choice property and a relation kind.
@@ -179,7 +179,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(found).toContainEqual(["Customer ID", undefined]);
   });
 
-  it("[SR-016/AK1] gives the findings of one element without lines, for a command about that element", async () => {
+  it("[SR-016/AK-nr6q] gives the findings of one element without lines, for a command about that element", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     const element = recordOf(store, GUSTS);
@@ -189,7 +189,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(allUnknownFindings(store, metamodel)).toHaveLength(6);
   });
 
-  it("[SR-016/AK1] leaves out the line when the file changed since it was read", async () => {
+  it("[SR-016/AK-nr6q] leaves out the line when the file changed since it was read", async () => {
     const { ws, workspace } = await open();
     await workspace.get(elementStoreState);
     await ws.write(GADGET_FILE, `---\nid: ${GADGET}\ntype: system-requirement\nstatus: draft\n---\n`);
@@ -201,7 +201,7 @@ describe("unknown properties and types (SR-016)", () => {
     ]);
   });
 
-  it("[SR-016/AK1] checks again after the element store is read again", async () => {
+  it("[SR-016/AK-nr6q] checks again after the element store is read again", async () => {
     const { ws, workspace } = await open();
     expect(await workspace.get(unknownProblemsState)).toHaveLength(6);
     await ws.write(GADGET_FILE, `---\nid: ${GADGET}\ntype: system-requirement\nstatus: draft\n---\n`);
@@ -210,7 +210,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(await workspace.get(unknownProblemsState)).toEqual(GUSTS_PROBLEMS);
   });
 
-  it("[SR-016/AK2] keeps unknown properties with their values unchanged when the element is edited and saved", async () => {
+  it("[SR-016/AK-z5p6] keeps unknown properties with their values unchanged when the element is edited and saved", async () => {
     const { ws, workspace } = await open();
     const before = await fs.readFile(ws.path(GUSTS_FILE), "utf8");
     const out = await update(workspace, { ref: GUSTS, title: "Show gusts above 10 m/s" });
@@ -251,7 +251,7 @@ describe("unknown properties and types (SR-016)", () => {
     ]);
   });
 
-  it("[SR-016/AK2] keeps unknown properties when a known property and the text change", async () => {
+  it("[SR-016/AK-z5p6] keeps unknown properties when a known property and the text change", async () => {
     const { ws, workspace } = await open();
     await update(workspace, { ref: GUSTS, set: { priority: "high" }, text: "New text.\n" });
     const after = await fs.readFile(ws.path(GUSTS_FILE), "utf8");
@@ -277,7 +277,7 @@ describe("unknown properties and types (SR-016)", () => {
     );
   });
 
-  it("[SR-016/AK3] shows an element of an unknown type with a hint", async () => {
+  it("[SR-016/AK-k7rx] shows an element of an unknown type with a hint", async () => {
     const { ws, workspace } = await open();
     const { store, metamodel } = await loaded(workspace);
     const record = recordOf(store, GADGET);
@@ -302,7 +302,7 @@ describe("unknown properties and types (SR-016)", () => {
     expect(view.problems).toEqual(GADGET_PROBLEMS);
   });
 
-  it("[SR-016/AK3] only reads an element of an unknown type: element.update is refused and the file stays", async () => {
+  it("[SR-016/AK-k7rx] only reads an element of an unknown type: element.update is refused and the file stays", async () => {
     const { ws, workspace } = await open();
     const before = await fs.readFile(ws.path(GADGET_FILE), "utf8");
     const error = await update(workspace, { ref: GADGET, title: "Weather vane" }).then(

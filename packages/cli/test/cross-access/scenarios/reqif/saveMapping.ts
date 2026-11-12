@@ -3,7 +3,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("reqif.saveMapping", [
   {
-    tag: "[SR-054/AK1]",
+    tag: "[SR-054/AK-yc8n]",
     name: "the mapping of a source as a YAML file in the folder reqif of the main repository",
     input: {
       mapping: {
@@ -20,7 +20,7 @@ scenariosOf("reqif.saveMapping", [
     expect: "output",
   },
   {
-    tag: "[SR-054/AK1]",
+    tag: "[SR-054/AK-yc8n]",
     name: "a mapping file outside the folder reqif",
     input: {
       file: "requirements/kunde-a.yaml",

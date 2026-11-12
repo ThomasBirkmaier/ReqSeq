@@ -283,7 +283,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     ...more,
   });
 
-  it("[SR-038/AK3] a need without validation record is open, a requirement with a validation record has its status", async () => {
+  it("[SR-038/AK-wb3p] a need without validation record is open, a requirement with a validation record has its status", async () => {
     const [need, requirement, useCase] = [element({}, "need"), element(), element({}, "use-case")];
     const status = workspaceStatusOf(
       sourceOf([validation(requirement), validation(useCase, { result: "failed" })]),

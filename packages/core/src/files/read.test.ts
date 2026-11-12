@@ -137,7 +137,7 @@ describe("readElementFile", () => {
 });
 
 describe("SR-008 AK1: faulty YAML frontmatter is reported with file, line and reason", () => {
-  it("[SR-008/AK1] reports bad indentation with the line in the file", async () => {
+  it("[SR-008/AK-kj61] reports bad indentation with the line in the file", async () => {
     await put("req/bad.md", "---\nid: a\ntags: [x, y\ntitle: t\n---\nText\n");
     const p = problemOf(await readElementFile(root, "req/bad.md"));
     expect(p.code).toBe("file.invalid-yaml");
@@ -148,35 +148,35 @@ describe("SR-008 AK1: faulty YAML frontmatter is reported with file, line and re
     expect(p.message).toMatch(/indented/);
   });
 
-  it("[SR-008/AK1] reports a duplicate key", async () => {
+  it("[SR-008/AK-kj61] reports a duplicate key", async () => {
     await put("a.md", "---\nid: a\ntype: x\nid: b\n---\n");
     const p = problemOf(await readElementFile(root, "a.md"));
     expect(p).toMatchObject({ code: "file.invalid-yaml", file: "a.md", line: 4 });
     expect(p.message).toMatch(/unique/);
   });
 
-  it("[SR-008/AK1] reports a missing closing quote", async () => {
+  it("[SR-008/AK-kj61] reports a missing closing quote", async () => {
     await put("a.md", '---\nid: a\ntitle: "open\n---\nText\n');
     const p = problemOf(await readElementFile(root, "a.md"));
     expect(p).toMatchObject({ code: "file.invalid-yaml", file: "a.md", line: 3 });
     expect(p.message).toMatch(/quote/);
   });
 
-  it("[SR-008/AK1] reports an unresolved alias at its line", async () => {
+  it("[SR-008/AK-kj61] reports an unresolved alias at its line", async () => {
     await put("a.md", "---\nid: a\ntitle: *missing\n---\n");
     const p = problemOf(await readElementFile(root, "a.md"));
     expect(p).toMatchObject({ code: "file.invalid-yaml", file: "a.md", line: 3 });
     expect(p.message).toMatch(/alias/i);
   });
 
-  it("[SR-008/AK1] reports a frontmatter without closing line at line 1", async () => {
+  it("[SR-008/AK-kj61] reports a frontmatter without closing line at line 1", async () => {
     await put("a.md", "---\nid: a\ntype: x\n\nText\n");
     const p = problemOf(await readElementFile(root, "a.md"));
     expect(p).toMatchObject({ code: "file.invalid-yaml", file: "a.md", line: 1 });
     expect(p.message).toMatch(/closing ---/);
   });
 
-  it("[SR-008/AK1] counts lines correctly in CRLF files and after a byte order mark", async () => {
+  it("[SR-008/AK-kj61] counts lines correctly in CRLF files and after a byte order mark", async () => {
     await put("a.md", "\uFEFF---\r\nid: a\r\nid: b\r\n---\r\n");
     expect(problemOf(await readElementFile(root, "a.md"))).toMatchObject({
       code: "file.invalid-yaml",
@@ -189,7 +189,7 @@ describe("SR-008 AK2: files with Git conflict markers are reported as unresolved
   const conflicted =
     "---\nid: a\n<<<<<<< HEAD\ntitle: ours\n=======\ntitle: theirs\n>>>>>>> feature\n---\nText\n";
 
-  it("[SR-008/AK2] reports conflict markers in the frontmatter", async () => {
+  it("[SR-008/AK-hw12] reports conflict markers in the frontmatter", async () => {
     await put("req/c.md", conflicted);
     const p = problemOf(await readElementFile(root, "req/c.md"));
     expect(p.code).toBe("file.conflict-markers");
@@ -199,7 +199,7 @@ describe("SR-008 AK2: files with Git conflict markers are reported as unresolved
     expect(p.message).toMatch(/unresolved Git merge conflict/);
   });
 
-  it("[SR-008/AK2] reports conflict markers in the text even when the YAML is valid", async () => {
+  it("[SR-008/AK-hw12] reports conflict markers in the text even when the YAML is valid", async () => {
     await put("a.md", "---\nid: a\n---\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> 1a2b3c\n");
     expect(problemOf(await readElementFile(root, "a.md"))).toMatchObject({
       code: "file.conflict-markers",
@@ -207,7 +207,7 @@ describe("SR-008 AK2: files with Git conflict markers are reported as unresolved
     });
   });
 
-  it("[SR-008/AK2] reports conflicts instead of YAML errors and in files without frontmatter", async () => {
+  it("[SR-008/AK-hw12] reports conflicts instead of YAML errors and in files without frontmatter", async () => {
     await put("a.md", "<<<<<<< HEAD\n---\nid: a\n=======\n>>>>>>> x\n");
     expect(problemOf(await readElementFile(root, "a.md"))).toMatchObject({
       code: "file.conflict-markers",
@@ -215,14 +215,14 @@ describe("SR-008 AK2: files with Git conflict markers are reported as unresolved
     });
   });
 
-  it("[SR-008/AK2] does not treat a setext heading underline as a conflict", async () => {
+  it("[SR-008/AK-hw12] does not treat a setext heading underline as a conflict", async () => {
     await put("a.md", "---\nid: a\n---\nHeading\n=======\n\n>>>>>>> deep quote\n");
     expect((await readElementFile(root, "a.md")).kind).toBe("parsed");
   });
 });
 
 describe("SR-008 AK3: other elements keep working, the faulty file is never written", () => {
-  it("[SR-008/AK3] reads all good files normally when some files are faulty", async () => {
+  it("[SR-008/AK-kdrw] reads all good files normally when some files are faulty", async () => {
     await put("a.md", good("a"));
     await put("b.md", "---\nid: b\n  type: [\n---\n");
     await put("c.md", good("c"));
@@ -247,7 +247,7 @@ describe("SR-008 AK3: other elements keep working, the faulty file is never writ
     ]);
   });
 
-  it("[SR-008/AK3] reading never changes a faulty file", async () => {
+  it("[SR-008/AK-kdrw] reading never changes a faulty file", async () => {
     const content = "---\nid: a\n  bad: [\n---\n";
     await put("a.md", content);
     const before = await fs.stat(path.join(root, "a.md"));
@@ -258,7 +258,7 @@ describe("SR-008 AK3: other elements keep working, the faulty file is never writ
     expect(await fs.readdir(root)).toEqual(["a.md"]);
   });
 
-  it("[SR-008/AK3] a faulty file yields no snapshot to write with", async () => {
+  it("[SR-008/AK-kdrw] a faulty file yields no snapshot to write with", async () => {
     await put("a.md", "---\nid: a\nid: b\n---\n");
     const r = await readElementFile(root, "a.md");
     expect(r.kind).toBe("problem");

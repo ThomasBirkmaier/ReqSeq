@@ -33,7 +33,7 @@ test.describe("path completion in a folder of 10,000 entries (SR-143)", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  test("[SR-143/AK5] in a folder of 10,000 entries the suggestions are updated within 100 ms of a key", async () => {
+  test("[SR-143/AK-rqjp] in a folder of 10,000 entries the suggestions are updated within 100 ms of a key", async () => {
     await makeTenThousand(dir);
     const times = await typeThroughTenThousand(running.window, dir);
     const recorded: PerfMeasurement[] = [
