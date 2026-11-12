@@ -1,7 +1,7 @@
 // The hint list in the result buffer of "List hints" (SR-026 AK4, AK5; `hint-list.ts` lays it out): the
 // count of all hints that pass the filters, then one group per kind with its count, all open when the list
-// opens. A click on a heading, or Tab or Enter on it (SR-193 AK1), folds and unfolds the group; Right opens
-// and Left closes it, Left on a hint closes its group (SR-193 AK2). Up and Down, Ctrl+N and Ctrl+P move
+// opens. A click on a heading, or Tab on it (SR-193 AK1) and Enter or Space as on every fold head, folds and
+// unfolds the group; Right opens and Left closes it (SR-193 AK2), and Left on a hint closes its group. Up and Down, Ctrl+N and Ctrl+P move
 // the mark over headings and hints (SR-122 AK4); Enter or a click on a hint opens its element. The full
 // message is the tooltip of a hint and, for the marked hint, part of the modeline. A variant an outdated
 // evidence record names by its UUID is named as the view prompt names it (`views.ts`).
@@ -26,7 +26,10 @@ export interface HintListViewProps {
   readonly onData: (key: string, data: BufferData | undefined) => void;
 }
 
-/** The variants by UUID, each named by its short ID and identifier; empty until they are read. */
+/**
+ * The variants by UUID, each named by its short ID and identifier; empty until they are read, and read
+ * again with each new output, so a variant added or renamed since is named too.
+ */
 const useVariantNames = (call: Call, output: HintListOutput): ReadonlyMap<string, string> => {
   const [names, setNames] = useState<ReadonlyMap<string, string>>(new Map());
   const wanted = variantViews(output).length > 0;
@@ -49,7 +52,7 @@ const useVariantNames = (call: Call, output: HintListOutput): ReadonlyMap<string
     return () => {
       live = false;
     };
-  }, [call, wanted]);
+  }, [call, output, wanted]);
   return names;
 };
 
@@ -115,11 +118,20 @@ export const HintListView = ({
       return;
     }
     // Ctrl+P while no row is marked stays the window's "Go to", as in the other lists (SR-122).
+    if (rows.length === 0) {
+      return;
+    }
     const to = rowTarget(event, cursor, rows.length);
     if (to !== undefined) {
       event.preventDefault();
       mark(Math.max(0, Math.min(rows.length - 1, to)));
-    } else if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    } else if (
+      event.key === "Enter" &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      !event.shiftKey
+    ) {
       event.preventDefault();
       // With no row marked, Enter acts on the first one and marks it.
       choose(Math.max(0, cursor));

@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { HintListOutput } from "@reqseq/core";
 import { act, createElement, useReducer } from "react";
 import type { Root } from "react-dom/client";
@@ -89,6 +91,23 @@ const OUTPUT: HintListOutput = {
 };
 
 describe("hint list layout", () => {
+  it("heads every kind the hint list of core gives with a label of its own", async () => {
+    // The codes of `CHECK_ORDER` and of `SINCE_BASELINE_CODES` in core, read from its source.
+    const source = await readFile(join(import.meta.dirname, "../../../core/src/hints/list.ts"), "utf8");
+    const order = source.slice(
+      source.indexOf("const CHECK_ORDER"),
+      source.indexOf("];", source.indexOf("const CHECK_ORDER")),
+    );
+    const codes = [...order.matchAll(/"([a-z]+\.[a-z-]+)"/gu)].map((match) => match[1] ?? "");
+    expect(codes.length).toBeGreaterThan(20);
+    const unlabelled = [
+      ...codes,
+      "variant.core-changed-since-baseline",
+      "variant.core-new-since-baseline",
+    ].filter((code) => kindLabel(code) === code);
+    expect(unlabelled).toEqual([]);
+  });
+
   it("[SR-026/AK-s2vt] builds the reason from the fields: relation kind and target, count and limit, the view, else the start of the message", () => {
     const views = new Map([[VARIANT, "VAR-666d08 (VAR-002)"]]);
     expect(hintReason(outdated, views)).toBe("based-on → D-71cf7f (D-044) Statuses can be invalid");
@@ -109,6 +128,19 @@ describe("hint list layout", () => {
     expect(hintReason(plain, views)).toBe(`${"x".repeat(MESSAGE_START - 1)}…`);
     // A target without a relation kind stands before the message; an unresolved one by its UUID.
     expect(hintReason({ ...plain, message: "short", targetId: "uuid-7" }, views)).toBe("→ uuid-7 · short");
+    // A relation whose target did not resolve to one element keeps what is wrong with it.
+    expect(
+      hintReason(
+        {
+          code: "relation.missing-target",
+          severity: "warning",
+          message: "No target",
+          key: "refines",
+          targetId: "uuid-7",
+        },
+        views,
+      ),
+    ).toBe("refines → uuid-7 · No target");
     expect(messageStart("short")).toBe("short");
   });
 
@@ -132,16 +164,15 @@ describe("hint list layout", () => {
     // A hint about no element opens nothing; one with a kind of no heading of its own is headed by its code.
     const bare = hintList(
       {
-        kinds: [{ code: "trace.cycle", count: 1 }],
-        hints: [{ code: "trace.cycle", severity: "warning", message: "m", file: "a.md" }],
+        kinds: [{ code: "file.faulty", count: 1 }],
+        hints: [{ code: "file.faulty", severity: "warning", message: "m", file: "a.md" }],
         total: 1,
         incomplete: true,
       },
       new Map(),
     );
     expect(bare.groups[0]?.lines[0]).toMatchObject({ element: "a.md", title: "", open: undefined });
-    expect(bare.groups[0]?.label).toBe("trace.cycle");
-    expect(kindLabel("trace.cycle")).toBe("trace.cycle");
+    expect(bare.groups[0]?.label).toBe("file.faulty");
     expect(variantViews(OUTPUT)).toEqual([VARIANT]);
     expect(isHintOutput(OUTPUT)).toBe(true);
     expect(isHintOutput({ hints: [], total: 0 })).toBe(false);
@@ -172,6 +203,9 @@ describe("hint list layout", () => {
     expect(foldMove(rows, 2, key("x"))).toBeUndefined();
     expect(foldMove(rows, 2, key("Tab", { shiftKey: true }))).toBeUndefined();
     expect(foldMove(rows, -1, key("Tab"))).toBeUndefined();
+    // Space toggles as on every fold head; Enter with Shift is no fold key.
+    expect(foldMove(rows, 2, key(" "))).toEqual({ code: "relation.too-few", open: false, cursor: 2 });
+    expect(foldMove(rows, 2, key("Enter", { shiftKey: true }))).toBeUndefined();
     const closed = hintRows(list, new Set(["relation.too-few"]));
     expect(closed.map((row) => row.kind)).toEqual(["head", "hint", "head", "head", "hint", "hint"]);
     expect(foldMove(closed, 2, key("Tab"))).toEqual({ code: "relation.too-few", open: true, cursor: 2 });
@@ -368,6 +402,18 @@ describe("hint list view", () => {
     await mount(resultBuffer("hint.list", {}, "List hints", coreOnly, 0));
     expect(call).not.toHaveBeenCalled();
     expect(container.querySelector(".hints-total")?.textContent).toBe("6 hints · 3 listed");
+  });
+
+  it("[SR-122/AK-mqwc] marks nothing on an empty list: Down, Enter and Ctrl+N leave it unmarked, Ctrl+P stays Go to", async () => {
+    const { actions } = await mount(
+      resultBuffer("hint.list", {}, "List hints", { kinds: [], hints: [], total: 0, incomplete: false }, 0),
+    );
+    await press("ArrowDown");
+    await press("Enter");
+    await press("n", { ctrlKey: true });
+    expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(false);
+    expect(actions).toEqual([]);
+    expect(container.querySelector(".hints-total")?.textContent).toBe("0 hints");
   });
 
   it("says one hint, and incomplete when a repository is missing", async () => {

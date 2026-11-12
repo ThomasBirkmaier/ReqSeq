@@ -65,10 +65,10 @@ const cliList = async (running: RunningApp, ...args: string[]): Promise<Listed> 
 
 /** The heading of a kind as the list shows it: its label, its count of all hints and its code. */
 const HEADS = [
-  "▾ element.missing-required (1)",
+  "▾ Missing required properties (1)element.missing-required",
   "▾ Unknown properties (2)element.unknown-property",
   "▾ Superseded targets (1)relation.target-superseded",
-  "▾ variant.superseded-in-validity (1)",
+  "▾ Superseded variants in a validity (1)variant.superseded-in-validity",
   "▾ Without parent (1)trace.no-parent",
   "▾ Outdated relations (2)relation.outdated",
 ];

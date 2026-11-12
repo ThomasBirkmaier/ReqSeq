@@ -8,6 +8,7 @@
 import type { HintListOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
+import { togglesFold } from "./FoldSection.js";
 import { shownId, shownIdTitle } from "./id-title.js";
 
 type Hint = HintListOutput["hints"][number];
@@ -40,20 +41,42 @@ export interface HintList {
   readonly groups: readonly HintGroup[];
 }
 
-/** How the app heads the group of a kind; a kind without a heading of its own is headed by its code. */
+/**
+ * How the app heads the group of a kind: every code the whole-workspace path of `hint.list` gives
+ * (`CHECK_ORDER` in packages/core/src/hints/list.ts, which `hint-list.test.ts` compares); any other kind is
+ * headed by its code.
+ */
 const LABELS: Readonly<Record<string, string>> = {
-  "relation.outdated": "Outdated relations",
+  "element.missing-required": "Missing required properties",
+  "element.unknown-property": "Unknown properties",
+  "element.unknown-type": "Unknown types",
+  "element.missing-status": "Missing statuses",
+  "element.status-not-allowed": "Statuses not allowed",
+  "element.statement-without-text": "Requirements without text",
+  "relation.target-superseded": "Superseded targets",
+  "variant.superseded-in-validity": "Superseded variants in a validity",
+  "variant.nested": "Nested variants",
+  "variant.target-not-core": "Targets that are no core requirements",
+  "element.wrong-value-kind": "Values of the wrong kind",
+  "element.too-many-items": "Too many items",
+  "element.criterion-key-missing": "Missing criterion keys",
+  "element.criterion-key-invalid": "Invalid criterion keys",
+  "element.criterion-key-duplicate": "Duplicate criterion keys",
+  "relation.not-allowed": "Relations not allowed",
   "relation.too-few": "Too few relations",
   "relation.too-many": "Too many relations",
-  "relation.not-allowed": "Relations not allowed",
-  "relation.target-superseded": "Superseded targets",
-  "element.too-many-items": "Too many items",
-  "element.unknown-property": "Unknown properties",
-  "evidence.outdated": "Outdated evidence records",
+  "element.duplicate-identifier": "Duplicate identifiers",
+  "relation.cross-repository-title": "Titles stored across repositories",
+  "relation.not-a-link": "References outside a Markdown link",
+  "relation.reference-style": "Reference-style Markdown links",
+  "relation.unresolved-link": "Targets not named by a UUID",
+  "trace.cycle": "Cycles of derivations",
   "trace.no-parent": "Without parent",
-  "variant.core-changed": "Changed core requirements",
+  "evidence.outdated": "Outdated evidence records",
   "variant.core-changed-since-baseline": "Core requirements changed since the baseline",
   "variant.core-new-since-baseline": "Core requirements new since the baseline",
+  "relation.outdated": "Outdated relations",
+  "variant.core-changed": "Changed core requirements",
 };
 
 /** The heading of a kind's group. */
@@ -77,8 +100,8 @@ const targetOf = (hint: Hint): string | undefined => {
 /**
  * The reason of a hint from the output's fields (SR-026 AK4): of a count its relation kind or property, the
  * target type, the count and the limit; of outdated evidence the view (`core`, or the variant `views`
- * names); of a relation its kind and its target; else the start of the message, after the target where
- * the hint has one.
+ * names); of a relation to a resolved target its kind and that target; else the start of the message,
+ * after the relation kind and the target where the hint has them.
  */
 export const hintReason = (hint: Hint, views: ReadonlyMap<string, string>): string => {
   if (hint.count !== undefined && hint.limit !== undefined) {
@@ -90,10 +113,15 @@ export const hintReason = (hint: Hint, views: ReadonlyMap<string, string>): stri
     return `view: ${hint.view === "core" ? "Core" : (views.get(hint.view) ?? hint.view)}`;
   }
   const target = targetOf(hint);
-  if (hint.key !== undefined && target !== undefined) {
+  // A relation to one element it resolved to: its kind and that target say it; an unresolved target keeps
+  // the start of the message, which says what is wrong with it.
+  if (hint.key !== undefined && hint.targetShortId !== undefined && target !== undefined) {
     return `${hint.key} → ${target}`;
   }
-  return target === undefined ? messageStart(hint.message) : `→ ${target} · ${messageStart(hint.message)}`;
+  if (target === undefined) {
+    return messageStart(hint.message);
+  }
+  return `${hint.key ?? ""} → ${target} · ${messageStart(hint.message)}`.trimStart();
 };
 
 /** The row of a hint; it opens its element when the hint names one. */
@@ -187,9 +215,10 @@ export interface FoldMove {
 }
 
 /**
- * The fold a key does on the row at `cursor`, as on the folded section of a list (SR-193 AK1, AK2): on a
- * heading Enter and Tab toggle it, Right opens and Left closes it; on a hint Left closes its group and
- * marks its heading. Undefined for any other key, a key with a modifier, or no row.
+ * The fold a key does on the row at `cursor`: on a heading, the keys of every fold head (`togglesFold`:
+ * Enter, Space and Tab, SR-193 AK1 for Tab) toggle it, and Right opens and Left closes it (SR-193 AK2); on
+ * a hint, Left closes its group and marks its heading, as Left on a folded row of a list closes its section.
+ * Undefined for any other key, a key with a modifier, or no row.
  */
 export const foldMove = (
   rows: readonly HintRow[],
@@ -201,12 +230,10 @@ export const foldMove = (
     return undefined;
   }
   if (row.kind === "head") {
-    const keys: Readonly<Record<string, boolean | undefined>> = {
-      Enter: !row.open,
-      Tab: !row.open,
-      ArrowRight: true,
-      ArrowLeft: false,
-    };
+    if (togglesFold(event)) {
+      return { code: row.group.code, open: !row.open, cursor };
+    }
+    const keys: Readonly<Record<string, boolean | undefined>> = { ArrowRight: true, ArrowLeft: false };
     const open = keys[event.key];
     return open === undefined ? undefined : { code: row.group.code, open, cursor };
   }
