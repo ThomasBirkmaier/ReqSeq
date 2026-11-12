@@ -9,6 +9,20 @@ Every acceptance criterion carries a criterion key, so a test or a record that n
 
 **Assign criterion keys** gives every criterion without key in a selection its key at once. Keys that criteria have stay as they are, and so do the versions, since a key does not count to the version (SR-204 AK3, SR-091 AK6). The command names how many elements changed.
 
+## The reference of a criterion
+
+`reqseq element get` lists each acceptance criterion with its number, its key and the reference to copy into a test name (SR-205 AK1):
+
+```text
+acceptance-criteria:
+  AK1 (kred) [SR-036/AK-kred]: Given a reading, then it shows.
+  AK2: Given no reading, then a dash shows.
+```
+
+API and MCP give them as `criterionReferences`.
+
+For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**. A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
+
 ## App
 
 Show the requirements you want, for example with a filter, and run **Assign criterion keys** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS). It acts on the elements the list shows.

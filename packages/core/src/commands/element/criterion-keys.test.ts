@@ -419,7 +419,7 @@ describe("criterion key findings (SR-204 AK10)", () => {
     expect(codes(await check(opened))).toEqual([["element.criterion-key-missing", "warning", 7, 3]]);
   });
 
-  it("[SR-204/AK10] reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning", async () => {
+  it("[SR-204/AK10] [SR-205/AK2] reports a key two criteria carry as an error on the later one, and a key in a wrong form as a warning, naming the criteria", async () => {
     const opened = await open(
       requirement([
         "  - key: twice",
@@ -438,6 +438,19 @@ describe("criterion key findings (SR-204 AK10)", () => {
       ["element.criterion-key-duplicate", "error", 13, undefined],
     ]);
     expect(out.ok).toBe(false);
+    // The criteria they are about, with number, key and text (SR-205 AK2); a key of a wrong form is none.
+    expect(
+      out.problems
+        .filter((p) => p.code !== "element.criterion-key-missing" && p.elementId === SR.id)
+        .filter((p) => p.code.startsWith("element.criterion-key"))
+        .map((p) => p.criteria),
+    ).toEqual([
+      [{ criterion: 2, text: "Second." }],
+      [
+        { criterion: 1, key: "twice", text: "First." },
+        { criterion: 4, key: "twice", text: "Fourth." },
+      ],
+    ]);
     // The same findings at the element (element.get).
     const got = await run<Got>(opened, "element.get", { ref: SR.id });
     expect(

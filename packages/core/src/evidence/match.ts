@@ -259,6 +259,8 @@ export const unknownCriterionProblem = (
     ...(line === undefined ? {} : { line }),
     targetId: record.element,
     targetRepository: element.repository,
+    // As named, a number or a key, without text: the version has no such criterion (SR-205 AK2).
+    criteria: unknown.map((ref) => (typeof ref === "number" ? { criterion: ref } : { key: ref })),
   };
 };
 

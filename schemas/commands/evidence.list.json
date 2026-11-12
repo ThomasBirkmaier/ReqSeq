@@ -4,7 +4,7 @@
   "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
   "effect": "read",
   "stage": 4,
-  "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
+  "implements": ["SR-028", "SR-032", "SR-033", "SR-093", "SR-205"],
   "arguments": [
     { "field": "ref", "complete": "element" },
     { "field": "view", "complete": "view" },

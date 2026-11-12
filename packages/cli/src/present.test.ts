@@ -184,8 +184,13 @@ describe("renderHuman: values", () => {
         id: "u1",
         file: "sr/SR-1.md",
         properties: {
-          // A criterion with its criterion key shows its text only (SR-204).
-          "acceptance-criteria": ["Given a, then b.", { key: "keyc", text: "Given c, then d." }],
+          // A list with criterion keys shows each criterion as `AK2 (keyc)`, as element get does (SR-205 AK1),
+          // and a key in another form as none.
+          "acceptance-criteria": [
+            "Given a, then b.",
+            { key: "keyc", text: "Given c, then d." },
+            { key: "BAD", text: "Given e, then f." },
+          ],
           packages: [{ id: "p" }],
         },
         relations: [
@@ -209,8 +214,9 @@ describe("renderHuman: values", () => {
         "  SR-1 (SR-001)  approved  One",
         "    properties:",
         "      acceptance-criteria:",
-        "        1: Given a, then b.",
-        "        2: Given c, then d.",
+        "        AK1: Given a, then b.",
+        "        AK2 (keyc): Given c, then d.",
+        "        AK3: Given e, then f.",
         "    relations:",
         "      - -> based-on  D-1 (D-017)  Decision",
         "      - -> packages  PKG-1 (Stufe-1)  Stage 1",
@@ -666,6 +672,41 @@ describe("renderHuman: one element", () => {
     );
     // Properties that are no object stay as they are.
     expect(renderHuman({ element: { ...element, properties: "odd" } })).toContain("  properties: odd\n");
+  });
+
+  it("[SR-205/AK1] [SR-205/AK3] shows each criterion of element get with its number, key and reference, and resolve's criterion", () => {
+    const properties = {
+      "acceptance-criteria": [{ key: "kred", text: "Given a reading." }, "Given none."],
+      "requirement-type": "functional",
+    };
+    const criterionReferences = {
+      property: "acceptance-criteria",
+      criteria: [
+        { criterion: 1, key: "kred", text: "Given a reading.", reference: "[SR-036/AK-kred]" },
+        { criterion: 2, text: "Given none." },
+      ],
+    };
+    const shown = { ...element, relations: [], problems: [], properties };
+    const output = renderHuman({ element: shown, criterionReferences });
+    expect(output).toContain(
+      lines(
+        "  properties:",
+        "    acceptance-criteria:",
+        "      AK1 (kred) [SR-036/AK-kred]: Given a reading.",
+        "      AK2: Given none.",
+        "    requirement-type: functional",
+      ),
+    );
+    expect(output).not.toContain("criterionReferences");
+    expect(
+      renderHuman({ element: shown, criterion: criterionReferences.criteria[0], current: null }, false),
+    ).toBe(
+      lines(
+        "SR-1  draft  Show wind",
+        "criterion: AK1 (kred) [SR-036/AK-kred]: Given a reading.",
+        "current: null",
+      ),
+    );
   });
 
   it("shows a written element as its line only, with the files and its problems once", () => {

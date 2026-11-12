@@ -519,6 +519,32 @@ describe("catalog commands in the command prompt", () => {
     expect((await last(asked)).label).toBe("Show affected elements SR-000004 · more arguments:");
   });
 
+  it("[SR-205/AK5] takes a typed reference to a criterion for an element argument, which no search finds", async () => {
+    const { context, asked, call } = setup([list], {
+      "element.search": () => ({ hits: [], total: 0 }),
+      "element.resolve": () => ({ element: { id: "u1" }, current: null }),
+    });
+    start(context, "element.resolve");
+    const ref = await last(asked);
+    expect(await ref.find?.("tit")).toEqual([]);
+    const found = await ref.find?.(" [SR-036/AK-k7f3] ");
+    expect(found?.map((i) => i.name)).toEqual(["Use [SR-036/AK-k7f3]"]);
+    found?.[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.resolve", { ref: "[SR-036/AK-k7f3]" });
+    // Ctrl/Cmd+Enter: taken, then the optional arguments.
+    (await ref.find?.("SR-036/AK-k7f3"))?.[0]?.more?.();
+    expect((await last(asked)).label).toContain("more arguments:");
+  });
+
+  it("[SR-205/AK5] offers a typed reference to a criterion only for element.resolve, which reads it", async () => {
+    const { context, asked } = setup([list], {
+      "element.search": () => ({ hits: [], total: 0 }),
+    });
+    start(context, "evidence.list");
+    expect(await (await last(asked)).find?.("[SR-036/AK-k7f3]")).toEqual([]);
+  });
+
   it("takes values of a list argument one per Enter and ends it with Enter on an empty input", async () => {
     const { context, asked, call } = setup([shown], {
       "element.search": () => ({ hits: [hit(2)], total: 1 }),

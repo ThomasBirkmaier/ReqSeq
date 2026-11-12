@@ -18,6 +18,7 @@
 // Both take the mark of each element's repository (`variant-independent`, SR-173): in a variant a
 // record without variant of a marked element holds too.
 // `names` names the variants of those records (#676), as evidence.status names its views (ThomasBirkmaier/ReqSeq-archive#588).
+// The records of the page name their criteria with number, key and text (`recordNamer`, SR-205 AK2).
 //
 // Not in view (#674, product owner decision, 2026-11-02): a requirement without a child that the view
 // of the chain does not hold (`viewRuleOf(view ?? core).includes`, so SR-043 AK10 holds) is
@@ -37,6 +38,9 @@ import {
   withEvidenceSource,
 } from "../../evidence/index.js";
 import type { ElementEvidence } from "../../evidence/index.js";
+import type { Workspace } from "../../runtime/workspace.js";
+import { recordNamer, withNamedExecutions } from "../../evidence/index.js";
+import { zip } from "../../files/index.js";
 import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
@@ -83,6 +87,32 @@ const withEvidenceSources = (evidence: ElementEvidence | undefined): ElementEvid
         records: evidence.records.map(withEvidenceSource),
       };
 
+type ChainEvidence = NonNullable<CommandOutput<"trace.chain">["evidence"]>;
+
+/**
+ * `evidence` with the criteria its records name (SR-205 AK2); `below` are the elements whose evidence
+ * `chainOutput` asked for, in its order, with what it got: the items of `evidence` are those that
+ * gave any, in that order.
+ */
+const namedEvidence = async (
+  workspace: Workspace,
+  below: readonly { readonly element: ElementRecord; readonly leaf: ElementEvidence | undefined }[],
+  evidence: ChainEvidence,
+): Promise<ChainEvidence> => {
+  const shown = below.flatMap(({ element, leaf }) =>
+    leaf === undefined
+      ? []
+      : [{ element, records: [...leaf.records, ...leaf.testCases.flatMap((t) => t.executions)] }],
+  );
+  // An element below several nodes of the page is named once.
+  const name = await recordNamer(workspace, [...new Map(shown.map((e) => [e.element, e])).values()]);
+  return zip(evidence, shown).map(([item, { element }]) => ({
+    ...item,
+    testCases: item.testCases.map((test) => withNamedExecutions(name, element, test)),
+    records: item.records.map((record) => name(element, record)),
+  }));
+};
+
 export default defineCommand({
   name: "trace.chain",
   run: async (ctx, input): Promise<CommandOutput<"trace.chain">> => {
@@ -124,6 +154,8 @@ export default defineCommand({
             outsideView: (element) => !held(element),
           }),
     });
+    // The evidence below the elements of the page, for naming the criteria of its records.
+    const below: { element: ElementRecord; leaf: ElementEvidence | undefined }[] = [];
     const output = chainOutput(
       chain,
       {
@@ -134,14 +166,22 @@ export default defineCommand({
         ...(index === undefined
           ? {}
           : {
-              evidenceOf: (element) =>
-                withEvidenceSources(chainEvidenceOf(index, element.id, view, independent(element))),
+              evidenceOf: (element) => {
+                const leaf = withEvidenceSources(
+                  chainEvidenceOf(index, element.id, view, independent(element)),
+                );
+                below.push({ element, leaf });
+                return leaf;
+              },
             }),
       },
       { limit: input.limit, offset: input.offset },
     );
+    // The criteria of the records shown, named with number, key and text (SR-205 AK2).
+    const evidence = await namedEvidence(ctx.workspace, below, output.evidence);
     const named = {
       ...output,
+      evidence,
       ...namesField(
         namesOf({ metamodel, store, shortIds }, [
           ...variantsOf(output.evidence),

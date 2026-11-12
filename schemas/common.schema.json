@@ -329,6 +329,12 @@
           "minimum": 0,
           "description": "How many relations the element has that the limit counts (SR-152), how many entries its list property has (SR-171), or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`, SR-204)."
         },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "data-export.schema.json#/$defs/criterionName" },
+          "description": "The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204 AK10), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text)."
+        },
         "limit": {
           "type": "integer",
           "minimum": 0,

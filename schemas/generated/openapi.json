@@ -741,7 +741,8 @@
           "SR-090",
           "SR-092",
           "SR-152",
-          "SR-171"
+          "SR-171",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -2252,7 +2253,7 @@
     "/v1/commands/element.get": {
       "post": {
         "operationId": "element_get",
-        "summary": "One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.",
+        "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
         "tags": [
           "element"
         ],
@@ -2272,7 +2273,8 @@
           "SR-088",
           "SR-091",
           "SR-152",
-          "SR-171"
+          "SR-171",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -2337,6 +2339,10 @@
                     "fileSha256": {
                       "$ref": "#/components/schemas/common/$defs/fileSha256",
                       "description": "Of the file this answer was read from, for expectedFileSha256 of element.update."
+                    },
+                    "criterionReferences": {
+                      "$ref": "#/components/schemas/data-export/$defs/criterionReferences",
+                      "description": "The acceptance criteria of the element as its file holds them now, each with number, criterion key, text and the reference for a test name; left out for an element that is no requirement or has none."
                     },
                     "names": {
                       "type": "array",
@@ -2465,14 +2471,15 @@
     "/v1/commands/element.resolve": {
       "post": {
         "operationId": "element_resolve",
-        "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.",
+        "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
         "tags": [
           "element"
         ],
         "x-reqseq-effect": "read",
         "x-reqseq-stage": 2,
         "x-reqseq-implements": [
-          "SR-060"
+          "SR-060",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -2482,7 +2489,8 @@
                 "type": "object",
                 "properties": {
                   "ref": {
-                    "$ref": "#/components/schemas/common/$defs/elementRef"
+                    "$ref": "#/components/schemas/common/$defs/elementRef",
+                    "description": "UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it: `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key; one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`."
                   },
                   "version": {
                     "$ref": "#/components/schemas/common/$defs/version",
@@ -2529,6 +2537,14 @@
                     "element": {
                       "$ref": "#/components/schemas/data-export/$defs/element",
                       "description": "The element as element.get shows it, with title, text, status, current version in normal form n2, verification status per view it is in and validation status and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get. An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates. A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated)."
+                    },
+                    "criterion": {
+                      "$ref": "#/components/schemas/data-export/$defs/criterionEntry",
+                      "description": "With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference. A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference."
+                    },
+                    "criterionReferences": {
+                      "$ref": "#/components/schemas/data-export/$defs/criterionReferences",
+                      "description": "As element.get gives it."
                     },
                     "current": {
                       "enum": [
@@ -5199,7 +5215,8 @@
         "x-reqseq-implements": [
           "SR-006",
           "SR-022",
-          "SR-033"
+          "SR-033",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -5894,7 +5911,8 @@
         "x-reqseq-stage": 2,
         "x-reqseq-implements": [
           "SR-006",
-          "SR-024"
+          "SR-024",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -6564,7 +6582,8 @@
         "x-reqseq-implements": [
           "SR-125",
           "SR-126",
-          "SR-153"
+          "SR-153",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -7470,7 +7489,8 @@
           "SR-040",
           "SR-045",
           "SR-072",
-          "SR-103"
+          "SR-103",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -8615,7 +8635,8 @@
           "SR-028",
           "SR-032",
           "SR-033",
-          "SR-093"
+          "SR-093",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -9011,7 +9032,8 @@
         "x-reqseq-implements": [
           "SR-030",
           "SR-047",
-          "SR-172"
+          "SR-172",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -11420,7 +11442,8 @@
         "x-reqseq-stage": 5,
         "x-reqseq-implements": [
           "SR-051",
-          "SR-094"
+          "SR-094",
+          "SR-205"
         ],
         "requestBody": {
           "required": true,
@@ -13526,6 +13549,14 @@
                 "minimum": 0,
                 "description": "How many relations the element has that the limit counts, how many entries its list property has, or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`)."
               },
+              "criteria": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/components/schemas/data-export/$defs/criterionName"
+                },
+                "description": "The acceptance criteria of the element the problem is about, with number, criterion key and text, each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`), and those a record names that the version it names lacks (`evidence.unknown-criterion`, key or number as named, without text)."
+              },
               "limit": {
                 "type": "integer",
                 "minimum": 0,
@@ -14396,7 +14427,7 @@
                 "items": {
                   "$ref": "#/components/schemas/data-export/$defs/criterionName"
                 },
-                "description": "Each item of `criteria`, in its order, named with number, key and text: the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it."
+                "description": "Each item of `criteria`, in its order, named with number, key and text: the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Filled by the commands that list records: `evidence.list` (also in its test cases), `trace.chain`, `trace.matrix`, `trace.affected` and `evidence.record`, each counting the current version, and `baseline.get` in `later`, counting the baseline's version; not in the data export, which has no records."
               },
               "baselines": {
                 "type": "array",
@@ -14608,6 +14639,56 @@
               "text": {
                 "type": "string",
                 "description": "The text of the acceptance criterion."
+              }
+            },
+            "additionalProperties": false
+          },
+          "criterionEntry": {
+            "type": "object",
+            "description": "An acceptance criterion of the current version of a requirement: its number, criterion key, text and the reference a test name uses.",
+            "required": [
+              "criterion",
+              "text"
+            ],
+            "properties": {
+              "criterion": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "The number: the position in the current version, counted from 1, so the numbers have no gaps."
+              },
+              "key": {
+                "$ref": "#/components/schemas/common/$defs/criterionKey",
+                "description": "The criterion key; left out when the criterion has none."
+              },
+              "text": {
+                "type": "string",
+                "description": "The text of the acceptance criterion."
+              },
+              "reference": {
+                "type": "string",
+                "description": "The reference for a test name, `[<name>/AK-<key>]`: the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key."
+              }
+            },
+            "additionalProperties": false
+          },
+          "criterionReferences": {
+            "type": "object",
+            "description": "The acceptance criteria of a requirement's current version with their references for test names, in their order. Given for an element whose type has the meaning `requirement` and that has acceptance criteria, each a text; left out otherwise.",
+            "required": [
+              "property",
+              "criteria"
+            ],
+            "properties": {
+              "property": {
+                "$ref": "#/components/schemas/common/$defs/key",
+                "description": "The key of the property with the meaning `acceptance-criteria` that holds them."
+              },
+              "criteria": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/components/schemas/data-export/$defs/criterionEntry"
+                }
               }
             },
             "additionalProperties": false

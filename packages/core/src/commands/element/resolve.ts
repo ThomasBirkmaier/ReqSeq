@@ -14,10 +14,26 @@
 // another type: it may also be a reference to an element that is gone or in a missing repository,
 // so it is never retargeted. When the tail fits exactly one element, that element is named as the
 // candidate (prefix changed since, ThomasBirkmaier/ReqSeq-archive#275).
+//
+// A reference to an acceptance criterion as a test name writes it (SR-205 AK5), `[SR-036/AK-k7f3]` or
+// `SR-036/AK-k7f3`, is split at the first `/` as enrich-junit splits it (`criterionReferenceOf`): the
+// part before resolves as above (with the outdated-prefix candidate), and `criterion` gives the
+// criterion of the current version with that key, with number, text and reference; the element
+// carries all of them (`criterionReferences`, AK1). A key no criterion carries is `ref.unknown`, a
+// key two carry `ref.ambiguous` (SR-204 AK10). A number suffix (`AK2`) is refused: test names name
+// criteria by key (SR-029 AK13), and a number would point at another criterion after a move. A text
+// that itself names one element, such as the identifier `ECU/AK2`, stays that element's reference.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import type { ElementCopy } from "../../model/index.js";
-import { getElement, shortIdState, UNKNOWN_TYPE_PREFIX } from "../../model/index.js";
+import type { BracketReference, CriterionReferences, ElementCopy } from "../../model/index.js";
+import {
+  criterionReferenceOf,
+  elementStoreState,
+  getElement,
+  resolveRef,
+  shortIdState,
+  UNKNOWN_TYPE_PREFIX,
+} from "../../model/index.js";
 import { shownWithNames } from "../../data/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
@@ -81,6 +97,87 @@ const currentOf = (
         ? "current"
         : "outdated";
 
+/**
+ * The criterion `ref` (a criterion reference with a key, `reference.criterion`) names among
+ * `references`, the criteria of the element it resolved to (see the file comment).
+ */
+const criterionOf = (
+  given: string,
+  reference: BracketReference & { readonly criterion: string },
+  references: CriterionReferences | undefined,
+  element: { readonly id: string; readonly repository: string; readonly file: string },
+): NonNullable<CommandOutput<"element.resolve">["criterion"]> => {
+  const key = reference.criterion;
+  const found = references?.criteria.filter((c) => c.key === key) ?? [];
+  const [only, ...others] = found;
+  if (only === undefined) {
+    throw new CommandError(
+      "ref.unknown",
+      `${reference.ref} has no acceptance criterion with the criterion key ${key} in its current version`,
+      { ref: given, criterion: key },
+    );
+  }
+  if (others.length > 0) {
+    throw new CommandError(
+      "ref.ambiguous",
+      `${reference.ref} has ${String(found.length)} acceptance criteria with the criterion key ${key} (${found.map((c) => `AK${String(c.criterion)}`).join(", ")}); give each its own key (SR-204)`,
+      {
+        ref: given,
+        criterion: key,
+        criteria: found.map((c) => c.criterion),
+        candidates: [{ id: element.id, repository: element.repository, file: element.file }],
+      },
+    );
+  }
+  return only;
+};
+
+/**
+ * The reference to an element and the key of the criterion `ref` names, read as a criterion
+ * reference (`reference`, from `criterionReferenceOf`); `input.invalid` for one that names a
+ * criterion by number or in another form (see the file comment).
+ */
+const criterionReferenceIn = (
+  ref: string,
+  reference: BracketReference,
+): BracketReference & { readonly criterion?: string } => {
+  if (reference.malformed !== undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `${ref} names no acceptance criterion: write AK- and its criterion key, such as [SR-036/AK-k7f3]`,
+      { command: "element.resolve", fields: ["ref"], reason: "criterion-malformed" },
+    );
+  }
+  if (typeof reference.criterion === "number") {
+    throw new CommandError(
+      "input.invalid",
+      `${ref} names an acceptance criterion by number, which points at another criterion once criteria move; name it by its criterion key, such as [${reference.ref}/AK-k7f3], as element.get gives it`,
+      { command: "element.resolve", fields: ["ref"], reason: "criterion-by-number" },
+    );
+  }
+  return {
+    ref: reference.ref,
+    ...(reference.criterion === undefined ? {} : { criterion: reference.criterion }),
+  };
+};
+
+/**
+ * Whether `ref` itself names one element (an identifier such as `ECU/AK2`): then it is that element's
+ * reference, also where it reads as a reference to a criterion.
+ */
+const namesOneElement = async (workspace: Workspace, ref: string, copy: ElementCopy): Promise<boolean> => {
+  const [store, shortIds] = await Promise.all([
+    workspace.get(elementStoreState),
+    workspace.get(shortIdState),
+  ]);
+  try {
+    resolveRef(store, shortIds, ref, copy);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export default defineCommand({
   name: "element.resolve",
   run: async (ctx, input): Promise<CommandOutput<"element.resolve">> => {
@@ -94,17 +191,34 @@ export default defineCommand({
       );
     }
     const copy = { repository: input.repository, file: input.file };
+    const read = criterionReferenceOf(input.ref);
+    const reference =
+      read === undefined || (await namesOneElement(ctx.workspace, input.ref, copy))
+        ? undefined
+        : criterionReferenceIn(input.ref, read);
+    const ref = reference?.ref ?? input.ref;
+    let shown;
     try {
-      const shown = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
-      // With its verification and validation status, the variants that replace or exclude it, and
-      // `names` and `incomplete`, as element.get shows it (SR-031, SR-034, SR-038, SR-046 AK3, #456).
-      const { element, ...rest } = await shownWithNames(ctx.workspace, shown);
-      return { element, current: currentOf(version, shown.forms), ...rest };
+      shown = await getElement(ctx.workspace, ref, elementHints, input.versionDate, copy);
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {
-        throw await withOutdatedPrefix(ctx.workspace, input.ref, copy, error);
+        throw await withOutdatedPrefix(ctx.workspace, ref, copy, error);
       }
       throw error;
     }
+    // With its verification and validation status, the variants that replace or exclude it, and
+    // `names` and `incomplete`, as element.get shows it (SR-031, SR-034, SR-038, SR-046 AK3, #456).
+    const { element, ...rest } = await shownWithNames(ctx.workspace, shown);
+    const key = reference?.criterion;
+    const criterion =
+      key === undefined
+        ? undefined
+        : criterionOf(input.ref, { ...reference, ref, criterion: key }, rest.criterionReferences, element);
+    return {
+      element,
+      ...(criterion === undefined ? {} : { criterion }),
+      current: currentOf(version, shown.forms),
+      ...rest,
+    };
   },
 });

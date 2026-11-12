@@ -7,7 +7,13 @@
 // `hints/evidence.ts`) resolves through this file, so they agree (SR-080 AK2).
 import type { DataExportCriterionName } from "../generated/types.js";
 import type { ResolvedCriterion, VersionForms } from "../model/index.js";
-import { criterionKey, criterionText, resolveCriterionRefs, sameVersion } from "../model/index.js";
+import {
+  criterionKey,
+  criterionText,
+  isCriterionKey,
+  resolveCriterionRefs,
+  sameVersion,
+} from "../model/index.js";
 export { criterionLabel } from "../model/criterion-items.js";
 import type { EvidenceRecord } from "./record.js";
 
@@ -123,13 +129,19 @@ export const plainCriteria = (count: number): ElementCriteria => {
 export const criteriaFrom = (criteria: ElementCriteria | number): ElementCriteria =>
   typeof criteria === "number" ? plainCriteria(criteria) : criteria;
 
+/** The key of `item` in the form SR-204 AK5 allows; a key of another form is named as none. */
+const namedKey = (item: unknown): string | undefined => {
+  const key = criterionKey(item);
+  return key !== undefined && isCriterionKey(key) ? key : undefined;
+};
+
 /**
  * The criterion at `position` (from 1) of `items` as an output names it (SR-205 AK2): its number, its
  * key and its text, each where it has one.
  */
 export const criterionNameAt = (items: readonly unknown[], position: number): DataExportCriterionName => {
   const item = items[position - 1];
-  const key = criterionKey(item);
+  const key = namedKey(item);
   const text = criterionText(item);
   return {
     criterion: position,
@@ -154,7 +166,7 @@ export const namedCriterion = (
   }
   if (typeof resolved.ref === "number") {
     const item = named?.[resolved.ref - 1];
-    const key = criterionKey(item);
+    const key = namedKey(item);
     const text = criterionText(item);
     // A key gone from the current version (or carried twice there), else the number as named.
     return {
@@ -165,4 +177,30 @@ export const namedCriterion = (
   const index = named?.findIndex((item) => criterionKey(item) === resolved.ref) ?? -1;
   const text = index < 0 ? undefined : criterionText(named?.[index]);
   return { key: resolved.ref, ...(typeof text === "string" ? { text } : {}) };
+};
+
+/** The items of the older versions a lookup did not give, by version. */
+export interface FetchedItems {
+  readonly get: (version: string) => readonly unknown[] | undefined;
+}
+
+const NOTHING_FETCHED: FetchedItems = new Map();
+
+/**
+ * `record` with `criterionNames`: each criterion it names with number, key and text (`namedCriterion`),
+ * the number that of `current`, the version whose criteria `criteria` counts; `fetched` gives the
+ * items of the older versions `criteria` does not know. Unchanged for a record that names no criterion.
+ */
+export const withCriterionNames = (
+  record: EvidenceRecord,
+  criteria: ElementCriteria,
+  current: VersionForms | undefined,
+  fetched: FetchedItems = NOTHING_FETCHED,
+): EvidenceRecord => {
+  const resolved = criteria.resolve(record, current);
+  if (resolved === undefined) {
+    return record;
+  }
+  const named = criteria.namedItems(record, current) ?? fetched.get(record.version);
+  return { ...record, criterionNames: resolved.map((r) => namedCriterion(r, criteria.items, named)) };
 };

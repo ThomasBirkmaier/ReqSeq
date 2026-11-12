@@ -4,7 +4,7 @@
   "summary": "Elements affected by a change of one element, with path and distance.",
   "effect": "read",
   "stage": 2,
-  "implements": ["SR-006", "SR-024"],
+  "implements": ["SR-006", "SR-024", "SR-205"],
   "arguments": [
     { "field": "ref", "complete": "element" },
     { "field": "limit", "complete": "number" },

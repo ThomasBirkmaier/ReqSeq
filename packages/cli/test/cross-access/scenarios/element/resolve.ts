@@ -1,5 +1,7 @@
 // Cross-access scenarios of element.resolve, in addition to the default one (cross-access.test.ts).
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
+import { CRITERIA } from "../../fixtures.js";
 
 scenariosOf("element.resolve", [
   {
@@ -13,6 +15,34 @@ scenariosOf("element.resolve", [
     expect: "output",
   },
   { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
+  {
+    tag: "[SR-205/AK5]",
+    name: "a test name's reference to a criterion names the requirement, number and text",
+    fixture: CRITERIA,
+    input: { ref: "[SR-0000e3/AK-kfro]" },
+    expect: "output",
+    check: (results) => {
+      const { element, criterion } = (
+        results["core"]?.outcome as { output: { element: { id: string }; criterion: unknown } }
+      ).output;
+      expect([element.id, criterion]).toEqual([
+        "31313131-0000-4000-8000-3131310000e3",
+        {
+          criterion: 3,
+          key: "kfro",
+          text: "Given frost, then a mark shows.",
+          reference: "[SR-0000e3/AK-kfro]",
+        },
+      ]);
+    },
+  },
+  {
+    tag: "[SR-205/AK5]",
+    name: "a reference to a criterion by number is refused alike",
+    fixture: CRITERIA,
+    input: { ref: "[SR-0000e3/AK3]" },
+    expect: "error",
+  },
   {
     name: "one copy of a UUID two files share, by file (SR-088, ThomasBirkmaier/ReqSeq-archive#255)",
     fixture: { fixture: "SR-088/copied-file", git: true },

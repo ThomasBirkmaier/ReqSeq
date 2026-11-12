@@ -73,7 +73,15 @@
 // - hints and problems show their severity first, coloured by it; the line after them is faint.
 // No style is keyed to a status: statuses come from the metamodel. A matrix, a chain, a graph and the
 // comparisons keep the plain layout on a terminal.
-import { criterionLabel, criterionText, degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
+import {
+  criterionKey,
+  criterionLabel,
+  criterionText,
+  degreePercent,
+  degreeShareOf,
+  isCriterionKey,
+  minimumHeadText,
+} from "@reqseq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 import type { Style, Terminal } from "./style.js";
@@ -363,22 +371,68 @@ const relationLine = (r: Rec): string => {
   );
 };
 
+/** A criterion as `element get` lists it: `AK1 (k7f3) [SR-036/AK-k7f3]` (SR-205 AK1), `AK2` without key. */
+const criterionEntryLabel = (entry: Rec): string =>
+  [nameOfCriterion(entry), typeof entry["reference"] === "string" ? entry["reference"] : ""]
+    .filter((part) => part !== "")
+    .join(" ");
+
+/** `criterionReferences` of element.get and element.resolve (SR-205 AK1), read loosely; undefined without. */
+const criterionReferencesIn = (
+  value: unknown,
+): { readonly property: string; readonly criteria: Rec[] } | undefined =>
+  isRecord(value) && typeof value["property"] === "string"
+    ? { property: value["property"], criteria: listOf(value["criteria"]).filter(isRecord) }
+    : undefined;
+
 /**
  * Properties with every list of texts as a map from its item number, counted from 1, to the item, so
- * the YAML shows `1: ...` (#401), an acceptance criterion with its key as its text (SR-204); other
- * values as they are.
+ * the YAML shows `1: ...` (#401). With `references` (element.get, element.resolve), the list of
+ * acceptance criteria as a map from `AK1 (k7f3)` and the reference for a test name (SR-205 AK1) to
+ * its text. Without (`element list --with-text`), a list whose items carry criterion keys is labelled
+ * `AK1 (k7f3)` as well, a key in another form as none, as element.get shows it; a list without keys
+ * cannot be told from another list of texts and stays numbered. Other values as they are.
  */
-const numberedProperties = (properties: unknown): unknown =>
+const numberedProperties = (
+  properties: unknown,
+  references?: ReturnType<typeof criterionReferencesIn>,
+): unknown =>
   isRecord(properties)
     ? Object.fromEntries(
-        Object.entries(properties).map(([key, value]) => [
-          key,
-          Array.isArray(value) &&
-          value.length > 0 &&
-          value.map(criterionText).every((item) => typeof item === "string")
-            ? new Map(value.map((item, i) => [i + 1, criterionText(item)]))
-            : value,
-        ]),
+        Object.entries(properties).map(([key, value]) => {
+          if (key === references?.property) {
+            return [
+              key,
+              new Map(references.criteria.map((entry) => [criterionEntryLabel(entry), entry["text"]])),
+            ];
+          }
+          if (
+            !Array.isArray(value) ||
+            value.length === 0 ||
+            !value.map(criterionText).every((item) => typeof item === "string")
+          ) {
+            return [key, value];
+          }
+          const keyOf = (item: unknown): string | undefined => {
+            const itemKey = criterionKey(item);
+            return isCriterionKey(itemKey) ? itemKey : undefined;
+          };
+          const keyed = value.some((item) => criterionKey(item) !== undefined);
+          return [
+            key,
+            new Map(
+              value.map((item, i) => [
+                keyed
+                  ? nameOfCriterion({
+                      criterion: i + 1,
+                      ...(keyOf(item) === undefined ? {} : { key: keyOf(item) }),
+                    })
+                  : i + 1,
+                criterionText(item),
+              ]),
+            ),
+          ];
+        }),
       )
     : properties;
 
@@ -387,7 +441,11 @@ const numberedProperties = (properties: unknown): unknown =>
  * relations one line each, the text last. The UUIDs of `names` in the values other than the
  * properties (shown as stored) print as the elements they name (`replacedBy`, `excludedBy`, SR-046 AK3).
  */
-const elementDetails = (element: Rec, names: Names): string[] => {
+const elementDetails = (
+  element: Rec,
+  names: Names,
+  references?: ReturnType<typeof criterionReferencesIn>,
+): string[] => {
   const {
     id,
     shortId: _shortId,
@@ -412,7 +470,7 @@ const elementDetails = (element: Rec, names: Names): string[] => {
     ...Object.fromEntries(
       Object.entries(rest).map(([key, value]) => [
         key,
-        key === "properties" ? numberedProperties(value) : withNames(value, names),
+        key === "properties" ? numberedProperties(value, references) : withNames(value, names),
       ]),
     ),
     relations: (Array.isArray(relations) ? relations : []).filter(isRecord).map(relationLine),
@@ -547,6 +605,7 @@ const valueLines = (
   lifted: unknown[],
   names: Names = new Map(),
   style?: Style,
+  references?: ReturnType<typeof criterionReferencesIn>,
 ): string[] => {
   if (key === "incomplete" && typeof value === "boolean") {
     return value ? ["incomplete: true (a repository of the workspace is not on this machine)"] : [];
@@ -558,30 +617,45 @@ const valueLines = (
       style === undefined
         ? elementLine(value, namerOf([]), view)
         : terminalElementLine(value, style, view, details),
-      ...(details ? elementDetails(value, names) : []),
+      ...(details ? elementDetails(value, names, references) : []),
     ];
   }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return [`${key}: none`];
-    }
-    if (value.every(isElement)) {
-      return [`${key}:`, ...elementListLines(value, names, style)];
-    }
-    if (value.every(isProblem)) {
-      return [`${key}:`, ...indent(value.map((finding) => findingLine(finding, style)))];
-    }
-    if (value.every(isEvidenceRecord)) {
-      return [`${key}:`, ...indent(value.map(listedRecordLine))];
-    }
-    if (value.every(isTestCase)) {
-      return [`${key}:`, ...indent(value.map(testCaseLine))];
-    }
-    if (value.every((item) => typeof item === "string")) {
-      return [`${key}:`, ...indent(value.map((item) => text(withNames(item, names))))];
-    }
+  // The criterion a reference names (element.resolve, SR-205 AK5): `criterion: AK2 (k7f3) [SR-036/AK-k7f3]: text`.
+  if (key === "criterion" && isRecord(value) && typeof value["text"] === "string") {
+    return [`criterion: ${criterionEntryLabel(value)}: ${value["text"]}`];
   }
-  return yamlLines({ [key]: withNames(withPercent(value), names) });
+  return (
+    (Array.isArray(value) ? arrayLines(key, value, names, style) : undefined) ??
+    yamlLines({ [key]: withNames(withPercent(value), names) })
+  );
+};
+
+/** A list of one output value by the shape of its items; undefined for a list of another shape. */
+const arrayLines = (
+  key: string,
+  value: readonly unknown[],
+  names: Names,
+  style: Style | undefined,
+): string[] | undefined => {
+  if (value.length === 0) {
+    return [`${key}: none`];
+  }
+  if (value.every(isElement)) {
+    return [`${key}:`, ...elementListLines(value, names, style)];
+  }
+  if (value.every(isProblem)) {
+    return [`${key}:`, ...indent(value.map((finding) => findingLine(finding, style)))];
+  }
+  if (value.every(isEvidenceRecord)) {
+    return [`${key}:`, ...indent(value.map(listedRecordLine))];
+  }
+  if (value.every(isTestCase)) {
+    return [`${key}:`, ...indent(value.map(testCaseLine))];
+  }
+  if (value.every((item) => typeof item === "string")) {
+    return [`${key}:`, ...indent(value.map((item) => text(withNames(item, names))))];
+  }
+  return undefined;
 };
 
 /** A node of a chain (trace.chain `nodes`), as far as the tree reads it. */
@@ -1569,6 +1643,18 @@ const nodeListLines = (rest: Rec, shown: Set<string>, style: Style | undefined):
 };
 
 /**
+ * The criteria of element.get and element.resolve, which show in the element's properties (SR-205
+ * AK1), adding `criterionReferences` to `shown`; undefined without them.
+ */
+const shownReferences = (rest: Rec, shown: Set<string>): ReturnType<typeof criterionReferencesIn> => {
+  const references = criterionReferencesIn(rest["criterionReferences"]);
+  if (references !== undefined && isElement(rest["element"])) {
+    shown.add("criterionReferences");
+  }
+  return references;
+};
+
+/**
  * The output for people (see the file comment). `details`: show an element's details below its line
  * (commands that read). `terminal`: the terminal stdout is, when the output is styled for one (#988);
  * plain text without it.
@@ -1609,9 +1695,12 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
   if (names.size > 0) {
     shown.add("names");
   }
+  const references = shownReferences(rest, shown);
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
-      lines.push(...valueLines(key, value, details, lifted, names, style));
+      lines.push(
+        ...valueLines(key, value, details, lifted, names, style, key === "element" ? references : undefined),
+      );
     }
   }
   lines.push(...pageNote(rest));

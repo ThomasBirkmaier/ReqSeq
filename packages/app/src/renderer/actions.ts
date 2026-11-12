@@ -21,6 +21,7 @@ import type {
 import {
   bufferName,
   elementBuffer,
+  elementBufferOf,
   graphBuffer,
   metamodelBuffer,
   neighbourhoodBuffer,
@@ -47,6 +48,7 @@ import {
   onlyChoices,
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
+import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { TEXT_ACTIONS } from "./text-actions.js";
 import { ENTRY_ACTIONS } from "./entry-menu.js";
 import type { GivenArguments, MatrixSpot } from "./matrix-menu.js";
@@ -618,10 +620,50 @@ export const jumpPrompt = (context: ActionContext): Prompt => {
         },
       })),
     ],
-    find: findElements(context, (row) => {
-      context.dispatch({ type: "open", buffer: row.open });
-    }),
+    find: async (query) => {
+      const [criterion, found] = await Promise.all([
+        criterionChoices(context, query),
+        findElements(context, (row) => {
+          context.dispatch({ type: "open", buffer: row.open });
+        })(query),
+      ]);
+      return [...criterion, ...found];
+    },
   };
+};
+
+/**
+ * The choice "Go to" offers for a typed reference to an acceptance criterion, `[SR-036/AK-k7f3]` from a
+ * failing test (SR-205 AK5): `element.resolve` names the requirement and the criterion's number and
+ * text, and choosing it opens the requirement. None for other text (`criterionReferenceOf` of core reads
+ * it as enrich-junit does); a refused reference in brackets says why in the echo area.
+ */
+export const criterionChoices = async (context: ActionContext, query: string): Promise<readonly Choice[]> => {
+  if (typeof criterionReferenceOf(query)?.criterion !== "string") {
+    return [];
+  }
+  const answer = await context.call("element.resolve", { ref: query.trim() });
+  if (!answer.ok) {
+    // Only a closed bracket token is complete: a reference without brackets may still be being typed.
+    if (query.trim().startsWith("[")) {
+      context.echo(answer.message);
+    }
+    return [];
+  }
+  const { element, criterion } = answer.output;
+  if (criterion === undefined) {
+    return [];
+  }
+  const buffer = elementBufferOf(element);
+  return [
+    {
+      id: `criterion:${buffer.key}:${criterion.key ?? String(criterion.criterion)}`,
+      name: `${buffer.name} · ${criterionLabel(criterion)} · ${criterion.text}`,
+      run: () => {
+        context.dispatch({ type: "open", buffer });
+      },
+    },
+  ];
 };
 
 /** The prompt of the slash menu's "Reference to element" (SR-129): an element is picked, the editor writes the reference. */

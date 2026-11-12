@@ -32,6 +32,7 @@
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
 // - Order: by element in store order, then kind, then variant as the records give them.
 import type { Problem } from "../catalog.js";
+import type { DataExportCriterionName } from "../generated/types.js";
 import type { ElementCriteria, EvidenceRecord } from "../evidence/index.js";
 import {
   criterionLabel,
@@ -133,6 +134,33 @@ const messageOf = (
 };
 
 /**
+ * The `evidence.outdated` problem of `element` named by its newest older `record` in the view of
+ * `variant` (the core: undefined), with the outdated criteria `names` when the view has a record of
+ * the current `version` (`messageOf`).
+ */
+const outdatedProblem = (
+  record: EvidenceRecord,
+  element: ElementRecord,
+  label: string,
+  variant: string | undefined,
+  version: VersionForms,
+  { names }: { readonly names: readonly DataExportCriterionName[] | undefined },
+): Problem => ({
+  code: "evidence.outdated",
+  severity: "warning",
+  message: messageOf(record, label, variant, names?.map(criterionLabel)),
+  ...(record.repository === undefined ? {} : { repository: record.repository }),
+  ...(record.file === undefined ? {} : { file: record.file }),
+  ...(record.line === undefined ? {} : { line: record.line }),
+  elementId: element.id,
+  elementRepository: element.repository,
+  elementFile: element.file,
+  storedVersion: record.version,
+  currentVersion: version[NORMAL_FORM],
+  ...(names === undefined || names.length === 0 ? {} : { criteria: [...names] }),
+});
+
+/**
  * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, per kind
  * and variant of its records whose status in that view is `outdated` against the version `currentOf`
  * gives for that element (each copy of a UUID against its own, SR-088), the newest record of the
@@ -190,24 +218,12 @@ export const outdatedEvidenceFindings = (
       if (record === undefined) {
         continue;
       }
-      problems.push({
-        code: "evidence.outdated",
-        severity: "warning",
-        message: messageOf(
-          record,
-          label(element),
-          group.variant,
-          criteria?.map((n) => criterionLabel(criterionNameAt(criteriaOfElement.items, n))),
-        ),
-        ...(record.repository === undefined ? {} : { repository: record.repository }),
-        ...(record.file === undefined ? {} : { file: record.file }),
-        ...(record.line === undefined ? {} : { line: record.line }),
-        elementId: element.id,
-        elementRepository: element.repository,
-        elementFile: element.file,
-        storedVersion: record.version,
-        currentVersion: version[NORMAL_FORM],
-      });
+      problems.push(
+        outdatedProblem(record, element, label(element), group.variant, version, {
+          // The criteria named with number, key and text (SR-205 AK2); the message names them by label.
+          names: criteria?.map((n) => criterionNameAt(criteriaOfElement.items, n)),
+        }),
+      );
     }
   }
   return problems;

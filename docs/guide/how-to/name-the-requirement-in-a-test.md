@@ -7,7 +7,7 @@ sidebar:
 
 A test shows a requirement once it names it, in one of two ways that give the same result:
 
-- **In the test name**, in square brackets: `[SR-b2c0de]`, or with a criterion by key or number, `[SR-b2c0de/AK-k7f3]` or `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
+- **In the test name**, in square brackets: `[SR-b2c0de]`, or with a criterion by key or number, [`[SR-b2c0de/AK-k7f3]`](/how-to/give-acceptance-criteria-their-keys/#the-reference-of-a-criterion) or `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
 - **As the property `reqseq:element`** of the test case, with the ID as its value. To name one acceptance criterion this way, add the property `reqseq:criterion` with the ID, a colon and the key or number (`SR-b2c0de:k7f3`).
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.

@@ -384,7 +384,7 @@
         "criterionNames": {
           "type": "array",
           "items": { "$ref": "#/$defs/criterionName" },
-          "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it."
+          "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Filled by the commands that list records: `evidence.list` (also in its test cases), `trace.chain`, `trace.matrix`, `trace.affected` and `evidence.record`, each counting the current version, and `baseline.get` in `later`, counting the baseline's version; not in the data export, which has no records."
         },
         "baselines": {
           "type": "array",
@@ -508,6 +508,45 @@
         },
         "key": { "$ref": "common.schema.json#/$defs/criterionKey" },
         "text": { "type": "string", "description": "The text of the acceptance criterion." }
+      },
+      "additionalProperties": false
+    },
+    "criterionEntry": {
+      "type": "object",
+      "description": "An acceptance criterion of the current version of a requirement (SR-205 AK1): its number, criterion key, text and the reference a test name uses.",
+      "required": ["criterion", "text"],
+      "properties": {
+        "criterion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The number: the position in the current version, counted from 1, so the numbers have no gaps (SR-205 AK3)."
+        },
+        "key": {
+          "$ref": "common.schema.json#/$defs/criterionKey",
+          "description": "The criterion key (D-072, SR-204); left out when the criterion has none."
+        },
+        "text": { "type": "string", "description": "The text of the acceptance criterion." },
+        "reference": {
+          "type": "string",
+          "description": "The reference for a test name, `[<name>/AK-<key>]` (SR-205 AK1, SR-029 AK10): the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key (SR-204 AK10; spec question #1525, assumption)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "criterionReferences": {
+      "type": "object",
+      "description": "The acceptance criteria of a requirement's current version with their references for test names (SR-205 AK1), in their order. Given for an element whose type has the meaning `requirement` and that has acceptance criteria, each a text; left out otherwise.",
+      "required": ["property", "criteria"],
+      "properties": {
+        "property": {
+          "$ref": "common.schema.json#/$defs/key",
+          "description": "The key of the property with the meaning `acceptance-criteria` that holds them."
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/criterionEntry" }
+        }
       },
       "additionalProperties": false
     },

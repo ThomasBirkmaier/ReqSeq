@@ -50,6 +50,7 @@ import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
+import { criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveringAction } from "./command-entry.js";
@@ -1169,17 +1170,25 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
                     ),
                   },
                 ],
-          find: findElements(
-            context,
-            (row) => {
-              give(context, entry, field, picked(row), row.label, false);
-            },
-            {
-              ...(offer.types === undefined ? {} : { selection: { where: { type: [...offer.types] } } }),
-              more: (row) => {
-                give(context, entry, field, picked(row), row.label, true);
+          find: withTypedReference(
+            findElements(
+              context,
+              (row) => {
+                give(context, entry, field, picked(row), row.label, false);
               },
-            },
+              {
+                ...(offer.types === undefined ? {} : { selection: { where: { type: [...offer.types] } } }),
+                more: (row) => {
+                  give(context, entry, field, picked(row), row.label, true);
+                },
+              },
+            ),
+            // Only element.resolve reads a criterion reference; other commands take the element alone.
+            offer.target === true || entry.command.name !== "element.resolve"
+              ? undefined
+              : (text, more) => {
+                  give(context, entry, field, text, text, more);
+                },
           ),
         };
       }
@@ -1199,6 +1208,38 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     }),
   });
 };
+
+/**
+ * `find` with the typed text itself first when it is a reference to an acceptance criterion as a test
+ * name writes it (`[SR-036/AK-k7f3]`, `criterionReferenceOf` of core), which no search finds: "Resolve
+ * reference" takes it so (SR-205 AK5), and core says what is wrong with it. `take` gives the text;
+ * without it (a relation target, or an argument of another command than element.resolve) nothing is added.
+ */
+const withTypedReference =
+  (
+    find: (query: string) => Promise<readonly Choice[]>,
+    take: ((text: string, more: boolean) => void) | undefined,
+  ) =>
+  async (query: string): Promise<readonly Choice[]> => {
+    const found = await find(query);
+    const text = query.trim();
+    if (take === undefined || criterionReferenceOf(text)?.criterion === undefined) {
+      return found;
+    }
+    return [
+      {
+        id: `reference:${text}`,
+        name: `Use ${text}`,
+        run: () => {
+          take(text, false);
+        },
+        more: () => {
+          take(text, true);
+        },
+      },
+      ...found,
+    ];
+  };
 
 /**
  * The parts of a path argument (SR-143 AK2): the typed text itself first, "Use <path>", so Enter takes a

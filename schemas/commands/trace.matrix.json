@@ -5,7 +5,7 @@
   "details": "Rows in list order, columns for each kind and direction that occurs. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-125", "SR-126", "SR-153"],
+  "implements": ["SR-125", "SR-126", "SR-153", "SR-205"],
   "arguments": [
     { "field": "selection", "complete": "selection" },
     { "field": "sort", "complete": "json" },

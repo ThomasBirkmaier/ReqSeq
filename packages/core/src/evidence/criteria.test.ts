@@ -37,4 +37,17 @@ describe("namedCriterion (SR-205 AK2)", () => {
     expect(criterionNameAt(CURRENT, 2)).toEqual({ criterion: 2, key: "kred", text: "Red now" });
     expect(criterionNameAt([null], 1)).toEqual({ criterion: 1 });
   });
+
+  it("names a key of another form as none, as element.get does (SR-204 AK5)", () => {
+    expect(criterionNameAt([{ key: "KDAS", text: "Upper" }], 1)).toEqual({ criterion: 1, text: "Upper" });
+    const [resolved] = resolveCriterionRefs([1], [{ key: "KDAS", text: "Upper old" }], ["Gone"]);
+    expect(
+      resolved === undefined
+        ? undefined
+        : namedCriterion(resolved, ["Gone"], [{ key: "KDAS", text: "Upper old" }]),
+    ).toEqual({
+      criterion: 1,
+      text: "Upper old",
+    });
+  });
 });

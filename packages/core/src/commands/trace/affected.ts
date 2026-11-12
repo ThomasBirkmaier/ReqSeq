@@ -5,10 +5,11 @@
 // an older version (AK4): the element's records of the evidence index whose version is not its
 // current one (`currentVersionsOf`, computed only when the element has records). When its current
 // version cannot be computed (its file no longer holds it, an image cannot be read), no record is
-// known to be of an older version and the list is empty.
+// known to be of an older version and the list is empty. Each record names its criteria with number,
+// key and text, counted in the current version (`recordNamer`, SR-205 AK2).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { evidenceIndexState, withEvidenceSource } from "../../evidence/index.js";
+import { evidenceIndexState, recordNamer, withEvidenceSource } from "../../evidence/index.js";
 import { currentVersionsOf, resolveRef, shortIdState } from "../../model/index.js";
 import type { AffectedOptions } from "../../trace/index.js";
 import { affectedOutput, derivationGraph, traceAffected, traceContext } from "../../trace/index.js";
@@ -36,6 +37,7 @@ export default defineCommand({
       { limit: input.limit, offset: input.offset },
     );
     // Copies with their evidence source (#821): the index records stay as they are.
-    return { ...output, records: output.records.map(withEvidenceSource) };
+    const name = await recordNamer(ctx.workspace, [{ element, records: output.records }]);
+    return { ...output, records: output.records.map((record) => name(element, withEvidenceSource(record))) };
   },
 });
