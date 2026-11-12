@@ -121,7 +121,6 @@ describe("outdated evidence in workspace check (SR-025)", () => {
         line: 1,
         elementId: B,
         elementShortId: "SR-000002",
-        elementTitle: "Show wind direction",
         elementRepository: "system",
         elementFile: "requirements/SR-0d0000000002.md",
         view: "core",

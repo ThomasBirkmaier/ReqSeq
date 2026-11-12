@@ -237,11 +237,7 @@ describe("unknown properties and types (SR-016)", () => {
     });
     // The fixture's requirement has no parent: its hint follows those of the element's own properties (SR-022 AK6).
     expect(out.problems).toEqual([
-      ...GUSTS_PROBLEMS.map((p) => ({
-        ...p,
-        elementShortId: "SR-1b2c3d",
-        elementTitle: "Show gusts above 10 m/s",
-      })),
+      ...GUSTS_PROBLEMS.map((p) => ({ ...p, elementShortId: "SR-1b2c3d" })),
       {
         code: "trace.no-parent",
         severity: "warning",
@@ -251,7 +247,6 @@ describe("unknown properties and types (SR-016)", () => {
         file: GUSTS_FILE,
         elementId: GUSTS,
         elementShortId: "SR-1b2c3d",
-        elementTitle: "Show gusts above 10 m/s",
       },
     ]);
   });

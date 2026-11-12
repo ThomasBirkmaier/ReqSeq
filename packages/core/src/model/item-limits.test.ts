@@ -8,6 +8,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { itemLimitFindings, itemLimitProblemsState } from "./item-limits.js";
 import { elementStoreState } from "./store.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 const ID = "17100000-0000-4000-8000-000000";
 const SR1 = `${ID}c00001`;
@@ -38,11 +39,10 @@ const hint = (count = 4, n = 1, line = 6): Problem => ({
   limit: 3,
 });
 
-/** A hint as a command gives it, with the element's short ID (ThomasBirkmaier/ReqSeq-archive#315) and title (SR-026 AK6). */
+/** A hint as a command gives it, with the element's short ID (ThomasBirkmaier/ReqSeq-archive#315). */
 const shown = (problem: Problem): Problem => ({
   ...problem,
   elementShortId: `SR-${String(problem.elementId).slice(-6)}`,
-  elementTitle: problem.elementId === SR2 ? "Show wind direction" : "Show wind speed",
 });
 
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
@@ -54,7 +54,9 @@ describe("the most entries of a list property (SR-171)", () => {
     const problems = await check(workspace);
     expect(problems.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
     const hints = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;
-    expect(hints.hints.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
+    expect(withoutTitles(hints.hints).filter((p) => p.code === "element.too-many-items")).toEqual([
+      shown(hint()),
+    ]);
   });
 
   it("[SR-171/AK-ptxs] gives no count hint for a list property without max-items, however many entries", async () => {

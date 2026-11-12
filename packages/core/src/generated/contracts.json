@@ -603,7 +603,7 @@
             },
             "elementTitle": {
               "type": "string",
-              "description": "Title of the element `elementId` names, for display next to `elementShortId`; given with it; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
+              "description": "Title of the element `elementId` names, for display next to `elementShortId`; given by hint.list on the hints of its page whose element is in the workspace; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
             },
             "targetId": {
               "$ref": "#/$defs/uuid"
@@ -622,7 +622,7 @@
             },
             "targetTitle": {
               "type": "string",
-              "description": "Title of the element `targetId` names, for display next to `targetShortId`; given with it, empty as `elementTitle`."
+              "description": "Title of the element `targetId` names, for display next to `targetShortId`; given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
             },
             "storedVersion": {
               "$ref": "#/$defs/version"

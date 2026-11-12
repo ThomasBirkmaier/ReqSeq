@@ -25,6 +25,7 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { FINDING_STATES } from "../workspace/check.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import { withoutTitles } from "../../hints/titles.test-helper.js";
 
 type Output = CommandOutput<"hint.list">;
 type Shown = CommandOutput<"element.get">;
@@ -164,7 +165,8 @@ describe("hint.list (SR-026)", () => {
     const workspace = await opened();
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(check.problems.map((p) => p.code)).toContain("relation.missing-target");
-    expect((await list(workspace)).hints).toEqual(check.problems.filter(isHint));
+    // The hints of hint.list carry the titles of element and target too (SR-026 AK6).
+    expect(withoutTitles((await list(workspace)).hints)).toEqual(check.problems.filter(isHint));
   });
 
   it("[SR-026/AK-vs4d] gives the hints of workspace.check, also of a workspace with one finding of each kind", async () => {
@@ -172,7 +174,7 @@ describe("hint.list (SR-026)", () => {
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     const hints = check.problems.filter(isHint);
     expect(hints.length).toBeGreaterThan(5);
-    expect((await list(workspace)).hints).toEqual(hints);
+    expect(withoutTitles((await list(workspace)).hints)).toEqual(hints);
     // The finding states it leaves out give no hint (duplicate IDs, missing targets, evidence records).
     expect(FINDING_STATES.filter((s) => !(HINT_STATES as readonly unknown[]).includes(s))).toHaveLength(3);
     expect(HINT_STATES.every((s) => (FINDING_STATES as readonly unknown[]).includes(s))).toBe(true);
@@ -480,7 +482,7 @@ describe("hint.list (SR-026)", () => {
     const one = [{ code: "element.unknown-property", count: 1 }];
     expect(await hintsOf(workspace, context, { types: ["need"] }, [stray, elsewhere], [])).toEqual({
       kinds: one,
-      hints: [elsewhere],
+      hints: [{ ...elsewhere, elementTitle: "Hear the storm" }],
       total: 1,
     });
     // No record of the UUID: no element filter matches it.
@@ -527,7 +529,9 @@ describe("hint.list (SR-026)", () => {
     ];
     expect(filters).toHaveLength(3);
     for (const filter of filters) {
-      expect((await hintsOf(workspace, context, filter, [evidence], [])).hints).toEqual([evidence]);
+      expect(withoutTitles((await hintsOf(workspace, context, filter, [evidence], [])).hints)).toEqual([
+        evidence,
+      ]);
     }
     expect((await hintsOf(workspace, context, { types: ["need"] }, [evidence], [])).hints).toEqual([]);
   });
@@ -563,7 +567,7 @@ describe("hints at the element (SR-026 AK3)", () => {
         message: p.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
       }),
     );
-    expect(outdated).toEqual(undated);
+    expect(outdated).toEqual(withoutTitles(undated));
   });
 
   it("[SR-026/AK-w590] element.get with versionDate names the dates, as hint.list does, also once the versions are built", async () => {
@@ -572,7 +576,9 @@ describe("hints at the element (SR-026 AK3)", () => {
     const listed = (await list(workspace, { ref: R1 })).hints;
     expect(await currentVersionsIfBuilt(workspace)).toBeDefined();
     const element = await get(workspace, { ref: R1, versionDate: true });
-    expect((element.problems ?? []).filter((p) => p.code === "relation.outdated")).toEqual(listed);
+    expect((element.problems ?? []).filter((p) => p.code === "relation.outdated")).toEqual(
+      withoutTitles(listed),
+    );
     expect(listed[0]?.currentDate).toBe(await headDate(ws));
   });
 

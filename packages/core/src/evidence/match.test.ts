@@ -268,7 +268,7 @@ describe("SR-028 findings of the evidence records", () => {
       ).toEqual([problem]);
       const checked = await check(workspace);
       expect(checked.problems.filter((p) => p.code === "evidence.unknown-criterion")).toEqual([
-        { ...problem, targetShortId: "SR-000001", targetTitle: "Show wind speed" },
+        { ...problem, targetShortId: "SR-000001" },
       ]);
     });
 

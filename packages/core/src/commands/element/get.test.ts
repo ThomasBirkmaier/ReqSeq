@@ -508,7 +508,6 @@ describe("element.get, more of what stage 1 shows", () => {
       file: GUSTS.file,
       elementId: GUSTS.id,
       elementShortId: "SR-4a5b6c",
-      elementTitle: "Show gusts",
     });
     // Every other element keeps its version.
     expect((await get(opened, { ref: WIND.id })).version).toMatch(WRITTEN_VERSION);
@@ -543,12 +542,10 @@ describe("element.get, more of what stage 1 shows", () => {
         line: 11,
         elementId: "40a0e000-0000-4000-8000-000000000ab2",
         elementShortId: "SR-000ab2",
-        elementTitle: "Warn of storms",
         targetId: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
         targetRepository: "system",
         key: "validity",
         targetShortId: "VAR-b2b2b2",
-        targetTitle: "Mountain",
       },
     ]);
     // element.update returns the same element, with the same hint and verification status (#214); get adds

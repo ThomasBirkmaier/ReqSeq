@@ -291,7 +291,6 @@ describe("trace.related (SR-023)", () => {
           file: "requirements/SR-0000000000b4.md",
           elementId: D,
           elementShortId: "SR-0000b4",
-          elementTitle: "Show the last hour",
         },
       ],
     ]);
@@ -332,7 +331,6 @@ describe("trace.related (SR-023)", () => {
         file: "requirements/SR-0000000000b6.md",
         elementId: Y,
         elementShortId: "SR-0000b6",
-        elementTitle: "R b6",
       },
     ]);
   });

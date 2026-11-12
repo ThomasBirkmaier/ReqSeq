@@ -359,9 +359,7 @@ const locates = (where: ProblemLocator | undefined, path: readonly Step[]): bool
       typeof key === "number" ? [...Array.from({ length: key }, () => null), inner] : { [key]: inner },
     about(N1, "x.md"),
   );
-  const filled =
-    where &&
-    fillElementShortIds(sample, where, () => ({ elementShortId: "N-0000a1", elementTitle: "See the wind" }));
+  const filled = where && fillElementShortIds(sample, where, () => ({ elementShortId: "N-0000a1" }));
   const leaf = keys.reduce<unknown>(partOf, filled);
   return isObject(leaf) && leaf["elementShortId"] === "N-0000a1";
 };
@@ -501,7 +499,7 @@ describe("every problem of every output schema is located (ThomasBirkmaier/ReqSe
 describe("fillElementShortIds", () => {
   const where = locator({ properties: { problems: PROBLEMS, other: PROBLEMS } }) ?? {};
   const shortIdOf = (problem: Problem): ProblemNames | undefined =>
-    problem.elementId === N1 ? { elementShortId: "N-0000a1", elementTitle: "See the wind" } : undefined;
+    problem.elementId === N1 ? { elementShortId: "N-0000a1" } : undefined;
 
   it("adds the short ID to the problems that name an element, in a copy", () => {
     const named = about(N1, "needs/N-0000000000a1.md");
@@ -509,7 +507,7 @@ describe("fillElementShortIds", () => {
     const filled = fillElementShortIds(output, where, shortIdOf);
     expect(filled).toEqual({
       ...output,
-      problems: [output.problems[0], { ...named, elementShortId: "N-0000a1", elementTitle: "See the wind" }],
+      problems: [output.problems[0], { ...named, elementShortId: "N-0000a1" }],
     });
     // The output and its problems stay as they were (they may be kept in workspace states).
     expect(named).not.toHaveProperty("elementShortId");
@@ -534,9 +532,9 @@ describe("fillElementShortIds", () => {
 });
 
 describe("fillElementShortIds at every place of a value (ThomasBirkmaier/ReqSeq-archive#319)", () => {
-  const shortIdOf = (): ProblemNames => ({ elementShortId: "N-0000a1", elementTitle: "See the wind" });
+  const shortIdOf = (): ProblemNames => ({ elementShortId: "N-0000a1" });
   const problem = about(N1, "x.md");
-  const shown = { ...problem, elementShortId: "N-0000a1", elementTitle: "See the wind" };
+  const shown = { ...problem, elementShortId: "N-0000a1" };
 
   it("fills properties by name, by pattern (named ones too) and the additional ones", () => {
     const where =
@@ -626,9 +624,7 @@ describe("withElementShortIds", () => {
   it("takes the short IDs the workspace has, else builds them from the store and metamodel without keeping them", async () => {
     const workspace = await open();
     await Promise.all([workspace.get(elementStoreState), workspace.get(metamodelState)]);
-    const expected = {
-      problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1", elementTitle: "See the wind" }],
-    };
+    const expected = { problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1" }] };
     expect(await withElementShortIds(workspace, where, named(N1))).toEqual(expected);
     expect(workspace.peek(shortIdState)).toBeUndefined();
     await workspace.get(shortIdState);
@@ -650,7 +646,7 @@ describe("withElementShortIds", () => {
     await workspace.get(metamodelState);
     const copy = { problems: [about(N1, "requirements/SR-0000000000a1.md")] };
     expect(await withElementShortIds(workspace, where, copy)).toEqual({
-      problems: [{ ...copy.problems[0], elementShortId: "SR-0000a1", elementTitle: "Copy" }],
+      problems: [{ ...copy.problems[0], elementShortId: "SR-0000a1" }],
     });
     // A file that holds no copy of the UUID: none of the two is meant.
     expect(problemElement(store, about(N1, "elsewhere.md"))).toBeUndefined();
@@ -675,12 +671,10 @@ describe("withElementShortIds names the target of a problem (#172)", () => {
     expect(await fill(problem)).toEqual({
       ...problem,
       elementShortId: "SR-0000b2",
-      elementTitle: "Warn of storms",
       targetShortId: "N-0000a1",
-      targetTitle: "See the wind",
     });
     const { elementId: _element, ...alone } = problem;
-    expect(await fill(alone)).toEqual({ ...alone, targetShortId: "N-0000a1", targetTitle: "See the wind" });
+    expect(await fill(alone)).toEqual({ ...alone, targetShortId: "N-0000a1" });
   });
 
   it("keeps a short ID that is there and leaves out a target that is not in the store", async () => {
@@ -689,47 +683,29 @@ describe("withElementShortIds names the target of a problem (#172)", () => {
       targetRepository: "system",
       targetShortId: "N-1",
     });
-    expect(await fill(shown)).toEqual({
-      ...shown,
-      elementShortId: "SR-0000b2",
-      elementTitle: "Warn of storms",
-    });
+    expect(await fill(shown)).toEqual({ ...shown, elementShortId: "SR-0000b2" });
     const elementShown = about(R2, "requirements/SR-0000000000b2.md", {
       targetId: N1,
       targetRepository: "system",
       elementShortId: "SR-1",
     });
-    expect(await fill(elementShown)).toEqual({
-      ...elementShown,
-      targetShortId: "N-0000a1",
-      targetTitle: "See the wind",
-    });
+    expect(await fill(elementShown)).toEqual({ ...elementShown, targetShortId: "N-0000a1" });
     const stray = about(R2, "requirements/SR-0000000000b2.md", {
       targetId: `${P}ee`,
       targetRepository: "system",
     });
-    expect(await fill(stray)).toEqual({
-      ...stray,
-      elementShortId: "SR-0000b2",
-      elementTitle: "Warn of storms",
-    });
+    expect(await fill(stray)).toEqual({ ...stray, elementShortId: "SR-0000b2" });
     const { elementId: _element, ...strayAlone } = stray;
     expect(await fill(strayAlone)).toBe(strayAlone);
     // A target the producer did not resolve (no targetRepository, e.g. a missing one) is never named.
     const unresolved = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1 });
-    expect(await fill(unresolved)).toEqual({
-      ...unresolved,
-      elementShortId: "SR-0000b2",
-      elementTitle: "Warn of storms",
-    });
+    expect(await fill(unresolved)).toEqual({ ...unresolved, elementShortId: "SR-0000b2" });
   });
 });
 
 describe("withElementShortIds takes one view of the workspace (ADR-0008, ThomasBirkmaier/ReqSeq-archive#319)", () => {
   const where = locator({ properties: { problems: PROBLEMS } });
-  const expected = {
-    problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1", elementTitle: "See the wind" }],
-  };
+  const expected = { problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1" }] };
 
   /** Short IDs of a newer store, in which another UUID ends like N1's: N1's short ID grows there. */
   const newerShortIds = async (workspace: Workspace): Promise<ShortIds> => {
@@ -816,13 +792,13 @@ describe("withElementShortIds takes one view of the workspace (ADR-0008, ThomasB
         elementRepository: "system",
         elementFile,
       });
-    for (const [file, shortId, title] of [
-      ["requirements/SAF-0000000000b4.md", "SAF-0000b4", "Stop the rotor in a storm"],
-      ["requirements/SR-0000000000b4.md", "SR-0000b4", "Copy"],
+    for (const [file, shortId] of [
+      ["requirements/SAF-0000000000b4.md", "SAF-0000b4"],
+      ["requirements/SR-0000000000b4.md", "SR-0000b4"],
     ] as const) {
       const output = { problems: [evidence(file)] };
       expect(await withElementShortIds(workspace, where, output)).toEqual({
-        problems: [{ ...output.problems[0], elementShortId: shortId, elementTitle: title }],
+        problems: [{ ...output.problems[0], elementShortId: shortId }],
       });
     }
     // The record file alone names none of the two copies.
@@ -933,7 +909,7 @@ describe("every command names the short ID of the element of each problem (Thoma
     expect(await runtime.invoke("test.named", {}, { workspace })).toEqual(named(N1));
     await Promise.all([workspace.get(elementStoreState), workspace.get(metamodelState)]);
     expect(await runtime.invoke("test.named", {}, { workspace })).toEqual({
-      problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1", elementTitle: "See the wind" }],
+      problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1" }],
     });
   });
 });

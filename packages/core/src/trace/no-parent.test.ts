@@ -8,6 +8,7 @@ import { elementStoreState, shortIdState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { elementNoParentFindings, noParentProblemsState } from "./no-parent.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 const P = "5c0e1d2a-0022-4022-8022-00000000";
 const V = "n1:0000000000000000";
@@ -44,7 +45,6 @@ const HINT = {
   file: ORPHAN_FILE,
   elementId: ORPHAN,
   elementShortId: "SR-00b004",
-  elementTitle: "Orphan",
 };
 
 describe("requirements without a parent (SR-022 AK6)", () => {
@@ -56,7 +56,7 @@ describe("requirements without a parent (SR-022 AK6)", () => {
     expect(out.ok).toBe(true);
     // The same hint in hint.list and at the element (SR-026 AK3); nothing to confirm.
     const hints = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;
-    expect(noParent(hints.hints)).toEqual([HINT]);
+    expect(noParent(withoutTitles(hints.hints))).toEqual([HINT]);
     const shown = (await invoke(
       "element.get",
       { ref: ORPHAN },

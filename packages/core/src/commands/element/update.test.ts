@@ -113,7 +113,6 @@ describe("element.update", () => {
         file: WIND.file,
         elementId: WIND.id,
         elementShortId: "SR-e88fb3",
-        elementTitle: "Show wind speed",
       },
     ]);
     // An empty text given again (whitespace only) does not warn, nor does a new text.
@@ -135,7 +134,6 @@ describe("element.update", () => {
         file: WIND.file,
         elementId: WIND.id,
         elementShortId: "SR-e88fb3",
-        elementTitle: "Show wind speed",
         key: "rationale",
       },
     ]);

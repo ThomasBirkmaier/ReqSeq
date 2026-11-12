@@ -108,13 +108,6 @@ const targetNow = async (
 const shortIdOf = (element: { readonly id: string; readonly file: string }): string =>
   `${element.file.replace(/^.*\//, "").replace(/-.*$/, "")}-${element.id.slice(-6)}`;
 
-/** The titles of the elements of the hints (SR-026 AK6). */
-const TITLES: Readonly<Record<string, string>> = {
-  [N_OLD.id]: "See the wind",
-  [SR_OLD.id]: "Show wind speed",
-  [SR_CHILD.id]: "Show wind speed in large digits",
-};
-
 const hint = (
   source: { readonly id: string; readonly file: string },
   target: { readonly id: string; readonly file: string },
@@ -128,11 +121,9 @@ const hint = (
   file: source.file,
   elementId: source.id,
   elementShortId: shortIdOf(source),
-  elementTitle: TITLES[source.id] ?? "",
   targetId: target.id,
   targetRepository: "system",
   targetShortId: shortIdOf(target),
-  targetTitle: TITLES[target.id] ?? "",
   // Every relation of these hints is a derivation.
   key: "derives-from",
   line,

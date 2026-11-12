@@ -10,6 +10,7 @@ import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
 import { unresolvedLinkProblems, unresolvedLinkProblemsState } from "./unresolved-links.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 const SOURCE = "requirements/SR-3d8b2c6e1f05.md";
 /** Two copies of the variant's UUID make its short ID ambiguous (SR-088). */
@@ -160,7 +161,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
     const found = check.problems.filter((p) => p.code === "relation.unresolved-link");
     expect(found).toMatchObject([{ line: 8, elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05" }]);
     expect(shown.element.problems.filter((p) => p.code === "relation.unresolved-link")).toEqual(found);
-    expect(listed.hints.filter((p) => p.code === "relation.unresolved-link")).toEqual(found);
+    expect(withoutTitles(listed.hints).filter((p) => p.code === "relation.unresolved-link")).toEqual(found);
   });
 });
 
@@ -202,7 +203,6 @@ describe("reqseq: references outside a Markdown link (#633)", () => {
       file: SOURCE,
       elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
       elementShortId: "SR-6e1f05",
-      elementTitle: "Show wind speed",
     };
     expect(check.ok).toBe(true);
     expect(check.problems.filter((p) => p.code === "relation.not-a-link")).toEqual([
@@ -291,7 +291,6 @@ describe("reference-style reqseq: links (#844)", () => {
       file: SOURCE,
       elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
       elementShortId: "SR-6e1f05",
-      elementTitle: "Show wind speed",
     };
     expect(check.ok).toBe(true);
     // The property topic is not marked markdown, so its definition does not count.

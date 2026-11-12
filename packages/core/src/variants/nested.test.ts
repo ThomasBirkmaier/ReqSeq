@@ -8,6 +8,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { nestedVariantsState } from "./nested.js";
 import { readFirstFor } from "../runtime/read-first.test-helper.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 /** Elements of fixtures/SR-039/nested: A, B (validity names A, relation to A), C (relation to A only). */
 const A = "39039039-0000-4000-8000-0000000000a1";
@@ -128,12 +129,10 @@ describe("a variant as an element (SR-039)", () => {
         line: 9,
         elementId: C,
         elementShortId: "VAR-0000c3",
-        elementTitle: "Mountain",
         targetId: A,
         targetRepository: "system",
         key: "validity",
         targetShortId: "VAR-0000a1",
-        targetTitle: "Coast",
       },
     ]);
     expect(await failure(opened, "element.bulkUpdate", { ...bulk, confirm: true })).toEqual(
@@ -199,11 +198,9 @@ describe("a variant as an element (SR-039)", () => {
       line: 7,
       elementId: B,
       elementShortId: "VAR-0000b2",
-      elementTitle: "North coast",
       targetId: A,
       targetRepository: "system",
       targetShortId: "VAR-0000a1",
-      targetTitle: "Coast",
       key: "validity",
     };
     const desert = (line: number, named: string): unknown => ({
@@ -215,14 +212,13 @@ describe("a variant as an element (SR-039)", () => {
       line,
       elementId: "39039039-0000-4000-8000-0000000000d4",
       elementShortId: "VAR-0000d4",
-      elementTitle: "Desert",
       key: "validity",
     });
     const expected = [hint, desert(7, "39039039-0000-4000-8000-0000000000ff"), desert(8, "no element")];
     const checked = await run(opened, "workspace.check", {});
     expect(checked.problems.filter((p) => p.code === "variant.nested")).toEqual(expected);
     const listed = await run(opened, "hint.list", { kind: ["variant.nested"] });
-    expect(listed.hints).toEqual(expected);
+    expect(withoutTitles(listed.hints)).toEqual(expected);
     const shown = await run(opened, "element.get", { ref: B });
     expect((shown.element.problems ?? []).filter((p) => p.code === "variant.nested")).toEqual([hint]);
   });

@@ -30,9 +30,12 @@
 //   the output holds `limit` hints from `offset`, in the order above.
 // - Counts per kind (`kinds`, AK6): in the same pass, over every hint that passes, in the order of
 //   each kind's first hint; with `kind` also each named kind without a hint, count 0, after them in
-//   the order `kind` names them, so a kind asked for without a hint has count 0 (AK6). The titles of the
-//   element and the target (`elementTitle`, `targetTitle`) are added with their short IDs by `invoke`,
-//   the view of outdated evidence (`view`) by its state (`evidence.ts`).
+//   the order `kind` names them, so a kind asked for without a hint has count 0 (AK6).
+// - Titles (AK6, `withTitles`): the hints of the page get the titles of their element and of a target
+//   resolved to one element (`elementTitle`, `targetTitle`), the elements their short IDs name. Only
+//   here, so the output of `workspace.check`, which can hold every relation as outdated, does not grow
+//   by a title per problem (SR-020 AK1). The view of outdated evidence (`view`) comes from its state
+//   (`evidence.ts`).
 // - The dates of outdated relations are asked of Git only for the hints of the page.
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
@@ -62,6 +65,7 @@ import {
   itemLimitProblemsState,
   criterionKeyProblemsState,
   problemElement,
+  problemTarget,
   relationKey,
   relationLimitProblemsState,
   relationTypeProblemsState,
@@ -72,6 +76,7 @@ import {
   statementProblemsState,
   statusProblemsState,
   supersededTargetProblemsState,
+  titleKeyOrEmpty,
   unknownProblemsState,
   unresolvedLinkProblemsState,
   valueKindProblemsState,
@@ -238,6 +243,35 @@ const kindCounts = (
   return [...counted, ...zero].map(([code, count]) => ({ code: code as Problem["code"], count }));
 };
 
+/**
+ * `hint` with the titles of its element and of its target (SR-026 AK6): of the elements that
+ * `problemElement` and `problemTarget` find, which the short IDs `invoke` adds name too, so a target
+ * not resolved to one element gets none; empty without a title that is a text or without the
+ * meaning `title`, as `namesOfRecords` reads it. `hint` itself is not changed.
+ */
+const withTitles = (
+  context: { readonly metamodel: Metamodel; readonly store: ElementStore },
+  hint: Problem & { readonly elementId: string },
+): Problem => {
+  const titleKey = titleKeyOrEmpty(context.metamodel);
+  const titleOf = (element: ElementRecord | undefined): string | undefined => {
+    if (element === undefined) {
+      return undefined;
+    }
+    const title = element.data[titleKey];
+    return typeof title === "string" ? title : "";
+  };
+  const { targetId } = hint;
+  const elementTitle = titleOf(problemElement(context.store, hint));
+  const targetTitle =
+    targetId === undefined ? undefined : titleOf(problemTarget(context.store, { ...hint, targetId }));
+  return {
+    ...hint,
+    ...(elementTitle === undefined ? {} : { elementTitle }),
+    ...(targetTitle === undefined ? {} : { targetTitle }),
+  };
+};
+
 /** A page of hints: `limit` hints from `offset`. */
 export interface HintPage {
   readonly limit: number;
@@ -390,7 +424,10 @@ export const hintsOf = async (
   const dated = await datedProblems(workspace, late.slice(from, Math.max(from, end - found.length)));
   return {
     kinds: kindCounts(counted, filter.kinds),
-    hints: [...found.slice(page.offset, end), ...dated],
+    // Every hint of the page passed `passes`, so it names its element (`isHint`).
+    hints: [...found.slice(page.offset, end), ...dated].map((hint) =>
+      withTitles(context, hint as Problem & { readonly elementId: string }),
+    ),
     total: found.length + late.length,
   };
 };
