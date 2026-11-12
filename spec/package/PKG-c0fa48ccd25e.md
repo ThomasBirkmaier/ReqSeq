@@ -6,4 +6,4 @@ title: Ablage und Repositories
 spec-id: Ablage
 ---
 
-Thema „Ablage und Repositories“: Wie Elemente als Dateien in einem oder vielen Repositories liegen, geladen, geschrieben und von außen geändert werden. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan (Entscheidung des Produktverantwortlichen, 2026-11-05).
+Thema „Ablage und Repositories“: Wie Elemente als Dateien in einem oder vielen Repositories liegen, geladen, geschrieben und von außen geändert werden. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.

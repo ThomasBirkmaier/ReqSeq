@@ -11,13 +11,13 @@ acceptance-criteria:
   - "Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht."
 verification-method: test
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
-rationale: "Was ein Export aus der Zuordnung nimmt (AK2): Entscheidung des Produktverantwortlichen, 2026-11-01 (#588)."
+rationale: "Was ein Export aus der Zuordnung nimmt (AK2): siehe #588."
 ---
 
 Das Tool muss die Zuordnung der Typen und Attribute einer Quelle zum eigenen Metamodell als Datei speichern und wiederverwenden.

@@ -12,7 +12,7 @@ acceptance-criteria:
   - "Gegeben eine Mehrfachänderung soll ID, Typ oder Status setzen, ergänzen oder entfernen (App, CLI, API, MCP: `element.bulkUpdate`), dann lehnt das Tool das ab und schreibt nichts; den Status mehrerer Elemente setzt `element.setStatus` in einem Schritt."
 verification-method: test
 packages:
-  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 derives-from:
   - { id: 6adc693a-e1d7-42a9-aeca-7ab5bfacefec, version: n1:b86cbcab02241a36, title: Mehrere Elemente auf einmal ändern }
 based-on:

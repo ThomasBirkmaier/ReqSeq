@@ -5,7 +5,7 @@ status: approved
 title: "Lesbar ohne das Tool"
 spec-id: "N-048"
 packages:
-  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:39b8c7c89788abe8, title: Ablage und Repositories }
 ---
 
 Alle Elemente müssen auch ohne das Tool vollständig lesbar und verständlich sein.

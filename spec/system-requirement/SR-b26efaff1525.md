@@ -12,7 +12,7 @@ acceptance-criteria:
   - Gegeben eine Property mit Wertart Zahl oder Beziehung oder mit festen Werten, wenn über einen Schreibbefehl (App, CLI, API, MCP) ein Wert eingetragen wird, der nicht passt, zum Beispiel ein Text für eine Zahl, ein Wert, der nicht zu den festen Werten gehört, oder ein Eintrag, der nicht genau ein vorhandenes Element nennt, dann weist das Tool den Wert zurück und schreibt nichts; bei Wertart Text oder Datum speichert es den Wert und zeigt den Hinweis aus AK1, außer einem Kriterienschlüssel, den SR-204 AK5 zurückweist.
 verification-method: test
 packages:
-  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:cbcfa73eec53e04c, title: Metamodell und Prüfung }
+  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:9a6d5b6b85dc5026, title: Metamodell und Prüfung }
 derives-from:
   - { id: 6ad47d8b-773c-4d21-bf35-1b7deeb96561, version: n1:de3fc7e167c1c882, title: Anpassbares Metamodell }
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }

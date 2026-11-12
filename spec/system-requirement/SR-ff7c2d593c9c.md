@@ -17,7 +17,7 @@ acceptance-criteria:
   - "Gegeben SR-A mit Gültigkeit [A] ersetzt SR-K, und der Status von SR-A wird auf einen ungültigen Wert gesetzt (zum Beispiel abgelöst), wenn die Sicht von A berechnet wird, dann ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht; sie ändert sich erst, wenn die Beziehung „ersetzt“ oder die Gültigkeit entfernt wird oder ein Nachfolger SR-K ersetzt (Entscheidung des Produktverantwortlichen, 2026-10-30)."
 verification-method: test
 packages:
-  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }
 derives-from:
   - { id: 6ad3a420-474e-4443-82d6-56a362271467, version: n1:01158fe8c5032e68, title: Variante ersetzt Kern-Requirement }
 based-on:

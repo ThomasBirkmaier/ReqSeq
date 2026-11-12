@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Trefferkarte der Befehlszeile mit Bewegung einblenden
 spec-id: SR-182
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Das Öffnen der Befehlszeile soll den Eindruck vermitteln, dass physisch etwas auf dem Bildschirm passiert. Gewählt wurden höchstens 200 ms, das Abdunkeln des ganzen Hintergrunds mit Unschärfe nur im Saum des Schattens und die Bewegung nur beim Öffnen, für die Kürzel-Karte ebenso."
+rationale: Das Öffnen der Befehlszeile soll den Eindruck vermitteln, dass physisch etwas auf dem Bildschirm passiert. Gewählt wurden höchstens 200 ms, das Abdunkeln des ganzen Hintergrunds mit Unschärfe nur im Saum des Schattens und die Bewegung nur beim Öffnen, für die Kürzel-Karte ebenso.
 requirement-type: quality
 acceptance-criteria:
   - Gegeben die Befehlszeile ohne Trefferkarte, wenn die Trefferkarte erscheint, zum Beispiel nach Ctrl+Shift+P oder Ctrl+P, dann fährt sie von der Befehlszeile aus nach oben in ihre Lage und ist nach höchstens 200 ms vollständig zu sehen.
@@ -18,9 +18,9 @@ verification-method: test
 derives-from:
   - { id: 6ad49f57-47f2-4570-a046-b1af59b51503, version: n2:07b7ff5a4868078c, title: "Einfach, minimalistisch und ästhetisch" }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:2ec3810c4995e7aa, title: Oberfläche als weißes Blatt }
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 ---
 
 Die App muss die Trefferkarte der Befehlszeile beim Öffnen mit einer kurzen Bewegung von unten einblenden und dabei den Hintergrund im gleichen Maß dezent abdunkeln und im Bereich ihres Schattens leicht unscharf zeigen, sodass die Karte wirkt, als lege sie sich über den Inhalt.

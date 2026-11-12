@@ -6,4 +6,4 @@ title: Nachweis und Abdeckung
 spec-id: Nachweis
 ---
 
-Thema „Nachweis und Abdeckung“: Nachweis-Datensätze, JUnit, Nachweis- und Validierungsstatus und die Abdeckung einer Auswahl. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan (Entscheidung des Produktverantwortlichen, 2026-11-05).
+Thema „Nachweis und Abdeckung“: Nachweis-Datensätze, JUnit, Nachweis- und Validierungsstatus und die Abdeckung einer Auswahl. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.

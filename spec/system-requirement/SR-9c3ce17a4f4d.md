@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Export an die Quelle in ihrem Modell schreiben
 spec-id: SR-158
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können."
+rationale: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können.
 requirement-type: interface
 acceptance-criteria:
   - Gegeben importierte Requirements einer Quelle und ihre gespeicherte Zuordnung, wenn sie im Modell der Quelle an die Quelle exportiert werden, dann tragen SPEC-OBJECT-TYPE, ATTRIBUTE-DEFINITION und Datentyp jeweils den IDENTIFIER und den LONG-NAME der Quelle und jedes Requirement seinen ursprünglichen IDENTIFIER.
@@ -14,7 +14,7 @@ acceptance-criteria:
   - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058, SR-054 AK2).
 verification-method: test
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 refines:
   - { id: 6adc6d25-0c38-4486-8849-02874ac41f76, version: n2:1390184909e23837, title: Stellungnahme als ReqIF exportieren }
 derives-from:

@@ -5,17 +5,15 @@
 # - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq);
-# - packages (on every type since 2026-11-09, below): packages give the structure of the spec by topic, not the schedule, and
+# - packages (on every type, below): packages give the structure of the spec by topic, not the schedule, and
 #   replace the former property topic; the property issue is gone, since issues are tasks that can
-#   implement several SRs (product owner decision, 2026-11-05);
+#   implement several SRs;
 # - limit derives-from min 1 from system requirement to need (#838).
-# - validation-criteria on needs as in the standard model (D-071), for the benchmark of N-055
-#   (product owner decision, 2026-11-07).
+# - validation-criteria on needs as in the standard model (D-071), for the benchmark of N-055.
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
-#   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
+#   (decisions record only what holds for the system ReqSeq).
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
-# - packages on every type: a package is a set of any elements (glossary „Paket“, D-040;
-#   product owner decision, 2026-11-09, #1293).
+# - packages on every type: a package is a set of any elements (glossary „Paket“, D-040, #1293).
 # - verification-method counts to the version (`content: true`), unlike the standard model (D-057, #378).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
@@ -163,7 +161,7 @@ properties:
     choices:
       - { key: fachlich, name: Fachlich }
       - { key: tool-entwicklung, name: Tool-Entwicklung }
-  # The description of synonyms follows the product owner decision, 2026-11-10 (#1300).
+  # The description of synonyms follows #1300.
   - key: synonyms
     name: Synonyms
     kind: text
@@ -187,8 +185,8 @@ relations:
     source-types: [system-requirement]
     target-types: [need, use-case, system-requirement]
     meaning: derivation
-    # Every system requirement derives from at least one need (SR-152; product owner decision,
-    # 2026-11-04, #838 Q4). Fewer is the hint relation.too-few; the standard model has no limit.
+    # Every system requirement derives from at least one need (SR-152; #838 Q4). Fewer is the hint
+    # relation.too-few; the standard model has no limit.
     limits:
       - { source-type: system-requirement, target-type: need, min: 1 }
   - key: based-on

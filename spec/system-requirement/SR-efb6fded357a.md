@@ -11,7 +11,7 @@ acceptance-criteria:
   - "Gegeben eine Liste von Kurz-IDs über Kommandozeile oder API, wenn die Auswahl gebildet wird, dann enthält sie genau diese Elemente."
 verification-method: test
 packages:
-  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:05f7041d485c484a, title: Finden und Listen }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }
 derives-from:
   - { id: 6ad3a133-c1a9-463e-86cd-23d0f277f785, version: n1:f863e5fdb90ec21b, title: Abdeckung einer Auswahl von Requirements }
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
@@ -19,7 +19,7 @@ derives-from:
   - { id: 6adc6939-8613-4ad1-bcbe-36c978755079, version: n1:0aaaa75a8f382d15, title: Nachweisgrad einer Auswahl }
 based-on:
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
-  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:c39ce145802bd72b, title: Baseline als Datei }
+  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:310c324700784a6f, title: Baseline als Datei }
   - { id: 6adc6920-0efc-478d-b91c-4ca42caaa8a8, version: n2:e84656cd8b820df6, title: Paket als Element }
 ---
 
