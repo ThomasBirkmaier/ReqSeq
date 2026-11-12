@@ -15,8 +15,6 @@ acceptance-criteria:
     text: Gegeben ein geöffneter Ordner ohne Arbeitsbereich, in dessen Unterordner einer liegt, wenn er geöffnet wird, dann weist das Tool auf diesen Unterordner hin.
   - key: g5g1
     text: Gegeben die Kommandozeile, wenn die Varianten aufgelistet werden sollen, dann geht das mit einem Befehl ohne Auswahl in JSON.
-  - key: mjq6
-    text: Gegeben ein Befehl mit optionalen Argumenten in der Befehlszeile der App, wenn er angezeigt wird, dann zeigt die Befehlszeile, wie diese Argumente erreichbar sind.
 packages:
   - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }
 verification-method: test
@@ -25,4 +23,4 @@ derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 ---
 
-Das Tool muss die Varianten, die Wahl der Ansicht und die optionalen Argumente eines Befehls in App und Kommandozeile auffindbar machen, ohne dass man ihre Namen kennt.
+Das Tool muss die Varianten und die Wahl der Ansicht in App und Kommandozeile auffindbar machen, ohne dass man ihre Namen kennt.

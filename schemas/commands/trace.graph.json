@@ -48,6 +48,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element whose graph is shown.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {
@@ -82,6 +83,7 @@
         "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
       "view": {
+        "description": "Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core.",
         "$ref": "../common.schema.json#/$defs/view"
       },
       "withEvidence": {

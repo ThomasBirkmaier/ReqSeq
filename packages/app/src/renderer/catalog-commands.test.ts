@@ -1,5 +1,7 @@
 import { getCommandRuntime } from "@reqseq/core";
+import { cliUsage } from "../core/cli-usage.js";
 import { describe, expect, it, vi } from "vitest";
+import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
@@ -16,7 +18,7 @@ import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import { catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
+import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
@@ -27,8 +29,9 @@ const PLATFORM_SEP = isWindows(navigator.platform) ? "\\" : "/";
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
 const CATALOG: readonly CommandListing[] = runtime.contracts.commands.map((entry) => ({
-  ...entry,
+  ...listedEntry(entry, runtime.contracts.schemas),
   implemented: runtime.commands.has(entry.name),
+  cliUsage: cliUsage(entry, runtime.contracts.schemas),
 }));
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -1600,7 +1603,8 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     item((await last(asked)).items, "all").run();
     item((await last(asked)).items, "yes").more?.();
     item((await last(asked)).items, "kind").run();
-    (await last(asked)).more?.("relation.outdated");
+    // The problem codes of the catalog are offered (#1575).
+    item((await last(asked)).items, "relation.outdated").more?.();
     item((await last(asked)).items, "expected").run();
     (await last(asked)).more?.("3");
     item((await last(asked)).items, "Run").run();
@@ -2404,5 +2408,154 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     // With Ctrl/Cmd+Enter, the optional arguments are offered first.
     start({ ...context, given }, "relation.remove", true);
     expect((await last(asked)).label).toBe("Remove relation SR-1 Refines N-2 · more arguments:");
+  });
+});
+
+describe("the explanation line of the command prompt (SR-210)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  /** The command prompt as the window builds it: the actions, the catalog commands, each with its explanation. */
+  const entries = (context: CatalogContext): readonly Choice[] =>
+    withExplanations(commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)), CATALOG)
+      .items;
+  /** The description of `field` in the input schema of `name`, as the catalog has it. */
+  const described = (name: string, field: string): unknown =>
+    (command(name).input as { properties: Record<string, { description?: unknown }> }).properties[field]
+      ?.description;
+
+  it("[SR-210/AK-gqgt] a marked catalog command has its catalog summary, the required arguments the prompt asks and its optional ones", () => {
+    const { context } = setup([shown]);
+    const items = entries(context);
+    expect(item(items, "Show relation options").explain).toEqual({
+      summary: command("relation.options").summary,
+      arguments: { required: ["ref"], optional: ["kind"] },
+    });
+    // A write command without a required argument asks its first one: that is the one the prompt names.
+    expect(item(items, "Confirm hints").explain).toEqual({
+      summary: command("hint.confirm").summary,
+      arguments: { required: ["ref"], optional: ["target", "all", "kind", "expected", "hintIds"] },
+    });
+    // No arguments at all.
+    expect(item(items, "List baselines").explain).toEqual({
+      summary: command("baseline.list").summary,
+      arguments: { required: [], optional: [] },
+    });
+    // An argument given before the prompt asks (the source of the matrix's row, SR-199) is not asked: not named.
+    const given = { "relation.add": [{ field: "source", value: "uuid-1", label: "SR-1" }] };
+    expect(item(entries({ ...context, given }), "Create relation").explain?.arguments).toEqual({
+      required: ["kind", "target"],
+      optional: [],
+    });
+  });
+
+  it("[SR-210/AK-r2d2] an entry that is no catalog command has no explanation; an action that runs one has that command's", () => {
+    const { context } = setup([shown]);
+    const items = entries({ ...context, docs: () => undefined });
+    expect(item(items, "Open documentation").explain).toBeUndefined();
+    // By the same title, and by `covers`.
+    expect(item(items, "List all elements").explain?.summary).toBe(command("element.list").summary);
+    // The action asks the command's arguments its own way: the line names none of them.
+    expect(item(items, "Go to element or buffer").explain).toEqual({
+      summary: command("element.get").summary,
+    });
+    // An action that covers several commands runs one of them by the view: none.
+    const both = {
+      id: "both",
+      title: "Both",
+      covers: ["trace.mermaid", "metamodel.mermaid"],
+      available: () => true,
+      run: vi.fn(),
+    };
+    const several = withExplanations(
+      { label: "Command", items: [{ id: "both", name: "Both", run: vi.fn() }] },
+      CATALOG,
+      [both],
+    );
+    expect(several.items[0]?.explain).toBeUndefined();
+    // An entry no action and no catalog command has, such as a hit of Go to, gets none.
+    const other = withExplanations(
+      { label: "Go to", items: [{ id: "uuid-1", name: "SR-1", run: vi.fn() }] },
+      CATALOG,
+    );
+    expect(other.items[0]?.explain).toBeUndefined();
+  });
+
+  it("[SR-210/AK-wz9v] a catalog command and an action that runs one have the command help: the catalog's texts and the call on the command line", () => {
+    const { context } = setup([shown]);
+    const items = entries({ ...context, docs: () => undefined });
+    const get = command("element.get");
+    const help = item(items, "Go to element or buffer").help;
+    expect(help).toEqual({
+      title: get.title,
+      summary: get.summary,
+      ...(get.details === undefined ? {} : { details: get.details }),
+      arguments: get.arguments.map(({ field }) => ({
+        name: field,
+        required: field === "ref",
+        ...(typeof described("element.get", field) === "string"
+          ? { description: described("element.get", field) }
+          : {}),
+      })),
+      cli: "reqseq element get <ref> [options]",
+    });
+    // Every argument named in the catalog, with its description where the catalog has one.
+    expect(help?.arguments.map((arg) => arg.name)).toEqual(get.arguments.map((arg) => arg.field));
+    expect(help?.arguments.find((arg) => arg.name === "versionDate")?.description).toBe(
+      described("element.get", "versionDate"),
+    );
+    expect(item(items, "Show relation options").help?.arguments).toContainEqual(
+      expect.objectContaining({ name: "kind", required: false }),
+    );
+    // A command with details on its reference page shows them.
+    const detailed = CATALOG.find((entry) => entry.details !== undefined && entry.implemented);
+    expect(detailed).toBeDefined();
+    expect(item(items, detailed?.title ?? "").help?.details).toBe(detailed?.details);
+    // An entry that is no catalog command has none (AK5).
+    expect(item(items, "Open documentation").help).toBeUndefined();
+  });
+
+  it("[SR-210/AK-t8sc] an asked argument has its name, its catalog description and the keys of its step", async () => {
+    const { context, asked } = setup([shown], { "relation.options": () => OPTIONS });
+    start(context, "relation.options");
+    // A required argument, while the command has an optional one.
+    const ref = await last(asked);
+    expect(ref.explain).toEqual({
+      name: "ref",
+      description: described("relation.options", "ref"),
+      list: false,
+      ends: false,
+      skips: false,
+      more: true,
+    });
+    item(ref.items, "SR-000001 (SR-1) Title 1").more?.();
+    item((await last(asked)).items, "kind").run();
+    // The last optional argument: Ctrl/Cmd+Enter offers no other.
+    expect((await last(asked)).explain).toMatchObject({ name: "kind", more: false });
+  });
+
+  it("[SR-210/AK-t8sc] a list argument adds a value per Enter and, once one is given, ends with Enter on an empty input; an optional one a write command asks is skipped so", async () => {
+    const list = setup([shown]);
+    start(list.context, "hint.list", true);
+    item((await last(list.asked)).items, "kind").run();
+    const kind = await last(list.asked);
+    expect(kind.explain).toEqual({
+      name: "kind",
+      description: described("hint.list", "kind"),
+      list: true,
+      ends: false,
+      skips: false,
+      more: true,
+    });
+    item(kind.items, "relation.outdated").run();
+    expect((await last(list.asked)).explain).toMatchObject({
+      name: "kind",
+      list: true,
+      ends: true,
+      skips: false,
+    });
+
+    const confirm = setup([shown], { "hint.list": () => HINTS });
+    start(confirm.context, "hint.confirm");
+    (await last(confirm.asked)).items[0]?.run();
+    expect((await last(confirm.asked)).explain).toMatchObject({ name: "hintIds", ends: false, skips: true });
   });
 });

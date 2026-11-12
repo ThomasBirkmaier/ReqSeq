@@ -1,7 +1,8 @@
 // SR-105 AK3 in the source of the app: saving needs no control. The window has no button and no dialog to
 // save (the end-to-end test `test/autosave.spec.ts` looks at the running app, the main process test at
-// main's dialogs); the only buttons are the copy symbols of the fields (SR-128) and "Copy all" of the window
-// "About ReqSeq", the one window D-062 allows besides the folder dialog (SR-161), which saves nothing.
+// main's dialogs); the only buttons are the copy symbols of the fields (SR-128), "Copy all" of the window
+// "About ReqSeq", the one window D-062 allows besides the folder dialog (SR-161), and "help" in the explanation
+// line of the command prompt, which opens the command help (SR-210 AK4); none of them saves anything.
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,10 +36,11 @@ describe("no save control (SR-105 AK3)", () => {
       return hits.map((pattern) => `${path.relative(SOURCE, file)}: ${String(pattern)}`);
     });
     expect(found).toEqual([]);
-    // The buttons the window has: the copy symbol of a field, and Copy all of "About ReqSeq".
+    // The buttons the window has: the copy symbol of a field, Copy all of "About ReqSeq", and "help" of the
+    // explanation line.
     const buttons = sources(SOURCE).filter((file) => readFileSync(file, "utf8").includes("<button"));
     expect(buttons.map((file) => path.relative(SOURCE, file)).sort()).toEqual(
-      [ABOUT, path.join("renderer", "FieldBox.tsx")].sort(),
+      [ABOUT, path.join("renderer", "FieldBox.tsx"), path.join("renderer", "Minibuffer.tsx")].sort(),
     );
   });
 });

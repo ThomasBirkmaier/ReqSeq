@@ -1,5 +1,6 @@
 // The action "Show metamodel" (SR-130 AK1): it opens the metamodel buffer as a graph from any buffer and
 // covers `metamodel.get`, so the command prompt lists the command once, as this action.
+import { cliUsage } from "../core/cli-usage.js";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
@@ -25,6 +26,7 @@ const runtime = getCommandRuntime();
 const CATALOG: readonly CommandListing[] = runtime.contracts.commands.map((entry) => ({
   ...entry,
   implemented: runtime.commands.has(entry.name),
+  cliUsage: cliUsage(entry, runtime.contracts.schemas),
 }));
 
 const setup = (buffers: Buffers, workspace = true) => {

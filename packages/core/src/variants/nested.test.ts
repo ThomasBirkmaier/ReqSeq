@@ -8,6 +8,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { nestedVariantsState } from "./nested.js";
 import { readFirstFor } from "../runtime/read-first.test-helper.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 /** Elements of fixtures/SR-039/nested: A, B (validity names A, relation to A), C (relation to A only). */
 const A = "39039039-0000-4000-8000-0000000000a1";
@@ -217,7 +218,7 @@ describe("a variant as an element (SR-039)", () => {
     const checked = await run(opened, "workspace.check", {});
     expect(checked.problems.filter((p) => p.code === "variant.nested")).toEqual(expected);
     const listed = await run(opened, "hint.list", { kind: ["variant.nested"] });
-    expect(listed.hints).toEqual(expected);
+    expect(withoutTitles(listed.hints)).toEqual(expected);
     const shown = await run(opened, "element.get", { ref: B });
     expect((shown.element.problems ?? []).filter((p) => p.code === "variant.nested")).toEqual([hint]);
   });

@@ -37,6 +37,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element the image is copied for. The copy goes into the folder named like its file.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "sourcePath": {

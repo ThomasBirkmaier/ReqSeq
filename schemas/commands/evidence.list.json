@@ -15,6 +15,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element whose evidence records are listed.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "view": {

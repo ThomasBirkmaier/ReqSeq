@@ -25,6 +25,7 @@
         "type": "string"
       },
       "view": {
+        "description": "The view saved with the filter: `core` or a variant ID. The filter then holds only the elements that apply in this view.",
         "$ref": "../common.schema.json#/$defs/view"
       },
       "where": {

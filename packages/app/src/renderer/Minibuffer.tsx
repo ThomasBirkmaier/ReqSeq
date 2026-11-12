@@ -1,13 +1,21 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Choice, Found, Prompt, PromptFill } from "./actions.js";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type {
+  ArgumentExplanation,
+  Choice,
+  CommandExplanation,
+  CommandHelp,
+  Found,
+  Prompt,
+  PromptFill,
+} from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { isMac, listStep, matches } from "./keys.js";
-import { HELP_KEY, MORE_SHORTCUT } from "./prompt-keys.js";
+import { isMac, listStep, matches, pressLabel, shortcutLabel } from "./keys.js";
+import { COMMAND_HELP_KEY, HELP_KEY, MORE_SHORTCUT, isCommandHelpKey } from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
@@ -51,8 +59,8 @@ const TAKES_PLACE_MS = 300;
 const closedAt = new WeakMap<HTMLElement, number>();
 
 /**
- * A copy of `node` in `parent` that runs the motion back (SR-182 AK6); it says nothing to a screen reader
- * and is no hit to a test, and it goes when its animation ends. Without motion it goes at once (AK7).
+ * A copy of `node` in `parent` that runs the motion back (SR-182 AK6); it says nothing to a screen reader,
+ * is no hit to a test and has no control, and it goes when its animation ends. Without motion it goes at once (AK7).
  */
 const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined => {
   // Whether the card had stood still, or was still on its way in.
@@ -63,6 +71,14 @@ const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined 
       element.removeAttribute(name);
     }
     element.classList.remove("candidates");
+  }
+  // A control of the card ("help" of the explanation line, SR-210 AK4) is only its look in the copy: no button
+  // stays in the window once the prompt closed (SR-100).
+  for (const button of copy.querySelectorAll("button")) {
+    const look = document.createElement("span");
+    look.className = button.className;
+    look.append(...button.childNodes);
+    button.replaceWith(look);
   }
   copy.classList.add("card-leaving");
   copy.dataset["motion"] = "out";
@@ -158,6 +174,263 @@ const Card = ({ children }: { readonly children: React.ReactNode }): React.JSX.E
   );
 };
 
+/** Enter as the explanation line names it: "Enter", or "↩" under macOS. */
+const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: false, key: "enter" }, mac);
+
+/**
+ * The explanation line of the marked catalog command (SR-210 AK1), under the hits: its summary, cut with "…"
+ * where it does not fit, then, on the command's own entry, its arguments (`Arguments`). An action that runs
+ * the command shows its summary alone (AK5). At the end of the line "help" with its key: a click on it opens
+ * the command help as Ctrl+H does (AK4).
+ */
+const CommandLine = ({
+  explain,
+  mac,
+  onHelp,
+}: {
+  readonly explain: CommandExplanation;
+  readonly mac: boolean;
+  readonly onHelp: (() => void) | undefined;
+}): React.JSX.Element => (
+  <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+    <div className="explain-summary">{explain.summary}</div>
+    <div className="explain-foot">
+      {explain.arguments === undefined ? null : <Arguments {...explain.arguments} mac={mac} />}
+      {onHelp === undefined ? null : (
+        <>
+          {" "}
+          <button
+            type="button"
+            className="explain-help"
+            tabIndex={-1}
+            // The input keeps the focus, as on a click on a hit.
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={onHelp}
+          >
+            <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> help
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+);
+
+/**
+ * The arguments on the explanation line (AK1): the required ones the prompt asks, and the number and names of
+ * the optional ones with Ctrl/Cmd+Enter, which offers them; names that do not fit end with "…", the number
+ * stays. The spaces between its parts are for the text a screen reader reads; the gap of the line shows them.
+ */
+const Arguments = ({
+  required,
+  optional,
+  mac,
+}: {
+  readonly required: readonly string[];
+  readonly optional: readonly string[];
+  readonly mac: boolean;
+}): React.JSX.Element => (
+  <div className="explain-keys explain-arguments">
+    {required.length === 0 && optional.length === 0 ? (
+      <span>no arguments</span>
+    ) : (
+      <>
+        <span>{required.length === 0 ? "no required arguments" : `required: ${required.join(", ")}`}</span>
+        {optional.length === 0 ? null : (
+          <>
+            {" "}
+            <span>·</span> <span>{`${String(optional.length)} optional:`}</span>{" "}
+            <span className="explain-names">{optional.join(", ")}</span>{" "}
+            <span>
+              <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> to give them
+            </span>
+          </>
+        )}
+      </>
+    )}
+  </div>
+);
+
+/**
+ * The explanation line of the argument asked (SR-210 AK2), where the command's stood: its name and catalog
+ * description, then the keys of this step with what they do.
+ */
+const ArgumentLine = ({
+  explain,
+  back,
+  mac,
+}: {
+  readonly explain: ArgumentExplanation;
+  readonly back: boolean;
+  readonly mac: boolean;
+}): React.JSX.Element => {
+  const enter = enterLabel(mac);
+  const keys: { readonly key: string; readonly does: string }[] = [
+    ...(explain.list ? [{ key: enter, does: "adds a value" }] : []),
+    ...(explain.ends ? [{ key: enter, does: "on an empty input ends the values" }] : []),
+    ...(explain.skips ? [{ key: enter, does: "on an empty input skips it" }] : []),
+    ...(explain.more ? [{ key: shortcutLabel(MORE_SHORTCUT, mac), does: "more arguments" }] : []),
+    ...(back ? [{ key: "Escape", does: "back" }] : []),
+  ];
+  return (
+    <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+      <div className="explain-description">
+        <span className="explain-name">{explain.name}</span>
+        {explain.description === undefined ? null : ` · ${explain.description}`}
+      </div>
+      {keys.length === 0 ? null : (
+        <div className="explain-keys">
+          {keys.map(({ key, does }, at) => (
+            <Fragment key={does}>
+              {at === 0 ? null : " "}
+              <span>
+                {at === 0 ? null : "· "}
+                <kbd>{key}</kbd> {does}
+              </span>
+            </Fragment>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * The explanation line (SR-210): of the argument asked, else of the marked entry when it runs a catalog command
+ * (AK5: no other entry has one).
+ */
+const explanationOf = (
+  prompt: Prompt,
+  marked: Choice | undefined,
+  mac: boolean,
+  onHelp: () => void,
+): React.JSX.Element | null => {
+  if (prompt.explain !== undefined) {
+    return <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />;
+  }
+  const explain = marked?.inert === true ? undefined : marked?.explain;
+  return explain === undefined ? null : (
+    <CommandLine explain={explain} mac={mac} onHelp={marked?.help === undefined ? undefined : onHelp} />
+  );
+};
+
+/**
+ * The command help of the marked entry (SR-210 AK3) in place of the hits: the summary and details of its
+ * reference page, each argument with its description and whether it is required, and the call on the command
+ * line; at the end the keys back. It scrolls with the wheel and Page Up and Page Down when it is higher than the
+ * card (AK4). An entry without a command help (marked after the help opened) says so.
+ */
+const HelpView = ({
+  marked,
+  mac,
+  scroller,
+}: {
+  readonly marked: Choice | undefined;
+  readonly mac: boolean;
+  readonly scroller: React.RefObject<HTMLDivElement | null>;
+}): React.JSX.Element => {
+  const help: CommandHelp | undefined = marked?.inert === true ? undefined : marked?.help;
+  return (
+    <div
+      ref={scroller}
+      className="card-help"
+      id="command-help"
+      role="region"
+      aria-label="Command help"
+      // A new command starts at its top.
+      key={help?.title ?? marked?.id}
+    >
+      {help === undefined ? (
+        <p className="help-none">{`${marked?.name ?? "This entry"} has no command help.`}</p>
+      ) : (
+        <>
+          <h2 className="help-title">{help.title}</h2>
+          <p className="help-summary">{help.summary}</p>
+          {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
+          <h3>Arguments</h3>
+          {help.arguments.length === 0 ? (
+            <p>No arguments.</p>
+          ) : (
+            <dl className="help-arguments">
+              {help.arguments.map((arg) => (
+                <Fragment key={arg.name}>
+                  <dt>
+                    <code>{arg.name}</code>{" "}
+                    <span className="help-need">{arg.required ? "required" : "optional"}</span>
+                  </dt>
+                  {arg.description === undefined ? null : <dd>{arg.description}</dd>}
+                </Fragment>
+              ))}
+            </dl>
+          )}
+          <h3>Command line</h3>
+          <p>
+            <code className="help-cli">{help.cli}</code>
+          </p>
+        </>
+      )}
+      <p className="help-keys">
+        <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> or <kbd>Escape</kbd> back to the hits ·{" "}
+        <kbd>{HELP_KEY}</kbd> reference page
+      </p>
+    </div>
+  );
+};
+
+/**
+ * The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one; or the
+ * command help in their place (SR-210 AK3). It is the same card throughout, so it does not slide in again when the
+ * help comes or goes (SR-182 AK4).
+ */
+const PromptCard = ({
+  hits,
+  list,
+  explanation,
+  help,
+}: {
+  readonly hits: boolean;
+  readonly list: React.JSX.Element;
+  readonly explanation: React.JSX.Element | null;
+  readonly help: React.JSX.Element | null;
+}): React.JSX.Element | null =>
+  !hits && explanation === null && help === null ? null : (
+    <Card>
+      {help ?? (
+        <>
+          {hits ? list : null}
+          {explanation}
+        </>
+      )}
+    </Card>
+  );
+
+/**
+ * The attributes of the input that name the hits: `shown` of them, the `selected` one if one is `marked`; none, and
+ * not expanded, while the command help takes their place (`helpOpen`).
+ */
+const listAttributes = (
+  helpOpen: boolean,
+  shown: number,
+  marked: boolean,
+  selected: number,
+): Readonly<Record<string, string | boolean | undefined>> =>
+  helpOpen
+    ? { "aria-expanded": false }
+    : {
+        "aria-expanded": shown > 0,
+        "aria-controls": "candidates",
+        "aria-activedescendant": marked ? `candidate-${String(selected)}` : undefined,
+      };
+
+/** What the input of the prompt is described by: the open command help, else the explanation line, if any. */
+const describedBy = (helpOpen: boolean, explained: boolean): string | undefined => {
+  if (helpOpen) {
+    return "command-help";
+  }
+  return explained ? "prompt-explain" : undefined;
+};
+
 const PromptLine = ({
   prompt: given,
   onClose,
@@ -208,6 +481,10 @@ const PromptLine = ({
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
+  // Whether the card shows the command help of the marked entry in place of the hits (SR-210 AK3).
+  const [helpOpen, setHelpOpen] = useState(false);
+  // The command help, scrolled by Page Up and Page Down (AK4).
+  const helpView = useRef<HTMLDivElement>(null);
 
   useEffect(
     () => () => {
@@ -442,6 +719,49 @@ const PromptLine = ({
     return true;
   };
 
+  /** Opens the command help of the marked entry, if it has one, or closes the help (SR-210 AK3, AK4). */
+  const toggleHelp = (): void => {
+    if (helpOpen) {
+      setHelpOpen(false);
+    } else if (current !== undefined && current.item.inert !== true && current.item.help !== undefined) {
+      setHelpOpen(true);
+    }
+  };
+
+  /**
+   * The keys of the command help; whether the key was taken. Ctrl+H, the physical Ctrl key also on macOS (SR-145
+   * AK1, AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes it, as
+   * Escape does (SR-134 AK2); in the command line it is never the text's key (on macOS Ctrl+H deletes a character).
+   * Page Up and Page Down scroll the open help (AK4). Every other key acts as without the help: Up and Down mark
+   * another entry, whose help it shows, Enter and Ctrl/Cmd+Enter take the marked entry.
+   */
+  const helpKey = (event: React.KeyboardEvent): boolean => {
+    if (isCommandHelpKey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleHelp();
+      return true;
+    }
+    if (!helpOpen) {
+      return false;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setHelpOpen(false);
+      return true;
+    }
+    const view = helpView.current;
+    if ((event.key === "PageDown" || event.key === "PageUp") && view !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      const page = Math.max(view.clientHeight - 24, 24);
+      view.scrollBy({ top: event.key === "PageDown" ? page : -page });
+      return true;
+    }
+    return false;
+  };
+
   /** Escape in the first step, or a press outside the minibuffer (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
@@ -471,6 +791,17 @@ const PromptLine = ({
     };
   }, []);
 
+  /** F1: the documentation of the chosen entry in the browser (SR-141 AK3); the prompt stays open. */
+  const docsKey = (event: React.KeyboardEvent): boolean => {
+    if (event.key !== HELP_KEY || prompt.help === undefined) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    prompt.help(current?.item.inert === true ? undefined : current?.item);
+    return true;
+  };
+
   const keyDown = (event: React.KeyboardEvent): void => {
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
@@ -493,14 +824,7 @@ const PromptLine = ({
       event.stopPropagation();
       return;
     }
-    if (argumentKey(event)) {
-      return;
-    }
-    // F1: the documentation of the chosen entry in the browser (SR-141 AK3); the prompt stays open.
-    if (event.key === HELP_KEY && prompt.help !== undefined) {
-      event.preventDefault();
-      event.stopPropagation();
-      prompt.help(current?.item.inert === true ? undefined : current?.item);
+    if (helpKey(event) || argumentKey(event) || docsKey(event)) {
       return;
     }
     switch (event.key) {
@@ -532,6 +856,8 @@ const PromptLine = ({
     }
   };
 
+  const explanation = explanationOf(prompt, current?.item, mac, toggleHelp);
+
   return (
     <>
       <label className="prompt-label" htmlFor="prompt-input">
@@ -542,9 +868,8 @@ const PromptLine = ({
         id="prompt-input"
         className="prompt-input"
         role="combobox"
-        aria-expanded={rows.length > 0}
-        aria-controls="candidates"
-        aria-activedescendant={current === undefined ? undefined : `candidate-${String(selected)}`}
+        {...listAttributes(helpOpen, rows.length, current !== undefined, selected)}
+        aria-describedby={describedBy(helpOpen, explanation !== null)}
         autoComplete="off"
         spellCheck={false}
         autoFocus
@@ -559,9 +884,18 @@ const PromptLine = ({
           searching…
         </span>
       ) : null}
-      {rows.length === 0 ? null : (
-        <Card>
-          <ul className="candidates card-list" id="candidates" role="listbox" aria-label={prompt.label}>
+      <PromptCard
+        hits={rows.length > 0}
+        explanation={explanation}
+        help={helpOpen ? <HelpView marked={current?.item} mac={mac} scroller={helpView} /> : null}
+        list={
+          <ul
+            className="candidates card-list"
+            data-explained={String(explanation !== null)}
+            id="candidates"
+            role="listbox"
+            aria-label={prompt.label}
+          >
             {rows.map((row, at) => (
               <li
                 key={row.item.id}
@@ -601,8 +935,8 @@ const PromptLine = ({
               </li>
             ))}
           </ul>
-        </Card>
-      )}
+        }
+      />
     </>
   );
 };

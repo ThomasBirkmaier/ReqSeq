@@ -17,12 +17,15 @@
     "type": "object",
     "properties": {
       "source": {
+        "description": "The element whose file holds the relation.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "kind": {
+        "description": "The relation kind of the relation to remove: its key in the metamodel.",
         "$ref": "../common.schema.json#/$defs/key"
       },
       "target": {
+        "description": "The element the relation to remove points to.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {

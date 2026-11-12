@@ -38,6 +38,7 @@
     "type": "object",
     "properties": {
       "ref": {
+        "description": "The element to change.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "title": {
@@ -80,7 +81,7 @@
       "setItems": {
         "type": "object",
         "minProperties": 1,
-        "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). Needs expectedFileSha256.",
+        "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204).",
         "additionalProperties": {
           "type": "object",
           "propertyNames": {
@@ -107,7 +108,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates."
+        "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates."
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",

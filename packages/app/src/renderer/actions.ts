@@ -94,6 +94,53 @@ export interface Choice {
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
   readonly fits?: boolean;
+  /** The explanation line while it is marked: the catalog command it runs (SR-210 AK1, AK5). */
+  readonly explain?: CommandExplanation;
+  /** The command help of the catalog command it runs, shown on Ctrl+H (SR-210 AK3). */
+  readonly help?: CommandHelp;
+}
+
+/**
+ * The command help of a catalog command (SR-210 AK3), from the catalog: the summary and details of its reference
+ * page, each argument with its description and whether it is required, and its call on the command line.
+ */
+export interface CommandHelp {
+  readonly title: string;
+  readonly summary: string;
+  readonly details?: string;
+  readonly arguments: readonly {
+    readonly name: string;
+    readonly required: boolean;
+    readonly description?: string;
+  }[];
+  /** `reqseq element get <ref> [options]`. */
+  readonly cli: string;
+}
+
+/** What the explanation line of a marked catalog command says, from the catalog (SR-210 AK1). */
+export interface CommandExplanation {
+  /** The command's summary. */
+  readonly summary: string;
+  /**
+   * The arguments of the command's own entry, in catalog order: the required ones the prompt asks, and the
+   * optional ones Ctrl/Cmd+Enter offers. An action that runs the command asks none of them (SR-210 AK5).
+   */
+  readonly arguments?: { readonly required: readonly string[]; readonly optional: readonly string[] };
+}
+
+/** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */
+export interface ArgumentExplanation {
+  readonly name: string;
+  /** The argument's description in the catalog. */
+  readonly description?: string;
+  /** It takes several values: Enter adds one. */
+  readonly list: boolean;
+  /** Enter on an empty input ends the values given (SR-108 AK6). */
+  readonly ends: boolean;
+  /** Enter on an empty input skips the optional argument. */
+  readonly skips: boolean;
+  /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
+  readonly more: boolean;
 }
 
 /** What the minibuffer asks for. */
@@ -137,6 +184,8 @@ export interface Prompt {
   readonly cancel?: () => void;
   /** Backspace in an empty input and Escape (SR-134 AK1): one argument back (catalog commands). */
   readonly back?: () => void;
+  /** The explanation line of the argument asked (SR-210 AK2). */
+  readonly explain?: ArgumentExplanation;
   /**
    * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
    * Escape ends the prompt (the first step, AK2).
@@ -403,6 +452,12 @@ export interface Action {
   readonly systemKey?: Shortcut;
   /** Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85). */
   readonly covers?: readonly string[];
+  /**
+   * Its shortcut works also while a prompt is open, since it only opens a prompt of its own in place of that one.
+   * Every other shortcut does nothing then: the keys belong to the input of the prompt, and an action on the
+   * shown buffer would take the focus from it while the prompt stays open (#1577).
+   */
+  readonly inPrompt?: true;
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
@@ -912,6 +967,7 @@ export const ACTIONS: readonly Action[] = [
     id: "go-to",
     title: "Go to element or buffer",
     shortcut: { mod: true, shift: false, key: "p" },
+    inPrompt: true,
     covers: ["element.get"],
     available: hasWorkspace,
     run: (context: ActionContext): void => {
@@ -930,6 +986,7 @@ export const ACTIONS: readonly Action[] = [
     id: "search",
     title: "Search elements",
     shortcut: { mod: true, shift: true, key: "f" },
+    inPrompt: true,
     available: hasWorkspace,
     run: (context: ActionContext): void => {
       context.ask(searchPrompt(context));
@@ -1485,11 +1542,19 @@ export const commandPrompt = (
   ],
 });
 
-/** The action with a shortcut that `pressed` accepts, when it applies now. */
+/**
+ * The action with a shortcut that `pressed` accepts, when it applies now. While a prompt is open (`prompting`),
+ * only one that opens a prompt of its own (`inPrompt`).
+ */
 export const actionFor = (
   context: ActionContext,
   pressed: (shortcut: Shortcut) => boolean,
+  prompting = false,
 ): Action | undefined =>
   ACTIONS.find(
-    (action) => action.shortcut !== undefined && pressed(action.shortcut) && action.available(context),
+    (action) =>
+      action.shortcut !== undefined &&
+      (!prompting || action.inPrompt === true) &&
+      pressed(action.shortcut) &&
+      action.available(context),
   );

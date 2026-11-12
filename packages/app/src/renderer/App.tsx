@@ -21,7 +21,7 @@ import {
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
-import { catalogItems } from "./catalog-commands.js";
+import { catalogItems, withExplanations } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
@@ -898,7 +898,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           ACTIONS,
         );
         return withHelp(
-          commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+          withExplanations(
+            commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+            catalog.current,
+          ),
           now,
           catalog.current,
         );
@@ -1006,10 +1009,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         startPrefix();
         return;
       }
-      // Cmd+[ and Cmd+] as the mouse buttons Back and Forward (SR-163 AK3), like them not in an open prompt.
+      // In an open prompt only a shortcut that opens a prompt of its own: any other would act on the buffer and
+      // take the focus from the input while the prompt stays open (#1577). Cmd+[ and Cmd+] as the mouse buttons
+      // Back and Forward (SR-163 AK3), like them not in an open prompt.
+      const prompting = openPrompt.current !== undefined;
       const action =
-        actionFor(now, (shortcut) => matches(event, shortcut, now.mac)) ??
-        (openPrompt.current === undefined ? historyKeyAction(now, event) : undefined);
+        actionFor(now, (shortcut) => matches(event, shortcut, now.mac), prompting) ??
+        (prompting ? undefined : historyKeyAction(now, event));
       if (action !== undefined) {
         event.preventDefault();
         runAction(action, now);

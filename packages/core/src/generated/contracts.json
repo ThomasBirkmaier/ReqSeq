@@ -601,6 +601,10 @@
               "type": "string",
               "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`), for display next to `elementShortId`; given with it when the element has one."
             },
+            "elementTitle": {
+              "type": "string",
+              "description": "Title of the element `elementId` names, for display next to `elementShortId`; given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
+            },
             "targetId": {
               "$ref": "#/$defs/uuid"
             },
@@ -615,6 +619,10 @@
             "targetIdentifier": {
               "type": "string",
               "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`), for display next to `targetShortId`; given with it when the element has one."
+            },
+            "targetTitle": {
+              "type": "string",
+              "description": "Title of the element `targetId` names, for display next to `targetShortId`; given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
             },
             "storedVersion": {
               "$ref": "#/$defs/version"
@@ -709,6 +717,10 @@
               "type": "integer",
               "minimum": 0,
               "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets."
+            },
+            "view": {
+              "$ref": "#/$defs/viewId",
+              "description": "The view whose verification or validation status an `evidence.outdated` hint is about: `core` or the UUID of the variant, also when the record it names holds in every variant."
             }
           },
           "additionalProperties": false
@@ -3610,7 +3622,7 @@
                       "boolean",
                       "json"
                     ],
-                    "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
+                    "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
                   },
                   "of": {
                     "type": "string",
@@ -4670,6 +4682,7 @@
           "type": "object",
           "properties": {
             "type": {
+              "description": "Type of the new element: the key of a type of the metamodel.",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "title": {
@@ -4794,9 +4807,11 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element to show.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "view": {
+              "description": "The view to show the element in. Not taken yet: it gives `input.invalid`.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "versionDate": {
@@ -5480,6 +5495,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element to change.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "title": {
@@ -5530,7 +5546,7 @@
             "setItems": {
               "type": "object",
               "minProperties": 1,
-              "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key. Needs expectedFileSha256.",
+              "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key.",
               "additionalProperties": {
                 "type": "object",
                 "propertyNames": {
@@ -5561,7 +5577,7 @@
             "repository": {
               "type": "string",
               "minLength": 1,
-              "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates."
+              "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates."
             },
             "expectedFileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",
@@ -5646,6 +5662,7 @@
           "type": "object",
           "properties": {
             "refs": {
+              "description": "The elements whose status is set or removed.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementRef"
@@ -5729,6 +5746,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element to supersede.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "status": {
@@ -5736,6 +5754,7 @@
               "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid."
             },
             "successor": {
+              "description": "The element that follows the superseded one. Its file gets the relation with meaning succession.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "relation": {
@@ -5822,6 +5841,7 @@
           "type": "object",
           "properties": {
             "selection": {
+              "description": "The elements whose property is changed.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "property": {
@@ -6004,6 +6024,7 @@
           "type": "object",
           "properties": {
             "selection": {
+              "description": "The elements whose acceptance criteria get criterion keys.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -6141,6 +6162,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element the image is copied for. The copy goes into the folder named like its file.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "sourcePath": {
@@ -6312,12 +6334,15 @@
           "type": "object",
           "properties": {
             "source": {
+              "description": "The element whose file gets the relation.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "kind": {
+              "description": "The relation kind: its key in the metamodel.",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "target": {
+              "description": "The element the relation points to.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
@@ -6386,12 +6411,15 @@
           "type": "object",
           "properties": {
             "source": {
+              "description": "The element whose file holds the relation.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "kind": {
+              "description": "The relation kind of the relation to remove: its key in the metamodel.",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "target": {
+              "description": "The element the relation to remove points to.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -6479,6 +6507,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element the chain starts from.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "direction": {
@@ -6491,6 +6520,7 @@
               "default": "both"
             },
             "view": {
+              "description": "Only the elements of the chain that this view holds: `core` or a variant ID; without it every element.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "maxDepth": {
@@ -6899,6 +6929,7 @@
               "minimum": 0
             },
             "view": {
+              "description": "Only the elements that this view holds: `core` or a variant ID; without it every element.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "limit": {
@@ -6983,6 +7014,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The changed element.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "limit": {
@@ -7199,6 +7231,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element whose neighbourhood is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -7248,6 +7281,7 @@
               "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
             },
             "view": {
+              "description": "Only the elements of the neighbourhood that this view holds: `core` or a variant ID; without it every element.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "limit": {
@@ -7858,6 +7892,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element whose graph is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -7898,6 +7933,7 @@
               "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
             },
             "view": {
+              "description": "Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "withEvidence": {
@@ -8217,6 +8253,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element whose graph is written.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -8257,6 +8294,7 @@
               "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
             },
             "view": {
+              "description": "Only the elements of the graph that this view holds: `core` or a variant ID; without it every element.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "limit": {
@@ -8306,7 +8344,7 @@
       {
         "name": "hint.list",
         "title": "List hints",
-        "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.",
+        "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
         "effect": "read",
         "stage": 2,
         "implements": [
@@ -8320,7 +8358,7 @@
         "arguments": [
           {
             "field": "kind",
-            "complete": "text"
+            "complete": "choice"
           },
           {
             "field": "type",
@@ -8381,7 +8419,7 @@
               "minimum": 1,
               "maximum": 5000,
               "default": 200,
-              "description": "Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations are asked for the hints of the page alone."
+              "description": "Hints of the page; total and kinds count all. Every page finds every hint again; only the dates of outdated relations are asked for the hints of the page alone."
             },
             "offset": {
               "type": "integer",
@@ -8395,9 +8433,31 @@
         "output": {
           "type": "object",
           "properties": {
+            "kinds": {
+              "type": "array",
+              "description": "The number of hints that pass the filters per kind, counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "$ref": "../common.schema.json#/$defs/problemCode"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Hints of this kind that pass the filters."
+                  }
+                },
+                "required": [
+                  "code",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            },
             "hints": {
               "type": "array",
-              "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+              "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for outdated evidence the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               }
@@ -8414,6 +8474,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "kinds",
             "hints",
             "total",
             "incomplete"
@@ -8454,7 +8515,7 @@
           },
           {
             "field": "kind",
-            "complete": "text"
+            "complete": "choice"
           },
           {
             "field": "expected",
@@ -8932,6 +8993,7 @@
               "type": "string"
             },
             "view": {
+              "description": "The view saved with the filter: `core` or a variant ID. The filter then holds only the elements that apply in this view.",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "where": {
@@ -9010,6 +9072,7 @@
           "type": "object",
           "properties": {
             "ref": {
+              "description": "The element whose evidence records are listed.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "view": {
@@ -9676,6 +9739,7 @@
           "type": "object",
           "properties": {
             "selection": {
+              "description": "The elements whose verification status is given; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "limit": {
@@ -10005,6 +10069,7 @@
           "type": "object",
           "properties": {
             "selection": {
+              "description": "The elements to export; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -10055,6 +10120,7 @@
               "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
             },
             "selection": {
+              "description": "The elements to write; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -10764,6 +10830,7 @@
               "description": "Name of a baseline, or its file name (with or without .yaml)."
             },
             "ref": {
+              "description": "The element whose difference since the baseline is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
@@ -10846,9 +10913,11 @@
           "type": "object",
           "properties": {
             "file": {
+              "description": "The ReqIF file to preview.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "mapping": {
+              "description": "The mapping file to preview the import with; without it a file of ReqSeq gets the mapping reqif.import would use, any other file none.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "source": {
@@ -10973,6 +11042,7 @@
           "type": "object",
           "properties": {
             "file": {
+              "description": "The ReqIF file to import.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "delivery": {
@@ -11179,9 +11249,11 @@
           "type": "object",
           "properties": {
             "output": {
+              "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "selection": {
+              "description": "The elements to export; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "profile": {
@@ -11189,6 +11261,7 @@
               "type": "string"
             },
             "mapping": {
+              "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "omitProperties": {

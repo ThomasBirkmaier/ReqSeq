@@ -73,6 +73,7 @@ export const findAction: Action = {
   title: "Find in element",
   // Cmd on macOS (SR-145); the physical Ctrl+F there stays the editor's Emacs key.
   shortcut: { mod: true, shift: false, key: "f" },
+  inPrompt: true,
   available: hasText,
   run: (context) => {
     const search = searcher(context);

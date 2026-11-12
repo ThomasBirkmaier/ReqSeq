@@ -7,6 +7,7 @@ import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { crossRepositoryTitleProblemsState } from "./cross-repository-titles.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 const SOURCE = { id: "8f1e3d5c-7b9a-4c2e-a4f6-1a3c5e7b9d0f", file: "requirements/SR-1a3c5e7b9d0f.md" };
 const NEED = "4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e";
@@ -98,7 +99,7 @@ describe("titles stored across a repository boundary (SR-005 AK4)", () => {
       { kind: ["relation.cross-repository-title"] },
       { workspace },
     )) as CommandOutput<"hint.list">;
-    expect(listed.hints).toEqual(checked);
+    expect(withoutTitles(listed.hints)).toEqual(checked);
     const shown = (await invoke(
       "element.get",
       { ref: SOURCE.id },

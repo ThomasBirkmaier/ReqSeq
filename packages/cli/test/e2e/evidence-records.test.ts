@@ -123,6 +123,7 @@ describe("outdated evidence in workspace check (SR-025)", () => {
         elementShortId: "SR-000002",
         elementRepository: "system",
         elementFile: "requirements/SR-0d0000000002.md",
+        view: "core",
         storedVersion: "n1:00000000000000b2",
         currentVersion: "n2:9feac07a27cdc0b3",
       },

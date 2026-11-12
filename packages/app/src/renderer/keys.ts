@@ -307,11 +307,11 @@ export const LIST_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Enter") }], does: "Open the selected row; with no row selected, the first" },
   {
     keys: [{ press: press("ArrowRight") }, { press: press("ArrowLeft") }],
-    does: "In the neighbourhood: open or close the tree row, or go to its parent; in the matrix: step through the relations of the row",
+    does: "In the neighbourhood: open or close the tree row, or go to its parent; in the matrix: step through the relations of the row; in the hint list: open or close the group",
   },
   {
     keys: [{ press: press("Tab") }],
-    does: "In the neighbourhood, on the selected tree row that opens: open or close it",
+    does: "In the neighbourhood, on the selected tree row that opens, and in the hint list, on a group heading: open or close it",
   },
 ];
 

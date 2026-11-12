@@ -14,3 +14,6 @@ export type { AppCommandEntry, NamedCommand } from "./renderer/command-entry.js"
 // Every key of the app with what it does, for the keyboard reference (SR-139 AK5).
 export { SHORTCUT_TABLES, shortcutReference } from "./renderer/shortcut-reference.js";
 export type { ShortcutRow, ShortcutSection, ShortcutTables } from "./renderer/shortcut-reference.js";
+// The call of each catalog command on the command line, as the command help shows it (SR-210 AK3), for the CLI's
+// check that it is the line of its own help.
+export { cliUsage } from "./core/cli-usage.js";

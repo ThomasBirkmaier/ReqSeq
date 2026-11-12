@@ -250,8 +250,11 @@ export interface WorkspaceMessage {
   readonly reason?: WorkspaceChangeReason;
 }
 
-/** A catalog entry as the bridge lists it, as `GET /v1/commands` of the API does (ADR-0009). */
-export type CommandListing = CatalogEntry & { readonly implemented: boolean };
+/**
+ * A catalog entry as the bridge lists it, as `GET /v1/commands` of the API does (ADR-0009), with its call on the
+ * command line as the command help shows it (SR-210 AK3): `reqseq element get <ref> [options]`.
+ */
+export type CommandListing = CatalogEntry & { readonly implemented: boolean; readonly cliUsage: string };
 
 /** What `window.reqseq.invoke` resolves to: the command output, or the error object of every access. */
 export type InvokeResult =
