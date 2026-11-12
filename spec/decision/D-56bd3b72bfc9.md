@@ -6,7 +6,7 @@ title: "Keine feste Reihenfolge"
 spec-id: "D-031"
 ---
 
-Requirements haben keine feste Reihenfolge. Sortiert wird nach Properties wie der ID oder nach der Hierarchie aus Parent und Children.
+Requirements haben keine feste Reihenfolge. Sortiert wird nach ID, Typ, Status, Properties oder nach der Hierarchie aus Parent und Children.
 
 Das Standardmodell hat keinen eigenen Typ für Überschriften oder Einleitungen. Wer sie braucht, legt sie im Metamodell an ([N-024](reqseq:6ad47d8b-773c-4d21-bf35-1b7deeb96561?version=n1:de3fc7e167c1c882)).
 

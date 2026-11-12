@@ -7,7 +7,7 @@ spec-id: "SR-075"
 requirement-type: functional
 acceptance-criteria:
   - key: dmt0
-    text: "Gegeben eine Liste von Elementen, wenn nach einer Property sortiert wird, die keine Beziehungen hält, dann ordnet das Tool die Liste auf- oder absteigend nach ihrem Wert, bei mehreren Werten nach dem ersten: Typ, Status und feste Werte in der Reihenfolge des Metamodells, die Ziffernfolgen einer Kennung als Zahlen (SR-9 vor SR-10), sonst Zahlen vor Text und Text ohne Rücksicht auf Groß- und Kleinschreibung; Elemente ohne Wert stehen am Ende, nur absteigend nach der Kennung am Anfang, und Elemente mit gleichem Wert stehen bei jedem Aufruf in derselben Reihenfolge."
+    text: "Gegeben eine Liste von Elementen, wenn nach dem Typ, nach dem Status oder nach einer Property sortiert wird, die keine Beziehungen hält, dann ordnet das Tool die Liste auf- oder absteigend nach ihrem Wert, bei mehreren Werten nach dem ersten: Typ, Status und feste Werte in der Reihenfolge des Metamodells, die Ziffernfolgen einer Kennung als Zahlen (SR-9 vor SR-10), sonst Zahlen vor Text und Text ohne Rücksicht auf Groß- und Kleinschreibung; Elemente ohne Wert stehen am Ende, nur absteigend nach der Kennung am Anfang, und Elemente mit gleichem Wert stehen bei jedem Aufruf in derselben Reihenfolge."
   - key: f889
     text: Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
   - key: rffk
@@ -20,7 +20,7 @@ packages:
 derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
-  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:94db6c18414603e6, title: Keine feste Reihenfolge }
+  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:c968a2dc820271d1, title: Keine feste Reihenfolge }
 rationale: "Kennung absteigend (AK1): Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut."
 ---
 
