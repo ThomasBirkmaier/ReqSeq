@@ -62,7 +62,8 @@ const open = async (window: Page, title: string): Promise<void> => {
 const caretIn = async (window: Page, at: number): Promise<void> => {
   const target = line(window, at);
   const box = await target.boundingBox();
-  await target.click({ position: { x: 1, y: (box?.height ?? 2) / 2 } });
+  expect(box).not.toBeNull();
+  await target.click({ position: { x: 1, y: (box?.height ?? 0) / 2 } });
 };
 
 /** Puts the caret at the end of the line `at` of the box. */
@@ -197,6 +198,7 @@ test.describe("criterion keys in the editor", () => {
     await window.keyboard.press("Escape");
     await open(window, OTHER_TITLE);
     await open(window, SR_TITLE);
+    await expect(criteriaBox(window).locator(".cm-lr-criterion-ref")).toHaveCount(2);
     await caretIn(window, 0);
     await window.keyboard.press("ControlOrMeta+z");
     expect(keysOf(await saved(["Alpha", "Beta", "Gamma"]))).toEqual(KEYS);
