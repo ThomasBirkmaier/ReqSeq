@@ -70,7 +70,10 @@ import { selectionInView, viewName, viewsOf } from "./views.js";
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
 
-/** The part of an input schema the prompt reads: top-level and inline only, never a `$ref`. */
+/**
+ * The part of an input schema the prompt reads: top-level and inline only, never a `$ref` (the core process
+ * puts the enum a `choice` field names by a `$ref` inline, `core/listing.ts`).
+ */
 interface FieldSchema {
   readonly type?: unknown;
   readonly enum?: readonly unknown[];

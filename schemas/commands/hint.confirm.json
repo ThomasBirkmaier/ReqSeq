@@ -12,7 +12,7 @@
     { "field": "ref", "complete": "element" },
     { "field": "target", "complete": "element" },
     { "field": "all", "complete": "boolean", "replaces": ["ref", "target"] },
-    { "field": "kind", "complete": "text" },
+    { "field": "kind", "complete": "choice" },
     { "field": "expected", "complete": "number" },
     { "field": "hintIds", "complete": "hint", "of": "ref", "replaces": ["ref", "target", "all", "kind"] }
   ],

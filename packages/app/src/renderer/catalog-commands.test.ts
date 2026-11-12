@@ -1,5 +1,6 @@
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
+import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
@@ -27,7 +28,7 @@ const PLATFORM_SEP = isWindows(navigator.platform) ? "\\" : "/";
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
 const CATALOG: readonly CommandListing[] = runtime.contracts.commands.map((entry) => ({
-  ...entry,
+  ...listedEntry(entry, runtime.contracts.schemas),
   implemented: runtime.commands.has(entry.name),
 }));
 
@@ -1600,7 +1601,8 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     item((await last(asked)).items, "all").run();
     item((await last(asked)).items, "yes").more?.();
     item((await last(asked)).items, "kind").run();
-    (await last(asked)).more?.("relation.outdated");
+    // The problem codes of the catalog are offered (#1575).
+    item((await last(asked)).items, "relation.outdated").more?.();
     item((await last(asked)).items, "expected").run();
     (await last(asked)).more?.("3");
     item((await last(asked)).items, "Run").run();
