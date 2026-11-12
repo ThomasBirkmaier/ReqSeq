@@ -149,8 +149,8 @@ test.describe("criterion references on the element page", () => {
       .click();
     await expect(menu(window)).toBeHidden();
     await expect.poll(readClipboard).toBe(beta?.reference);
-    // From the command prompt, with the cursor in the first line.
-    await line(window, 0).click();
+    // From the command prompt, with the cursor in the first line: a click on its reference puts it there.
+    await line(window, 0).locator(".cm-lr-criterion-ref").click();
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Copy criterion reference");
     await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText(
