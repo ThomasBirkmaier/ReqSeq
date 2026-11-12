@@ -15,7 +15,7 @@
 //   "exactly 2"; a limit without a source type holds for the kind's sources and starts with "→".
 // - The problems of the output, one line each; they are no rows.
 import type { MetamodelGetOutput } from "@reqseq/core";
-import { inheritedProperties, typeKey } from "./metamodel-graph.js";
+import { inheritedProperties, typeKey } from "@reqseq/core/metamodel-graph";
 
 /** A property of a type, as a line of its row. */
 export interface TextProperty {

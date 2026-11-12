@@ -10,6 +10,7 @@
 // A link names its relation kind only on demand (SR-154, `GraphLinks.tsx`).
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@reqseq/core";
+import { typeName as typeNameOf } from "@reqseq/core/graph-words";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, GraphBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
@@ -347,7 +348,7 @@ export const GraphView = ({
               );
             })}
             {layout.nodes.map((placed, index) => {
-              const typeName = typeNames.get(placed.node.type) ?? placed.node.type;
+              const typeName = typeNameOf(typeNames, placed.node.type);
               const classes = [
                 "graph-node",
                 ...(placed.key === rootKey ? ["root"] : []),

@@ -2,10 +2,13 @@
 // a node and the modeline show. Everything shown is a value of the output (ADR-0002, SR-080 AK4); the app
 // only adds the size limit and the words for the marks. No React here.
 import type { TraceGraphInput, TraceGraphOutput } from "@reqseq/core";
-import { degreePercent } from "@reqseq/core/verification-degree";
+import { MARK_WORDS, kindName, ringOf, shownId, statusOf, verificationWords } from "@reqseq/core/graph-words";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
-import { shownId } from "./id-title.js";
+
+// The words of a node and a link are core's (`@reqseq/core/graph-words`), for the Mermaid text too (#1537).
+export type { Verifiable } from "@reqseq/core/graph-words";
+export { MARK_WORDS, ringOf, statusOf };
 
 /** The most nodes a graph asks for: the size SR-111 AK6 lays out within a second. */
 export const GRAPH_LIMIT = 500;
@@ -15,7 +18,6 @@ export const MAX_DEPTH = 9;
 
 export type GraphNode = TraceGraphOutput["nodes"][number];
 export type GraphEdge = TraceGraphOutput["edges"][number];
-export type GraphMark = GraphNode["marks"][number];
 /** The summary of the evidence below a node (SR-111 AK3, `withEvidence`). */
 export type GraphEvidence = NonNullable<TraceGraphOutput["evidence"]>[number];
 
@@ -82,48 +84,8 @@ export const filterLabel = (
   return followed.length === 0 ? "nothing followed" : `only ${followed.join(", ")}`;
 };
 
-/** The words of the marks (SR-111 AK4), in the order of the output. */
-export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
-  outdated: "outdated",
-  superseded: "superseded",
-};
-
-/** What a node, or a row of a list (SR-137), carries of its verification. */
-export type Verifiable = Pick<GraphNode, "verification" | "criteria" | "degree">;
-
-/** The verification status of a requirement node in the graph's view (SR-136 AK1); none for another node. */
-export const statusOf = (node: Verifiable): string | undefined => node.verification?.[0]?.status;
-
 /** Whether a status word is in the accent colour, as in the matrix: failed and outdated. */
 export const accentStatus = (status: string): boolean => status === "failed" || status === "outdated";
-
-/** A progress ring of a node (SR-136): the part that is full, 0 to 1, and its text. */
-export interface Ring {
-  readonly part: number;
-  readonly text: string;
-}
-
-/**
- * The progress ring of a node (SR-136 AK2 to AK6): a requirement's verified acceptance criteria,
- * "2 of 3", as core counts them (`criteria`); a need's verification degree, "60 %" (`degreePercent`, as
- * the CLI); none where core gives nothing to count (indirect, no criteria, no valid derived requirement).
- */
-export const ringOf = (node: Verifiable): Ring | undefined => {
-  const { criteria, degree } = node;
-  if (criteria !== undefined) {
-    return {
-      part: criteria.verified / criteria.total,
-      text: `${String(criteria.verified)} of ${String(criteria.total)}`,
-    };
-  }
-  return degree?.share === undefined ? undefined : { part: degree.share, text: degreePercent(degree.share) };
-};
-
-/** The verification of a node in words, "verification open 2 of 3", "verification 60 %"; none without. */
-const verificationWords = (node: GraphNode): string[] => {
-  const parts = [statusOf(node), ringOf(node)?.text].filter((part): part is string => part !== undefined);
-  return parts.length === 0 ? [] : ["verification", ...parts];
-};
 
 /** What a node is called: its short ID with the identifier (SR-084 AK4). */
 export const nodeId = (node: GraphNode): string => shownId(node.shortId, node.identifier);
@@ -161,22 +123,6 @@ export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvi
     ...verificationWords(node),
     ...(evidence === undefined ? [] : [evidenceText(evidence)]),
   ].join(" ");
-
-/** The word of an inline reference in an edge's text: the metamodel names no such kind (SR-154 AK1). */
-export const REFERENCE_NAME = "Refers to";
-
-/** The key of a relation property in the names of `relationNames`: a property may share a kind's key. */
-export const propertyNameKey = (key: string): string => `property:${key}`;
-
-/**
- * The name of a link's kind (SR-154 AK1): the name of its relation kind or relation property from the
- * metamodel (`kindNames`, `relationNames`), its key when the metamodel names none, `REFERENCE_NAME` for
- * an inline reference.
- */
-export const kindName = (link: GraphEdge, kindNames: ReadonlyMap<string, string>): string =>
-  link.kind === undefined
-    ? REFERENCE_NAME
-    : (kindNames.get(link.property === true ? propertyNameKey(link.kind) : link.kind) ?? link.kind);
 
 /**
  * The lines of a drawn link's text (SR-154 AK1, AK2): one per link it draws, read along the arrow,

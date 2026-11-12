@@ -31,6 +31,14 @@
       "types": "./dist/evidence/degree-text.d.ts",
       "default": "./dist/evidence/degree-text.js"
     },
+    "./graph-words": {
+      "types": "./dist/graph/words.d.ts",
+      "default": "./dist/graph/words.js"
+    },
+    "./metamodel-graph": {
+      "types": "./dist/metamodel/graph.d.ts",
+      "default": "./dist/metamodel/graph.js"
+    },
     "./criterion-items": {
       "types": "./dist/model/criterion-items.d.ts",
       "default": "./dist/model/criterion-items.js"

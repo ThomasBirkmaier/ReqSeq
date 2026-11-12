@@ -9,7 +9,10 @@
 import type { MetamodelGetOutput, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
-import { MAX_DEPTH, propertyNameKey } from "./graph.js";
+import { MAX_DEPTH } from "./graph.js";
+
+// The names of the kinds are core's (`@reqseq/core/graph-words`).
+export { relationNames } from "@reqseq/core/graph-words";
 
 type Meaning = NonNullable<TraceGraphInput["meanings"]>[number];
 
@@ -112,20 +115,6 @@ export const graphFilterChoices = (
     .filter((property) => property.kind === "relation")
     .map((property) => ({ name: property.name, hint: property.key, filter: { kinds: [property.key] } })),
 ];
-
-/**
- * The names of the relation kinds by their key and of the properties of kind `relation` by
- * `propertyNameKey` (SR-154 AK1).
- */
-export const relationNames = (
-  metamodel: Pick<MetamodelGetOutput, "relations" | "properties">,
-): ReadonlyMap<string, string> =>
-  new Map([
-    ...metamodel.relations.map((kind) => [kind.key, kind.name] as const),
-    ...metamodel.properties
-      .filter((property) => property.kind === "relation")
-      .map((property) => [propertyNameKey(property.key), property.name] as const),
-  ]);
 
 /** The graph buffer follows some kinds only. */
 export const hasFilter = (buffer: GraphBuffer): boolean =>
