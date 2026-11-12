@@ -5,8 +5,8 @@ How work on ReqSeq goes from a need to a release. The rules are in `CLAUDE.md` (
 ```mermaid
 flowchart LR
   need["Need<br/><small>set by the product owner</small>"]
-  sr["SR in its topic package<br/><small>dependency check first<br/>an idea is a draft SR<br/>skill spec-change</small>"]
-  study["Pre-study<br/><small>steps per SR<br/>SR changed: dependency check<br/>plan only if risky</small>"]
+  concept["Concept<br/><small>dependency check, questions, mockup<br/>concept with issue cut, fable-reviewer<br/>approval of wording and cut<br/>skill spec-change</small>"]
+  specpr["Spec PR<br/><small>SR in its topic package, an idea a draft SR<br/>then issues and their check</small>"]
   entry["Bug, question,<br/>task asked for"]
   issue["Issue = one task<br/><small>too large: epic with sub-issues</small>"]
   pr["Pull request<br/><small>verify before each push<br/>merge, /code-review</small>"]
@@ -14,7 +14,7 @@ flowchart LR
   evidence["Evidence<br/><small>tests [SR/AK], nightly CI evidence</small>"]
   release["Release<br/><small>x.y with its milestone<br/>x.y.z without</small>"]
 
-  need --> sr --> study --> issue
+  need --> concept --> specpr --> issue
   entry --> issue
   issue --> pr --> merged --> evidence --> release
 ```
@@ -25,11 +25,10 @@ Every spec change and every fix of a bug against an AK starts with a check of wh
 
 | Path | Check | Then |
 | --- | --- | --- |
-| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | Content change (CLAUDE.md, How we work): concept with edge cases, review by `fable-reviewer` (spec and issues), questions on that decision card, then the spec PR, which names the review and each touchpoint. Confirming relations, a status or a typo: the spec PR, which names each touchpoint. |
+| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | The numbered steps of `spec-change`: for a content change questions, mockup, concept and its review, approval of the wording and the issue cut, spec PR, issues and their check; for confirming relations, a status or a typo the spec PR, which names each touchpoint. |
 | Bug against an AK | `trace related` parents and children, one `element search` per term of the AK (CLAUDE.md, Issues) | Fix it. A fix that needs an interpretation of the AK wording becomes a `question`. |
 | Bug without an SR | none | Fix it. |
-| Spec review, only when the product owner asks | `fable-reviewer` (prompt: `Case: spec review`, the packages, the result file) reads them and writes a finding list | An Opus agent at effort high checks each finding against code and tests; decision cards; one spec PR; implementation gaps become `bug` issues (#1298). |
-| Pre-study of a planned SR | the steps; when they change the SR, the first row | Issues for the steps the product owner chooses. |
+| Spec review, only when the product owner asks | `fable-reviewer` (prompt: `Case: spec review`, the packages, the result file) reads them and writes a finding list | An Opus agent at effort high checks each finding against code and tests; decision cards; one spec PR, whose content changes follow the numbered steps of `spec-change`; implementation gaps become `bug` issues (#1298). |
 
 ## Issues
 
@@ -62,3 +61,31 @@ Exactly one type, area and priority per open issue; `scripts/labels.sh` holds th
 | Change the spec | `spec-change` |
 | Push a change | `verify` |
 | Open, review and merge a PR; release | `merge` |
+
+## Where the rules live
+
+Claude follows written rules as context, not as a guarantee. So each rule sits where it is loaded at the moment it applies, and a rule that must hold every time also has a check outside the session that applies it: a hook, a CI job, or the review by a second agent.
+
+```mermaid
+flowchart LR
+  claude["CLAUDE.md<br/><small>loaded in every session<br/>rules for every change, triggers</small>"]
+  skill["Skills<br/><small>loaded when invoked<br/>procedures with their steps</small>"]
+  agent["Agents<br/><small>loaded by the subagent<br/>its task and inputs</small>"]
+  check["Checks<br/><small>hooks, CI, merge review<br/>run every time</small>"]
+
+  claude -- "names when to read" --> skill
+  skill -- "starts" --> agent
+  skill -- "results in a PR that" --> check
+  claude -- "rules without exceptions" --> check
+```
+
+| Layer | Loaded | Holds | Example |
+| --- | --- | --- | --- |
+| `CLAUDE.md` | at the start of every session in this checkout, and of the project's agents (`.claude/agents/`) | product rules, repository text, issues, and the trigger for each procedure | "Before a change to `spec/`: skill `spec-change`" |
+| Skill description | in every session in this checkout, as one line of the skill list (outside it maybe as `reqseq:<name>`, or not at all) | when to load the skill | `spec-change`: "Use as soon as a wish, a question or a bug could change an element in spec/" |
+| Skill body (`.claude/skills/`) | when invoked, or at the start of an agent that lists it under `skills:`; it then stays in the conversation | a procedure with numbered steps | the nine steps of `spec-change` |
+| Agent file (`.claude/agents/`) | its description is always listed to the thread; the body when a thread starts that agent | its task, inputs and model; it sees `CLAUDE.md` but not the thread | `implementer` does not start without the issue-check link |
+| Hook (`.claude/settings.json`, `scripts/hooks/`) | on every matching tool call | a rule a script can decide on a tool call | no hand edit of spec elements or generated files (`protect-files`, Edit and Write only) |
+| CI and the merge review | on every PR | what a PR must show | the six headings of a spec PR (review) |
+
+Rules for a chat or a platform outside the repository (language of the chat, its checklists) belong to that platform's settings, not here.
