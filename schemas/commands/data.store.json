@@ -20,7 +20,7 @@
         "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
       },
       "selection": {
-        "description": "The elements to write: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+        "description": "The elements to write; without it every element.",
         "$ref": "../common.schema.json#/$defs/selection"
       }
     },

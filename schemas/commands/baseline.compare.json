@@ -17,7 +17,7 @@
         "description": "Name of a baseline, or its file name (with or without .yaml)."
       },
       "ref": {
-        "description": "The element whose difference since the baseline is shown: its UUID, short ID or identifier.",
+        "description": "The element whose difference since the baseline is shown.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       }
     },

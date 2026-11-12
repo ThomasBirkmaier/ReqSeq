@@ -4795,7 +4795,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element to show: its UUID, short ID or identifier.",
+              "description": "The element to show.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "view": {
@@ -5483,7 +5483,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element to change: its UUID, short ID or identifier.",
+              "description": "The element to change.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "title": {
@@ -5534,7 +5534,7 @@
             "setItems": {
               "type": "object",
               "minProperties": 1,
-              "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key. Needs expectedFileSha256.",
+              "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key.",
               "additionalProperties": {
                 "type": "object",
                 "propertyNames": {
@@ -5565,7 +5565,7 @@
             "repository": {
               "type": "string",
               "minLength": 1,
-              "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates."
+              "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates."
             },
             "expectedFileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",
@@ -5650,7 +5650,7 @@
           "type": "object",
           "properties": {
             "refs": {
-              "description": "The elements whose status is set or removed, each by UUID, short ID or identifier.",
+              "description": "The elements whose status is set or removed.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementRef"
@@ -5734,7 +5734,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element to supersede: its UUID, short ID or identifier.",
+              "description": "The element to supersede.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "status": {
@@ -5742,7 +5742,7 @@
               "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid."
             },
             "successor": {
-              "description": "The element that follows the superseded one: its UUID, short ID or identifier. Its file gets the relation with meaning succession.",
+              "description": "The element that follows the superseded one. Its file gets the relation with meaning succession.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "relation": {
@@ -5829,7 +5829,7 @@
           "type": "object",
           "properties": {
             "selection": {
-              "description": "The elements whose property is changed: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant.",
+              "description": "The elements whose property is changed.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "property": {
@@ -6012,7 +6012,7 @@
           "type": "object",
           "properties": {
             "selection": {
-              "description": "The elements whose acceptance criteria get criterion keys: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant.",
+              "description": "The elements whose acceptance criteria get criterion keys.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -6150,7 +6150,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element the image is copied for: its UUID, short ID or identifier. The copy goes into the folder named like its file.",
+              "description": "The element the image is copied for. The copy goes into the folder named like its file.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "sourcePath": {
@@ -6322,7 +6322,7 @@
           "type": "object",
           "properties": {
             "source": {
-              "description": "The element whose file gets the relation: its UUID, short ID or identifier.",
+              "description": "The element whose file gets the relation.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "kind": {
@@ -6330,7 +6330,7 @@
               "$ref": "../common.schema.json#/$defs/key"
             },
             "target": {
-              "description": "The element the relation points to: its UUID, short ID or identifier.",
+              "description": "The element the relation points to.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
@@ -6399,7 +6399,7 @@
           "type": "object",
           "properties": {
             "source": {
-              "description": "The element whose file holds the relation: its UUID, short ID or identifier.",
+              "description": "The element whose file holds the relation.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "kind": {
@@ -6407,7 +6407,7 @@
               "$ref": "../common.schema.json#/$defs/key"
             },
             "target": {
-              "description": "The element the relation to remove points to: its UUID, short ID or identifier.",
+              "description": "The element the relation to remove points to.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -6495,7 +6495,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element the chain starts from: its UUID, short ID or identifier.",
+              "description": "The element the chain starts from.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "direction": {
@@ -7002,7 +7002,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The changed element: its UUID, short ID or identifier.",
+              "description": "The changed element.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "limit": {
@@ -7219,7 +7219,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element whose neighbourhood is shown: its UUID, short ID or identifier.",
+              "description": "The element whose neighbourhood is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -7880,7 +7880,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element whose graph is shown: its UUID, short ID or identifier.",
+              "description": "The element whose graph is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -8241,7 +8241,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element whose graph is written: its UUID, short ID or identifier.",
+              "description": "The element whose graph is written.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "repository": {
@@ -9037,7 +9037,7 @@
           "type": "object",
           "properties": {
             "ref": {
-              "description": "The element whose evidence records are listed: its UUID, short ID or identifier.",
+              "description": "The element whose evidence records are listed.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "view": {
@@ -9704,7 +9704,7 @@
           "type": "object",
           "properties": {
             "selection": {
-              "description": "The elements whose verification status is given: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+              "description": "The elements whose verification status is given; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "limit": {
@@ -10034,7 +10034,7 @@
           "type": "object",
           "properties": {
             "selection": {
-              "description": "The elements to export: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+              "description": "The elements to export; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -10085,7 +10085,7 @@
               "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
             },
             "selection": {
-              "description": "The elements to write: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+              "description": "The elements to write; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             }
           },
@@ -10795,7 +10795,7 @@
               "description": "Name of a baseline, or its file name (with or without .yaml)."
             },
             "ref": {
-              "description": "The element whose difference since the baseline is shown: its UUID, short ID or identifier.",
+              "description": "The element whose difference since the baseline is shown.",
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
@@ -11218,7 +11218,7 @@
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "selection": {
-              "description": "The elements to export: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+              "description": "The elements to export; without it every element.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "profile": {

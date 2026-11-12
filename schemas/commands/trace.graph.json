@@ -48,7 +48,7 @@
     "type": "object",
     "properties": {
       "ref": {
-        "description": "The element whose graph is shown: its UUID, short ID or identifier.",
+        "description": "The element whose graph is shown.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {

@@ -2170,7 +2170,7 @@ export interface ElementCreateOutput {
  * Schema: `schemas/commands/element.get.json input`.
  */
 export interface ElementGetInput {
-  /** The element to show: its UUID, short ID or identifier. */
+  /** The element to show. */
   readonly ref: ElementRef;
   /** The view to show the element in. Not taken yet: it gives `input.invalid`. */
   readonly view?: View;
@@ -2383,7 +2383,7 @@ export interface ElementFacetsOutput {
  * Schema: `schemas/commands/element.update.json input`.
  */
 export interface ElementUpdateInput {
-  /** The element to change: its UUID, short ID or identifier. */
+  /** The element to change. */
   readonly ref: ElementRef;
   /** New title. */
   readonly title?: string;
@@ -2393,13 +2393,13 @@ export interface ElementUpdateInput {
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   /** Keys to remove. */
   readonly unset?: readonly Key[];
-  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). Needs expectedFileSha256. */
+  /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
   /** Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept. */
   readonly addRelations?: RelationRefs;
   /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). When none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates. */
   readonly repository?: string;
   /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
@@ -2427,7 +2427,7 @@ export interface ElementUpdateOutput {
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
-  /** The elements whose status is set or removed, each by UUID, short ID or identifier. */
+  /** The elements whose status is set or removed. */
   readonly refs: readonly ElementRef[];
   /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (ThomasBirkmaier/ReqSeq-archive#306). null removes the status line, only from an element whose type has an optional status: no status, or only statuses marked invalid (ThomasBirkmaier/ReqSeq-archive#343); else input.invalid with reason status-required. */
   readonly status: KeyOrName | null;
@@ -2447,11 +2447,11 @@ export interface ElementSetStatusOutput {
  * Schema: `schemas/commands/element.supersede.json input`.
  */
 export interface ElementSupersedeInput {
-  /** The element to supersede: its UUID, short ID or identifier. */
+  /** The element to supersede. */
   readonly ref: ElementRef;
   /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status: KeyOrName;
-  /** The element that follows the superseded one: its UUID, short ID or identifier. Its file gets the relation with meaning succession. */
+  /** The element that follows the superseded one. Its file gets the relation with meaning succession. */
   readonly successor?: ElementRef;
   /** Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
   readonly relation?: Key;
@@ -2471,7 +2471,7 @@ export interface ElementSupersedeOutput {
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
-  /** The elements whose property is changed: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant. */
+  /** The elements whose property is changed. */
   readonly selection: ElementSelection;
   /** A property of the metamodel; not the title key, not a relation kind. */
   readonly property: Key;
@@ -2526,7 +2526,7 @@ export interface ElementBulkUpdateOutput {
  * Schema: `schemas/commands/element.assignCriterionKeys.json input`.
  */
 export interface ElementAssignCriterionKeysInput {
-  /** The elements whose acceptance criteria get criterion keys: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant. */
+  /** The elements whose acceptance criteria get criterion keys. */
   readonly selection: ElementSelection;
 }
 
@@ -2563,7 +2563,7 @@ export interface ElementAssignCriterionKeysOutput {
  * Schema: `schemas/commands/element.addAttachment.json input`.
  */
 export interface ElementAddAttachmentInput {
-  /** The element the image is copied for: its UUID, short ID or identifier. The copy goes into the folder named like its file. */
+  /** The element the image is copied for. The copy goes into the folder named like its file. */
   readonly ref: ElementRef;
   /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). Give it or content, not both. */
   readonly sourcePath?: LocalPath;
@@ -2619,11 +2619,11 @@ export interface RelationOptionsOutput {
  * Schema: `schemas/commands/relation.add.json input`.
  */
 export interface RelationAddInput {
-  /** The element whose file gets the relation: its UUID, short ID or identifier. */
+  /** The element whose file gets the relation. */
   readonly source: ElementRef;
   /** The relation kind: its key in the metamodel. */
   readonly kind: Key;
-  /** The element the relation points to: its UUID, short ID or identifier. */
+  /** The element the relation points to. */
   readonly target: ElementRef;
 }
 
@@ -2642,11 +2642,11 @@ export interface RelationAddOutput {
  * Schema: `schemas/commands/relation.remove.json input`.
  */
 export interface RelationRemoveInput {
-  /** The element whose file holds the relation: its UUID, short ID or identifier. */
+  /** The element whose file holds the relation. */
   readonly source: ElementRef;
   /** The relation kind of the relation to remove: its key in the metamodel. */
   readonly kind: Key;
-  /** The element the relation to remove points to: its UUID, short ID or identifier. */
+  /** The element the relation to remove points to. */
   readonly target: ElementRef;
   /** Only relations into this repository (workspace name); a relation that names none points into the source's repository (D-058). Names the one meant when a UUID has relations into several repositories. */
   readonly repository?: string;
@@ -2666,7 +2666,7 @@ export interface RelationRemoveOutput {
  * Schema: `schemas/commands/trace.chain.json input`.
  */
 export interface TraceChainInput {
-  /** The element the chain starts from: its UUID, short ID or identifier. */
+  /** The element the chain starts from. */
   readonly ref: ElementRef;
   /** `up` to the parents, `down` to the children and evidence, `both` for both. */
   readonly direction: "up" | "down" | "both";
@@ -2817,7 +2817,7 @@ export interface TraceRelatedOutput {
  * Schema: `schemas/commands/trace.affected.json input`.
  */
 export interface TraceAffectedInput {
-  /** The changed element: its UUID, short ID or identifier. */
+  /** The changed element. */
   readonly ref: ElementRef;
   /** The most elements on one page. */
   readonly limit: number;
@@ -2876,7 +2876,7 @@ export interface TraceAffectedOutput {
  * Schema: `schemas/commands/trace.neighbourhood.json input`.
  */
 export interface TraceNeighbourhoodInput {
-  /** The element whose neighbourhood is shown: its UUID, short ID or identifier. */
+  /** The element whose neighbourhood is shown. */
   readonly ref: ElementRef;
   /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
@@ -3073,7 +3073,7 @@ export interface TraceMatrixOutput {
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
-  /** The element whose graph is shown: its UUID, short ID or identifier. */
+  /** The element whose graph is shown. */
   readonly ref: ElementRef;
   /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
@@ -3185,7 +3185,7 @@ export interface TraceGraphOutput {
  * Schema: `schemas/commands/trace.mermaid.json input`.
  */
 export interface TraceMermaidInput {
-  /** The element whose graph is written: its UUID, short ID or identifier. */
+  /** The element whose graph is written. */
   readonly ref: ElementRef;
   /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
@@ -3416,7 +3416,7 @@ export interface FilterSaveOutput {
  * Schema: `schemas/commands/evidence.list.json input`.
  */
 export interface EvidenceListInput {
-  /** The element whose evidence records are listed: its UUID, short ID or identifier. */
+  /** The element whose evidence records are listed. */
   readonly ref: ElementRef;
   /** `core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2), and also those without a variant when the element's repository is marked `variant-independent` (SR-173); absent: every record of the element. */
   readonly view?: View;
@@ -3597,7 +3597,7 @@ export interface EvidenceEnrichJunitOutput {
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
-  /** The elements whose verification status is given: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element. */
+  /** The elements whose verification status is given; without it every element. */
   readonly selection?: ElementSelection;
   /** The most elements on one page. */
   readonly limit: number;
@@ -3713,7 +3713,7 @@ export interface EvidenceWithoutPassedTestOutput {
  * Schema: `schemas/commands/data.export.json input`.
  */
 export interface DataExportInput {
-  /** The elements to export: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element. */
+  /** The elements to export; without it every element. */
   readonly selection?: ElementSelection;
 }
 
@@ -3730,7 +3730,7 @@ export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>
 export interface DataStoreInput {
   /** Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside. */
   readonly folder: LocalPath;
-  /** The elements to write: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element. */
+  /** The elements to write; without it every element. */
   readonly selection?: ElementSelection;
 }
 
@@ -3968,7 +3968,7 @@ export interface BaselineGetOutput {
 export interface BaselineCompareInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** The element whose difference since the baseline is shown: its UUID, short ID or identifier. */
+  /** The element whose difference since the baseline is shown. */
   readonly ref: ElementRef;
 }
 
@@ -4085,7 +4085,7 @@ export interface ReqifSaveMappingOutput {
 export interface ReqifExportInput {
   /** The ReqIF file to write: a new file, or a ReqIF file that is replaced. */
   readonly output: LocalPath;
-  /** The elements to export: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element. */
+  /** The elements to export; without it every element. */
   readonly selection?: ElementSelection;
   /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;

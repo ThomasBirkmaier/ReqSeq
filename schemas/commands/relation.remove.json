@@ -17,7 +17,7 @@
     "type": "object",
     "properties": {
       "source": {
-        "description": "The element whose file holds the relation: its UUID, short ID or identifier.",
+        "description": "The element whose file holds the relation.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "kind": {
@@ -25,7 +25,7 @@
         "$ref": "../common.schema.json#/$defs/key"
       },
       "target": {
-        "description": "The element the relation to remove points to: its UUID, short ID or identifier.",
+        "description": "The element the relation to remove points to.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {

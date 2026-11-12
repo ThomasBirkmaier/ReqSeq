@@ -13,7 +13,7 @@
     "type": "object",
     "properties": {
       "selection": {
-        "description": "The elements whose acceptance criteria get criterion keys: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant.",
+        "description": "The elements whose acceptance criteria get criterion keys.",
         "$ref": "../common.schema.json#/$defs/selection"
       }
     },

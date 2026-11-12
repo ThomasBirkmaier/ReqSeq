@@ -19,7 +19,7 @@
     "type": "object",
     "properties": {
       "ref": {
-        "description": "The element the chain starts from: its UUID, short ID or identifier.",
+        "description": "The element the chain starts from.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "direction": {

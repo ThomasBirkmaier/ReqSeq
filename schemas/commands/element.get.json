@@ -33,7 +33,7 @@
     "type": "object",
     "properties": {
       "ref": {
-        "description": "The element to show: its UUID, short ID or identifier.",
+        "description": "The element to show.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "view": {

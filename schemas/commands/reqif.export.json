@@ -23,7 +23,7 @@
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "selection": {
-        "description": "The elements to export: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally in the view of a variant; without it every element.",
+        "description": "The elements to export; without it every element.",
         "$ref": "../common.schema.json#/$defs/selection"
       },
       "profile": {

@@ -16,7 +16,7 @@
     "type": "object",
     "properties": {
       "ref": {
-        "description": "The changed element: its UUID, short ID or identifier.",
+        "description": "The changed element.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "limit": {
