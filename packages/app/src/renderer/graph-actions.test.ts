@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, GRAPH_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions.js";
 import type { ActionContext } from "./actions.js";
-import type { BufferAction, Buffers } from "./buffers.js";
+import type { BufferAction, Buffers, GraphBuffer } from "./buffers.js";
 import {
   bufferName,
   elementBuffer,
   graphBuffer,
   listBuffer,
+  metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
   reduceBuffers,
@@ -297,3 +298,59 @@ describe("the buffers around a graph", () => {
 function fail(): never {
   throw new Error("no such action");
 }
+
+describe("Copy graph as Mermaid", () => {
+  const text = "flowchart BT\n";
+  const copying = (buffers: Buffers, answer: unknown) => {
+    const { full } = context(buffers);
+    const call = vi.fn(() => Promise.resolve(answer));
+    const copy = vi.fn();
+    return { run: { ...full, shownCall: call as never, copy }, call, copy, echo: full.echo };
+  };
+
+  it("[SR-151/AK-s3cv] is offered on the graph of an element and of the metamodel only", () => {
+    const metamodel = metamodelBuffer();
+    expect(names([graph])).toContain("Copy graph as Mermaid");
+    expect(names([metamodel])).toContain("Copy graph as Mermaid");
+    for (const buffers of [
+      [element],
+      [neighbourhood],
+      [metamodelBuffer("text")],
+      [listBuffer("All")],
+    ] as Buffers[]) {
+      expect(names(buffers)).not.toContain("Copy graph as Mermaid");
+    }
+  });
+
+  it("[SR-151/AK-s3cv] copies core's text of the graph at its depth, kinds and view, without the evidence", async () => {
+    const shown: GraphBuffer = { ...graph, depth: 3, kinds: ["based-on"], view: "core", withEvidence: true };
+    const { run, call, copy } = copying([shown], { ok: true, output: { mermaid: text } });
+    runAction(action("copy-mermaid"), run);
+    await vi.waitFor(() => {
+      expect(copy).toHaveBeenCalledWith("graph as Mermaid", text);
+    });
+    expect(call).toHaveBeenCalledWith("trace.mermaid", {
+      ref: "uuid-S1",
+      repository: "spec",
+      maxDepth: 3,
+      kinds: ["based-on"],
+      view: "core",
+      limit: 500,
+    });
+  });
+
+  it("[SR-151/AK-s3cv] copies the metamodel's text, and says why when core refuses", async () => {
+    const metamodel = copying([metamodelBuffer()], { ok: true, output: { mermaid: text } });
+    runAction(action("copy-mermaid"), metamodel.run);
+    await vi.waitFor(() => {
+      expect(metamodel.copy).toHaveBeenCalledWith("graph as Mermaid", text);
+    });
+    expect(metamodel.call).toHaveBeenCalledWith("metamodel.mermaid", {});
+    const refused = copying([graph], { ok: false, code: "element.not-found", message: "No element" });
+    runAction(action("copy-mermaid"), refused.run);
+    await vi.waitFor(() => {
+      expect(refused.echo).toHaveBeenCalledWith("No element");
+    });
+    expect(refused.copy).not.toHaveBeenCalled();
+  });
+});

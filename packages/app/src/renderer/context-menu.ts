@@ -116,15 +116,17 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   graph: [
-    // SR-199 AK1: the sheet of an element's graph outside its nodes. The export of SR-151 is not built yet.
+    // SR-199 AK1: the sheet of an element's graph outside its nodes, with the Mermaid copy of SR-151.
     { id: "graph-depth" },
     { id: "graph-also" },
     { id: "graph-only" },
+    { id: "copy-mermaid" },
   ],
 
   "metamodel-graph": [
-    // SR-199 AK2: the sheet of the metamodel's graph outside its types. The export of SR-151 is not built yet.
+    // SR-199 AK2: the sheet of the metamodel's graph outside its types, with the Mermaid copy of SR-151.
     { id: "metamodel-text" },
+    { id: "copy-mermaid" },
   ],
 
   "matrix-cell": [

@@ -145,8 +145,12 @@ export const overLimit = (source: string): string | undefined => {
   if (source.length > MAX_TEXT_SIZE) {
     return `Diagram too large: ${String(source.length)} characters, at most ${String(MAX_TEXT_SIZE)}.`;
   }
-  // A `;` separates statements as a line break does; one inside a quoted label only makes the bound stricter.
-  const statements = source.split(/[\n;]/).filter((part) => part.trim() !== "").length;
+  // A `;` separates statements as a line break does, except the one that ends an entity such as `#35;`, of which
+  // the Mermaid text of a graph puts many into its labels (SR-151 AK3).
+  const statements = source
+    .replace(/#(?:\d+|[A-Za-z]+);/g, "")
+    .split(/[\n;]/)
+    .filter((part) => part.trim() !== "").length;
   return statements > MAX_STATEMENTS
     ? `Diagram too large: ${String(statements)} statements, at most ${String(MAX_STATEMENTS)}.`
     : undefined;
