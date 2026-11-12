@@ -185,7 +185,8 @@ relations:
     source-types: [system-requirement]
     target-types: [need, use-case, system-requirement]
     meaning: derivation
-    # Every system requirement derives from at least one need (SR-152; #838 Q4). Fewer is the hint relation.too-few; the standard model has no limit.
+    # Every system requirement derives from at least one need (SR-152; #838 Q4). Fewer is the hint
+    # relation.too-few; the standard model has no limit.
     limits:
       - { source-type: system-requirement, target-type: need, min: 1 }
   - key: based-on

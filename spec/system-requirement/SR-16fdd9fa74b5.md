@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Element im anderen Bereich öffnen
 spec-id: SR-150
-rationale: Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Der andere Bereich ist eine Vorschau, die der Auswahl folgt, auch beim Wechsel von Paket zu Paket (AK4). Betritt der Benutzer die Vorschau, bleibt sie stehen, denn zwei Elemente sollen sich weiter nebeneinander stellen lassen; einen Schalter zum Ein- und Ausschalten gibt es nicht (AK5). Die Vorschau soll gleich beim Teilen erscheinen und nicht erst nach „Open to the right“ (AK6). Alt+O wechselt die Seite, weil Ctrl/Cmd+O schon einen Arbeitsbereich öffnet und die Ctrl-Taste auf macOS dem Editor gehört (AK7). Die aktive Seite soll dezent erkennbar sein, ohne dass die Lesbarkeit leidet, denn Lesen ist der Hauptzweck (AK8).
+rationale: "Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Nach dem Ausprobieren gilt: Der andere Bereich ist eine Vorschau, die der Auswahl folgt, auch beim Wechsel von Paket zu Paket (AK4). Betritt der Benutzer die Vorschau, bleibt sie stehen, denn zwei Elemente sollen sich weiter nebeneinander stellen lassen; einen Schalter zum Ein- und Ausschalten gibt es nicht (AK5). Die Vorschau soll gleich beim Teilen erscheinen und nicht erst nach „Open to the right“ (AK6). Alt+O wechselt die Seite, weil Ctrl/Cmd+O schon einen Arbeitsbereich öffnet und die Ctrl-Taste auf macOS dem Editor gehört (AK7). Die aktive Seite soll dezent erkennbar sein, ohne dass die Lesbarkeit leidet, denn Lesen ist der Hauptzweck (AK8)."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein ungeteiltes Fenster und ein markiertes Element in einem Buffer, etwa ein Knoten im Graph oder eine Zeile einer Liste, wenn der Befehl „Open to the right“ gewählt wird, dann teilt sich das Fenster, der bisherige Buffer bleibt links und aktiv, und das markierte Element öffnet sich rechts als Vorschau.
@@ -22,7 +22,7 @@ derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n1:49c90a7abf6c0e3c, title: Befehle finden und Kürzel lernen }
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:2ec3810c4995e7aa, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:8db21e7aaeb96d22, title: In Buffern arbeiten }
 ---
