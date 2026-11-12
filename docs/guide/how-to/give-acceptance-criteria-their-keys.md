@@ -19,7 +19,7 @@ acceptance-criteria:
   AK2: Given no reading, then a dash shows.
 ```
 
-API and MCP give them as `criterionReferences`. In the app, the editor shows the reference after each criterion in the acceptance criteria box, unless a criterion there holds a line break, and a criterion whose key another one carries too shows only its key, since it has no reference (SR-205 AK1, SR-204 AK10). A criterion you add shows its reference once it is saved. To copy a reference, put the cursor on the criterion and run **Copy criterion reference**, from the command prompt or the context menu of the line (SR-205 AK4).
+API and MCP give them as `criterionReferences`. In the app, the editor shows the reference after each criterion in the acceptance criteria box, unless a criterion there holds a line break, and a criterion whose key another one carries too shows only its key, since it has no reference (SR-205 AK1); the check reports such a key as an error (SR-204 AK10). A criterion you add shows its reference once it is saved. To copy a reference, put the cursor on the criterion and run **Copy criterion reference**, from the command prompt or the context menu of the line (SR-205 AK4). For a criterion without key, it asks you to run **Assign criterion keys** first.
 
 For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**. A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
 

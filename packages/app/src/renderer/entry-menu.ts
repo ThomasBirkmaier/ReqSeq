@@ -51,7 +51,7 @@ export const promptEntry = (
  */
 export const menuContext = (
   context: ActionContext,
-  menu: { readonly hit: Pick<MenuHit, "place"> } | undefined,
+  menu: { readonly hit: Pick<MenuHit, "place"> & Partial<Pick<MenuHit, "target">> } | undefined,
   kindNames: ReadonlyMap<string, string> = new Map(),
 ): ActionContext => {
   if (menu === undefined) {
@@ -59,9 +59,15 @@ export const menuContext = (
   }
   const given = matrixGiven(menu.hit.place, context.matrix, kindNames);
   const entry = ENTRY_PLACES.has(menu.hit.place) ? context.marked : undefined;
-  return entry === undefined && given === undefined
+  const pressed = menu.hit.place === "field-property" ? menu.hit.target : undefined;
+  return entry === undefined && given === undefined && pressed === undefined
     ? context
-    : { ...context, ...(entry === undefined ? {} : { entry }), ...(given === undefined ? {} : { given }) };
+    : {
+        ...context,
+        ...(entry === undefined ? {} : { entry }),
+        ...(given === undefined ? {} : { given }),
+        ...(pressed === undefined ? {} : { pressed }),
+      };
 };
 
 const hasEntry = (context: ActionContext): boolean => context.entry !== undefined;

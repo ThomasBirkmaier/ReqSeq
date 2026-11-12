@@ -1496,7 +1496,14 @@ describe("save element and edit text", () => {
       action("copy-criterion-reference").available(setup([element], {}, true, { element: base }).context),
     ).toBe(false);
     action("copy-criterion-reference").run(setup([element], {}, true, { element: on }).context);
-    expect(copyCriterionReference).toHaveBeenCalledTimes(1);
+    expect(copyCriterionReference).toHaveBeenCalledWith(undefined);
+    // From the context menu: the line pressed.
+    const pressed = { id: "line" } as unknown as Element;
+    action("copy-criterion-reference").run({
+      ...setup([element], {}, true, { element: on }).context,
+      pressed,
+    });
+    expect(copyCriterionReference).toHaveBeenLastCalledWith(pressed);
   });
 
   it("[SR-128/AK-pk21] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {

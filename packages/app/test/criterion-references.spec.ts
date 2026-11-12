@@ -47,6 +47,7 @@ const FILES = {
 };
 
 interface Entry {
+  readonly criterion: number;
   readonly key?: string;
   readonly reference?: string;
 }
@@ -55,6 +56,8 @@ const criteriaBox = (window: Page): Locator => window.locator('[data-field="acce
 const line = (window: Page, at: number): Locator => criteriaBox(window).locator(".cm-line").nth(at);
 const marks = (window: Page): Promise<string[]> =>
   criteriaBox(window).locator(".cm-lr-criterion-ref").allTextContents();
+const numbers = (window: Page): Promise<string[]> =>
+  criteriaBox(window).locator(".cm-lineNumbers .cm-gutterElement:visible").allTextContents();
 const menu = (window: Page): Locator => window.getByRole("menu", { name: "Context menu" });
 const entryNames = (window: Page): Promise<string[]> =>
   menu(window).getByRole("menuitem").locator(".name").allTextContents();
@@ -110,6 +113,7 @@ test.describe("criterion references on the element page", () => {
     await open(window, SR_TITLE);
     const before = await references(SR_ID);
     await expect.poll(() => marks(window)).toEqual(before.map((entry) => entry.reference));
+    expect(await numbers(window)).toEqual(before.map((entry) => String(entry.criterion)));
     // A new line shows nothing until the save, then the reference core gives it.
     await line(window, 1).click();
     await window.keyboard.press("End");
@@ -125,6 +129,7 @@ test.describe("criterion references on the element page", () => {
       })
       .toBe(3);
     await expect.poll(() => marks(window)).toEqual(after.map((entry) => entry.reference));
+    expect(await numbers(window)).toEqual(after.map((entry) => String(entry.criterion)));
     await window.screenshot({ path: path.join(OUT, "criterion-keys-light.png") });
   });
 
@@ -153,5 +158,19 @@ test.describe("criterion references on the element page", () => {
     );
     await window.keyboard.press("Enter");
     await expect.poll(readClipboard).toBe(alpha?.reference);
+    // A selection from the end of line 2 back to the start of line 1, the caret on line 1: a press on line 2
+    // keeps it, and the menu copies the reference of the line pressed.
+    await line(window, 1).click();
+    await window.keyboard.press("End");
+    await window.keyboard.press("Shift+ArrowUp");
+    await window.keyboard.press("Shift+Home");
+    await line(window, 1).click({ button: "right" });
+    await expect(menu(window)).toBeVisible();
+    await menu(window)
+      .getByRole("menuitem")
+      .filter({ hasText: /^Copy criterion reference/ })
+      .click();
+    await expect(menu(window)).toBeHidden();
+    await expect.poll(readClipboard).toBe(beta?.reference);
   });
 });

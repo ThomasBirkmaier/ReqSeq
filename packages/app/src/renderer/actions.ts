@@ -200,13 +200,16 @@ export interface ElementControls {
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
-  /** Whether the cursor is on an acceptance criterion in its box, or was there last (SR-205 AK4). */
-  readonly onCriterion?: () => boolean;
   /**
-   * Saves the input, then copies the reference for a test name of the criterion with the cursor, or says why
-   * it has none (the action "Copy criterion reference", SR-205 AK4).
+   * Whether the cursor is on an acceptance criterion in its box, or was there last (SR-205 AK4); with
+   * `pressed` (`ActionContext.pressed`), whether that line of a box is a criterion.
    */
-  readonly copyCriterionReference?: () => void;
+  readonly onCriterion?: (pressed?: Element) => boolean;
+  /**
+   * Saves the input, then copies the reference for a test name of the criterion with the cursor, or on the
+   * line `pressed`, or says why it has none (the action "Copy criterion reference", SR-205 AK4).
+   */
+  readonly copyCriterionReference?: (pressed?: Element) => void;
   /**
    * Opens the list of the elements with the value the cursor is on, or asks among the values of the element
    * that can be listed (the action "List elements with this value", SR-132).
@@ -335,6 +338,11 @@ export interface ActionContext {
    * "Create relation" and "Remove relation" while its menu is open (`menuContext`, SR-199). Absent: none.
    */
   readonly given?: GivenArguments;
+  /**
+   * What was pressed for the open context menu of a property box (`menuContext`, SR-205 AK4): its entries act
+   * on the line pressed, also inside a selection whose caret is on another line. Absent elsewhere.
+   */
+  readonly pressed?: Element;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -1094,9 +1102,9 @@ export const ACTIONS: readonly Action[] = [
     id: "copy-criterion-reference",
     title: "Copy criterion reference",
     available: (context: ActionContext): boolean =>
-      hasElementText(context) && context.element?.onCriterion?.() === true,
+      hasElementText(context) && context.element?.onCriterion?.(context.pressed) === true,
     run: (context: ActionContext): void => {
-      context.element?.copyCriterionReference?.();
+      context.element?.copyCriterionReference?.(context.pressed);
     },
   },
   {

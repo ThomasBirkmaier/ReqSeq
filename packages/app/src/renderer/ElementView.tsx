@@ -126,6 +126,7 @@ import { OnDisk } from "./OnDisk.js";
 import { shownDoc } from "./criterion-doc.js";
 import type { CriterionAt } from "./criterion-reference.js";
 import { NO_CRITERION, criterionAtPos, referenceToCopy } from "./criterion-reference.js";
+import { pressedCriterion } from "./field-menu.js";
 import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
@@ -1583,13 +1584,18 @@ export const ElementView = ({
       echo(none);
     }
   };
-  // The acceptance criterion with the cursor: the line of the criteria box the cursor is on, or was on last.
-  const criterionAt = (): CriterionAt | undefined => {
+  // The acceptance criterion with the cursor: the line of the criteria box the cursor is on, or was on last;
+  // from the context menu, the line pressed in that box (the press gave it the focus).
+  const criterionAt = (pressed?: Element): CriterionAt | undefined => {
     const label = cursorField(document.activeElement, lastField.current);
     const box = label === undefined ? undefined : now.current.boxes.get(label);
     const editor = label === undefined ? undefined : boxEditors.current.get(label);
     if (box === undefined || editor === undefined || !isKeyedBox(box)) {
       return undefined;
+    }
+    if (pressed !== undefined) {
+      const found = pressedCriterion(pressed);
+      return found !== undefined && found.field === label ? found.at : undefined;
     }
     const state = editor.state();
     return criterionAtPos(state, state.selection.main.head);
@@ -1597,20 +1603,22 @@ export const ElementView = ({
   // "Copy criterion reference" (SR-205 AK4): the criterion is taken where the cursor is when the action starts
   // (the prompt gives the focus back after it); then the input is saved, so a line typed just now has its key
   // in the file, and core gives the reference (`element.get`), found by the key of the line.
-  const copyCriterionReference = async (): Promise<void> => {
-    const at = criterionAt();
+  const copyCriterionReference = async (pressed?: Element): Promise<void> => {
+    const at = criterionAt(pressed);
     if (at === undefined) {
       now.current.onEcho(NO_CRITERION);
       return;
     }
     await flush();
     const { onEcho: echo, onCopy: copied, buffer: shown, call: run } = now.current;
+    const writes = settled.current;
     const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
     if (!answer.ok) {
       echo(answer.message);
       return;
     }
-    if (mounted.current) {
+    // A save that answered after this read reads the references again (`readReferences`).
+    if (mounted.current && !staleRead(writes, settled.current)) {
       setGot(answer.output);
     }
     const found = referenceToCopy(answer.output.criterionReferences?.criteria, at);
@@ -1952,9 +1960,9 @@ export const ElementView = ({
       listValue: () => {
         void api.current.listValue();
       },
-      onCriterion: () => api.current.criterionAt() !== undefined,
-      copyCriterionReference: () => {
-        void api.current.copyCriterionReference();
+      onCriterion: (pressed) => api.current.criterionAt(pressed) !== undefined,
+      copyCriterionReference: (pressed) => {
+        void api.current.copyCriterionReference(pressed);
       },
       addProperty: () => {
         api.current.addProperty();

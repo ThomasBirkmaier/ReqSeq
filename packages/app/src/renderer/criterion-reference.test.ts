@@ -13,6 +13,7 @@ const ENTRIES: readonly DataExportCriterionEntry[] = [
   { criterion: 1, key: "kaaa", text: "Alpha", reference: "[SR-036/AK-kaaa]" },
   { criterion: 2, key: "kbbb", text: "Beta" },
   { criterion: 3, key: "kbbb", text: "Gamma" },
+  { criterion: 4, text: "Delta" },
 ];
 
 /** A criteria box with `doc` (keys as `criterion-doc.ts` writes them). */
@@ -25,19 +26,31 @@ const box = (doc: string, extensions = criterionKeys().extension): EditorState =
 describe("Copy criterion reference (SR-205 AK4)", () => {
   it("[SR-205/AK-zvtb] takes the reference core gives for the key of the line, or says why there is none", () => {
     const state = box(`kaaa${KEY_MARK}Alpha\n\nkbbb${KEY_MARK}Beta\n${KEY_MARK}New`);
-    expect(criterionAtPos(state, 0)).toEqual({ key: "kaaa", line: 1 });
+    expect(criterionAtPos(state, 0)).toEqual({ key: "kaaa", line: 1, text: "Alpha" });
     expect(criterionAtPos(state, 6)).toBeUndefined();
     const at = criterionAtPos(state, 0);
     expect(at === undefined ? undefined : referenceToCopy(ENTRIES, at)).toEqual({
       reference: "[SR-036/AK-kaaa]",
     });
-    expect(referenceToCopy(ENTRIES, { key: "kbbb", line: 3 })).toEqual({
-      message: "AK2 (kbbb) has no reference: another acceptance criterion carries the same criterion key",
+    const shared = "has no reference: another acceptance criterion carries the same criterion key";
+    expect(referenceToCopy(ENTRIES, { key: "kbbb", line: 3, text: "Beta" })).toEqual({
+      message: `AK2 (kbbb) ${shared}`,
     });
-    expect(referenceToCopy(ENTRIES, { key: undefined, line: 4 })).toEqual({
-      message: "Line 4 is no saved acceptance criterion yet: it has no reference",
+    // The second holder of a key has none in the box: it is found by its text.
+    expect(referenceToCopy(ENTRIES, { key: undefined, line: 4, text: "Gamma" })).toEqual({
+      message: `AK3 (kbbb) ${shared}`,
     });
-    expect(referenceToCopy(undefined, { key: "kccc", line: 1 })).toHaveProperty("message");
+    // A saved criterion without key, and a line the file does not hold.
+    expect(referenceToCopy(ENTRIES, { key: undefined, line: 5, text: "Delta" })).toEqual({
+      message: "AK4 has no criterion key: run Assign criterion keys to give it one",
+    });
+    expect(referenceToCopy(ENTRIES, { key: undefined, line: 6, text: "Other" })).toEqual({
+      message: "Line 6 has no criterion key: run Assign criterion keys to give it one",
+    });
+    expect(referenceToCopy(ENTRIES, { key: "knew", line: 7, text: "New" })).toEqual({
+      message: "Line 7 is no saved acceptance criterion yet: it has no reference",
+    });
+    expect(referenceToCopy(undefined, { key: "kccc", line: 1, text: "Alpha" })).toHaveProperty("message");
     // A box without criterion keys (criteria of several lines): no line is a criterion.
     expect(criterionAtPos(EditorState.create({ doc: "Alpha\nmore" }), 0)).toBeUndefined();
   });
