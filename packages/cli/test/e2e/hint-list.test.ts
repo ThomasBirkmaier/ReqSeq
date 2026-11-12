@@ -25,6 +25,7 @@ interface Hint {
 }
 
 interface Output {
+  readonly kinds: readonly { readonly code: string; readonly count: number }[];
   readonly hints: readonly Hint[];
   readonly incomplete: boolean;
 }

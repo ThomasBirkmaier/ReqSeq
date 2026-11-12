@@ -58,7 +58,7 @@ scenariosOf("hint.list", [
       expect(output.kinds).toContainEqual({ code: "evidence.outdated", count: 2 });
       expect(output.hints[0]).toMatchObject({
         code: "evidence.outdated",
-        elementTitle: expect.any(String),
+        elementTitle: "Show wind speed",
         view: "26a0b000-0000-4000-8000-0000000000c1",
       });
     },
