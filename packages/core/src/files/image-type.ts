@@ -1,5 +1,5 @@
 // Whether bytes are an image of a type ReqSeq embeds (`IMAGE_EXTENSIONS`: AVIF, BMP, GIF, JPEG, PNG,
-// SVG, WebP), told by their content, not by a file name (SR-207 AK3:
+// SVG, WebP), told by their content, not by a file name (SR-207 AK3;
 // the export recognises an image by its file signature, since a copy always carries the
 // name of its image). Binary types by their leading bytes; SVG as text whose first element, after an
 // optional byte order mark, XML declaration, comments, processing instructions and a document type

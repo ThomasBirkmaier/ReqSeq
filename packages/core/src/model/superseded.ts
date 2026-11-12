@@ -252,7 +252,8 @@ const sourcesFromIndex = (
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
  * like `unknownFindings`, by the rules of the whole workspace: none on a relation with the meaning
  * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`;
- * #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as it is (a new or just written
+ * #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as
+ * it is (a new or just written
  * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store

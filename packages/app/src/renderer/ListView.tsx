@@ -4,7 +4,8 @@
 // app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll. As a
 // buffer of its own, the list stands like the elements of a package page: in the centred column, under a
 // heading that says what it shows and how many (SR-148, D-062), and under it the line of coverage and
-// verification degree of its elements, as a package page has it (`SummaryLine`). A grouped list (SR-149) shows each group of `element.list` under a heading with its name and
+// verification degree of its elements, as a package page has it (`SummaryLine`). A grouped list (SR-149)
+// shows each group of `element.list` under a heading with its name and
 // count, below that line; the rows are those of the grouped list, so an element in several groups is a row
 // in each, and rows are keyed by their position. A search hit shows the title with the words core marked
 // (`titleMarks`) and, under it, where it was found and the snippet core gives (SR-174), marked the same way.

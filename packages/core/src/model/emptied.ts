@@ -1,6 +1,7 @@
 // `element.text-emptied` (warning, #677, #841): a save that empties what was not empty. The save is
-// done; an empty value is mostly a broken shell substitution, so the result says so (a warning,
-// not a refusal; also for a Markdown property and a list property, in `element.update` and `element.bulkUpdate`).
+// done; an empty value is mostly a broken shell substitution, so the result says so (#677: a
+// warning, not a refusal; #841: also for a Markdown property and a list property, in `element.update`
+// and `element.bulkUpdate`).
 import type { Problem } from "../catalog.js";
 import type { MetamodelProperty } from "../generated/types.js";
 import type { ElementRecord } from "./elements.js";
