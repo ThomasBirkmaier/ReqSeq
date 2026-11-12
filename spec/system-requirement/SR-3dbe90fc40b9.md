@@ -21,8 +21,8 @@ derives-from:
   - { id: 6adc50a4-1b5c-4e15-b1ce-ab8ea74f70b0, version: n1:0c42e42f057c09e4, title: Lesbar ohne das Tool }
   - { id: 6adc6938-6661-4f39-a0dd-ad97bb9e8f97, version: n1:398de7f02fc9e503, title: Von außen geänderte Dateien }
 based-on:
-  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
-  - { id: e4ccf89c-0e6f-4cd4-8632-c1c8d8e2f80c, version: n2:16a1edcf6fb4cfb4, title: Frühere Dateiformate werden nicht gelesen }
+  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:3bcd34b03d5f6b06, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+  - { id: e4ccf89c-0e6f-4cd4-8632-c1c8d8e2f80c, version: n2:1af4880f173b5dda, title: Frühere Dateiformate werden nicht gelesen }
 rationale: "Unbekannte Formatnummer (AK4): Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut. Import nur nach fehlerhafter Element-Datei abgelehnt (AK3, #1457): Annahme bestätigt; die Sperre verhindert, dass Elemente einer früheren Lieferung ein zweites Mal entstehen, und andere Dateien gefährden das nicht."
 ---
 

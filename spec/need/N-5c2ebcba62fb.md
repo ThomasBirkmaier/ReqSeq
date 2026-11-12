@@ -6,7 +6,7 @@ title: Vom Wert einer Property zu allen Elementen mit diesem Wert
 spec-id: N-079
 rationale: Ein Klick auf eine Property wie topic soll einen Buffer mit allen Elementen öffnen, die denselben Wert haben, ähnlich wie in Logseq; bei Freitext-Properties klappt das so nicht, das ist zu berücksichtigen.
 packages:
-  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:b9b03ddc1ea7cb2d, title: Finden und Listen }
 ---
 
 Ich muss vom Wert einer Property eines Elements, zum Beispiel seinem Thema, direkt zu allen Elementen kommen, die denselben Wert haben, ohne erst einen Filter zusammenzustellen.
