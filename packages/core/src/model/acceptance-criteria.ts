@@ -12,6 +12,8 @@ import type { Metamodel } from "../metamodel/index.js";
 import { acceptanceCriteriaProblem, propertyWithMeaning } from "../metamodel/index.js";
 import type { KeyedCriterion } from "./criterion-items.js";
 import { criterionKey, criterionText, isCriterionKey, isCriterionMapping } from "./criterion-items.js";
+import type { RandomInt } from "./criterion-lines.js";
+import { drawCriterionKey } from "./criterion-lines.js";
 
 const keys = new WeakMap<Metamodel, string | undefined>();
 
@@ -36,28 +38,12 @@ export const criteriaCount = (values: Readonly<Record<string, unknown>>, key: st
   return Array.isArray(value) ? value.length : 0;
 };
 
-/** The first character of a generated criterion key: consonants, so a key reads as no word. */
-const FIRST = "bcdfghjkmnpqrstvwxyz";
-/** The other characters of a generated key. */
-const REST = `${FIRST}0123456789`;
-/** Characters of a generated key; 540,000 keys, retried against those the element has (SR-204 AK1). */
-const GENERATED_LENGTH = 4;
-
 /** A random integer from 0 below `below`; `crypto.randomInt` unless a test injects another. */
-export type RandomInt = (below: number) => number;
+export type { RandomInt } from "./criterion-lines.js";
 
 /** A new criterion key that `taken` does not hold: 4 characters, the first a consonant (SR-204 AK1). */
-export const newCriterionKey = (taken: ReadonlySet<string>, random: RandomInt = randomInt): string => {
-  for (;;) {
-    let key = FIRST.charAt(random(FIRST.length));
-    while (key.length < GENERATED_LENGTH) {
-      key += REST.charAt(random(REST.length));
-    }
-    if (!taken.has(key)) {
-      return key;
-    }
-  }
-};
+export const newCriterionKey = (taken: ReadonlySet<string>, random: RandomInt = randomInt): string =>
+  drawCriterionKey(taken, random);
 
 /**
  * A random integer stream determined by `seed` (SR-204 AK1, #1493): draw n is taken from the SHA-256

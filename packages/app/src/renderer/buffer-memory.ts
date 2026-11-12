@@ -4,16 +4,17 @@
 // buffer shown again while its save runs reads its element after that save (no false "changed on disk").
 // Closing the buffer, the buffers pushed out by `MAX_BUFFERS` and another workspace drop it. Pure: the app
 // holds the maps in refs.
+import type { EditorState } from "@codemirror/state";
 import type { Draft } from "./drafts.js";
 import type { ValueHistory } from "./value-history.js";
 
 /** The undo history of one buffer. */
 export interface UndoMemory {
   /**
-   * The state of each editor with its history, by field ("Text", a box key), as `EditorState.toJSON`
-   * gives it when the editor goes; an editor made again for the field starts from it.
+   * The state of each editor with its history, by field ("Text", a box key), as the editor leaves it; an
+   * editor made again for the field starts from its history (and a box's keys, SR-204 AK9), `Editor`.
    */
-  readonly editors: Map<string, unknown>;
+  readonly editors: Map<string, EditorState>;
   /** The value history of each choice or relation box, by key. */
   readonly values: Map<string, ValueHistory>;
 }

@@ -123,6 +123,7 @@ import {
 import { ElementText } from "./ElementText.js";
 import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
+import { isCriteriaInfo, shownDoc } from "./criterion-doc.js";
 import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
@@ -671,7 +672,11 @@ export const ElementView = ({
       ? copyable(
           view.element,
           () => docOf(now.current.handle),
-          (key) => boxEditors.current.get(key)?.doc() ?? valueText(key),
+          (key) => {
+            const doc = boxEditors.current.get(key)?.doc();
+            // The criteria box copies its texts, without their keys.
+            return doc === undefined ? valueText(key) : shownDoc(now.current.boxes.get(key)?.info, doc);
+          },
           shown,
         )
       : NOTHING;
@@ -2133,6 +2138,7 @@ export const ElementView = ({
                       many: editable.info.many,
                       numbered: editable.info.many && isNumberedList(view.element.properties[box.key]),
                       markdown: editable.info.markdown,
+                      criteria: isCriteriaInfo(editable.info),
                       outdated: outdatedReferences(dated(view.element), box.key),
                       follow,
                       title,
