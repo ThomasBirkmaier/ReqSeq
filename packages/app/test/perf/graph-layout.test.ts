@@ -4,7 +4,7 @@
 // ThomasBirkmaier/ReqSeq-archive#500), its first run in this process and the median of 5 runs; and of the 200 nearest nodes of the
 // same chain, the largest graph whose links within a level can be ranked; and of a graph of 199 nodes whose
 // links within a level form chains of 20, levelled by the crossed layers (#211). It is recorded, not asserted:
-// SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts), and
+// SR-111 AK6 is asserted end to end in the app (test/perf/graph-performance.spec.ts), and
 // `packages/core/test/perf/trace-graph.test.ts` records the core part of the same call.
 import type { TraceGraphOutput } from "@reqseq/core";
 import { Workspace, invoke, warmWorkspace } from "@reqseq/core";
