@@ -88,9 +88,13 @@ const kindOf = (schema: unknown, base: string, byId: ReadonlyMap<string, JsonSch
   return typeKind(schema["type"]);
 };
 
+/** The schema files by `$id`, built once for each list of them: the host lists every entry with it. */
+const byIdCache = new WeakMap<readonly JsonSchema[], ReadonlyMap<string, JsonSchema>>();
+
 /** `reqseq <group> <action> <positional>… [options]` for `entry`; `schemas` resolve its `$ref`s. */
 export const cliUsage = (entry: CatalogEntry, schemas: readonly JsonSchema[]): string => {
-  const byId = new Map(schemas.map((schema) => [String(schema["$id"]), schema]));
+  const byId = byIdCache.get(schemas) ?? new Map(schemas.map((schema) => [String(schema["$id"]), schema]));
+  byIdCache.set(schemas, byId);
   const base = `${SCHEMA_BASE}commands/${entry.name}.input.json`;
   const input = entry.input as { readonly properties?: unknown; readonly required?: unknown };
   const properties = isSchema(input.properties) ? input.properties : {};

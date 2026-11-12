@@ -981,8 +981,7 @@ mark {
   }
 
   .card[data-motion="in"] > .card-list,
-  .card[data-motion="in"] > .card-explain,
-  .card[data-motion="in"] > .card-help {
+  .card[data-motion="in"] > .card-explain {
     animation: card-show var(--card-in) var(--card-ease) backwards;
   }
 
@@ -1353,7 +1352,8 @@ mark {
   text-decoration: underline;
 }
 
-/* The command help (SR-210 AK3) in place of the hits, in the same raised box; it scrolls when it is higher (AK4). */
+/* The command help (SR-210 AK3) in place of the hits, in the same raised box; it scrolls when it is higher (AK4).
+   It comes into a card that stands, so it has no motion of its own when it comes or follows the mark (SR-182 AK4). */
 .card-help {
   position: relative;
   max-height: min(calc(var(--line) * 16), 60vh);

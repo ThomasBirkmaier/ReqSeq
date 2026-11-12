@@ -1339,6 +1339,8 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
       expect(container.querySelector(".candidates")).toBeNull();
       expect(container.querySelector("#prompt-explain")).toBeNull();
       expect(query("input").getAttribute("aria-describedby")).toBe("command-help");
+      expect(query("input").getAttribute("aria-expanded")).toBe("false");
+      expect(query("input").getAttribute("aria-activedescendant")).toBeNull();
       const key = platform === "MacIntel" ? "⌃H" : "Ctrl+H";
       expect(query("#command-help .help-keys").textContent).toBe(
         `${key} or Escape back to the hits · F1 reference page`,
@@ -1392,7 +1394,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(container.querySelector("#command-help")).toBeNull();
   });
 
-  it("[SR-210/AK-r2d2] Ctrl+H does nothing on an entry that is no catalog command, and outside the command prompt", async () => {
+  it("[SR-210/AK-r2d2] [SR-145/AK-bfb2] Ctrl+H does nothing on an entry that is no catalog command, also in Go to", async () => {
     await render(helpBridge().bridge);
     await keyDown(window, "P", { ...mod(), shiftKey: true });
     await type("Open documentation");
@@ -1401,11 +1403,14 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(helpText()).toBeUndefined();
     expect(query("label").textContent).toBe("Command");
     await keyDown(query("input"), "Escape");
-    // "Go to" has no command help: Ctrl+H stays the text's.
+    // In Go to, on an element or a buffer, Ctrl+H does nothing either; it is the command line's, not the text's.
     await keyDown(window, "p", mod());
     expect(query("label").textContent).toBe("Go to");
+    await type("Title");
     const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
-    expect(ctrl.defaultPrevented).toBe(false);
+    expect(ctrl.defaultPrevented).toBe(true);
+    expect(helpText()).toBeUndefined();
+    expect((query("input") as HTMLInputElement).value).toBe("Title");
   });
 });
 

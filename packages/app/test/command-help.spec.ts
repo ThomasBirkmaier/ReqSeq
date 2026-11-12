@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { userText } from "../../../scripts/contracts/user-text.mjs";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
 
@@ -210,17 +211,23 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
     const shown = help(window);
     const hints = catalog("hint.list");
     await expect(shown.locator("h2")).toHaveText(hints.title);
-    await expect(shown.locator(".help-summary")).toHaveText(hints.summary);
+    await expect(shown.locator(".help-summary")).toHaveText(userText(hints.summary));
     if (hints.details !== undefined) {
-      await expect(shown.locator(".help-details")).toHaveText(hints.details);
+      await expect(shown.locator(".help-details")).toHaveText(userText(hints.details));
     }
     const fields = Object.keys(hints.input.properties ?? {});
     const required = hints.input.required ?? [];
     await expect(shown.locator("dt")).toHaveText(
       fields.map((field) => `${field} ${required.includes(field) ? "required" : "optional"}`),
     );
-    const kind = hints.input.properties?.["kind"]?.description ?? "";
-    await expect(shown.locator("dt").first().locator("+ dd")).toHaveText(kind);
+    // Each argument with the description the catalog gives it.
+    for (const [at, field] of fields.entries()) {
+      const description = hints.input.properties?.[field]?.description;
+      if (description !== undefined) {
+        // As users read it everywhere, without the references of this repository (SR-210 AK6).
+        await expect(shown.locator("dt").nth(at).locator("+ dd")).toHaveText(userText(description));
+      }
+    }
     await expect(shown.locator(".help-cli")).toHaveText("reqseq hint list [options]");
     // The hits make room for it; the prompt stays open.
     await expect(window.locator(".candidates")).toHaveCount(0);
@@ -235,7 +242,7 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
     await window.screenshot({ path: path.join(SHOTS, "sr-210-help-light.png") });
   });
 
-  test("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape show the hits again, the help follows the mark, Enter acts as without it, a click on help opens it, and it scrolls", async () => {
+  test("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape show the hits again, the help follows the mark, Enter and Ctrl/Cmd+Enter act as without it, a click on help opens it, and it scrolls", async () => {
     const { window } = running;
     await mark(window, "Show relation options", "Show relation options");
     // A click on "help" in the explanation line acts as Ctrl+H.
@@ -265,6 +272,21 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
     await expect(help(window).locator("h2")).toHaveText("Show related elements");
     await window.keyboard.press("ArrowUp");
     await expect(help(window).locator("h2")).toHaveText("Show relation options");
+    // Ctrl/Cmd+Enter takes the marked command as without the help: it offers the optional arguments.
+    await window.keyboard.press("Escape");
+    await window.locator("#prompt-input").fill("List hints");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
+    await window.keyboard.press("Control+H");
+    await expect(help(window).locator("h2")).toHaveText("List hints");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label(window)).toHaveText("List hints · more arguments:");
+    await expect(help(window)).toHaveCount(0);
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveText("Command");
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveCount(0);
+    await mark(window, "Show relation options", "Show relation options");
+    await window.keyboard.press("Control+H");
     // Enter takes the marked command as without the help: it asks its argument.
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("Show relation options · ref:");

@@ -338,9 +338,7 @@ const HelpView = ({
       ) : (
         <>
           <h2 className="help-title">{help.title}</h2>
-          <p className="help-summary" id="command-help-summary">
-            {help.summary}
-          </p>
+          <p className="help-summary">{help.summary}</p>
           {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
           <h3>Arguments</h3>
           {help.arguments.length === 0 ? (
@@ -398,6 +396,24 @@ const PromptCard = ({
       )}
     </Card>
   );
+
+/**
+ * The attributes of the input that name the hits: `shown` of them, the `selected` one if one is `marked`; none, and
+ * not expanded, while the command help takes their place (`helpOpen`).
+ */
+const listAttributes = (
+  helpOpen: boolean,
+  shown: number,
+  marked: boolean,
+  selected: number,
+): Readonly<Record<string, string | boolean | undefined>> =>
+  helpOpen
+    ? { "aria-expanded": false }
+    : {
+        "aria-expanded": shown > 0,
+        "aria-controls": "candidates",
+        "aria-activedescendant": marked ? `candidate-${String(selected)}` : undefined,
+      };
 
 /** What the input of the prompt is described by: the open command help, else the explanation line, if any. */
 const describedBy = (helpOpen: boolean, explained: boolean): string | undefined => {
@@ -706,13 +722,13 @@ const PromptLine = ({
 
   /**
    * The keys of the command help; whether the key was taken. Ctrl+H, the physical Ctrl key also on macOS (SR-145
-   * AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes it, as Escape
-   * does (SR-134 AK2); in the command prompt it is never the text's key (on macOS Ctrl+H deletes a character).
+   * AK1, AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes it, as
+   * Escape does (SR-134 AK2); in the command line it is never the text's key (on macOS Ctrl+H deletes a character).
    * Page Up and Page Down scroll the open help (AK4). Every other key acts as without the help: Up and Down mark
    * another entry, whose help it shows, Enter and Ctrl/Cmd+Enter take the marked entry.
    */
   const helpKey = (event: React.KeyboardEvent): boolean => {
-    if (isCommandHelpKey(event) && (helpOpen || prompt.items.some((item) => item.help !== undefined))) {
+    if (isCommandHelpKey(event)) {
       event.preventDefault();
       event.stopPropagation();
       toggleHelp();
@@ -844,9 +860,7 @@ const PromptLine = ({
         id="prompt-input"
         className="prompt-input"
         role="combobox"
-        aria-expanded={rows.length > 0}
-        aria-controls="candidates"
-        aria-activedescendant={current === undefined ? undefined : `candidate-${String(selected)}`}
+        {...listAttributes(helpOpen, rows.length, current !== undefined, selected)}
         aria-describedby={describedBy(helpOpen, explanation !== null)}
         autoComplete="off"
         spellCheck={false}
