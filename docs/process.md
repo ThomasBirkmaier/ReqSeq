@@ -5,8 +5,8 @@ How work on ReqSeq goes from a need to a release. The rules are in `CLAUDE.md` (
 ```mermaid
 flowchart LR
   need["Need<br/><small>set by the product owner</small>"]
-  concept["Concept<br/><small>dependency check, questions, mockup<br/>review by fable-reviewer, approval<br/>skill spec-change</small>"]
-  specpr["Spec PR<br/><small>SR in its topic package<br/>then issue cut and issue check</small>"]
+  concept["Concept<br/><small>dependency check, questions, mockup<br/>concept with issue cut, fable-reviewer<br/>approval of wording and cut<br/>skill spec-change</small>"]
+  specpr["Spec PR<br/><small>SR in its topic package, an idea a draft SR<br/>then issues and their check</small>"]
   entry["Bug, question,<br/>task asked for"]
   issue["Issue = one task<br/><small>too large: epic with sub-issues</small>"]
   pr["Pull request<br/><small>verify before each push<br/>merge, /code-review</small>"]
@@ -64,7 +64,7 @@ Exactly one type, area and priority per open issue; `scripts/labels.sh` holds th
 
 ## Where the rules live
 
-Claude follows written rules as context, not as a guarantee. So each rule sits where it is loaded at the moment it applies, and a rule that must hold every time also has a check that does not depend on it being read: a hook, a CI job or the review.
+Claude follows written rules as context, not as a guarantee. So each rule sits where it is loaded at the moment it applies, and a rule that must hold every time also has a check outside the session that applies it: a hook, a CI job, or the review by a second agent.
 
 ```mermaid
 flowchart LR
@@ -81,11 +81,11 @@ flowchart LR
 
 | Layer | Loaded | Holds | Example |
 | --- | --- | --- | --- |
-| `CLAUDE.md` | at the start of every session and subagent | product rules, repository text, issues, and the trigger for each procedure | "Before a change to `spec/`: skill `spec-change`" |
-| Skill description | in every session, as one line of the skill list | when to load the skill | `spec-change`: "Use as soon as a wish, a question or a bug could change an element in spec/" |
-| Skill body (`.claude/skills/`) | when invoked; it then stays in the conversation | a procedure with numbered steps | the nine steps of `spec-change` |
-| Agent file (`.claude/agents/`) | when a thread starts that agent | its task, inputs and model; it sees `CLAUDE.md` but not the thread | `implementer` does not start without the issue-check link |
-| Hook (`.claude/settings.json`, `scripts/hooks/`) | on every matching tool call | a rule without exceptions that a script can decide | no hand edit of `spec/` |
-| CI and the merge review | on every PR | what a PR must show | the six headings of a spec PR |
+| `CLAUDE.md` | at the start of every session in this checkout, and of the project's agents (`.claude/agents/`) | product rules, repository text, issues, and the trigger for each procedure | "Before a change to `spec/`: skill `spec-change`" |
+| Skill description | in every session in this checkout, as one line of the skill list (outside it maybe as `reqseq:<name>`, or not at all) | when to load the skill | `spec-change`: "Use as soon as a wish, a question or a bug could change an element in spec/" |
+| Skill body (`.claude/skills/`) | when invoked, or at the start of an agent that lists it under `skills:`; it then stays in the conversation | a procedure with numbered steps | the nine steps of `spec-change` |
+| Agent file (`.claude/agents/`) | its description is always listed to the thread; the body when a thread starts that agent | its task, inputs and model; it sees `CLAUDE.md` but not the thread | `implementer` does not start without the issue-check link |
+| Hook (`.claude/settings.json`, `scripts/hooks/`) | on every matching tool call | a rule a script can decide on a tool call | no hand edit of spec elements or generated files (`protect-files`, Edit and Write only) |
+| CI and the merge review | on every PR | what a PR must show | the six headings of a spec PR (review) |
 
 Rules for a chat or a platform outside the repository (language of the chat, its checklists) belong to that platform's settings, not here.
