@@ -6,9 +6,12 @@ title: Beim Einfügen Markdown erzeugen
 spec-id: SR-190
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben formatierter Text in der Zwischenablage, zum Beispiel aus einem Browser oder einem Textprogramm, wenn er eingefügt wird, dann schreibt das Tool Überschriften, Hervorhebungen, Listen, Links und Tabellen als Markdown nach CommonMark mit GitHub-Erweiterungen und nichts als HTML; Bilder mit Adresse im Netz werden zu Markdown-Bildern, die das Tool nicht lädt (SR-184).
-  - Gegeben markierter Text, wenn eine Adresse eingefügt wird, dann steht der Text als Markdown-Link mit dieser Adresse in der Datei.
-  - Gegeben eine Bilddatei, wenn sie in den Text gezogen oder aus der Zwischenablage eingefügt wird, dann legt das Tool sie wie beim Einfügen eines Bildes ab und schreibt den Verweis an die Stelle.
+  - key: wrfc
+    text: Gegeben formatierter Text in der Zwischenablage, zum Beispiel aus einem Browser oder einem Textprogramm, wenn er eingefügt wird, dann schreibt das Tool Überschriften, Hervorhebungen, Listen, Links und Tabellen als Markdown nach CommonMark mit GitHub-Erweiterungen und nichts als HTML; Bilder mit Adresse im Netz werden zu Markdown-Bildern, die das Tool nicht lädt (SR-184).
+  - key: fzfw
+    text: Gegeben markierter Text, wenn eine Adresse eingefügt wird, dann steht der Text als Markdown-Link mit dieser Adresse in der Datei.
+  - key: k05n
+    text: Gegeben eine Bilddatei, wenn sie in den Text gezogen oder aus der Zwischenablage eingefügt wird, dann legt das Tool sie wie beim Einfügen eines Bildes ab und schreibt den Verweis an die Stelle.
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 verification-method: test

@@ -7,12 +7,18 @@ spec-id: SR-130
 rationale: Es muss einen Befehl geben, der das Schema des Arbeitsbereichs zeigt, grafisch und schriftlich, die grafische Darstellung zuerst; er folgt nach dem Graphen des aktuellen Elements (SR-111). Der Graph des Metamodells zeigt Typen, nicht Elemente; die Regel aus D-063, nie den ganzen Bestand zu zeigen, betrifft den Graph der Elemente. Der Text nennt je Property, ob sie zur Fassung zählt (D-057), denn sonst bleibt unsichtbar, welche Änderungen Nachweise veralten lassen. Anlass ist ein Befund aus dem ersten Pilotlauf (#624).
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben ein geöffneter Arbeitsbereich, wenn in der Befehlszeile der Befehl „Show metamodel“ gewählt wird, dann öffnet sich ein Buffer mit dem Metamodell als Graph.
-  - Gegeben der Graph des Metamodells, wenn er angezeigt wird, dann ist jeder Typ ein Knoten mit Anzeigename, Präfix und seinen Properties einschließlich der geerbten, jede Vererbung eine Kante vom Typ zum Eltern-Typ und jede Beziehungsart und jede Property mit Beziehungen eine beschriftete Kante zwischen den Typen, die sie als Quelle und Ziel erlaubt.
-  - Gegeben eine Beziehungsart ohne Einschränkung der Quell- oder Zieltypen, wenn der Graph angezeigt wird, dann führt ihre Kante auf der offenen Seite zu einem Knoten „Any type“, den es nur dann gibt, einmal je Typ der eingeschränkten Seite und mit der offenen Seite in der Beschriftung; sind beide Seiten offen, ist sie eine Schleife an diesem Knoten mit der Beschriftung, dass Quelle und Ziel beliebig sind.
-  - Gegeben der Graph des Metamodells, wenn er mit der Tastatur bedient wird, dann lässt sich zwischen den Knoten wechseln und zwischen Graph und Text umschalten.
-  - Gegeben das Metamodell als Text, wenn es angezeigt wird, dann nennt es zu jedem Typ Schlüssel, Anzeigename, Präfix, Eltern-Typ, ob er abstrakt ist, Properties mit Wertart, mehreren Werten mit Höchstzahl, Pflicht, erlaubten Ziel-Typen und der Angabe, ob sie zur Fassung zählen, und Statuswerte und zu jeder Beziehungsart die erlaubten Quell- und Zieltypen und ihre Mindest- und Höchstzahlen.
-  - Gegeben dasselbe Metamodell, wenn es über App, Kommandozeile, API und MCP-Server abgefragt wird, dann liefern alle dieselben Typen, Vererbungen, Properties, Statuswerte und Beziehungsarten.
+  - key: dp8b
+    text: Gegeben ein geöffneter Arbeitsbereich, wenn in der Befehlszeile der Befehl „Show metamodel“ gewählt wird, dann öffnet sich ein Buffer mit dem Metamodell als Graph.
+  - key: s795
+    text: Gegeben der Graph des Metamodells, wenn er angezeigt wird, dann ist jeder Typ ein Knoten mit Anzeigename, Präfix und seinen Properties einschließlich der geerbten, jede Vererbung eine Kante vom Typ zum Eltern-Typ und jede Beziehungsart und jede Property mit Beziehungen eine beschriftete Kante zwischen den Typen, die sie als Quelle und Ziel erlaubt.
+  - key: j585
+    text: Gegeben eine Beziehungsart ohne Einschränkung der Quell- oder Zieltypen, wenn der Graph angezeigt wird, dann führt ihre Kante auf der offenen Seite zu einem Knoten „Any type“, den es nur dann gibt, einmal je Typ der eingeschränkten Seite und mit der offenen Seite in der Beschriftung; sind beide Seiten offen, ist sie eine Schleife an diesem Knoten mit der Beschriftung, dass Quelle und Ziel beliebig sind.
+  - key: g9gk
+    text: Gegeben der Graph des Metamodells, wenn er mit der Tastatur bedient wird, dann lässt sich zwischen den Knoten wechseln und zwischen Graph und Text umschalten.
+  - key: y6rs
+    text: Gegeben das Metamodell als Text, wenn es angezeigt wird, dann nennt es zu jedem Typ Schlüssel, Anzeigename, Präfix, Eltern-Typ, ob er abstrakt ist, Properties mit Wertart, mehreren Werten mit Höchstzahl, Pflicht, erlaubten Ziel-Typen und der Angabe, ob sie zur Fassung zählen, und Statuswerte und zu jeder Beziehungsart die erlaubten Quell- und Zieltypen und ihre Mindest- und Höchstzahlen.
+  - key: cmt2
+    text: Gegeben dasselbe Metamodell, wenn es über App, Kommandozeile, API und MCP-Server abgefragt wird, dann liefern alle dieselben Typen, Vererbungen, Properties, Statuswerte und Beziehungsarten.
 verification-method: test
 derives-from:
   - { id: 0a18e65d-e41b-4ed7-8662-8bc7e547d5ab, version: n1:48629460c434fb03, title: Metamodell des Projekts sehen }

@@ -6,9 +6,12 @@ title: "Unbekannte Typen vor dem Import zeigen"
 spec-id: "SR-055"
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben eine ReqIF-Datei mit Typen oder Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze` gelesen oder der Import gestartet wird, dann listet das Tool sie auf, bevor es eine Datei schreibt; der Import lehnt dann mit `reqif.unmapped` und derselben Liste ab.
-  - "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property, bei einer Property mit festen Werten auch ihre Werte, gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch."
-  - Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056, fehlendes Repository oder Element-Datei, die sich nicht lesen lässt, nach SR-053 AK3), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
+  - key: st6d
+    text: Gegeben eine ReqIF-Datei mit Typen oder Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze` gelesen oder der Import gestartet wird, dann listet das Tool sie auf, bevor es eine Datei schreibt; der Import lehnt dann mit `reqif.unmapped` und derselben Liste ab.
+  - key: mp8w
+    text: "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property, bei einer Property mit festen Werten auch ihre Werte, gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch."
+  - key: ttn9
+    text: Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056, fehlendes Repository oder Element-Datei, die sich nicht lesen lässt, nach SR-053 AK3), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
 verification-method: test
 packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
