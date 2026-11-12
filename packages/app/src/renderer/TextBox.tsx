@@ -13,7 +13,9 @@
 // shows (#615): a muted gutter, no prefix; not a list with a line break in a value, nor numbers.
 //
 // The box of the acceptance criteria keeps the criterion key of each line through every edit
-// (`editor/criterion-keys.ts`, SR-204 AK7 to AK9): its document holds the keys (`criterion-doc.ts`).
+// (`editor/criterion-keys.ts`, SR-204 AK7 to AK9): its document holds the keys (`criterion-doc.ts`). After
+// each criterion it shows the reference for a test name that `element.get` gives (SR-205 AK1,
+// `editor/criterion-marks.ts`).
 //
 // Keys: Alt+Up and Alt+Down (Option on macOS) move the line with the caret, or the selected lines, in a
 // list (SR-187 AK2, as in the text); Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
@@ -22,12 +24,14 @@
 import { insertNewline, moveLineDown, moveLineUp } from "@codemirror/commands";
 import { Prec } from "@codemirror/state";
 import type { EditorState } from "@codemirror/state";
+import type { DataExportCriterionEntry } from "@reqseq/core";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { useMemo, useRef } from "react";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { criterionKeys } from "./editor/criterion-keys.js";
+import { criterionMarks } from "./editor/criterion-marks.js";
 import type { BoxNavigation } from "./editor/box-navigation.js";
 import { formatKeys } from "./editor/format.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -59,6 +63,8 @@ export interface TextBoxProps {
   readonly markdown: boolean;
   /** The box holds the acceptance criteria: its document holds their criterion keys (SR-204). */
   readonly criteria?: boolean;
+  /** The criteria with their references as `element.get` gives them (SR-205 AK1); with `criteria` only. */
+  readonly criterionReferences?: readonly DataExportCriterionEntry[] | undefined;
   /** The outdated references in the values: `outdatedKey` to the message of the hint and the word. */
   readonly outdated: ReadonlyMap<string, OutdatedMark>;
   readonly follow: (reference: Reference) => void;
@@ -92,6 +98,7 @@ export const TextBox = ({
   numbered,
   markdown,
   criteria = false,
+  criterionReferences,
   outdated,
   follow,
   title,
@@ -110,6 +117,7 @@ export const TextBox = ({
   const latest = useRef({ onLeave, navigation, pickElement, repository });
   latest.current = { onLeave, navigation, pickElement, repository };
   const signature = JSON.stringify([...outdated]);
+  const referenced = JSON.stringify(criterionReferences ?? []);
   // The editor takes its codec once, when it is made.
   const codec = useMemo(() => (criteria ? criterionKeys() : undefined), [criteria]);
   // Made once per box: it holds the `[[` that waits, which a reconfiguration keeps only for the same extensions.
@@ -158,10 +166,13 @@ export const TextBox = ({
           // One Tab stop per box: the field. The text is entered with Enter or a click.
           EditorView.contentAttributes.of({ tabindex: "-1" }),
           ...(numbered ? [lineNumbers()] : []),
+          ...(criteria && criterionReferences !== undefined ? [criterionMarks(criterionReferences)] : []),
         ],
       },
     );
-  }, [signature, follow, title, many, numbered, markdown, readOnly, brackets]);
+    // `criterionReferences` is read through `referenced` (as `outdated` through `signature`): a new answer with the
+    // same references keeps the plugins.
+  }, [signature, referenced, follow, title, many, numbered, markdown, criteria, readOnly, brackets]);
   return (
     <Editor
       text={text}

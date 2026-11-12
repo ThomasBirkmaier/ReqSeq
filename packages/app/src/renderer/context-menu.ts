@@ -88,6 +88,8 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   "field-property": [
     // SR-196 AK1, AK2: "List elements with this value" only on a box with a value that lists elements.
     { id: "copy-field" },
+    // SR-205 AK4: on a line of the acceptance criteria, after "Copy field", which stays first.
+    { id: "copy-criterion-reference", when: FIELD_MENU.criterion },
     { id: "add-property" },
     { id: "clear-property" },
     { id: "list-value", when: FIELD_MENU.listable },

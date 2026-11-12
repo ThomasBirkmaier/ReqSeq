@@ -2,13 +2,11 @@
 // moving, splitting and merging keep a key, new and pasted lines get a new one, and undo after a save
 // brings the old keys back into the file. Each result is read with the CLI (`element get`). Keys use
 // ControlOrMeta (Linux and macOS); Alt is Option on macOS.
-import fs from "node:fs/promises";
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
-import { FIXTURE_FOLDER } from "./support/boxes.js";
+import { criteriaMetamodel } from "./support/boxes.js";
 
 const SR_ID = "20420420-0000-4000-8000-0000000000c7";
 const SR_TITLE = "Windrichtung anzeigen";
@@ -27,17 +25,6 @@ ${criteria}---
 
 Das Tool zeigt die Windrichtung.
 `;
-
-/** The metamodel of the fixture with the meaning `acceptance-criteria` on its property, as the standard model has it. */
-const metamodel = async (): Promise<string> => {
-  const file = await fs.readFile(path.join(FIXTURE_FOLDER, "metamodel", "standard-model.yaml"), "utf8");
-  const marked = file.replace(
-    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n",
-    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n    meaning: acceptance-criteria\n",
-  );
-  expect(marked).not.toBe(file);
-  return marked;
-};
 
 const FILES = {
   "requirements/SR-0000000000c7.md": requirement(
@@ -78,7 +65,7 @@ test.describe("criterion keys in the editor", () => {
   test.beforeEach(async () => {
     running = await launchApp({
       fixture: "SR-069/filter",
-      files: { ...FILES, "metamodel/standard-model.yaml": await metamodel() },
+      files: { ...FILES, "metamodel/standard-model.yaml": await criteriaMetamodel() },
     });
     clipboard = await running.app.evaluate(({ clipboard: board }) => board.readText());
     await open(running.window, SR_TITLE);
