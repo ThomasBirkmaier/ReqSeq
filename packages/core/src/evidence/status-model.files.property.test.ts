@@ -13,27 +13,42 @@
 // status apart from the reader (the status functions ignore such a record anyway), or the adapters (SR-080,
 // cross-access).
 //
+// The second block checks invariants on the core's output alone (one entry per view, degree counts, verified only on
+// passed newest records, the same output in another call order) and metamorphic properties over a changed workspace
+// (D-007; an added record reaches only its element and its ancestors; an older-version record). Each run also shows
+// that no read changes a file.
+//
 // Runs: STATUS_MODEL_FILE_RUNS (default 30) and STATUS_MODEL_SEED; one temp folder, emptied before each run.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
   CORE_VIEW,
+  CURRENT,
   type ModelEntry,
+  type ModelFileRecord,
   type ModelFileWorkspace,
   type ModelWorkspace,
   type ModelWorkspaceElement,
+  countsForCriterion,
   degreeOf,
   elementFilesOf,
   elementPlaceOf,
   fileParameters,
   forAllFileWorkspaces,
+  isCurrent,
+  metamorphicTarget,
   modelOfFiles,
+  newestOf,
   recordFilesOf,
+  recordsInView,
+  renderDate,
+  resolveRef,
   shownValidationOf,
   uuidOf,
   validationMatches,
   variantPlaceOf,
+  withRecord,
   verificationMatches,
   workspaceStatusOf as modelWorkspaceStatusOf,
 } from "@reqseq/testkit/status-model";
@@ -44,6 +59,8 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 
 const parameters = fileParameters(process.env);
+// Own timeouts that grow with the runs: about 0.1 s a workspace on Linux, several times that on a Windows runner.
+const TIMEOUT = 60_000 + parameters.numRuns * 3_000;
 let root = "";
 
 beforeAll(async () => {
@@ -182,6 +199,14 @@ function expectedShown(
   };
 }
 
+/** The key of the element file at `repository` and `file`. */
+function keyIn(ws: ModelWorkspace, repository: string, file: string): string | undefined {
+  return ws.elements.find((element) => {
+    const place = elementPlaceOf(element);
+    return place.repository === repository && place.file === file;
+  })?.key;
+}
+
 const VERIFICATION_SETS = [["verified", "indirect"], ["open", "failed", "outdated"], ["failed"]] as const;
 const VALIDATION_SETS = [
   ["validated", "inconclusive"],
@@ -198,11 +223,7 @@ interface Call {
 function callsOf(files: ModelFileWorkspace): Call[] {
   const ws = modelOfFiles(files);
   const status = modelWorkspaceStatusOf(ws);
-  const keyOf = (repository: string, file: string) =>
-    ws.elements.find((element) => {
-      const place = elementPlaceOf(element);
-      return place.repository === repository && place.file === file;
-    })?.key;
+  const keyOf = (repository: string, file: string) => keyIn(ws, repository, file);
   const views = [CORE_VIEW, ...ws.variants.map((variant) => variant.id)];
   const all = new Set(ws.elements.map((element) => element.key));
   const calls: Omit<Call, "at">[] = [
@@ -322,27 +343,292 @@ function callsOf(files: ModelFileWorkspace): Call[] {
 }
 
 describe("status model level 2: a workspace on disk against the reference model", () => {
-  it("shows the model's statuses, degree and filter results through the commands, in any call order", async ({
-    annotate,
-  }) => {
-    const started = performance.now();
-    await forAllFileWorkspaces(async (files) => {
-      await writeWorkspace(files);
-      const before = await snapshot();
-      const workspace = new Workspace(root);
-      try {
-        for (const call of callsOf(files)) {
-          await call.run(workspace);
+  it(
+    "shows the model's statuses, degree and filter results through the commands, in any call order",
+    async ({ annotate }) => {
+      const started = performance.now();
+      await forAllFileWorkspaces(async (files) => {
+        await writeWorkspace(files);
+        const before = await snapshot();
+        const workspace = new Workspace(root);
+        try {
+          for (const call of callsOf(files)) {
+            await call.run(workspace);
+          }
+        } finally {
+          await workspace.close();
         }
-      } finally {
-        await workspace.close();
-      }
-      // No read changes a file, the person-set status included (D-030).
-      expect(await snapshot()).toEqual(before);
-    }, parameters);
-    // Measured (#1396): the time of the whole property with its run count, in the report and the JUnit file.
-    await annotate(
-      `status model level 2: ${String(parameters.numRuns)} runs in ${String(Math.round(performance.now() - started))} ms`,
-    );
-  }, 300_000);
+        // No read changes a file, the person-set status included (D-030).
+        expect(await snapshot()).toEqual(before);
+      }, parameters);
+      // Measured (#1396): the time of the whole property with its run count, in the report and the JUnit file.
+      await annotate(
+        `status model level 2: ${String(parameters.numRuns)} runs in ${String(Math.round(performance.now() - started))} ms`,
+      );
+    },
+    TIMEOUT,
+  );
 });
+
+type Shown = ReturnType<typeof shown>;
+
+/** Writes `files` and gives what `evidence.status` shows of each element, by key. */
+async function statusOf(files: ModelFileWorkspace): Promise<Map<string, Shown>> {
+  await writeWorkspace(files);
+  const workspace = new Workspace(root);
+  try {
+    const output = (await invoke("evidence.status", {}, { workspace })) as { elements: ShownElement[] };
+    const shownByKey = new Map<string, Shown>();
+    for (const element of output.elements) {
+      const key = keyIn(files.base, element.repository, element.file);
+      if (key !== undefined) {
+        shownByKey.set(key, shown(element));
+      } else if (
+        !files.base.variants.some((variant) => {
+          const place = variantPlaceOf(variant);
+          return place.repository === element.repository && place.file === element.file;
+        })
+      ) {
+        throw new Error(
+          `evidence.status lists a file the model does not know: ${element.repository}:${element.file}`,
+        );
+      }
+    }
+    return shownByKey;
+  } finally {
+    await workspace.close();
+  }
+}
+
+/** `files` with only the records `keep` holds for. */
+function keeping(files: ModelFileWorkspace, keep: (file: ModelFileRecord) => boolean): ModelFileWorkspace {
+  return {
+    ...files,
+    records: Object.fromEntries(
+      Object.entries(files.records).map(([id, records]) => [id, records.filter(keep)]),
+    ),
+  };
+}
+
+/** The files of `id` and every element above them through derivation items (W1), whatever the view. */
+function selfAndAncestors(ws: ModelWorkspace, id: string): Set<string> {
+  const found = new Set(ws.elements.filter((element) => element.id === id).map((element) => element.key));
+  let grown = true;
+  while (grown) {
+    grown = false;
+    for (const child of ws.elements.filter((element) => found.has(element.key))) {
+      for (const ref of child.derivesFrom) {
+        const parent = resolveRef(ws, ref, child.repository);
+        if (parent !== undefined && !found.has(parent.key)) {
+          found.add(parent.key);
+          grown = true;
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** The verification entries of a shown element by view. */
+function entriesByView(element: Shown | undefined): Map<string, NonNullable<Shown["verification"]>[number]> {
+  return new Map((element?.verification ?? []).map((entry) => [entry.view, entry]));
+}
+
+/** Status changes an older-version record may cause: an own record makes open or indirect outdated, and a parent
+ * whose indirect child turns outdated is open (I3, I4). */
+const OLDER_RECORD_CHANGES = new Set(["open>outdated", "indirect>outdated", "indirect>open"]);
+
+describe("status model level 2: invariants and metamorphic properties", () => {
+  it(
+    "gives one entry per view, counts that add up, verified only on passed newest records, in any order",
+    async ({ annotate }) => {
+      const started = performance.now();
+      await forAllFileWorkspaces(async (files) => {
+        const ws = modelOfFiles(files);
+        await writeWorkspace(files);
+        const first = new Workspace(root);
+        const second = new Workspace(root);
+        try {
+          const status = (await invoke("evidence.status", {}, { workspace: first })) as {
+            elements: ShownElement[];
+          };
+          // Order independence: a second workspace asked element by element, in reverse, then as a whole.
+          for (const element of [...ws.elements].reverse()) {
+            const place = elementPlaceOf(element);
+            await invoke(
+              "element.get",
+              { ref: uuidOf(element.id), repository: place.repository, file: place.file },
+              { workspace: second },
+            );
+          }
+          expect(await invoke("evidence.status", {}, { workspace: second })).toEqual(status);
+          expectOneEntryPerView(ws, status.elements);
+          await expectDegreesAddUp(ws, first);
+        } finally {
+          await first.close();
+          await second.close();
+        }
+      }, parameters);
+      await annotate(
+        `invariants: ${String(parameters.numRuns)} runs in ${String(Math.round(performance.now() - started))} ms`,
+      );
+    },
+    TIMEOUT,
+  );
+
+  it(
+    "keeps verification and validation apart and changes only what an added record reaches",
+    async ({ annotate }) => {
+      const started = performance.now();
+      const changes = new Map<string, number>();
+      await forAllFileWorkspaces(async (files) => {
+        const ws = modelOfFiles(files);
+        const before = await statusOf(files);
+        const verificationOnly = (map: Map<string, Shown>) =>
+          new Map([...map].map(([key, value]) => [key, value.verification]));
+        const validationOnly = (map: Map<string, Shown>) =>
+          new Map([...map].map(([key, value]) => [key, [value.validation, value.validationReason]]));
+        // D-007: validation records never change the verification status, and verification records never the validation.
+        expect(
+          verificationOnly(await statusOf(keeping(files, (file) => file.record.kind !== "validation"))),
+        ).toEqual(verificationOnly(before));
+        expect(
+          validationOnly(await statusOf(keeping(files, (file) => file.record.kind !== "verification"))),
+        ).toEqual(validationOnly(before));
+        // The UUID a record is added to: indirect under an indirect parent where there is one (metamorphicTarget).
+        const target = metamorphicTarget(ws);
+        const reached = selfAndAncestors(ws, target);
+        // A passed current record changes the verification of its element's files and their ancestors only.
+        const passed = await statusOf(
+          withRecord(files, target, {
+            kind: "verification",
+            version: CURRENT,
+            date: renderDate(9, "Z"),
+            result: "passed",
+          }),
+        );
+        for (const [key, value] of passed) {
+          if (!reached.has(key)) {
+            expect({ key, verification: value.verification }).toEqual({
+              key,
+              verification: before.get(key)?.verification,
+            });
+          }
+        }
+        expect(validationOnly(passed)).toEqual(validationOnly(before));
+        // A record of an older version turns open into outdated, and touches indirect entries only through the record.
+        const older = await statusOf(
+          withRecord(files, target, {
+            kind: "verification",
+            version: "v1",
+            date: renderDate(9, "Z"),
+            result: "passed",
+          }),
+        );
+        expectOlderRecordChanges(before, older, changes);
+        expect(validationOnly(older)).toEqual(validationOnly(before));
+      }, parameters);
+      await annotate(
+        `metamorphic: ${String(parameters.numRuns)} runs in ${String(Math.round(performance.now() - started))} ms; ` +
+          `changes by an older record: ${JSON.stringify(Object.fromEntries(changes))}`,
+      );
+    },
+    2 * TIMEOUT,
+  );
+});
+
+/** One entry per view, none for an invalid variant, none for an element that is no requirement (W8); verified only
+ * on passed newest records. */
+function expectOneEntryPerView(ws: ModelWorkspace, elements: readonly ShownElement[]): void {
+  const invalid = new Set(
+    ws.variants.filter((variant) => variant.invalid).map((variant) => uuidOf(variant.id)),
+  );
+  for (const shownElement of elements) {
+    const element = ws.elements.find(
+      (candidate) => candidate.key === keyIn(ws, shownElement.repository, shownElement.file),
+    );
+    const views = (shownElement.verification ?? []).map((entry) => entry.view);
+    expect(new Set(views).size).toBe(views.length);
+    expect(views.filter((view) => invalid.has(view))).toEqual([]);
+    if (element?.type !== "requirement") {
+      expect(shownElement.verification).toBeUndefined();
+      continue;
+    }
+    for (const entry of shownElement.verification ?? []) {
+      if (entry.status === "verified") {
+        expectPassedNewest(ws, element, entry.view);
+      }
+    }
+  }
+}
+
+/** The degree of every view: the counts add up to the total, the share is (verified + indirect) / total, none at 0. */
+async function expectDegreesAddUp(ws: ModelWorkspace, workspace: Workspace): Promise<void> {
+  for (const view of ["core", ...ws.variants.map((variant) => uuidOf(variant.id))]) {
+    const { degree } = (await invoke("evidence.degree", { selection: { view } }, { workspace })) as {
+      degree: { total: number; share?: number; counts: Record<string, number> };
+    };
+    const { open = 0, verified = 0, indirect = 0, failed = 0, outdated = 0 } = degree.counts;
+    expect(open + verified + indirect + failed + outdated).toBe(degree.total);
+    expect(degree.share).toBe(degree.total === 0 ? undefined : (verified + indirect) / degree.total);
+  }
+}
+
+/** After an older-version record: the same views, only the changes of OLDER_RECORD_CHANGES, the same counts. */
+function expectOlderRecordChanges(
+  before: Map<string, Shown>,
+  after: Map<string, Shown>,
+  changes: Map<string, number>,
+): void {
+  for (const [key, value] of after) {
+    const was = entriesByView(before.get(key));
+    const now = entriesByView(value);
+    expect({ key, views: [...now.keys()] }).toEqual({ key, views: [...was.keys()] });
+    for (const [view, entry] of now) {
+      const old = was.get(view);
+      const change = `${old?.status ?? ""}>${entry.status}`;
+      if (old?.status !== entry.status) {
+        changes.set(change, (changes.get(change) ?? 0) + 1);
+        expect({ key, view, change, allowed: OLDER_RECORD_CHANGES.has(change) }).toEqual({
+          key,
+          view,
+          change,
+          allowed: true,
+        });
+      }
+      if (old?.criteria !== undefined && entry.criteria !== undefined) {
+        expect({ key, view, verified: entry.criteria.verified }).toEqual({
+          key,
+          view,
+          verified: old.criteria.verified,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Verified in a view: each criterion (or, without criteria, the requirement) has a record of the current version that
+ * counts for it in the view, and the newest of them all passed (V4, V9, V14; R1 to R3 with the pooling of SR-173).
+ */
+function expectPassedNewest(ws: ModelWorkspace, element: ModelWorkspaceElement, view: string): void {
+  const viewId =
+    view === "core" ? CORE_VIEW : (ws.variants.find((variant) => uuidOf(variant.id) === view)?.id ?? view);
+  const records = recordsInView(ws, element, viewId);
+  const own = { ...element.own, records };
+  const groups =
+    element.own.criteria.length === 0
+      ? [records]
+      : element.own.criteria.map((criterion, index) =>
+          records.filter((record) => countsForCriterion(record, own, criterion, index)),
+        );
+  for (const group of groups) {
+    const current = group.filter(isCurrent);
+    expect({ key: element.key, view, current: current.length > 0 }).toEqual({
+      key: element.key,
+      view,
+      current: true,
+    });
+    expect(newestOf(current).every((record) => record.result === "passed")).toBe(true);
+  }
+}

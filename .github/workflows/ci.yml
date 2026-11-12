@@ -119,8 +119,9 @@ jobs:
   # SR-076: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
   checks:
     name: checks (ubuntu-24.04)
-    # A normal run takes 6-7 minutes; the bound ends a hang early.
-    timeout-minutes: 15
+    # A normal run takes 6-7 minutes (the nightly about 11, plus up to 5 for the status model step); the bound ends a hang
+    # early.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 20 || 15 }}
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
@@ -259,6 +260,21 @@ jobs:
           unshare -rn node packages/docs/site/run.mjs build
           node scripts/package/stage.mjs --docs-site
 
+      # The status model properties (epic #1389) again with a random seed and more runs, in the nightly run only; pull
+      # requests keep the fixed seeds. The seed is printed first, so a red run replays with it. The dot reporter leaves
+      # the JUnit file of the unit tests (the evidence) as it is. It runs last before the uploads, so a slow run never cancels
+      # the steps that give evidence. About 2 minutes on Linux; fewer workspaces on disk off Linux, where files are slow.
+      - name: Status model, random seed
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && github.event_name == 'schedule' }}
+        timeout-minutes: 5
+        shell: bash
+        env:
+          STATUS_MODEL_RUNS: "10000"
+          STATUS_MODEL_FILE_RUNS: ${{ runner.os == 'Linux' && '200' || '50' }}
+        run: |
+          STATUS_MODEL_SEED=$(node -e 'console.log(require("node:crypto").randomInt(2147483647))')
+          echo "STATUS_MODEL_SEED=$STATUS_MODEL_SEED STATUS_MODEL_RUNS=$STATUS_MODEL_RUNS STATUS_MODEL_FILE_RUNS=$STATUS_MODEL_FILE_RUNS"
+          STATUS_MODEL_SEED=$STATUS_MODEL_SEED pnpm vitest run packages/core/src/evidence/status-model --reporter=dot
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)
         if: always()
