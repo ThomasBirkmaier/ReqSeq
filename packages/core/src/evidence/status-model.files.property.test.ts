@@ -8,7 +8,9 @@
 // view rule index, real version hashes in both forms (an older version is one the file no longer has; without Git
 // its criteria are not known), the same instant in two offsets, CRLF files, the files of one UUID with their own
 // criteria and version, and the index order behind the reason of an inconclusive tie (A6). It does not check a
-// variant UUID in two repositories, repositories missing here (`incomplete`), Git history or the adapters (SR-080,
+// variant UUID in two repositories, repositories missing here (`incomplete`), Git history, the degree of a subset
+// selection (`ids`, `where`, a package), that a refused validation record with a variant (SR-038 AK4) counts for no
+// status apart from the reader (the status functions ignore such a record anyway), or the adapters (SR-080,
 // cross-access).
 //
 // Runs: STATUS_MODEL_FILE_RUNS (default 30) and STATUS_MODEL_SEED; one temp folder, emptied before each run.
@@ -31,6 +33,7 @@ import {
   shownValidationOf,
   uuidOf,
   validationMatches,
+  variantPlaceOf,
   verificationMatches,
   workspaceStatusOf as modelWorkspaceStatusOf,
 } from "@reqseq/testkit/status-model";
@@ -207,6 +210,22 @@ function callsOf(files: ModelFileWorkspace): Call[] {
       name: "evidence.status",
       run: async (workspace) => {
         const output = (await invoke("evidence.status", {}, { workspace })) as { elements: ShownElement[] };
+        // Every element and variant once, no other file: an element the model does not know would show.
+        const variantOf = (repository: string, file: string) =>
+          ws.variants.find((variant) => {
+            const place = variantPlaceOf(variant);
+            return place.repository === repository && place.file === file;
+          })?.id;
+        expect(
+          output.elements
+            .map(
+              (element) =>
+                keyOf(element.repository, element.file) ?? variantOf(element.repository, element.file),
+            )
+            .sort(),
+        ).toEqual(
+          [...ws.elements.map((element) => element.key), ...ws.variants.map((variant) => variant.id)].sort(),
+        );
         const byKey = new Map(
           output.elements.map((element) => [keyOf(element.repository, element.file), element]),
         );
@@ -247,6 +266,19 @@ function callsOf(files: ModelFileWorkspace): Call[] {
         expect({ view, degree: output.degree }).toEqual({ view, degree: degreeOf(ws, view, all) });
       },
     })),
+    {
+      // D2: a selection without view is the core.
+      name: "evidence.degree without view",
+      run: async (workspace: Workspace) => {
+        const output = (await invoke("evidence.degree", { selection: {} }, { workspace })) as {
+          degree: unknown;
+        };
+        expect({ view: "none", degree: output.degree }).toEqual({
+          view: "none",
+          degree: degreeOf(ws, CORE_VIEW, all),
+        });
+      },
+    },
     ...views.flatMap((view) =>
       VERIFICATION_SETS.map((statuses) => ({
         name: `element.list verification ${view} ${statuses.join(",")}`,

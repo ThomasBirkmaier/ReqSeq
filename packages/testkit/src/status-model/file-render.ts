@@ -137,8 +137,9 @@ export function workspaceFileOf(files: ModelFileWorkspace): string {
 /** Every file except the records: workspace file, metamodel, variants and elements. */
 export function elementFilesOf(files: ModelFileWorkspace): Map<string, string> {
   const out = new Map<string, string>([
-    ["reqseq-workspace.yaml", workspaceFileOf(files)],
-    ["metamodel/model.yaml", METAMODEL],
+    // The line ends of the first element file, so the workspace file and the metamodel are CRLF too at times.
+    ["reqseq-workspace.yaml", withEol(workspaceFileOf(files), files.crlf[0] === true)],
+    ["metamodel/model.yaml", withEol(METAMODEL, files.crlf[0] === true)],
   ]);
   const variantRepository = new Map(files.base.variants.map((variant) => [variant.id, variant.repository]));
   for (const variant of files.base.variants) {

@@ -139,6 +139,9 @@ describe("status model level-2 files", () => {
   it("writes the element files with criteria, marks, relation items and line ends as generated", () => {
     const out = elementFilesOf(files);
     expect(out.get("metamodel/model.yaml")).toBe(METAMODEL);
+    const crlf = elementFilesOf({ ...files, crlf: [true, true, false] });
+    expect(crlf.get("metamodel/model.yaml")).toBe(METAMODEL.replaceAll("\n", "\r\n"));
+    expect(crlf.get("reqseq-workspace.yaml")).toContain("reqseq-workspace: 1\r\n");
     expect(out.get("lib/variants/VAR-000000000041.md")).toBe(
       `---\nid: ${uuidOf("A")}\ntype: variant\nstatus: obsolete\ntitle: Variant A\nexcludes:\n` +
         `  - { id: ${uuidOf("e1")}, version: n1:0000000000000000 }\n---\n`,
