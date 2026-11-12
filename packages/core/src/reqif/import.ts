@@ -44,7 +44,9 @@
 //   text has as many images takes the title, the text byte for byte (its image links
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
-//   loss (`checkOwnRelations`). Otherwise another tool changed it, or a mapping differs: the
+//   loss (`checkOwnRelations`). The acceptance criteria keep the criterion keys stored there
+//   (SR-204 AK12); a key there not in its form, or on two criteria, is `reqif.invalid` naming
+//   the SPEC-OBJECT (AK5). Otherwise another tool changed it, or a mapping differs: the
 //   readable attributes and SPEC-RELATIONs are imported through the mapping, with a warning
 //   `reqif.edited-elsewhere` for a changed object. A target of a relation or relation-valued
 //   property that is imported in this call becomes that element with its planned version (so the
@@ -61,7 +63,7 @@
 //   file, with a `reqif.replaces-local` warning (#575/3, #575/4). A conflict needs `take` or `keep`
 //   (`reqif.conflict` otherwise); `keep` writes only the origin with P as import version (#575/6).
 //   Relations to such an element carry P when the delivery is written into it, else C.
-import { withCriterionKeys } from "../model/acceptance-criteria.js";
+import { acceptanceCriteriaKeyOf, passedKeys, withCriterionKeys } from "../model/acceptance-criteria.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -1118,6 +1120,7 @@ const ownChannels = (
         object.line,
       );
     }
+    checkOwnCriterionKeys(metamodel, taken, data, object);
     return { data, text, images };
   }
   if (data !== undefined) {
@@ -1188,6 +1191,28 @@ const ownImages = async (
     }
   }
   return out;
+};
+
+/**
+ * The acceptance criteria `reqseq-values` passes with their keys, checked as on any save (SR-204
+ * AK5): a key not in its form, or on two criteria, is `reqif.invalid` naming the SPEC-OBJECT.
+ */
+const checkOwnCriterionKeys = (
+  metamodel: Metamodel,
+  taken: readonly string[],
+  data: Record<string, unknown>,
+  object: ReqifSpecObject,
+): void => {
+  const criteria = acceptanceCriteriaKeyOf(metamodel);
+  const items = criteria !== undefined && taken.includes(criteria) ? data[criteria] : undefined;
+  if (criteria === undefined || !Array.isArray(items)) {
+    return;
+  }
+  try {
+    passedKeys(criteria, items);
+  } catch (error) {
+    throw invalidFile(`SPEC-OBJECT ${object.identifier}: ${(error as Error).message}`, object.line);
+  }
 };
 
 /** A stored scalar as text, as the export writes the title; anything else is none. */
