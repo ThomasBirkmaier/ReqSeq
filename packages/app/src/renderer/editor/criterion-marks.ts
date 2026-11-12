@@ -33,7 +33,7 @@ class ReferenceMark extends WidgetType {
 
   // A press on the mark is one on its line: the editor puts the caret at the end of the line, as after the
   // text, so "Copy criterion reference" then acts on that criterion (SR-205 AK4). By default a widget keeps
-  // its events from the editor, and the caret stayed where it was.
+  // its events from the editor, so the caret would not move.
   override ignoreEvent(): boolean {
     return false;
   }
