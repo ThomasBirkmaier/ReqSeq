@@ -10,7 +10,7 @@ acceptance-criteria:
   - key: qc75
     text: Gegeben die Liste aller Elemente, eine gefilterte Liste, die Liste der Suchtreffer oder die Elemente einer Paketseite (SR-112), wenn in ihrer mittigen Spalte (SR-148) außerhalb der Zeilen der Elemente mit der rechten Maustaste geklickt wird, zum Beispiel auf ihrer Überschrift, einer Gruppenüberschrift (SR-149) oder dem Kopf des Abschnitts am Ende (SR-201), dann enthält das Kontextmenü „Filter list by type“, „Filter list by status“, „Filter list by text search“, „Sort list“ und „Group list“, bei gruppierter Liste statt „Group list“ „Ungroup list“, und bei gefilterter Liste zusätzlich „Clear all list filters“; die Liste der Suchtreffer hat kein „Sort list“ (SR-075 AK4), die Elemente einer Paketseite haben kein „Group list“ (SR-112 AK2). Die freie Fläche neben und unter dieser Spalte und die Übersicht und die Umgebung außerhalb der Zeilen ihrer Elemente haben das Kontextmenü des Buffers (SR-194 AK6).
 packages:
-  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:b9b03ddc1ea7cb2d, title: Finden und Listen }
 verification-method: test
 derives-from:
   - { id: f7e0d304-30ac-43c8-9683-1c432a0f119a, version: n2:2d5ec8cb0a706279, title: Mit der Maus bedienen }

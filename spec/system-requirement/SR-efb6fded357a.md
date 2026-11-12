@@ -14,7 +14,7 @@ acceptance-criteria:
     text: Gegeben eine Liste von Kurz-IDs über Kommandozeile oder API, wenn die Auswahl gebildet wird, dann enthält sie genau diese Elemente.
 verification-method: test
 packages:
-  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:4f83c4c27eb34539, title: Finden und Listen }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:b9b03ddc1ea7cb2d, title: Finden und Listen }
 derives-from:
   - { id: 6ad3a133-c1a9-463e-86cd-23d0f277f785, version: n1:f863e5fdb90ec21b, title: Abdeckung einer Auswahl von Requirements }
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }

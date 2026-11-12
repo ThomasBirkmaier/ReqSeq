@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: "Große Bestände flüssig bearbeiten"
 spec-id: "SR-082"
-rationale: "Zielwerte bestätigt. Referenzrechner: 4 Kerne, 16 GB Speicher, SSD. Die 200 ms gelten nicht für das erste Öffnen nach dem Start; dieses hat eine eigene Grenze von 1 Sekunde. Eine Zeitgrenze gilt nur, wo ein AK sie nennt; andere Messungen mit 50.000 Elementen sind Vergleichswerte. Übliche Arbeitsbereiche haben 100 bis 1.000 Elemente. Bedienbar heißt in AK1 und AK2: Die Übersicht zeigt die Zahlen aller Elemente, und die Liste aller Elemente zeigt ihre erste Seite (#750). Für das Berechnen von Nachweisstatus, Abdeckung und Nachweisgrad über den ganzen Bestand und für den Export der Daten gibt es keine eigene Grenze; sie werden gemessen und aufgezeichnet (#274)."
+rationale: "Zielwerte bestätigt. Referenzrechner: 4 Kerne, 16 GB Speicher, SSD. Die 200 ms gelten nicht für das erste Öffnen nach dem Start; dieses hat eine eigene Grenze von 1 Sekunde. Eine Zeitgrenze gilt nur, wo ein AK sie nennt; andere Messungen mit 50.000 Elementen sind Vergleichswerte. Übliche Arbeitsbereiche haben 100 bis 1.000 Elemente. Bedienbar heißt in AK1 und AK2: Die Übersicht zeigt die Zahlen aller Elemente, und die Liste aller Elemente zeigt ihre erste Seite (#750); die Zahlen der Perspektiven auf der Übersicht (SR-118 AK8) zählen nicht dazu. Für das Berechnen von Nachweisstatus, Abdeckung und Nachweisgrad über den ganzen Bestand und für den Export der Daten gibt es keine eigene Grenze; sie werden gemessen und aufgezeichnet (#274)."
 requirement-type: performance
 acceptance-criteria:
   - key: m65x

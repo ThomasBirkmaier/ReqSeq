@@ -6,4 +6,4 @@ title: Finden und Listen
 spec-id: Finden
 ---
 
-Thema „Finden und Listen“: Volltextsuche, Filter, Sortierung, gespeicherte Filter und Listen von Elementen. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.
+Thema „Finden und Listen“: Volltextsuche, Filter, Sortierung, gespeicherte Filter, Perspektiven und Listen von Elementen. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.

@@ -19,7 +19,7 @@ derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
-  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:93c9bf669dbb72fb, title: Aufbau der Dateien mit fester Länge des Dateinamens }
 rationale: "Was ein Export aus der Zuordnung nimmt (AK2): siehe #588."
 ---
 
