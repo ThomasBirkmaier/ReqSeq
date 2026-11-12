@@ -109,6 +109,7 @@ export type BaselineStoredRef =
   | ElementRef
   | {
     readonly id: Uuid;
+    /** Title of the element at baseline time. */
     readonly title: string;
   }
   | BaselineElsewhere;
@@ -1163,12 +1164,15 @@ export type FilterName = string;
  */
 export type FilterCondition =
   | {
+    /** Conditions that must all hold; `[]` holds. */
     readonly all: readonly FilterCondition[];
   }
   | {
+    /** Conditions of which at least one must hold; `[]` does not. */
     readonly any: readonly FilterCondition[];
   }
   | {
+    /** Condition that must not hold. */
     readonly not: FilterCondition;
   }
   | {
@@ -1196,6 +1200,7 @@ export type FilterCondition =
   | {
     /** Verification status in `variant`, else in the view of the selection, else in the core. */
     readonly verification: readonly VerificationStatus[];
+    /** View the verification status is computed in. Absent: the view of the selection, else the core. */
     readonly variant?: View;
   }
   | {

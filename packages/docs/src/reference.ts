@@ -14,7 +14,7 @@ import { commandIndex, commandPage } from "./command-page.js";
 import type { Example } from "./formats.js";
 import type { StandardModel } from "./standard-model.js";
 import type { Schema, SchemaContext } from "./schema-fields.js";
-import { undescribedFields } from "./schema-fields.js";
+import { forms, undescribedFields } from "./schema-fields.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
 import { SERVERS_PAGE, serversPage } from "./servers.js";
 import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
@@ -70,8 +70,11 @@ function noteUndescribed(path: string, fields: readonly string[], failures: stri
 
 /** The fields without a description of each `$defs` entry of a schema, as `<definition>.<field>`. */
 const undescribedDefinitions = (schema: JsonSchema, context: SchemaContext): string[] =>
-  Object.entries((schema["$defs"] ?? {}) as Readonly<Record<string, Schema>>).flatMap(([name, definition]) =>
-    undescribedFields(definition, context, name),
+  Object.entries((schema["$defs"] ?? {}) as Readonly<Record<string, Schema>>).flatMap(
+    ([name, definition]) => [
+      ...undescribedFields(definition, context, name),
+      ...forms(definition).flatMap((form) => undescribedFields(form.schema, context, name)),
+    ],
   );
 
 /** The format pages, their index and the page of the common types. */

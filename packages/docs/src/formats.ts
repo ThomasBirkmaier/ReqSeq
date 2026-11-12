@@ -5,7 +5,7 @@ import { extname, join } from "node:path";
 import type { JsonSchema } from "@reqseq/core";
 import { codeBlock, inline } from "./markdown.js";
 import type { Schema, SchemaContext } from "./schema-fields.js";
-import { fieldRows, fieldTable, typeText } from "./schema-fields.js";
+import { fieldRows, fieldTable, forms, typeText } from "./schema-fields.js";
 
 /** The folder of the format pages below the content folder, and the page of the shared definitions. */
 export const FORMATS_FOLDER = "reference/formats";
@@ -114,8 +114,29 @@ function definitions(schema: Schema, context: SchemaContext): string[] {
       .filter((line) => line !== "")
       .flatMap((line) => [line, ""]),
     ...(fieldRows(definition, context).length === 0 ? [] : [fieldTable(definition, context, ""), ""]),
+    ...formSections(name, definition, context),
   ]);
 }
+
+/** Each alternative object form of a definition with its field table, below a heading of the fields it requires. */
+const formSections = (name: string, definition: Schema, context: SchemaContext): string[] => {
+  const alternatives = forms(definition);
+  return alternatives.length === 0
+    ? []
+    : [
+        "Its `object` forms, each with its fields:",
+        "",
+        ...alternatives.flatMap((form) => [
+          `#### \`${name}\`: ${form.name
+            .split(", ")
+            .map((key) => `\`${key}\``)
+            .join(", ")}`,
+          "",
+          fieldTable(form.schema, context, "No fields."),
+          "",
+        ]),
+      ];
+};
 
 const frontmatter = (title: string, text: string, order: number): string[] => [
   "---",

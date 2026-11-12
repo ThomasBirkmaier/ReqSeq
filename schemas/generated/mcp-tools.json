@@ -274,7 +274,8 @@
                   "$ref": "#/$defs/common/$defs/uuid"
                 },
                 "title": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Title of the element at baseline time."
                 }
               },
               "additionalProperties": false
@@ -2269,7 +2270,8 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/filter/$defs/condition"
-                  }
+                  },
+                  "description": "Conditions that must all hold; `[]` holds."
                 }
               },
               "additionalProperties": false
@@ -2284,7 +2286,8 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/filter/$defs/condition"
-                  }
+                  },
+                  "description": "Conditions of which at least one must hold; `[]` does not."
                 }
               },
               "additionalProperties": false
@@ -2296,7 +2299,8 @@
               ],
               "properties": {
                 "not": {
-                  "$ref": "#/$defs/filter/$defs/condition"
+                  "$ref": "#/$defs/filter/$defs/condition",
+                  "description": "Condition that must not hold."
                 }
               },
               "additionalProperties": false
@@ -2384,7 +2388,8 @@
                   "description": "Verification status in `variant`, else in the view of the selection, else in the core."
                 },
                 "variant": {
-                  "$ref": "#/$defs/common/$defs/view"
+                  "$ref": "#/$defs/common/$defs/view",
+                  "description": "View the verification status is computed in. Absent: the view of the selection, else the core."
                 }
               },
               "additionalProperties": false
