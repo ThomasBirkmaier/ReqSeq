@@ -201,7 +201,8 @@ test.describe("the card of the command line in motion", () => {
       // "rgba(…) 0px -6px 18px 0px": x, y, blur, spread.
       const blur = Number(/\)\s*(-?\d+)px (-?\d+)px (\d+)px/.exec(shadow)?.[3]);
       expect(blur).toBe(18);
-      const list = await box(window, ".candidates");
+      // The card: the hits and, under them, the explanation line of the marked command (SR-210).
+      const list = await box(window, ".card:not(.card-leaving)");
       const seam = await box(window, ".card-seam");
       expect(list.left - seam.left).toBeCloseTo(blur, 0);
       expect(seam.right - list.right).toBeCloseTo(blur, 0);

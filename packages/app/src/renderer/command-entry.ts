@@ -27,6 +27,23 @@ export const coveringAction = (
 ): Action | undefined =>
   actions.find((action) => action.title === command.title || (action.covers ?? []).includes(command.name));
 
+/**
+ * The catalog command `action` runs (SR-210 AK5): the one it `covers`, else the one with its title, when
+ * `catalog` lists it. An action that covers several runs one of them by the shown view: none.
+ */
+export const coveredCommand = <C extends NamedCommand>(
+  action: Action,
+  catalog: readonly C[],
+): C | undefined => {
+  const { covers } = action;
+  if (covers !== undefined && covers.length !== 1) {
+    return undefined;
+  }
+  return catalog.find((command) =>
+    covers === undefined ? command.title === action.title : command.name === covers[0],
+  );
+};
+
 /** How the command prompt names `command`, with its key on macOS (`mac`) or on the other systems. */
 export const appCommandEntry = (command: NamedCommand, mac: boolean): AppCommandEntry => {
   const action = coveringAction(command);
