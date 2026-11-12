@@ -71,9 +71,10 @@ export const propertyNameKey = (key: string): string => `property:${key}`;
  * The names of the relation kinds by their key and of the properties of kind `relation` by
  * `propertyNameKey` (SR-154 AK1).
  */
-export const relationNames = (
-  metamodel: Pick<Metamodel, "relations" | "properties">,
-): ReadonlyMap<string, string> =>
+export const relationNames = (metamodel: {
+  readonly relations: readonly Pick<Metamodel["relations"][number], "key" | "name">[];
+  readonly properties: readonly Pick<Metamodel["properties"][number], "key" | "name" | "kind">[];
+}): ReadonlyMap<string, string> =>
   new Map([
     ...metamodel.relations.map((kind) => [kind.key, kind.name] as const),
     ...metamodel.properties

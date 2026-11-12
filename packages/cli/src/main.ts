@@ -207,7 +207,9 @@ function outputPieces(invocation: Invocation, output: unknown, options: RunCliOp
   }
   if (entry.textOutput !== undefined) {
     const plain = textOutput(output, entry.textOutput);
-    options.stderr.write(plain.problems);
+    if (plain.problems !== "") {
+      options.stderr.write(plain.problems);
+    }
     return [plain.text];
   }
   return [renderHuman(output, entry.effect === "read", options.terminal)];

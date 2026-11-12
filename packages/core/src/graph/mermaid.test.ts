@@ -169,7 +169,9 @@ describe("labels", () => {
     ]);
   });
 
-  it("escape the angle brackets and ampersand in an edge label and turn a quote into an apostrophe", () => {
+  it("escape the angle brackets and ampersand in an edge label, turn a quote into an apostrophe and break a directive", () => {
     expect(edgeText('A "b" <c> & d\ne')).toBe("A 'b' #lt;c#gt; #amp; d e");
+    // Mermaid reads `%%{` as a directive anywhere in the text.
+    expect(edgeText("x %%{init: {}}%%")).toBe("x %% {init: {}}%%");
   });
 });

@@ -3181,7 +3181,7 @@ export interface TraceMermaidInput {
  * Schema: `schemas/commands/trace.mermaid.json output`.
  */
 export interface TraceMermaidOutput {
-  /** The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. */
+  /** The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space. */
   readonly mermaid: string;
   /** More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones. */
   readonly truncated: boolean;

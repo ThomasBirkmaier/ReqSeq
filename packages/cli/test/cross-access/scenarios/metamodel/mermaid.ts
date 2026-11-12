@@ -9,12 +9,13 @@ const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
 
 scenariosOf("metamodel.mermaid", [
   {
-    name: "types with inheritance and open relation kinds (SR-151 AK2)",
+    name: "types with inheritance and open relation kinds",
     fixture: METAMODEL,
     input: {},
+    tag: "[SR-151/AK4]",
     expect: "output",
   },
-  { name: "the standard model (SR-151 AK2)", fixture: CHAIN, input: {}, expect: "output" },
+  { name: "the standard model", fixture: CHAIN, input: {}, tag: "[SR-151/AK4]", expect: "output" },
   {
     name: "a faulty metamodel file: the text of the valid files and the problem",
     fixture: {
@@ -22,6 +23,7 @@ scenariosOf("metamodel.mermaid", [
       files: { "model/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
     },
     input: {},
+    tag: "[SR-151/AK4]",
     expect: "output",
   },
 ]);

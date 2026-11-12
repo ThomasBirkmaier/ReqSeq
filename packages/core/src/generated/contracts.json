@@ -8171,7 +8171,7 @@
         "name": "trace.mermaid",
         "title": "Show graph as Mermaid",
         "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
-        "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the link is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. The default `limit` of 500 nodes gives a larger diagram than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
+        "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the link is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -8276,7 +8276,7 @@
           "properties": {
             "mermaid": {
               "type": "string",
-              "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels."
+              "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `\"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space."
             },
             "truncated": {
               "type": "boolean",

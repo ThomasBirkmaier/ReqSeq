@@ -8,8 +8,9 @@
 // `<`, `>` and `"` become `#amp;`, `#lt;`, `#gt;` and `#quot;`, `:` becomes `#58;` (else a line can read
 // as a `style` statement) and `{` becomes `#123;` (else `%%{` starts a directive); every node label holds
 // a raw `<br/>`, so the entities are decoded. In an edge label only `&`, `<` and `>` become entities; a
-// `"` there becomes `'` and a `#word;` stays as written, which Mermaid shows as an entity: a known
-// limitation for the names of kinds and properties. Line breaks and other control characters become one
+// `"` there becomes `'`, `%%{` becomes `%% {` (Mermaid reads a directive anywhere in the text), and a
+// `#word;` stays as written, which Mermaid shows as an entity: known limitations for the names of kinds
+// and properties. Line breaks and other control characters become one
 // space, everywhere.
 import type { CommandOutput } from "../catalog.js";
 import type { MetamodelNode } from "../metamodel/graph.js";
@@ -46,7 +47,8 @@ export const edgeText = (text: string): string =>
     .replaceAll("&", "#amp;")
     .replaceAll("<", "#lt;")
     .replaceAll(">", "#gt;")
-    .replaceAll('"', "'");
+    .replaceAll('"', "'")
+    .replaceAll("%%{", "%% {");
 
 const node = (id: string, lines: readonly string[]): string => `  ${id}["${lines.map(nodeText).join(BR)}"]`;
 
@@ -72,7 +74,6 @@ export const elementMermaid = (
   );
   // Every edge of the output joins two of its nodes.
   const idOf = (repository: string, id: string): string => String(ids.get(`${repository}:${id}`));
-  const rootIndex = graph.nodes.findIndex((each) => each.id === graph.root);
   return text([
     ...(graph.truncated ? ["%% truncated: more elements are reachable than shown"] : []),
     ...(graph.incomplete
@@ -88,7 +89,8 @@ export const elementMermaid = (
       ]);
     }),
     "  classDef element stroke-width:3px",
-    `  class n${String(rootIndex)} element`,
+    // The element is the first node of the output.
+    "  class n0 element",
     ...graph.edges.map((link) =>
       edge(
         idOf(link.sourceRepository, link.source),

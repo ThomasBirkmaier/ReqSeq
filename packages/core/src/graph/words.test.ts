@@ -60,8 +60,8 @@ describe("graph words", () => {
     const names = relationNames({
       relations: [{ key: "derives-from", name: "Derives from" }],
       properties: [
-        { key: "packages", name: "Package", kind: "relation", content: false },
-        { key: "title", name: "Title", kind: "text", content: false },
+        { key: "packages", name: "Package", kind: "relation" },
+        { key: "title", name: "Title", kind: "text" },
       ],
     });
     expect([...names]).toEqual([
