@@ -163,7 +163,7 @@ export interface MetamodelBuffer {
   readonly mode: "graph" | "text";
   /**
    * The selected type, shared by the graph and the text: `type:<key>`, or `any` in the graph
-   * (`metamodel-graph.ts`); not set: the first type.
+   * (`@reqseq/core/metamodel-graph`); not set: the first type.
    */
   readonly selected?: string;
   /**

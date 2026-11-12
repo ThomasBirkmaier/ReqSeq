@@ -1,5 +1,5 @@
 // The metamodel as text (SR-130 AK5): what `metamodel.get` gives, in the words the text view shows. Pure
-// display (ADR-0002 rule 3, SR-080 AK1), like `metamodel-graph.ts`: every word is a value of the output or
+// display (ADR-0002 rule 3, SR-080 AK1), like `@reqseq/core/metamodel-graph`: every word is a value of the output or
 // a word for a field ("extends", "abstract", "required", "counts to version", "list of", "any type", "none").
 // - One row per type, in metamodel order: its key, name and prefix, "abstract" when it is, its parent
 //   (`extends`, by the parent's name, by the key when no type has it), its properties (own and inherited,

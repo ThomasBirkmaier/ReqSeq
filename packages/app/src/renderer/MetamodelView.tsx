@@ -1,6 +1,6 @@
 // The metamodel buffer (SR-130): the types of the open workspace as boxes, joined by soft curves for the
 // inheritance, the relation kinds and the relation properties, on the white sheet. Everything shown is
-// one `metamodel.get` call (ADR-0002, SR-080 AK4); `metamodel-graph.ts` says which box and curve stand
+// one `metamodel.get` call (ADR-0002, SR-080 AK4); `@reqseq/core/metamodel-graph` says which box and curve stand
 // for which field, `metamodel-layout.ts` places them. HTML boxes and labels over one SVG of curves,
 // greys only (D-062): no value here means "outdated" or "gap". A box shows the name, the prefix, "abstract"
 // for an abstract type and every property, the inherited ones muted (AK2).
