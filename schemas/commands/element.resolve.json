@@ -1,10 +1,10 @@
 {
   "name": "element.resolve",
   "title": "Resolve reference",
-  "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.",
+  "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
   "effect": "read",
   "stage": 2,
-  "implements": ["SR-060"],
+  "implements": ["SR-060", "SR-205"],
   "arguments": [
     { "field": "ref", "complete": "element" },
     { "field": "version", "complete": "text" },
@@ -16,7 +16,8 @@
     "type": "object",
     "properties": {
       "ref": {
-        "$ref": "../common.schema.json#/$defs/elementRef"
+        "$ref": "../common.schema.json#/$defs/elementRef",
+        "description": "UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205 AK5): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`."
       },
       "version": {
         "$ref": "../common.schema.json#/$defs/version",
@@ -53,6 +54,14 @@
       "element": {
         "$ref": "../data-export.schema.json#/$defs/element",
         "description": "The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275)."
+      },
+      "criterion": {
+        "$ref": "../data-export.schema.json#/$defs/criterionEntry",
+        "description": "With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205 AK5). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204 AK10) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference."
+      },
+      "criterionReferences": {
+        "$ref": "../data-export.schema.json#/$defs/criterionReferences",
+        "description": "As element.get gives it (SR-205 AK1)."
       },
       "current": {
         "enum": ["current", "outdated", "unknown", null],

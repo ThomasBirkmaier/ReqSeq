@@ -90,6 +90,7 @@ import {
 } from "./markdown.js";
 import { withEvidenceSource } from "./evidence-source.js";
 import type { EvidenceRecord } from "./record.js";
+import { criterionNameAt } from "./criteria.js";
 import { criterionLineOf, withCriterionLines } from "./record.js";
 import type { EvidenceRead } from "./state.js";
 import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
@@ -459,6 +460,8 @@ interface Prepared {
   readonly fields: RecordFields;
   /** The criteria the record is written for, with number, key and the start of the text (SR-030 AK4). */
   readonly criteria?: readonly WrittenCriterion[];
+  /** The acceptance criteria of the current version, to name those of the record with their whole texts (SR-205 AK2). */
+  readonly items: readonly unknown[];
 }
 
 /**
@@ -657,7 +660,8 @@ const prepare = async (
     element,
     input,
   );
-  const written = criteriaOfInput(input, criteriaItemsOf(element.data, acceptanceCriteriaKeyOf(metamodel)));
+  const items = criteriaItemsOf(element.data, acceptanceCriteriaKeyOf(metamodel));
+  const written = criteriaOfInput(input, items);
   const fields: RecordFields = {
     kind: input.kind,
     element: element.id,
@@ -687,6 +691,7 @@ const prepare = async (
     variantShortId: variant === undefined ? undefined : shortIds.of(variant),
     fields,
     ...(written === undefined ? {} : { criteria: written }),
+    items,
   };
 };
 
@@ -728,6 +733,20 @@ const createRecordFile = async (
   }
 };
 
+/** `record` with `criterionNames` from the criteria it was written for, in the order of its `criteria` (SR-205 AK2). */
+const withNamedCriteria = (record: EvidenceRecord, prepared: Prepared): EvidenceRecord => {
+  const written = prepared.criteria;
+  return written === undefined
+    ? record
+    : {
+        ...record,
+        // `criteria` holds their keys in code-unit order (rule 6).
+        criterionNames: [...written]
+          .sort((a, b) => compareCriterionRefs(a.key, b.key))
+          .map(({ criterion }) => criterionNameAt(prepared.items, criterion)),
+      };
+};
+
 /**
  * `evidence.record` (SR-030): writes the record of `input` for the element `input.ref` as a new
  * Markdown file in an evidence folder and returns the file and the record (see the file comment).
@@ -765,8 +784,9 @@ export const recordEvidence = async (
   return {
     files: [workspacePath(layout, repository, file)],
     ...(prepared.criteria === undefined ? {} : { criteria: [...prepared.criteria] }),
-    // A copy with its evidence source (#821): the evidence state keeps `record` as read.
-    record: withEvidenceSource(record),
+    // A copy with its evidence source (#821): the evidence state keeps `record` as read. Its criteria
+    // named with number, key and whole text (SR-205 AK2); `criteria` above keeps the start (SR-030 AK4).
+    record: withNamedCriteria(withEvidenceSource(record), prepared),
     problems: [],
   };
 };

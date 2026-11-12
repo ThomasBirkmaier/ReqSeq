@@ -10,6 +10,7 @@
 // D-029). `incomplete` follows SR-006 AK2 over the whole selection and the evidence locations.
 // `evidence` comes right after `columns`, as the degree stands above the status column (SR-126 AK4);
 // `names` names the variant of its view and the missing children of the rows (ThomasBirkmaier/ReqSeq-archive#588).
+// The last execution of a test case names its criteria with number, key and text (SR-205 AK2).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
@@ -17,12 +18,14 @@ import {
   evidenceIndexState,
   evidenceReadState,
   matrixEvidence,
+  recordNamer,
   showsEvidence,
   verificationState,
   variantIdsOf,
   verificationNameIds,
   viewIdOf,
 } from "../../evidence/index.js";
+import type { ElementRecord } from "../../model/index.js";
 import { namesField, namesOf } from "../../model/index.js";
 import type { Selected } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
@@ -106,6 +109,31 @@ export default defineCommand({
       currentVersionLookup(ctx.workspace),
       evidence?.rowFields,
     );
+    // The last execution of each test case names its criteria with number, key and text (SR-205 AK2).
+    const elementOf = new Map(
+      page.map(({ element }) => [`${element.repository}\u0000${element.file}`, element]),
+    );
+    const rowElement = (row: (typeof rows)[number]): ElementRecord | undefined =>
+      elementOf.get(`${row.repository}\u0000${row.file}`);
+    const name = await recordNamer(
+      ctx.workspace,
+      rows.flatMap((row) => {
+        const element = rowElement(row);
+        const last = (row.testCases ?? []).flatMap((test) => (test.last === undefined ? [] : [test.last]));
+        return element === undefined || last.length === 0 ? [] : [{ element, records: last }];
+      }),
+    );
+    const shownRows = rows.map((row) => {
+      const element = rowElement(row);
+      return element === undefined || row.testCases === undefined
+        ? row
+        : {
+            ...row,
+            testCases: row.testCases.map((test) =>
+              test.last === undefined ? test : { ...test, last: name(element, test.last) },
+            ),
+          };
+    });
     const named = [
       ...(evidence === undefined ? [] : variantIdsOf(evidence.header.view)),
       ...verificationNameIds(rows.flatMap((row) => row.verification ?? [])),
@@ -113,7 +141,7 @@ export default defineCommand({
     return {
       columns: columns.map((column) => columnOutput(column)),
       ...(evidence === undefined ? {} : { evidence: evidence.header }),
-      rows,
+      rows: shownRows,
       total,
       incomplete: selected.incomplete || evidence?.incomplete === true,
       ...namesField(namesOf(selected, named)),

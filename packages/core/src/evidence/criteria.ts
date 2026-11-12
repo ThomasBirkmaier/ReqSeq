@@ -166,3 +166,29 @@ export const namedCriterion = (
   const text = index < 0 ? undefined : criterionText(named?.[index]);
   return { key: resolved.ref, ...(typeof text === "string" ? { text } : {}) };
 };
+
+/** The items of the older versions a lookup did not give, by version. */
+export interface FetchedItems {
+  readonly get: (version: string) => readonly unknown[] | undefined;
+}
+
+const NOTHING_FETCHED: FetchedItems = new Map();
+
+/**
+ * `record` with `criterionNames`: each criterion it names with number, key and text (`namedCriterion`),
+ * the number that of `current`, the version whose criteria `criteria` counts; `fetched` gives the
+ * items of the older versions `criteria` does not know. Unchanged for a record that names no criterion.
+ */
+export const withCriterionNames = (
+  record: EvidenceRecord,
+  criteria: ElementCriteria,
+  current: VersionForms | undefined,
+  fetched: FetchedItems = NOTHING_FETCHED,
+): EvidenceRecord => {
+  const resolved = criteria.resolve(record, current);
+  if (resolved === undefined) {
+    return record;
+  }
+  const named = criteria.namedItems(record, current) ?? fetched.get(record.version);
+  return { ...record, criterionNames: resolved.map((r) => namedCriterion(r, criteria.items, named)) };
+};

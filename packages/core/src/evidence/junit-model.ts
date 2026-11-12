@@ -4,7 +4,8 @@
 // in at those offsets and keeps every other byte (BOM, CRLF, non-ASCII text, formatting) unchanged.
 import type { XmlAttribute, XmlElement, XmlRefusalReason } from "../files/index.js";
 import { scanXml, xmlAttribute } from "../files/index.js";
-import { isCriterionKey } from "../model/criterion-items.js";
+import type { BracketReference } from "../model/criterion-items.js";
+import { BRACKET_TOKEN, bracketReference, isCriterionKey } from "../model/criterion-items.js";
 import type { NameMatch } from "./name-pattern.js";
 
 /**
@@ -327,41 +328,14 @@ export const elementRefsOf = (
   return found;
 };
 
-/** A reference of a test case name with the acceptance criterion it names, if any (`criterionRefsOf`). */
-export interface CriterionRef {
-  /** As written (trimmed): the `<ref>` of a bracket token, or the short ID a name pattern built. */
-  readonly ref: string;
-  /**
-   * The criterion it names: a number (1 or more) or a criterion key; absent for a reference that
-   * names the whole requirement.
-   */
-  readonly criterion?: number | string;
-  /** The text as written when it tries to name a criterion but names none (`[SR-036/AK0]`, `[SR-036/AK]`). */
-  readonly malformed?: string;
-}
-
-/** `[<ref>]` or `[<ref>/<suffix>]` in a test case name: the tokens of `NAME_TOKEN`, with the suffix. */
-const BRACKET = /\[[^[\]/]*(?:\/[^[\]]*)?\]/g;
 /**
- * A suffix that tries to name an acceptance criterion: `AK` alone, before a digit or before `-`,
- * ASCII case-insensitive.
+ * A reference of a test case name with the acceptance criterion it names, if any (`criterionRefsOf`):
+ * a bracket token as `bracketReference` reads it, or the short ID a name pattern built.
  */
-const AK_LIKE = /^AK(?:[0-9-]|$)/i;
-/** The suffix that names one by number: `AK<n>`, n from 1 without leading zero, at most 9 digits (as `{ak}`). */
-const AK_SUFFIX = /^AK[1-9][0-9]{0,8}$/i;
-/** The suffix that names one by key: `AK-<key>` (SR-029 AK10), the key in its form (SR-204 AK5). */
-const AK_KEY_SUFFIX = /^AK-[a-z][a-z0-9]{3,15}$/i;
+export type CriterionRef = BracketReference;
+
 /** The digits of `{ak}` that name a criterion. */
 const AK_DIGITS = /^[1-9][0-9]*$/;
-
-/** The criterion of a suffix (`AK<n>` or `AK-<key>`), else `text` as malformed. */
-const suffixCriterion = (suffix: string, text: string): Pick<CriterionRef, "criterion" | "malformed"> => {
-  if (AK_SUFFIX.test(suffix)) {
-    return { criterion: Number(suffix.slice(2)) };
-  }
-  const key = suffix.slice(3);
-  return AK_KEY_SUFFIX.test(suffix) && isCriterionKey(key) ? { criterion: key } : { malformed: text };
-};
 
 /** The criterion `{ak}` read: a number from 1 without leading zero, or a criterion key; else `text` as malformed. */
 const akCriterion = (ak: string, text: string): Pick<CriterionRef, "criterion" | "malformed"> => {
@@ -386,15 +360,8 @@ export const criterionRefsOf = (
   pattern?: (name: string) => readonly NameMatch[],
 ): readonly CriterionRef[] => {
   const refs: CriterionRef[] = [];
-  for (const [token] of name.matchAll(BRACKET)) {
-    const inner = token.slice(1, -1);
-    const slash = inner.indexOf("/");
-    const ref = slash < 0 ? inner : inner.slice(0, slash);
-    const suffix = slash < 0 ? "" : inner.slice(slash + 1).trim();
-    refs.push({
-      ref: ref.trim(),
-      ...(AK_LIKE.test(suffix) ? suffixCriterion(suffix, token) : {}),
-    });
+  for (const [token] of name.matchAll(BRACKET_TOKEN)) {
+    refs.push(bracketReference(token));
   }
   for (const { shortId, matched, ak } of pattern?.(name) ?? []) {
     refs.push({ ref: shortId, ...(ak === undefined ? {} : akCriterion(ak, matched)) });

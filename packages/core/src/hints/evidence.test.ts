@@ -138,7 +138,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK4] reports a criterion with records of older versions only while the others are verified (SR-031 AK8)", async () => {
+  it("[SR-025/AK4] [SR-205/AK2] reports a criterion with records of older versions only while the others are verified (SR-031 AK8), named with number, key and text", async () => {
     // fixtures/SR-031/criteria: SR-0000e3 has AK1 and AK2 passed at its current version, AK3 only at
     // an older one, so its status is outdated (SR-031 AK8); the other requirements are not outdated.
     const fixture = await createFixtureWorkspace({ fixture: "SR-031/criteria" });
@@ -169,6 +169,8 @@ describe("outdated evidence (SR-025 AK4)", () => {
         elementFile: "requirements/SR-3131310000e3.md",
         storedVersion: "n2:0000000000000000",
         currentVersion: "n2:de10890cdf8c6167",
+        // With number, key and text (SR-205 AK2).
+        criteria: [{ criterion: 3, key: "kfro", text: "Given frost, then a mark shows." }],
       },
     ]);
   });

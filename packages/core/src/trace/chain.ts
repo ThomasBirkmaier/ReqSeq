@@ -533,7 +533,7 @@ export const chainOutput = (
   chain: Chain<unknown>,
   context: ChainOutputContext,
   page: ChainPage = EVERY_NODE,
-): TraceChainOutput => {
+): TraceChainOutput & { readonly evidence: NonNullable<TraceChainOutput["evidence"]> } => {
   const { shortIds } = context;
   const titleOf = titles(context.metamodel);
   const node = chainNode(shortIds, titleOf);

@@ -22,6 +22,8 @@ export {
   plainCriteria,
 } from "./criteria.js";
 export type { ElementCriteria, OlderCriteria } from "./criteria.js";
+export { recordNamer, withNamedExecutions } from "./criterion-names.js";
+export type { ListedRecords, RecordNamer } from "./criterion-names.js";
 export { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
 export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";

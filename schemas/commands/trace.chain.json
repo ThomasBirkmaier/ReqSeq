@@ -4,7 +4,7 @@
   "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all; the validation records of the root.",
   "effect": "read",
   "stage": 2,
-  "implements": ["SR-006", "SR-022", "SR-033"],
+  "implements": ["SR-006", "SR-022", "SR-033", "SR-205"],
   "arguments": [
     { "field": "ref", "complete": "element" },
     { "field": "direction", "complete": "choice" },

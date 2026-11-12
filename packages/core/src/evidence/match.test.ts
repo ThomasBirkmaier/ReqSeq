@@ -261,6 +261,7 @@ describe("SR-028 findings of the evidence records", () => {
         line: 9,
         targetId: A,
         targetRepository: "system",
+        criteria: [{ criterion: 4 }, { criterion: 9 }],
       };
       expect(
         (await workspace.get(evidenceProblemsState)).filter((p) => p.code === "evidence.unknown-criterion"),
@@ -519,6 +520,7 @@ describe("SR-028 findings of the evidence records", () => {
         message: `The verification record names acceptance criterion 1 of element ${A}, whose version ${forms.n2} has 0; the record counts for the whole requirement`,
         targetId: A,
         targetRepository: "system",
+        criteria: [{ criterion: 1 }],
       });
       expect(current === undefined ? undefined : unknownCriterionProblem(current, ["one"])).toBeUndefined();
     });

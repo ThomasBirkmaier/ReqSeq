@@ -41,7 +41,7 @@ import { withEvidenceSource } from "./evidence-source.js";
 import { withoutShadowedCore } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
 import type { ElementCriteria } from "./criteria.js";
-import { elementCriteria } from "./criteria.js";
+import { elementCriteria, withCriterionNames } from "./criteria.js";
 import type { OwnVerification } from "./status.js";
 import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
@@ -142,7 +142,14 @@ const verificationRows = (
         // Shared, not copied: the count without a record is one frozen object per count, and a
         // page holds up to hundreds of thousands of rows (N-036); outputs are never changed.
         ...(own.criteria === undefined ? {} : { criteria: own.criteria }),
-        ...(after === undefined ? {} : { later: after.map(withEvidenceSource) }),
+        // Named with the criteria of the baseline's version, whose criteria are counted (SR-205 AK2).
+        ...(after === undefined
+          ? {}
+          : {
+              later: after.map((record) =>
+                withCriterionNames(withEvidenceSource(record), criteria ?? namedOnly([]), version),
+              ),
+            }),
       },
     ];
   });

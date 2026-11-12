@@ -40,16 +40,20 @@ export type {
   RandomInt,
   ResolvedCriterion,
 } from "./acceptance-criteria.js";
-export type { KeyedCriterion } from "./criterion-items.js";
+export type { BracketReference, KeyedCriterion } from "./criterion-items.js";
 export {
   CRITERION_KEY,
   criterionKey,
   criterionLabel,
+  criterionReference,
+  criterionReferenceOf,
   criterionText,
   isCriterionKey,
   isCriterionMapping,
   isKeyedCriterion,
 } from "./criterion-items.js";
+export { criterionReferencesOf, referenceNameOf } from "./criterion-references.js";
+export type { CriterionReferenceContext, CriterionReferences } from "./criterion-references.js";
 export {
   allCriterionKeyFindings,
   criterionKeyFindings,

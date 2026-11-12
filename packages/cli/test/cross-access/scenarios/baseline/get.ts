@@ -46,6 +46,29 @@ scenariosOf("baseline.get", [
     },
   },
   {
+    name: "the later records of a baseline name their criteria with number, key and text (SR-205 AK2)",
+    fixture: {
+      ...CRITERIA,
+      files: {
+        "baselines/release-1.yaml":
+          "reqseq-baseline: 1\nname: Release 1\ndate: 2026-11-01T12:00:00Z\nrepositories:\n" +
+          "  - { name: system, commit: 31a031a031a031a031a031a031a031a031a031a0 }\nelements:\n" +
+          "  - { id: 31313131-0000-4000-8000-3131310000e3, version: n2:de10890cdf8c6167 }\n",
+      },
+    },
+    input: { baseline: "Release 1", withEvidence: true },
+    tag: "[SR-205/AK2]",
+    expect: "output",
+    check: (results) => {
+      expect(baselineEntries(results)["e3"]?.verification?.[0]?.later?.map((r) => r.criterionNames)).toEqual([
+        [
+          { criterion: 1, key: "kred", text: "Given a reading, then it shows." },
+          { criterion: 2, key: "kdas", text: "Given no reading, then a dash shows." },
+        ],
+      ]);
+    },
+  },
+  {
     name: "a baseline counts the acceptance criteria its records verify, as evidence.status (SR-031 AK5, SR-094)",
     fixture: {
       ...CRITERIA,

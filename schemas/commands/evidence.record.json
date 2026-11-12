@@ -7,7 +7,7 @@
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
   "stage": 4,
-  "implements": ["SR-030", "SR-047", "SR-172"],
+  "implements": ["SR-030", "SR-047", "SR-172", "SR-205"],
   "arguments": [
     {
       "field": "ref",

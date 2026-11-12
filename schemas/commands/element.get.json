@@ -1,7 +1,7 @@
 {
   "name": "element.get",
   "title": "Get element",
-  "summary": "One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.",
+  "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
   "effect": "read",
   "stage": 1,
   "implements": [
@@ -18,7 +18,8 @@
     "SR-088",
     "SR-091",
     "SR-152",
-    "SR-171"
+    "SR-171",
+    "SR-205"
   ],
   "arguments": [
     { "field": "ref", "complete": "element" },
@@ -77,6 +78,10 @@
       "fileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
         "description": "Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106)."
+      },
+      "criterionReferences": {
+        "$ref": "../data-export.schema.json#/$defs/criterionReferences",
+        "description": "The acceptance criteria of the element as its file holds them now, each with number, criterion key, text and the reference for a test name (SR-205 AK1); left out for an element that is no requirement or has none."
       },
       "names": {
         "type": "array",

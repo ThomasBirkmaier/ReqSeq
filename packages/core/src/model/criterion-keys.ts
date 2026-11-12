@@ -81,6 +81,8 @@ export const criterionKeyFindings = (
           severity: "warning",
           message: `Acceptance criterion ${position} has the criterion key ${JSON.stringify(item.key)}; a criterion key is a lower-case letter a to z, then 3 to 15 lower-case letters a to z or digits`,
           ...base,
+          // Number and text only: the key is not one (SR-205 AK2).
+          criteria: [{ criterion: index + 1, text: item.text }],
         },
       });
       return;
@@ -98,6 +100,12 @@ export const criterionKeyFindings = (
         severity: "error",
         message: `Acceptance criteria ${String(first + 1)} and ${position} have the same criterion key ${item.key}; each needs its own`,
         ...base,
+        // Both, with number, key and text (SR-205 AK2).
+        criteria: [first, index].map((at) => ({
+          criterion: at + 1,
+          key: item.key,
+          text: (items[at] as { readonly text: string }).text,
+        })),
       },
     });
   });

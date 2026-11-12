@@ -340,6 +340,8 @@ export interface Problem {
   readonly targetType?: Key;
   /** How many relations the element has that the limit counts (SR-152), how many entries its list property has (SR-171), or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`, SR-204). */
   readonly count?: number;
+  /** The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204 AK10), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text). */
+  readonly criteria?: readonly DataExportCriterionName[];
   /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
 }
@@ -918,7 +920,7 @@ export interface DataExportEvidenceRecord {
   readonly className?: string;
   /** The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */
   readonly criteria?: readonly CriterionRef[];
-  /** Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Only `evidence.list` fills it. */
+  /** Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Filled by the commands that list records: `evidence.list` (also in its test cases), `trace.chain`, `trace.matrix`, `trace.affected` and `evidence.record`, each counting the current version, and `baseline.get` in `later`, counting the baseline's version; not in the data export, which has no records. */
   readonly criterionNames?: readonly DataExportCriterionName[];
   /** The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it. */
   readonly baselines?: readonly string[];
@@ -979,6 +981,31 @@ export interface DataExportCriterionName {
   readonly key?: CriterionKey;
   /** The text of the acceptance criterion. */
   readonly text?: string;
+}
+
+/**
+ * An acceptance criterion of the current version of a requirement (SR-205 AK1): its number, criterion key, text and the reference a test name uses.
+ * Schema: `schemas/data-export.schema.json#/$defs/criterionEntry`.
+ */
+export interface DataExportCriterionEntry {
+  /** The number: the position in the current version, counted from 1, so the numbers have no gaps (SR-205 AK3). */
+  readonly criterion: number;
+  /** The criterion key (D-072, SR-204); left out when the criterion has none. */
+  readonly key?: CriterionKey;
+  /** The text of the acceptance criterion. */
+  readonly text: string;
+  /** The reference for a test name, `[<name>/AK-<key>]` (SR-205 AK1, SR-029 AK10): the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key (SR-204 AK10; spec question #1525, assumption). */
+  readonly reference?: string;
+}
+
+/**
+ * The acceptance criteria of a requirement's current version with their references for test names (SR-205 AK1), in their order. Given for an element whose type has the meaning `requirement` and that has acceptance criteria, each a text; left out otherwise.
+ * Schema: `schemas/data-export.schema.json#/$defs/criterionReferences`.
+ */
+export interface DataExportCriterionReferences {
+  /** The key of the property with the meaning `acceptance-criteria` that holds them. */
+  readonly property: Key;
+  readonly criteria: readonly DataExportCriterionEntry[];
 }
 
 /**
@@ -2113,7 +2140,7 @@ export interface ElementCreateOutput {
 }
 
 /**
- * Input of `element.get` as `run` gets it: validated, properties with a `default` filled in. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
+ * Input of `element.get` as `run` gets it: validated, properties with a `default` filled in. One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.
  * Schema: `schemas/commands/element.get.json input`.
  */
 export interface ElementGetInput {
@@ -2130,7 +2157,7 @@ export interface ElementGetInput {
 }
 
 /**
- * Output of `element.get`. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
+ * Output of `element.get`. One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.
  * Schema: `schemas/commands/element.get.json output`.
  */
 export interface ElementGetOutput {
@@ -2138,6 +2165,8 @@ export interface ElementGetOutput {
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
+  /** The acceptance criteria of the element as its file holds them now, each with number, criterion key, text and the reference for a test name (SR-205 AK1); left out for an element that is no requirement or has none. */
+  readonly criterionReferences?: DataExportCriterionReferences;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing. */
@@ -2145,10 +2174,11 @@ export interface ElementGetOutput {
 }
 
 /**
- * Input of `element.resolve` as `run` gets it: validated, properties with a `default` filled in. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
+ * Input of `element.resolve` as `run` gets it: validated, properties with a `default` filled in. Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.
  * Schema: `schemas/commands/element.resolve.json input`.
  */
 export interface ElementResolveInput {
+  /** UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205 AK5): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`. */
   readonly ref: ElementRef;
   /** The version the reference stores (D-013); optional. A version of normal form n1 or n2 is compared with the current version in its own form; a version of another normal form is refused with input.invalid (ADR-0005). */
   readonly version?: Version;
@@ -2161,12 +2191,16 @@ export interface ElementResolveInput {
 }
 
 /**
- * Output of `element.resolve`. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
+ * Output of `element.resolve`. Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.
  * Schema: `schemas/commands/element.resolve.json output`.
  */
 export interface ElementResolveOutput {
   /** The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275). */
   readonly element: DataExportElement;
+  /** With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205 AK5). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204 AK10) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference. */
+  readonly criterion?: DataExportCriterionEntry;
+  /** As element.get gives it (SR-205 AK1). */
+  readonly criterionReferences?: DataExportCriterionReferences;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, ThomasBirkmaier/ReqSeq-archive#276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
   /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none. */

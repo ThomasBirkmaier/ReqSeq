@@ -8,6 +8,7 @@ import {
   PREVIOUS_BUFFER_SHORTCUT,
   actionFor,
   commandPrompt,
+  criterionChoices,
   jumpPrompt,
   referencePrompt,
   runAction,
@@ -487,6 +488,9 @@ describe("the action of a shortcut", () => {
   });
 });
 
+/** An element as element.resolve gives it, for an answer without criterion. */
+const resolvedElement = { id: "u1", repository: "spec", shortId: "SR-000001", title: "Wind" };
+
 describe("go to element or buffer", () => {
   it("lists the open buffers but the shown one, recent first; Enter switches", () => {
     const search = searchBuffer("wind");
@@ -591,6 +595,49 @@ describe("go to element or buffer", () => {
       limit: 20,
     });
     expect(found?.map((choice) => choice.name)).toEqual(["SR-000009 Survive icing"]);
+  });
+
+  it("[SR-205/AK5] Go to resolves a test name's reference to a criterion and names the requirement, number and text", async () => {
+    const resolved = {
+      element: { id: "u1", repository: "spec", shortId: "SR-000001", identifier: "SR-036", title: "Wind" },
+      criterion: { criterion: 2, key: "k7f3", text: "Given a gust.", reference: "[SR-036/AK-k7f3]" },
+      current: null,
+    };
+    const { context, dispatched, call } = setup([list], {
+      "element.resolve": resolved,
+      "element.search": { hits: [], total: 0, incomplete: false },
+    });
+    const found = await jumpPrompt(context).find?.(" [SR-036/AK-k7f3] ");
+    expect(call).toHaveBeenCalledWith("element.resolve", { ref: "[SR-036/AK-k7f3]" });
+    expect(found?.map((choice) => choice.name)).toEqual([
+      "SR-000001 (SR-036) Wind · AK2 (k7f3) · Given a gust.",
+    ]);
+    found?.[0]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind") },
+    ]);
+  });
+
+  it("[SR-205/AK5] Go to asks element.resolve only for a reference with a key, and echoes its refusal of a bracket token", async () => {
+    const { context, call, echoed } = setup([list], {
+      "element.resolve": new Error("SR-036 has no acceptance criterion with the criterion key zzzz"),
+      "element.search": { hits: [], total: 0, incomplete: false },
+    });
+    const prompt = jumpPrompt(context);
+    expect(await prompt.find?.("wind")).toEqual([]);
+    expect(await prompt.find?.("[SR-036/AK2]")).toEqual([]);
+    expect(call).not.toHaveBeenCalledWith("element.resolve", expect.anything());
+    // Without brackets it may still be being typed: refused without an echo.
+    expect(await prompt.find?.("SR-036/AK-zzzz")).toEqual([]);
+    expect(echoed).toEqual([]);
+    expect(await prompt.find?.("[SR-036/AK-zzzz]")).toEqual([]);
+    expect(echoed).toEqual(["SR-036 has no acceptance criterion with the criterion key zzzz"]);
+    expect(
+      await criterionChoices(
+        setup([list], { "element.resolve": { element: resolvedElement, current: null } }).context,
+        "[SR-036/AK-zzzz]",
+      ),
+    ).toEqual([]);
   });
 
   it("[SR-115/AK1] Go to offers no element shown last that is open, nor the shown buffer, and none without recent elements", () => {

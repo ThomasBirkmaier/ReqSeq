@@ -1,9 +1,27 @@
 // Cross-access scenarios of element.get, in addition to the default one (cross-access.test.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { HINTS, IDENTIFIERS, IN_CRITERIA, MISSING_TARGETS, VARIANT_VIEWS } from "../../fixtures.js";
+import { CRITERIA, HINTS, IDENTIFIERS, IN_CRITERIA, MISSING_TARGETS, VARIANT_VIEWS } from "../../fixtures.js";
 
 scenariosOf("element.get", [
+  {
+    tag: "[SR-205/AK1]",
+    name: "element.get gives each criterion its number, key, text and the reference for a test name",
+    fixture: CRITERIA,
+    input: { ref: "SR-0000e3" },
+    expect: "output",
+    check: (results) => {
+      const { criterionReferences } = (
+        results["core"]?.outcome as { output: { criterionReferences: { criteria: unknown[] } } }
+      ).output;
+      expect(criterionReferences.criteria[2]).toEqual({
+        criterion: 3,
+        key: "kfro",
+        text: "Given frost, then a mark shows.",
+        reference: "[SR-0000e3/AK-kfro]",
+      });
+    },
+  },
   {
     tag: "[SR-046/AK3]",
     name: "element.get names A as replacing and B as excluding variant",

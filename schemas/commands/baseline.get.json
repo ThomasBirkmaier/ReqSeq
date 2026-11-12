@@ -5,7 +5,7 @@
   "details": "With withEvidence: the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named. The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
   "effect": "read",
   "stage": 5,
-  "implements": ["SR-051", "SR-094"],
+  "implements": ["SR-051", "SR-094", "SR-205"],
   "arguments": [
     { "field": "baseline", "complete": "baseline" },
     { "field": "withEvidence", "complete": "boolean" },

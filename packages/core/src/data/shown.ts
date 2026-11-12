@@ -9,13 +9,15 @@
 // the element a write returns (element.create, element.update) the same verification and validation
 // status (#214), with `names` for the variants of its validity and the views and missing children of
 // `verification`, as element.get names them (#1216); `replacedBy`, `excludedBy` and `incomplete` stay
-// with element.get.
+// with element.get. `criterionReferences` gives the acceptance criteria of a requirement with number,
+// key, text and the reference for a test name (SR-205 AK1, `criterionReferencesOf`).
 import { exportedProperties, targetIds, withReplacedExcluded } from "./export.js";
 import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { DataExportElement, ElementName } from "../generated/types.js";
-import type { ElementRecord, NameContext, ShownElement } from "../model/index.js";
+import type { CriterionReferences, ElementRecord, NameContext, ShownElement } from "../model/index.js";
 import {
+  criterionReferencesOf,
   currentVersionsOf,
   elementStoreState,
   formsOfEntry,
@@ -50,6 +52,7 @@ const namesFieldOf = (
 /** What element.get and element.resolve give about one element besides their own fields. */
 export interface ShownWithNames {
   readonly element: DataExportElement;
+  readonly criterionReferences?: CriterionReferences;
   readonly names?: readonly ElementName[];
   readonly incomplete?: true;
 }
@@ -73,8 +76,16 @@ export const shownWithNames = async (workspace: Workspace, shown: ShownElement):
     ...uses.excludedBy.map((v) => v.id),
     ...uses.replacedBy.map((u) => u.replacement.id),
   ];
+  // The criteria as the file holds them now, named as the store resolves references (SR-205 AK1).
+  const references = criterionReferencesOf(
+    { metamodel, store, shortIds },
+    record,
+    element.type,
+    element.properties,
+  );
   return {
     element,
+    ...(references === undefined ? {} : { criterionReferences: references }),
     ...namesFieldOf({ metamodel, store, shortIds }, record, element, between),
     ...(layout.repositories.some((r) => !r.available) ? { incomplete: true as const } : {}),
   };

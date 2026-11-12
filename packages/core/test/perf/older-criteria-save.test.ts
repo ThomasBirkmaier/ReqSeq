@@ -12,6 +12,12 @@
 // status is carried over the save, computing again only the saved requirement and its ancestors
 // (`withOlder` in `verification.ts`). For comparison, the same reads after the status was reset,
 // as before #1418. No SR names a time for it: recorded, untagged.
+//
+// `workspace.check` with outdated criteria named (#1420, SR-205 AK2): the first `NAMED` requirements
+// whose records became older get a record of their current version for every other criterion, so
+// criterion 1 alone has records of older versions only and each `evidence.outdated` names it with
+// number, key and text (`criteria`). Recorded: the time, the size of the output and the share of the
+// `criteria` fields in it.
 import type { GeneratedElement, GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
@@ -40,6 +46,8 @@ const WARM_UP = 2;
 /** Top requirements whose subtrees the warm status has walked. */
 const TOPS = 200;
 const BASIS = "SR-031 AK11, SR-204, N-036 (#1418; recorded, untagged)";
+/** Requirements whose `evidence.outdated` names an outdated criterion (#1420). */
+const NAMED = 500;
 
 /**
  * `content` with every acceptance criterion of the frontmatter keyed (`k` and its position), the
@@ -178,4 +186,46 @@ describe("a save that makes records by number older, with 50,000 elements (#1418
     );
     expect(carried).toHaveLength(RUNS - WARM_UP);
   });
+
+  it("records workspace.check whose outdated evidence names the criteria with number, key and text (#1420)", async () => {
+    for (const element of numbered.slice(0, NAMED)) {
+      const shown = await get(element.id);
+      const count = ((shown.element.properties["acceptance-criteria"] ?? []) as unknown[]).length;
+      if (count < 2) {
+        continue;
+      }
+      await invoke(
+        "evidence.record",
+        {
+          ref: element.id,
+          kind: "verification",
+          method: "inspection",
+          item: "review-1420",
+          result: "passed",
+          date: "2026-11-01T10:00:00Z",
+          criteria: Array.from({ length: count - 1 }, (_, i) => i + 2),
+        },
+        { workspace: ws() },
+      );
+    }
+    const started = performance.now();
+    const out = (await invoke(
+      "workspace.check",
+      {},
+      { workspace: ws() },
+    )) as CommandOutput<"workspace.check">;
+    const ms = performance.now() - started;
+    const named = out.problems.filter((p) => p.code === "evidence.outdated" && p.criteria !== undefined);
+    const bytes = JSON.stringify(out).length;
+    const criteriaBytes = named.reduce((sum, p) => sum + JSON.stringify(p.criteria).length, 0);
+    await recordValue("workspace.check with outdated evidence that names its criteria (#1420)", ms, {
+      basis: "SR-205 AK2, SR-025 AK4, N-036 (recorded, untagged)",
+    });
+    await recordValue(
+      `workspace.check output: ${(bytes / 1e6).toFixed(1)} MB of JSON, ${String(named.length)} evidence.outdated with criteria, ${(criteriaBytes / 1e3).toFixed(0)} kB of them in criteria`,
+      0,
+      { basis: "SR-205 AK2 (output size; recorded)" },
+    );
+    expect(named.length).toBeGreaterThan(0);
+  }, 1_800_000);
 });

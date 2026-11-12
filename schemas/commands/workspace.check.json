@@ -22,7 +22,8 @@
     "SR-090",
     "SR-092",
     "SR-152",
-    "SR-171"
+    "SR-171",
+    "SR-205"
   ],
   "arguments": [
     { "field": "changedFiles", "complete": "file" },
