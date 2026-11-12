@@ -4,7 +4,7 @@ type: glossary-term
 title: "Validierung"
 area: fachlich
 see-also:
-  - { id: 6ad4f974-220e-4bf6-acba-b380b5bfd949, version: n2:833ea6aff18700b5, title: Nachweis }
+  - { id: 6ad4f974-220e-4bf6-acba-b380b5bfd949, version: n2:e622c616936766ff, title: Nachweis }
 english-term: validation
 ---
 
