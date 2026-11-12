@@ -611,6 +611,16 @@ describe("renderHuman: values", () => {
             targetShortId: "D-fd8f46",
             targetTitle: "Old login",
           },
+          // The view of outdated evidence, and a title written over lines on one line.
+          {
+            code: "evidence.outdated",
+            severity: "warning",
+            message: "Outdated",
+            file: "e.md",
+            elementShortId: "SR-b2",
+            elementTitle: "Warn\nof\tstorms ",
+            view: "core",
+          },
         ],
         total: 2,
         incomplete: false,
@@ -625,6 +635,7 @@ describe("renderHuman: values", () => {
         "hints:",
         "  D-589cf2 (D-017)  Log in → D-fd8f46  Old login  relation.target-superseded  Points to a superseded decision",
         "  D-a1 → D-fd8f46  Old login  relation.target-superseded  Points to a superseded decision",
+        "  SR-b2  Warn of storms  evidence.outdated  Outdated  view: core",
         "total: 2",
       ),
     );

@@ -307,7 +307,7 @@ export interface Problem {
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
-  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given with it, empty when the element has none or the metamodel gives no property the meaning `title`. */
+  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given with it; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`. */
   readonly elementTitle?: string;
   readonly targetId?: Uuid;
   /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */
@@ -3229,7 +3229,7 @@ export interface HintListOutput {
     /** Hints of this kind that pass the filters. */
     readonly count: number;
   }[];
-  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), the view of an outdated evidence record (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for outdated evidence the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;

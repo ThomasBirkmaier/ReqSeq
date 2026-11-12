@@ -2,9 +2,8 @@
 import type { CommandOutput } from "@reqseq/core";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
-import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { HINTS, IN_CRITERIA, OBSOLETE_SOURCE, SINCE_BASELINE } from "../../fixtures.js";
+import { coreOutput, HINTS, IN_CRITERIA, OBSOLETE_SOURCE, SINCE_BASELINE } from "../../fixtures.js";
 
 /** SR-A (SR-0000b1, validity [VAR-0000c1]) replaces the core requirement SR-K (SR-0000a1), whose content changed (SR-045). */
 const CORE_CHANGED: FixtureOptions = {
@@ -40,8 +39,8 @@ const COUNTED: FixtureOptions = {
 };
 
 /** The output of core in `results`. */
-const coreOutput = (results: Readonly<Record<string, Result>>): CommandOutput<"hint.list"> =>
-  (results["core"]?.outcome as { output: CommandOutput<"hint.list"> }).output;
+const hintsOf = (results: Parameters<typeof coreOutput>[0]): CommandOutput<"hint.list"> =>
+  coreOutput(results) as CommandOutput<"hint.list">;
 
 scenariosOf("hint.list", [
   {
@@ -51,7 +50,7 @@ scenariosOf("hint.list", [
     input: { limit: 1, offset: 6 },
     expect: "output",
     check: (results) => {
-      const output = coreOutput(results);
+      const output = hintsOf(results);
       expect(output.incomplete).toBe(true);
       expect(output.hints).toHaveLength(1);
       expect(output.kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(output.total);
@@ -70,7 +69,7 @@ scenariosOf("hint.list", [
     input: { kind: ["variant.nested"] },
     expect: "output",
     check: (results) => {
-      expect(coreOutput(results)).toMatchObject({ kinds: [{ code: "variant.nested", count: 0 }], total: 0 });
+      expect(hintsOf(results)).toMatchObject({ kinds: [{ code: "variant.nested", count: 0 }], total: 0 });
     },
   },
   {

@@ -44,8 +44,8 @@
 // - The elements of a list narrowed by element.list `fields` (#982) are in `partial`, which a grouped
 //   and a tree list read as `elements`; a row without `title` is no element, so such a list stays YAML.
 // - A list of findings other than `problems` (the hints of hint.list) is one line per finding: the
-//   element's short ID and title (and its target's), the kind, the message and the hint ID when it
-//   has one. Their counts per kind (`kinds`) print as YAML before them.
+//   element's short ID and title (and its target's), the kind, the message, the view of outdated
+//   evidence and the hint ID when it has one. Their counts per kind (`kinds`) print as YAML before them.
 // - A verification degree (`share` next to `counts`, SR-037), at any depth of a value printed as YAML,
 //   shows its share as a percentage rounded down to one decimal (`degreePercent` of core, the rule of
 //   every access, spec question ThomasBirkmaier/ReqSeq-archive#592 Q3): `share: 60 %`.
@@ -505,27 +505,35 @@ const listedElementDetails = (element: Rec): string[] => {
 /**
  * A hint of a list: who, in the form of a problem line (`element → target`, #252; the element by
  * short ID with identifier and title, else its file, the target the same way when core names it,
- * #172), the kind, the message and the hint ID.
+ * #172), the kind, the message, the view of outdated evidence and the hint ID.
  */
 const findingLine = (finding: Rec, style?: Style): string => {
   // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
   // unique per type only, so alone it could name the wrong element (`--ref`).
-  // Each with its title when it has one (SR-026 AK6), as `names` prints an element: `SHORT-ID  title`.
+  // Each with its title when it has one (SR-026 AK6), as `names` prints an element: `SHORT-ID  title`,
+  // on one line however the title is written.
+  const titleOf = (value: unknown): string =>
+    text(value)
+      .replace(/[\s\p{Cc}]+/gu, " ")
+      .trim();
   const elementShortId = text(finding["elementShortId"]);
   const element =
     elementShortId === ""
       ? text(finding["file"])
-      : join(nameOn(style, elementShortId, finding["elementIdentifier"]), text(finding["elementTitle"]));
+      : join(nameOn(style, elementShortId, finding["elementIdentifier"]), titleOf(finding["elementTitle"]));
   const targetShortId = text(finding["targetShortId"]);
   const target =
     targetShortId === ""
       ? ""
-      : join(nameOn(style, targetShortId, finding["targetIdentifier"]), text(finding["targetTitle"]));
+      : join(nameOn(style, targetShortId, finding["targetIdentifier"]), titleOf(finding["targetTitle"]));
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
   const hint = hintId === "" ? "" : `hint: ${hintId}`;
+  // The view of outdated evidence (SR-026 AK6), `core` or the variant's UUID, as core gives it.
+  const viewOf = text(finding["view"]);
+  const view = viewOf === "" ? "" : `view: ${viewOf}`;
   if (style === undefined) {
-    return join(who, text(finding["code"]), text(finding["message"]), hint);
+    return join(who, text(finding["code"]), text(finding["message"]), view, hint);
   }
   // On a terminal (#988) its severity first, coloured by it, the hint ID faint.
   const severity = text(finding["severity"]);
@@ -534,6 +542,7 @@ const findingLine = (finding: Rec, style?: Style): string => {
     who,
     text(finding["code"]),
     text(finding["message"]),
+    view,
     style.faint(hint),
   );
 };

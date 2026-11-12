@@ -30,7 +30,7 @@
 //   the output holds `limit` hints from `offset`, in the order above.
 // - Counts per kind (`kinds`, AK6): in the same pass, over every hint that passes, in the order of
 //   each kind's first hint; with `kind` also each named kind without a hint, count 0, after them in
-//   the order `kind` names them (AK6: "ohne passende Hinweise ist die Zahl 0"). The titles of the
+//   the order `kind` names them, so a kind asked for without a hint has count 0 (AK6). The titles of the
 //   element and the target (`elementTitle`, `targetTitle`) are added with their short IDs by `invoke`,
 //   the view of outdated evidence (`view`) by its state (`evidence.ts`).
 // - The dates of outdated relations are asked of Git only for the hints of the page.
@@ -369,17 +369,22 @@ export const hintsOf = async (
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
     (!byElement || elementMatches(problemElement(context.store, problem), filter, context, view));
+  const counted = new Map<string, number>();
+  /** Whether `problem` passes, counted by its kind when it does. */
+  const counts = (problem: Problem): boolean => {
+    if (!passes(problem)) {
+      return false;
+    }
+    counted.set(problem.code, (counted.get(problem.code) ?? 0) + 1);
+    return true;
+  };
   const found: Problem[] = [];
   for (const problem of problems) {
-    if (passes(problem)) {
+    if (counts(problem)) {
       found.push(problem);
     }
   }
-  const late = outdated.filter((f) => passes(f.problem));
-  const counted = new Map<string, number>();
-  for (const { code } of [...found, ...late.map((f) => f.problem)]) {
-    counted.set(code, (counted.get(code) ?? 0) + 1);
-  }
+  const late = outdated.filter((f) => counts(f.problem));
   const end = page.offset + page.limit;
   const from = Math.max(0, page.offset - found.length);
   const dated = await datedProblems(workspace, late.slice(from, Math.max(from, end - found.length)));

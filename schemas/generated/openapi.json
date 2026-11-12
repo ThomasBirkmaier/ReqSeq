@@ -7956,7 +7956,7 @@
                     },
                     "hints": {
                       "type": "array",
-                      "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), the view of an outdated evidence record (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+                      "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for outdated evidence the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
                       }
@@ -13859,7 +13859,7 @@
               },
               "elementTitle": {
                 "type": "string",
-                "description": "Title of the element `elementId` names, for display next to `elementShortId`; given with it, empty when the element has none or the metamodel gives no property the meaning `title`."
+                "description": "Title of the element `elementId` names, for display next to `elementShortId`; given with it; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
               },
               "targetId": {
                 "$ref": "#/components/schemas/common/$defs/uuid"
