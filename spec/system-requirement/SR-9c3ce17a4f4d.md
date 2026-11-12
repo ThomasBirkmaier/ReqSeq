@@ -14,7 +14,7 @@ acceptance-criteria:
   - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058, SR-054 AK2).
 verification-method: test
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 refines:
   - { id: 6adc6d25-0c38-4486-8849-02874ac41f76, version: n2:1390184909e23837, title: Stellungnahme als ReqIF exportieren }
 derives-from:

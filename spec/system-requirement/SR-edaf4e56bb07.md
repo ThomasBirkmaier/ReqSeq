@@ -11,13 +11,13 @@ acceptance-criteria:
   - Gegeben die App, wenn sie geprüft wird, dann öffnet sie keine eigenen Formulare, keine eigenen modalen Dialoge und keine dauerhaften Seitenleisten, außer den Ausnahmen, die D-062 erlaubt.
   - Gegeben eine Farbe in der Oberfläche, wenn sie geprüft wird, dann kennzeichnet sie eine Bedeutung wie veraltet, Lücke oder aktuelles Element.
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 verification-method: inspection
 derives-from:
   - { id: 6ad49f57-47f2-4570-a046-b1af59b51503, version: n1:7406bb900e631830, title: "Einfach, minimalistisch und ästhetisch" }
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
 ---
 
 Die App darf nur zeigen, was im jeweiligen Moment etwas aussagt; alles andere muss sie auf Abruf zeigen.

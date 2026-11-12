@@ -16,7 +16,7 @@ derives-from:
 based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 packages:
-  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
+  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:de4346c0dff1f5d3, title: Dokumentation }
 ---
 
 Das Tool muss einen Einstieg und für häufige Aufgaben je eine knappe Anleitung mitliefern, deren Beispiele der Kommandozeile mit der Version laufen, zu der die Dokumentation gehört, und deren übrige Abläufe nur Befehle, API-Pfade und MCP-Werkzeuge dieser Version nennen.

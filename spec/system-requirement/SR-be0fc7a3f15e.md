@@ -17,10 +17,10 @@ verification-method: test
 derives-from:
   - { id: 0a18e65d-e41b-4ed7-8662-8bc7e547d5ab, version: n1:48629460c434fb03, title: Metamodell des Projekts sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
   - { id: 6adc78d0-70c6-4553-afd0-f972137d5459, version: n2:2f8320e9c98aa726, title: Kennzeichen für die Fassung }
 packages:
-  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:cbcfa73eec53e04c, title: Metamodell und Prüfung }
+  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:9a6d5b6b85dc5026, title: Metamodell und Prüfung }
 ---
 
 Das Tool muss das Metamodell des geöffneten Arbeitsbereichs auf Befehl als Graph und als Text zeigen.

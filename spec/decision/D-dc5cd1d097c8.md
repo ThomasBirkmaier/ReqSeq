@@ -6,7 +6,7 @@ title: "Ablösen statt löschen"
 spec-id: "D-045"
 ---
 
-Das Tool bietet kein Löschen von Elementen, nur Ablösen: Der Status wird ungültig ([D-044](reqseq:6adc6922-e6d1-4d0a-9617-83d65c71cf7f?version=n2:a015fc3f832d33fc)), und optional zeigt der Nachfolger mit Supersedes auf das abgelöste Element. Eine eigene Beziehung Superseded by gibt es nicht; die Richtung vom alten Element zum Nachfolger ergibt sich aus Supersedes.
+Das Tool bietet kein Löschen von Elementen, nur Ablösen: Der Status wird ungültig ([D-044](reqseq:6adc6922-e6d1-4d0a-9617-83d65c71cf7f?version=n2:ce205554ccf5d3d5)), und optional zeigt der Nachfolger mit Supersedes auf das abgelöste Element. Eine eigene Beziehung Superseded by gibt es nicht; die Richtung vom alten Element zum Nachfolger ergibt sich aus Supersedes.
 
 Damit sich auch Elemente eines Typs ohne Status ablösen lassen, bekommt ein solcher Typ genau einen Statuswert, der ungültig ist, zum Beispiel Retired. Ein Element dieses Typs ohne Status gilt als aktuell.
 

@@ -24,7 +24,7 @@ acceptance-criteria:
     text: "Gegeben die Datei `.reqseq/local.yaml` ist im Haupt-Repository in Git eingecheckt oder zum Commit vorgemerkt, wenn der Arbeitsbereich geöffnet wird, dann verwendet das Tool sie nicht, meldet eine Warnung und nimmt die Orte aus der Arbeitsbereichs-Datei. Gibt es für das Haupt-Repository kein Git-Repository (AK6), gilt die Datei. Gibt es eines, verwendet das Tool die Datei nicht und meldet eine Warnung mit dem Grund, wenn der Ordner `.reqseq` selbst ein Git-Repository oder ein Link ist oder wenn Git das Repository ablehnt, scheitert oder nicht rechtzeitig antwortet; ist sonst kein Git-Programm installiert, gilt die Datei."
 verification-method: test
 packages:
-  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:39b8c7c89788abe8, title: Ablage und Repositories }
 derives-from:
   - { id: 6ad4f636-3b68-4ace-a3be-12ebdcba9b2a, version: n1:fb6a0af7414140ba, title: Ein oder viele Repositories }
 based-on:

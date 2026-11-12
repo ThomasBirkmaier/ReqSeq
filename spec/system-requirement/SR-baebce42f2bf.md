@@ -11,7 +11,7 @@ acceptance-criteria:
 validity:
   - { id: 9a7c2fca-3edf-43ab-8b68-7771b9666d08, version: n2:970f7f0a83619951, title: Linux }
 packages:
-  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
+  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:de4346c0dff1f5d3, title: Dokumentation }
 verification-method: test
 refines:
   - { id: e6faea96-23af-4d19-bbf0-622baef7e5aa, version: n2:f1a9d708c7963ffb, title: Einstieg und Anleitungen mit geprüften Beispielen }

@@ -13,14 +13,14 @@ acceptance-criteria:
   - Gegeben die Plaketten eines Requirements, wenn sie im hellen und im dunklen Erscheinungsbild angezeigt werden, dann haben Text und Hintergrund jeder Hälfte ein Kontrastverhältnis von mindestens 4,5:1.
   - Gegeben die Plakette einer Variante, wenn auf ihre linke Hälfte geklickt wird, dann öffnet die App die Variante.
 packages:
-  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }
 verification-method: test
 refines:
   - { id: 6adc6c96-e67e-4b89-b89d-9b7a06c41d9d, version: n2:59e915078861ce27, title: Nachweis je Variante führen }
 derives-from:
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n2:b080b82a30d57303, title: Status von Nachweis und Validierung }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
 ---
 
 Das Tool muss auf der Seite eines Requirements den Nachweisstatus des Kerns und jeder Variante als Plakette in Pillenform zeigen, links den Namen, rechts den Status.

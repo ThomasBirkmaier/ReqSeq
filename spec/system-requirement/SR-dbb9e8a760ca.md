@@ -11,7 +11,7 @@ acceptance-criteria:
   - "Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht."
 verification-method: test
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:

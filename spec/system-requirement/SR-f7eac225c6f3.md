@@ -18,13 +18,13 @@ acceptance-criteria:
   - key: ndnj
     text: Gegeben ein Bezug mit Kriterienschlüssel, etwa `[SR-036/AK-k7f3]` aus einem fehlgeschlagenen Test, wenn er aufgelöst wird (App, Kommandozeile, API, MCP), dann nennt das Tool Requirement, Nummer und Text des Akzeptanzkriteriums.
 packages:
-  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }
 verification-method: test
 derives-from:
   - { id: 6ad49bf3-78bf-4ed8-9311-04142d2988ac, version: n2:3c28eb663e715c27, title: Nachweisstatus aus anderen Werkzeugen }
   - { id: 6ad39e3f-89cc-42d3-9499-8cfa89caf73c, version: n2:b6a8d4281d1101b3, title: Wenig Aufwand für Werkzeuganbindung }
 based-on:
-  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:2b83f2d600f6b5fc, title: Nachweisstatus je Akzeptanzkriterium }
+  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:7ef5d1ede9d258ed, title: Nachweisstatus je Akzeptanzkriterium }
 ---
 
 Das Tool muss zu jedem Akzeptanzkriterium Kriterienschlüssel, Nummer und Text ausgeben und einen Bezug für Testnamen liefern, der auf das Akzeptanzkriterium zeigt, auch wenn sich seine Nummer ändert.

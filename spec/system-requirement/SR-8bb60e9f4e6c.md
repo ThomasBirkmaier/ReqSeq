@@ -13,11 +13,11 @@ acceptance-criteria:
   - "Gegeben ein Requirement mit offenen Datensätzen, wenn sie in der App angezeigt werden, dann steht jede der Angaben Datum, Prüfling, Fassung und Baselines, die alle offenen Datensätze teilen, einmal über den Zeilen der Akzeptanzkriterien und nicht in jeder Zeile."
 verification-method: test
 packages:
-  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }
 derives-from:
   - { id: 6ad3a129-d7b1-4b17-a9d7-6caf73d38315, version: n1:9b945f99f310e930, title: "Requirement, Baseline und Nachweis" }
 based-on:
-  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:c39ce145802bd72b, title: Baseline als Datei }
+  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:310c324700784a6f, title: Baseline als Datei }
 rationale: Die Nachweis-Ansicht zeigte jeden Datensatz, den es je gab, und wirkte unübersichtlich. Alle Datensätze bleiben sichtbar, wie AK1 verlangt, aber offen steht nur, was den Status trägt; die Historie ist eingeklappt wie ein Abschnitt im Editor. Auch so wiederholte jede Zeile dieselben Angaben eines CI-Laufs, nannte weder Akzeptanzkriterium noch Testfall und klappte die anderen Plattformen desselben Laufs als ältere Datensätze weg. Auf einen Blick soll das Ergebnis je Akzeptanzkriterium zu sehen sein; die gemeinsamen Angaben stehen einmal, die Einzelheiten bis zum Datensatz liegen eine Faltung tiefer.
 ---
 

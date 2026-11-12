@@ -16,13 +16,13 @@ acceptance-criteria:
   - Gegeben ein geteiltes Fenster, wenn Alt+O (Option+O auf macOS) gedrückt wird, auch beim Tippen im Texteditor, dann wird der andere Bereich aktiv wie mit dem Befehl „Other window“, und es wird kein Zeichen eingefügt.
   - Gegeben ein geteiltes Fenster, dann ist der Text des inaktiven Bereichs etwas blasser, also mit etwas weniger Kontrast zum Hintergrund als der des aktiven, und erreicht im hellen wie im dunklen Modus noch einen Kontrast von mindestens 4,5:1 (WCAG 2.2 AA).
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 verification-method: test
 derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n1:49c90a7abf6c0e3c, title: Befehle finden und Kürzel lernen }
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:8db21e7aaeb96d22, title: In Buffern arbeiten }
 ---

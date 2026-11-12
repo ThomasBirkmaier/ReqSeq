@@ -10,7 +10,7 @@ acceptance-criteria:
   - "Gegeben ein Zyklus, wenn über die Kommandozeile geprüft wird und die Prüfung schon bei Warnungen fehlschlagen soll (SR-019), dann endet die Prüfung mit Exit-Code 1."
 verification-method: test
 packages:
-  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:4585916724ff3a77, title: Traceability }
+  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:dd8ebe8868421160, title: Traceability }
 derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }

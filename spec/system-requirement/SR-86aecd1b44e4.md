@@ -13,7 +13,7 @@ acceptance-criteria:
   - Gegeben ein Datensatz der Art Validierung zu einem Element, das weder Need noch Requirement ist, wenn die Datensätze gelesen werden, dann zählt er für keinen Status und das Tool meldet ihn als Befund.
 verification-method: test
 packages:
-  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }
 derives-from:
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n2:b080b82a30d57303, title: Status von Nachweis und Validierung }
 based-on:

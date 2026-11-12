@@ -14,7 +14,7 @@ acceptance-criteria:
   - Gegeben der Arbeitsbereich aus AK1, wenn nach dem Start das erste Element geöffnet wird, dann ist es nach höchstens 1 Sekunde sichtbar.
 verification-method: test
 packages:
-  - { id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d, version: n2:7df5ce1577740687, title: Betrieb und Sicherheit }
+  - { id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d, version: n2:3cd7fefae7f4386e, title: Betrieb und Sicherheit }
 derives-from:
   - { id: 6ad4f636-daf5-4ccf-86d9-ddb4a7ec1b28, version: n1:dfb6208ba57988f0, title: Große Datenmengen }
 ---

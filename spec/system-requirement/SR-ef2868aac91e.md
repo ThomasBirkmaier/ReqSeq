@@ -18,9 +18,9 @@ verification-method: test
 derives-from:
   - { id: 6ad49f57-47f2-4570-a046-b1af59b51503, version: n2:07b7ff5a4868078c, title: "Einfach, minimalistisch und ästhetisch" }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:ab8ff55da5e7aee4, title: Oberfläche als weißes Blatt }
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 ---
 
 Die App muss die Trefferkarte der Befehlszeile beim Öffnen mit einer kurzen Bewegung von unten einblenden und dabei den Hintergrund im gleichen Maß dezent abdunkeln und im Bereich ihres Schattens leicht unscharf zeigen, sodass die Karte wirkt, als lege sie sich über den Inhalt.

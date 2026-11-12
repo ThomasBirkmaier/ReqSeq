@@ -10,7 +10,7 @@ acceptance-criteria:
   - Gegeben zwei Repositories, das zweite in der Arbeitsbereichs-Datei als nur über IDs referenziert gekennzeichnet, und der Titel eines Elements des zweiten steht in einer Datei des ersten, wenn der Arbeitsbereich geprüft wird, dann meldet das Tool eine Warnung mit Datei und Zeile.
   - Gegeben eine Textpassage aus einem Element des zweiten Repositories steht in einer Datei des ersten, die kein Element ist (zum Beispiel ein Nachweis-Datensatz oder eine README), wenn geprüft wird, dann meldet das Tool sie ebenso.
 packages:
-  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:39b8c7c89788abe8, title: Ablage und Repositories }
 verification-method: test
 derives-from:
   - { id: 6adc4fbb-04b5-4bda-a110-17ed577eb713, version: n2:8adb9da36ffa569f, title: Vertrauliches getrennt ablegen }

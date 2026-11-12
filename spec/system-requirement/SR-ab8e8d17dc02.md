@@ -12,12 +12,12 @@ acceptance-criteria:
   - Gegeben SR-K wird abgelöst, wenn die Hinweise abgefragt werden, dann zeigt das Tool am ersetzenden Requirement SR-A den üblichen Hinweis auf ein abgelöstes Ziel mit dem Nachfolger und keinen Hinweis nach AK1.
 verification-method: test
 packages:
-  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }
 derives-from:
   - { id: 6ad3a4c6-cb89-4fc6-acdf-ff0c8aad33ed, version: n1:0d48a780647af98d, title: Hinweis bei Änderung im Kern }
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n2:fa0fbf62535d1e3c, title: Fassung als Prüfwert über den Inhalt }
-  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n2:7f2eda4c041e3a53, title: Hinweise werden bestätigt }
+  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n2:76d33feef0c6a3a4, title: Hinweise werden bestätigt }
 ---
 
 Wenn sich ein Kern-Requirement ändert, das eine Variante durch ein eigenes Requirement ersetzt hat, muss das Tool am ersetzenden Requirement einen Hinweis zeigen, den die Variante auflistet.

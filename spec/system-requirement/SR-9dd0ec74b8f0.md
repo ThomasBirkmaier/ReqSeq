@@ -11,7 +11,7 @@ acceptance-criteria:
   - Gegeben am Zielort liegt eine ReqIF-Datei, die unverändert ist, seit der Export sie vor dem Schreiben gelesen hat, wenn dorthin exportiert wird, dann ersetzt das Tool sie.
   - Gegeben im Ordner für die Bilder neben der Zieldatei liegt eine Datei, die kein Bild ist, wenn exportiert wird, dann lehnt das Tool ab und ändert sie nicht.
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 verification-method: test
 refines:
   - { id: 6adc6d1e-80be-4ec1-acac-006873bc163c, version: n2:8bbf773ad7730440, title: Paket als ReqIF exportieren }

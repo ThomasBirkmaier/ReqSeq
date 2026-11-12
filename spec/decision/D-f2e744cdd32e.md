@@ -7,4 +7,4 @@ spec-id: D-066
 rationale: Der frühere Name liest sich als „Log Request“; ReqSeq steht für Requirements suchen und finden. Alles umbenennen, ohne Rückwärtskompatibilität, und die Fassungen dürfen dafür einmal neu berechnet werden (#333).
 ---
 
-Das Tool heißt ReqSeq. Namen der Software-Pakete, Befehl, Dateiformate, Verweis-Schema, Kennungen und Texte tragen diesen Namen. Frühere Schreibweisen werden nicht mehr gelesen. Mit der Umbenennung ändert sich einmalig das Präfix der Fassungsberechnung; abweichend von [D-027](reqseq:6adc58f6-3aa2-4478-b345-670b5cbb1127?version=n2:66a078362949a01f) werden dabei alle gespeicherten Fassungen einmal neu berechnet.
+Das Tool heißt ReqSeq. Namen der Software-Pakete, Befehl, Dateiformate, Verweis-Schema, Kennungen und Texte tragen diesen Namen. Frühere Schreibweisen werden nicht mehr gelesen. Mit der Umbenennung ändert sich einmalig das Präfix der Fassungsberechnung; abweichend von [D-027](reqseq:6adc58f6-3aa2-4478-b345-670b5cbb1127?version=n2:3d1a453b7cfd1dc5) werden dabei alle gespeicherten Fassungen einmal neu berechnet.
