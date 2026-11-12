@@ -6,9 +6,12 @@ title: "Zuordnung zum Metamodell als Datei speichern"
 spec-id: "SR-054"
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben ein erster Import, wenn Typen, Beziehungsarten und Attribute der Quelle den Typen, Beziehungsarten und Properties des Metamodells zugeordnet werden, dann speichert das Tool die Zuordnung als YAML-Datei im Repository, eine Datei je Quelle im Ordner `reqif` des Haupt-Repositorys (zum Beispiel `reqif/kunde-a.yaml`).
-  - Gegeben eine gespeicherte Zuordnung, wenn dieselbe Quelle erneut importiert oder dorthin exportiert wird und der Befehl die Zuordnungsdatei nennt, dann verwendet das Tool sie und braucht keine weitere Angabe zu Typen, Beziehungsarten und Attributen. Ein Export an die Quelle (SR-058) nimmt aus ihr nur die wegzulassenden Properties (SR-059) und das Attribut der Stellungnahme, ein Export im Modell der Quelle (SR-158) außerdem deren Typen, Attribute und Aufzählungswerte.
-  - "Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht."
+  - key: yc8n
+    text: Gegeben ein erster Import, wenn Typen, Beziehungsarten und Attribute der Quelle den Typen, Beziehungsarten und Properties des Metamodells zugeordnet werden, dann speichert das Tool die Zuordnung als YAML-Datei im Repository, eine Datei je Quelle im Ordner `reqif` des Haupt-Repositorys (zum Beispiel `reqif/kunde-a.yaml`).
+  - key: vy8n
+    text: Gegeben eine gespeicherte Zuordnung, wenn dieselbe Quelle erneut importiert oder dorthin exportiert wird und der Befehl die Zuordnungsdatei nennt, dann verwendet das Tool sie und braucht keine weitere Angabe zu Typen, Beziehungsarten und Attributen. Ein Export an die Quelle (SR-058) nimmt aus ihr nur die wegzulassenden Properties (SR-059) und das Attribut der Stellungnahme, ein Export im Modell der Quelle (SR-158) außerdem deren Typen, Attribute und Aufzählungswerte.
+  - key: q7hs
+    text: Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht.
 verification-method: test
 packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }

@@ -6,10 +6,14 @@ title: Nur Aussagekräftiges zeigen
 spec-id: SR-110
 requirement-type: quality
 acceptance-criteria:
-  - Gegeben jede Ansicht der App, wenn sie geprüft wird, dann lässt sich für jedes sichtbare Bedienelement und jede Angabe sagen, was es in diesem Moment aussagt.
-  - Gegeben ein Element, wenn es angezeigt wird, dann erscheinen UUID und Fassung nur auf Abruf, außerdem das Datum der gespeicherten Fassung, soweit sie eines hat, bei einer veralteten Beziehung oder einem veralteten Verweis (D-013).
-  - Gegeben die App, wenn sie geprüft wird, dann öffnet sie keine eigenen Formulare, keine eigenen modalen Dialoge und keine dauerhaften Seitenleisten, außer den Ausnahmen, die D-062 erlaubt.
-  - Gegeben eine Farbe in der Oberfläche, wenn sie geprüft wird, dann kennzeichnet sie eine Bedeutung wie veraltet, Lücke oder aktuelles Element.
+  - key: mq2f
+    text: Gegeben jede Ansicht der App, wenn sie geprüft wird, dann lässt sich für jedes sichtbare Bedienelement und jede Angabe sagen, was es in diesem Moment aussagt.
+  - key: j1xs
+    text: Gegeben ein Element, wenn es angezeigt wird, dann erscheinen UUID und Fassung nur auf Abruf, außerdem das Datum der gespeicherten Fassung, soweit sie eines hat, bei einer veralteten Beziehung oder einem veralteten Verweis (D-013).
+  - key: z4yw
+    text: Gegeben die App, wenn sie geprüft wird, dann öffnet sie keine eigenen Formulare, keine eigenen modalen Dialoge und keine dauerhaften Seitenleisten, außer den Ausnahmen, die D-062 erlaubt.
+  - key: k156
+    text: Gegeben eine Farbe in der Oberfläche, wenn sie geprüft wird, dann kennzeichnet sie eine Bedeutung wie veraltet, Lücke oder aktuelles Element.
 packages:
   - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 verification-method: inspection

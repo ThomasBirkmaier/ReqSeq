@@ -7,12 +7,18 @@ spec-id: SR-125
 rationale: "Eine Traceability-Matrix ist Pflicht und fehlt noch; sie soll neu gedacht werden: mit kaskadierten Filtern zum Beispiel alle SRs eines Pakets wählen, die Matrix aufrufen und so die relative Übersicht bekommen. SR-153 gilt statt AK3; als Lücke gilt nur eine Zelle, die eine Mindestzahl ab 1 aus dem Metamodell unterschreitet (SR-152)."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben eine gefilterte Liste, zum Beispiel alle System Requirements des Pakets Editor, wenn die Matrix per Befehl aufgerufen wird, dann zeigt das Tool sie in einem Buffer mit genau einer Zeile je Element der Liste, in der Reihenfolge der Liste.
-  - Gegeben die Elemente der Auswahl haben Beziehungen, wenn die Matrix angezeigt wird, dann hat sie je Beziehungsart und Richtung, die vorkommt, eine Spalte, zum Beispiel „Derives from“ und „Derived by“, und jede Zelle nennt die verbundenen Elemente mit Kurz-ID und Titel.
-  - Gegeben eine Spalte der Matrix, wenn die Matrix angezeigt wird, dann kennzeichnet das Tool Lücken und nennt die Angaben über der Spalte so, wie SR-153 es festlegt; eine leere Zelle ist nicht schon deshalb eine Lücke.
-  - Gegeben eine Beziehung zeigt auf eine ältere Fassung ihres Ziels oder auf ein fehlendes Ziel, wenn die Matrix angezeigt wird, dann ist sie in ihrer Zelle als veraltet oder fehlend gekennzeichnet.
-  - Gegeben ein Element in einer Zeile oder Zelle der Matrix, wenn es gewählt wird, dann öffnet das Tool dieses Element.
-  - Gegeben eine Auswahl über Paket, gespeicherten Filter oder eine Liste von IDs, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool dieselben Zeilen, Spalten und Zellen wie die App für dieselbe Auswahl.
+  - key: mzzq
+    text: Gegeben eine gefilterte Liste, zum Beispiel alle System Requirements des Pakets Editor, wenn die Matrix per Befehl aufgerufen wird, dann zeigt das Tool sie in einem Buffer mit genau einer Zeile je Element der Liste, in der Reihenfolge der Liste.
+  - key: wzq6
+    text: Gegeben die Elemente der Auswahl haben Beziehungen, wenn die Matrix angezeigt wird, dann hat sie je Beziehungsart und Richtung, die vorkommt, eine Spalte, zum Beispiel „Derives from“ und „Derived by“, und jede Zelle nennt die verbundenen Elemente mit Kurz-ID und Titel.
+  - key: ps48
+    text: Gegeben eine Spalte der Matrix, wenn die Matrix angezeigt wird, dann kennzeichnet das Tool Lücken und nennt die Angaben über der Spalte so, wie SR-153 es festlegt; eine leere Zelle ist nicht schon deshalb eine Lücke.
+  - key: zs8y
+    text: Gegeben eine Beziehung zeigt auf eine ältere Fassung ihres Ziels oder auf ein fehlendes Ziel, wenn die Matrix angezeigt wird, dann ist sie in ihrer Zelle als veraltet oder fehlend gekennzeichnet.
+  - key: k8sg
+    text: Gegeben ein Element in einer Zeile oder Zelle der Matrix, wenn es gewählt wird, dann öffnet das Tool dieses Element.
+  - key: w9wp
+    text: Gegeben eine Auswahl über Paket, gespeicherten Filter oder eine Liste von IDs, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool dieselben Zeilen, Spalten und Zellen wie die App für dieselbe Auswahl.
 verification-method: test
 packages:
   - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:dd8ebe8868421160, title: Traceability }

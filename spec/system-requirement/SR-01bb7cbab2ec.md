@@ -6,8 +6,10 @@ title: "Prüfung auf geänderte Elemente beschränken"
 spec-id: "SR-092"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Merge Request ändert 3 von 1.000 Elementen, wenn mit Angabe des Ziel-Commits geprüft wird, dann meldet das Tool nur Befunde zu diesen 3 Elementen, zu ihren Zielen und zu den Beziehungen und Verweisen anderer Elemente, die auf eines der 3 zeigen."
-  - "Gegeben ein Commit, der lokal nicht vorhanden ist, wenn geprüft wird, dann meldet die Kommandozeile das und endet mit Exit-Code 4."
+  - key: jzpz
+    text: Gegeben ein Merge Request ändert 3 von 1.000 Elementen, wenn mit Angabe des Ziel-Commits geprüft wird, dann meldet das Tool nur Befunde zu diesen 3 Elementen, zu ihren Zielen und zu den Beziehungen und Verweisen anderer Elemente, die auf eines der 3 zeigen.
+  - key: fh11
+    text: Gegeben ein Commit, der lokal nicht vorhanden ist, wenn geprüft wird, dann meldet die Kommandozeile das und endet mit Exit-Code 4.
 verification-method: test
 packages:
   - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:dd8ebe8868421160, title: Traceability }

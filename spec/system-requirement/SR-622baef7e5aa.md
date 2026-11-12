@@ -7,9 +7,12 @@ spec-id: SR-140
 rationale: "Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
-  - Gegeben ein Beispiel der Kommandozeile im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel oder eine abweichende Ausgabe verhindert den Bau; in den Abläufen für App, API und MCP prüft der Bau, dass die genannten Befehle, API-Pfade und MCP-Werkzeuge in dieser Version existieren.
-  - Gegeben eine Anleitung zu einer Aufgabe, die in App, Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
+  - key: kbzc
+    text: Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
+  - key: v5p1
+    text: Gegeben ein Beispiel der Kommandozeile im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel oder eine abweichende Ausgabe verhindert den Bau; in den Abläufen für App, API und MCP prüft der Bau, dass die genannten Befehle, API-Pfade und MCP-Werkzeuge in dieser Version existieren.
+  - key: d28g
+    text: Gegeben eine Anleitung zu einer Aufgabe, die in App, Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
 verification-method: test
 derives-from:
   - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n1:26036afe5f131d21, title: Das Tool ohne fremde Hilfe benutzen lernen }

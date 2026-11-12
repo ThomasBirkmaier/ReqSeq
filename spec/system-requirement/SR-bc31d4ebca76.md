@@ -7,7 +7,8 @@ spec-id: "SR-020"
 rationale: Zielwert bestätigt. Die Prüfung läuft in jedem Merge Request und soll ihn nicht spürbar verzögern.
 requirement-type: performance
 acceptance-criteria:
-  - "Gegeben ein Arbeitsbereich mit 50.000 Elementen und 200.000 Beziehungen auf einem Rechner mit 4 Kernen und 16 GB Speicher, wenn die Prüfung über die Kommandozeile ohne Zwischenspeicher läuft, dann ist sie nach höchstens 60 Sekunden fertig."
+  - key: srb3
+    text: Gegeben ein Arbeitsbereich mit 50.000 Elementen und 200.000 Beziehungen auf einem Rechner mit 4 Kernen und 16 GB Speicher, wenn die Prüfung über die Kommandozeile ohne Zwischenspeicher läuft, dann ist sie nach höchstens 60 Sekunden fertig.
 verification-method: test
 packages:
   - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:9a6d5b6b85dc5026, title: Metamodell und Prüfung }
