@@ -6,10 +6,13 @@
 // under the root row (`chain-lines.ts`, SR-033, #646). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (ThomasBirkmaier/ReqSeq-archive#85).
+// The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4).
 import { useEffect, useMemo } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import { isHintOutput } from "./hint-list.js";
+import { HintListView } from "./HintListView.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import { resultSummary } from "./result.js";
@@ -40,10 +43,14 @@ export const ResultView = ({
     [buffer.command, buffer.output],
   );
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));
+  const hints = buffer.command === "hint.list" && isHintOutput(buffer.output) ? buffer.output : undefined;
 
   useEffect(() => {
-    onData(buffer.key, { kind: "result", ...resultSummary(buffer.output) });
-  }, [buffer.key, buffer.output, onData]);
+    // The hint list says what it shows itself, with the message of its marked hint.
+    if (hints === undefined) {
+      onData(buffer.key, { kind: "result", ...resultSummary(buffer.output) });
+    }
+  }, [buffer.key, buffer.output, hints, onData]);
 
   useEffect(() => {
     // The output of a write command is never asked again: that would write again.
@@ -99,6 +106,10 @@ export const ResultView = ({
       open(Math.max(0, cursor));
     }
   };
+
+  if (hints !== undefined) {
+    return <HintListView call={call} buffer={buffer} output={hints} dispatch={dispatch} onData={onData} />;
+  }
 
   return (
     <div

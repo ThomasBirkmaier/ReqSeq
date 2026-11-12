@@ -137,10 +137,12 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(label(window)).toHaveText("List hints VAR-0000c1 · more arguments:");
     await expect(names(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
-    const result = window.locator(".result");
-    // One hint line; the counts per kind above the hints name the code too (SR-026 AK6).
-    await expect(result.locator(".line.problem").filter({ hasText: CORE_CHANGED })).toHaveCount(1);
-    await expect(result).toContainText(ofCoast[0]?.message ?? "-");
+    // One hint row in the group of its kind, with the message on hover (SR-026 AK4).
+    const group = window.locator(`.hints .hint-group[data-code="${CORE_CHANGED}"]`);
+    await expect(group).toContainText("(1)");
+    const row = window.locator(".hints").getByTitle(ofCoast[0]?.message ?? "-", { exact: true });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Response time at most 20 ms");
   });
 
   test("[SR-045/AK-c59v] Confirm hints on SR-A writes the current version of K and the hint is gone", async () => {
