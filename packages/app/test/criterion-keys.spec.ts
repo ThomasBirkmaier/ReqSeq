@@ -55,9 +55,9 @@ const open = async (window: Page, title: string): Promise<void> => {
 
 /**
  * Puts the caret at the start of the line `at` of the box, with a click at its left edge. The middle of a line
- * may be its reference mark (SR-205 AK1), a widget the editor ignores clicks on: the caret would stay where it
- * was. The marks come with `element.get` after the box, so a click in the middle hit text or mark by timing
- * (#1595).
+ * may be its reference mark (SR-205 AK1), and a press on the mark puts the caret at the end of the line, not
+ * where the text was clicked. The marks come with `element.get` after the box, so a click in the middle
+ * depended on timing (#1595).
  */
 const caretIn = async (window: Page, at: number): Promise<void> => {
   const target = line(window, at);
