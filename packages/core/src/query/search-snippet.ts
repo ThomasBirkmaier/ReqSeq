@@ -10,8 +10,8 @@
 //   of the type in metamodel order (its effective `properties`), then the other keys in file order;
 //   file order alone when the metamodel is not valid. Each item of a list and each value of a
 //   mapping is a value of its own (AK2: the snippet comes from the value with the match). A choice
-//   shows its name, the key when the metamodel names none. Left out, as no snippet shows them (AK4,
-//   product owner decision, 2026-11-07): the title (marked in `titleMarks` instead), `id`, relation
+//   shows its name, the key when the metamodel names none. Left out, as no snippet shows them (AK4):
+//   the title (marked in `titleMarks` instead), `id`, relation
 //   keys, type, status and the identifier. A choice found by its key shows its name, marked whole.
 // - Visible text (AK1): the text and Markdown properties (`markdownKeysOf`) are read as the reader
 //   sees them. A cheap pass over the raw value finds the first word that matches; only the line it

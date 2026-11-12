@@ -286,7 +286,7 @@ const byKey = (ref: CriterionRef, key: string, current: readonly unknown[]): Res
  * - A number of the current version is its position.
  * - A number of an older version is turned into the key its criterion had there, then counts like a
  *   key; for none when that version has no such position, the criterion had no key there, or Git
- *   cannot tell that version (product owner decision, 2026-11-11, #1502).
+ *   cannot tell that version (#1502).
  */
 export const resolveCriterionRefs = (
   refs: readonly CriterionRef[],

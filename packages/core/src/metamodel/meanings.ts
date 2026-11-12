@@ -352,8 +352,8 @@ const shapeMisfit = (
 };
 
 /**
- * `metamodel.invalid` errors for a property whose meaning needs another value kind (#141; product
- * owner decision, 2026-11-02: an error like the other metamodel errors), with the line of its
+ * `metamodel.invalid` errors for a property whose meaning needs another value kind (#141:
+ * an error like the other metamodel errors), with the line of its
  * `meaning`: title, statement, source, source identifier and delivery are one text, the import date
  * a date, the verification method a choice, validity and packages relations with many values to
  * types with the meaning variant or package (D-020, D-040). Import version, identifier and emergent
@@ -441,8 +441,8 @@ const sideMisfit = (
 
 /**
  * `metamodel.meaning-type-mismatch` warnings for a relation kind whose `source-types` or
- * `target-types` allow a type its meaning does not fit (`RELATION_SIDES`, #842; product owner
- * decision, 2026-11-04: a warning, the workspace stays writable). One per side, with the line of that
+ * `target-types` allow a type its meaning does not fit (`RELATION_SIDES`, #842:
+ * a warning, the workspace stays writable). One per side, with the line of that
  * list, or of `meaning` when the list is missing. `typeOf` gives the resolved type of a key (its
  * meaning own or inherited, its effective properties); `validity` is the key of the property with
  * the meaning `validity`, if any.

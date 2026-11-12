@@ -78,7 +78,7 @@ body,
 
 /* An area holds one buffer. Two areas are parted by a quiet rule. The inactive one is a shade lighter
    (SR-150 AK8): its text takes the muted grey, which still reads at a contrast of at least 4.5:1 (WCAG AA)
-   in both themes, so reading stays the main thing (product owner decision, 2026-10-31). */
+   in both themes, so reading stays the main thing. */
 .area {
   min-width: 0;
   min-height: 0;

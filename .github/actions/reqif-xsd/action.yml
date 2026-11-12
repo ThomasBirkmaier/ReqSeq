@@ -1,8 +1,8 @@
 name: ReqIF XSDs
 description: >-
   Brings the ReqIF 1.2 XSDs of toolchain/reqif/xsd.json into $RUNNER_TEMP/reqif-xsd, cache first, each checked
-  against its SHA-256 in toolchain/reqif/xsd.sha256, and sets REQSEQ_REQIF_XSD_DIR for the tests (product owner
-  decision, 2026-10-31: the XSDs are never in the repository). It runs before the tests, which block the network.
+  against its SHA-256 in toolchain/reqif/xsd.sha256, and sets REQSEQ_REQIF_XSD_DIR for the tests (the XSDs are
+  never in the repository). It runs before the tests, which block the network.
 runs:
   using: composite
   steps:

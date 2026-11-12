@@ -31,7 +31,7 @@ describe("style of the output for people (#988)", () => {
       colors: false,
     });
     expect(seen).toEqual([env]);
-    // NO_COLOR keeps the layout and drops the colours (product owner decision, 2026-11-06).
+    // NO_COLOR keeps the layout and drops the colours.
     expect(terminalOf({ isTTY: true, columns: 50, hasColors: () => true }, { NO_COLOR: "1" })).toEqual({
       columns: 50,
       colors: false,

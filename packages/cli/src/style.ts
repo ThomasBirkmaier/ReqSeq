@@ -2,8 +2,8 @@
 // `util.styleText` (ADR-0015: no dependency for it). Two decisions, both in `terminalOf`: the layout
 // only when stdout is a terminal and `TERM` is not `dumb`; the colours only when `NO_COLOR` is not set
 // and the terminal has them (Node's `hasColors`, which reads `FORCE_COLOR`, `NODE_DISABLE_COLORS` and
-// `TERM`). With `NO_COLOR` the layout stays and only the colours go (product owner decision,
-// 2026-11-06). Otherwise the output is plain text exactly as before, in pipes, files and tests. The
+// `TERM`). With `NO_COLOR` the layout stays and only the colours go. Otherwise the output is plain text
+// exactly as before, in pipes, files and tests. The
 // entry point (bin.ts) asks the process once and passes the answer in, so the renderers read no global
 // state. Layout only (ADR-0002 rule 3): styles follow what the output itself says, never a status name
 // of a metamodel; the severities are the fixed ones of a finding (`common.schema.json#/$defs/problem`).

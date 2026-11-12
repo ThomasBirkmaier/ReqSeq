@@ -57,7 +57,7 @@ const catalog = {
  * self-contained. So it has its own bound (6.6 KB with ThomasBirkmaier/ReqSeq-archive#336, 7 KB until ThomasBirkmaier/ReqSeq-archive#595, now 7.5 KB: SR-035's `emergent`
  * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of ThomasBirkmaier/ReqSeq-archive#303.
  */
-// 8 KB: raised for the field descriptions of the reference (product owner decision, 2026-11-09, #1249).
+// 8 KB: raised for the field descriptions of the reference (#1249).
 const SELECTION_MAX_BYTES = 8 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
@@ -91,7 +91,7 @@ const SELECTION_TOOLS: readonly string[] = [
  * What each listed tool brings to the bound of the whole list (ThomasBirkmaier/ReqSeq-archive#496). The tools average 1.85 KB without their
  * selection part; a tool above 2 KB spends the allowance of the others, so it must shorten once that is used up.
  */
-// 2.125 KB: raised for the field descriptions of the reference (product owner decision, 2026-11-09, #1249).
+// 2.125 KB: raised for the field descriptions of the reference (#1249).
 const TOOL_ALLOWANCE_BYTES = 2.125 * 1024;
 /**
  * The whole list: 2 KB per listed tool plus one selection part per selection tool (ThomasBirkmaier/ReqSeq-archive#496; ADR-0009). It grows

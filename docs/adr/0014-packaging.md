@@ -6,7 +6,7 @@ Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078
 
 D-003: „Das Tool ist eine installierte App. Kein Browser, keine Mobil-Version.“ SR-076 asks that the tool be „als Desktop-App mit Kommandozeile für Windows, macOS und Linux ausgeliefert“; its AK1 starts the app „wenn die Auslieferung installiert wird“, and SR-078 AK2 asks that the installation succeeds „ohne Nachladen“.
 
-Product owner decision, 2026-10-28, confirmed on a decision card the same day: the delivery is to be as simple as possible, and a portable artifact is the delivery instead of an installer: **installing it means unpacking it** into any folder (D-003, SR-076 AK1, SR-078 AK2). The release workflow must not make the CI performance drop sharply (product owner decision, 2026-10-28). For Linux the artifact is a tar.gz, not an AppImage (product owner decision on a decision card, 2026-10-28).
+The delivery is to be as simple as possible, and a portable artifact is the delivery instead of an installer: **installing it means unpacking it** into any folder (D-003, SR-076 AK1, SR-078 AK2). The release workflow must not make the CI performance drop sharply. For Linux the artifact is a tar.gz, not an AppImage.
 
 ## Decision
 
@@ -73,7 +73,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 
 ## Rejected
 
-- Installers (NSIS, dmg, deb): more to build, test and document (PATH, uninstall) for no gain over unpacking (product owner decision, 2026-10-28).
-- AppImage for Linux: needs `libfuse2t64` on Ubuntu 24.04, a download during installation (SR-078 AK2), and electron-builder's start script runs Electron with `--no-sandbox` there (ADR-0010); product owner decision on a decision card, 2026-10-28.
+- Installers (NSIS, dmg, deb): more to build, test and document (PATH, uninstall) for no gain over unpacking.
+- AppImage for Linux: needs `libfuse2t64` on Ubuntu 24.04, a download during installation (SR-078 AK2), and electron-builder's start script runs Electron with `--no-sandbox` there (ADR-0010).
 - Packaging on every pull request: costs runner time on every pull request; a manual release run before each stage acceptance finds packaging regressions.
 - A separate Node binary (pkg, Node SEA) for the CLI: a second runtime to keep in sync with Electron's Node.

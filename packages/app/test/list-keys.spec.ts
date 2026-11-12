@@ -236,7 +236,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
     const article = window.locator("article");
     await expect(article).toBeFocused();
-    // On the element (product owner decision, 2026-10-27): Ctrl+P is not "Go to".
+    // On the element: Ctrl+P is not "Go to".
     await window.keyboard.press("Control+P");
     await expect(promptLabel(window)).toHaveCount(0);
     await expect(article).toBeFocused();

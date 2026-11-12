@@ -465,7 +465,7 @@ export const historyKeyAction = (context: ActionContext, event: KeyPress): Actio
 };
 /**
  * "Other window" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
- * physical Ctrl key on macOS belongs to the editor (product owner decision, 2026-10-31).
+ * physical Ctrl key on macOS belongs to the editor.
  */
 export const OTHER_WINDOW_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "o" };
 

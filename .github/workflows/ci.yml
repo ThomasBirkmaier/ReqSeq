@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, closed]
-  # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
+  # No run on a push to main: every pull request is fully checked before its merge,
   # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
   # manual run check main; a red nightly run is fixed the next morning, through a pull request to main (#340).
   schedule:
@@ -19,7 +19,7 @@ concurrency:
   # without the system. No check reads the PR text; after a change of the base branch, the next push checks the code
   # against the new base (`pnpm merge:main`).
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
-  # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
+  # run of `closed` starts no job (no runner time for pull requests that are done).
   # Marking a pull request ready for review joins the full group too (#412): its run checks both lanes, so it may cancel
   # the draft run of the same commit.
   # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
@@ -35,7 +35,7 @@ concurrency:
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
 # `checks` and `electron` on macos-26 and windows-2025, Electron in two shards on macOS and three on Windows (#1311).
 # The lanes ran one after the other while runner minutes cost money; in a public repository they are free, and in
-# sequence a full run took about 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
+# sequence a full run took about 24 minutes instead of about 15 (#412). So every pull request is checked on all
 # three systems before its merge (merge skill), but not every push.
 
 jobs:
@@ -165,8 +165,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.changes.outputs.tests != 'false' }}
         run: pnpm build
       # The ReqIF 1.2 XSDs for the validator tests (ADR-0013): downloaded before the tests, which block the network,
-      # cache first and pinned by SHA-256; a failed download and a hash mismatch are separate errors (product owner
-      # decision, 2026-10-31).
+      # cache first and pinned by SHA-256; a failed download and a hash mismatch are separate errors.
       - name: ReqIF XSDs
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.changes.outputs.tests != 'false' }}
         timeout-minutes: 3

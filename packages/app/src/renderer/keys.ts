@@ -53,8 +53,8 @@ const sameKey = (event: KeyPress, shortcut: Shortcut): boolean =>
 /**
  * Whether `event` is `shortcut`, under macOS when `mac`. There the modifier is Cmd only, and a press with
  * the physical Ctrl key is no shortcut at all: it is left to the editor (CodeMirror's Ctrl+P, Ctrl+N,
- * Ctrl+A, Ctrl+E, ...) and to the lists (`ctrlStep`), so Ctrl+P on macOS never jumps (product owner
- * decision, 2026-10-27). On Linux and Windows Ctrl or Cmd counts, as before.
+ * Ctrl+A, Ctrl+E, ...) and to the lists (`ctrlStep`), so Ctrl+P on macOS never jumps. On Linux and Windows
+ * Ctrl or Cmd counts, as before.
  */
 export const matches = (event: KeyPress, shortcut: Shortcut, mac: boolean): boolean =>
   (mac

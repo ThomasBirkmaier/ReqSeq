@@ -1,8 +1,8 @@
 // Values of number properties in the input of a write command (#614). `element.create`,
 // `element.update` and `element.bulkUpdate` (`set`, `add`) refuse a value that is no number with
 // `input.invalid` (`reason: not-a-number`), as `relationTargetRefs` refuses an item of a
-// relation-valued property that is no reference: a text such as "3" is not converted (product owner
-// decision, 2026-11-02). A value that counts as no value (`isEmptyValue`) is kept, as for every kind.
+// relation-valued property that is no reference: a text such as "3" is not converted.
+// A value that counts as no value (`isEmptyValue`) is kept, as for every kind.
 // A hand-written file is still read as it is and gets the hint of SR-085 (`values.ts`). The app's
 // number box and the CLI's `--set` send what they read as a number as a number.
 import { CommandError } from "../catalog.js";

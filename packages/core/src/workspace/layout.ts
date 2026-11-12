@@ -142,7 +142,7 @@ const committedPath = (entry: WorkspaceRepository, problems: Problem[]): string 
 /**
  * Whether the committed path `committed` (relative) may be followed from the main repository at
  * `root`. It comes from repository content, so it must not lead ReqSeq to a network share
- * (offline rule; product owner decision, 2026-11-07); a path on the user's own machine goes into
+ * (offline rule); a path on the user's own machine goes into
  * the local file. So it must stay in the folder that holds the main repository
  * (`../../../../net/host/r` and `../../other/r` reach folders an automounter mounts), and below the
  * first folder it enters there (a clone, or the main repository) it must not pass a link out of

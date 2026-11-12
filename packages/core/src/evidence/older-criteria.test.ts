@@ -1,5 +1,5 @@
-// The lookup of older criteria (`older-criteria.ts`, SR-031 AK11, product owner decision,
-// 2026-11-11, #1502) on fixtures/SR-028/records with the repository `system` under Git: which records
+// The lookup of older criteria (`older-criteria.ts`, SR-031 AK11,
+// #1502) on fixtures/SR-028/records with the repository `system` under Git: which records
 // it looks up, how two lookups compare, and the verification status carried over a change that makes
 // a record's version an older one.
 import fs from "node:fs/promises";

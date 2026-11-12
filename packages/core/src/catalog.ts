@@ -83,8 +83,8 @@ export interface LocalPaths {
   check(uses: readonly LocalPathUse[]): Promise<void>;
   /**
    * The home folder that `~` at the start of a typed path stands for (`~`, `~/…`, and `~\…` on Windows):
-   * set only in the app, whose prompt has no shell to expand it (SR-143, product owner decision,
-   * 2026-11-07). `invoke` expands the `localPath` fields of the input with it before the command runs;
+   * set only in the app, whose prompt has no shell to expand it (SR-143). `invoke` expands the `localPath`
+   * fields of the input with it before the command runs;
    * without it `~` is an ordinary name (the command line, whose shell expands it, and API and MCP).
    */
   readonly home?: string;

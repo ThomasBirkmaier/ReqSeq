@@ -137,8 +137,7 @@ export const askPackageSummary = (call: Call, id: string): Promise<PackageSummar
   askSummary(call, { package: id });
 
 /**
- * The same line for any selection (a list shows it for the elements it shows, product owner decision,
- * 2026-11-06): `evidence.coverage`
+ * The same line for any selection (a list shows it for the elements it shows): `evidence.coverage`
  * and `evidence.degree` with this selection, side by side.
  */
 export const askSummary = async (call: Call, selection: SummarySelection): Promise<PackageSummary> => {

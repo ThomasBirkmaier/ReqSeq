@@ -21,8 +21,7 @@
 //   meaning `requirement` without a child and without evidence is `no-evidence` (a requirement is
 //   closed by a child or by its own evidence; SR-034 counts children for a parent). A requirement
 //   without a child that the view of the chain does not hold (`outsideView`; without a view the core)
-//   is `not-in-view` instead, with the views that hold it, and is no evidence gap (#674, product owner
-//   decision, 2026-11-02). Other types have
+//   is `not-in-view` instead, with the views that hold it, and is no evidence gap (#674). Other types have
 //   no gap. A child that only an ambiguous relation names (SR-088, `childrenOf`) is not a child here.
 // - Gap above (AK5): an element of the upward walk whose parents were looked at (`expanded`, so not
 //   in a chain `down` only), of a type with the meaning `requirement`, that names no parent through a
@@ -30,8 +29,7 @@
 //   the target's state: a parent that does not apply in the view, lies in a repository that is not
 //   here (SR-006 AK2) or is missing (SR-089) still is one, so the chain shows the same orphans as
 //   `workspace.check` (AK6, `noParentProblemsState`), which leaves out superseded ones. Which relation kinds derive is the metamodel's
-//   (D-012): in the standard model `based-on` has no meaning, so a decision is no parent (product
-//   owner decision, 2026-11-01).
+//   (D-012): in the standard model `based-on` has no meaning, so a decision is no parent.
 // - Cycles (AK4): the cycles of each walk (strongly connected components, the notion of SR-090), one
 //   hint `trace.cycle` each. When the root lies in a cycle, both walks see it: it is reported once.
 // - `incomplete` (SR-006 AK2) and the unresolved links (SR-006 AK1, SR-088, SR-089) come from the

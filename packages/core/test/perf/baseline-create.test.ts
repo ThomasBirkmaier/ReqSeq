@@ -1,7 +1,7 @@
 // Performance suite (ADR-0011): `baseline.create` (SR-050) of the whole generated workspace of N-036
 // (50,000 elements, Git repositories, store warmed). ADR-0018 bounds it by 3 s; SR-050 names no time,
 // so the bound is recorded (`thresholdMs`) for comparison only and opens no issue: typical workspaces
-// hold 100 to 1,000 elements (product owner decision, 2026-11-05; #1244).
+// hold 100 to 1,000 elements (#1244).
 import fs from "node:fs";
 import path from "node:path";
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";

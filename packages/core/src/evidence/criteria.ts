@@ -2,8 +2,8 @@
 // SR-031 AK11, AK12, SR-204 AK10, SR-205 AK2): the items of its current version, and for each record
 // the current criteria its `criteria` count for (`resolveCriterionRefs`). A record of an older version
 // that names a number counts through the key its criterion had in the newest commit with that version
-// (`OlderCriteria`, `older-criteria.ts`); without Git that number counts for none (product owner
-// decision, 2026-11-11, #1502). Every status path (`status.ts`, `display.ts`, `baseline.ts`,
+// (`OlderCriteria`, `older-criteria.ts`); without Git that number counts for none
+// (#1502). Every status path (`status.ts`, `display.ts`, `baseline.ts`,
 // `hints/evidence.ts`) resolves through this file, so they agree (SR-080 AK2).
 import type { DataExportCriterionName } from "../generated/types.js";
 import type { ResolvedCriterion, VersionForms } from "../model/index.js";

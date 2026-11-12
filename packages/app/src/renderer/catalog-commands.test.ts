@@ -2218,7 +2218,7 @@ describe("a view the window shows (SR-043 AK1)", () => {
   });
 });
 
-// Product owner decision, 2026-11-04 (#836): a confirmation of a bulk update writes only the plan of the
+// #836: a confirmation of a bulk update writes only the plan of the
 // open preview of the same input.
 describe("a bulk update confirms the plan of an open preview of the same input (#836)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });

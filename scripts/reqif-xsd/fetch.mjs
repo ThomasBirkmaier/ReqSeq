@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Downloads the ReqIF 1.2 XSDs of toolchain/reqif/xsd.json into a folder and checks each against its
-// SHA-256 in toolchain/reqif/xsd.sha256 (product owner decision, 2026-10-31: the XSDs are never in the
+// SHA-256 in toolchain/reqif/xsd.sha256 (the XSDs are never in the
 // repository; CI downloads them before the tests, pinned, cache first). CI tooling only: it runs before
 // the network-blocked tests and is never part of ReqSeq, which opens no connection.
 //

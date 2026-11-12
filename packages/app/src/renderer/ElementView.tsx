@@ -1621,7 +1621,7 @@ export const ElementView = ({
   };
   // Up and Down on a field move to the field before and after, and Down on the last one into the elements of
   // a package. Down on the element itself goes into the elements of a package, else to its first field, where
-  // the highlight shows (SR-155, product owner decision, 2026-10-31, #552).
+  // the highlight shows (SR-155, #552).
   const onArrow = (down: boolean, label: string | undefined, root: HTMLElement): void => {
     const fields = [TITLE_FIELD, "Text", ...boxKeys];
     const hasMembers = (members?.total ?? 0) > 0;
@@ -1643,7 +1643,7 @@ export const ElementView = ({
     }
   };
   // Ctrl+N on the page of a package selects its first element (SR-122 AK4); on any other element it goes to the
-  // first field, as Down does (SR-155, product owner decision, 2026-10-31, #552). Not from an editor or the list
+  // first field, as Down does (SR-155, #552). Not from an editor or the list
   // itself (they are not the buffer); Ctrl+P on the element itself is not the page's: it is the window's. On a
   // field Ctrl+N and Ctrl+P are Down and Up, and Ctrl+P on the first field only moves, it is not "Go to" (SR-155 AK4).
   const onCtrl = (step: 1 | -1, label: string | undefined, hasMembers: boolean, root: HTMLElement): void => {

@@ -2,7 +2,8 @@
 # spec/evidence/ (spec/reqseq-workspace.yaml), the way the how-to "Record test results in CI" tells a user to connect a test tool.
 # Three sources, each a kind with files of its own (#998): `ci` (ci.yml, nightly or manual), `perf` (perf.yml, nightly
 # or manual: the performance suite) and `delivery` (release.yml, a release tag or a manual run: the delivery tests).
-# A run of one kind replaces only the files of its kind and leaves the others as they are on main. Product owner decision, 2026-11-05: the evidence lives in this repository, written by CI and
+# A run of one kind replaces only the files of its kind and leaves the others as they are on main. The
+# evidence lives in this repository, written by CI and
 # brought onto main through a pull request that merges itself; local runs are no source.
 #
 # - `enrich` (read rights only) checks out the tested commit, builds the CLI and runs `reqseq evidence enrich-junit`

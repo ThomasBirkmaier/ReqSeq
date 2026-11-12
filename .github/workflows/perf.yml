@@ -3,7 +3,7 @@ name: Performance
 # ADR-0011, ThomasBirkmaier/ReqSeq-archive#126: the performance suite on the generated workspace with 50,000 elements and 200,000
 # relations (packages/testkit, D-055; tests in packages/*/test/perf/, the app's with Playwright, #147). Nightly and on pull requests
 # labelled `perf` (once, when the label is added: a later push does not run it again, so a pull request does not
-# hold a runner for every push, product owner decision 2026-10-28; to measure again, remove the label and add it
+# hold a runner for every push; to measure again, remove the label and add it
 # again); it is not a required check. Every time goes into the record
 # verification/performance.md, and a time over a threshold that is not for comparison only opens or updates
 # an issue labelled `perf`.
@@ -29,8 +29,8 @@ permissions:
 
 concurrency:
   # Adding a label other than `perf` gets a group of its own, so that it never cancels a running suite. Closing or
-  # merging the pull request joins the suite's group and cancels it; that run starts no job (product owner decision,
-  # 2026-10-28). Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the
+  # merging the pull request joins the suite's group and cancels it; that run starts no job. Keyed on the pull
+  # request's number, because the `closed` run of a merged pull request may carry the
   # base branch as its ref.
   group: perf-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
   cancel-in-progress: true
@@ -212,8 +212,8 @@ jobs:
             const record = fs.readFileSync("perf-results/verification/performance.md", "utf8");
             const lines = record.split("\n");
             // Rows whose basis says "threshold for comparison only" or "not asserted" open no issue; every other
-            // exceeded row does (product owner decision, 2026-11-05, issue clean-up; typical workspaces hold 100 to
-            // 1,000 elements). With only such rows exceeded, an open issue is neither updated nor closed: close it by hand.
+            // exceeded row does (typical workspaces hold
+            // 100 to 1,000 elements). With only such rows exceeded, an open issue is neither updated nor closed: close it by hand.
             const comparisonOnly = (line) => /threshold for comparison only|not asserted/.test(line.split("|")[2] ?? "");
             const exceeded = lines.filter((line) => line.includes("| **exceeded** |") && !comparisonOnly(line));
             if (exceeded.length === 0) {

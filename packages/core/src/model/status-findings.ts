@@ -1,4 +1,4 @@
-// Statuses outside the element's type (ThomasBirkmaier/ReqSeq-archive#306, decision of 2026-10-26 on option 1). A type may restrict
+// Statuses outside the element's type (ThomasBirkmaier/ReqSeq-archive#306, option 1). A type may restrict
 // the metamodel's statuses (`statuses`, inherited like properties); the effective type lists the
 // statuses its elements may have, empty for a type without status (a glossary term). Two hints,
 // severity `warning` like an unknown property, a value of the wrong kind or a required property

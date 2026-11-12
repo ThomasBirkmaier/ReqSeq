@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Checks the chain SR -> test -> verification record (CLAUDE.md, Traceability) before a merge: test names
 // [SR-xxx/AKn] and [SR-xxx/AK-<key>] (the criterion key, SR-029 AK10) point to an existing SR and AK, and the SRs given by --require or --stage have a test per
-// acceptance criterion with method Test and a record verification/SR-xxx.md otherwise. It reads no PR text
-// (product owner decision, 2026-11-06): which SR a PR completes is checked at the end of a milestone and in
+// acceptance criterion with method Test and a record verification/SR-xxx.md otherwise. It reads no PR text:
+// which SR a PR completes is checked at the end of a milestone and in
 // ReqSeq's own verification status (D-072).
 // Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1] [--report <file>]
 //
