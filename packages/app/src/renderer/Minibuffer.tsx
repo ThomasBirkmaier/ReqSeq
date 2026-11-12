@@ -5,6 +5,7 @@ import type {
   ArgumentExplanation,
   Choice,
   CommandExplanation,
+  CommandHelp,
   Found,
   Prompt,
   PromptFill,
@@ -13,8 +14,8 @@ import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT }
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { isMac, listStep, matches, shortcutLabel } from "./keys.js";
-import { HELP_KEY, MORE_SHORTCUT } from "./prompt-keys.js";
+import { isMac, listStep, matches, pressLabel, shortcutLabel } from "./keys.js";
+import { COMMAND_HELP_KEY, HELP_KEY, MORE_SHORTCUT, isCommandHelpKey } from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
@@ -171,18 +172,40 @@ const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: 
 /**
  * The explanation line of the marked catalog command (SR-210 AK1), under the hits: its summary, cut with "…"
  * where it does not fit, then, on the command's own entry, its arguments (`Arguments`). An action that runs
- * the command shows its summary alone (AK5).
+ * the command shows its summary alone (AK5). At the end of the line "help" with its key: a click on it opens
+ * the command help as Ctrl+H does (AK4).
  */
 const CommandLine = ({
   explain,
   mac,
+  onHelp,
 }: {
   readonly explain: CommandExplanation;
   readonly mac: boolean;
+  readonly onHelp: (() => void) | undefined;
 }): React.JSX.Element => (
   <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
     <div className="explain-summary">{explain.summary}</div>
-    {explain.arguments === undefined ? null : <Arguments {...explain.arguments} mac={mac} />}
+    <div className="explain-foot">
+      {explain.arguments === undefined ? null : <Arguments {...explain.arguments} mac={mac} />}
+      {onHelp === undefined ? null : (
+        <>
+          {" "}
+          <button
+            type="button"
+            className="explain-help"
+            tabIndex={-1}
+            // The input keeps the focus, as on a click on a hit.
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={onHelp}
+          >
+            <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> help
+          </button>
+        </>
+      )}
+    </div>
   </div>
 );
 
@@ -273,30 +296,116 @@ const explanationOf = (
   prompt: Prompt,
   marked: Choice | undefined,
   mac: boolean,
+  onHelp: () => void,
 ): React.JSX.Element | null => {
   if (prompt.explain !== undefined) {
     return <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />;
   }
   const explain = marked?.inert === true ? undefined : marked?.explain;
-  return explain === undefined ? null : <CommandLine explain={explain} mac={mac} />;
+  return explain === undefined ? null : (
+    <CommandLine explain={explain} mac={mac} onHelp={marked?.help === undefined ? undefined : onHelp} />
+  );
 };
 
-/** The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one. */
+/**
+ * The command help of the marked entry (SR-210 AK3) in place of the hits: the summary and details of its
+ * reference page, each argument with its description and whether it is required, and the call on the command
+ * line; at the end the keys back. It scrolls with the wheel and Page Up and Page Down when it is higher than the
+ * card (AK4). An entry without a command help (marked after the help opened) says so.
+ */
+const HelpView = ({
+  marked,
+  mac,
+  scroller,
+}: {
+  readonly marked: Choice | undefined;
+  readonly mac: boolean;
+  readonly scroller: React.RefObject<HTMLDivElement | null>;
+}): React.JSX.Element => {
+  const help: CommandHelp | undefined = marked?.inert === true ? undefined : marked?.help;
+  return (
+    <div
+      ref={scroller}
+      className="card-help"
+      id="command-help"
+      role="region"
+      aria-label="Command help"
+      // A new command starts at its top.
+      key={help?.title ?? marked?.id}
+    >
+      {help === undefined ? (
+        <p className="help-none">{`${marked?.name ?? "This entry"} has no command help.`}</p>
+      ) : (
+        <>
+          <h2 className="help-title">{help.title}</h2>
+          <p className="help-summary" id="command-help-summary">
+            {help.summary}
+          </p>
+          {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
+          <h3>Arguments</h3>
+          {help.arguments.length === 0 ? (
+            <p>No arguments.</p>
+          ) : (
+            <dl className="help-arguments">
+              {help.arguments.map((arg) => (
+                <Fragment key={arg.name}>
+                  <dt>
+                    <code>{arg.name}</code>{" "}
+                    <span className="help-need">{arg.required ? "required" : "optional"}</span>
+                  </dt>
+                  {arg.description === undefined ? null : <dd>{arg.description}</dd>}
+                </Fragment>
+              ))}
+            </dl>
+          )}
+          <h3>Command line</h3>
+          <p>
+            <code className="help-cli">{help.cli}</code>
+          </p>
+        </>
+      )}
+      <p className="help-keys">
+        <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> or <kbd>Escape</kbd> back to the hits ·{" "}
+        <kbd>{HELP_KEY}</kbd> reference page
+      </p>
+    </div>
+  );
+};
+
+/**
+ * The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one; or the
+ * command help in their place (SR-210 AK3). It is the same card throughout, so it does not slide in again when the
+ * help comes or goes (SR-182 AK4).
+ */
 const PromptCard = ({
   hits,
   list,
   explanation,
+  help,
 }: {
   readonly hits: boolean;
   readonly list: React.JSX.Element;
   readonly explanation: React.JSX.Element | null;
+  readonly help: React.JSX.Element | null;
 }): React.JSX.Element | null =>
-  !hits && explanation === null ? null : (
+  !hits && explanation === null && help === null ? null : (
     <Card>
-      {hits ? list : null}
-      {explanation}
+      {help ?? (
+        <>
+          {hits ? list : null}
+          {explanation}
+        </>
+      )}
     </Card>
   );
+
+/** What the input of the prompt is described by: the open command help, else the explanation line, if any. */
+const describedBy = (helpOpen: boolean, explained: boolean): string | undefined => {
+  if (helpOpen) {
+    return "command-help";
+  }
+  return explained ? "prompt-explain" : undefined;
+};
 
 const PromptLine = ({
   prompt: given,
@@ -348,6 +457,10 @@ const PromptLine = ({
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
+  // Whether the card shows the command help of the marked entry in place of the hits (SR-210 AK3).
+  const [helpOpen, setHelpOpen] = useState(false);
+  // The command help, scrolled by Page Up and Page Down (AK4).
+  const helpView = useRef<HTMLDivElement>(null);
 
   useEffect(
     () => () => {
@@ -582,6 +695,49 @@ const PromptLine = ({
     return true;
   };
 
+  /** Opens the command help of the marked entry, if it has one, or closes the help (SR-210 AK3, AK4). */
+  const toggleHelp = (): void => {
+    if (helpOpen) {
+      setHelpOpen(false);
+    } else if (current !== undefined && current.item.inert !== true && current.item.help !== undefined) {
+      setHelpOpen(true);
+    }
+  };
+
+  /**
+   * The keys of the command help; whether the key was taken. Ctrl+H, the physical Ctrl key also on macOS (SR-145
+   * AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes it, as Escape
+   * does (SR-134 AK2); in the command prompt it is never the text's key (on macOS Ctrl+H deletes a character).
+   * Page Up and Page Down scroll the open help (AK4). Every other key acts as without the help: Up and Down mark
+   * another entry, whose help it shows, Enter and Ctrl/Cmd+Enter take the marked entry.
+   */
+  const helpKey = (event: React.KeyboardEvent): boolean => {
+    if (isCommandHelpKey(event) && (helpOpen || prompt.items.some((item) => item.help !== undefined))) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleHelp();
+      return true;
+    }
+    if (!helpOpen) {
+      return false;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setHelpOpen(false);
+      return true;
+    }
+    const view = helpView.current;
+    if ((event.key === "PageDown" || event.key === "PageUp") && view !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      const page = Math.max(view.clientHeight - 24, 24);
+      view.scrollBy({ top: event.key === "PageDown" ? page : -page });
+      return true;
+    }
+    return false;
+  };
+
   /** Escape in the first step, or a press outside the minibuffer (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
@@ -611,6 +767,17 @@ const PromptLine = ({
     };
   }, []);
 
+  /** F1: the documentation of the chosen entry in the browser (SR-141 AK3); the prompt stays open. */
+  const docsKey = (event: React.KeyboardEvent): boolean => {
+    if (event.key !== HELP_KEY || prompt.help === undefined) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    prompt.help(current?.item.inert === true ? undefined : current?.item);
+    return true;
+  };
+
   const keyDown = (event: React.KeyboardEvent): void => {
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
@@ -633,14 +800,7 @@ const PromptLine = ({
       event.stopPropagation();
       return;
     }
-    if (argumentKey(event)) {
-      return;
-    }
-    // F1: the documentation of the chosen entry in the browser (SR-141 AK3); the prompt stays open.
-    if (event.key === HELP_KEY && prompt.help !== undefined) {
-      event.preventDefault();
-      event.stopPropagation();
-      prompt.help(current?.item.inert === true ? undefined : current?.item);
+    if (helpKey(event) || argumentKey(event) || docsKey(event)) {
       return;
     }
     switch (event.key) {
@@ -672,7 +832,7 @@ const PromptLine = ({
     }
   };
 
-  const explanation = explanationOf(prompt, current?.item, mac);
+  const explanation = explanationOf(prompt, current?.item, mac, toggleHelp);
 
   return (
     <>
@@ -687,7 +847,7 @@ const PromptLine = ({
         aria-expanded={rows.length > 0}
         aria-controls="candidates"
         aria-activedescendant={current === undefined ? undefined : `candidate-${String(selected)}`}
-        aria-describedby={explanation === null ? undefined : "prompt-explain"}
+        aria-describedby={describedBy(helpOpen, explanation !== null)}
         autoComplete="off"
         spellCheck={false}
         autoFocus
@@ -705,6 +865,7 @@ const PromptLine = ({
       <PromptCard
         hits={rows.length > 0}
         explanation={explanation}
+        help={helpOpen ? <HelpView marked={current?.item} mac={mac} scroller={helpView} /> : null}
         list={
           <ul
             className="candidates card-list"

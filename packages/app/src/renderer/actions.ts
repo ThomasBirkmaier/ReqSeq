@@ -96,6 +96,25 @@ export interface Choice {
   readonly fits?: boolean;
   /** The explanation line while it is marked: the catalog command it runs (SR-210 AK1, AK5). */
   readonly explain?: CommandExplanation;
+  /** The command help of the catalog command it runs, shown on Ctrl+H (SR-210 AK3). */
+  readonly help?: CommandHelp;
+}
+
+/**
+ * The command help of a catalog command (SR-210 AK3), from the catalog: the summary and details of its reference
+ * page, each argument with its description and whether it is required, and its call on the command line.
+ */
+export interface CommandHelp {
+  readonly title: string;
+  readonly summary: string;
+  readonly details?: string;
+  readonly arguments: readonly {
+    readonly name: string;
+    readonly required: boolean;
+    readonly description?: string;
+  }[];
+  /** `reqseq element get <ref> [options]`. */
+  readonly cli: string;
 }
 
 /** What the explanation line of a marked catalog command says, from the catalog (SR-210 AK1). */

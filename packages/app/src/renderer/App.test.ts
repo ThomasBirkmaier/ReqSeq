@@ -1289,6 +1289,124 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     await flush();
     expect(text("Modeline")).toContain("List saved filters");
   });
+
+  /** The two commands with a summary, details, an argument with a description and a call on the command line. */
+  const helped = () => [
+    listing("filter.list", {
+      details: "Saved filters live in the workspace.",
+      cliUsage: "reqseq filter list [options]",
+    }),
+    listing("trace.affected", {
+      input: {
+        type: "object",
+        required: ["ref"],
+        properties: { ref: { description: "The element whose change is checked." } },
+      },
+      cliUsage: "reqseq trace affected <ref> [options]",
+    }),
+  ];
+  const helpBridge = () => {
+    const fake = fakeBridge({ ...workspace(), "filter.list": () => ({ filters: [] }) });
+    return { fake, bridge: { ...fake.bridge, commands: () => Promise.resolve(helped() as never) } };
+  };
+  const marked = (): string | undefined =>
+    container.querySelector('.candidates [aria-selected="true"] .name')?.textContent ?? undefined;
+  const helpText = (): string | undefined =>
+    container.querySelector("#command-help")?.textContent ?? undefined;
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-210/AK-wz9v] [SR-145/AK-bfb2] [SR-145/AK-tbrz] on %s, Ctrl+H shows the command help of the marked command; Cmd+H does not",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      const { fake, bridge } = helpBridge();
+      await render(bridge);
+      await keyDown(window, "P", { ...mod(), shiftKey: true });
+      await type("Show affected elements");
+      expect(marked()).toBe("Show affected elements");
+      // Cmd+H is the system's (on macOS it hides the app): the prompt leaves it alone.
+      const cmd = await pressed(query("input"), "h", { metaKey: true });
+      expect(cmd.defaultPrevented).toBe(false);
+      expect(helpText()).toBeUndefined();
+      // The physical Ctrl key with H, on every system.
+      const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
+      expect(ctrl.defaultPrevented).toBe(true);
+      expect(query("#command-help h2").textContent).toBe("Show affected elements");
+      expect(query("#command-help .help-summary").textContent).toBe("A command of the catalog.");
+      expect(texts("#command-help dt")).toEqual(["ref required"]);
+      expect(texts("#command-help dd")).toEqual(["The element whose change is checked."]);
+      expect(query("#command-help .help-cli").textContent).toBe("reqseq trace affected <ref> [options]");
+      // The hits and the explanation line give way to it.
+      expect(container.querySelector(".candidates")).toBeNull();
+      expect(container.querySelector("#prompt-explain")).toBeNull();
+      expect(query("input").getAttribute("aria-describedby")).toBe("command-help");
+      const key = platform === "MacIntel" ? "⌃H" : "Ctrl+H";
+      expect(query("#command-help .help-keys").textContent).toBe(
+        `${key} or Escape back to the hits · F1 reference page`,
+      );
+      // F1 still opens the reference page of the command, and the help stays (SR-141 AK3).
+      await keyDown(query("input"), "F1");
+      expect(fake.openDocs).toHaveBeenLastCalledWith("trace.affected");
+      expect(helpText()).toBeDefined();
+    },
+  );
+
+  it("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape close only the help; the mark changes its command; Enter acts as without it; a click on help opens it", async () => {
+    const { fake, bridge } = helpBridge();
+    await render(bridge);
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    await type("List saved filters");
+    expect(marked()).toBe("List saved filters");
+    // A click on "help" in the explanation line acts as Ctrl+H.
+    expect(query("#prompt-explain .explain-help").textContent).toContain("help");
+    await click(query("#prompt-explain .explain-help"));
+    expect(query("#command-help h2").textContent).toBe("List saved filters");
+    expect(query("#command-help .help-details").textContent).toBe("Saved filters live in the workspace.");
+    expect(query("#command-help").textContent).toContain("No arguments.");
+    // Ctrl+H again: the hits, and the prompt stays open.
+    await keyDown(query("input"), "h", { ctrlKey: true });
+    expect(helpText()).toBeUndefined();
+    expect(marked()).toBe("List saved filters");
+    // Escape closes only the help.
+    await keyDown(query("input"), "h", { ctrlKey: true });
+    expect(helpText()).toBeDefined();
+    await keyDown(query("input"), "Escape");
+    expect(helpText()).toBeUndefined();
+    expect(query("label").textContent).toBe("Command");
+    // With the help open, a new mark shows the help of the newly marked command.
+    await keyDown(query("input"), "h", { ctrlKey: true });
+    expect(query("#command-help h2").textContent).toBe("List saved filters");
+    await type("Show affected elements");
+    expect(query("#command-help h2").textContent).toBe("Show affected elements");
+    // An entry without a command help, marked with the help open, says so.
+    await type("Open documentation");
+    expect(helpText()).toContain("Open documentation has no command help.");
+    // Page Down and Page Up are the help's.
+    const page = await pressed(query("input"), "PageDown", {});
+    expect(page.defaultPrevented).toBe(true);
+    await pressed(query("input"), "PageUp", {});
+    // Enter takes the marked command, as without the help.
+    await type("List saved filters");
+    expect(query("#command-help h2").textContent).toBe("List saved filters");
+    await keyDown(query("input"), "Enter");
+    expect(calls(fake.invoke, "filter.list")).toEqual([{}]);
+    expect(container.querySelector("#command-help")).toBeNull();
+  });
+
+  it("[SR-210/AK-r2d2] Ctrl+H does nothing on an entry that is no catalog command, and outside the command prompt", async () => {
+    await render(helpBridge().bridge);
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    await type("Open documentation");
+    expect(marked()).toBe("Open documentation");
+    await keyDown(query("input"), "h", { ctrlKey: true });
+    expect(helpText()).toBeUndefined();
+    expect(query("label").textContent).toBe("Command");
+    await keyDown(query("input"), "Escape");
+    // "Go to" has no command help: Ctrl+H stays the text's.
+    await keyDown(window, "p", mod());
+    expect(query("label").textContent).toBe("Go to");
+    const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
+    expect(ctrl.defaultPrevented).toBe(false);
+  });
 });
 
 describe("App, the overview (SR-118)", () => {

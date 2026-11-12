@@ -1,8 +1,9 @@
 // The explanation line of the command prompt on the built app (SR-210): under the hits it explains the marked
 // catalog command and, while an argument is asked, that argument and the keys of its step, with the texts of
-// the catalog; an entry that is no catalog command has none. Also the keys of an argument step (SR-108 AK6,
+// the catalog; an entry that is no catalog command has none. Ctrl+H shows the command help in the card. Also the keys of an argument step (SR-108 AK6,
 // SR-134 AK4). The light screenshots go to `test-results/electron/screenshots/` (or the folder in
-// REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the same tests run on Linux, macOS and Windows.
+// REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the same tests run on Linux, macOS and Windows; Ctrl+H is the
+// physical Ctrl key on every system (SR-145 AK4).
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -22,7 +23,11 @@ interface CatalogFile {
   readonly name: string;
   readonly title: string;
   readonly summary: string;
-  readonly input: { readonly properties?: Readonly<Record<string, { readonly description?: string }>> };
+  readonly details?: string;
+  readonly input: {
+    readonly properties?: Readonly<Record<string, { readonly description?: string }>>;
+    readonly required?: readonly string[];
+  };
 }
 
 /** The command files of the catalog, by name. */
@@ -122,7 +127,8 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     expect(await cut(".explain-summary")).toEqual({ overflow: "ellipsis", cut: true });
     expect(await cut(".explain-names")).toEqual({ overflow: "ellipsis", cut: true });
     await expect(line.getByText("7 optional:")).toBeInViewport({ ratio: 1 });
-    await expect(line.locator("kbd")).toBeInViewport({ ratio: 1 });
+    await expect(line.locator(".explain-arguments kbd")).toBeInViewport({ ratio: 1 });
+    await expect(line.locator(".explain-help")).toBeInViewport({ ratio: 1 });
   });
 
   test("[SR-210/AK-t8sc] an asked argument shows its catalog description and the keys of its step", async () => {
@@ -178,6 +184,111 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await window.keyboard.type("Measure wind speed");
     await expect(window.locator('.candidates [aria-selected="true"]')).toContainText("Measure wind speed");
     await expect(explanation(window)).toHaveCount(0);
+  });
+});
+
+const help = (window: Page) => window.getByRole("region", { name: "Command help" });
+
+test.describe("the command help (SR-210 AK3, AK4)", () => {
+  let running: RunningApp;
+
+  test.beforeEach(async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+  });
+
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-210/AK-wz9v] [SR-145/AK-tbrz] Ctrl+H shows the summary, the details, each argument with its description and whether it is required, and the call on the command line", async () => {
+    const { window } = running;
+    await fsp.mkdir(SHOTS, { recursive: true });
+    await mark(window, "List hints", "List hints");
+    // The physical Ctrl key, also on macOS.
+    await window.keyboard.press("Control+H");
+    const shown = help(window);
+    const hints = catalog("hint.list");
+    await expect(shown.locator("h2")).toHaveText(hints.title);
+    await expect(shown.locator(".help-summary")).toHaveText(hints.summary);
+    if (hints.details !== undefined) {
+      await expect(shown.locator(".help-details")).toHaveText(hints.details);
+    }
+    const fields = Object.keys(hints.input.properties ?? {});
+    const required = hints.input.required ?? [];
+    await expect(shown.locator("dt")).toHaveText(
+      fields.map((field) => `${field} ${required.includes(field) ? "required" : "optional"}`),
+    );
+    const kind = hints.input.properties?.["kind"]?.description ?? "";
+    await expect(shown.locator("dt").first().locator("+ dd")).toHaveText(kind);
+    await expect(shown.locator(".help-cli")).toHaveText("reqseq hint list [options]");
+    // The hits make room for it; the prompt stays open.
+    await expect(window.locator(".candidates")).toHaveCount(0);
+    await expect(label(window)).toHaveText("Command");
+    // A required argument is named as such, and as a positional argument of the call.
+    await window.keyboard.press("Control+H");
+    await window.keyboard.press("Escape");
+    await mark(window, "Show relation options", "Show relation options");
+    await window.keyboard.press("Control+H");
+    await expect(shown.locator("dt")).toHaveText(["ref required", "kind optional"]);
+    await expect(shown.locator(".help-cli")).toHaveText("reqseq relation options <ref> [options]");
+    await window.screenshot({ path: path.join(SHOTS, "sr-210-help-light.png") });
+  });
+
+  test("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape show the hits again, the help follows the mark, Enter acts as without it, a click on help opens it, and it scrolls", async () => {
+    const { window } = running;
+    await mark(window, "Show relation options", "Show relation options");
+    // A click on "help" in the explanation line acts as Ctrl+H.
+    await explanation(window).getByRole("button", { name: /help/u }).click();
+    await expect(help(window).locator("h2")).toHaveText("Show relation options");
+    // Ctrl+H again, then Escape: only the help closes, the prompt stays open with its mark.
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toHaveCount(0);
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
+      "Show relation options",
+    );
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toBeVisible();
+    await window.keyboard.press("Escape");
+    await expect(help(window)).toHaveCount(0);
+    await expect(label(window)).toHaveText("Command");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
+      "Show relation options",
+    );
+    // The mark moves while the help is open: it shows the newly marked command.
+    await window.locator("#prompt-input").fill("Show relat");
+    await expect(names(window).nth(0)).toHaveText("Show relation options");
+    await expect(names(window).nth(1)).toHaveText("Show related elements");
+    await window.keyboard.press("Control+H");
+    await expect(help(window).locator("h2")).toHaveText("Show relation options");
+    await window.keyboard.press("ArrowDown");
+    await expect(help(window).locator("h2")).toHaveText("Show related elements");
+    await window.keyboard.press("ArrowUp");
+    await expect(help(window).locator("h2")).toHaveText("Show relation options");
+    // Enter takes the marked command as without the help: it asks its argument.
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Show relation options · ref:");
+    await expect(help(window)).toHaveCount(0);
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("Escape");
+    // Higher than the card: Page Down, Page Up and the wheel scroll it.
+    await window.setViewportSize({ width: 520, height: 420 });
+    await mark(window, "List hints", "List hints");
+    await window.keyboard.press("Control+H");
+    const scroll = (): Promise<{ top: number; more: boolean }> =>
+      help(window).evaluate((element) => ({
+        top: element.scrollTop,
+        more: element.scrollHeight > element.clientHeight,
+      }));
+    expect(await scroll()).toEqual({ top: 0, more: true });
+    await window.keyboard.press("PageDown");
+    await expect.poll(async () => (await scroll()).top).toBeGreaterThan(0);
+    await window.keyboard.press("PageUp");
+    await expect.poll(async () => (await scroll()).top).toBe(0);
+    await help(window).hover();
+    await window.mouse.wheel(0, 200);
+    await expect.poll(async () => (await scroll()).top).toBeGreaterThan(0);
+    await expect(label(window)).toHaveText("Command");
   });
 });
 

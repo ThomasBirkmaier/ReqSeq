@@ -1,4 +1,5 @@
 import { getCommandRuntime } from "@reqseq/core";
+import { cliUsage } from "../core/cli-usage.js";
 import { describe, expect, it, vi } from "vitest";
 import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
@@ -30,6 +31,7 @@ const runtime = getCommandRuntime();
 const CATALOG: readonly CommandListing[] = runtime.contracts.commands.map((entry) => ({
   ...listedEntry(entry, runtime.contracts.schemas),
   implemented: runtime.commands.has(entry.name),
+  cliUsage: cliUsage(entry, runtime.contracts.schemas),
 }));
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -2475,6 +2477,40 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       CATALOG,
     );
     expect(other.items[0]?.explain).toBeUndefined();
+  });
+
+  it("[SR-210/AK-wz9v] a catalog command and an action that runs one have the command help: the catalog's texts and the call on the command line", () => {
+    const { context } = setup([shown]);
+    const items = entries({ ...context, docs: () => undefined });
+    const get = command("element.get");
+    const help = item(items, "Go to element or buffer").help;
+    expect(help).toEqual({
+      title: get.title,
+      summary: get.summary,
+      ...(get.details === undefined ? {} : { details: get.details }),
+      arguments: get.arguments.map(({ field }) => ({
+        name: field,
+        required: field === "ref",
+        ...(typeof described("element.get", field) === "string"
+          ? { description: described("element.get", field) }
+          : {}),
+      })),
+      cli: "reqseq element get <ref> [options]",
+    });
+    // Every argument named in the catalog, with its description where the catalog has one.
+    expect(help?.arguments.map((arg) => arg.name)).toEqual(get.arguments.map((arg) => arg.field));
+    expect(help?.arguments.find((arg) => arg.name === "versionDate")?.description).toBe(
+      described("element.get", "versionDate"),
+    );
+    expect(item(items, "Show relation options").help?.arguments).toContainEqual(
+      expect.objectContaining({ name: "kind", required: false }),
+    );
+    // A command with details on its reference page shows them.
+    const detailed = CATALOG.find((entry) => entry.details !== undefined && entry.implemented);
+    expect(detailed).toBeDefined();
+    expect(item(items, detailed?.title ?? "").help?.details).toBe(detailed?.details);
+    // An entry that is no catalog command has none (AK5).
+    expect(item(items, "Open documentation").help).toBeUndefined();
   });
 
   it("[SR-210/AK-t8sc] an asked argument has its name, its catalog description and the keys of its step", async () => {
