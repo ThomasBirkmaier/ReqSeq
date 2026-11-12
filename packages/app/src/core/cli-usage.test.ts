@@ -5,9 +5,17 @@ import { cliUsage } from "./cli-usage.js";
 
 const contracts = loadContracts();
 
+const command = (name: string): CatalogEntry => {
+  const found = contracts.entry(name);
+  if (found === undefined) {
+    throw new Error(`no command ${name}`);
+  }
+  return found;
+};
+
 /** A test entry `group.someAction` with the given input and arguments. */
 const entry = (input: Record<string, unknown>, args: CatalogEntry["arguments"] = []): CatalogEntry => ({
-  ...(contracts.entry("hint.list") as CatalogEntry),
+  ...command("hint.list"),
   name: "group.someAction",
   arguments: args,
   input: { type: "object", ...input },
@@ -29,9 +37,7 @@ const usage = (properties: Record<string, unknown>, args: CatalogEntry["argument
 
 describe("the call on the command line in the command help (SR-210 AK3)", () => {
   it("[SR-210/AK-wz9v] names the group, the action in kebab-case and each required string as a positional argument", () => {
-    expect(cliUsage(contracts.entry("element.get") as CatalogEntry, contracts.schemas)).toBe(
-      "reqseq element get <ref> [options]",
-    );
+    expect(cliUsage(command("element.get"), contracts.schemas)).toBe("reqseq element get <ref> [options]");
     expect(cliUsage(entry({}), [])).toBe("reqseq group some-action [options]");
     expect(cliUsage(entry({ properties: { a: { type: "string" } } }), [])).toBe(
       "reqseq group some-action [options]",
