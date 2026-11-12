@@ -219,6 +219,14 @@ test.describe("Copy graph as Mermaid", () => {
     for (const type of parsed.types) {
       expect(bare(ofMetamodel.text)).toContain(bare(`${type.name} (${type.prefix})`));
     }
+    // Every relation kind on an edge, as the text names it.
+    const kinds = [...metamodel.matchAll(/-->\|"([^"]*)"\|/gu)].flatMap(
+      (match) => match[1]?.split("<br/>") ?? [],
+    );
+    expect(kinds.length).toBeGreaterThan(0);
+    for (const kind of kinds) {
+      expect(bare(ofMetamodel.text)).toContain(bare(kind));
+    }
     const folder = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
     // The drawing of 50 nodes is too wide to read at window size; the standard model shows how a drawing looks.
     await images.nth(1).scrollIntoViewIfNeeded();

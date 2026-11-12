@@ -1,8 +1,8 @@
 // The context menu of the graph and the matrix (SR-199) on the built app: on the sheet of an element's graph
 // outside its nodes the graph's depth, relation kinds and "Copy graph as Mermaid" (AK1), on the metamodel's
-// graph "Show metamodel as text" and "Copy graph as Mermaid" (AK2); in a cell of the matrix "Create relation" with the row and the
-// column given (AK3); on a connected element in a cell "Remove relation" after the entries of the element
-// (AK4). Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a
+// graph "Show metamodel as text" and "Copy graph as Mermaid" (AK2); in a cell of the matrix "Create relation"
+// with the row and the column given (AK3); on a connected element in a cell "Remove relation" after the
+// entries of the element (AK4). Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a
 // person's click gives.
 import path from "node:path";
 import { expect, test } from "@playwright/test";
