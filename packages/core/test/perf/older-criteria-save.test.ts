@@ -28,7 +28,7 @@ import {
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { olderCriteriaState, verificationState } from "../../src/evidence/index.js";
-import type { CommandOutput } from "../../src/catalog.js";
+import { CommandError, type CommandOutput } from "../../src/catalog.js";
 import { NO_OLDER_CRITERIA } from "../../src/evidence/criteria.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
@@ -194,6 +194,7 @@ describe("a save that makes records by number older, with 50,000 elements (#1418
       if (count < 2) {
         continue;
       }
+      // A requirement outside the core view takes no record there (SR-040); it is skipped.
       await invoke(
         "evidence.record",
         {
@@ -206,7 +207,11 @@ describe("a save that makes records by number older, with 50,000 elements (#1418
           criteria: Array.from({ length: count - 1 }, (_, i) => i + 2),
         },
         { workspace: ws() },
-      );
+      ).catch((error: unknown) => {
+        if (!(error instanceof CommandError) || error.code !== "input.invalid") {
+          throw error;
+        }
+      });
     }
     const started = performance.now();
     const out = (await invoke(
