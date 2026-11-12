@@ -1,0 +1,120 @@
+{
+  "name": "trace.mermaid",
+  "title": "Show graph as Mermaid",
+  "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
+  "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the link is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-151"],
+  "textOutput": "mermaid",
+  "arguments": [
+    {
+      "field": "ref",
+      "complete": "element"
+    },
+    {
+      "field": "repository",
+      "complete": "repository"
+    },
+    {
+      "field": "maxDepth",
+      "complete": "number"
+    },
+    {
+      "field": "allLevels",
+      "complete": "boolean"
+    },
+    {
+      "field": "kinds",
+      "complete": "text"
+    },
+    {
+      "field": "meanings",
+      "complete": "choice"
+    },
+    {
+      "field": "view",
+      "complete": "view"
+    },
+    {
+      "field": "limit",
+      "complete": "number"
+    }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "repository": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255)."
+      },
+      "maxDepth": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true."
+      },
+      "allLevels": {
+        "type": "boolean",
+        "default": false,
+        "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+      },
+      "kinds": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "$ref": "../common.schema.json#/$defs/key"
+        },
+        "description": "Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule."
+      },
+      "meanings": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "enum": ["derivation", "replacement", "succession", "exclusion", "reference"]
+        },
+        "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/view"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 500,
+        "description": "The most nodes, the element included; the nearest levels first (`truncated` says when more exist)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "mermaid": {
+        "type": "string",
+        "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `\"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space."
+      },
+      "truncated": {
+        "type": "boolean",
+        "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      },
+      "problems": {
+        "type": "array",
+        "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["mermaid", "truncated", "incomplete", "problems"]
+  }
+}

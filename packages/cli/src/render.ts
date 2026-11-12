@@ -52,6 +52,19 @@ export const renderProblem = (problem: unknown, style: Style = PLAIN): string =>
     .join("  ")}\n`;
 };
 
+/**
+ * The output of an entry with `textOutput` (ADR-0009, SR-151 AK4): the string of that field alone for
+ * stdout, and the problems as plain lines for stderr, without "No problems." and without styling.
+ */
+export const textOutput = (
+  output: unknown,
+  field: string,
+): { readonly text: string; readonly problems: string } => {
+  const record = isRecord(output) ? output : {};
+  const problems = Array.isArray(record["problems"]) ? record["problems"] : [];
+  return { text: text(record[field]), problems: problems.map((problem) => renderProblem(problem)).join("") };
+};
+
 /** Findings an output left out of `problems`, by severity (`hidden` of workspace.check, ThomasBirkmaier/ReqSeq-archive#304). */
 interface Hidden {
   readonly below: string;

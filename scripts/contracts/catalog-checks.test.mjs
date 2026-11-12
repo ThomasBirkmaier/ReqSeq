@@ -260,3 +260,25 @@ describe("catalog checks (jsonLines, #319)", () => {
     ]);
   });
 });
+
+describe("catalog checks (textOutput, SR-151 AK4)", () => {
+  const output = {
+    type: "object",
+    properties: { text: { type: "string" }, loose: { type: "string" }, count: { type: "integer" } },
+    required: ["text", "count"],
+  };
+  const text = (textOutput) =>
+    checkCatalog({
+      commands: [{ ...command("test.one", "One", [], { type: "object" }), output, textOutput }],
+    });
+
+  it("accepts a required top-level string and refuses any other field", () => {
+    expect(text("text")).toEqual([]);
+    expect(["loose", "count", "missing"].flatMap(text)).toEqual(
+      ["loose", "count", "missing"].map(
+        (field) =>
+          `schemas/commands/test.one.json: textOutput: "${field}" is not a required top-level string of the output`,
+      ),
+    );
+  });
+});

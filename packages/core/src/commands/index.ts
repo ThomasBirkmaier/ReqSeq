@@ -37,6 +37,7 @@ import filterSave from "./filter/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
 import metamodelGet from "./metamodel/get.js";
+import metamodelMermaid from "./metamodel/mermaid.js";
 import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
@@ -45,6 +46,7 @@ import traceAffected from "./trace/affected.js";
 import traceChain from "./trace/chain.js";
 import traceGraph from "./trace/graph.js";
 import traceMatrix from "./trace/matrix.js";
+import traceMermaid from "./trace/mermaid.js";
 import traceNeighbourhood from "./trace/neighbourhood.js";
 import traceRelated from "./trace/related.js";
 import variantDiff from "./variant/diff.js";
@@ -87,6 +89,7 @@ export const commands: readonly AnyCommand[] = [
   hintConfirm,
   hintList,
   metamodelGet,
+  metamodelMermaid,
   relationAdd,
   relationOptions,
   relationRemove,
@@ -99,6 +102,7 @@ export const commands: readonly AnyCommand[] = [
   traceChain,
   traceGraph,
   traceMatrix,
+  traceMermaid,
   traceNeighbourhood,
   traceRelated,
   variantDiff,
