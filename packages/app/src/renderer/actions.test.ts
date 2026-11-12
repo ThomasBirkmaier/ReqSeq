@@ -492,7 +492,7 @@ describe("the action of a shortcut", () => {
     expect(actionFor(context, (shortcut) => shortcut.key === "p", true)?.id).toBe("go-to");
     expect(actionFor(context, (shortcut) => shortcut.key === "f", true)?.id).toBe("search");
     const prompting = ACTIONS.filter((action) => action.shortcut !== undefined && action.inPrompt === true);
-    expect(prompting.map((action) => action.id)).toEqual(["go-to", "search"]);
+    expect(prompting.map((action) => action.id).sort()).toEqual(["find-in-element", "go-to", "search"]);
     for (const action of ACTIONS.filter((entry) => entry.shortcut !== undefined && entry.inPrompt !== true)) {
       expect(actionFor(context, (shortcut) => shortcut === action.shortcut, true)).toBeUndefined();
     }
