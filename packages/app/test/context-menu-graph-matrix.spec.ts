@@ -1,8 +1,8 @@
 // The context menu of the graph and the matrix (SR-199) on the built app: on the sheet of an element's graph
-// outside its nodes the graph's depth and relation kinds (AK1), on the metamodel's graph "Show metamodel as
-// text" (AK2), the export of SR-151 not yet; in a cell of the matrix "Create relation" with the row and the
-// column given (AK3); on a connected element in a cell "Remove relation" after the entries of the element
-// (AK4). Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a
+// outside its nodes the graph's depth, relation kinds and "Copy graph as Mermaid" (AK1), on the metamodel's
+// graph "Show metamodel as text" and "Copy graph as Mermaid" (AK2); in a cell of the matrix "Create relation"
+// with the row and the column given (AK3); on a connected element in a cell "Remove relation" after the
+// entries of the element (AK4). Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a
 // person's click gives.
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -127,7 +127,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     await running.close();
   });
 
-  test("the sheet of an element's graph has Graph depth, Also show relation kind and Show only relation kind (SR-199 AK1, without the export of SR-151)", async () => {
+  test("[SR-199/AK-tbtd] the sheet of an element's graph has Graph depth, Also show relation kind, Show only relation kind and Copy graph as Mermaid", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -140,6 +140,7 @@ test.describe("the context menu of the graph and the matrix", () => {
       "Graph depth",
       "Also show relation kind",
       "Show only relation kind",
+      "Copy graph as Mermaid",
       ALL,
     ]);
     // An entry runs as from the command prompt: "Graph depth" asks the depth.
@@ -148,7 +149,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("the sheet of the metamodel's graph has Show metamodel as text (SR-199 AK2, without the export of SR-151)", async () => {
+  test("[SR-199/AK-w4jd] the sheet of the metamodel's graph has Show metamodel as text and Copy graph as Mermaid", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
@@ -156,7 +157,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     const sheet = window.locator(".metamodel");
     await expect(sheet).toHaveAttribute("data-laid-out", /[1-9]/u);
     await rightClick(sheet, await emptyPoint(sheet));
-    expect(await entryNames(window)).toEqual(["Show metamodel as text", ALL]);
+    expect(await entryNames(window)).toEqual(["Show metamodel as text", "Copy graph as Mermaid", ALL]);
     await window.keyboard.press("Escape");
     // A type box is no part of the sheet: the buffer's menu (SR-194 AK6).
     await rightClick(window.locator(".mm-type").first());

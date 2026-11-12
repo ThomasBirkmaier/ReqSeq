@@ -109,6 +109,13 @@ describe("overLimit", () => {
       "Diagram too large: 501 statements, at most 500.",
     );
     expect(overLimit("a --> b; ".repeat(501))).toBe("Diagram too large: 501 statements, at most 500.");
+    // The `;` that ends an entity is no statement (SR-151 AK3: the labels of the Mermaid text of a graph).
+    expect(overLimit(`flowchart BT\n  n0["${"#35;".repeat(MAX_STATEMENTS)}"]`)).toBeUndefined();
+    // Only entities are left out: a quote is no string in a sequence diagram, so its `;` still count
+    // (602 messages and the header).
+    expect(overLimit(`sequenceDiagram\n  A->>B: "x;${"A->>B: y;".repeat(600)}A->>B: z"`)).toBe(
+      `Diagram too large: 603 statements, at most ${String(MAX_STATEMENTS)}.`,
+    );
   });
 });
 

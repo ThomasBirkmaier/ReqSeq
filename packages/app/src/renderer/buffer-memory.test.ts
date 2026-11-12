@@ -1,3 +1,4 @@
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import type { UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
@@ -6,7 +7,7 @@ describe("memoryOf and forgetClosed", () => {
   it("[SR-105/AK-dmrq] keeps one undo memory per open buffer and drops those of closed buffers", () => {
     const all = new Map<string, UndoMemory>();
     const one = memoryOf(all, "a");
-    one.editors.set("Text", { doc: "x" });
+    one.editors.set("Text", EditorState.create({ doc: "x" }));
     expect(memoryOf(all, "a")).toBe(one);
     memoryOf(all, "b");
     forgetClosed(all, ["b"]);

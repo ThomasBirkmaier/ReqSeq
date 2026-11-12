@@ -5,6 +5,7 @@
 // The file types (`MetamodelFile`, `MetamodelType`, ...) are generated: `../generated/types.js`.
 export { assertWritable, metamodelProblems, workspaceAccess } from "./access.js";
 export type { WorkspaceAccess } from "./access.js";
+export { metamodelOutput } from "./output.js";
 export { resolveTypes } from "./inheritance.js";
 export type { DefinedKeys, EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
 export { limitsOf, maxItemsOf, minimaOf } from "./limits.js";

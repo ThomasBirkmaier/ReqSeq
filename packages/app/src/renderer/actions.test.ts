@@ -1469,6 +1469,43 @@ describe("save element and edit text", () => {
     ).toBe("⌘⇧↩");
   });
 
+  it("[SR-205/AK-zvtb] offers Copy criterion reference with the cursor on a criterion, and runs it", () => {
+    const base = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+      insertImage: vi.fn(),
+      listValue: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
+    };
+    const copyCriterionReference = vi.fn();
+    const on = { ...base, onCriterion: () => true, copyCriterionReference };
+    const off = { ...base, onCriterion: () => false, copyCriterionReference };
+    expect(action("copy-criterion-reference").title).toBe("Copy criterion reference");
+    expect(
+      action("copy-criterion-reference").available(setup([element], {}, true, { element: on }).context),
+    ).toBe(true);
+    expect(
+      action("copy-criterion-reference").available(setup([element], {}, true, { element: off }).context),
+    ).toBe(false);
+    expect(
+      action("copy-criterion-reference").available(setup([element], {}, true, { element: base }).context),
+    ).toBe(false);
+    action("copy-criterion-reference").run(setup([element], {}, true, { element: on }).context);
+    expect(copyCriterionReference).toHaveBeenCalledWith(undefined);
+    // From the context menu: the line pressed.
+    const pressed = { id: "line" } as unknown as Element;
+    action("copy-criterion-reference").run({
+      ...setup([element], {}, true, { element: on }).context,
+      pressed,
+    });
+    expect(copyCriterionReference).toHaveBeenLastCalledWith(pressed);
+  });
+
   it("[SR-128/AK-pk21] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
     const controls = {
       save: vi.fn(),

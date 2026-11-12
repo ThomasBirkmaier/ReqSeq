@@ -10,6 +10,7 @@
 // - a file that is gone (`ref.unknown`) leaves the content in the editors, read-only, with a hint (AK3).
 // Assumption until spec question ThomasBirkmaier/ReqSeq-archive#488 (1) is answered: every change of the file while there is input stops
 // saving and asks (the literal reading of AK2), not only a change of a field with input.
+import { shownDoc } from "./criterion-doc.js";
 import type { Prompt } from "./actions.js";
 import type { BoxDraft, Draft } from "./drafts.js";
 import type { PropertyInfo } from "./element-view.js";
@@ -175,8 +176,9 @@ export const fieldLines = (info: PropertyInfo | undefined, doc: string): string[
   if (info?.kind === "relation") {
     return relationTargets(doc).map((target) => target.label);
   }
-  // The final line break of a text (ADR-0004) is no line of its own.
-  return doc === "" ? [] : doc.replace(/\n$/, "").split("\n");
+  // The final line break of a text (ADR-0004) is no line of its own; the criteria show their texts.
+  const text = shownDoc(info, doc);
+  return text === "" ? [] : text.replace(/\n$/, "").split("\n");
 };
 
 /** The block "On disk" of a field in conflict: the file's lines, marked where the input differs. */

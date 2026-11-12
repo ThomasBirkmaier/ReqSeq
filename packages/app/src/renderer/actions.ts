@@ -47,6 +47,7 @@ import {
   hasFilter,
   onlyChoices,
 } from "./graph-choices.js";
+import { mermaidInput } from "./graph.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { TEXT_ACTIONS } from "./text-actions.js";
@@ -201,6 +202,16 @@ export interface ElementControls {
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
   /**
+   * Whether the cursor is on an acceptance criterion in its box, or was there last (SR-205 AK4); with
+   * `pressed` (`ActionContext.pressed`), whether that line of a box is a criterion.
+   */
+  readonly onCriterion?: (pressed?: Element) => boolean;
+  /**
+   * Saves the input, then copies the reference for a test name of the criterion with the cursor, or on the
+   * line `pressed`, or says why it has none (the action "Copy criterion reference", SR-205 AK4).
+   */
+  readonly copyCriterionReference?: (pressed?: Element) => void;
+  /**
    * Opens the list of the elements with the value the cursor is on, or asks among the values of the element
    * that can be listed (the action "List elements with this value", SR-132).
    */
@@ -328,6 +339,11 @@ export interface ActionContext {
    * "Create relation" and "Remove relation" while its menu is open (`menuContext`, SR-199). Absent: none.
    */
   readonly given?: GivenArguments;
+  /**
+   * What was pressed for the open context menu of a property box (`menuContext`, SR-205 AK4): its entries act
+   * on the line pressed, also inside a selection whose caret is on another line. Absent elsewhere.
+   */
+  readonly pressed?: Element;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -1083,6 +1099,16 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   {
+    // SR-205 AK4: the reference for a test name of the acceptance criterion with the cursor.
+    id: "copy-criterion-reference",
+    title: "Copy criterion reference",
+    available: (context: ActionContext): boolean =>
+      hasElementText(context) && context.element?.onCriterion?.(context.pressed) === true,
+    run: (context: ActionContext): void => {
+      context.element?.copyCriterionReference?.(context.pressed);
+    },
+  },
+  {
     // The whole output of the shown result buffer as one block, whichever command gave it.
     id: "copy-result",
     title: "Copy result",
@@ -1248,6 +1274,29 @@ export const ACTIONS: readonly Action[] = [
       context.dispatch({
         type: "open",
         buffer: open === undefined ? metamodelBuffer() : { ...open, mode: "graph" },
+      });
+    },
+  },
+  {
+    // SR-151 AK5: only on the graph of an element or of the metamodel, with the graph's own depth, kinds and
+    // view; the text is core's (`trace.mermaid`, `metamodel.mermaid`), and the modeline confirms the copy
+    // (SR-128 AK2). It covers both commands, so the command prompt offers no other entry for them.
+    id: "copy-mermaid",
+    title: "Copy graph as Mermaid",
+    covers: ["trace.mermaid", "metamodel.mermaid"],
+    available: (context: ActionContext): boolean =>
+      isGraph(context) || metamodelIn(context, "graph") !== undefined,
+    run: (context: ActionContext): void => {
+      const shown = context.buffers[0];
+      const call = context.shownCall ?? context.call;
+      void (
+        shown?.kind === "graph" ? call("trace.mermaid", mermaidInput(shown)) : call("metamodel.mermaid", {})
+      ).then((answer) => {
+        if (answer.ok) {
+          context.copy?.("graph as Mermaid", answer.output.mermaid);
+        } else {
+          context.echo(answer.message);
+        }
       });
     },
   },

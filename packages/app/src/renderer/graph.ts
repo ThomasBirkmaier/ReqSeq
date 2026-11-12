@@ -1,7 +1,7 @@
 // The graph buffer's data (SR-111, D-063): the input of `trace.graph` the buffer asks with, and the words
 // a node and the modeline show. Everything shown is a value of the output (ADR-0002, SR-080 AK4); the app
 // only adds the size limit; the words of a node come from `@reqseq/core/graph-words`. No React here.
-import type { TraceGraphInput, TraceGraphOutput } from "@reqseq/core";
+import type { TraceGraphInput, TraceGraphOutput, TraceMermaidInput } from "@reqseq/core";
 import { MARK_WORDS, kindName, ringOf, shownId, statusOf, verificationWords } from "@reqseq/core/graph-words";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
@@ -35,6 +35,15 @@ export const graphInput = (buffer: GraphBuffer): Partial<TraceGraphInput> => ({
   ...(buffer.view === undefined ? {} : { view: buffer.view }),
   limit: GRAPH_LIMIT,
 });
+
+/**
+ * The input of `trace.mermaid` for the buffer (SR-151 AK5): that of `trace.graph` without the evidence, which
+ * the Mermaid text leaves out (AK1).
+ */
+export const mermaidInput = (buffer: GraphBuffer): Partial<TraceMermaidInput> => {
+  const { withEvidence: _withEvidence, ...input } = graphInput(buffer);
+  return input;
+};
 
 /** A node's key: a UUID may exist in several repositories. */
 export const nodeKey = (repository: string, id: string): string => `${repository}:${id}`;

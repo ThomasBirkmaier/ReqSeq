@@ -4234,6 +4234,42 @@
       }
     },
     {
+      "name": "metamodel_mermaid",
+      "title": "Show metamodel as Mermaid",
+      "description": "The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "mermaid": {
+            "type": "string",
+            "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`."
+          },
+          "problems": {
+            "type": "array",
+            "description": "The problems of the metamodel, as `metamodel.get` gives them.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mermaid",
+          "problems"
+        ]
+      }
+    },
+    {
       "name": "element_create",
       "title": "Create element",
       "description": "Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint.",
@@ -7196,6 +7232,105 @@
           "root",
           "nodes",
           "edges",
+          "truncated",
+          "incomplete",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "trace_mermaid",
+      "title": "Show graph as Mermaid",
+      "description": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "#/$defs/common/$defs/elementRef"
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The workspace name of the repository of the element ref names, as in element.get."
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true."
+          },
+          "allLevels": {
+            "type": "boolean",
+            "default": false,
+            "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+          },
+          "kinds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule."
+          },
+          "meanings": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "derivation",
+                "replacement",
+                "succession",
+                "exclusion",
+                "reference"
+              ]
+            },
+            "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+          },
+          "view": {
+            "$ref": "#/$defs/common/$defs/view"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 500,
+            "description": "The most nodes, the element included; the nearest levels first (`truncated` says when more exist)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "ref"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "mermaid": {
+            "type": "string",
+            "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `\"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "problems": {
+            "type": "array",
+            "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mermaid",
           "truncated",
           "incomplete",
           "problems"

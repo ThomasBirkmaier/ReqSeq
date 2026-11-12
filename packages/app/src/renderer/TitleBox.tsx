@@ -7,6 +7,7 @@
 // before and after (`editor/box-navigation.ts`); a line break typed or pasted becomes one space
 // (`editor/single-line.ts`). The buffer saves it with the boxes (`property-edit.ts`, `TITLE_FIELD`).
 import { Prec } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { useMemo, useRef } from "react";
 import type { EditorHandle } from "./editor/Editor.js";
@@ -33,8 +34,8 @@ export interface TitleBoxProps {
   /** The unsaved title to show in place of `text`, when the editor is made. */
   readonly initial?: string;
   /** A state the title editor had (`Editor`, SR-105 AK2). */
-  readonly restore?: unknown;
-  readonly onClose?: (state: unknown) => void;
+  readonly restore?: EditorState | undefined;
+  readonly onClose?: (state: EditorState) => void;
   readonly onUpdate?: () => void;
   /** A click on the closed heading: open the editor with the caret at the offset, or at the end. */
   readonly onOpen: (at: number | "end") => void;

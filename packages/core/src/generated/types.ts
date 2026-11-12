@@ -1821,6 +1821,8 @@ export interface CommandCatalog {
       /** Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`). */
       readonly fields: readonly string[];
     };
+    /** A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API, MCP and the app keep the JSON object (ADR-0002 rule 3, SR-151 AK4). */
+    readonly textOutput?: string;
     /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
     readonly output: {
       readonly type: "object";
@@ -2110,6 +2112,23 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.
+ * Schema: `schemas/commands/metamodel.mermaid.json input`.
+ */
+export type MetamodelMermaidInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `metamodel.mermaid`. The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.
+ * Schema: `schemas/commands/metamodel.mermaid.json output`.
+ */
+export interface MetamodelMermaidOutput {
+  /** The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`. */
+  readonly mermaid: string;
+  /** The problems of the metamodel, as `metamodel.get` gives them. */
+  readonly problems: readonly Problem[];
 }
 
 /**
@@ -3138,6 +3157,41 @@ export interface TraceGraphOutput {
 }
 
 /**
+ * Input of `trace.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Schema: `schemas/commands/trace.mermaid.json input`.
+ */
+export interface TraceMermaidInput {
+  readonly ref: ElementRef;
+  /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
+  readonly repository?: string;
+  /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
+  readonly maxDepth?: number;
+  /** Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  readonly allLevels: boolean;
+  /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
+  readonly kinds?: readonly Key[];
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
+  readonly view?: View;
+  /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
+  readonly limit: number;
+}
+
+/**
+ * Output of `trace.mermaid`. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Schema: `schemas/commands/trace.mermaid.json output`.
+ */
+export interface TraceMermaidOutput {
+  /** The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space. */
+  readonly mermaid: string;
+  /** More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones. */
+  readonly truncated: boolean;
+  readonly incomplete: Incomplete;
+  /** Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3). */
+  readonly problems: readonly Problem[];
+}
+
+/**
  * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
  * Schema: `schemas/commands/hint.list.json input`.
  */
@@ -4032,6 +4086,7 @@ export interface CommandTypes {
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
+  readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };
@@ -4052,6 +4107,7 @@ export interface CommandTypes {
   readonly "trace.neighbourhood": { readonly input: TraceNeighbourhoodInput; readonly output: TraceNeighbourhoodOutput };
   readonly "trace.matrix": { readonly input: TraceMatrixInput; readonly output: TraceMatrixOutput };
   readonly "trace.graph": { readonly input: TraceGraphInput; readonly output: TraceGraphOutput };
+  readonly "trace.mermaid": { readonly input: TraceMermaidInput; readonly output: TraceMermaidOutput };
   readonly "hint.list": { readonly input: HintListInput; readonly output: HintListOutput };
   readonly "hint.confirm": { readonly input: HintConfirmInput; readonly output: HintConfirmOutput };
   readonly "element.search": { readonly input: ElementSearchInput; readonly output: ElementSearchOutput };

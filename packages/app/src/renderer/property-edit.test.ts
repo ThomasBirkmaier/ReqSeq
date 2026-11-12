@@ -1,12 +1,16 @@
 import type { DataExportElement, DataExportRelation } from "@reqseq/core";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import { TITLE_FIELD } from "./element-view.js";
+import { KEY_MARK } from "./criterion-doc.js";
+import { criterionKeys } from "./editor/criterion-keys.js";
 import {
   addableProperties,
   allBoxes,
   boxValue,
   changedBoxes,
+  changesReferences,
   choiceItems,
   chooseKey,
   chooseTarget,
@@ -14,6 +18,7 @@ import {
   editsOf,
   fieldBoxes,
   hintKeys,
+  isKeyedBox,
   isLocked,
   isNumberedList,
   inputValueOf,
@@ -122,6 +127,72 @@ describe("isNumberedList (#615)", () => {
     const criteria = [{ key: "keya", text: "Given a." }, "Given b."];
     expect(isNumberedList(criteria)).toBe(true);
     expect(boxValue(criteria, true)).toEqual({ doc: "Given a.\nGiven b.", lineBreak: false });
+  });
+});
+
+describe("the criteria box (SR-204)", () => {
+  const criteria: PropertyInfo = { kind: "text", many: true, markdown: true, meaning: "acceptance-criteria" };
+  const requirements: PropertyModel = new Map([
+    [
+      "need",
+      new Map<string, PropertyInfo>([
+        ["topic", text],
+        ["acceptance-criteria", criteria],
+      ]),
+    ],
+  ]);
+
+  it("[SR-204/AK-syqv] holds the key of each line, and saves each line with its key", () => {
+    const stored = [{ key: "keya", text: "Given a." }, "Given b.", { key: "Bad!", text: "Given c." }];
+    expect(boxValue(stored, true, true)).toEqual({
+      doc: `keya${KEY_MARK}Given a.\n${KEY_MARK}Given b.\n${KEY_MARK}Given c.`,
+      lineBreak: false,
+    });
+    expect(inputValueOf(criteria, `keya${KEY_MARK}Given a.\n\n${KEY_MARK}Given b.`)).toEqual([
+      { key: "keya", text: "Given a." },
+      "Given b.",
+    ]);
+    expect(inputValueOf(criteria, " ")).toBeUndefined();
+  });
+
+  it("keeps a criterion with a line break as its plain lines, which the box gives back unchanged", () => {
+    const stored = [{ key: "kaaa", text: "first\nsecond" }, "third"];
+    expect(boxValue(stored, true, true)).toEqual({ doc: "first\nsecond\nthird", lineBreak: true });
+    const [box] = editableBoxes(element({ "acceptance-criteria": stored }), requirements).values();
+    expect(box?.lineBreak).toBe(true);
+    expect(box !== undefined && isKeyedBox(box)).toBe(false);
+    expect(box !== undefined && isLocked(box)).toBe(true);
+  });
+
+  it("gives the document of a keyed box back unchanged through the criteria codec", () => {
+    const stored = [{ key: "kaaa", text: "first" }, "", "third"];
+    const [box] = editableBoxes(element({ "acceptance-criteria": stored }), requirements).values();
+    expect(box !== undefined && isKeyedBox(box)).toBe(true);
+    const doc = box?.doc ?? "";
+    const codec = criterionKeys();
+    const { text, init } = codec.decode(doc);
+    expect(codec.encode(EditorState.create({ doc: text, extensions: [init, codec.extension] }))).toBe(doc);
+  });
+
+  it("reads the references again after a save of the criteria or the identifier (SR-205 AK1)", () => {
+    const identifier: PropertyInfo = { kind: "text", many: false, markdown: false, meaning: "identifier" };
+    const edit = (info: PropertyInfo, doc = "new"): BoxEdit => ({ key: "k", info, base: "old", doc });
+    expect(changesReferences([edit(criteria)])).toBe(true);
+    expect(changesReferences([edit(identifier)])).toBe(true);
+    expect(changesReferences([edit(text)])).toBe(false);
+    expect(changesReferences([edit(criteria, "old")])).toBe(false);
+  });
+
+  it("leaves criteria without keys out of the update when another box changes (SR-204 AK2)", () => {
+    const shown = element({ topic: "Wind", "acceptance-criteria": ["Given a.", "Given b."] });
+    const boxes = editableBoxes(shown, requirements);
+    expect(boxes.get("acceptance-criteria")?.doc).toBe(`${KEY_MARK}Given a.\n${KEY_MARK}Given b.`);
+    const docs = storedDocs(boxes);
+    docs.set("topic", "Gusts");
+    expect(updateInput("SR-1", undefined, editsOf(boxes, docs))).toEqual({
+      ref: "SR-1",
+      set: { topic: "Gusts" },
+    });
   });
 });
 

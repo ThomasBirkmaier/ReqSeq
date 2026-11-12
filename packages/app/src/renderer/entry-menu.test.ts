@@ -83,6 +83,12 @@ describe("the element of the entry", () => {
     expect(menuContext(none, on("element-entry"))).toBe(none);
   });
 
+  it("holds what was pressed while the menu of a property box is open (SR-205 AK4)", () => {
+    const target = { id: "line" } as unknown as Element;
+    expect(menuContext(base, { hit: { place: "field-property", target } }).pressed).toBe(target);
+    expect(menuContext(base, { hit: { place: "field", target } }).pressed).toBeUndefined();
+  });
+
   it("in the prompt, is the marked one only where the buffer has no element of its own (`promptEntry`)", () => {
     for (const buffer of [listBuffer("All elements"), searchBuffer("wind"), overviewBuffer()]) {
       expect(promptEntry(buffer, entry)).toEqual({ entry });

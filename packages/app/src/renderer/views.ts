@@ -52,6 +52,7 @@ export const AS_FIELD: ReadonlySet<string> = new Set([
   "trace.related",
   "trace.neighbourhood",
   "trace.graph",
+  "trace.mermaid",
   "evidence.list",
   "evidence.withoutPassedTest",
 ]);

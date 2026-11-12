@@ -248,6 +248,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   "hint.list": [{}, { kind: ["relation.outdated"], type: ["need"] }, { ref: OBSOLETE }, { ref: "SR-ffffff" }],
   "metamodel.get": [{}, { extra: true }],
+  "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [
     { source: GUSTS, kind: "replaces", target: OBSOLETE },
     { source: APPROVED, kind: "refines", target: RETIRED },
@@ -305,6 +306,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: RETIRED, meanings: ["derivation"], limit: 2 },
     { ref: "SR-ffffff" },
   ],
+  "trace.mermaid": [{ ref: WIND }, { ref: APPROVED, allLevels: true, view: "core" }, { ref: "SR-ffffff" }],
   "trace.matrix": [
     {},
     { selection: { ids: [APPROVED, WIND] }, sort: [{ by: "hierarchy" }] },

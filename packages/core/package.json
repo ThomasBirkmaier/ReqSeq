@@ -43,6 +43,10 @@
       "types": "./dist/model/criterion-items.d.ts",
       "default": "./dist/model/criterion-items.js"
     },
+    "./criterion-lines": {
+      "types": "./dist/model/criterion-lines.d.ts",
+      "default": "./dist/model/criterion-lines.js"
+    },
     "./pasted-markdown": {
       "types": "./dist/reqif/pasted-markdown.d.ts",
       "default": "./dist/reqif/pasted-markdown.js"
