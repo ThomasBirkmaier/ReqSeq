@@ -14,7 +14,7 @@ packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 verification-method: test
 refines:
-  - { id: 6adc6d1e-80be-4ec1-acac-006873bc163c, version: n2:8bbf773ad7730440, title: Paket als ReqIF exportieren }
+  - { id: 6adc6d1e-80be-4ec1-acac-006873bc163c, version: n2:6feeddfa75e84c46, title: Paket als ReqIF exportieren }
 derives-from:
   - { id: 6adc503f-c806-42c1-9750-179bcea5d1cd, version: n2:527652e809efa5b8, title: Austausch per ReqIF }
   - { id: aeee3f81-d8c1-41b5-8f9a-0a1094845828, version: n2:039cc12cd910e3d5, title: Fremde Inhalte gefahrlos öffnen }

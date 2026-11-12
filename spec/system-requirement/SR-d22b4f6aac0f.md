@@ -18,7 +18,7 @@ refines:
 derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:2ec3810c4995e7aa, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:b80bc34e945e2950, title: Oberfläche als weißes Blatt }
 ---
 
 Die App muss bei einer Property mit festen Werten die Werteauswahl der Befehlszeile auch per Mausklick öffnen und einen Wert per Klick setzen lassen.

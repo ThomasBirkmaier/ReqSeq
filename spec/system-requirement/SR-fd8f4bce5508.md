@@ -21,7 +21,7 @@ derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
 based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:2ec3810c4995e7aa, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:b80bc34e945e2950, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f, version: n2:d4e7ba49fc318ecc, title: Kette aufwärts und abwärts zeigen }
 ---
