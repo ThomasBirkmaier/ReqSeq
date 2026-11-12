@@ -115,6 +115,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         elementShortId: "SR-b0000000001",
         elementRepository: "system",
         elementFile: "requirements/SR-0b0000000001.md",
+        view: "core",
         storedVersion: OLD,
         currentVersion: await currentOf(workspace, A),
       },
@@ -167,6 +168,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         elementShortId: "SR-0000e3",
         elementRepository: "system",
         elementFile: "requirements/SR-3131310000e3.md",
+        view: "core",
         storedVersion: "n2:0000000000000000",
         currentVersion: "n2:de10890cdf8c6167",
         // With number, key and text (SR-205 AK2).

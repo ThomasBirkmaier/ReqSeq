@@ -8,6 +8,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { itemLimitFindings, itemLimitProblemsState } from "./item-limits.js";
 import { elementStoreState } from "./store.js";
+import { withoutTitles } from "../hints/titles.test-helper.js";
 
 const ID = "17100000-0000-4000-8000-000000";
 const SR1 = `${ID}c00001`;
@@ -53,7 +54,9 @@ describe("the most entries of a list property (SR-171)", () => {
     const problems = await check(workspace);
     expect(problems.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
     const hints = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;
-    expect(hints.hints.filter((p) => p.code === "element.too-many-items")).toEqual([shown(hint())]);
+    expect(withoutTitles(hints.hints).filter((p) => p.code === "element.too-many-items")).toEqual([
+      shown(hint()),
+    ]);
   });
 
   it("[SR-171/AK-ptxs] gives no count hint for a list property without max-items, however many entries", async () => {

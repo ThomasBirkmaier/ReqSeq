@@ -593,6 +593,10 @@
               "type": "string",
               "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`), for display next to `elementShortId`; given with it when the element has one."
             },
+            "elementTitle": {
+              "type": "string",
+              "description": "Title of the element `elementId` names, for display next to `elementShortId`; given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
+            },
             "targetId": {
               "$ref": "#/$defs/common/$defs/uuid"
             },
@@ -607,6 +611,10 @@
             "targetIdentifier": {
               "type": "string",
               "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`), for display next to `targetShortId`; given with it when the element has one."
+            },
+            "targetTitle": {
+              "type": "string",
+              "description": "Title of the element `targetId` names, for display next to `targetShortId`; given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
             },
             "storedVersion": {
               "$ref": "#/$defs/common/$defs/version"
@@ -701,6 +709,10 @@
               "type": "integer",
               "minimum": 0,
               "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets."
+            },
+            "view": {
+              "$ref": "#/$defs/common/$defs/viewId",
+              "description": "The view whose verification or validation status an `evidence.outdated` hint is about: `core` or the UUID of the variant, also when the record it names holds in every variant."
             }
           },
           "additionalProperties": false
@@ -7366,7 +7378,7 @@
     {
       "name": "hint_list",
       "title": "List hints",
-      "description": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.",
+      "description": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -7406,7 +7418,7 @@
             "minimum": 1,
             "maximum": 5000,
             "default": 200,
-            "description": "Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations are asked for the hints of the page alone."
+            "description": "Hints of the page; total and kinds count all. Every page finds every hint again; only the dates of outdated relations are asked for the hints of the page alone."
           },
           "offset": {
             "type": "integer",
@@ -7420,9 +7432,31 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "kinds": {
+            "type": "array",
+            "description": "The number of hints that pass the filters per kind, counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/common/$defs/problemCode"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Hints of this kind that pass the filters."
+                }
+              },
+              "required": [
+                "code",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
           "hints": {
             "type": "array",
-            "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+            "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for outdated evidence the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
             "items": {
               "$ref": "#/$defs/common/$defs/problem"
             }
@@ -7439,6 +7473,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "kinds",
           "hints",
           "total",
           "incomplete"

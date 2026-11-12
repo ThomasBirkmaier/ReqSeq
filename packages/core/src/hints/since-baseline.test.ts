@@ -13,6 +13,7 @@ import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
+import { withoutTitles } from "./titles.test-helper.js";
 
 const P = "10310310-0000-4000-8000-0000000000";
 const [K1, K2, K3, K4, K5, B1, COAST, MOUNTAIN] = ["a1", "a2", "a3", "a4", "a5", "b1", "c1", "c2"].map(
@@ -87,9 +88,9 @@ const listed = async (
   workspace: Workspace,
   input: Record<string, unknown> = {},
 ): Promise<readonly Problem[]> =>
-  ((await invoke("hint.list", input, { workspace })) as CommandOutput<"hint.list">).hints.filter((h) =>
-    CODES.has(h.code),
-  );
+  withoutTitles(
+    ((await invoke("hint.list", input, { workspace })) as CommandOutput<"hint.list">).hints,
+  ).filter((h) => CODES.has(h.code));
 
 /** Code, element and target of each since-baseline problem. */
 const rows = (problems: readonly Problem[]): unknown[] =>

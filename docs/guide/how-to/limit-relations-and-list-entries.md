@@ -66,8 +66,11 @@ reqseq hint list --kind relation.too-few
 ```
 
 ```text title="Output"
+kinds:
+  - code: relation.too-few
+    count: 1
 hints:
-  SR-c67baa  relation.too-few  System Requirement SR-c67baa has 0 relations Realizes (realizes) to Need (need); at least 1
+  SR-c67baa  Show the wind speed  relation.too-few  System Requirement SR-c67baa has 0 relations Realizes (realizes) to Need (need); at least 1
 total: 1
 ```
 

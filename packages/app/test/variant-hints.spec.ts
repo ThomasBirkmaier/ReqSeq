@@ -138,7 +138,8 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(names(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
     const result = window.locator(".result");
-    await expect(result.locator(".line").filter({ hasText: CORE_CHANGED })).toHaveCount(1);
+    // One hint line; the counts per kind above the hints name the code too (SR-026 AK6).
+    await expect(result.locator(".line.problem").filter({ hasText: CORE_CHANGED })).toHaveCount(1);
     await expect(result).toContainText(ofCoast[0]?.message ?? "-");
   });
 
