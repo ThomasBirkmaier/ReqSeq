@@ -142,6 +142,11 @@
             "additionalProperties": false,
             "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319)."
           },
+          "textOutput": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API, MCP and the app keep the JSON object (ADR-0002 rule 3, SR-151 AK4)."
+          },
           "output": {
             "type": "object",
             "required": ["type"],

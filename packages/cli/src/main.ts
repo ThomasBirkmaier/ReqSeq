@@ -21,7 +21,14 @@ import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
 import type { Terminal } from "./style.js";
-import { jsonOutput, outcomeExitCode, renderError, spelledMessage, yamlOutput } from "./render.js";
+import {
+  jsonOutput,
+  outcomeExitCode,
+  renderError,
+  spelledMessage,
+  textOutput,
+  yamlOutput,
+} from "./render.js";
 
 /** Exit codes of `reqseq` (ADR-0009). */
 export const EXIT = {
@@ -183,6 +190,29 @@ async function call(
   return result.value;
 }
 
+/**
+ * What stdout gets of a successful call: `--json`, `--jsonl`, `--yaml`, the text of an entry with
+ * `textOutput` (whose problems go to stderr, ADR-0009), or the readable output.
+ */
+function outputPieces(invocation: Invocation, output: unknown, options: RunCliOptions): Iterable<string> {
+  const { entry } = invocation;
+  if (invocation.json) {
+    return jsonOutput(output);
+  }
+  if (invocation.jsonl && entry.jsonLines !== undefined) {
+    return jsonLines(output, entry.jsonLines);
+  }
+  if (invocation.yaml) {
+    return yamlOutput(output);
+  }
+  if (entry.textOutput !== undefined) {
+    const plain = textOutput(output, entry.textOutput);
+    options.stderr.write(plain.problems);
+    return [plain.text];
+  }
+  return [renderHuman(output, entry.effect === "read", options.terminal)];
+}
+
 async function execute(
   invocation: Invocation,
   options: RunCliOptions,
@@ -198,17 +228,7 @@ async function execute(
     );
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
-  await writePieces(
-    options.stdout,
-    invocation.json
-      ? jsonOutput(output)
-      : invocation.jsonl && invocation.entry.jsonLines !== undefined
-        ? jsonLines(output, invocation.entry.jsonLines)
-        : invocation.yaml
-          ? yamlOutput(output)
-          : [renderHuman(output, invocation.entry.effect === "read", options.terminal)],
-    options.signal,
-  );
+  await writePieces(options.stdout, outputPieces(invocation, output, options), options.signal);
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }
 

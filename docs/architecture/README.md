@@ -98,7 +98,7 @@ flowchart TB
     subgraph blocks[blocks]
       data[data<br/>JSON export and store per state]
       reqif[reqif<br/>ReqIF model, parser, mapping files]
-      elgraph[graph<br/>element graph, its words]
+      elgraph[graph<br/>element graph, its words, Mermaid text]
       query[query<br/>filter engine, sort, search index, saved filters]
       hints[hints<br/>outdated relations, evidence hints, confirm]
       evidence[evidence<br/>records, JUnit, status, coverage, degree]
@@ -174,7 +174,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `git` | Commits, dirty state, history, old contents, read-only (SR-083) |
 | `docs-site` | The offline documentation site of a delivery: which file a request names, media types, the CSP, command page paths; only `node:*`, reads only (SR-141, ADR-0017) ([block file](../../packages/core/docs/docs-site.md)) |
 | `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) |
-| `graph` | The graph of an element with its marks and verification (SR-111), and the words the app's graph shows ([block file](../../packages/core/docs/graph.md)) |
+| `graph` | The graph of an element with its marks and verification (SR-111), the words the app's graph shows, and the Mermaid text of the element and metamodel graphs (SR-151) ([block file](../../packages/core/docs/graph.md)) |
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |

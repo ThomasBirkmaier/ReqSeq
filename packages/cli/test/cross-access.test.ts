@@ -25,7 +25,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 import { EXIT, argvFor, runCli } from "../src/index.js";
-import { YAML_OPTIONS, yamlPieces } from "../src/render.js";
+import { YAML_OPTIONS, outcomeExitCode, renderProblem, yamlPieces } from "../src/render.js";
 import { EXPORT, ONE_REPOSITORY } from "./cross-access/fixtures.js";
 import type { Copy, Outcome, Result, Scenario } from "./cross-access/scenario.js";
 import { SCENARIOS, TEMPLATE_SETUPS } from "./cross-access/scenario.js";
@@ -651,6 +651,43 @@ describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
           input,
           { type: "application/x-ndjson; charset=utf-8", text: expected },
         ]);
+      }
+    }
+  });
+});
+
+describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => {
+  it("[SR-151/AK4] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr", async () => {
+    const texts = runtime.contracts.commands.filter((e) => e.textOutput !== undefined);
+    expect(texts.map((e) => e.name).sort()).toEqual(["metamodel.mermaid", "trace.mermaid"]);
+    for (const entry of texts) {
+      const field = entry.textOutput ?? "";
+      for (const scenario of (SCENARIOS.get(entry.name as CommandName) ?? []).filter(
+        (each) => each.expect === "output",
+      )) {
+        const { root } = await copy(scenario);
+        const core = (await viaCore(root, entry, scenario.input)) as { output: Record<string, unknown> };
+        const text = core.output[field];
+        const problems = (core.output["problems"] as unknown[]).map((problem) => renderProblem(problem));
+        const stdout = new Sink();
+        const stderr = new Sink();
+        const argv = [...argvFor(entry, scenario.input, runtime.contracts.schemas), "--workspace", root];
+        const code = await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime });
+        expect([scenario.name, code, stdout.text, stderr.text]).toEqual([
+          scenario.name,
+          outcomeExitCode(core.output),
+          text,
+          problems.join(""),
+        ]);
+        for (const outcome of [
+          await viaApi(root, entry, scenario.input, cache),
+          await viaMcp(root, entry, scenario.input),
+        ]) {
+          expect([scenario.name, (outcome as { output: Record<string, unknown> }).output[field]]).toEqual([
+            scenario.name,
+            text,
+          ]);
+        }
       }
     }
   });

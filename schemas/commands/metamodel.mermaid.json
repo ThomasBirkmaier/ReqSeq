@@ -1,0 +1,34 @@
+{
+  "name": "metamodel.mermaid",
+  "title": "Show metamodel as Mermaid",
+  "summary": "The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.",
+  "details": "The same types and links as the app's graph of the metamodel, as text: one node per type with its name, prefix and properties, the inherited ones marked, the node \"Any type\" only when a relation kind or property leaves a side open, and one edge per ordered pair of nodes with one label line per link. While the metamodel is missing or faulty it writes what `metamodel.get` gives. The CLI prints the text alone.",
+  "effect": "read",
+  "stage": 1,
+  "implements": ["SR-151"],
+  "textOutput": "mermaid",
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "mermaid": {
+        "type": "string",
+        "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`."
+      },
+      "problems": {
+        "type": "array",
+        "description": "The problems of the metamodel, as `metamodel.get` gives them.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["mermaid", "problems"]
+  }
+}

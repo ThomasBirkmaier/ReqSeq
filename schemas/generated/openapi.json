@@ -199,6 +199,11 @@
                             "additionalProperties": false,
                             "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson`. Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object."
                           },
+                          "textOutput": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr. API, MCP and the app keep the JSON object."
+                          },
                           "output": {
                             "type": "object",
                             "required": [
@@ -1929,6 +1934,162 @@
                     "statuses",
                     "meanings",
                     "files"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/metamodel.mermaid": {
+      "post": {
+        "operationId": "metamodel_mermaid",
+        "summary": "The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.",
+        "tags": [
+          "metamodel"
+        ],
+        "x-reqseq-effect": "read",
+        "x-reqseq-stage": 1,
+        "x-reqseq-implements": [
+          "SR-151"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mermaid": {
+                      "type": "string",
+                      "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`."
+                    },
+                    "problems": {
+                      "type": "array",
+                      "description": "The problems of the metamodel, as `metamodel.get` gives them.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "mermaid",
+                    "problems"
                   ]
                 }
               }
@@ -7364,6 +7525,225 @@
                     "root",
                     "nodes",
                     "edges",
+                    "truncated",
+                    "incomplete",
+                    "problems"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/trace.mermaid": {
+      "post": {
+        "operationId": "trace_mermaid",
+        "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
+        "tags": [
+          "trace"
+        ],
+        "x-reqseq-effect": "read",
+        "x-reqseq-stage": 3,
+        "x-reqseq-implements": [
+          "SR-151"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "$ref": "#/components/schemas/common/$defs/elementRef"
+                  },
+                  "repository": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The workspace name of the repository of the element ref names, as in element.get."
+                  },
+                  "maxDepth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true."
+                  },
+                  "allLevels": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/key"
+                    },
+                    "description": "Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule."
+                  },
+                  "meanings": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "derivation",
+                        "replacement",
+                        "succession",
+                        "exclusion",
+                        "reference"
+                      ]
+                    },
+                    "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+                  },
+                  "view": {
+                    "$ref": "#/components/schemas/common/$defs/view"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "default": 500,
+                    "description": "The most nodes, the element included; the nearest levels first (`truncated` says when more exist)."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "ref"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mermaid": {
+                      "type": "string",
+                      "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels."
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
+                    },
+                    "incomplete": {
+                      "$ref": "#/components/schemas/common/$defs/incomplete"
+                    },
+                    "problems": {
+                      "type": "array",
+                      "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "mermaid",
                     "truncated",
                     "incomplete",
                     "problems"

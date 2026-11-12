@@ -281,6 +281,19 @@ function checkJsonLines(cmd, schemas) {
   });
 }
 
+/** `textOutput` (SR-151 AK4): a required top-level `string` of the output, which the CLI prints alone. */
+function checkTextOutput(cmd, schemas) {
+  if (cmd.textOutput === undefined) {
+    return [];
+  }
+  const field = cmd.textOutput;
+  const required = cmd.output.required ?? [];
+  return propertiesOf(cmd.output, "commands/", schemas).get(field)?.type === "string" &&
+    required.includes(field)
+    ? []
+    : [`textOutput: "${field}" is not a required top-level string of the output`];
+}
+
 /**
  * @param {{ commands: any[] }} catalog
  * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines`
@@ -293,6 +306,7 @@ export function checkCatalog(catalog, schemas = {}) {
       ...checkSummary(cmd),
       ...checkArguments(cmd),
       ...checkJsonLines(cmd, schemas),
+      ...checkTextOutput(cmd, schemas),
     ].map((e) => `schemas/commands/${cmd.name}.json: ${e}`),
   );
 }
