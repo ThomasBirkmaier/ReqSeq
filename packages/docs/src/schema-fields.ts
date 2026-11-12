@@ -83,7 +83,8 @@ export function typeText(schema: Schema, context?: SchemaContext): string {
     ? alternatives.filter(isSchema).filter((part) => TYPE_KEYWORDS.some((keyword) => keyword in part))
     : [];
   if (named.length > 0) {
-    return named.map(inner).join(" or ");
+    // Forms of one type (an object per operator) are named once: `object or propertyCondition`.
+    return [...new Set(named.map(inner))].join(" or ");
   }
   if (Array.isArray(schema["allOf"])) {
     // Parts that only constrain (`minLength`, `not`) name no type of their own: `relativePath`, not `relativePath and any`.
@@ -167,6 +168,29 @@ const objectParts = (
     ),
   };
 };
+
+/** One alternative object form of a schema, named by the fields it requires (else all of its fields). */
+export interface Form {
+  readonly name: string;
+  readonly schema: Schema;
+}
+
+/**
+ * The alternatives of a schema (`anyOf`, else `oneOf`) that list fields of their own, so each form can get its own
+ * field table. An alternative by `$ref` is a definition of its own and documented there.
+ */
+export function forms(schema: Schema): Form[] {
+  // In the order `typeText` reads them, so the type line and the forms name the same alternatives.
+  const alternatives = schema["anyOf"] ?? schema["oneOf"];
+  return (Array.isArray(alternatives) ? alternatives : [])
+    .filter(isSchema)
+    .filter((part) => isSchema(part["properties"]))
+    .map((part) => {
+      const required = Array.isArray(part["required"]) ? part["required"].map(String) : [];
+      const keys = required.length > 0 ? required : Object.keys(propertiesOf(part));
+      return { name: keys.join(", "), schema: part };
+    });
+}
 
 /** The rows of every field of an object schema, nested objects and arrays of objects below their field. */
 export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", depth = 0): FieldRow[] {
