@@ -23,11 +23,24 @@ const ALL = [
   arg("direction", "choice"),
   arg("meanings", "choice"),
 ];
+/** `schema` with a description on each property that has none, which every argument needs (SR-210 AK6). */
+const described = (schema) =>
+  schema.properties === undefined
+    ? schema
+    : {
+        ...schema,
+        properties: Object.fromEntries(
+          Object.entries(schema.properties).map(([field, property]) => [
+            field,
+            { description: `The ${field}.`, ...property },
+          ]),
+        ),
+      };
 const command = (name, title, args = ALL, schema = input) => ({
   name,
   title,
   arguments: args,
-  input: schema,
+  input: described(schema),
 });
 const check = (...commands) => checkCatalog({ commands });
 
@@ -201,7 +214,67 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
     const choice = [ALL[0], arg("kind", "choice"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", choice))).toEqual([
-      'schemas/commands/test.one.json: arguments: "kind": choice needs an inline enum',
+      'schemas/commands/test.one.json: arguments: "kind": choice needs an enum, inline or as the definition its $ref names',
+    ]);
+    // An enum the field names by a `$ref` counts (#1575), one that leads to no enum does not.
+    const schemas = {
+      "common.schema.json": { $defs: { code: { enum: ["a.b"] }, uuid: { type: "string" } } },
+    };
+    const referred = (ref) => ({
+      ...input,
+      properties: { ...input.properties, kind: { type: "array", items: { $ref: ref } } },
+    });
+    const checkWith = (ref) =>
+      checkCatalog({ commands: [command("test.one", "One", choice, referred(ref))] }, schemas);
+    expect(checkWith("../common.schema.json#/$defs/code")).toEqual([]);
+    expect(checkWith("../common.schema.json#/$defs/uuid")).toEqual([
+      'schemas/commands/test.one.json: arguments: "kind": choice needs an enum, inline or as the definition its $ref names',
+    ]);
+  });
+
+  it("every argument has a description, its own or the one of the type its $ref names (SR-210 AK6)", () => {
+    const schemas = {
+      "common.schema.json": {
+        $defs: { named: { type: "string", description: "A named type." }, bare: { type: "string" } },
+      },
+    };
+    const raw = (properties) => ({
+      name: "test.one",
+      title: "One",
+      arguments: Object.keys(properties).map((field) => arg(field, "text")),
+      input: { type: "object", properties },
+    });
+    const named = { $ref: "../common.schema.json#/$defs/named" };
+    const bare = { $ref: "../common.schema.json#/$defs/bare" };
+    const own = { type: "string", description: "Own." };
+    const list = (items) => ({ type: "array", items });
+    expect(checkCatalog({ commands: [raw({ own, named, names: list(named) })] }, schemas)).toEqual([]);
+    const missing = (field) =>
+      `schemas/commands/test.one.json: arguments: "${field}": needs a description, its own or one of the type its $ref names`;
+    expect(
+      checkCatalog(
+        {
+          commands: [
+            raw({
+              none: { type: "string" },
+              blank: { type: "string", description: " " },
+              bare,
+              bares: list(bare),
+              nowhere: { $ref: "../nowhere.schema.json#/$defs/x" },
+            }),
+          ],
+        },
+        schemas,
+      ),
+    ).toEqual([
+      missing("none"),
+      'schemas/commands/test.one.json: arguments: "blank": has a blank description',
+      ...["bare", "bares", "nowhere"].map(missing),
+    ]);
+    // A blank own description is refused even where the type has one: it would be shown.
+    const blankNamed = { ...named, description: "" };
+    expect(checkCatalog({ commands: [raw({ blankNamed })] }, schemas)).toEqual([
+      'schemas/commands/test.one.json: arguments: "blankNamed": has a blank description',
     ]);
   });
 

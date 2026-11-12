@@ -285,6 +285,41 @@ test.describe("the command prompt", () => {
     expect(await hints()).toEqual([]);
   });
 
+  test("List hints offers the problem codes as kind, and lists only the hints of the code taken (#1575)", async () => {
+    const common = JSON.parse(
+      await fs.readFile(new URL("../../../schemas/common.schema.json", import.meta.url), "utf8"),
+    ) as { readonly $defs: { readonly problemCode: { readonly enum: readonly string[] } } };
+    const codes = common.$defs.problemCode.enum;
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const label = window.locator("label.prompt-label");
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("List hints");
+    await expect(names(window).first()).toHaveText("List hints");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label).toHaveText("List hints · more arguments:");
+    await expect(names(window).nth(1)).toHaveText("kind");
+    await window.keyboard.press("ArrowDown");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("List hints · kind:");
+    await expect(names(window).first()).toHaveText(codes[0] ?? "");
+    await window.keyboard.type("unknown-prop");
+    await expect(names(window).first()).toHaveText("element.unknown-property");
+    await window.keyboard.press("Enter");
+    // A list field takes one value per Enter; Enter on an empty input ends it.
+    await window.keyboard.press("Enter");
+    await expect(names(window).first()).toHaveText("Run");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".modeline")).toContainText("List hints");
+    const cli = await running.cli(["hint", "list", "--kind", "element.unknown-property"]);
+    const listed = (JSON.parse(cli.stdout) as { hints: { code: string; elementShortId: string }[] }).hints;
+    expect(listed.map((hint) => hint.elementShortId)).toEqual(["SR-0000b4"]);
+    await expect(window.locator(".result")).toContainText("SR-0000b4");
+    await expect(window.locator(".result")).toContainText("element.unknown-property");
+    await expect(window.locator(".result")).not.toContainText("relation.outdated");
+  });
+
   test.describe("arguments completed with the values of the metamodel (SR-108 AK4)", () => {
     /** What the CLI gives for `metamodel get`. */
     interface Metamodel {

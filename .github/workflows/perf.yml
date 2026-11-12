@@ -76,7 +76,8 @@ jobs:
     # (ADR-0011); the job prints what it got.
     runs-on: ubuntu-24.04
     # The Vitest suite alone took 36 min at night (2026-11-02); the app's suite adds about 5 min with its setup
-    # (Electron from the cache, build, about 2 min of tests, #147). 75 min leaves about 34 min for a slow runner.
+    # (Electron from the cache, build, about 2 min of tests, #147; the graphs of SR-111 AK6 add two fixtures of 1,500
+    # elements and two app runs, about 2 min more, #1559). 75 min leaves about 34 min for a slow runner.
     timeout-minutes: 75
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
@@ -106,7 +107,7 @@ jobs:
           rm -f test-results/perf.jsonl test-results/junit-perf.xml test-results/junit-perf-electron.xml
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
       # The app's part (#147, packages/app/test/perf/playwright.config.ts): Playwright starts the built app on the
-      # generated workspace (SR-082 start and open), after the Vitest suite on the same runner, so the two never
+      # generated workspace (SR-082 start and open) and the 500-node graphs (SR-111 AK6, #1559), after the Vitest suite on the same runner, so the two never
       # compete for the cores. It runs when the build passed, also after a red Vitest suite. The Electron binary
       # comes from the cache that ci.yml fills (#303); this job only reads it.
       - name: Electron version

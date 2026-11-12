@@ -57,16 +57,39 @@ const isLocalPath = (property) => /#\/\$defs\/localPath$/.test(itemOf(property).
 /** Path sources: `folder` or `file` exactly on the `localPath` fields (ADR-0002 rule 1, SR-143). */
 const PATHS = new Set(["folder", "file"]);
 
+/**
+ * The values of a `choice` field: its inline `enum`, or the `enum` of the definition its `$ref` names
+ * (`hint.list kind`: `common.schema.json#/$defs/problemCode`), which the app's core host puts inline.
+ */
+const choiceValues = (item, schemas) =>
+  item.$ref === undefined ? item.enum : resolveRef(item.$ref, "commands/", schemas)?.schema.enum;
+
+/**
+ * A description for every argument (SR-210 AK6): its own, else the one of the type its field, or the
+ * items of a list field, names by a `$ref`, which the app's core host gives the windows with it.
+ */
+function checkDescription(arg, property, schemas) {
+  if (typeof property.description === "string") {
+    // An own description is shown as it is, so a blank one is no description.
+    return property.description.trim() === "" ? [`"${arg.field}": has a blank description`] : [];
+  }
+  const ref = property.$ref ?? (property.type === "array" ? property.items?.$ref : undefined);
+  const type = ref === undefined ? undefined : resolveRef(ref, "commands/", schemas)?.schema;
+  return typeof type?.description === "string" && type.description.trim() !== ""
+    ? []
+    : [`"${arg.field}": needs a description, its own or one of the type its $ref names`];
+}
+
 /** The sources whose kind has to fit the type of the field. */
-function checkKind(arg, property) {
+function checkKind(arg, property, schemas) {
   const item = itemOf(property);
   if (isLocalPath(property) !== PATHS.has(arg.complete)) {
     return PATHS.has(arg.complete)
       ? [`"${arg.field}": ${arg.complete} needs a localPath field`]
       : [`"${arg.field}": a localPath field is completed as folder or file`];
   }
-  if (arg.complete === "choice" && !Array.isArray(item.enum)) {
-    return [`"${arg.field}": choice needs an inline enum`];
+  if (arg.complete === "choice" && !Array.isArray(choiceValues(item, schemas))) {
+    return [`"${arg.field}": choice needs an enum, inline or as the definition its $ref names`];
   }
   if (arg.complete === "boolean" && item.type !== "boolean") {
     return [`"${arg.field}": boolean needs a boolean field`];
@@ -186,7 +209,7 @@ function checkPartFlags(cmd) {
 }
 
 /** Every input field exactly once, the required ones first, each source fitting its field. */
-function checkArguments(cmd) {
+function checkArguments(cmd, schemas) {
   const errors = [];
   const properties = cmd.input.properties ?? {};
   const required = new Set(cmd.input.required ?? []);
@@ -211,7 +234,8 @@ function checkArguments(cmd) {
     }
     errors.push(
       ...checkContext(arg, cmd.arguments.slice(0, index)),
-      ...checkKind(arg, property),
+      ...checkKind(arg, property, schemas),
+      ...checkDescription(arg, property, schemas),
       ...checkReplaces(arg, cmd.arguments.slice(0, index), required),
     );
   });
@@ -296,7 +320,7 @@ function checkTextOutput(cmd, schemas) {
 
 /**
  * @param {{ commands: any[] }} catalog
- * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines`
+ * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines` and `choice`
  */
 export function checkCatalog(catalog, schemas = {}) {
   const titles = new Map();
@@ -304,7 +328,7 @@ export function checkCatalog(catalog, schemas = {}) {
     [
       ...checkTitle(cmd, titles),
       ...checkSummary(cmd),
-      ...checkArguments(cmd),
+      ...checkArguments(cmd, schemas),
       ...checkJsonLines(cmd, schemas),
       ...checkTextOutput(cmd, schemas),
     ].map((e) => `schemas/commands/${cmd.name}.json: ${e}`),

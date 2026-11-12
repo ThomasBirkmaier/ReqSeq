@@ -12,7 +12,7 @@ acceptance-criteria:
   - key: g8dv
     text: Gegeben die App, wenn die Hilfe aus dem Menü aufgerufen wird, dann öffnet sie die mitgelieferte Dokumentation im Standardbrowser über den Dienst für die Dokumentation auf dem eigenen Rechner (AK4), nicht in einem eigenen Fenster.
   - key: c1s5
-    text: Gegeben eine Funktion in der Befehlszeile der App, wenn ihre Hilfe aufgerufen wird, dann öffnet die App die Referenzseite dieser Funktion, bei einem Befehl, den es nur in der App gibt, seine Stelle in der Tastenreferenz der Dokumentation (SR-139 AK6).
+    text: Gegeben eine Funktion in der Befehlszeile der App, wenn mit F1 ihre Dokumentation aufgerufen wird, dann öffnet die App die Referenzseite dieser Funktion, bei einem Befehl, den es nur in der App gibt, seine Stelle in der Tastenreferenz der Dokumentation (SR-139 AK6).
   - key: dbrz
     text: Gegeben der Dienst für die Dokumentation läuft, von `reqseq serve docs` oder von der Hilfe der App gestartet, wenn die Dokumentation damit gelesen und durchsucht wird, dann ist er nur auf 127.0.0.1 erreichbar, beantwortet nur Lese-Anfragen (GET, HEAD), lehnt eine Anfrage ab, deren Host nicht eine Loopback-Adresse oder `localhost` mit seinem Port nennt, schreibt nichts, lässt außer dem Port nichts wählen, und seine Seiten laden nichts aus dem Netz.
 verification-method: test

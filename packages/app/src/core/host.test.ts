@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, PortMessage } from "../shared/protocol.js";
 import type { Channel, CoreHostOptions, WatchedChange } from "./host.js";
 import { FILE_HOST, MAX_IMAGE_BYTES, createCoreHost, lexicalTarget } from "./host.js";
+import { listedEntry } from "./listing.js";
+import { cliUsage } from "./cli-usage.js";
 
 const runtime = createCommandRuntime();
 
@@ -130,7 +132,7 @@ describe("createCoreHost: catalog calls", () => {
     window.close();
   });
 
-  it("lists the catalog as the API does, each command with whether it is implemented", async () => {
+  it("lists the catalog as the API does, each command with whether it is implemented, its choices inline and its call on the command line", async () => {
     const { connect } = await setup();
     const window = connect();
     window.send({ id: 7, kind: "commands" });
@@ -138,8 +140,9 @@ describe("createCoreHost: catalog calls", () => {
     expect(answer).toEqual({
       id: 7,
       commands: runtime.contracts.commands.map((entry) => ({
-        ...entry,
+        ...listedEntry(entry, runtime.contracts.schemas),
         implemented: runtime.commands.has(entry.name),
+        cliUsage: cliUsage(entry, runtime.contracts.schemas),
       })),
     });
     window.close();

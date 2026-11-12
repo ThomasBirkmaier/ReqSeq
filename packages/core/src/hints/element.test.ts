@@ -19,6 +19,7 @@ import type { EvidenceRecord } from "../evidence/index.js";
 import { evidenceRecordsState } from "../evidence/index.js";
 import { outdatedEvidenceProblemsState } from "./evidence.js";
 import { isHint } from "./list.js";
+import { withoutTitles } from "./titles.test-helper.js";
 
 type Shown = CommandOutput<"element.get">;
 
@@ -42,7 +43,9 @@ const undated = (hints: readonly Problem[]): Problem[] =>
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
 const listed = async (workspace: Workspace, ref: string): Promise<Problem[]> =>
-  undated(((await invoke("hint.list", { ref }, { workspace })) as CommandOutput<"hint.list">).hints);
+  undated(
+    withoutTitles(((await invoke("hint.list", { ref }, { workspace })) as CommandOutput<"hint.list">).hints),
+  );
 
 const shown = async (workspace: Workspace, ref: string): Promise<Problem[]> =>
   undated(

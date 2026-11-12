@@ -26,7 +26,8 @@
 //   check with exit code 1 for it), with the record's repository, file and line when it has them,
 //   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
 //   `repository` and `file` are the record's, and a UUID may have several copies, SR-088), the
-//   record's version as `storedVersion` and the current one as `currentVersion`.
+//   record's version as `storedVersion` and the current one as `currentVersion`, and the view whose
+//   status is outdated as `view` (`core` or the variant's UUID, as the message names it; SR-026 AK6).
 //   No hint ID: such a hint is not confirmed, a new record settles it (ADR-0012).
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
@@ -155,6 +156,7 @@ const outdatedProblem = (
   elementId: element.id,
   elementRepository: element.repository,
   elementFile: element.file,
+  view: variant ?? "core",
   storedVersion: record.version,
   currentVersion: version[NORMAL_FORM],
   ...(names === undefined || names.length === 0 ? {} : { criteria: [...names] }),

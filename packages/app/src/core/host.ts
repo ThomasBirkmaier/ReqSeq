@@ -21,6 +21,8 @@ import type {
 } from "../shared/protocol.js";
 import { decodedPath, isInside } from "../shared/paths.js";
 import { externalChange, portRequest } from "../shared/protocol.js";
+import { cliUsage } from "./cli-usage.js";
+import { listedEntry } from "./listing.js";
 
 /** One window's end of a port, whatever kind of port it is (Electron's MessagePortMain, Node's MessagePort). */
 export interface Channel {
@@ -206,8 +208,9 @@ export const createCoreHost = ({ runtime, workspace, activity, changes }: CoreHo
     }
     if (request.kind === "commands") {
       const commands: CommandListing[] = runtime.contracts.commands.map((entry) => ({
-        ...entry,
+        ...listedEntry(entry, runtime.contracts.schemas),
         implemented: runtime.commands.has(entry.name),
+        cliUsage: cliUsage(entry, runtime.contracts.schemas),
       }));
       channel.post({ id: request.id, commands });
       return;

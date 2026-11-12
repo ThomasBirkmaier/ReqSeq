@@ -106,8 +106,11 @@ reqseq hint list --variant VAR-f23826 --kind variant.core-changed
 ```
 
 ```text title="Output"
+kinds:
+  - code: variant.core-changed
+    count: 1
 hints:
-  SR-6d2406 → SR-c67baa  variant.core-changed  Core requirement System Requirement SR-c67baa, which System Requirement SR-6d2406 replaces, has changed since ...
+  SR-6d2406  Show the wind speed in Beaufort → SR-c67baa  Show the wind speed  variant.core-changed  Core requirement System Requirement SR-c67baa, which System Requirement SR-6d2406 replaces, has changed since ...
 total: 1
 ```
 
