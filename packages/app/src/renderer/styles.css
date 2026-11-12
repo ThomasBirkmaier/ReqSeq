@@ -494,6 +494,68 @@ body,
   white-space: nowrap;
 }
 
+/* The hint list (SR-026 AK4): the total, a heading per kind with its count, one row per hint. */
+.hints .hints-total {
+  margin: 0 0.75rem 0.5rem;
+  color: var(--muted);
+}
+
+.hints .hints-total .count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hints .hint-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.5rem;
+  padding: 0.1rem 0.75rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.hints .hint-group .count {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.hints .hint-group .code,
+.hints .hint-group .more {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.hints .hint-group .code {
+  font-family: var(--mono);
+}
+
+.hints .hint {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 24rem) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.1rem 0.75rem 0.1rem 2rem;
+  cursor: default;
+}
+
+.hints .hint-element,
+.hints .hint-title,
+.hints .hint-reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hints .hint-reason {
+  color: var(--muted);
+}
+
+.hints [data-cursor] {
+  background: var(--select);
+}
+
 mark {
   background: none;
   color: inherit;

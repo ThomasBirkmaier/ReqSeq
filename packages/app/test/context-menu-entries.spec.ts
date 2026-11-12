@@ -277,7 +277,7 @@ test.describe("the context menu of an element as an entry", () => {
 
     // AK4: a row of the output of "List hints", which no other buffer shows.
     await fromCommandLine(window, "List hints");
-    const line = window.locator(".result .line").nth(1);
+    const line = window.locator(".result .hint").first();
     await expect(line).toBeVisible();
     await rightClick(line);
     const names = await entryNames(window);

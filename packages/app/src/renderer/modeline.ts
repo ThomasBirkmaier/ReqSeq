@@ -99,7 +99,11 @@ export type BufferData =
       /** The element of the selected row (SR-150). */
       readonly marked?: ElementBuffer;
     }
-  | ({ readonly kind: "result" } & ResultSummary)
+  | ({
+      readonly kind: "result";
+      /** The hint list (SR-026 AK4): the full message of the marked hint. */
+      readonly message?: string;
+    } & ResultSummary)
   /** The metamodel (SR-130): how many types it defines. */
   | { readonly kind: "metamodel"; readonly types: number }
   | {
@@ -275,11 +279,12 @@ const graphParts = (
 };
 
 /** The modeline parts of a result buffer's output (#276). */
-const resultParts = (summary: ResultSummary): string[] => [
+const resultParts = (summary: ResultSummary & { readonly message?: string }): string[] => [
   ...(summary.total === undefined ? [] : [`${String(summary.total)} in all`]),
   ...(summary.view === undefined ? [] : [`view: ${summary.view}`]),
   // An output is incomplete for more than a missing repository (an evidence location, a replacement).
   ...(summary.incomplete ? ["incomplete"] : []),
+  ...(summary.message === undefined ? [] : [summary.message]),
 ];
 
 /**
