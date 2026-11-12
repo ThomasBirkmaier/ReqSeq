@@ -71,6 +71,14 @@ const versionsOf = (ids: readonly string[]): Promise<ReadonlyMap<string, Version
 
 const DATE = "2026-10-27T10:00:00Z";
 
+/** The current acceptance criteria of each element, by key (SR-029 AK13 checks the keys of a name). */
+const CRITERIA: Readonly<Record<string, readonly unknown[]>> = {
+  [LOGIN]: ["kone", "ktwo", "k7f3", "m2x9", "kfour"].map((key) => ({ key, text: key })),
+  [SPEC]: ["k7f3", "kspc"].map((key) => ({ key, text: key })),
+  [REPORT]: ["verify", "krep"].map((key) => ({ key, text: key })),
+  [LOG]: ["klog", "klgb"].map((key) => ({ key, text: key })),
+};
+
 /** A compiled name pattern with the prefixes SR and VAR. */
 const pattern = (text: string): EnrichOptions["namePattern"] =>
   nameMatcher(parseNamePattern(text), ["SR", "VAR"]);
@@ -127,6 +135,7 @@ const options = (more: Partial<EnrichOptions> = {}): EnrichOptions => ({
   file: "results/results.xml",
   resolveVariant,
   outOfVariant,
+  criteriaOf: (id) => CRITERIA[id] ?? [],
   ...more,
 });
 
@@ -263,11 +272,11 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
 
   it("assigns test cases through a name pattern and enriches them as in AK1, which the reader reads back", async () => {
     const xml = suite(
-      '<testcase classname="tests" name="tests::sr_46fb54_ak1_max_mass"/>' +
-        '<testcase classname="tests" name="tests::SR_0B0036_AK2_and_sr_0c0037_ak1"/>' +
+      '<testcase classname="tests" name="tests::sr_46fb54_ak_kone_max_mass"/>' +
+        '<testcase classname="tests" name="tests::SR_0B0036_AK_verify_and_sr_0c0037_ak_klog"/>' +
         '<testcase classname="tests" name="tests::no_requirement"/>',
     );
-    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak{ak}") });
+    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak_{ak}") });
     expect(result).toMatchObject({
       changed: true,
       testCases: 2,
@@ -275,30 +284,30 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       unknown: [],
       problems: [],
     });
-    expect(properties(result.bytes)["tests::sr_46fb54_ak1_max_mass"]).toEqual([
+    expect(properties(result.bytes)["tests::sr_46fb54_ak_kone_max_mass"]).toEqual([
       `reqseq:element=${LOGIN}`,
       `reqseq:version=${V[LOGIN]}`,
-      `reqseq:criterion=${LOGIN}:1`,
+      `reqseq:criterion=${LOGIN}:kone`,
       "reqseq:item=build-1",
       `reqseq:date=${DATE}`,
     ]);
     const read = readJunitRecords({ repository: "system", file: "results.xml" }, result.bytes);
     expect(read.problems).toBeUndefined();
     expect(read.records.map((r) => [r.testCase, r.element, r.version])).toEqual([
-      ["tests::sr_46fb54_ak1_max_mass", LOGIN, V[LOGIN]],
-      ["tests::SR_0B0036_AK2_and_sr_0c0037_ak1", REPORT, V[REPORT]],
-      ["tests::SR_0B0036_AK2_and_sr_0c0037_ak1", LOG, V[LOG]],
+      ["tests::sr_46fb54_ak_kone_max_mass", LOGIN, V[LOGIN]],
+      ["tests::SR_0B0036_AK_verify_and_sr_0c0037_ak_klog", REPORT, V[REPORT]],
+      ["tests::SR_0B0036_AK_verify_and_sr_0c0037_ak_klog", LOG, V[LOG]],
     ]);
   });
 
   it("counts an element that the pattern, the brackets and a property name once, and reports a pattern match that names no element or several", async () => {
     const xml = suite(
-      `<testcase name="[SR-46fb54] sr_46fb54_ak1"><properties>${prop("reqseq:element", LOGIN)}</properties></testcase>` +
-        '<testcase classname="k" name="sr_ffffff_ak1 unknown"/><testcase name="sr_aaaaaa_ak2 ambiguous"/>' +
-        '<testcase name="test_parse[sr_ffffff_ak1] is test data"/>',
+      `<testcase name="[SR-46fb54] sr_46fb54_ak_kone"><properties>${prop("reqseq:element", LOGIN)}</properties></testcase>` +
+        '<testcase classname="k" name="sr_ffffff_ak_kone unknown"/><testcase name="sr_aaaaaa_ak_ktwo ambiguous"/>' +
+        '<testcase name="test_parse[sr_ffffff_ak_kone] is test data"/>',
     );
-    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak{ak}") });
-    expect(properties(result.bytes)["[SR-46fb54] sr_46fb54_ak1"]).toEqual([
+    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak_{ak}") });
+    expect(properties(result.bytes)["[SR-46fb54] sr_46fb54_ak_kone"]).toEqual([
       `reqseq:element=${LOGIN}`,
       `reqseq:version=${V[LOGIN]}`,
       "reqseq:item=build-1",
@@ -306,18 +315,18 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
     expect(result).toMatchObject({ testCases: 1, withoutReference: 1 });
     expect(result.unknown).toEqual([
-      { testCase: "sr_ffffff_ak1 unknown", className: "k", line: 1, ref: "SR-ffffff" },
-      { testCase: "sr_aaaaaa_ak2 ambiguous", line: 1, ref: "SR-aaaaaa" },
+      { testCase: "sr_ffffff_ak_kone unknown", className: "k", line: 1, ref: "SR-ffffff" },
+      { testCase: "sr_aaaaaa_ak_ktwo ambiguous", line: 1, ref: "SR-aaaaaa" },
     ]);
     expect(result.problems.map((p) => [p.code, p.message])).toEqual([
       [
         "evidence.unknown-element",
-        'Test case "sr_ffffff_ak1 unknown" (line 1): no element has the reference "SR-ffffff" (read as "sr_ffffff_ak1" by the name pattern)',
+        'Test case "sr_ffffff_ak_kone unknown" (line 1): no element has the reference "SR-ffffff" (read as "sr_ffffff_ak_kone" by the name pattern)',
       ],
       [
         "evidence.ambiguous-element",
         expect.stringContaining(
-          '"SR-aaaaaa" (read as "sr_aaaaaa_ak2" by the name pattern) names more than one element',
+          '"SR-aaaaaa" (read as "sr_aaaaaa_ak_ktwo" by the name pattern) names more than one element',
         ),
       ],
     ]);
@@ -545,13 +554,13 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("stays silent on parameter lists and counts another name token only when it names exactly one element", async () => {
     const xml = suite(
       '<testcase name="test_add[1-2]"><properties><property name="x" value="1"/></properties></testcase><testcase name="adds [1, 2]"/><testcase name="[dup] ambiguous identifier"/>' +
-        '<testcase name="[SR-036] by identifier"/><testcase name="[SR-036/AK2] by identifier and criterion"/>',
+        '<testcase name="[SR-036] by identifier"/><testcase name="[SR-036/AK-kspc] by identifier and criterion"/>',
     );
     const result = await enrich(xml);
     expect(result).toMatchObject({ testCases: 2, unknown: [], problems: [] });
     expect(enrichedNames(result.bytes)).toEqual([
       "[SR-036] by identifier",
-      "[SR-036/AK2] by identifier and criterion",
+      "[SR-036/AK-kspc] by identifier and criterion",
     ]);
     expect(properties(result.bytes)["[SR-036] by identifier"]).toContain(`reqseq:element=${SPEC}`);
   });
@@ -911,7 +920,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("[SR-029/AK-djjh] with skipNotInView leaves out an element that applies in none of the given views, counts it, and enriches the rest", async () => {
     const xml = suite(
       `<testcase name="[SR-46fb54] [SR-036] login and spec"/>` +
-        `<testcase name="[SR-036/AK2] spec only"/>` +
+        `<testcase name="[SR-036/AK-kspc] spec only"/>` +
         `<testcase name="[SR-0b0036] [SR-0c0037] one view each"/>` +
         `<testcase name="[SR-46fb54] login"/>`,
     );
@@ -935,7 +944,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       "reqseq:item=build-1",
       `reqseq:date=${DATE}`,
     ]);
-    expect(written["[SR-036/AK2] spec only"]).toEqual([
+    expect(written["[SR-036/AK-kspc] spec only"]).toEqual([
       "reqseq:not-in-view=core",
       `reqseq:not-in-view=${COAST}`,
     ]);
@@ -948,7 +957,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const strict = await enrichViews(xml, { views });
     expect(strict.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-46fb54] [SR-036] login and spec" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
-      'Test case "[SR-036/AK2] spec only" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
+      'Test case "[SR-036/AK-kspc] spec only" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
       'Test case "[SR-0b0036] [SR-0c0037] one view each" (line 1) is not enriched: SR-0c0037 does not apply in core; SR-0b0036 is excluded in VAR-0aaaaa',
     ]);
     expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
@@ -957,7 +966,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("[SR-029/AK-djjh] removes the hand-written element and criterion properties of an element it leaves out, with their lines", async () => {
     const xml =
       "<testsuite>\r\n" +
-      '  <testcase name="[SR-46fb54/AK1] login">\r\n' +
+      '  <testcase name="[SR-46fb54/AK-kone] login">\r\n' +
       "    <properties>\r\n" +
       `      ${prop("reqseq:element", "SR-036")}\r\n` +
       `      ${prop("reqseq:criterion", "SR-036:2")}\r\n` +
@@ -970,12 +979,12 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(result).toMatchObject({ problems: [], testCases: 2, notInView: 2 });
     expect(text(result)).toBe(
       "<testsuite>\r\n" +
-        '  <testcase name="[SR-46fb54/AK1] login">\r\n' +
+        '  <testcase name="[SR-46fb54/AK-kone] login">\r\n' +
         "    <properties>\r\n" +
         `      ${prop("reqseq:element", LOGIN)}\r\n` +
         `      ${prop("reqseq:version", V[LOGIN])}\r\n` +
         `      ${prop("reqseq:variant", COAST)}\r\n` +
-        `      ${prop("reqseq:criterion", `${LOGIN}:1`)}\r\n` +
+        `      ${prop("reqseq:criterion", `${LOGIN}:kone`)}\r\n` +
         `      ${prop("reqseq:item", "build-1")}\r\n` +
         `      ${prop("reqseq:date", DATE)}\r\n` +
         "    </properties>\r\n  </testcase>\r\n" +
@@ -1004,7 +1013,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("[SR-029/AK-hx47] with skipNotInView marks a test case whose requirements apply in none of the given views with each of them, keeps the rest of it, and a re-run changes nothing", async () => {
     const xml =
       "<testsuite>\r\n" +
-      '  <testcase name="[SR-036/AK2] spec">\r\n' +
+      '  <testcase name="[SR-036/AK-kspc] spec">\r\n' +
       "    <properties>\r\n" +
       `      ${prop("reqseq:element", "SR-036")}\r\n` +
       `      ${prop("reqseq:criterion", "SR-036:2")}\r\n` +
@@ -1019,7 +1028,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const coast = prop("reqseq:not-in-view", COAST);
     expect(text(result)).toBe(
       "<testsuite>\r\n" +
-        '  <testcase name="[SR-036/AK2] spec">\r\n' +
+        '  <testcase name="[SR-036/AK-kspc] spec">\r\n' +
         "    <properties>\r\n" +
         `      ${prop("reqseq:element", "SR-036")}\r\n` +
         `      ${prop("reqseq:criterion", "SR-036:2")}\r\n` +
@@ -1406,45 +1415,47 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ]);
 
     it("writes the acceptance criterion a test case name gives", async () => {
-      const result = await enrich(suite('<testcase name="[SR-46fb54/AK2] logs in"/>'));
+      const result = await enrich(suite('<testcase name="[SR-46fb54/AK-ktwo] logs in"/>'));
       expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
-      expect(properties(result.bytes)["[SR-46fb54/AK2] logs in"]).toEqual([
+      expect(properties(result.bytes)["[SR-46fb54/AK-ktwo] logs in"]).toEqual([
         `reqseq:element=${LOGIN}`,
         `reqseq:version=${V[LOGIN]}`,
-        `reqseq:criterion=${LOGIN}:2`,
+        `reqseq:criterion=${LOGIN}:ktwo`,
         "reqseq:item=build-1",
         `reqseq:date=${DATE}`,
       ]);
-      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2]]]);
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, ["ktwo"]]]);
     });
 
     it("writes each criterion of each element once, by short ID, UUID or identifier, in name order", async () => {
       const result = await enrich(
         suite(
-          `<testcase name="[SR-46fb54/AK3] [SR-46fb54/ak1] [${LOGIN}/AK3] [SR-036/AK2] [SR-0b0036/AK1] a"/>`,
+          `<testcase name="[SR-46fb54/AK-k7f3] [SR-46fb54/ak-kone] [${LOGIN}/AK-k7f3] [SR-036/AK-kspc] [SR-0b0036/AK-verify] a"/>`,
         ),
       );
       expect(
         properties(result.bytes)[
-          "[SR-46fb54/AK3] [SR-46fb54/ak1] [" + LOGIN + "/AK3] [SR-036/AK2] [SR-0b0036/AK1] a"
+          "[SR-46fb54/AK-k7f3] [SR-46fb54/ak-kone] [" +
+            LOGIN +
+            "/AK-k7f3] [SR-036/AK-kspc] [SR-0b0036/AK-verify] a"
         ]?.filter((p) => p.startsWith("reqseq:criterion=")),
       ).toEqual([
-        `reqseq:criterion=${LOGIN}:3`,
-        `reqseq:criterion=${LOGIN}:1`,
-        `reqseq:criterion=${SPEC}:2`,
-        `reqseq:criterion=${REPORT}:1`,
+        `reqseq:criterion=${LOGIN}:k7f3`,
+        `reqseq:criterion=${LOGIN}:kone`,
+        `reqseq:criterion=${SPEC}:kspc`,
+        `reqseq:criterion=${REPORT}:verify`,
       ]);
       expect(criteriaOfRecords(result)).toEqual([
-        [LOGIN, [1, 3]],
-        [SPEC, [2]],
-        [REPORT, [1]],
+        [LOGIN, ["k7f3", "kone"]],
+        [SPEC, ["kspc"]],
+        [REPORT, ["verify"]],
       ]);
     });
 
     it("writes no criterion for an element the name also names without one, nor for a suffix of another kind", async () => {
       const result = await enrich(
         suite(
-          '<testcase name="[SR-46fb54] [SR-46fb54/AK2] whole"/><testcase name="[SR-0b0036/slow] [SR-0b0036/AKfoo] [] [x/AK0] none"/>',
+          '<testcase name="[SR-46fb54] [SR-46fb54/AK-ktwo] whole"/><testcase name="[SR-0b0036/slow] [SR-0b0036/AKfoo] [] [x/AK0] none"/>',
         ),
       );
       expect(result).toMatchObject({ testCases: 2, problems: [] });
@@ -1461,7 +1472,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         "[SR-46fb54/ak] a",
         "[SR-46fb54/AK2a] a",
         "[SR-46fb54/AK1234567890] a",
-        "[SR-46fb54/AK2] [SR-46fb54/AK] a",
+        "[SR-46fb54/AK-ktwo] [SR-46fb54/AK] a",
         "[SR-46fb54] [SR-46fb54/AK0] a",
         "[SR-46fb54/AK-k7f] a",
         "[SR-46fb54/AK-] a",
@@ -1472,9 +1483,9 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         expect(
           result.problems.map((p) => [p.code, p.severity]),
           name,
-        ).toEqual([["evidence.invalid-record", "error"]]);
+        ).toEqual([["evidence.invalid-criterion-name", "error"]]);
         expect(result.problems[0]?.message, name).toContain(
-          "names no acceptance criterion: write AK- and its criterion key, or AK and a number from 1 without leading zero",
+          "names no acceptance criterion: write AK- and its criterion key from the element file",
         );
       }
     });
@@ -1516,52 +1527,101 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ]);
     });
 
-    it("writes a number tag as the key of its criterion where it has one no other carries, else as the number, until the switch-over (#1419)", async () => {
+    it("[SR-029/AK-zvy0] reports a criterion named by number or by a key that not exactly one current criterion carries, names the key to write, and leaves the test case unchanged", async () => {
       const items = [
         { key: "kaaa", text: "one" },
         "two",
         { key: "kdup", text: "a" },
         { key: "kdup", text: "b" },
       ];
-      const result = await enrich(
-        suite('<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-46fb54/AK3] [SR-46fb54/AK5] a"/>'),
-        { criteriaOf: (id) => (id === LOGIN ? items : []) },
+      const names = [
+        "[SR-46fb54/AK1] a",
+        "[SR-46fb54/AK2] b",
+        "[SR-46fb54/AK3] c",
+        "[SR-46fb54/AK9] c9",
+        "[SR-46fb54/AK-kzzz] d",
+        "[SR-0b0036/AK-kzzz] keyless",
+        "[SR-46fb54/AK-kdup] e",
+        "tests::sr_46fb54_ak1",
+        "[SR-46fb54/AK-kaaa] [SR-46fb54/AK1] g",
+        "[SR-46fb54/AK-kaaa] counts",
+      ];
+      const xml = suite(names.map((name) => `<testcase name="${name}"/>`).join(""));
+      const result = await enrich(xml, {
+        // REPORT has criteria without keys (before element.assignCriterionKeys).
+        criteriaOf: (id) => (id === LOGIN ? items : id === REPORT ? ["x", "y"] : []),
+        namePattern: pattern("{prefix}_{id}_ak{ak}"),
+      });
+      const byNumber = "names an acceptance criterion by its number; name it by its criterion key";
+      expect(result.problems.map((p) => [p.code, p.severity, p.message])).toEqual(
+        [
+          `"[SR-46fb54/AK1]" ${byNumber}, [SR-46fb54/AK-kaaa]`,
+          `"[SR-46fb54/AK2]" names an acceptance criterion by its number, which has no criterion key yet; give the acceptance criteria of SR-46fb54 criterion keys with element.assignCriterionKeys and name it by its key`,
+          `"[SR-46fb54/AK3]" ${byNumber} from the element file`,
+          `"[SR-46fb54/AK9]" ${byNumber} from the element file`,
+          '"[SR-46fb54/AK-kzzz]" names the criterion key kzzz, which no acceptance criterion of SR-46fb54 in its current version carries; name the key from the element file',
+          '"[SR-0b0036/AK-kzzz]" names the criterion key kzzz, which no acceptance criterion of SR-0b0036 in its current version carries; give the acceptance criteria of SR-0b0036 criterion keys with element.assignCriterionKeys',
+          '"[SR-46fb54/AK-kdup]" names the criterion key kdup, which 2 acceptance criteria of SR-46fb54 in its current version carry; name the key from the element file',
+          `"sr_46fb54_ak1" (read by the name pattern) ${byNumber}, kaaa`,
+          `"[SR-46fb54/AK1]" ${byNumber}, [SR-46fb54/AK-kaaa]`,
+        ].map((why, i) => [
+          "evidence.invalid-criterion-name",
+          "error",
+          `Test case "${String(names[i])}" (line 1) is not enriched: ${why}`,
+        ]),
       );
-      // A key two criteria carry stays a number: written as the key, it would count for neither.
-      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2, 3, 5, "kaaa"]]]);
+      // Only the last one is enriched; the reported ones keep their bytes.
+      expect(result.testCases).toBe(1);
+      expect(enrichedNames(result.bytes)).toEqual(["[SR-46fb54/AK-kaaa] counts"]);
+      expect(text(result)).toContain(`<testcase name="${String(names[0])}"/>`);
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, ["kaaa"]]]);
+    });
+
+    it("[SR-029/AK-zvy0] reports a criterion named by number also for an element it would leave out (AK11)", async () => {
+      const result = await enrichViews(suite('<testcase name="[SR-036/AK2] spec"/>'), {
+        views: [GIVEN_CORE, GIVEN_COAST],
+        skipNotInView: true,
+      });
+      expect(result).toMatchObject({ changed: false, testCases: 0, notInView: 0 });
+      expect(result.problems.map((p) => [p.code, p.message])).toEqual([
+        [
+          "evidence.invalid-criterion-name",
+          'Test case "[SR-036/AK2] spec" (line 1) is not enriched: "[SR-036/AK2]" names an acceptance criterion by its number; name it by its criterion key, [SR-036/AK-kspc]',
+        ],
+      ]);
     });
 
     it("writes the criterion of a name the name pattern reads (SR-029 AK5)", async () => {
       const result = await enrich(
         suite(
-          '<testcase name="tests::sr_46fb54_ak2_and_sr_46fb54_ak4"/><testcase name="tests::sr_0b0036_ak0"/><testcase name="tests::sr_0c0037_ak03"/>',
+          '<testcase name="tests::sr_46fb54_ak_ktwo_and_sr_46fb54_ak_m2x9"/><testcase name="tests::sr_0b0036_ak_0"/><testcase name="tests::sr_0c0037_ak_03"/>',
         ),
-        { namePattern: pattern("{prefix}_{id}_ak{ak}") },
+        { namePattern: pattern("{prefix}_{id}_ak_{ak}") },
       );
       expect(result.testCases).toBe(1);
       expect(result.problems.map((p) => p.message)).toEqual([
-        expect.stringContaining('"sr_0b0036_ak0" names no acceptance criterion'),
-        expect.stringContaining('"sr_0c0037_ak03" names no acceptance criterion'),
+        expect.stringContaining('"sr_0b0036_ak_0" names no acceptance criterion'),
+        expect.stringContaining('"sr_0c0037_ak_03" names no acceptance criterion'),
       ]);
-      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2, 4]]]);
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, ["ktwo", "m2x9"]]]);
     });
 
     it("keeps a hand-written criterion, gives its reference the UUID and adds those of the name", async () => {
       const xml = suite(
-        `<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"><properties>${criterion(`${LOGIN}:2`)}${criterion(" SR-036 :3")}${criterion(`${LOGIN.toUpperCase()}:4`)}${criterion(`${LOGIN}:kfour`)}</properties></testcase>`,
+        `<testcase name="[SR-46fb54/AK-kone] [SR-46fb54/AK-kfour] [SR-036] a"><properties>${criterion(`${LOGIN}:2`)}${criterion(" SR-036 :3")}${criterion(`${LOGIN.toUpperCase()}:4`)}${criterion(`${LOGIN}:kfour`)}</properties></testcase>`,
       );
       const result = await enrich(xml);
       expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
-      const written = properties(result.bytes)["[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"];
+      const written = properties(result.bytes)["[SR-46fb54/AK-kone] [SR-46fb54/AK-kfour] [SR-036] a"];
       expect(written?.filter((p) => p.startsWith("reqseq:criterion="))).toEqual([
         `reqseq:criterion=${LOGIN}:2`,
         `reqseq:criterion=${SPEC}:3`,
         `reqseq:criterion=${LOGIN.toUpperCase()}:4`,
         `reqseq:criterion=${LOGIN}:kfour`,
-        `reqseq:criterion=${LOGIN}:1`,
+        `reqseq:criterion=${LOGIN}:kone`,
       ]);
       expect(criteriaOfRecords(result)).toEqual([
-        [LOGIN, [1, 2, 4, "kfour"]],
+        [LOGIN, [2, 4, "kfour", "kone"]],
         [SPEC, [3]],
       ]);
     });

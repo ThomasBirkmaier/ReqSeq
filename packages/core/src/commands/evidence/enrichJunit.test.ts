@@ -124,7 +124,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     });
     const vitestBytes = await bytesOf(fixture, "results/vitest.xml");
     expect(enrichedNames(vitestBytes)).toEqual([
-      "login > [SR-46fb54/AK1] accepts a valid password",
+      "login > [SR-46fb54/AK-gdrb] accepts a valid password",
       "login > [SR-036] reports a failure",
     ]);
     // The parameter lists stay as they were.
@@ -216,7 +216,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const { fixture, workspace } = await open();
     const output = await enrich(workspace, {
       file: "results/nextest.xml",
-      namePattern: "{prefix}_{id}_ak{ak}",
+      namePattern: "{prefix}_{id}_ak_{ak}",
     });
     expect(output).toEqual({
       testCases: 2,
@@ -228,13 +228,13 @@ describe("evidence.enrichJunit (SR-029)", () => {
     });
     const bytes = await bytesOf(fixture, "results/nextest.xml");
     expect(enrichedNames(bytes)).toEqual([
-      "tests::sr_46fb54_ak1_accepts_a_valid_password",
-      "tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure",
+      "tests::sr_46fb54_ak_gdrb_accepts_a_valid_password",
+      "tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure",
     ]);
     expect(recordsOf(bytes)).toEqual([
-      ["tests::sr_46fb54_ak1_accepts_a_valid_password", LOGIN],
-      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", REPORT],
-      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", LOG],
+      ["tests::sr_46fb54_ak_gdrb_accepts_a_valid_password", LOGIN],
+      ["tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure", REPORT],
+      ["tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure", LOG],
     ]);
   });
 

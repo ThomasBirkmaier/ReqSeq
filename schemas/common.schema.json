@@ -401,6 +401,7 @@
         "evidence.ambiguous-element",
         "evidence.kind-mismatch",
         "evidence.unknown-criterion",
+        "evidence.invalid-criterion-name",
         "evidence.counts-in-no-view",
         "baseline.invalid",
         "baseline.repository-commit-differs",

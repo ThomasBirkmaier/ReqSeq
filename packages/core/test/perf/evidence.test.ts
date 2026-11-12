@@ -1,7 +1,7 @@
 // E4 (ThomasBirkmaier/ReqSeq-archive#583): the evidence commands in the generated workspace of N-036 (50,000 elements, 200,000
 // relations) with the records a project of that size keeps (`withEvidenceRecords` of the testkit:
 // JUnit files of three CI runs, Markdown verification records, about 10,000 elements with validation
-// records). ADR-0011: tests tagged `[SR-082/AKn]` assert their threshold after `measure` recorded the
+// records). ADR-0011: tests tagged `[SR-082/AK-<key>]` assert their threshold after `measure` recorded the
 // time; untagged rows only record. The thresholds are those of SR-082 (N-036): AK3 „Gegeben derselbe
 // Arbeitsbereich, wenn ein Element geöffnet wird, dann ist es nach höchstens 200 ms sichtbar.“ and
 // AK4 „Gegeben derselbe Arbeitsbereich, wenn ein Filter angewendet oder eine Kette berechnet wird,

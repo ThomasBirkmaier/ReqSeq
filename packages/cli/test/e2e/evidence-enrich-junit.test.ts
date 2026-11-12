@@ -305,7 +305,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       "--date",
       DATE,
       "--name-pattern",
-      "{prefix}_{id}_ak{ak}",
+      "{prefix}_{id}_ak_{ak}",
       "--json",
     ]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
@@ -318,23 +318,47 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       problems: [],
     });
     const props = properties(await fs.readFile(ws.path("results/nextest.xml"), "utf8"));
-    const named = props["tests::sr_46fb54_ak1_accepts_a_valid_password"];
+    const named = props["tests::sr_46fb54_ak_gdrb_accepts_a_valid_password"];
     expect(named?.["reqseq:element"]).toEqual([LOGIN]);
     expect(named?.["reqseq:version"]?.[0]).toMatch(/^n2:[0-9a-f]{16}$/);
     expect([named?.["reqseq:item"], named?.["reqseq:date"]]).toEqual([["build-512"], [DATE]]);
-    expect(props["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure"]?.["reqseq:element"]).toHaveLength(
-      2,
-    );
+    expect(
+      props["tests::sr_0b0036_ak_jpy8_and_sr_0c0037_ak_nx88_report_a_failure"]?.["reqseq:element"],
+    ).toHaveLength(2);
     expect(props["tests::adds_two_numbers"]).toEqual({});
   });
 
-  it("reqseq evidence enrich-junit writes the acceptance criterion the test case name gives", async () => {
+  it("reqseq evidence enrich-junit writes the acceptance criterion the test case name gives by its key", async () => {
     const ws = await open();
     await fs.writeFile(
       ws.path("results/criterion.xml"),
-      '<testsuites><testsuite name="s"><testcase name="[SR-46fb54/AK2] accepts a valid password"/>' +
-        '<testcase name="tests::sr_46fb54_ak3_locks_the_account"/></testsuite></testsuites>',
+      '<testsuites><testsuite name="s"><testcase name="[SR-46fb54/AK-gdrb] accepts a valid password"/>' +
+        '<testcase name="tests::sr_46fb54_ak_gdrb_locks_the_account"/></testsuite></testsuites>',
     );
+    const run = await enrich(ws, [
+      "results/criterion.xml",
+      "build-512",
+      "--date",
+      DATE,
+      "--name-pattern",
+      "{prefix}_{id}_ak_{ak}",
+    ]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    const props = properties(await fs.readFile(ws.path("results/criterion.xml"), "utf8"));
+    expect(props["[SR-46fb54/AK-gdrb] accepts a valid password"]?.["reqseq:criterion"]).toEqual([
+      `${LOGIN}:gdrb`,
+    ]);
+    expect(props["tests::sr_46fb54_ak_gdrb_locks_the_account"]?.["reqseq:criterion"]).toEqual([
+      `${LOGIN}:gdrb`,
+    ]);
+  });
+
+  it("[SR-029/AK-zvy0] reqseq evidence enrich-junit names a test case that names a criterion by number or by an unknown key, leaves it unchanged and exits with code 1", async () => {
+    const ws = await open();
+    const xml =
+      '<testsuites><testsuite name="s"><testcase name="[SR-46fb54/AK1] accepts a valid password"/>' +
+      '<testcase name="tests::sr_46fb54_ak1_locks_the_account"/><testcase name="[SR-46fb54/AK-kzzz] logs out"/></testsuite></testsuites>';
+    await fs.writeFile(ws.path("results/criterion.xml"), xml);
     const run = await enrich(ws, [
       "results/criterion.xml",
       "build-512",
@@ -343,10 +367,17 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       "--name-pattern",
       "{prefix}_{id}_ak{ak}",
     ]);
-    expect([run.code, run.stderr]).toEqual([0, ""]);
-    const props = properties(await fs.readFile(ws.path("results/criterion.xml"), "utf8"));
-    expect(props["[SR-46fb54/AK2] accepts a valid password"]?.["reqseq:criterion"]).toEqual([`${LOGIN}:2`]);
-    expect(props["tests::sr_46fb54_ak3_locks_the_account"]?.["reqseq:criterion"]).toEqual([`${LOGIN}:3`]);
+    expect(run.code).toBe(1);
+    const said = run.stdout + run.stderr;
+    expect(said.match(/evidence\.invalid-criterion-name/g)).toHaveLength(3);
+    expect(said).toContain(
+      '"[SR-46fb54/AK1]" names an acceptance criterion by its number; name it by its criterion key, [SR-46fb54/AK-gdrb]',
+    );
+    expect(said).toContain(
+      '"sr_46fb54_ak1" (read by the name pattern) names an acceptance criterion by its number',
+    );
+    expect(said).toContain('"[SR-46fb54/AK-kzzz]" names the criterion key kzzz');
+    expect(await fs.readFile(ws.path("results/criterion.xml"), "utf8")).toBe(xml);
   });
 
   it("reqseq evidence enrich-junit --name-pattern names a test case whose short ID names no element and exits with code 1, and refuses a bad pattern", async () => {

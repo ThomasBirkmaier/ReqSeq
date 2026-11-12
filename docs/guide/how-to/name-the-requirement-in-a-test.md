@@ -7,8 +7,10 @@ sidebar:
 
 A test shows a requirement once it names it, in one of two ways that give the same result:
 
-- **In the test name**, in square brackets: `[SR-b2c0de]`, or with a criterion by key or number, [`[SR-b2c0de/AK-k7f3]`](/how-to/give-acceptance-criteria-their-keys/#the-reference-of-a-criterion) or `[SR-b2c0de/AK2]`. Several brackets name several requirements. Without `/AK` the test counts for all criteria.
-- **As the property `reqseq:element`** of the test case, with the ID as its value. To name one acceptance criterion this way, add the property `reqseq:criterion` with the ID, a colon and the key or number (`SR-b2c0de:k7f3`).
+- **In the test name**, in square brackets: `[SR-b2c0de]`, or with an acceptance criterion by its criterion key, [`[SR-b2c0de/AK-k7f3]`](/how-to/give-acceptance-criteria-their-keys/#the-reference-of-a-criterion). Several brackets name several requirements. Without `/AK` the test counts for all criteria.
+- **As the property `reqseq:element`** of the test case, with the ID as its value. For one criterion, add the property `reqseq:criterion` with the ID, a colon and the key (`SR-b2c0de:k7f3`).
+
+The key is in the element file. A criterion number, or a key the requirement lacks, is reported (`evidence.invalid-criterion-name`), the test case unchanged.
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
@@ -41,9 +43,9 @@ pytest's own parameter lists such as `test_add[1-2]` are passed over. In a param
 
 ## Names without brackets
 
-For Rust, Go or Java, write the short ID into the name in another form and give the form with `--name-pattern`: `{prefix}` stands for a type prefix (`SR`), `{id}` for the hex digits of the short ID, `{ak}` for a criterion key or number; the rest is literal text, and case does not matter. For Rust, `sr_c67baa_ak1_shows_the_wind_speed` with `{prefix}_{id}_ak{ak}`; for Go, `TestSRc67baaAK1` with `Test{prefix}{id}AK{ak}`; for Java, `src67baaAk1` with `{prefix}{id}Ak{ak}`. Keys: `sr_c67baa_ak_k7f3`, `{prefix}_{id}_ak_{ak}`.
+For Rust, Go or Java, write the short ID into the name in another form and give the form with `--name-pattern`: `{prefix}` stands for a type prefix (`SR`), `{id}` for the hex digits of the short ID, `{ak}` for a criterion key; the rest is literal text, and case does not matter. For Rust, `sr_c67baa_ak_k7f3_shows_the_wind_speed` with `{prefix}_{id}_ak_{ak}`; for Go, `TestSRc67baa_k7f3` with `Test{prefix}{id}_{ak}`.
 
-A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or a camel case word), so `loaded123456` never gives D-ed123456. Only names are read, outside brackets. Write a separator where the parts could be read two ways: between a prefix and an ID (`de123456` with the prefixes `D` and `DE`), after the ID before hex letters (`sr_c67baaface`) or a word (`sr_c67baa_ak1parses`), and between an upper-case ID and a camel case word (`SR2F95EAdd`). Too few digits (`sr_029`) or a criterion of ten or more digits count as without reference. Without a separator, `{prefix}{id}` can also read a hash as a short ID (`TestCacheKeyD41d8cd98f00` gives D-41d8cd98f00), and the command exits with 1 unless the workspace has that ID. `workspace check` does not know the pattern, so it cannot warn when such a file was not enriched.
+A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or a camel case word), so `loaded123456` never gives D-ed123456. Only names are read, outside brackets. Write a separator where the parts could be read two ways: between a prefix and an ID (`de123456` with the prefixes `D` and `DE`), after the ID before hex letters (`sr_c67baaface`), and between an upper-case ID and a camel case word (`SR2F95EAdd`). Too few digits (`sr_029`) count as without reference. Without a separator, `{prefix}{id}` can also read a hash as a short ID (`TestCacheKeyD41d8cd98f00` gives D-41d8cd98f00), and the command exits with 1 unless the workspace has that ID. `workspace check` does not know the pattern, so it cannot warn when such a file was not enriched.
 
 ## App
 
@@ -55,21 +57,21 @@ For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pat
 
 ```rust
 #[test]
-fn sr_c67baa_ak1_shows_the_wind_speed_in_knots() { /* … */ }
+fn sr_c67baa_ak_k7f3_shows_the_wind_speed_in_knots() { /* … */ }
 ```
 
-`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak{ak}"` then records the test for SR-c67baa and its acceptance criterion 1, as `[SR-c67baa/AK1]` would.
+`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak_{ak}"` then records the test for SR-c67baa and its acceptance criterion with the key `k7f3`, as `[SR-c67baa/AK-k7f3]` would.
 
 ## API
 
 ```http
 POST /v1/commands/evidence.enrichJunit
 
-{ "file": "results.xml", "item": "build-1", "namePattern": "{prefix}_{id}_ak{ak}" }
+{ "file": "results.xml", "item": "build-1", "namePattern": "{prefix}_{id}_ak_{ak}" }
 ```
 
 ## MCP
 
 ```json
-{ "name": "evidence_enrichJunit", "arguments": { "file": "results.xml", "item": "build-1", "namePattern": "{prefix}_{id}_ak{ak}" } }
+{ "name": "evidence_enrichJunit", "arguments": { "file": "results.xml", "item": "build-1", "namePattern": "{prefix}_{id}_ak_{ak}" } }
 ```

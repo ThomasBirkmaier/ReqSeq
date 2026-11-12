@@ -16,7 +16,7 @@ Agents write almost all of the code and merge on their own (D-051). Gates that a
 - Mutation samples are an occasional local check on changed core files when a change is risky, never part of CI (ThomasBirkmaier/ReqSeq-archive#753).
 - Coverage ignore comments (`/* v8 ignore ... */`) are allowed only for code that cannot run on the current platform (for example a Windows-only branch on Linux) and only with a reason in the comment. The code review rejects any other use.
 - Electron code (`packages/app`) counts too. Logic lives in testable modules (`.ts`, 80 % for the package, logic that belongs to core moves there); Playwright tests cover the UI flows. If a part cannot be measured, a `task` issue without SR documents it before it is excluded, and the product owner decides on it there.
-- React components (`.tsx`) are measured and reported, but have no threshold (ThomasBirkmaier/ReqSeq-archive#537). Playwright and the `[SR-xxx/AKn]` tests are the evidence for them; a component test is written where it checks behaviour, never only to reach a coverage number. Logic that a component needs goes into a `.ts` module, which is under the threshold of its package.
+- React components (`.tsx`) are measured and reported, but have no threshold (ThomasBirkmaier/ReqSeq-archive#537). Playwright and the `[SR-xxx/AK-<key>]` tests are the evidence for them; a component test is written where it checks behaviour, never only to reach a coverage number. Logic that a component needs goes into a `.ts` module, which is under the threshold of its package.
 - Repository scripts under `scripts/` (export, trace check, contracts) are tooling, not product code. They are linted and tested but not under the 100 % threshold.
 
 **Gate.** All of this runs in the required checks `static` (typecheck, lint, format) and `checks` (unit tests with coverage) of ADR-0011 (#303; from ThomasBirkmaier/ReqSeq-archive#566 to #303 both in `checks`). Agents never lower a threshold, disable a rule globally or add an ignore pattern to get green; such a change is an ADR change announced to the product owner.
@@ -25,7 +25,7 @@ Agents write almost all of the code and merge on their own (D-051). Gates that a
 
 - Tests grow with the code from the first line; untested branches are visible in every PR.
 - Type-aware lint is slower; acceptable at this size, revisit if lint exceeds a few minutes.
-- 100 % coverage proves that code ran, not that it is right. The `[SR-xxx/AKn]` tests and the code review stay the main check.
+- 100 % coverage proves that code ran, not that it is right. The `[SR-xxx/AK-<key>]` tests and the code review stay the main check.
 - Review 2026-10-27 (ThomasBirkmaier/ReqSeq-archive#537): no documented case where a coverage gap alone revealed a real bug; 17 bugs were found in code with 100 % coverage. The gate mostly removed unreachable fallbacks and made edge cases tested. For components it cost about 7k lines of happy-dom mount tests for 3.9k lines of `.tsx`, next to the Playwright tests, so the components left the threshold.
 
 ## Rejected
