@@ -76,6 +76,8 @@ const SELECTION_TOOLS: readonly string[] = [
   "trace_matrix",
   "element_search",
   "filter_save",
+  // Saves the conditions of a perspective, a filter condition (SR-213 AK1).
+  "perspective_save",
   "evidence_status",
   "evidence_coverage",
   "evidence_degree",

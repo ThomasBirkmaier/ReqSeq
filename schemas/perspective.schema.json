@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reqseq.dev/schemas/perspective.schema.json",
+  "title": "Perspective file",
+  "description": "A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.",
+  "type": "object",
+  "required": ["reqseq-perspective", "name", "where"],
+  "properties": {
+    "reqseq-perspective": { "description": "Version of this file format.", "const": 1 },
+    "name": { "$ref": "#/$defs/name" },
+    "description": { "description": "What the perspective is for, for people.", "type": "string" },
+    "filter": {
+      "type": "string",
+      "description": "Name of a saved filter (SR-070) that the selection also uses, read again on each call (SR-213 AK6)."
+    },
+    "where": {
+      "$ref": "filter.schema.json#/$defs/condition",
+      "description": "The conditions of the selection, in the language of a saved filter. A selection with no condition is `{ all: [] }`."
+    },
+    "group": {
+      "$ref": "common.schema.json#/$defs/groupKey",
+      "description": "The grouping of the list (SR-149). Absent: not grouped."
+    },
+    "sort": {
+      "type": "array",
+      "items": { "$ref": "filter.schema.json#/$defs/sortKey" },
+      "description": "The sort of the list (SR-075)."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "name": {
+      "description": "Name of a perspective, unique among the perspectives of the workspace ignoring case and Unicode normal form; a saved filter may have the same name. Saving under an existing name replaces that perspective (SR-213 AK3).",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
+    }
+  }
+}

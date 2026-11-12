@@ -10,6 +10,7 @@ export { evidenceStatusState } from "./evidence.js";
 export { facetsOf } from "./facets.js";
 export type { EvidenceStatuses } from "./evidence.js";
 export {
+  FILTERS,
   FILTER_FILE_EXTENSION,
   faultyFilter,
   filterSlug,
@@ -21,9 +22,20 @@ export {
   savedSort,
 } from "./saved.js";
 export type { FoundFilter, SavedFilter, SavedFilters } from "./saved.js";
+export {
+  faultySaved,
+  findSaved,
+  inSavedFile,
+  inSavedFileAsync,
+  readSavedFolder,
+  writeSaved,
+} from "./saved-files.js";
+export type { FoundSaved, SavedFile, SavedFolder, SavedKind } from "./saved-files.js";
+export { PERSPECTIVES, readPerspectives } from "./perspectives.js";
+export type { SavedPerspective, SavedPerspectives } from "./perspectives.js";
 export { orderedGroups, orderedSelection } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
-export { groupingOf } from "./group.js";
+export { checkGroupKey, groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";
 export type { Selected } from "./selection.js";
 export { sortElements } from "./sort.js";

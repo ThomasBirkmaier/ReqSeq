@@ -419,6 +419,8 @@ export type ProblemCode =
   | "baseline.repository-commit-differs"
   | "filter.invalid"
   | "filter.duplicate-name"
+  | "perspective.invalid"
+  | "perspective.duplicate-name"
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
@@ -1497,6 +1499,32 @@ export interface MetamodelStatus {
 }
 
 /**
+ * A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.
+ * Schema: `schemas/perspective.schema.json#`.
+ */
+export interface PerspectiveFile {
+  /** Version of this file format. */
+  readonly "reqseq-perspective": 1;
+  readonly name: PerspectiveName;
+  /** What the perspective is for, for people. */
+  readonly description?: string;
+  /** Name of a saved filter (SR-070) that the selection also uses, read again on each call (SR-213 AK6). */
+  readonly filter?: string;
+  /** The conditions of the selection, in the language of a saved filter. A selection with no condition is `{ all: [] }`. */
+  readonly where: FilterCondition;
+  /** The grouping of the list (SR-149). Absent: not grouped. */
+  readonly group?: GroupKey;
+  /** The sort of the list (SR-075). */
+  readonly sort?: readonly FilterSortKey[];
+}
+
+/**
+ * Name of a perspective, unique among the perspectives of the workspace ignoring case and Unicode normal form; a saved filter may have the same name. Saving under an existing name replaces that perspective (SR-213 AK3).
+ * Schema: `schemas/perspective.schema.json#/$defs/name`.
+ */
+export type PerspectiveName = string;
+
+/**
  * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
@@ -1724,6 +1752,8 @@ export interface WorkspaceFile {
   readonly baselines?: WorkspaceLocation;
   /** Where saved filters are written (SR-070). Default: folder `filters` in the main repository. */
   readonly filters?: WorkspaceLocation;
+  /** Where perspectives are written (SR-213). Default: folder `perspectives` in the main repository. */
+  readonly perspectives?: WorkspaceLocation;
   /** Where ReqIF mapping files are written (SR-054). Default: folder `reqif` in the main repository. */
   readonly mappings?: WorkspaceLocation;
   /** Glob patterns of paths that are never read as elements, relative to each repository and anchored at its root, with `/` as separator (no `\`, no `//`). `*` matches any characters within one name, `?` one character, `**` as a whole name any number of names, including none; every other character is literal (no `[...]`, no `{a,b}`). Case-sensitive on every OS; wildcards match names starting with `.`. A leading `/` or `./` and a trailing `/` are dropped; `x/**` matches folder `x` itself, so it is skipped as a whole. Example: `website/**`, `**\/*.draft.md`. `.git` and `node_modules` are always ignored. */
@@ -3424,6 +3454,62 @@ export interface FilterSaveOutput {
 }
 
 /**
+ * Input of `perspective.list` as `run` gets it: validated, properties with a `default` filled in. Perspectives of the workspace, with their selection, grouping and sort.
+ * Schema: `schemas/commands/perspective.list.json input`.
+ */
+export type PerspectiveListInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `perspective.list`. Perspectives of the workspace, with their selection, grouping and sort.
+ * Schema: `schemas/commands/perspective.list.json output`.
+ */
+export interface PerspectiveListOutput {
+  /** In the order of their files. A faulty file is not listed; it is one of `problems`. */
+  readonly perspectives: readonly {
+    readonly name: PerspectiveName;
+    /** The perspective file, relative to the workspace root. */
+    readonly file: string;
+    /** What the perspective is for, as saved. */
+    readonly description?: string;
+    /** Name of the saved filter the selection uses, as saved. */
+    readonly filter?: string;
+    readonly where: FilterCondition;
+    readonly group?: GroupKey;
+    readonly sort?: readonly FilterSortKey[];
+  }[];
+  /** Perspective files that cannot be read, do not match perspective.schema.json, or repeat the name of an earlier file, each with its file and reason (SR-213 AK8). */
+  readonly problems?: readonly Problem[];
+  readonly incomplete?: Incomplete;
+}
+
+/**
+ * Input of `perspective.save` as `run` gets it: validated, properties with a `default` filled in. Save a list with its selection, grouping and sort as a named perspective in the repository; an existing name replaces that perspective.
+ * Schema: `schemas/commands/perspective.save.json input`.
+ */
+export interface PerspectiveSaveInput {
+  readonly name: PerspectiveName;
+  /** What the perspective is for, for people. Left out: an existing description stays. Empty: it is removed. */
+  readonly description?: string;
+  /** Name of a saved filter that the selection also uses; written as the filter's name is saved. */
+  readonly filter?: string;
+  /** The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
+  readonly where: FilterCondition;
+  /** The grouping of the list, checked as element.list checks `group`. */
+  readonly group?: GroupKey;
+  /** The sort of the list, checked against the metamodel. */
+  readonly sort?: readonly FilterSortKeyWithDefaults[];
+}
+
+/**
+ * Output of `perspective.save`. Save a list with its selection, grouping and sort as a named perspective in the repository; an existing name replaces that perspective.
+ * Schema: `schemas/commands/perspective.save.json output`.
+ */
+export interface PerspectiveSaveOutput {
+  readonly files: readonly string[];
+  readonly problems?: readonly Problem[];
+}
+
+/**
  * Input of `evidence.list` as `run` gets it: validated, properties with a `default` filled in. Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.
  * Schema: `schemas/commands/evidence.list.json input`.
  */
@@ -4163,6 +4249,8 @@ export interface CommandTypes {
   readonly "element.search": { readonly input: ElementSearchInput; readonly output: ElementSearchOutput };
   readonly "filter.list": { readonly input: FilterListInput; readonly output: FilterListOutput };
   readonly "filter.save": { readonly input: FilterSaveInput; readonly output: FilterSaveOutput };
+  readonly "perspective.list": { readonly input: PerspectiveListInput; readonly output: PerspectiveListOutput };
+  readonly "perspective.save": { readonly input: PerspectiveSaveInput; readonly output: PerspectiveSaveOutput };
   readonly "evidence.list": { readonly input: EvidenceListInput; readonly output: EvidenceListOutput };
   readonly "evidence.record": { readonly input: EvidenceRecordInput; readonly output: EvidenceRecordOutput };
   readonly "evidence.enrichJunit": { readonly input: EvidenceEnrichJunitInput; readonly output: EvidenceEnrichJunitOutput };

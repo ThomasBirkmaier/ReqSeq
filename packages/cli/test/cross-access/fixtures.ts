@@ -133,6 +133,17 @@ export const SAVED: FixtureOptions = {
   },
   git: true,
 };
+/** SAVED with hand-written perspectives, one of them faulty (SR-213). */
+export const PERSPECTIVES: FixtureOptions = {
+  ...SAVED,
+  files: {
+    ...SAVED.files,
+    "perspectives/sensor-drafts.yaml":
+      "# Drafts of the sensor package\nreqseq-perspective: 1\nname: Sensor drafts\ndescription: By status\n" +
+      "filter: Sensor drafts\nwhere: { all: [] }   # the filter selects\ngroup: status\n",
+    "perspectives/broken.yaml": "reqseq-perspective: 1\nname: Broken\nview: core\nwhere: { all: [] }\n",
+  },
+};
 /** A metamodel in which the type Variant has a validity; B's validity names A by hand, C relates to A (SR-039). */
 export const NESTED: FixtureOptions = { fixture: "SR-039/nested", git: true };
 export const NESTED_A = "39039039-0000-4000-8000-0000000000a1";

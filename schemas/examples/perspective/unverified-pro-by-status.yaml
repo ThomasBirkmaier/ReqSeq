@@ -1,0 +1,6 @@
+# Uses the saved filter of the filter example; reads its condition again on each call.
+reqseq-perspective: 1
+name: Unverified Pro requirements by status
+filter: Unverified requirements of Pro
+where: { all: [] }
+group: status

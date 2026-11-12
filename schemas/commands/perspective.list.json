@@ -1,0 +1,69 @@
+{
+  "name": "perspective.list",
+  "title": "List perspectives",
+  "summary": "Perspectives of the workspace, with their selection, grouping and sort.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-213"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "perspectives": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "../perspective.schema.json#/$defs/name"
+            },
+            "file": {
+              "type": "string",
+              "description": "The perspective file, relative to the workspace root."
+            },
+            "description": {
+              "description": "What the perspective is for, as saved.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Name of the saved filter the selection uses, as saved.",
+              "type": "string"
+            },
+            "where": {
+              "$ref": "../filter.schema.json#/$defs/condition"
+            },
+            "group": {
+              "$ref": "../common.schema.json#/$defs/groupKey"
+            },
+            "sort": {
+              "type": "array",
+              "items": {
+                "$ref": "../filter.schema.json#/$defs/sortKey"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "file", "where"]
+        },
+        "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        },
+        "description": "Perspective files that cannot be read, do not match perspective.schema.json, or repeat the name of an earlier file, each with its file and reason (SR-213 AK8)."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["perspectives"]
+  }
+}

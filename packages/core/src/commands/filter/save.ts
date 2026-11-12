@@ -5,7 +5,8 @@
 // - The input is checked as a selection checks it: `where` is compiled (`compileWhere`, errors name
 //   `where...`), `view` resolved, `sort` checked against the metamodel. The file gets element
 //   references as UUIDs and choices by key (query/canonical.ts; product owner's note on ThomasBirkmaier/ReqSeq-archive#82).
-// - A new name creates `<name part>.yaml` (`newFilterFile`); the folder is created when missing.
+// - Written by `writeSaved` (query/saved-files.ts). A new name creates `<name part>.yaml`
+//   (`newFilterFile`); the folder is created when missing.
 // - An existing name, ignoring case (spec-frage ThomasBirkmaier/ReqSeq-archive#363 option 1A), replaces that filter in its own file:
 //   only the top-level keys whose value changed are rewritten, every other byte stays (ADR-0007,
 //   `editYamlDocument`); a key the input leaves out (`description`, `view`, `sort`) is removed from
@@ -15,27 +16,23 @@
 // - Never into Git, also when the workspace file places the filters folder there: the file to write
 //   is checked right before each write (`refuseGitPlace`, D-036, SR-083 AK4).
 import { isDeepStrictEqual } from "node:util";
-import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
-import { CommandError, defineCommand } from "../../catalog.js";
-import { createFolder, editYamlDocument, renderYamlDocument, writeFileAtomic } from "../../files/index.js";
+import { defineCommand } from "../../catalog.js";
 import type { YamlKeyEdit } from "../../files/index.js";
 import type { FilterFile, FilterSortKey } from "../../generated/types.js";
 import { metamodelState } from "../../metamodel/index.js";
-import { elementStoreState, shortIdState, workspacePath } from "../../model/index.js";
+import { elementStoreState, shortIdState } from "../../model/index.js";
 import type { QueryContext } from "../../query/index.js";
 import {
+  FILTERS,
   canonicalCondition,
   canonicalView,
   compileWhere,
-  faultyFilter,
-  findSavedFilter,
-  newFilterFile,
-  readSavedFilters,
   sortElements,
+  writeSaved,
 } from "../../query/index.js";
 import { resolveView } from "../../variants/index.js";
-import { refuseGitPlace, workspaceLayoutState } from "../../workspace/index.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The keys of a filter file, in the order a new file has them. */
 const KEYS = ["reqseq-filter", "name", "description", "view", "where", "sort"] as const;
@@ -79,40 +76,9 @@ export default defineCommand({
       where: canonicalCondition(context, input.where, "where"),
       ...(input.sort === undefined ? {} : { sort: input.sort }),
     };
-    const saved = await readSavedFilters(layout);
-    const { repository } = saved;
-    if (repository?.available !== true) {
-      throw new CommandError(
-        "file.folder-missing",
-        `Not written: the filters folder is in repository ${saved.location.repository}, which is not available on this machine`,
-        { repository: saved.location.repository },
-      );
-    }
-    const found = findSavedFilter(saved, input.name);
-    if (found.kind === "faulty") {
-      throw faultyFilter(input.name, found.files, "saved again");
-    }
-    if (found.kind === "found") {
-      const { filter } = found;
-      const edits = editsOf(filter.data, data);
-      if (edits.length === 0) {
-        return { files: [], problems: [] };
-      }
-      await refuseGitPlace(repository, filter.path);
-      const edited = editYamlDocument(filter.yaml, edits);
-      await writeFileAtomic(repository.folder, filter.path, edited.bytes, filter.yaml.snapshot, {
-        kind: "yaml",
-      });
-      return { files: [filter.file], problems: [] };
-    }
-    const file = path.posix.join(saved.folder, newFilterFile(input.name, saved.entries));
-    await refuseGitPlace(repository, file);
-    if (!saved.exists && saved.folder !== "") {
-      await createFolder(repository.folder, saved.folder);
-      // Again with the folder there, so a link or `.git` entry put there meanwhile is not written into.
-      await refuseGitPlace(repository, file);
-    }
-    await writeFileAtomic(repository.folder, file, renderYamlDocument(data), null, { kind: "yaml" });
-    return { files: [workspacePath(layout, repository, file)], problems: [] };
+    return {
+      files: [...(await writeSaved(layout, FILTERS, data, (current) => editsOf(current, data)))],
+      problems: [],
+    };
   },
 });

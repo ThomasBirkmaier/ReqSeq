@@ -789,6 +789,8 @@
             "baseline.repository-commit-differs",
             "filter.invalid",
             "filter.duplicate-name",
+            "perspective.invalid",
+            "perspective.duplicate-name",
             "metamodel.invalid",
             "metamodel.optional-status",
             "metamodel.meaning-unassigned",
@@ -3016,6 +3018,59 @@
     },
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://reqseq.dev/schemas/perspective.schema.json",
+      "title": "Perspective file",
+      "description": "A perspective saved as YAML in the repository: a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view`. Element references may take any form; `perspective.save` writes UUIDs.",
+      "type": "object",
+      "required": [
+        "reqseq-perspective",
+        "name",
+        "where"
+      ],
+      "properties": {
+        "reqseq-perspective": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "description": {
+          "description": "What the perspective is for, for people.",
+          "type": "string"
+        },
+        "filter": {
+          "type": "string",
+          "description": "Name of a saved filter that the selection also uses, read again on each call."
+        },
+        "where": {
+          "$ref": "filter.schema.json#/$defs/condition",
+          "description": "The conditions of the selection, in the language of a saved filter. A selection with no condition is `{ all: [] }`."
+        },
+        "group": {
+          "$ref": "common.schema.json#/$defs/groupKey",
+          "description": "The grouping of the list. Absent: not grouped."
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "$ref": "filter.schema.json#/$defs/sortKey"
+          },
+          "description": "The sort of the list."
+        }
+      },
+      "additionalProperties": false,
+      "$defs": {
+        "name": {
+          "description": "Name of a perspective, unique among the perspectives of the workspace ignoring case and Unicode normal form; a saved filter may have the same name. Saving under an existing name replaces that perspective.",
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/recent-workspaces.schema.json",
       "title": "Recent workspaces file",
       "description": "`recent-workspaces.json` in `<OS cache>/reqseq/`: the workspaces the app opened last, the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
@@ -3410,6 +3465,10 @@
         "filters": {
           "$ref": "#/$defs/location",
           "description": "Where saved filters are written. Default: folder `filters` in the main repository."
+        },
+        "perspectives": {
+          "$ref": "#/$defs/location",
+          "description": "Where perspectives are written. Default: folder `perspectives` in the main repository."
         },
         "mappings": {
           "$ref": "#/$defs/location",
@@ -9003,6 +9062,180 @@
             "sort": {
               "type": "array",
               "description": "Order of element.list with this filter when its input gives no sort.",
+              "items": {
+                "$ref": "../filter.schema.json#/$defs/sortKey"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "where"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "Written file, relative to the workspace root."
+              }
+            },
+            "problems": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "files"
+          ]
+        }
+      },
+      {
+        "name": "perspective.list",
+        "title": "List perspectives",
+        "summary": "Perspectives of the workspace, with their selection, grouping and sort.",
+        "effect": "read",
+        "stage": 3,
+        "implements": [
+          "SR-213"
+        ],
+        "arguments": [],
+        "input": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "perspectives": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "$ref": "../perspective.schema.json#/$defs/name"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "The perspective file, relative to the workspace root."
+                  },
+                  "description": {
+                    "description": "What the perspective is for, as saved.",
+                    "type": "string"
+                  },
+                  "filter": {
+                    "description": "Name of the saved filter the selection uses, as saved.",
+                    "type": "string"
+                  },
+                  "where": {
+                    "$ref": "../filter.schema.json#/$defs/condition"
+                  },
+                  "group": {
+                    "$ref": "../common.schema.json#/$defs/groupKey"
+                  },
+                  "sort": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "../filter.schema.json#/$defs/sortKey"
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "file",
+                  "where"
+                ]
+              },
+              "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
+            },
+            "problems": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "description": "Perspective files that cannot be read, do not match perspective.schema.json, or repeat the name of an earlier file, each with its file and reason."
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "perspectives"
+          ]
+        }
+      },
+      {
+        "name": "perspective.save",
+        "title": "Save perspective",
+        "summary": "Save a list with its selection, grouping and sort as a named perspective in the repository; an existing name replaces that perspective.",
+        "details": "A perspective stores no view. Saving under an existing name, in any case or Unicode normal form, changes only the lines of what changed and keeps comments on unchanged lines. A `description` the input leaves out stays in the file; an empty `description` removes it. `filter`, `group` and `sort` the input leaves out are removed. A selection with no condition is `where: { all: [] }`.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "Checks the conditions, sort and grouping of the perspective against the metamodel, which is missing or faulty.",
+        "stage": 3,
+        "implements": [
+          "SR-213"
+        ],
+        "arguments": [
+          {
+            "field": "name",
+            "complete": "text"
+          },
+          {
+            "field": "where",
+            "complete": "json"
+          },
+          {
+            "field": "description",
+            "complete": "text"
+          },
+          {
+            "field": "filter",
+            "complete": "filter"
+          },
+          {
+            "field": "group",
+            "complete": "text"
+          },
+          {
+            "field": "sort",
+            "complete": "json"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "../perspective.schema.json#/$defs/name"
+            },
+            "description": {
+              "description": "What the perspective is for, for people. Left out: an existing description stays. Empty: it is removed.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Name of a saved filter that the selection also uses; written as the filter's name is saved.",
+              "type": "string"
+            },
+            "where": {
+              "$ref": "../filter.schema.json#/$defs/condition",
+              "description": "The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`."
+            },
+            "group": {
+              "$ref": "../common.schema.json#/$defs/groupKey",
+              "description": "The grouping of the list, checked as element.list checks `group`."
+            },
+            "sort": {
+              "type": "array",
+              "description": "The sort of the list, checked against the metamodel.",
               "items": {
                 "$ref": "../filter.schema.json#/$defs/sortKey"
               }

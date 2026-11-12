@@ -186,6 +186,15 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
 };
 
 /**
+ * Checks that a list can be grouped by `by`, as `groupingOf` checks it, without reading a selection:
+ * whether a text, number or date property offers values is decided over the whole workspace
+ * (`offersValues` over the store). Errors name the field `group`.
+ */
+export const checkGroupKey = (selected: Selected, command: CommandName, by: string): void => {
+  readerOf(selected, command, by);
+};
+
+/**
  * The groups of `selected` by `by` (see the file comment): one pass over the selection, then the
  * distinct values in order and the group without a value last. Errors name the field `group`.
  */
