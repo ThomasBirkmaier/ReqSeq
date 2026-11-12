@@ -126,7 +126,7 @@ describe("workspace.check", () => {
   });
 
   it("[SR-019/AK2] is not ok for warnings alone with failOn warning, since they are findings too", async () => {
-    // Before ThomasBirkmaier/ReqSeq-archive#304 this was the default; the product owner decision of 2026-10-26 (option 1) made warnings pass
+    // Before ThomasBirkmaier/ReqSeq-archive#304 this was the default; option 1 of ThomasBirkmaier/ReqSeq-archive#304 made warnings pass
     // by default, so the exit code 1 of SR-019 AK2 for warnings needs failOn warning (--fail-on warning).
     const ws = await fixture({ fixture: "SR-085/value-kinds" });
     const out = await check(open(ws.path("system")), { failOn: "warning" });

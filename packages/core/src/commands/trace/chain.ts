@@ -20,7 +20,7 @@
 // `names` names the variants of those records (#676), as evidence.status names its views (ThomasBirkmaier/ReqSeq-archive#588).
 // The records of the page name their criteria with number, key and text (`recordNamer`, SR-205 AK2).
 //
-// Not in view (#674, product owner decision, 2026-11-02): a requirement without a child that the view
+// Not in view (#674): a requirement without a child that the view
 // of the chain does not hold (`viewRuleOf(view ?? core).includes`, so SR-043 AK10 holds) is
 // `not-in-view`, not `no-evidence`; with `view` only the root can be. Its `views` (`viewsOf`) are
 // built only for the gaps of the page, with the rules of the core and of each variant read once per

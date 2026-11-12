@@ -54,8 +54,8 @@ const checkBoth = async (
 };
 
 /**
- * Warnings end the check with exit code 1 only with `--fail-on warning` (ThomasBirkmaier/ReqSeq-archive#304, product owner
- * decision, 2026-10-26, option 1). The tests below that ask SR-019 AK2 or SR-025 AK2 for exit code 1 on
+ * Warnings end the check with exit code 1 only with `--fail-on warning` (ThomasBirkmaier/ReqSeq-archive#304,
+ * option 1). The tests below that ask SR-019 AK2 or SR-025 AK2 for exit code 1 on
  * warnings pass it; both AKs get a new version after the spec moves into ReqSeq.
  */
 const FAIL_ON_WARNING = ["--fail-on", "warning"] as const;

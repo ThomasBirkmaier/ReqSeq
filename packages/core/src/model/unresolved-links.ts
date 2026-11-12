@@ -14,8 +14,8 @@
 // as `relation.not-a-link` (#633), from `ElementRecord.bareReferences`, the same way.
 //
 // A reference-style link `[x][ref]` whose definition `[ref]: reqseq:SR-001` names an element is no
-// reference either (ADR-0004: only inline links are), so it counts for nothing silently. Product
-// owner decision, 2026-11-04: warn and name the inline form; such links stay unresolved. Reported as
+// reference either (ADR-0004: only inline links are), so it would count for nothing silently. ReqSeq
+// warns instead and names the inline form; such links stay unresolved. Reported as
 // `relation.reference-style` (#844) once per definition, on its line, since the definition holds
 // the `reqseq:` destination as an unresolved link holds it, and one definition serves every use;
 // from `ElementRecord.referenceDefinitions`, in the text and in properties marked `markdown`.

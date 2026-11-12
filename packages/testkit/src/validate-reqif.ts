@@ -30,7 +30,7 @@ export const REQIF_XSD_PINS = path.join(ROOT, "toolchain/reqif/xsd.sha256");
 /** The schema a ReqIF file is checked against; it imports the others. */
 export const REQIF_ROOT_SCHEMA = "reqif.xsd";
 export const REQIF_XSD_SKIP_REASON =
-  "the ReqIF XSDs are not in the repository (product owner decision, 2026-10-31); CI downloads them. " +
+  "the ReqIF XSDs are not in the repository; CI downloads them. " +
   "Agent sessions cannot reach omg.org or w3.org. Elsewhere run `node scripts/reqif-xsd/fetch.mjs <dir>` and set REQSEQ_REQIF_XSD_DIR=<dir>.";
 
 /** The pins of a `sha256sum` file: `<sha256>  <name>` per line; `#` starts a comment line. */

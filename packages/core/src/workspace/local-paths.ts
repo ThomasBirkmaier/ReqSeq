@@ -32,7 +32,7 @@ export const OPEN_LOCAL_PATHS: LocalPaths = { check: () => Promise.resolve() };
 
 /**
  * The rule of the app: every path is accepted, and `~` stands for the home folder, since the app's prompt
- * has no shell that expands it (SR-143 AK2, product owner decision, 2026-11-07).
+ * has no shell that expands it (SR-143 AK2).
  */
 export const appLocalPaths = (home: string = os.homedir()): LocalPaths => ({
   check: () => Promise.resolve(),

@@ -187,8 +187,8 @@ export const TEMP_FILE_IGNORE = "*.reqseq-tmp";
 export const GITIGNORE_LINES: readonly string[] = [TEMP_FILE_IGNORE, LOCAL_FILE];
 
 /**
- * Adds the `GITIGNORE_LINES` that are missing to the `.gitignore` of `root` (product owner
- * decisions, 2026-11-02, #271, and 2026-11-11, #1456): creates the file, or appends the missing
+ * Adds the `GITIGNORE_LINES` that are missing to the `.gitignore` of `root` (#271,
+ * #1456): creates the file, or appends the missing
  * lines in one write, with the file's own line ending. A `.gitignore` that cannot be read (a link,
  * not a file) is left alone; its bytes are kept as they are. Gives the path written, else undefined.
  */

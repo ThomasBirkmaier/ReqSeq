@@ -8,7 +8,7 @@
 // version that names a number while the element's current criteria carry a key, or that names a key
 // the current criteria lack (its text for SR-205 AK2). A key that the current criteria carry needs no
 // Git. Without Git, in a shallow clone, or for a version Git does not have, the lookup gives nothing:
-// such a number counts for no criterion (product owner decision, 2026-11-11, #1502), so the counts per
+// such a number counts for no criterion (#1502), so the counts per
 // criterion can depend on the depth of the clone. Elements with several copies (SR-088) are left out.
 // The state is built again whenever the store or the records change (`carry`), from the walks the
 // version dates keep per HEAD.

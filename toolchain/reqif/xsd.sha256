@@ -1,4 +1,4 @@
-# SHA-256 of the ReqIF 1.2 XSDs of xsd.json, confirmed by the product owner, 2026-10-31.
+# SHA-256 of the ReqIF 1.2 XSDs of xsd.json, confirmed by the product owner.
 9243f345540f25db3b53403da9ad9cd4744277ef01492ac3589937f533ba94c0  reqif.xsd
 4995bc97cf0a9b8462ca295006dd54d9a85fb820cf9fd6e134a51743fc44effd  driver.xsd
 61960fb3131e38022caad5360e2f33a3382578ab3c80cd58bd74320ede61b20c  xml.xsd

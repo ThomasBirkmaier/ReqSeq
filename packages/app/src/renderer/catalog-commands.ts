@@ -657,7 +657,7 @@ const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefine
 };
 
 /**
- * The one command with a flow of its own (product owner decision, 2026-11-04, #836; an exception to
+ * The one command with a flow of its own (#836; an exception to
  * ADR-0002 rule 3): a confirmation of `element.bulkUpdate` writes only the plan of an open preview of the
  * same input (#158). The app passes the preview's `plan` through and handles the refusal; core decides.
  */

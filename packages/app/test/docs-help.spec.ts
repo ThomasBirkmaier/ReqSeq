@@ -1,4 +1,4 @@
-// The bundled documentation from the app (SR-141 AK2, AK3; product owner decision, 2026-11-08): Help > ReqSeq
+// The bundled documentation from the app (SR-141 AK2, AK3): Help > ReqSeq
 // Documentation and F1 on a command of the command prompt open a page of the documentation in the default browser,
 // served by main's docs server on 127.0.0.1. The browser is the person's, so `shell.openExternal` is stubbed and the
 // test fetches the URL it got from that server. The site is a small fixture (the delivery ships the real one, #1205).

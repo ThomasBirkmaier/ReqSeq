@@ -79,7 +79,7 @@ const worstOfNewest = (
  * when no execution is of the current version, or the current version is not known (ThomasBirkmaier/ReqSeq-archive#276), the
  * version test of `recordStatusOf`; `failed` when the newest execution of the current version failed.
  * Undefined when it passed. A newer execution of an older version does not mark the test case
- * outdated, as the status then follows the current one (#201, product owner decision, 2026-10-29:
+ * outdated, as the status then follows the current one (#201:
  * the mark follows the status). Executions of the current version at one instant may tie: a failed
  * one among them marks it `failed`, as the status counts it (ThomasBirkmaier/ReqSeq-archive#525 Q2,
  * SR-126 AK1).

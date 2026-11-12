@@ -112,8 +112,8 @@ export const isFolderPath = (text: string, windows: boolean): boolean =>
 
 /**
  * Whether a typed text starts a folder path that is completed (SR-143 AK1): it starts with `/` or `~`, and
- * on Windows also with a drive letter and `:`. Unlike `isFolderPath`, a `\` does not (product owner
- * decision, 2026-11-07): on Windows it names the current drive, which core refuses.
+ * on Windows also with a drive letter and `:`. Unlike `isFolderPath`, a `\` does not:
+ * on Windows it names the current drive, which core refuses.
  */
 export const startsFolderPath = (text: string, windows: boolean): boolean =>
   (windows ? /^(?:[/~]|[A-Za-z]:)/ : /^[/~]/).test(text);

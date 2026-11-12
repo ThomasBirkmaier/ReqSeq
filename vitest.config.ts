@@ -70,9 +70,9 @@ export default defineConfig({
       // ADR-0016: every package except the adapters (core with logic and risk, ADR-0002; testkit; any new
       // package) keeps 100 % for every `.ts` file; perFile, so the error names the file. The adapters (cli, api,
       // mcp) and the `.ts` modules of the app need 80 %, aggregated per package: there 100 % mostly produced tests
-      // for the number (product owner decision, 2026-10-28, ThomasBirkmaier/ReqSeq-archive#752). React components (`.tsx`) are reported, but
-      // have no threshold: Playwright and the [SR-xxx/AKn] tests are their evidence (product owner decision,
-      // 2026-10-27, ThomasBirkmaier/ReqSeq-archive#537). Vitest checks each glob on its own files and skips a file that no glob matches, so the
+      // for the number (ThomasBirkmaier/ReqSeq-archive#752). React components (`.tsx`) are reported, but
+      // have no threshold: Playwright and the [SR-xxx/AKn] tests are their evidence
+      // (ThomasBirkmaier/ReqSeq-archive#537). Vitest checks each glob on its own files and skips a file that no glob matches, so the
       // globs together match every `.ts` file of `include` once. picomatch reads `!(cli|api|mcp|app)` as "does not
       // start with", so the second 100 % glob takes the names that only start with an adapter name (`apps`).
       thresholds: {

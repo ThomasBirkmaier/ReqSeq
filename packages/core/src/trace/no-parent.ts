@@ -10,8 +10,7 @@
 //   no `hintId`: there is nothing to confirm (D-042 confirms a stored version); giving the element a
 //   parent, or a relation kind of the project's metamodel the meaning `derivation`, settles it.
 // - Which relation kinds derive is the metamodel's (D-012): in the standard model `based-on` has no
-//   meaning, so a requirement based only on a decision is reported (product owner decision,
-//   2026-11-01). A parent in a repository that is not here, or a missing target (SR-089, an error of
+//   meaning, so a requirement based only on a decision is reported. A parent in a repository that is not here, or a missing target (SR-089, an error of
 //   its own), still is a parent. An element with a status the metamodel marks invalid (superseded,
 //   D-044, D-045) is left out: a retired element needs no origin, and nothing else could settle its
 //   hint (the reading of AK6; as `evidence.coverage` leaves it out). The chain's gap stays, as for its

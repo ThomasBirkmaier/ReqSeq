@@ -6,7 +6,7 @@
 // and metamodel of each repository that is a workspace of its own (#666, read on every call).
 //
 // - `ok` is false when the workspace has a finding at or above `failOn`, shown or not; the default
-//   `error` lets warnings and info pass (ThomasBirkmaier/ReqSeq-archive#304, product owner decision, 2026-10-26, option 1): a correct
+//   `error` lets warnings and info pass (ThomasBirkmaier/ReqSeq-archive#304, option 1): a correct
 //   workspace keeps hints that cannot be confirmed (the superseded targets of SR-072 AK2), so warnings
 //   failing the check meant it never passed. `failOn: warning` gives the exit code 1 that SR-019 AK2
 //   and SR-025 AK2 ask for warnings (they get a new version after the spec moves into ReqSeq). The

@@ -122,7 +122,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
   });
 
   it("[SR-025/AK4] reports nothing when a record of the current version is older than one of an older version (#201)", async () => {
-    // The hint follows the status (product owner decision, 2026-10-29): verified by the current record.
+    // The hint follows the status: verified by the current record.
     const workspace = await withRecords([
       record(A, A_VERSION, "2026-01-01T10:00:00Z"),
       record(A, OLD, "2026-01-02T10:00:00Z"),

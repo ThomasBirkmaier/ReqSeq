@@ -17,7 +17,7 @@
 //   with it), `[<ref>/AK<n>]` and `{ak}` = n (from 1, no leading zero) are still read, and written as
 //   the key of the criterion at position n of the current version where it has one, else as
 //   `<UUID>:<n>`, because every test name of this repository still names criteria by number
-//   (product owner decision, 2026-11-10: the switch-over runs after the code). An element the name
+//   (the switch-over runs after the code). An element the name
 //   also names without a criterion (`[SR-x] [SR-x/AK-k7f3]`) gets none from the name: the test holds
 //   for all its criteria; another suffix (`/slow`) names the whole requirement too. A suffix `AK`
 //   that is no such key or number (`AK0`, `AK02`, `AK`, `AK2a`, `AK-x`), and `{ak}` that is none,
@@ -571,7 +571,7 @@ const handCriterion = (
  * at that position of the current `items` where it has one that no other criterion carries (a double
  * key would count for neither, SR-204 AK10), else the number. The number form is kept only until the
  * switch-over to key tags (#1419), because every test name of this repository still names criteria
- * by number (product owner decision, 2026-11-10: the switch-over runs after the code).
+ * by number (the switch-over runs after the code).
  */
 const writtenCriterion = (
   criterion: CriterionValue,

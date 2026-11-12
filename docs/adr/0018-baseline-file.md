@@ -40,7 +40,7 @@ elements:
 
 - Written only in canonical form: `where` as `filter.save` writes it (`canonicalCondition`). A saved `filter` is resolved: its `where` (with the input's `where` under `all`) and its `view` are written, never its name, so a later change of the filter does not change the baseline. A saved filter that holds only a view is stored as `{ view: A }` and so counts as a baseline of A.
 - `package` and `view` as `{ id, title }` when the element lies in the repository of the baseline file, `{ id, repository }` otherwise (D-058); the title is the one at baseline time, for people who read the file without ReqSeq. `ids` items carry no title: a UUID in the file's repository, `{ id, repository }` otherwise, so a selection of 50,000 IDs is read line by line like `elements`. `view: core` stays the text. `selection.baseline` is refused (`input.invalid`).
-- `reqseq-baseline: 1` stays. The reader accepts every `elementRef` (UUID, short ID, identifier) for `ids`, `package` and `view`, and a saved `filter` by name (the stage 4 example), resolved in the command layer; a file with a `filter` name has `selectionKnown: true` and is read with the filter as it is now. A file that fails the stricter schema is `baseline.invalid`, with no compatibility rule (product owner decision, 2026-10-29): a `name` over 200 characters, with a leading or trailing space or a control character, a `selection.baseline`, and a repeated element copy or repository.
+- `reqseq-baseline: 1` stays. The reader accepts every `elementRef` (UUID, short ID, identifier) for `ids`, `package` and `view`, and a saved `filter` by name (the stage 4 example), resolved in the command layer; a file with a `filter` name has `selectionKnown: true` and is read with the filter as it is now. A file that fails the stricter schema is `baseline.invalid`, with no compatibility rule: a `name` over 200 characters, with a leading or trailing space or a control character, a `selection.baseline`, and a repeated element copy or repository.
 
 **`repositories`.** The repositories of the selected elements, the main repository and the metamodel's, each once (a name listed twice is `baseline.invalid`), in the order of the workspace file, each with its HEAD commit (SR-050 AK4). A repository involved that is not under Git or has no commit refuses the baseline with `git.unavailable` (AK7).
 
@@ -75,7 +75,7 @@ elements:
 | `element get` of A with 5,000 since-baseline hints, running server | ≤ 200 ms (SR-082 AK3) |
 | `baseline create` | ≤ 3 s (design target, not a gate) |
 
-The `baseline create` bound is a design target the nightly record compares against, not a gate (product owner decision, 2026-11-05: typical workspaces hold 100 to 1,000 elements; #1244). The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
+The `baseline create` bound is a design target the nightly record compares against, not a gate (typical workspaces hold 100 to 1,000 elements; #1244). The test also records the fallback time of one hand-edited file of 50,000 entries (about 2 s, no bound). `baseline.get` reads version dates for its page only; the state of an entry is O(1) from the current versions, `added` one pass over the selection.
 
 ## Consequences
 

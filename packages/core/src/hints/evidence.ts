@@ -6,8 +6,8 @@
 //
 // - Per element, kind (verification, validation) and variant (none: the core, SR-047) of its records,
 //   the evidence is outdated when the status of that kind in that view is `outdated` (SR-025 AK4:
-//   „dessen Nachweisstatus im Kern oder in einer Variante veraltet ist (SR-031)“; #201, product
-//   owner decision, 2026-10-29: the hint follows the status). The status is that of
+//   „dessen Nachweisstatus im Kern oder in einer Variante veraltet ist (SR-031)“; #201:
+//   the hint follows the status). The status is that of
 //   evidence/status.ts over the element's records: `verificationStatusOf` with its acceptance
 //   criteria, so one criterion with records of older versions only and the others verified is
 //   outdated too (SR-031 AK8), and `recordStatusOf` for validation. A newer record of an older

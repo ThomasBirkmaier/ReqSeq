@@ -229,8 +229,8 @@ export const propertyKeyRefusal = (
 /**
  * Refuses the first of `keys` that `propertyKeyRefusal` refuses, with `input.invalid`. `unset` of a
  * key the type does not know is no refusal: it removes the key from the file, so a property a changed
- * metamodel left behind can be emptied without editing the file (D-012, product owner decision,
- * 2026-10-29, #189); `set` of such a key stays refused.
+ * metamodel left behind can be emptied without editing the file (D-012,
+ * #189); `set` of such a key stays refused.
  */
 const checkPropertyKeys = (
   keys: readonly string[],
@@ -1112,8 +1112,8 @@ const expectedFile = (record: ElementRecord, current: ReadElement, expected: str
 };
 
 /**
- * The write precondition is required for a change of the text or the title (SR-106, product owner
- * decision, 2026-10-29, on #269): without `expectedFileSha256` such a save is refused with
+ * The write precondition is required for a change of the text or the title (SR-106,
+ * #269): without `expectedFileSha256` such a save is refused with
  * `input.invalid` on every access (SR-080), before anything is read, so a caller that read the
  * element earlier cannot overwrite a change saved in the meantime (the app's autosave). So does
  * `setItems`, as a position only means something in the list it was read from (#177). Properties

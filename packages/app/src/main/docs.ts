@@ -1,4 +1,4 @@
-// The bundled documentation (SR-141 AK2, AK3; product owner decision, 2026-11-08): Help > ReqSeq Documentation,
+// The bundled documentation (SR-141 AK2, AK3): Help > ReqSeq Documentation,
 // the action "Open documentation" and F1 on an entry of the command prompt open a page of the documentation site
 // of the delivery in the person's default browser. Main serves the site with the docs server of `reqseq serve docs`
 // (`startDocsServer` of `@reqseq/api/docs-server`, 127.0.0.1 only, the bytes of `@reqseq/core/docs-site`), started on the first

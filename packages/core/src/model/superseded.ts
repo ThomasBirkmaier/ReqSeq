@@ -4,7 +4,7 @@
 // relation of a relation kind of the metamodel whose target is such an element gets one hint
 // `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), except the
 // successor's own relation with the meaning `succession` (`isSuccession`): it records the
-// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170), and
+// supersede and is nothing to review (SR-072 AK2, #170), and
 // except a relation whose source has an invalid status itself: nobody reviews that source again
 // (SR-072 AK2, D-044). Such a source still counts as a successor. The hint names the successors:
 // the sources of `succession` relations to the same element.
@@ -251,8 +251,8 @@ const sourcesFromIndex = (
  * The hints on the relations of one element (SR-072 AK2), in the order of its keys and items, for
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
  * like `unknownFindings`, by the rules of the whole workspace: none on a relation with the meaning
- * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`; product
- * owner decision, 2026-10-29, #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as it is (a new or just written
+ * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`;
+ * #170), and none at all when the status of `source` is invalid (D-044). `source` need not be in the store as it is (a new or just written
  * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store
