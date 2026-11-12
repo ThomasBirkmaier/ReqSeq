@@ -6,7 +6,7 @@ How work on ReqSeq goes from a need to a release. The rules are in `CLAUDE.md` (
 flowchart LR
   need["Need<br/><small>set by the product owner</small>"]
   sr["SR in its topic package<br/><small>dependency check first<br/>an idea is a draft SR<br/>skill spec-change</small>"]
-  study["Pre-study<br/><small>steps per SR<br/>SR changed: dependency check<br/>plan only if risky</small>"]
+  study["Concept and issue cut<br/><small>review by fable-reviewer<br/>issue check after the spec PR<br/>skill spec-change</small>"]
   entry["Bug, question,<br/>task asked for"]
   issue["Issue = one task<br/><small>too large: epic with sub-issues</small>"]
   pr["Pull request<br/><small>verify before each push<br/>merge, /code-review</small>"]
@@ -25,11 +25,10 @@ Every spec change and every fix of a bug against an AK starts with a check of wh
 
 | Path | Check | Then |
 | --- | --- | --- |
-| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | Content change (CLAUDE.md, How we work): concept with edge cases, review by `fable-reviewer` (spec and issues), questions on that decision card, then the spec PR, which names the review and each touchpoint. Confirming relations, a status or a typo: the spec PR, which names each touchpoint. |
+| New or changed requirement, decision or glossary term | `trace affected`, `hint list`, one `element search` per term and synonym (`spec-change`) | The numbered steps of `spec-change`: for a content change questions, mockup, concept and its review, approval of the wording, spec PR, issues and their check; for confirming relations, a status or a typo the spec PR, which names each touchpoint. |
 | Bug against an AK | `trace related` parents and children, one `element search` per term of the AK (CLAUDE.md, Issues) | Fix it. A fix that needs an interpretation of the AK wording becomes a `question`. |
 | Bug without an SR | none | Fix it. |
 | Spec review, only when the product owner asks | `fable-reviewer` (prompt: `Case: spec review`, the packages, the result file) reads them and writes a finding list | An Opus agent at effort high checks each finding against code and tests; decision cards; one spec PR; implementation gaps become `bug` issues (#1298). |
-| Pre-study of a planned SR | the steps; when they change the SR, the first row | Issues for the steps the product owner chooses. |
 
 ## Issues
 
