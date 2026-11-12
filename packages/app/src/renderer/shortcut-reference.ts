@@ -32,6 +32,12 @@ export interface ShortcutRow {
   readonly mac: readonly string[];
   readonly does: string;
   /**
+   * What the actions this row is the first of do, where they have a description (SR-139 AK6): the explanation line
+   * and the command help show the same text (SR-210 AK5, AK6). A row of actions with different titles names each
+   * description with its title ("Show element: …").
+   */
+  readonly description?: string;
+  /**
    * The IDs of the actions this row is the key of: the page gives each an anchor `action-<id>`, where F1 on the
    * action in the command prompt opens it (SR-141 AK3). An action's first row only.
    */
@@ -90,9 +96,40 @@ export const SHORTCUT_TABLES: ShortcutTables = {
 };
 
 /**
+ * The description of the actions `ids` (SR-139 AK6), each once: alone when they share one title, else each after its
+ * title ("Show element: …"); undefined when none of them has one.
+ */
+const describedBy = (ids: readonly string[], actions: readonly Action[]): string | undefined => {
+  const named = ids.flatMap((id) => actions.find((action) => action.id === id) ?? []);
+  const titled = new Set(named.map((action) => action.title)).size > 1;
+  const said = [
+    ...new Set(
+      named.flatMap(({ title, description }) =>
+        description === undefined ? [] : [titled ? `${title}: ${description}` : description],
+      ),
+    ),
+  ];
+  return said.length === 0 ? undefined : said.join(" ");
+};
+
+/** `row` with the actions `own` it is the first of, and their description. */
+const withActions = (
+  row: Omit<ShortcutRow, "actions">,
+  own: readonly string[],
+  actions: readonly Action[],
+): ShortcutRow => {
+  if (own.length === 0) {
+    return row;
+  }
+  const description = describedBy(own, actions);
+  return { ...row, ...(description === undefined ? {} : { description }), actions: own };
+};
+
+/**
  * `sections` with each action ID in the first row that names it only, so each anchor is on the page once, and a last
  * section "Actions without a key" with a row (no key) for every action of `actions` that no row names: every action
- * has its anchor `action-<id>`, where F1 on it in the command prompt opens the page (SR-141 AK3).
+ * has its anchor `action-<id>`, where F1 on it in the command prompt opens the page (SR-141 AK3), and its description
+ * in that row (SR-139 AK6).
  */
 const anchored = (sections: readonly ShortcutSection[], actions: readonly Action[]): ShortcutSection[] => {
   const seen = new Set<string>();
@@ -104,7 +141,7 @@ const anchored = (sections: readonly ShortcutSection[], actions: readonly Action
       for (const id of own) {
         seen.add(id);
       }
-      return own.length === 0 ? rest : { ...rest, actions: own };
+      return withActions(rest, own, actions);
     }),
   }));
   // Actions that share a title (in different buffers) share the row, as in the section "Actions".
@@ -121,7 +158,7 @@ const anchored = (sections: readonly ShortcutSection[], actions: readonly Action
       title: "Actions without a key",
       about:
         "In the command prompt (Ctrl/Cmd+Shift+P), where they apply to the shown buffer; some also in the context menu.",
-      rows: [...keyless].map(([does, ids]) => ({ keys: [], mac: [], does, actions: ids })),
+      rows: [...keyless].map(([does, ids]) => withActions({ keys: [], mac: [], does }, ids, actions)),
     },
   ];
 };

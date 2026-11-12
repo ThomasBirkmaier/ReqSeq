@@ -43,8 +43,9 @@ describe("keyboard shortcuts page", () => {
     }
     // The last section names the actions without a key, each with its anchor (SR-141 AK3).
     expect(sections.at(-1)?.title).toBe("Actions without a key");
-    expect(rowOf(page, "Close all buffers")).toBe(
-      '| <span id="action-close-all"></span>— | — | Close all buffers |',
+    // An action of the app with its description (SR-139 AK6).
+    expect(rowOf(page, "Close all buffers — Close every buffer except the overview.")).toBe(
+      '| <span id="action-close-all"></span>— | — | Close all buffers — Close every buffer except the overview. |',
     );
     expect(
       rowOf(page, "Open the command prompt: the actions and commands that apply to the shown buffer"),

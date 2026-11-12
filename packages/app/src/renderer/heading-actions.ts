@@ -28,6 +28,7 @@ export const HEADING_ACTIONS: readonly Action[] = [
     // SR-191 AK1.
     id: "fold-section",
     title: "Fold section",
+    description: "Fold the section under the heading at the cursor.",
     available: hasHeadings,
     run: (context: ActionContext): void => {
       context.element?.headings?.run(foldSection, "No section to fold here");
@@ -37,6 +38,7 @@ export const HEADING_ACTIONS: readonly Action[] = [
     // SR-191 AK2.
     id: "unfold-section",
     title: "Unfold section",
+    description: "Unfold the folded section at the cursor.",
     available: hasHeadings,
     run: (context: ActionContext): void => {
       context.element?.headings?.run(unfoldSection, "No folded section here");
@@ -46,6 +48,7 @@ export const HEADING_ACTIONS: readonly Action[] = [
     // SR-191 AK3: the headings in the order of the text, found by the fuzzy match of the prompt.
     id: "go-to-heading",
     title: "Go to heading",
+    description: "Move the cursor to a chosen heading of the text.",
     available: hasHeadings,
     run: (context: ActionContext): void => {
       const controls = context.element?.headings;

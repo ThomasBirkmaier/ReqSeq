@@ -78,6 +78,7 @@ export const ENTRY_ACTIONS: readonly Action[] = [
     // AK2: as Enter opens the selected entry, in the area it is in (a right press makes that area active).
     id: "entry-show",
     title: "Show element",
+    description: "Open the marked element.",
     available: hasEntry,
     run: (context: ActionContext): void => {
       if (context.entry !== undefined) {

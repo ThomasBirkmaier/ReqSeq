@@ -71,6 +71,7 @@ const finish = (context: ActionContext): void => {
 export const findAction: Action = {
   id: "find-in-element",
   title: "Find in element",
+  description: "Mark the hits of a search in the text of the shown element and step through them.",
   // Cmd on macOS (SR-145); the physical Ctrl+F there stays the editor's Emacs key.
   shortcut: { mod: true, shift: false, key: "f" },
   inPrompt: true,
@@ -122,6 +123,7 @@ const quoted = (text: string): string => `“${text}”`;
 export const replaceAction: Action = {
   id: "replace-in-element",
   title: "Replace",
+  description: "Change the hits of a search in the text into a new text, one by one.",
   available: hasText,
   run: (context) => {
     askQuery(context, "Replace", (query) => {
@@ -161,6 +163,7 @@ export const replaceAction: Action = {
 export const replaceAllAction: Action = {
   id: "replace-all-in-element",
   title: "Replace all",
+  description: "Change every hit of a search in the text into a new text at once.",
   available: hasText,
   run: (context) => {
     askQuery(context, "Replace all", (query) => {

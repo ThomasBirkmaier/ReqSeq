@@ -107,8 +107,12 @@ describe("text actions", () => {
   it("carries a shortcut when it has one", () => {
     const command = vi.fn(() => true);
     const shortcut = { mod: true, shift: false, key: "b" } as const;
-    expect(textAction({ id: "x", title: "X", command, none: "n", shortcut }).shortcut).toEqual(shortcut);
-    expect(textAction({ id: "x", title: "X", command, none: "n" }).shortcut).toBeUndefined();
+    expect(
+      textAction({ id: "x", title: "X", description: "Does X.", command, none: "n", shortcut }).shortcut,
+    ).toEqual(shortcut);
+    expect(
+      textAction({ id: "x", title: "X", description: "Does X.", command, none: "n" }).shortcut,
+    ).toBeUndefined();
   });
 
   it("[SR-186/AK-vzm9] Bold, Italic and Inline code run their format on the text", () => {

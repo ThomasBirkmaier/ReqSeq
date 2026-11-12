@@ -14,6 +14,7 @@ import { copyText, cutText, pasteText } from "./editor/clipboard.js";
 export interface TextActionSpec {
   readonly id: string;
   readonly title: string;
+  readonly description: string;
   readonly command: Command;
   /** Said in the minibuffer when the command does not apply at the cursor ("No task on this line"). */
   readonly none: string;
@@ -28,9 +29,10 @@ export const hasText = (context: ActionContext): boolean =>
   context.buffers[0]?.kind === "element" && context.element?.text !== undefined;
 
 /** The action that runs `command` on the text of the shown element. */
-export const textAction = ({ id, title, command, none, shortcut }: TextActionSpec): Action => ({
+export const textAction = ({ id, title, description, command, none, shortcut }: TextActionSpec): Action => ({
   id,
   title,
+  description,
   ...(shortcut === undefined ? {} : { shortcut }),
   available: hasText,
   run: (context) => {
@@ -48,6 +50,7 @@ const NO_FORMAT = "The text cannot be formatted here";
 export const linkAction: Action = {
   id: "format-link",
   title: "Link",
+  description: "Write a link with a typed address at the cursor.",
   available: hasText,
   run: (context) => {
     context.ask({
@@ -74,6 +77,7 @@ export const CLIPBOARD_ACTIONS: readonly Action[] = [
   {
     id: "cut",
     title: "Cut",
+    description: "Cut the marked text to the clipboard.",
     systemKey: { mod: true, shift: false, key: "x" },
     available: hasText,
     run: (context: ActionContext): void => {
@@ -83,6 +87,7 @@ export const CLIPBOARD_ACTIONS: readonly Action[] = [
   {
     id: "copy",
     title: "Copy",
+    description: "Copy the marked text to the clipboard.",
     systemKey: { mod: true, shift: false, key: "c" },
     available: hasText,
     run: (context: ActionContext): void => {
@@ -92,6 +97,7 @@ export const CLIPBOARD_ACTIONS: readonly Action[] = [
   {
     id: "paste",
     title: "Paste",
+    description: "Paste the clipboard at the cursor.",
     systemKey: { mod: true, shift: false, key: "v" },
     available: hasText,
     run: (context: ActionContext): void => {
@@ -108,25 +114,46 @@ export const CLIPBOARD_ACTIONS: readonly Action[] = [
 /** The text actions, in the order the command prompt lists equal matches. */
 export const TEXT_ACTIONS: readonly Action[] = [
   // SR-185 AK3.
-  textAction({ id: "toggle-task", title: "Toggle task", command: toggleTask, none: "No task on this line" }),
+  textAction({
+    id: "toggle-task",
+    title: "Toggle task",
+    description: "Check or uncheck the task on the line at the cursor.",
+    command: toggleTask,
+    none: "No task on this line",
+  }),
   // SR-188 AK2, AK3.
-  textAction({ id: "align-table", title: "Align table", command: alignTable, none: NOT_IN_TABLE }),
-  textAction({ id: "insert-table-row", title: "Insert row", command: insertRow, none: NOT_IN_TABLE }),
+  textAction({
+    id: "align-table",
+    title: "Align table",
+    description: "Align the columns of the table at the cursor.",
+    command: alignTable,
+    none: NOT_IN_TABLE,
+  }),
+  textAction({
+    id: "insert-table-row",
+    title: "Insert row",
+    description: "Insert a row into the table at the cursor.",
+    command: insertRow,
+    none: NOT_IN_TABLE,
+  }),
   textAction({
     id: "insert-table-column",
     title: "Insert column",
+    description: "Insert a column into the table at the cursor.",
     command: insertColumn,
     none: NOT_IN_TABLE,
   }),
   textAction({
     id: "delete-table-row",
     title: "Delete row",
+    description: "Delete the row at the cursor from its table.",
     command: deleteRow,
     none: "The cursor is not in a table row below the header",
   }),
   textAction({
     id: "delete-table-column",
     title: "Delete column",
+    description: "Delete the column at the cursor from its table.",
     command: deleteColumn,
     none: "The cursor is not in a table with more than one column",
   }),
@@ -134,6 +161,7 @@ export const TEXT_ACTIONS: readonly Action[] = [
   textAction({
     id: "format-bold",
     title: "Bold",
+    description: "Make the marked text or the word at the cursor bold, or not bold.",
     command: toggleFormat("bold"),
     none: NO_FORMAT,
     shortcut: { mod: true, shift: false, key: "b" },
@@ -141,11 +169,18 @@ export const TEXT_ACTIONS: readonly Action[] = [
   textAction({
     id: "format-italic",
     title: "Italic",
+    description: "Make the marked text or the word at the cursor italic, or not italic.",
     command: toggleFormat("italic"),
     none: NO_FORMAT,
     shortcut: { mod: true, shift: false, key: "i" },
   }),
-  textAction({ id: "format-code", title: "Inline code", command: toggleFormat("code"), none: NO_FORMAT }),
+  textAction({
+    id: "format-code",
+    title: "Inline code",
+    description: "Make the marked text or the word at the cursor inline code, or plain text.",
+    command: toggleFormat("code"),
+    none: NO_FORMAT,
+  }),
   linkAction,
   // SR-195 AK3.
   ...CLIPBOARD_ACTIONS,

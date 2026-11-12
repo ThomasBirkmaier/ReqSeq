@@ -1,6 +1,6 @@
-// The explanation line of the command prompt on the built app (SR-210): under the hits it explains the marked
-// catalog command and, while an argument is asked, that argument and the keys of its step, with the texts of
-// the catalog; an entry that is no catalog command has none. Ctrl+H shows the command help in the card. Also the keys of an argument step (SR-108 AK6,
+// The explanation line of the command prompt on the built app (SR-210): under the hits, two text lines high, it
+// explains the marked catalog command and, while an argument is asked, that argument and the keys of its step, with
+// the texts of the catalog; an action of the app shows its description, an element none. Ctrl+H shows the command help in the card. Also the keys of an argument step (SR-108 AK6,
 // SR-134 AK4). The light screenshots go to `test-results/electron/screenshots/` (or the folder in
 // REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the same tests run on Linux, macOS and Windows; Ctrl+H is the
 // physical Ctrl key on every system (SR-145 AK4).
@@ -55,10 +55,43 @@ const mac = process.platform === "darwin";
 /** Ctrl/Cmd+Enter and Enter as the line names them. */
 const MORE = mac ? "⌘↩" : "Ctrl+Enter";
 const ENTER = mac ? "↩" : "Enter";
+/** Ctrl+H, the physical Ctrl key on every system. */
+const HELP = mac ? "⌃H" : "Ctrl+H";
 
 const names = (window: Page) => window.locator('.candidates [role="option"] .name');
 const explanation = (window: Page) => window.getByRole("note", { name: "Explanation" });
 const label = (window: Page) => window.locator("label.prompt-label");
+
+/**
+ * The explanation line: how many text lines high it is, its height, and whether its text wraps and is cut where it
+ * does not fit (with "…", `-webkit-line-clamp`).
+ */
+const geometry = (window: Page): Promise<{ lines: number; height: number; cut: boolean; wraps: boolean }> =>
+  explanation(window).evaluate((element) => {
+    // Whether the text is higher without the clamp than with it: then the clamp cuts it with "…".
+    const clamped = (shown: Element): boolean => {
+      const whole = shown.cloneNode(true) as HTMLElement;
+      whole.style.setProperty("-webkit-line-clamp", "unset");
+      whole.style.position = "absolute";
+      whole.style.width = `${String(shown.clientWidth)}px`;
+      shown.parentElement?.append(whole);
+      const higher = whole.clientHeight > shown.clientHeight;
+      whole.remove();
+      return higher;
+    };
+    const text = element.querySelector(".explain-text");
+    const style = getComputedStyle(element);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const inner =
+      element.clientHeight - Number.parseFloat(style.paddingTop) - Number.parseFloat(style.paddingBottom);
+    return {
+      lines: Math.round(inner / lineHeight),
+      // Without the edge: alone, without hits above it, the line closes the card at the top too.
+      height: element.clientHeight,
+      cut: text !== null && getComputedStyle(text).webkitLineClamp === "2" && clamped(text),
+      wraps: text !== null && text.getClientRects().length > 0 && text.clientHeight > lineHeight * 1.5,
+    };
+  });
 
 /** The command prompt with `typed`, its first hit `title` marked. */
 const mark = async (window: Page, typed: string, title: string): Promise<void> => {
@@ -89,52 +122,50 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await running.close();
   });
 
-  test("[SR-210/AK-gqgt] the marked catalog command shows its summary and arguments, and the line changes with the mark", async () => {
+  test("[SR-210/AK-gqgt] the marked catalog command shows its summary in a line two text lines high, its optional arguments and help at the right, and the line changes with the mark", async () => {
     const { window } = running;
     await fsp.mkdir(SHOTS, { recursive: true });
     await mark(window, "List hints", "List hints");
     const line = explanation(window);
     const hints = catalog("hint.list");
-    await expect(line.locator(".explain-summary")).toHaveText(hints.summary);
-    await expect(line.locator(".explain-arguments")).toHaveText(
-      `no required arguments · 7 optional: kind, type, package, variant, ref, limit, offset ${MORE} to give them`,
-    );
+    await expect(line.locator(".explain-text")).toHaveText(userText(hints.summary));
+    await expect(line.locator(".explain-side")).toHaveText(`7 optional · ${MORE} · ${HELP} help`);
+    const { lines, height } = await geometry(window);
+    expect(lines).toBe(2);
     await window.screenshot({ path: path.join(SHOTS, "sr-210-explanation-light.png") });
-    // The mark moves: the line shows the newly marked command at once.
+    // The mark moves: the line shows the newly marked command at once, as high.
     await window.keyboard.press("ArrowDown");
     const marked = await window.locator('.candidates [aria-selected="true"] .name').textContent();
     const next = [...CATALOG.values()].find((entry) => entry.title === marked);
     expect(next).toBeDefined();
-    await expect(line.locator(".explain-summary")).toHaveText(next?.summary ?? "");
-    // A command with a required argument names it.
+    await expect(line.locator(".explain-text")).toHaveText(userText(next?.summary ?? ""));
+    expect((await geometry(window)).height).toBe(height);
+    // A command with one optional argument; one without any shows only the help.
     await window.keyboard.press("Escape");
     await mark(window, "Show relation options", "Show relation options");
-    await expect(line.locator(".explain-arguments")).toHaveText(
-      `required: ref · 1 optional: kind ${MORE} to give them`,
-    );
-    // A command without arguments says so.
+    await expect(line.locator(".explain-side")).toHaveText(`1 optional · ${MORE} · ${HELP} help`);
     await window.keyboard.press("Escape");
     await mark(window, "List baselines", "List baselines");
-    await expect(line.locator(".explain-arguments")).toHaveText("no arguments");
-    // Where the line is too narrow, the summary and the names end with "…"; the number and the key stay.
+    await expect(line.locator(".explain-side")).toHaveText(`${HELP} help`);
+    expect((await geometry(window)).height).toBe(height);
+    // Without a hit the line stays, empty and as high.
+    await window.keyboard.type("qqxzqq");
+    await expect(names(window)).toHaveCount(0);
+    await expect(line.locator(".explain-text")).toHaveText("");
+    expect((await geometry(window)).height).toBe(height);
+    // Where the summary does not fit in two lines, it wraps and ends with "…"; the count and help stay.
     await window.keyboard.press("Escape");
     await window.setViewportSize({ width: 520, height: 700 });
     await mark(window, "List hints", "List hints");
-    const cut = async (selector: string): Promise<{ overflow: string; cut: boolean }> =>
-      line.locator(selector).evaluate((element) => ({
-        overflow: getComputedStyle(element).textOverflow,
-        cut: element.scrollWidth > element.clientWidth,
-      }));
-    expect(await cut(".explain-summary")).toEqual({ overflow: "ellipsis", cut: true });
-    expect(await cut(".explain-names")).toEqual({ overflow: "ellipsis", cut: true });
-    await expect(line.getByText("7 optional:")).toBeInViewport({ ratio: 1 });
-    await expect(line.locator(".explain-arguments kbd")).toBeInViewport({ ratio: 1 });
-    await expect(line.locator(".explain-help")).toBeInViewport({ ratio: 1 });
+    await window.screenshot({ path: path.join(SHOTS, "sr-210-explanation-narrow-light.png") });
+    expect(await geometry(window)).toEqual({ lines: 2, height, cut: true, wraps: true });
+    await expect(line.locator(".explain-side")).toBeInViewport({ ratio: 1 });
   });
 
-  test("[SR-210/AK-t8sc] an asked argument shows its catalog description and the keys of its step", async () => {
+  test("[SR-210/AK-t8sc] an asked argument shows its catalog description in the first line and the keys of its step in the second, as high", async () => {
     const { window } = running;
     await mark(window, "List hints", "List hints");
+    const { height } = await geometry(window);
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(label(window)).toHaveText("List hints · more arguments:");
     await window.keyboard.press("ArrowDown");
@@ -142,10 +173,15 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await expect(label(window)).toHaveText("List hints · kind:");
     const line = explanation(window);
     const kind = catalog("hint.list").input.properties?.["kind"]?.description ?? "";
-    await expect(line.locator(".explain-description")).toHaveText(`kind · ${kind}`);
+    await expect(line.locator(".explain-text")).toHaveText(`kind · ${userText(kind)}`);
     await expect(line.locator(".explain-keys")).toHaveText(
       `${ENTER} adds a value · ${MORE} more arguments · Escape back`,
     );
+    expect((await geometry(window)).height).toBe(height);
+    // The description stays in the first line, the keys in the second.
+    const top = async (selector: string): Promise<number> =>
+      line.locator(selector).evaluate((element) => element.getBoundingClientRect().top);
+    expect(await top(".explain-keys")).toBeGreaterThan(await top(".explain-text"));
     // Once a value is given, Enter on an empty input ends the values.
     await window.keyboard.type("outdated");
     await expect(names(window).first()).toHaveText("relation.outdated");
@@ -169,16 +205,20 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await expect(line.locator(".explain-keys")).toContainText(`${ENTER} on an empty input skips it`);
   });
 
-  test("[SR-210/AK-r2d2] an entry that is no catalog command shows no explanation; an action that runs one shows that command's", async () => {
+  test("[SR-210/AK-r2d2] an action of the app shows its description; one that runs a catalog command that command's summary alone; an element none", async () => {
     const { window } = running;
     await mark(window, "Open documentation", "Open documentation");
-    await expect(explanation(window)).toHaveCount(0);
+    const line = explanation(window);
+    // As the keyboard reference has it (SR-139 AK6).
+    await expect(line.locator(".explain-text")).toHaveText(
+      "Open the documentation of ReqSeq in the browser.",
+    );
+    await expect(line.locator(".explain-side")).toHaveText(`${HELP} help`);
     await window.keyboard.press("Escape");
-    // "List all elements" is an action of the app that runs element.list.
+    // "List all elements" is an action of the app that runs element.list: its summary, no count of arguments.
     await mark(window, "List all elements", "List all elements");
-    await expect(explanation(window).locator(".explain-summary")).toHaveText(catalog("element.list").summary);
-    // The action asks the command's arguments its own way: the line names none of them.
-    await expect(explanation(window).locator(".explain-arguments")).toHaveCount(0);
+    await expect(line.locator(".explain-text")).toHaveText(userText(catalog("element.list").summary));
+    await expect(line.locator(".explain-side")).toHaveText(`${HELP} help`);
     await window.keyboard.press("Escape");
     // An element among the hits of Go to.
     await window.keyboard.press("ControlOrMeta+P");

@@ -282,6 +282,9 @@ describe("shortcutReference", () => {
       keys: ["Ctrl+J"],
       mac: ["⌘J"],
       does: "Show neighbourhood / Show element",
+      // Of actions with different titles, each description is named by its title; "Show neighbourhood" runs a
+      // catalog command and has none of its own.
+      description: "Show element: Show the element of the shown neighbourhood again.",
       actions: ["neighbourhood", "neighbourhood-back"],
     });
     expect(actions.some((row) => row.does === "Edit text" || row.does === "Graph depth")).toBe(false);
@@ -318,6 +321,7 @@ describe("shortcutReference", () => {
       keys: [],
       mac: [],
       does: "Close all buffers",
+      description: "Close every buffer except the overview.",
       actions: ["close-all"],
     });
     expect(keyless.some((row) => row.actions?.includes("open-documentation") === true)).toBe(true);
@@ -327,6 +331,29 @@ describe("shortcutReference", () => {
     const prefix = sections[2]?.rows ?? [];
     expect(prefix.find((row) => row.does === "Close buffer")?.actions).toEqual(["close"]);
     expect(prefix.find((row) => row.does === "Create element")?.actions).toBeUndefined();
+  });
+
+  it("[SR-139/AK-kdr8] names each action of the app with its description in the row it is anchored at", () => {
+    const rows = shortcutReference(COMMANDS).flatMap((section) => section.rows);
+    // As the command prompt shows it (SR-210 AK6).
+    for (const candidate of ACTIONS.filter((action) => action.description !== undefined)) {
+      const at = rows.find((row) => row.actions?.includes(candidate.id) === true);
+      expect(at?.description, candidate.id).toContain(candidate.description);
+    }
+    // Actions of one title that share a row and a description name it once.
+    const twice = shortcutReference(COMMANDS, {
+      ...SHORTCUT_TABLES,
+      actions: [
+        { id: "a", title: "Same", description: "Does it.", available: () => true, run: () => undefined },
+        { id: "b", title: "Same", description: "Does it.", available: () => true, run: () => undefined },
+        { id: "c", title: "Plain", available: () => true, run: () => undefined },
+      ],
+      bindings: [],
+    });
+    expect(twice.at(-1)?.rows).toEqual([
+      { keys: [], mac: [], does: "Same", description: "Does it.", actions: ["a", "b"] },
+      { keys: [], mac: [], does: "Plain", actions: ["c"] },
+    ]);
   });
 
   it("names a command by the action that covers it, and refuses a letter that runs nothing", () => {
