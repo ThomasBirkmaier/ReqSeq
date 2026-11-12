@@ -59,8 +59,8 @@ const TAKES_PLACE_MS = 300;
 const closedAt = new WeakMap<HTMLElement, number>();
 
 /**
- * A copy of `node` in `parent` that runs the motion back (SR-182 AK6); it says nothing to a screen reader
- * and is no hit to a test, and it goes when its animation ends. Without motion it goes at once (AK7).
+ * A copy of `node` in `parent` that runs the motion back (SR-182 AK6); it says nothing to a screen reader,
+ * is no hit to a test and has no control, and it goes when its animation ends. Without motion it goes at once (AK7).
  */
 const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined => {
   // Whether the card had stood still, or was still on its way in.
@@ -71,6 +71,14 @@ const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined 
       element.removeAttribute(name);
     }
     element.classList.remove("candidates");
+  }
+  // A control of the card ("help" of the explanation line, SR-210 AK4) is only its look in the copy: no button
+  // stays in the window once the prompt closed (SR-100).
+  for (const button of copy.querySelectorAll("button")) {
+    const look = document.createElement("span");
+    look.className = button.className;
+    look.append(...button.childNodes);
+    button.replaceWith(look);
   }
   copy.classList.add("card-leaving");
   copy.dataset["motion"] = "out";
