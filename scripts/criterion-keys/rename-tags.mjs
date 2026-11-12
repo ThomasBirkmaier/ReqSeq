@@ -24,7 +24,17 @@ import { pathToFileURL } from "node:url";
 import { keyOf, readSpec, scanSource, testNameStrings } from "../trace-check/trace-check.mjs";
 
 const NUMBER_TAG = /\[(SR-\d{3})\/AK(\d+)\]/g;
-const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq", "test-results"]);
+const SKIP = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "out",
+  "coverage",
+  "spec",
+  ".reqseq",
+  "test-results",
+  ".claude",
+]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$/;
 const SCENARIO_MODULE = /(^|\/)test\/cross-access\/scenarios\/[^/]+\/[^/]+\.ts$/;
 const SOURCE_FILE = /\.(ts|tsx|js|mjs)$/;
@@ -32,6 +42,8 @@ const SOURCE_FILE = /\.(ts|tsx|js|mjs)$/;
 export const EXCLUDED = new Set([
   "CLAUDE.md",
   "README.md",
+  // Its number reference is the example of a refused one.
+  "docs/guide/how-to/give-acceptance-criteria-their-keys.md",
   "scripts/criterion-keys/rename-tags.mjs",
   "scripts/criterion-keys/rename-tags.test.mjs",
   "scripts/spec-migrate/convert.mjs",
