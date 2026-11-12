@@ -94,7 +94,10 @@ export interface Choice {
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
   readonly fits?: boolean;
-  /** The explanation line while it is marked: the catalog command it runs, or the action's description (SR-210 AK1, AK5). */
+  /**
+   * The explanation line while it is marked: the catalog command it runs, or the action's description (SR-210 AK1,
+   * AK5).
+   */
   readonly explain?: CommandExplanation;
   /** The command help of the catalog command it runs, or the action's description, shown on Ctrl+H (SR-210 AK3). */
   readonly help?: CommandHelp;
@@ -1190,7 +1193,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-205 AK4: the reference for a test name of the acceptance criterion with the cursor.
     id: "copy-criterion-reference",
     title: "Copy criterion reference",
-    description: "Copy the criterion reference of the acceptance criterion at the cursor, for a test name.",
+    description: "Copy the test name tag of the acceptance criterion at the cursor.",
     available: (context: ActionContext): boolean =>
       hasElementText(context) && context.element?.onCriterion?.(context.pressed) === true,
     run: (context: ActionContext): void => {
@@ -1420,7 +1423,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "choose-view",
     title: "Choose view",
-    description: "Choose the view the app shows: the core or a variant.",
+    description: "Choose the view the app shows: the view of the core or of a variant.",
     available: (context: ActionContext): boolean => context.workspace && context.views !== undefined,
     run: (context: ActionContext): void => {
       const { views } = context;
@@ -1465,7 +1468,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "follow-system-theme",
     title: "Follow system light or dark mode",
-    description: "Show the app light or dark as the computer is set again.",
+    description: "Follow the computer's light or dark setting again.",
     available: (context: ActionContext): boolean => context.workspace && context.theme.chosen(),
     run: (context: ActionContext): void => {
       context.theme.follow();
@@ -1475,7 +1478,8 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "fold-status",
     title: "Fold status in lists",
-    description: "Choose a status whose elements fold to the end of every list, or stay in place again.",
+    description:
+      "Choose a status whose elements fold to the end of every list, or whose folded elements go back to their place.",
     available: (context: ActionContext): boolean => context.workspace && context.folds !== undefined,
     run: (context: ActionContext): void => {
       const { folds } = context;

@@ -366,7 +366,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "ungroup",
     title: "Ungroup list",
-    description: "Show the shown list without its groups.",
+    description: "Remove the groups of the shown list.",
     available: (context: ActionContext): boolean => queryTarget(context)?.query.group !== undefined,
     run: onTarget((_context, target) => {
       target.apply({ group: undefined });

@@ -338,6 +338,7 @@ describe("shortcutReference", () => {
     // As the command prompt shows it (SR-210 AK6).
     for (const candidate of ACTIONS.filter((action) => action.description !== undefined)) {
       const at = rows.find((row) => row.actions?.includes(candidate.id) === true);
+      expect(at?.does, candidate.id).toContain(candidate.title);
       expect(at?.description, candidate.id).toContain(candidate.description);
     }
     // Actions of one title that share a row and a description name it once.
