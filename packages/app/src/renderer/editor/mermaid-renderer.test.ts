@@ -109,6 +109,8 @@ describe("overLimit", () => {
       "Diagram too large: 501 statements, at most 500.",
     );
     expect(overLimit("a --> b; ".repeat(501))).toBe("Diagram too large: 501 statements, at most 500.");
+    // A `;` inside a quoted label is no statement (SR-151 AK3: the entities of the Mermaid text of a graph).
+    expect(overLimit(`flowchart BT\n  n0["${"#35;".repeat(MAX_STATEMENTS)}"]`)).toBeUndefined();
   });
 });
 

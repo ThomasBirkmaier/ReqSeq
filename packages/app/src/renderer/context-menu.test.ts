@@ -103,16 +103,22 @@ describe("the places of the context menu", () => {
   });
 });
 
-describe("the menus of the graphs (SR-199 AK1, AK2, without the export of SR-151)", () => {
-  it("has the depth and the relation kinds on an element's graph, and the text on the metamodel's", () => {
-    const titles = new Map(ACTIONS.map((action) => [action.id, action.title]));
+describe("the menus of the graphs (SR-199 AK1, AK2)", () => {
+  const titles = new Map(ACTIONS.map((action) => [action.id, action.title]));
+
+  it("[SR-199/AK-tbtd] has the depth, the relation kinds and the Mermaid copy on an element's graph", () => {
     expect(MENU_PLACES.graph.map((entry) => titles.get(entry.id))).toEqual([
       "Graph depth",
       "Also show relation kind",
       "Show only relation kind",
+      "Copy graph as Mermaid",
     ]);
+  });
+
+  it("[SR-199/AK-w4jd] has the text and the Mermaid copy on the metamodel's graph", () => {
     expect(MENU_PLACES["metamodel-graph"].map((entry) => titles.get(entry.id))).toEqual([
       "Show metamodel as text",
+      "Copy graph as Mermaid",
     ]);
   });
 });

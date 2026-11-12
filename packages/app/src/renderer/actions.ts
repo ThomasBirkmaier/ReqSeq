@@ -47,6 +47,7 @@ import {
   hasFilter,
   onlyChoices,
 } from "./graph-choices.js";
+import { mermaidInput } from "./graph.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { TEXT_ACTIONS } from "./text-actions.js";
@@ -1248,6 +1249,29 @@ export const ACTIONS: readonly Action[] = [
       context.dispatch({
         type: "open",
         buffer: open === undefined ? metamodelBuffer() : { ...open, mode: "graph" },
+      });
+    },
+  },
+  {
+    // SR-151 AK5: only on the graph of an element or of the metamodel, with the graph's own depth, kinds and
+    // view; the text is core's (`trace.mermaid`, `metamodel.mermaid`), and the modeline confirms the copy
+    // (SR-128 AK2). It covers both commands, so the command prompt offers no other entry for them.
+    id: "copy-mermaid",
+    title: "Copy graph as Mermaid",
+    covers: ["trace.mermaid", "metamodel.mermaid"],
+    available: (context: ActionContext): boolean =>
+      isGraph(context) || metamodelIn(context, "graph") !== undefined,
+    run: (context: ActionContext): void => {
+      const shown = context.buffers[0];
+      const call = context.shownCall ?? context.call;
+      void (
+        shown?.kind === "graph" ? call("trace.mermaid", mermaidInput(shown)) : call("metamodel.mermaid", {})
+      ).then((answer) => {
+        if (answer.ok) {
+          context.copy?.("graph as Mermaid", answer.output.mermaid);
+        } else {
+          context.echo(answer.message);
+        }
       });
     },
   },
