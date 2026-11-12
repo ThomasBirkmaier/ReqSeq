@@ -98,6 +98,7 @@ flowchart TB
     subgraph blocks[blocks]
       data[data<br/>JSON export and store per state]
       reqif[reqif<br/>ReqIF model, parser, mapping files]
+      elgraph[graph<br/>element graph, its words]
       query[query<br/>filter engine, sort, search index, saved filters]
       hints[hints<br/>outdated relations, evidence hints, confirm]
       evidence[evidence<br/>records, JUnit, status, coverage, degree]
@@ -123,6 +124,7 @@ flowchart TB
   commands -->|every block except git| blocks
   data --> evidence & files & mm & model & variants & ws
   reqif --> files & mm & model & ws
+  elgraph --> evidence & hints & mm & model & trace & variants & ws
   query --> baselines & evidence & files & mm & model & trace & variants & ws
   hints --> baselines & evidence & files & mm & model & trace & variants & ws
   evidence --> files & mm & model & trace & variants & ws
@@ -139,9 +141,10 @@ An arrow means that at least one module of the source imports a value (a functio
 | Block | Imports (values) | Imports (types only) |
 |---|---|---|
 | runtime entry (`invoke`, `warm`, `instructions`, `element-short-ids`, `local-path-fields`) | commands, metamodel, model, query, runtime state, workspace | |
-| `commands` | baselines, data, evidence, files, hints, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
+| `commands` | baselines, data, evidence, files, graph, hints, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
 | `reqif` | files, metamodel, model, runtime state, workspace | |
+| `graph` | evidence, hints, metamodel, model, runtime state, trace, variants, workspace | |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
@@ -157,7 +160,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 Every block may also import the root modules `catalog.ts`, `product.ts` and `build-info.ts` (the build of a delivery, SR-161) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`, `graph`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility |
 |---|---|
@@ -171,6 +174,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `git` | Commits, dirty state, history, old contents, read-only (SR-083) |
 | `docs-site` | The offline documentation site of a delivery: which file a request names, media types, the CSP, command page paths; only `node:*`, reads only (SR-141, ADR-0017) ([block file](../../packages/core/docs/docs-site.md)) |
 | `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) |
+| `graph` | The graph of an element with its marks and verification (SR-111), and the words the app's graph shows ([block file](../../packages/core/docs/graph.md)) |
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |

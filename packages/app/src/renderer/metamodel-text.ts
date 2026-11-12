@@ -1,5 +1,5 @@
 // The metamodel as text (SR-130 AK5): what `metamodel.get` gives, in the words the text view shows. Pure
-// display (ADR-0002 rule 3, SR-080 AK1), like `metamodel-graph.ts`: every word is a value of the output or
+// display (ADR-0002 rule 3, SR-080 AK1), like `@reqseq/core/metamodel-graph`: every word is a value of the output or
 // a word for a field ("extends", "abstract", "required", "counts to version", "list of", "any type", "none").
 // - One row per type, in metamodel order: its key, name and prefix, "abstract" when it is, its parent
 //   (`extends`, by the parent's name, by the key when no type has it), its properties (own and inherited,
@@ -15,7 +15,7 @@
 //   "exactly 2"; a limit without a source type holds for the kind's sources and starts with "→".
 // - The problems of the output, one line each; they are no rows.
 import type { MetamodelGetOutput } from "@reqseq/core";
-import { inheritedProperties, typeKey } from "./metamodel-graph.js";
+import { inheritedProperties, typeKey } from "@reqseq/core/metamodel-graph";
 
 /** A property of a type, as a line of its row. */
 export interface TextProperty {

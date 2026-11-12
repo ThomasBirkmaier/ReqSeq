@@ -4,7 +4,8 @@
 # - property spec-id with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305): SR-036, D-047, N-001, Editor;
 # - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
-# - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq);
+# - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq), and english-term,
+#   the one English word of each term (#1428);
 # - packages (on every type, below): packages give the structure of the spec by topic, not the schedule, and
 #   replace the former property topic; the property issue is gone, since issues are tasks that can
 #   implement several SRs;
@@ -79,7 +80,7 @@ types:
   - key: glossary-term
     name: Glossary Term
     prefix: GL
-    properties: [title, area, synonyms, do-not-use, packages]
+    properties: [title, area, synonyms, do-not-use, english-term, packages]
     required: [title]
     statuses: [obsolete]
 
@@ -173,6 +174,11 @@ properties:
     choices:
       - { key: "yes", name: "Yes" }
       - { key: "no", name: "No" }
+  # One English word per glossary term, so that UI, commands, messages and docs keep the terms apart (#1428).
+  - key: english-term
+    name: English Term
+    kind: text
+    description: "Das englische Wort oder die feste Wendung für den Begriff in Oberfläche, Befehlen, Meldungen und Dokumentation; kein anderer Begriff trägt denselben Wert. Eine Kurzform ist das letzte Wort der Wendung und nur erlaubt, wenn dieses Wort nicht der Wert eines anderen Begriffs ist."
 
 relations:
   - key: refines

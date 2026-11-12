@@ -19,8 +19,13 @@
 import type { Point } from "./dagre.js";
 import { layoutGraphOf, runLayout } from "./dagre.js";
 import { edgePath } from "./graph-layout.js";
-import type { MetamodelEdge, MetamodelGraph, MetamodelLink, MetamodelNode } from "./metamodel-graph.js";
-import { linkLabel } from "./metamodel-graph.js";
+import type {
+  MetamodelEdge,
+  MetamodelGraph,
+  MetamodelLink,
+  MetamodelNode,
+} from "@reqseq/core/metamodel-graph";
+import { linkLabel } from "@reqseq/core/metamodel-graph";
 
 /** The width of a box in CSS pixels. */
 export const TYPE_WIDTH = 224;

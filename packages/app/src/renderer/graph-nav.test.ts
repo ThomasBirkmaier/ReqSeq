@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import { GRAPH_MOVES, graphStep } from "./graph-nav.js";
 import { graphNode } from "./graph-test-data.js";
-import { metamodelGraph } from "./metamodel-graph.js";
+import { metamodelGraph } from "@reqseq/core/metamodel-graph";
 import { layoutMetamodel } from "./metamodel-layout.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 

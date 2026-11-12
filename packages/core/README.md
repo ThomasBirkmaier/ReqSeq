@@ -105,6 +105,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - [Checking the whole workspace (`workspace.check`, SR-019)](docs/workspace-check.md)
 - [Variants block (`src/variants/`)](docs/variants.md)
 - [Trace block (`src/trace/`)](docs/trace.md)
+- [Graph block (`src/graph/`)](docs/graph.md)
 - [Query block (`src/query/`)](docs/query.md)
 - [Hints block (`src/hints/`)](docs/hints.md)
 - Evidence block (`src/evidence/`): [records, folders, state, index](docs/evidence-records.md), [status and degree](docs/evidence-status.md), [views and export](docs/evidence-views.md)

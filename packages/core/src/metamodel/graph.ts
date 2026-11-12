@@ -1,5 +1,6 @@
-// The metamodel as a graph (SR-130 AK2, AK3): which box and which curve stand for which field of
-// `metamodel.get`. Pure display (ADR-0002 rule 3, SR-080 AK1): nothing is decided here, every word shown
+// The metamodel as a graph (SR-130 AK2, AK3), for the app's graph and the Mermaid text (SR-151 AK2,
+// #1537; `@reqseq/core/metamodel-graph`, this module imports only types): which box and which curve stand for
+// which field of `metamodel.get`. Pure display (ADR-0002 rule 3, SR-080 AK1): nothing is decided here, every word shown
 // is a value of the output or a word for a field ("extends", "Any type", "abstract", "any source").
 // - A node is one entry of `types`, in their order, with its name, prefix and every property of
 //   `properties` (own and inherited). A property is inherited when its key is among the `properties` of
@@ -14,7 +15,9 @@
 //   Types are named as written, their subtypes not added: the inheritance curves show them.
 // - The links of one ordered pair of nodes are one edge, in the order of their first link: the
 //   inheritance first, then the relation kinds and then the relation properties, in metamodel order.
-import type { MetamodelGetOutput } from "@reqseq/core";
+import type { CommandOutput } from "../catalog.js";
+
+type MetamodelGetOutput = CommandOutput<"metamodel.get">;
 
 /** The key of the node of a type. */
 export const typeKey = (type: string): string => `type:${type}`;
@@ -112,7 +115,7 @@ interface Reading {
 
 /**
  * The property keys each type inherits: those among the effective `properties` of the type its `extends`
- * names (review S2). The one reading of the output the graph and the text make (`metamodel-text.ts`).
+ * names (review S2). The one reading of the output the graph and the texts make (the app's `metamodel-text.ts`).
  */
 export const inheritedProperties = (
   output: Pick<MetamodelGetOutput, "types">,
