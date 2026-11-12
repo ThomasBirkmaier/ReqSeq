@@ -1323,8 +1323,17 @@ mark {
   border-bottom-right-radius: 0;
 }
 
+/* Two text lines high whatever it says, so the hits do not move (AK1, AK2): the text at the left, the number of
+   optional arguments and "help" at the right of the first line, the keys of an argument's step in the second. */
 .card-explain {
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 1lh 1lh;
+  column-gap: 0.75em;
+  box-sizing: content-box;
+  height: 2lh;
+  line-height: 1.5;
   padding: 0.3rem 0.75rem 0.4rem;
   background: var(--raised);
   border: 1px solid var(--rule);
@@ -1341,41 +1350,37 @@ mark {
   box-shadow: none;
 }
 
-/* The summary: one line, cut with "…" where it does not fit (AK1). */
-.explain-summary {
+/* The text: wrapped over both lines and cut with "…" (AK1), or the first line alone (AK2). */
+.explain-text {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: -webkit-box;
   overflow: hidden;
-  color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.explain-description {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--text);
   overflow-wrap: anywhere;
+  /* The minibuffer does not wrap; this text does. */
+  white-space: normal;
+}
+
+.explain-text[data-lines="1"] {
+  grid-row: 1;
+  -webkit-line-clamp: 1;
+}
+
+.explain-side {
+  grid-column: 2;
+  grid-row: 1;
+  white-space: nowrap;
 }
 
 .explain-keys {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 0.4em;
-}
-
-/* The arguments of a command: one line, where only the names of the optional ones give way, with "…",
-   and their number and key stay (AK1). */
-.explain-keys.explain-arguments {
-  flex-wrap: nowrap;
-  white-space: nowrap;
-}
-
-.explain-arguments > span {
-  flex: none;
-}
-
-.explain-arguments > .explain-names {
-  flex: 0 1 auto;
-  min-width: 0;
+  grid-column: 1 / span 2;
+  grid-row: 2;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-explain kbd {
@@ -1387,20 +1392,7 @@ mark {
   font-size: 11px;
 }
 
-/* The foot of the explanation line: the arguments, which give way, and "help" with its key, which stays (AK4). */
-.explain-foot {
-  display: flex;
-  align-items: baseline;
-  column-gap: 0.4em;
-}
-
-.explain-foot > .explain-arguments {
-  min-width: 0;
-}
-
 .explain-help {
-  flex: none;
-  margin-left: auto;
   padding: 0;
   background: none;
   border: none;

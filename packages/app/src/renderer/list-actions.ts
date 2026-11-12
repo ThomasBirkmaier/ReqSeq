@@ -168,6 +168,7 @@ type Names =
 interface FilterBy {
   readonly id: string;
   readonly title: string;
+  readonly description: string;
   /** The label of the prompt. */
   readonly label: string;
   readonly nothing: string;
@@ -185,6 +186,7 @@ const addStep = (target: QueryTarget, step: FilterStep): void => {
 const filterBy = (by: FilterBy): Action => ({
   id: by.id,
   title: by.title,
+  description: by.description,
   available: by.available ?? canFilter,
   run: onTarget((context, target) => {
     void by.names(context.shownCall ?? context.call, target).then((found) => {
@@ -225,6 +227,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   filterBy({
     id: "filter-type",
     title: "Filter list by type",
+    description: "Keep only the elements of one type in the shown list.",
     label: "Type",
     nothing: "The metamodel has no types.",
     names: async (call: Call): Promise<Names> => {
@@ -236,6 +239,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   filterBy({
     id: "filter-status",
     title: "Filter list by status",
+    description: "Keep only the elements in one status in the shown list.",
     label: "Status",
     nothing: "The elements of this list have no status.",
     names: async (call: Call, target: QueryTarget): Promise<Names> => {
@@ -247,6 +251,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "filter-property",
     title: "Filter list by property",
+    description: "Keep only the elements with one value of a property in the shown list.",
     available: canFilter,
     run: onTarget((context, target) => {
       void facetsOf(context.shownCall ?? context.call, target).then((answer) => {
@@ -272,6 +277,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "filter-text",
     title: "Filter list by text search",
+    description: "Keep only the elements of the shown list that a text search finds.",
     available: canFilter,
     run: onTarget((context, target) => {
       context.ask({
@@ -289,6 +295,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   filterBy({
     id: "filter-saved",
     title: "Filter list by saved filter",
+    description: "Keep only the elements of the shown list that a saved filter finds.",
     label: "Filter",
     nothing: "The workspace has no saved filters.",
     available: (context) => {
@@ -304,6 +311,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "clear-filter",
     title: "Clear list filter",
+    description: "Take back the last filter of the shown list.",
     available: isFiltered,
     run: onTarget((_context, target) => {
       target.apply({ steps: target.query.steps.slice(0, -1) });
@@ -312,6 +320,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "clear-filters",
     title: "Clear all list filters",
+    description: "Take back every filter of the shown list.",
     // Offered on every filtered list, as the context menu of a list has it (SR-198 AK1).
     available: isFiltered,
     run: onTarget((_context, target) => {
@@ -321,6 +330,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "sort",
     title: "Sort list",
+    description: "Sort the shown list by a chosen key.",
     available: sets("sort"),
     run: onTarget((context, target) => {
       context.ask({
@@ -334,6 +344,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "group",
     title: "Group list",
+    description: "Group the elements of the shown list by type, status, package or a property.",
     available: sets("group"),
     run: onTarget((context, target) => {
       const call = context.shownCall ?? context.call;
@@ -355,6 +366,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "ungroup",
     title: "Ungroup list",
+    description: "Remove the groups of the shown list.",
     available: (context: ActionContext): boolean => queryTarget(context)?.query.group !== undefined,
     run: onTarget((_context, target) => {
       target.apply({ group: undefined });
@@ -385,6 +397,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "matrix-list",
     title: "Show as list",
+    description: "Show the traceability matrix as a list again.",
     shortcut: MATRIX_SHORTCUT,
     available: isMatrix,
     run: onList((context, list) => {

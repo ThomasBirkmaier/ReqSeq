@@ -17,6 +17,10 @@ const keyCell = (keys: readonly string[]): string =>
 const anchors = (actions: readonly string[] = []): string =>
   actions.map((id) => `<span id="action-${id}"></span>`).join("");
 
+/** What a row does: its text, and the description of its actions after a dash where they have one (SR-139 AK6). */
+const doesCell = (does: string, description: string | undefined): string =>
+  description === undefined ? cell(does) : `${cell(does)} — ${cell(description)}`;
+
 /** The Markdown page of every key of the app, a section each. */
 export function shortcutsPage(sections: readonly ShortcutSection[]): string {
   return [
@@ -37,7 +41,7 @@ export function shortcutsPage(sections: readonly ShortcutSection[]): string {
         section.rows.map((row) => [
           `${anchors(row.actions)}${keyCell(row.keys)}`,
           keyCell(row.mac),
-          cell(row.does),
+          doesCell(row.does, row.description),
         ]),
       ),
       "",

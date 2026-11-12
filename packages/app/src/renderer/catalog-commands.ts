@@ -247,23 +247,19 @@ const askable = (command: CommandListing): readonly Argument[] =>
   command.arguments.filter((arg) => arg.complete !== "selection");
 
 /**
- * The explanation line of the entry of `command` while it is marked (SR-210 AK1): its summary, the required
- * arguments the prompt asks (`askedOf`) and the optional ones, as the catalog has them; not those `given`
- * before the prompt asks (SR-199), which it does not ask.
+ * The explanation line of the entry of `command` while it is marked (SR-210 AK1): its summary and the number of
+ * the optional arguments Ctrl/Cmd+Enter offers, as the catalog has them; not those `given` before the prompt asks
+ * (SR-199), which it does not ask.
  */
 const commandExplanation = (
   command: CommandListing,
   given: readonly Prefilled[] = [],
 ): CommandExplanation => {
   const asked = askedOf(command);
-  const args = askable(command).filter((arg) => !given.some((value) => value.field === arg.field));
-  return {
-    summary: command.summary,
-    arguments: {
-      required: args.filter((arg) => asked.includes(arg.field)).map((arg) => arg.field),
-      optional: args.filter((arg) => !asked.includes(arg.field)).map((arg) => arg.field),
-    },
-  };
+  const optional = askable(command).filter(
+    (arg) => !asked.includes(arg.field) && !given.some((value) => value.field === arg.field),
+  );
+  return { summary: command.summary, optional: optional.length };
 };
 
 /**
@@ -289,10 +285,12 @@ export const commandHelp = (command: CommandListing): CommandHelp => {
 };
 
 /**
- * `prompt` with the explanation line on each action that runs a catalog command (SR-210 AK5,
- * `coveredCommand`): the command's summary. The action asks the command's arguments its own way, or not at
- * all, so the line names none of them; Ctrl+H shows the command's help, as F1 opens its reference page. The entries of catalog commands have theirs (`catalogItems`); other
- * entries have none.
+ * `prompt` with the explanation line (SR-210 AK1, AK5): the prompt keeps its place for it (`explains`), and each
+ * action has one. An action that runs one catalog command (`coveredCommand`) has that command's summary, without
+ * its arguments, which the action asks its own way or not at all; Ctrl+H shows the action's title with that summary,
+ * without the arguments and the call on the command line, and F1 opens the command's reference page. Any other action has its own `description`, which the keyboard reference names too (SR-139
+ * AK6), and Ctrl+H shows it. The entries of catalog commands have theirs (`catalogItems`); an element or a buffer
+ * has none.
  */
 export const withExplanations = (
   prompt: Prompt,
@@ -300,12 +298,25 @@ export const withExplanations = (
   actions: readonly Action[] = ACTIONS,
 ): Prompt => ({
   ...prompt,
+  explains: true,
   items: prompt.items.map((item) => {
     const action = actions.find((candidate) => candidate.id === item.id);
-    const command = action === undefined ? undefined : coveredCommand(action, catalog);
-    return command === undefined
+    if (action === undefined) {
+      return item;
+    }
+    const command = coveredCommand(action, catalog);
+    if (command !== undefined) {
+      // Its summary, but neither the arguments nor the call on the command line (AK5).
+      return {
+        ...item,
+        explain: { summary: command.summary },
+        help: { title: action.title, summary: command.summary },
+      };
+    }
+    const { description } = action;
+    return description === undefined
       ? item
-      : { ...item, explain: { summary: command.summary }, help: commandHelp(command) };
+      : { ...item, explain: { summary: description }, help: { title: action.title, summary: description } };
   }),
 });
 

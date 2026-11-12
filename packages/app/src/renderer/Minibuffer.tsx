@@ -178,10 +178,35 @@ const Card = ({ children }: { readonly children: React.ReactNode }): React.JSX.E
 const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: false, key: "enter" }, mac);
 
 /**
- * The explanation line of the marked catalog command (SR-210 AK1), under the hits: its summary, cut with "…"
- * where it does not fit, then, on the command's own entry, its arguments (`Arguments`). An action that runs
- * the command shows its summary alone (AK5). At the end of the line "help" with its key: a click on it opens
- * the command help as Ctrl+H does (AK4).
+ * The explanation line (SR-210 AK1, AK2): under the hits, two text lines high whatever it says, so the hits do not
+ * move. `text` wraps over both lines (`lines` 2) or stands in the first (`lines` 1, the second is `keys`), cut with
+ * "…" where it does not fit; `side` stands at the right of the first line.
+ */
+const ExplainLine = ({
+  text,
+  lines,
+  side,
+  keys,
+}: {
+  readonly text?: React.ReactNode;
+  readonly lines: 1 | 2;
+  readonly side?: React.ReactNode;
+  readonly keys?: React.ReactNode;
+}): React.JSX.Element => (
+  <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
+    <div className="explain-text" data-lines={lines}>
+      {text}
+    </div>
+    {side === undefined ? null : <div className="explain-side">{side}</div>}
+    {keys === undefined ? null : <div className="explain-keys">{keys}</div>}
+  </div>
+);
+
+/**
+ * The explanation line of the marked entry (SR-210 AK1, AK5): the summary of its catalog command, or the
+ * description of an action, wrapped over two lines; at the right the number of the optional arguments of a catalog
+ * command with Ctrl/Cmd+Enter, which offers them, and "help" with its key: a click on it opens the command help as
+ * Ctrl+H does (AK4).
  */
 const CommandLine = ({
   explain,
@@ -191,70 +216,43 @@ const CommandLine = ({
   readonly explain: CommandExplanation;
   readonly mac: boolean;
   readonly onHelp: (() => void) | undefined;
-}): React.JSX.Element => (
-  <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
-    <div className="explain-summary">{explain.summary}</div>
-    <div className="explain-foot">
-      {explain.arguments === undefined ? null : <Arguments {...explain.arguments} mac={mac} />}
-      {onHelp === undefined ? null : (
+}): React.JSX.Element => {
+  const optional = explain.optional ?? 0;
+  return (
+    <ExplainLine
+      text={explain.summary}
+      lines={2}
+      side={
         <>
-          {" "}
-          <button
-            type="button"
-            className="explain-help"
-            tabIndex={-1}
-            // The input keeps the focus, as on a click on a hit.
-            onMouseDown={(event) => {
-              event.preventDefault();
-            }}
-            onClick={onHelp}
-          >
-            <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> help
-          </button>
-        </>
-      )}
-    </div>
-  </div>
-);
-
-/**
- * The arguments on the explanation line (AK1): the required ones the prompt asks, and the number and names of
- * the optional ones with Ctrl/Cmd+Enter, which offers them; names that do not fit end with "…", the number
- * stays. The spaces between its parts are for the text a screen reader reads; the gap of the line shows them.
- */
-const Arguments = ({
-  required,
-  optional,
-  mac,
-}: {
-  readonly required: readonly string[];
-  readonly optional: readonly string[];
-  readonly mac: boolean;
-}): React.JSX.Element => (
-  <div className="explain-keys explain-arguments">
-    {required.length === 0 && optional.length === 0 ? (
-      <span>no arguments</span>
-    ) : (
-      <>
-        <span>{required.length === 0 ? "no required arguments" : `required: ${required.join(", ")}`}</span>
-        {optional.length === 0 ? null : (
-          <>
-            {" "}
-            <span>·</span> <span>{`${String(optional.length)} optional:`}</span>{" "}
-            <span className="explain-names">{optional.join(", ")}</span>{" "}
-            <span>
-              <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> to give them
+          {optional === 0 ? null : (
+            <span className="explain-optional">
+              {`${String(optional)} optional`} · <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd>
+              {onHelp === undefined ? null : " · "}
             </span>
-          </>
-        )}
-      </>
-    )}
-  </div>
-);
+          )}
+          {onHelp === undefined ? null : (
+            <button
+              type="button"
+              className="explain-help"
+              tabIndex={-1}
+              // The input keeps the focus, as on a click on a hit.
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={onHelp}
+            >
+              <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> help
+            </button>
+          )}
+        </>
+      }
+    />
+  );
+};
 
 /**
- * The explanation line of the argument asked (SR-210 AK2), where the command's stood: its name and catalog
- * description, then the keys of this step with what they do.
+ * The explanation line of the argument asked (SR-210 AK2), where the command's stood and as high: in the first
+ * line its name and catalog description, in the second the keys of this step with what they do.
  */
 const ArgumentLine = ({
   explain,
@@ -274,52 +272,87 @@ const ArgumentLine = ({
     ...(back ? [{ key: "Escape", does: "back" }] : []),
   ];
   return (
-    <div className="card-explain" id="prompt-explain" role="note" aria-label="Explanation">
-      <div className="explain-description">
-        <span className="explain-name">{explain.name}</span>
-        {explain.description === undefined ? null : ` · ${explain.description}`}
-      </div>
-      {keys.length === 0 ? null : (
-        <div className="explain-keys">
-          {keys.map(({ key, does }, at) => (
-            <Fragment key={does}>
-              {at === 0 ? null : " "}
-              <span>
-                {at === 0 ? null : "· "}
-                <kbd>{key}</kbd> {does}
-              </span>
-            </Fragment>
-          ))}
-        </div>
-      )}
-    </div>
+    <ExplainLine
+      text={
+        <>
+          <span className="explain-name">{explain.name}</span>
+          {explain.description === undefined ? null : ` · ${explain.description}`}
+        </>
+      }
+      lines={1}
+      keys={keys.map(({ key, does }, at) => (
+        <Fragment key={does}>
+          {at === 0 ? null : " · "}
+          <kbd>{key}</kbd> {does}
+        </Fragment>
+      ))}
+    />
   );
 };
 
 /**
- * The explanation line (SR-210): of the argument asked, else of the marked entry when it runs a catalog command
- * (AK5: no other entry has one).
+ * The explanation line (SR-210): of the argument asked, else of the marked entry in a prompt that keeps its place
+ * (`explains`, the command prompt), empty for an entry without one (AK5: an element, a buffer) and without hits.
+ * Other prompts have none.
  */
 const explanationOf = (
   prompt: Prompt,
   marked: Choice | undefined,
   mac: boolean,
   onHelp: () => void,
-): React.JSX.Element | null => {
+): { readonly line: React.JSX.Element | null; readonly said: boolean } => {
   if (prompt.explain !== undefined) {
-    return <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />;
+    return {
+      line: <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />,
+      said: true,
+    };
+  }
+  if (prompt.explains !== true) {
+    return { line: null, said: false };
   }
   const explain = marked?.inert === true ? undefined : marked?.explain;
-  return explain === undefined ? null : (
-    <CommandLine explain={explain} mac={mac} onHelp={marked?.help === undefined ? undefined : onHelp} />
-  );
+  return explain === undefined
+    ? { line: <ExplainLine lines={2} />, said: false }
+    : {
+        line: (
+          <CommandLine explain={explain} mac={mac} onHelp={marked?.help === undefined ? undefined : onHelp} />
+        ),
+        said: true,
+      };
 };
+
+/** The arguments of a catalog command in its command help (SR-210 AK3): each with its description and need. */
+const HelpArguments = ({
+  arguments: args,
+}: {
+  readonly arguments: NonNullable<CommandHelp["arguments"]>;
+}): React.JSX.Element => (
+  <>
+    <h3>Arguments</h3>
+    {args.length === 0 ? (
+      <p>No arguments.</p>
+    ) : (
+      <dl className="help-arguments">
+        {args.map((arg) => (
+          <Fragment key={arg.name}>
+            <dt>
+              <code>{arg.name}</code>{" "}
+              <span className="help-need">{arg.required ? "required" : "optional"}</span>
+            </dt>
+            {arg.description === undefined ? null : <dd>{arg.description}</dd>}
+          </Fragment>
+        ))}
+      </dl>
+    )}
+  </>
+);
 
 /**
  * The command help of the marked entry (SR-210 AK3) in place of the hits: the summary and details of its
  * reference page, each argument with its description and whether it is required, and the call on the command
- * line; at the end the keys back. It scrolls with the wheel and Page Up and Page Down when it is higher than the
- * card (AK4). An entry without a command help (marked after the help opened) says so.
+ * line; for an action of the app its description (AK5). At the end the keys back. It scrolls with the wheel and Page
+ * Up and Page Down when it is higher than the card (AK4). An entry without a command help (marked after the help
+ * opened) says so.
  */
 const HelpView = ({
   marked,
@@ -348,26 +381,15 @@ const HelpView = ({
           <h2 className="help-title">{help.title}</h2>
           <p className="help-summary">{help.summary}</p>
           {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
-          <h3>Arguments</h3>
-          {help.arguments.length === 0 ? (
-            <p>No arguments.</p>
-          ) : (
-            <dl className="help-arguments">
-              {help.arguments.map((arg) => (
-                <Fragment key={arg.name}>
-                  <dt>
-                    <code>{arg.name}</code>{" "}
-                    <span className="help-need">{arg.required ? "required" : "optional"}</span>
-                  </dt>
-                  {arg.description === undefined ? null : <dd>{arg.description}</dd>}
-                </Fragment>
-              ))}
-            </dl>
+          {help.arguments === undefined ? null : <HelpArguments arguments={help.arguments} />}
+          {help.cli === undefined ? null : (
+            <>
+              <h3>Command line</h3>
+              <p>
+                <code className="help-cli">{help.cli}</code>
+              </p>
+            </>
           )}
-          <h3>Command line</h3>
-          <p>
-            <code className="help-cli">{help.cli}</code>
-          </p>
         </>
       )}
       <p className="help-keys">
@@ -856,7 +878,8 @@ const PromptLine = ({
     }
   };
 
-  const explanation = explanationOf(prompt, current?.item, mac, toggleHelp);
+  const explained = explanationOf(prompt, current?.item, mac, toggleHelp);
+  const explanation = explained.line;
 
   return (
     <>
@@ -869,7 +892,7 @@ const PromptLine = ({
         className="prompt-input"
         role="combobox"
         {...listAttributes(helpOpen, rows.length, current !== undefined, selected)}
-        aria-describedby={describedBy(helpOpen, explanation !== null)}
+        aria-describedby={describedBy(helpOpen, explained.said)}
         autoComplete="off"
         spellCheck={false}
         autoFocus

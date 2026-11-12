@@ -10,8 +10,9 @@ export const MORE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "enter" }
 export const HELP_KEY = "F1";
 
 /**
- * Ctrl+H in the command prompt: the command help of the marked command in the card, and back to the hits (SR-210
- * AK3, AK4). The physical Ctrl key on every system, also on macOS, where Cmd+H hides the app (SR-145 AK4).
+ * Ctrl+H in the command prompt: the command help of the marked command, or the description of an action of the
+ * app, in the card, and back to the hits (SR-210 AK3, AK4, AK5). The physical Ctrl key on every system, also on
+ * macOS, where Cmd+H hides the app (SR-145 AK4).
  */
 export const COMMAND_HELP_KEY: KeyPress = press("h", true);
 

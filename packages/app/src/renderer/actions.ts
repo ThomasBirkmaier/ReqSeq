@@ -94,9 +94,12 @@ export interface Choice {
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
   readonly fits?: boolean;
-  /** The explanation line while it is marked: the catalog command it runs (SR-210 AK1, AK5). */
+  /**
+   * The explanation line while it is marked: the catalog command it runs, or the action's description (SR-210 AK1,
+   * AK5).
+   */
   readonly explain?: CommandExplanation;
-  /** The command help of the catalog command it runs, shown on Ctrl+H (SR-210 AK3). */
+  /** The command help of the catalog command it runs, or the action's description, shown on Ctrl+H (SR-210 AK3). */
   readonly help?: CommandHelp;
 }
 
@@ -108,24 +111,25 @@ export interface CommandHelp {
   readonly title: string;
   readonly summary: string;
   readonly details?: string;
-  readonly arguments: readonly {
+  /** The arguments of a catalog command; an action of the app has none (its `description` is the summary). */
+  readonly arguments?: readonly {
     readonly name: string;
     readonly required: boolean;
     readonly description?: string;
   }[];
-  /** `reqseq element get <ref> [options]`. */
-  readonly cli: string;
+  /** `reqseq element get <ref> [options]`: a catalog command only. */
+  readonly cli?: string;
 }
 
-/** What the explanation line of a marked catalog command says, from the catalog (SR-210 AK1). */
+/** What the explanation line of a marked entry says (SR-210 AK1, AK5). */
 export interface CommandExplanation {
-  /** The command's summary. */
+  /** The summary of the catalog command, or the description of an action of the app. */
   readonly summary: string;
   /**
-   * The arguments of the command's own entry, in catalog order: the required ones the prompt asks, and the
-   * optional ones Ctrl/Cmd+Enter offers. An action that runs the command asks none of them (SR-210 AK5).
+   * How many optional arguments Ctrl/Cmd+Enter offers: on the entry of a catalog command only. An action that runs
+   * the command asks none of them (SR-210 AK5).
    */
-  readonly arguments?: { readonly required: readonly string[]; readonly optional: readonly string[] };
+  readonly optional?: number;
 }
 
 /** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */
@@ -186,6 +190,11 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /**
+   * The card keeps the place of the explanation line under the hits, also while the marked entry has none or there
+   * is no hit, so the hits do not move (the command prompt, SR-210 AK1).
+   */
+  readonly explains?: boolean;
   /**
    * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
    * Escape ends the prompt (the first step, AK2).
@@ -442,6 +451,12 @@ export interface ViewControls {
 export interface Action {
   readonly id: string;
   readonly title: string;
+  /**
+   * What it does, in one sentence: the explanation line and the command help show it, and the keyboard reference
+   * names it (SR-210 AK5, SR-139 AK6). Only an action that runs no catalog command, or one of several by the shown
+   * buffer, has one; one that runs exactly one shows that command's summary (`coveredCommand`).
+   */
+  readonly description?: string;
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
@@ -977,6 +992,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "overview",
     title: "Show overview",
+    description: "Show the overview of the workspace.",
     available: (context) => hasWorkspace(context) && !isOverview(context),
     run: (context: ActionContext): void => {
       context.dispatch({ type: "open", buffer: overviewBuffer() });
@@ -996,6 +1012,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "close",
     title: "Close buffer",
+    description: "Close the shown buffer.",
     available: hasBuffers,
     run: (context: ActionContext): void => {
       const current = context.buffers[0];
@@ -1032,10 +1049,17 @@ export const ACTIONS: readonly Action[] = [
       });
     },
   },
-  { id: "close-all", title: "Close all buffers", available: hasBuffers, run: closeAll },
+  {
+    id: "close-all",
+    title: "Close all buffers",
+    description: "Close every buffer except the overview.",
+    available: hasBuffers,
+    run: closeAll,
+  },
   {
     id: "next-buffer",
     title: "Next buffer",
+    description: "Show the next open buffer.",
     shortcut: NEXT_BUFFER_SHORTCUT,
     available: hasOthers,
     run: (context: ActionContext): void => {
@@ -1045,6 +1069,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "previous-buffer",
     title: "Previous buffer",
+    description: "Show the previous open buffer.",
     shortcut: PREVIOUS_BUFFER_SHORTCUT,
     available: hasOthers,
     run: (context: ActionContext): void => {
@@ -1055,6 +1080,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "split-window",
     title: "Split window",
+    description: "Split the window into two panes side by side.",
     available: (context: ActionContext): boolean =>
       context.workspace &&
       context.layout !== undefined &&
@@ -1068,6 +1094,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "other-window",
     title: "Other window",
+    description: "Move to the other pane of the window.",
     shortcut: OTHER_WINDOW_SHORTCUT,
     available: (context: ActionContext): boolean => context.layout?.other !== undefined,
     run: (context: ActionContext): void => {
@@ -1081,6 +1108,7 @@ export const ACTIONS: readonly Action[] = [
   ...(["right", "left"] as const).map((side): Action => ({
     id: `open-${side}`,
     title: `Open to the ${side}`,
+    description: `Open the marked element in the pane on the ${side}.`,
     available: (context: ActionContext): boolean =>
       context.workspace && context.layout !== undefined && context.marked !== undefined,
     run: (context: ActionContext): void => {
@@ -1092,6 +1120,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "unsplit-window",
     title: "Unsplit window",
+    description: "Show the window with one pane again.",
     available: (context: ActionContext): boolean => context.layout?.other !== undefined,
     run: (context: ActionContext): void => {
       context.layout?.unsplit();
@@ -1111,6 +1140,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "edit",
     title: "Edit text",
+    description: "Start editing the text of the shown element.",
     hint: "Enter",
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1121,6 +1151,7 @@ export const ACTIONS: readonly Action[] = [
     // ThomasBirkmaier/ReqSeq-archive#621: the title is edited in its heading, like the text in the editor (SR-073 AK2: found by its name).
     id: "edit-title",
     title: "Edit title",
+    description: "Start editing the title of the shown element.",
     hint: "Enter on the title",
     available: (context: ActionContext): boolean => context.element?.editTitle !== undefined,
     run: (context: ActionContext): void => {
@@ -1130,6 +1161,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "follow-reference",
     title: "Follow reference",
+    description: "Open the element that the reference at the cursor points to.",
     shortcut: { mod: true, shift: false, key: "enter" },
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1140,6 +1172,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-132: shown on every element, whatever core answers about its values (it always has a type).
     id: "list-value",
     title: "List elements with this value",
+    description: "Open the list of all elements that have the value at the cursor.",
     shortcut: LIST_VALUE_SHORTCUT,
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1149,6 +1182,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "copy-field",
     title: "Copy field",
+    description: "Copy the value of the field at the cursor to the clipboard.",
     shortcut: { mod: true, shift: true, key: "c" },
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1159,6 +1193,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-205 AK4: the reference for a test name of the acceptance criterion with the cursor.
     id: "copy-criterion-reference",
     title: "Copy criterion reference",
+    description: "Copy the test name tag of the acceptance criterion at the cursor.",
     available: (context: ActionContext): boolean =>
       hasElementText(context) && context.element?.onCriterion?.(context.pressed) === true,
     run: (context: ActionContext): void => {
@@ -1169,6 +1204,7 @@ export const ACTIONS: readonly Action[] = [
     // The whole output of the shown result buffer as one block, whichever command gave it.
     id: "copy-result",
     title: "Copy result",
+    description: "Copy the whole output of the shown command to the clipboard.",
     available: (context: ActionContext): boolean => shownResult(context) !== undefined,
     run: (context: ActionContext): void => {
       const result = shownResult(context);
@@ -1180,6 +1216,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "add-property",
     title: "Add property",
+    description: "Add one of the properties of its type to the shown element.",
     shortcut: ADD_PROPERTY_SHORTCUT,
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1190,6 +1227,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-106 AK2: no shortcut (Enter on a block "On disk" asks too).
     id: "resolve-change",
     title: "Resolve change on disk",
+    description: "Choose what happens to a change made outside the app to the file of the shown element.",
     available: (context: ActionContext): boolean => context.element?.resolve !== undefined,
     run: (context: ActionContext): void => {
       context.element?.resolve?.();
@@ -1198,6 +1236,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "clear-property",
     title: "Clear property",
+    description: "Clear the value of a property of the shown element.",
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.clearProperty();
@@ -1222,6 +1261,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "version",
     title: "Show element ID and version",
+    description: "Show the ID of the shown element, the date of its version and its file.",
     available: isElement,
     run: (context: ActionContext): void => {
       const current = context.buffers[0];
@@ -1249,6 +1289,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "neighbourhood-back",
     title: "Show element",
+    description: "Show the element of the shown neighbourhood again.",
     shortcut: NEIGHBOURHOOD_SHORTCUT,
     available: isNeighbourhood,
     run: (context: ActionContext): void => {
@@ -1276,6 +1317,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "graph-back",
     title: "Show element",
+    description: "Show the element of the shown graph again.",
     shortcut: GRAPH_SHORTCUT,
     available: isGraph,
     run: (context: ActionContext): void => {
@@ -1289,6 +1331,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-111 AK2: the same as `+` and `-` on the graph, which the hint names.
     id: "graph-depth",
     title: "Graph depth",
+    description: "Set how many levels the shown graph follows.",
     hint: DEPTH_KEYS,
     available: isGraph,
     run: graphPrompt("Graph depth", (graph) => depthChoices(graph)),
@@ -1297,6 +1340,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-111 AK3: one kind, a meaning or everything in place of the filter.
     id: "graph-only",
     title: "Show only relation kind",
+    description: "Let the shown graph follow only one relation kind.",
     available: isGraph,
     run: graphPrompt("Show only", onlyChoices),
   },
@@ -1305,6 +1349,7 @@ export const ACTIONS: readonly Action[] = [
     // while it is not shown.
     id: "graph-also",
     title: "Also show relation kind",
+    description: "Let the shown graph follow one more relation kind.",
     available: (context: ActionContext): boolean => {
       const shown = context.buffers[0];
       return (
@@ -1340,6 +1385,7 @@ export const ACTIONS: readonly Action[] = [
     // (SR-128 AK2). It covers both commands, so the command prompt offers no other entry for them.
     id: "copy-mermaid",
     title: "Copy graph as Mermaid",
+    description: "Copy the shown graph of an element or of the metamodel as a Mermaid flowchart.",
     covers: ["trace.mermaid", "metamodel.mermaid"],
     available: (context: ActionContext): boolean =>
       isGraph(context) || metamodelIn(context, "graph") !== undefined,
@@ -1361,6 +1407,7 @@ export const ACTIONS: readonly Action[] = [
     // SR-130 AK4: Ctrl/Cmd+T switches the shown metamodel between graph and text; the selected type stays.
     id: "metamodel-text",
     title: "Show metamodel as text",
+    description: "Show the metamodel as text in place of the graph.",
     shortcut: METAMODEL_SHORTCUT,
     available: (context: ActionContext): boolean => metamodelIn(context, "graph") !== undefined,
     run: switchMetamodel("graph", "text"),
@@ -1368,6 +1415,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "metamodel-graph",
     title: "Show metamodel as graph",
+    description: "Show the metamodel as a graph in place of the text.",
     shortcut: METAMODEL_SHORTCUT,
     available: (context: ActionContext): boolean => metamodelIn(context, "text") !== undefined,
     run: switchMetamodel("text", "graph"),
@@ -1375,6 +1423,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "choose-view",
     title: "Choose view",
+    description: "Choose the view the app shows: the view of the core or of a variant.",
     available: (context: ActionContext): boolean => context.workspace && context.views !== undefined,
     run: (context: ActionContext): void => {
       const { views } = context;
@@ -1386,6 +1435,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "toggle-dark-mode",
     title: "Toggle dark mode",
+    description: "Switch between light and dark mode until the app quits.",
     available: hasWorkspace,
     run: (context: ActionContext): void => {
       const scheme = context.theme.toggle();
@@ -1396,6 +1446,7 @@ export const ACTIONS: readonly Action[] = [
     // Also without an open workspace: then it is the one action of the command prompt (SR-131).
     id: "open-workspace",
     title: OPEN_WORKSPACE_ACTION,
+    description: "Open a workspace opened before, or the one in a typed folder.",
     available: (context: ActionContext): boolean => context.workspaces !== undefined,
     run: (context: ActionContext): void => {
       const { workspaces } = context;
@@ -1408,6 +1459,7 @@ export const ACTIONS: readonly Action[] = [
     // Also without a workspace: the documentation helps most before one is open (SR-141).
     id: "open-documentation",
     title: "Open documentation",
+    description: "Open the documentation of ReqSeq in the browser.",
     available: (context: ActionContext): boolean => context.docs !== undefined,
     run: (context: ActionContext): void => {
       context.docs?.();
@@ -1416,6 +1468,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "follow-system-theme",
     title: "Follow system light or dark mode",
+    description: "Follow the computer's light or dark setting again.",
     available: (context: ActionContext): boolean => context.workspace && context.theme.chosen(),
     run: (context: ActionContext): void => {
       context.theme.follow();
@@ -1425,6 +1478,8 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "fold-status",
     title: "Fold status in lists",
+    description:
+      "Choose a status whose elements fold to the end of every list, or whose folded elements go back to their place.",
     available: (context: ActionContext): boolean => context.workspace && context.folds !== undefined,
     run: (context: ActionContext): void => {
       const { folds } = context;
@@ -1437,6 +1492,7 @@ export const ACTIONS: readonly Action[] = [
     // Offered only after a choice, as "Follow system light or dark mode".
     id: "fold-invalid-statuses",
     title: "Fold invalid statuses in lists",
+    description: "Fold the elements in invalid statuses to the end of every list again.",
     available: (context: ActionContext): boolean => context.workspace && context.folds?.choice !== undefined,
     run: (context: ActionContext): void => {
       context.folds?.choose(undefined);
@@ -1446,6 +1502,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "follow-agent",
     title: "Follow agent",
+    description: "Show each element when it is read or changed through the API or MCP.",
     shortcut: FOLLOW_SHORTCUT,
     available: (context: ActionContext): boolean => context.workspace && context.follow?.on === false,
     run: (context: ActionContext): void => {
@@ -1455,6 +1512,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "stop-following-agent",
     title: "Stop following agent",
+    description: "Stop showing the elements read or changed through the API or MCP.",
     shortcut: FOLLOW_SHORTCUT,
     available: (context: ActionContext): boolean => context.workspace && context.follow?.on === true,
     run: (context: ActionContext): void => {

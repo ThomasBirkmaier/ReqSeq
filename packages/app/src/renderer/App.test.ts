@@ -18,6 +18,7 @@ import type {
 } from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
 import { redo, undo } from "@codemirror/commands";
+import { ACTIONS } from "./actions.js";
 import { App } from "./App.js";
 import { AUTOSAVE_MS } from "./autosave.js";
 import { DEFAULT_SORT } from "./buffers.js";
@@ -1379,9 +1380,9 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("#command-help h2").textContent).toBe("List saved filters");
     await type("Show affected elements");
     expect(query("#command-help h2").textContent).toBe("Show affected elements");
-    // An entry without a command help, marked with the help open, says so.
+    // An action of the app, marked with the help open, shows its own.
     await type("Open documentation");
-    expect(helpText()).toContain("Open documentation has no command help.");
+    expect(query("#command-help h2").textContent).toBe("Open documentation");
     // Page Down and Page Up are the help's.
     const page = await pressed(query("input"), "PageDown", {});
     expect(page.defaultPrevented).toBe(true);
@@ -1394,23 +1395,46 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(container.querySelector("#command-help")).toBeNull();
   });
 
-  it("[SR-210/AK-r2d2] [SR-145/AK-bfb2] Ctrl+H does nothing on an entry that is no catalog command, also in Go to", async () => {
+  it("[SR-210/AK-r2d2] [SR-145/AK-bfb2] an action of the app explains itself by its description; in Go to an element has no explanation and Ctrl+H does nothing", async () => {
     await render(helpBridge().bridge);
     await keyDown(window, "P", { ...mod(), shiftKey: true });
     await type("Open documentation");
     expect(marked()).toBe("Open documentation");
+    const description = ACTIONS.find((action) => action.id === "open-documentation")?.description ?? "";
+    expect(query("#prompt-explain .explain-text").textContent).toBe(description);
+    // No arguments to count, but its help.
+    expect(query("#prompt-explain .explain-side").textContent).toBe("Ctrl+H help");
     await keyDown(query("input"), "h", { ctrlKey: true });
-    expect(helpText()).toBeUndefined();
-    expect(query("label").textContent).toBe("Command");
+    expect(query("#command-help h2").textContent).toBe("Open documentation");
+    expect(query("#command-help .help-summary").textContent).toBe(description);
+    // No arguments and no call on the command line: the app alone has it.
+    expect(container.querySelector("#command-help h3")).toBeNull();
+    expect(container.querySelector("#command-help .help-cli")).toBeNull();
     await keyDown(query("input"), "Escape");
-    // In Go to, on an element or a buffer, Ctrl+H does nothing either; it is the command line's, not the text's.
+    await keyDown(query("input"), "Escape");
+    // In Go to, on an element or a buffer, there is no explanation, and Ctrl+H does nothing; it is the command
+    // line's, not the text's.
     await keyDown(window, "p", mod());
     expect(query("label").textContent).toBe("Go to");
     await type("Title");
+    expect(container.querySelector("#prompt-explain")).toBeNull();
     const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
     expect(ctrl.defaultPrevented).toBe(true);
     expect(helpText()).toBeUndefined();
     expect((query("input") as HTMLInputElement).value).toBe("Title");
+  });
+
+  it("[SR-210/AK-gqgt] keeps the explanation line, empty, while no hit is left", async () => {
+    await render(helpBridge().bridge);
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    await type("Show affected elements");
+    expect(query("#prompt-explain .explain-text").textContent).toBe("A command of the catalog.");
+    expect(query("input").getAttribute("aria-describedby")).toBe("prompt-explain");
+    await type("Show affected elements qqqqxz");
+    expect(container.querySelector(".candidates")).toBeNull();
+    expect(query("#prompt-explain .explain-text").textContent).toBe("");
+    expect(container.querySelector("#prompt-explain .explain-side")).toBeNull();
+    expect(query("input").getAttribute("aria-describedby")).toBeNull();
   });
 });
 

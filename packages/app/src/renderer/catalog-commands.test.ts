@@ -19,6 +19,8 @@ import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
 import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
+import { coveredCommand } from "./command-entry.js";
+import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
@@ -2422,45 +2424,60 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     (command(name).input as { properties: Record<string, { description?: unknown }> }).properties[field]
       ?.description;
 
-  it("[SR-210/AK-gqgt] a marked catalog command has its catalog summary, the required arguments the prompt asks and its optional ones", () => {
+  it("[SR-210/AK-gqgt] a marked catalog command has its catalog summary and the number of its optional arguments; the prompt keeps the line", () => {
     const { context } = setup([shown]);
-    const items = entries(context);
+    const prompt = withExplanations(
+      commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)),
+      CATALOG,
+    );
+    // The line keeps its place whatever is marked, also an entry without an explanation.
+    expect(prompt.explains).toBe(true);
+    const items = prompt.items;
     expect(item(items, "Show relation options").explain).toEqual({
       summary: command("relation.options").summary,
-      arguments: { required: ["ref"], optional: ["kind"] },
+      optional: 1,
     });
-    // A write command without a required argument asks its first one: that is the one the prompt names.
+    // A write command without a required argument asks its first one; the others are optional.
     expect(item(items, "Confirm hints").explain).toEqual({
       summary: command("hint.confirm").summary,
-      arguments: { required: ["ref"], optional: ["target", "all", "kind", "expected", "hintIds"] },
+      optional: 5,
     });
     // No arguments at all.
     expect(item(items, "List baselines").explain).toEqual({
       summary: command("baseline.list").summary,
-      arguments: { required: [], optional: [] },
+      optional: 0,
     });
-    // An argument given before the prompt asks (the source of the matrix's row, SR-199) is not asked: not named.
-    const given = { "relation.add": [{ field: "source", value: "uuid-1", label: "SR-1" }] };
-    expect(item(entries({ ...context, given }), "Create relation").explain?.arguments).toEqual({
-      required: ["kind", "target"],
-      optional: [],
-    });
+    // An argument given before the prompt asks (as the matrix gives one, SR-199) is not asked: not counted.
+    const given = { "relation.options": [{ field: "kind", value: "refines", label: "Refines" }] };
+    expect(item(entries({ ...context, given }), "Show relation options").explain?.optional).toBe(0);
   });
 
-  it("[SR-210/AK-r2d2] an entry that is no catalog command has no explanation; an action that runs one has that command's", () => {
+  it("[SR-210/AK-r2d2] an action of the app has its own description; one that runs one catalog command that command's summary; an element has none", () => {
     const { context } = setup([shown]);
     const items = entries({ ...context, docs: () => undefined });
-    expect(item(items, "Open documentation").explain).toBeUndefined();
-    // By the same title, and by `covers`.
-    expect(item(items, "List all elements").explain?.summary).toBe(command("element.list").summary);
-    // The action asks the command's arguments its own way: the line names none of them.
+    // An action that runs no catalog command: its description, and as the command help its title with it.
+    const docs = ACTIONS.find((action) => action.id === "open-documentation");
+    expect(docs?.description).toMatch(/^[A-Z][^.]*\.$/);
+    expect(item(items, "Open documentation").explain).toEqual({ summary: docs?.description });
+    expect(item(items, "Open documentation").help).toEqual({
+      title: "Open documentation",
+      summary: docs?.description,
+    });
+    // By the same title, and by `covers`: the command's summary, without its arguments.
+    expect(item(items, "List all elements").explain).toEqual({ summary: command("element.list").summary });
     expect(item(items, "Go to element or buffer").explain).toEqual({
       summary: command("element.get").summary,
     });
-    // An action that covers several commands runs one of them by the view: none.
+    // Its command help too: the summary, but no arguments and no call on the command line.
+    expect(item(items, "Go to element or buffer").help).toEqual({
+      title: "Go to element or buffer",
+      summary: command("element.get").summary,
+    });
+    // An action that covers several commands runs one of them by the view: its own description.
     const both = {
       id: "both",
       title: "Both",
+      description: "Does one or the other.",
       covers: ["trace.mermaid", "metamodel.mermaid"],
       available: () => true,
       run: vi.fn(),
@@ -2470,20 +2487,60 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       CATALOG,
       [both],
     );
-    expect(several.items[0]?.explain).toBeUndefined();
-    // An entry no action and no catalog command has, such as a hit of Go to, gets none.
+    expect(several.items[0]?.explain).toEqual({ summary: "Does one or the other." });
+    // "Copy graph as Mermaid" is such an action of the app.
+    expect(ACTIONS.find((action) => action.id === "copy-mermaid")?.covers).toHaveLength(2);
+    // An action that runs one command has no description of its own, so the line cannot show another text.
+    for (const action of ACTIONS) {
+      expect(action.description === undefined, action.id).toBe(coveredCommand(action, CATALOG) !== undefined);
+    }
+    // An entry no action and no catalog command has, such as an element or a buffer, gets none.
     const other = withExplanations(
-      { label: "Go to", items: [{ id: "uuid-1", name: "SR-1", run: vi.fn() }] },
+      { label: "Command", items: [{ id: "uuid-1", name: "SR-1", run: vi.fn() }] },
       CATALOG,
     );
     expect(other.items[0]?.explain).toBeUndefined();
+    expect(other.items[0]?.help).toBeUndefined();
   });
 
-  it("[SR-210/AK-wz9v] a catalog command and an action that runs one have the command help: the catalog's texts and the call on the command line", () => {
+  it("[SR-210/AK-cbzd] an action of the app shows the text the keyboard reference gives it, without references to the specification", () => {
+    const rows = shortcutReference(CATALOG).flatMap((section) => section.rows);
+    const all = withExplanations(
+      {
+        label: "Command",
+        items: ACTIONS.map((action) => ({ id: action.id, name: action.title, run: vi.fn() })),
+      },
+      CATALOG,
+    ).items;
+    let own = 0;
+    for (const action of ACTIONS) {
+      const shown = all.find((entry) => entry.id === action.id);
+      if (action.description === undefined) {
+        // Its catalog command's summary, as the catalog has it.
+        expect(shown?.explain?.summary, action.id).toBe(coveredCommand(action, CATALOG)?.summary);
+        continue;
+      }
+      own += 1;
+      const row = rows.find((candidate) => candidate.actions?.includes(action.id) === true);
+      expect(shown?.explain?.summary, action.id).toBe(action.description);
+      expect(shown?.help?.summary, action.id).toBe(action.description);
+      expect(row?.description, action.id).toContain(action.description);
+      // One English sentence, without an ID of the specification (#1428 names the terms).
+      expect(action.description, action.id).toMatch(/^[A-Z][^.]*\.$/);
+      expect(action.description, action.id).not.toMatch(/\b(SR|D|N|ADR)-\d/);
+    }
+    expect(own).toBeGreaterThan(60);
+  });
+
+  it("[SR-210/AK-wz9v] a catalog command has the command help: the catalog's texts and the call on the command line", () => {
     const { context } = setup([shown]);
     const items = entries({ ...context, docs: () => undefined });
     const get = command("element.get");
-    const help = item(items, "Go to element or buffer").help;
+    const help = withExplanations(
+      { label: "Command", items: [{ ...item(catalogItems(context, [get], []), get.title) }] },
+      [get],
+      [],
+    ).items[0]?.help;
     expect(help).toEqual({
       title: get.title,
       summary: get.summary,
@@ -2498,8 +2555,8 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       cli: "reqseq element get <ref> [options]",
     });
     // Every argument named in the catalog, with its description where the catalog has one.
-    expect(help?.arguments.map((arg) => arg.name)).toEqual(get.arguments.map((arg) => arg.field));
-    expect(help?.arguments.find((arg) => arg.name === "versionDate")?.description).toBe(
+    expect(help?.arguments?.map((arg) => arg.name)).toEqual(get.arguments.map((arg) => arg.field));
+    expect(help?.arguments?.find((arg) => arg.name === "versionDate")?.description).toBe(
       described("element.get", "versionDate"),
     );
     expect(item(items, "Show relation options").help?.arguments).toContainEqual(
@@ -2509,8 +2566,9 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     const detailed = CATALOG.find((entry) => entry.details !== undefined && entry.implemented);
     expect(detailed).toBeDefined();
     expect(item(items, detailed?.title ?? "").help?.details).toBe(detailed?.details);
-    // An entry that is no catalog command has none (AK5).
-    expect(item(items, "Open documentation").help).toBeUndefined();
+    // An action of the app has no arguments and no call on the command line (AK5).
+    expect(item(items, "Open documentation").help).not.toHaveProperty("cli");
+    expect(item(items, "Open documentation").help).not.toHaveProperty("arguments");
   });
 
   it("[SR-210/AK-t8sc] an asked argument has its name, its catalog description and the keys of its step", async () => {
