@@ -266,7 +266,16 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
         },
         schemas,
       ),
-    ).toEqual(["none", "blank", "bare", "bares", "nowhere"].map(missing));
+    ).toEqual([
+      missing("none"),
+      'schemas/commands/test.one.json: arguments: "blank": has a blank description',
+      ...["bare", "bares", "nowhere"].map(missing),
+    ]);
+    // A blank own description is refused even where the type has one: it would be shown.
+    const blankNamed = { ...named, description: "" };
+    expect(checkCatalog({ commands: [raw({ blankNamed })] }, schemas)).toEqual([
+      'schemas/commands/test.one.json: arguments: "blankNamed": has a blank description',
+    ]);
   });
 
   it("an input without properties has no arguments", () => {

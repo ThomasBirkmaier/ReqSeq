@@ -69,8 +69,9 @@ const choiceValues = (item, schemas) =>
  * items of a list field, names by a `$ref`, which the app's core host gives the windows with it.
  */
 function checkDescription(arg, property, schemas) {
-  if (typeof property.description === "string" && property.description.trim() !== "") {
-    return [];
+  if (typeof property.description === "string") {
+    // An own description is shown as it is, so a blank one is no description.
+    return property.description.trim() === "" ? [`"${arg.field}": has a blank description`] : [];
   }
   const ref = property.$ref ?? (property.type === "array" ? property.items?.$ref : undefined);
   const type = ref === undefined ? undefined : resolveRef(ref, "commands/", schemas)?.schema;

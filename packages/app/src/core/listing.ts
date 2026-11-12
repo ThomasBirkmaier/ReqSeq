@@ -66,6 +66,17 @@ const withDescription = (property: Schema, resolve: Resolve): Schema => {
   return typeof description === "string" ? { ...property, description } : property;
 };
 
+/** The schema files by `$id`, built once for each list of them: the host lists every entry with it. */
+const byIdCache = new WeakMap<readonly JsonSchema[], ReadonlyMap<string, JsonSchema>>();
+const byIdOf = (schemas: readonly JsonSchema[]): ReadonlyMap<string, JsonSchema> => {
+  let byId = byIdCache.get(schemas);
+  if (byId === undefined) {
+    byId = new Map(schemas.map((schema) => [String(schema["$id"]), schema]));
+    byIdCache.set(schemas, byId);
+  }
+  return byId;
+};
+
 /**
  * `entry` with the enum of each `choice` argument inline and the description of the type of each
  * argument without its own; `schemas` are the schema files of the contracts.
@@ -73,7 +84,7 @@ const withDescription = (property: Schema, resolve: Resolve): Schema => {
 export const listedEntry = (entry: CatalogEntry, schemas: readonly JsonSchema[]): CatalogEntry => {
   const input = entry.input as { readonly properties?: Readonly<Record<string, unknown>> };
   const properties = input.properties ?? {};
-  const byId = new Map(schemas.map((schema) => [String(schema["$id"]), schema]));
+  const byId = byIdOf(schemas);
   const resolve = resolver(`${SCHEMA_BASE}commands/${entry.name}.json`, byId);
   const fields = entry.arguments.flatMap(({ field, complete }) => {
     const property = properties[field];
