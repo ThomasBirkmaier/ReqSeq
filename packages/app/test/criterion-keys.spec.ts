@@ -53,9 +53,22 @@ const open = async (window: Page, title: string): Promise<void> => {
   await expect(window.locator("article h1")).toHaveText(title);
 };
 
+/**
+ * Puts the caret at the start of the line `at` of the box, with a click at its left edge. The middle of a line
+ * may be its reference mark (SR-205 AK1), a widget the editor ignores clicks on: the caret would stay where it
+ * was. The marks come with `element.get` after the box, so a click in the middle hit text or mark by timing
+ * (#1595).
+ */
+const caretIn = async (window: Page, at: number): Promise<void> => {
+  const target = line(window, at);
+  const box = await target.boundingBox();
+  expect(box).not.toBeNull();
+  await target.click({ position: { x: 1, y: (box?.height ?? 0) / 2 } });
+};
+
 /** Puts the caret at the end of the line `at` of the box. */
 const endOf = async (window: Page, at: number): Promise<void> => {
-  await line(window, at).click();
+  await caretIn(window, at);
   await window.keyboard.press("End");
 };
 
@@ -69,6 +82,8 @@ test.describe("criterion keys in the editor", () => {
     });
     clipboard = await running.app.evaluate(({ clipboard: board }) => board.readText());
     await open(running.window, SR_TITLE);
+    // The page has the criteria of `element.get`: each line shows its mark (SR-205 AK1).
+    await expect(criteriaBox(running.window).locator(".cm-lr-criterion-ref")).toHaveCount(3);
   });
   test.afterEach(async () => {
     try {
@@ -111,7 +126,7 @@ test.describe("criterion keys in the editor", () => {
     await window.keyboard.press("Alt+ArrowDown");
     expect(keysOf(await saved(["Alpha", "Gamma", "Beta two"]))).toEqual(["kaaa", "kccc", "kbbb"]);
     // Enter in "Alpha" splits it: the first part keeps the key, the rest is a new criterion.
-    await line(window, 0).click();
+    await caretIn(window, 0);
     await window.keyboard.press("Home");
     await window.keyboard.press("ArrowRight");
     await window.keyboard.press("ArrowRight");
@@ -140,7 +155,7 @@ test.describe("criterion keys in the editor", () => {
     expect(keysOf(added).slice(0, 3)).toEqual(KEYS);
     expect(KEYS).not.toContain(added[3]?.key);
     // Two lines copied and pasted at the end.
-    await line(window, 0).click();
+    await caretIn(window, 0);
     await window.keyboard.press("Home");
     await window.keyboard.press("Shift+ArrowDown");
     await window.keyboard.press("Shift+End");
@@ -152,7 +167,7 @@ test.describe("criterion keys in the editor", () => {
     expect(new Set(keysOf(pasted)).size).toBe(6);
     expect(keysOf(pasted).slice(0, 3)).toEqual(KEYS);
     // "Beta" cut with its line break and pasted back at once: the same texts, but a new key.
-    await line(window, 1).click();
+    await caretIn(window, 1);
     await window.keyboard.press("Home");
     await window.keyboard.press("Shift+ArrowDown");
     await window.keyboard.press("ControlOrMeta+x");
@@ -174,7 +189,7 @@ test.describe("criterion keys in the editor", () => {
     await window.keyboard.press("ControlOrMeta+z");
     expect(keysOf(await saved(["Alpha", "Beta", "Gamma"]))).toEqual(KEYS);
     // Merged and saved, another element shown, and back: undo still knows the keys.
-    await line(window, 1).click();
+    await caretIn(window, 1);
     await window.keyboard.press("Home");
     await window.keyboard.press("Backspace");
     expect(keysOf(await saved(["AlphaBeta", "Gamma"]))).toEqual(["kaaa", "kccc"]);
@@ -183,7 +198,8 @@ test.describe("criterion keys in the editor", () => {
     await window.keyboard.press("Escape");
     await open(window, OTHER_TITLE);
     await open(window, SR_TITLE);
-    await line(window, 0).click();
+    await expect(criteriaBox(window).locator(".cm-lr-criterion-ref")).toHaveCount(2);
+    await caretIn(window, 0);
     await window.keyboard.press("ControlOrMeta+z");
     expect(keysOf(await saved(["Alpha", "Beta", "Gamma"]))).toEqual(KEYS);
   });
