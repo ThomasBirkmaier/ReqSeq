@@ -1,5 +1,7 @@
-// SR-111 AK6 on the built app: „Gegeben ein Graph mit 500 Knoten, wenn er geöffnet wird, dann ist er nach
-// höchstens einer Sekunde ausgelegt.“ Two generated workspaces, each with its own app run:
+// SR-111 AK6 in the app's part of the performance suite (ADR-0011): „Gegeben ein Graph mit 500 Knoten, wenn er
+// geöffnet wird, dann ist er nach höchstens einer Sekunde ausgelegt.“ It runs in the perf job on the reference
+// machine, not in the required Electron job, whose macOS runners are weaker and missed the second now and then on
+// pull requests that changed nothing here (#1559). Two generated workspaces, each with its own app run:
 // - wide (`support/graph-fixture.ts`): three packages, each the root of a graph of exactly 500 nodes at
 //   depth 1 (24 decisions above, 475 members below, about 790 links). The time runs from the keydown of
 //   Ctrl/Cmd+Shift+G on the package. No warm-up: the first graph of the app run counts, and so does the
@@ -14,15 +16,17 @@
 // which every box and every curve is placed (`[data-laid-out]` and a double `requestAnimationFrame`):
 // IPC, core, the JSON, dagre, React's commit, style and paint. Each must be within 1000 ms; a miss is a
 // performance finding, never a higher bound. The parts (until the request, core, layout, commit and
-// paint) go to the log lines `PERF graph` and `PERF graph deep` for the record.
+// paint) go to the log lines `PERF graph` and `PERF graph deep`; the first, the median and the slowest of each
+// series go to the record of the performance suite (`recordValue`, `verification/performance.md`).
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
-import type { GraphDeepFixture } from "./support/graph-deep-fixture.js";
-import { writeGraphDeepFixture } from "./support/graph-deep-fixture.js";
-import type { GraphFixture } from "./support/graph-fixture.js";
-import { writeGraphFixture } from "./support/graph-fixture.js";
+import { recordValue } from "@reqseq/testkit";
+import type { RunningApp } from "../support/app.js";
+import { launchApp } from "../support/app.js";
+import type { GraphDeepFixture } from "../support/graph-deep-fixture.js";
+import { writeGraphDeepFixture } from "../support/graph-deep-fixture.js";
+import type { GraphFixture } from "../support/graph-fixture.js";
+import { writeGraphFixture } from "../support/graph-fixture.js";
 
 /** SR-111 AK6. */
 const LAID_OUT_MS = 1000;
@@ -156,6 +160,14 @@ const choose = async (window: Page, title: string, entry: string): Promise<void>
 const median = (values: readonly number[]): number =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? Number.NaN;
 
+/** Records the first, the median and the slowest of a series of opens, each against the 1 s of SR-111 AK6. */
+const recordSeries = async (name: string, totals: readonly number[]): Promise<void> => {
+  const options = { basis: "SR-111 AK6 (the app)", thresholdMs: LAID_OUT_MS };
+  await recordValue(`app: ${name}, the first of the app run`, totals[0] ?? Number.NaN, options);
+  await recordValue(`app: ${name}, the median of ${String(totals.length)}`, median(totals), options);
+  await recordValue(`app: ${name}, the slowest of ${String(totals.length)}`, Math.max(...totals), options);
+};
+
 test.describe("a graph of 500 nodes", () => {
   let fixture: GraphFixture;
   let running: RunningApp | undefined;
@@ -238,6 +250,8 @@ test.describe("a graph of 500 nodes", () => {
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF graph ${JSON.stringify(record)}`);
     test.info().annotations.push({ type: "SR-111 AK6", description: JSON.stringify(record) });
+    await recordSeries("graph of 500 nodes at depth 1 until laid out", totals);
+    await recordSeries("graph of 500 nodes with 475 evidence boxes until laid out", evidenceTotals);
     expect(totals[0], "the first graph of the app run").toBeLessThanOrEqual(LAID_OUT_MS);
     expect(median(totals), "the median of three opens").toBeLessThanOrEqual(LAID_OUT_MS);
     for (const total of [...totals, ...evidenceTotals]) {
@@ -318,6 +332,7 @@ test.describe("the whole chain of 500 nodes", () => {
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF graph deep ${JSON.stringify(record)}`);
     test.info().annotations.push({ type: "SR-111 AK6 (deep)", description: JSON.stringify(record) });
+    await recordSeries("whole chain of 500 nodes after + until laid out", totals);
     expect(totals[0], "the first deep graph of the app run").toBeLessThanOrEqual(LAID_OUT_MS);
     expect(median(totals), "the median of three").toBeLessThanOrEqual(LAID_OUT_MS);
     for (const total of totals) {
