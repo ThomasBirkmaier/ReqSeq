@@ -2468,6 +2468,11 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(item(items, "Go to element or buffer").explain).toEqual({
       summary: command("element.get").summary,
     });
+    // Its command help too: the summary, but no arguments and no call on the command line.
+    expect(item(items, "Go to element or buffer").help).toEqual({
+      title: "Go to element or buffer",
+      summary: command("element.get").summary,
+    });
     // An action that covers several commands runs one of them by the view: its own description.
     const both = {
       id: "both",
@@ -2527,11 +2532,15 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(own).toBeGreaterThan(60);
   });
 
-  it("[SR-210/AK-wz9v] a catalog command and an action that runs one have the command help: the catalog's texts and the call on the command line", () => {
+  it("[SR-210/AK-wz9v] a catalog command has the command help: the catalog's texts and the call on the command line", () => {
     const { context } = setup([shown]);
     const items = entries({ ...context, docs: () => undefined });
     const get = command("element.get");
-    const help = item(items, "Go to element or buffer").help;
+    const help = withExplanations(
+      { label: "Command", items: [{ ...item(catalogItems(context, [get], []), get.title) }] },
+      [get],
+      [],
+    ).items[0]?.help;
     expect(help).toEqual({
       title: get.title,
       summary: get.summary,

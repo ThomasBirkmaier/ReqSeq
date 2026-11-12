@@ -287,8 +287,8 @@ export const commandHelp = (command: CommandListing): CommandHelp => {
 /**
  * `prompt` with the explanation line (SR-210 AK1, AK5): the prompt keeps its place for it (`explains`), and each
  * action has one. An action that runs one catalog command (`coveredCommand`) has that command's summary, without
- * its arguments, which the action asks its own way or not at all, and Ctrl+H shows the command's help, as F1 opens
- * its reference page. Any other action has its own `description`, which the keyboard reference names too (SR-139
+ * its arguments, which the action asks its own way or not at all; Ctrl+H shows the action's title with that summary,
+ * without the arguments and the call on the command line, and F1 opens the command's reference page. Any other action has its own `description`, which the keyboard reference names too (SR-139
  * AK6), and Ctrl+H shows it. The entries of catalog commands have theirs (`catalogItems`); an element or a buffer
  * has none.
  */
@@ -306,7 +306,12 @@ export const withExplanations = (
     }
     const command = coveredCommand(action, catalog);
     if (command !== undefined) {
-      return { ...item, explain: { summary: command.summary }, help: commandHelp(command) };
+      // Its summary, but neither the arguments nor the call on the command line (AK5).
+      return {
+        ...item,
+        explain: { summary: command.summary },
+        help: { title: action.title, summary: command.summary },
+      };
     }
     const { description } = action;
     return description === undefined
