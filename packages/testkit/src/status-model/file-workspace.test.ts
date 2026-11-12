@@ -2,16 +2,19 @@
 // runs the generator produces every feature the comparison relies on, and `modelOfFiles` applies R4 and R5.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { UNREADABLE_DATE } from "./generator.js";
+import { UNREADABLE_DATE, renderDate } from "./generator.js";
 import {
   type ModelFileRecord,
   type ModelFileWorkspace,
   TWIN_VERSION,
   filesOf,
+  metamorphicTarget,
   modelOfFiles,
   refusalOf,
   statusModelFileWorkspace,
+  withRecord,
 } from "./file-workspace.js";
+import { workspaceStatusOf } from "./workspace-model.js";
 import { DEFAULT_FILE_RUNS, DEFAULT_SEED } from "./run.js";
 import { type ModelRecord, instantOf } from "./model.js";
 import type { ModelWorkspaceElement } from "./workspace-model.js";
@@ -111,6 +114,33 @@ describe("status model level-2 generator", () => {
     );
   });
 
+  it("gives the metamorphic target every change an older-version record may cause, by the model", () => {
+    const changes = new Set<string>();
+    for (const files of fc.sample(statusModelFileWorkspace(), {
+      seed: DEFAULT_SEED,
+      numRuns: DEFAULT_FILE_RUNS,
+    })) {
+      const ws = modelOfFiles(files);
+      const older: ModelRecord = {
+        kind: "verification",
+        version: "v1",
+        date: renderDate(9, "Z"),
+        result: "passed",
+      };
+      const before = workspaceStatusOf(ws);
+      const after = workspaceStatusOf(modelOfFiles(withRecord(files, metamorphicTarget(ws), older)));
+      for (const [key, entries] of after) {
+        for (const entry of entries) {
+          const was = before.get(key)?.find((candidate) => candidate.view === entry.view);
+          if (was !== undefined && was.status !== entry.status) {
+            changes.add(`${was.status}>${entry.status}`);
+          }
+        }
+      }
+    }
+    expect([...changes].sort()).toEqual(["indirect>open", "indirect>outdated", "open>outdated"]);
+  });
+
   it("writes validation records in the first location and refused ones as Markdown", () => {
     for (const files of fc.sample(statusModelFileWorkspace(), {
       seed: DEFAULT_SEED,
@@ -200,5 +230,21 @@ describe("modelOfFiles (R4, R5)", () => {
       ],
     });
     expect(modelOfFiles({ ...files, records: {} }).elements[0]?.own.records).toEqual([]);
+  });
+});
+
+describe("withRecord and metamorphicTarget", () => {
+  it("adds a record to a UUID without records and falls back to the generated order", () => {
+    const record: ModelRecord = { kind: "verification", version: "current", date: T1, result: "passed" };
+    const lone = element("x0", "spec");
+    const files: ModelFileWorkspace = {
+      base: { repositories: [], variants: [], elements: [lone], order: [] },
+      criteria: [undefined],
+      crlf: [false],
+      records: {},
+    };
+    expect(withRecord(files, "e1", record).records["e1"]?.map((file) => file.record)).toEqual([record]);
+    expect(metamorphicTarget(files.base)).toBe("e1");
+    expect(metamorphicTarget({ ...files.base, elements: [] })).toBe("");
   });
 });

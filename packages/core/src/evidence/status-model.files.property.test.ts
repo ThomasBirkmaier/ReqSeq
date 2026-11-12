@@ -28,17 +28,16 @@ import {
   type ModelEntry,
   type ModelFileRecord,
   type ModelFileWorkspace,
-  type ModelRecord,
   type ModelWorkspace,
   type ModelWorkspaceElement,
   countsForCriterion,
   degreeOf,
-  entriesInView,
   elementFilesOf,
   elementPlaceOf,
   fileParameters,
   forAllFileWorkspaces,
   isCurrent,
+  metamorphicTarget,
   modelOfFiles,
   newestOf,
   recordFilesOf,
@@ -49,6 +48,7 @@ import {
   uuidOf,
   validationMatches,
   variantPlaceOf,
+  withRecord,
   verificationMatches,
   workspaceStatusOf as modelWorkspaceStatusOf,
 } from "@reqseq/testkit/status-model";
@@ -378,12 +378,23 @@ async function statusOf(files: ModelFileWorkspace): Promise<Map<string, Shown>> 
   const workspace = new Workspace(root);
   try {
     const output = (await invoke("evidence.status", {}, { workspace })) as { elements: ShownElement[] };
-    return new Map(
-      output.elements.map((element) => [
-        keyIn(files.base, element.repository, element.file) ?? "?",
-        shown(element),
-      ]),
-    );
+    const shownByKey = new Map<string, Shown>();
+    for (const element of output.elements) {
+      const key = keyIn(files.base, element.repository, element.file);
+      if (key !== undefined) {
+        shownByKey.set(key, shown(element));
+      } else if (
+        !files.base.variants.some((variant) => {
+          const place = variantPlaceOf(variant);
+          return place.repository === element.repository && place.file === element.file;
+        })
+      ) {
+        throw new Error(
+          `evidence.status lists a file the model does not know: ${element.repository}:${element.file}`,
+        );
+      }
+    }
+    return shownByKey;
   } finally {
     await workspace.close();
   }
@@ -397,19 +408,6 @@ function keeping(files: ModelFileWorkspace, keep: (file: ModelFileRecord) => boo
       Object.entries(files.records).map(([id, records]) => [id, records.filter(keep)]),
     ),
   };
-}
-
-/** `files` with `added` as the last record of the UUID `id`. */
-function adding(files: ModelFileWorkspace, id: string, added: ModelRecord): ModelFileWorkspace {
-  const file: ModelFileRecord = {
-    record: added,
-    pin: 0,
-    form: "n2",
-    format: "markdown",
-    location: 0,
-    crlf: false,
-  };
-  return { ...files, records: { ...files.records, [id]: [...(files.records[id] ?? []), file] } };
 }
 
 /** The files of `id` and every element above them through derivation items (W1), whatever the view. */
@@ -497,17 +495,12 @@ describe("status model level 2: invariants and metamorphic properties", () => {
         expect(
           validationOnly(await statusOf(keeping(files, (file) => file.record.kind !== "verification"))),
         ).toEqual(validationOnly(before));
-        // The UUID a record is added to: one indirect in the core when there is one (the case the plan's wording
-        // misses), else one in the generated order.
-        const core = entriesInView(ws, CORE_VIEW);
-        const target =
-          ws.elements.find((element) => core.get(element.key)?.status === "indirect")?.id ??
-          ws.elements[(ws.order[0] ?? 0) % ws.elements.length]?.id ??
-          "";
+        // The UUID a record is added to: indirect under an indirect parent where there is one (metamorphicTarget).
+        const target = metamorphicTarget(ws);
         const reached = selfAndAncestors(ws, target);
         // A passed current record changes the verification of its element's files and their ancestors only.
         const passed = await statusOf(
-          adding(files, target, {
+          withRecord(files, target, {
             kind: "verification",
             version: CURRENT,
             date: renderDate(9, "Z"),
@@ -525,7 +518,7 @@ describe("status model level 2: invariants and metamorphic properties", () => {
         expect(validationOnly(passed)).toEqual(validationOnly(before));
         // A record of an older version turns open into outdated, and touches indirect entries only through the record.
         const older = await statusOf(
-          adding(files, target, {
+          withRecord(files, target, {
             kind: "verification",
             version: "v1",
             date: renderDate(9, "Z"),

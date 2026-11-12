@@ -8,7 +8,14 @@ import fc from "fast-check";
 import { UNREADABLE_DATE, criteriaArbitrary, renderDate } from "./generator.js";
 import { CURRENT, type ModelCriterion, type ModelRecord, instantOf } from "./model.js";
 import { statusModelWorkspace } from "./workspace-generator.js";
-import type { ModelWorkspace, ModelWorkspaceElement } from "./workspace-model.js";
+import {
+  CORE_VIEW,
+  type ModelWorkspace,
+  type ModelWorkspaceElement,
+  countedChildren,
+  entriesInView,
+  resolveRef,
+} from "./workspace-model.js";
 
 /** Why the reader refuses a record (R5); `unreadable-date` comes from the base generator's dates. */
 export type ModelRefusal =
@@ -192,12 +199,66 @@ export function statusModelFileWorkspace(): fc.Arbitrary<ModelFileWorkspace> {
           ...base.elements.map(() => fc.integer({ min: 0, max: 3 }).map((value) => value === 0)),
         ),
         records: fc.tuple(...firsts.map(recordsOf)),
+        chains: fc.integer({ min: 0, max: 3 }).map((value) => value === 0),
       })
-      .map(({ criteria, crlf, records }) => ({
+      .map(({ criteria, crlf, records, chains }) => ({
         base,
         criteria,
         crlf,
-        records: Object.fromEntries(records),
+        records: Object.fromEntries(chains ? records.map(([id]) => [id, chainRecords(base, id)]) : records),
       }));
   });
+}
+
+/**
+ * The records of `id` in a workspace shaped for derivation chains: none for a UUID some derivation item names (a
+ * parent), one passed current record for the core otherwise (a leaf). So parents above verified leaves are indirect,
+ * and indirect children of indirect parents occur (the metamorphic properties need them).
+ */
+function chainRecords(base: ModelWorkspace, id: string): ModelFileRecord[] {
+  const parent = base.elements.some((child) =>
+    child.derivesFrom.some((ref) => resolveRef(base, ref, child.repository)?.id === id),
+  );
+  return parent
+    ? []
+    : [
+        {
+          record: { kind: "verification", version: CURRENT, date: renderDate(0, "Z"), result: "passed" },
+          pin: 0,
+          form: "n2",
+          format: "markdown",
+          location: 0,
+          crlf: false,
+        },
+      ];
+}
+
+/** `files` with `added` as the last record of the UUID `id`, as Markdown in the first location. */
+export function withRecord(files: ModelFileWorkspace, id: string, added: ModelRecord): ModelFileWorkspace {
+  const file: ModelFileRecord = {
+    record: added,
+    pin: 0,
+    form: "n2",
+    format: "markdown",
+    location: 0,
+    crlf: false,
+  };
+  return { ...files, records: { ...files.records, [id]: [...(files.records[id] ?? []), file] } };
+}
+
+// The UUID the metamorphic properties add a record to (#1396). Preferred: an element indirect in the core that is a
+// counted child of an indirect parent, so an older-version record turns it outdated and the parent open (I3, I4);
+// else any element indirect in the core; else the one the generated order names.
+export function metamorphicTarget(ws: ModelWorkspace): string {
+  const core = entriesInView(ws, CORE_VIEW);
+  const indirect = (element: ModelWorkspaceElement) => core.get(element.key)?.status === "indirect";
+  const underIndirect = ws.elements.find(
+    (element) =>
+      indirect(element) &&
+      ws.elements.some(
+        (parent) => indirect(parent) && countedChildren(ws, parent, CORE_VIEW).includes(element),
+      ),
+  );
+  const fallback = ws.elements[(ws.order[0] ?? 0) % ws.elements.length];
+  return (underIndirect ?? ws.elements.find(indirect) ?? fallback)?.id ?? "";
 }
