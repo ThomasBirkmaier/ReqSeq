@@ -26,7 +26,7 @@ node packages/cli/dist/bin.js trace chain SR-036 --workspace spec
 node packages/cli/dist/bin.js workspace check --workspace spec
 ```
 
-Each acceptance criterion has a criterion key (SR-204), `key:` of its entry in the element file and in the `--json` output of `element get`; the text output shows number, key and test reference (`AK1 (t2cv) [SR-139/AK-t2cv]: …`). A test names a criterion by its key, `[SR-139/AK-t2cv]`; prose names it by its number, "SR-139 AK1" (CLAUDE.md, Traceability).
+Each acceptance criterion has a criterion key (SR-204), `key:` of its entry in the element file and in the `--json` output of `element get`; the text output shows number, key and test reference (`AK1 (t2cv) [SR-139/AK-t2cv]: …`). Test names move to the key form `[SR-139/AK-t2cv]` with #1419 (SR-029, SR-204); until then the number form `[SR-139/AK1]` still counts. Prose names a criterion by its number, "SR-139 AK1".
 
 All system requirements of a package with their text, numbered acceptance criteria and relations, in one call instead of reading each file:
 
