@@ -5,3 +5,6 @@ export * from "./model.js";
 export * from "./run.js";
 export * from "./workspace-generator.js";
 export * from "./workspace-model.js";
+export * from "./degree-model.js";
+export * from "./file-render.js";
+export * from "./file-workspace.js";

@@ -3,6 +3,7 @@
 // defaults, so a pull request run is reproducible and a nightly run can pass a random seed. fast-check names the seed
 // and the shrunk input in the error of a failing run; the message adds how to replay it.
 import fc from "fast-check";
+import { type ModelFileWorkspace, statusModelFileWorkspace } from "./file-workspace.js";
 import { statusModelElement } from "./generator.js";
 import type { ModelElement } from "./model.js";
 import { statusModelWorkspace } from "./workspace-generator.js";
@@ -18,6 +19,9 @@ export interface PropertyParameters {
   readonly seed: number;
 }
 
+/** The runs of a level-2 property (a workspace on disk each) without STATUS_MODEL_FILE_RUNS (#1396). */
+export const DEFAULT_FILE_RUNS = 30;
+
 /** A whole number from `value`, or `fallback` when it is absent or not one. */
 function integerOr(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -30,6 +34,14 @@ export function propertyParameters(env: Readonly<Record<string, string | undefin
     numRuns: Math.max(1, integerOr(env["STATUS_MODEL_RUNS"], DEFAULT_RUNS)),
     // fast-check takes a 32-bit seed; reduced here, so the seed a failure prints is the one that ran and replays.
     seed: integerOr(env["STATUS_MODEL_SEED"], DEFAULT_SEED) | 0,
+  };
+}
+
+/** The parameters of a level-2 run: STATUS_MODEL_FILE_RUNS (default 30) and the seed of `propertyParameters`. */
+export function fileParameters(env: Readonly<Record<string, string | undefined>>): PropertyParameters {
+  return {
+    numRuns: Math.max(1, integerOr(env["STATUS_MODEL_FILE_RUNS"], DEFAULT_FILE_RUNS)),
+    seed: propertyParameters(env).seed,
   };
 }
 
@@ -54,13 +66,25 @@ export async function forAllWorkspaces(
   }
 }
 
+/** Checks the async `check` on generated file workspaces (#1396), like `forAllElements`. */
+export async function forAllFileWorkspaces(
+  check: (files: ModelFileWorkspace) => Promise<void>,
+  parameters: PropertyParameters,
+): Promise<void> {
+  try {
+    await fc.assert(fc.asyncProperty(statusModelFileWorkspace(), check), parameters);
+  } catch (error) {
+    throw replayError(error, parameters, "STATUS_MODEL_FILE_RUNS");
+  }
+}
+
 // fast-check's message holds the seed, the replay path and the shrunk counterexample; keep it in the message, as a
 // short reporter may not print the cause. fc.assert always throws an Error.
-function replayError(error: unknown, parameters: PropertyParameters): Error {
+function replayError(error: unknown, parameters: PropertyParameters, runs = "STATUS_MODEL_RUNS"): Error {
   const detail = (error as Error).message;
   return new Error(
     `Status model property failed; replay with STATUS_MODEL_SEED=${String(parameters.seed)} ` +
-      `STATUS_MODEL_RUNS=${String(parameters.numRuns)}\n${detail}`,
+      `${runs}=${String(parameters.numRuns)}\n${detail}`,
     { cause: error },
   );
 }

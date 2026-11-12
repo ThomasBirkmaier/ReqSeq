@@ -37,7 +37,8 @@ export function renderDate(index: number, offset: (typeof OFFSETS)[number]): str
   return new Date(instant + minutes * 60_000).toISOString().replace(".000Z", offset);
 }
 
-function criteriaArbitrary(): fc.Arbitrary<ModelCriterion[]> {
+/** 0 to 4 criteria with keys, some missing and some carried twice (SR-204 AK10). */
+export function criteriaArbitrary(): fc.Arbitrary<ModelCriterion[]> {
   return fc
     .integer({ min: 0, max: 4 })
     .chain((count) =>
