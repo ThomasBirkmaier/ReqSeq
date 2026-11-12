@@ -13,15 +13,15 @@ acceptance-criteria:
   - Gegeben der Befehl „Link“ wird aufgerufen und in der Befehlszeile eine Adresse eingegeben, wenn Text markiert ist, dann steht er als Markdown-Link mit dieser Adresse in der Datei; ohne Markierung steht ein Link mit der Adresse als Text am Cursor.
   - Gegeben einer dieser Befehle wird ausgeführt, wenn danach Rückgängig gewählt wird, dann ist die ganze Formatierung in einem Schritt zurückgenommen.
 packages:
-  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 verification-method: test
 derives-from:
   - { id: 6adc5a7a-c3a4-4a8a-8a2e-49131b717bb0, version: n2:3f292d3254c41848, title: Schreiben wie in modernen Markdown-Editoren }
 based-on:
   - { id: da7c347e-2b28-4036-9d64-0cdcd0445751, version: n2:4cfed2babc45e7f3, title: Text als Markdown mit Live-Vorschau }
-  - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:24ec2970172077cb, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
-  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:dd7c650242a62a72, title: Kontextmenü per Rechtsklick }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Teil des Ausbaus des Editors zum Maßstab von N-055 (Darstellung wie Obsidian und Typora, Tastatur wie Emacs, Maus gleich vollständig)."
+  - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:c1a69d3f66480db9, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
+  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:fa15fb6d42e42413, title: Kontextmenü per Rechtsklick }
+rationale: Teil des Ausbaus des Editors zum Maßstab von N-055 (Darstellung wie Obsidian und Typora, Tastatur wie Emacs, Maus gleich vollständig).
 ---
 
 Der Editor muss markierten Text über Befehle der Befehlszeile und deren Kürzel fett, kursiv, als Code oder als Link formatieren lassen.

@@ -5,7 +5,7 @@ status: approved
 title: "Pakete"
 spec-id: "N-014"
 packages:
-  - { id: 2990bac4-d226-4a31-bb4f-64425f53e055, version: n2:932cd50467b7962a, title: Pakete und Baselines }
+  - { id: 2990bac4-d226-4a31-bb4f-64425f53e055, version: n2:a139a91857d617ad, title: Pakete und Baselines }
 ---
 
 Ich muss Elemente, die logisch zusammengehören, als Paket kennzeichnen können, zum Beispiel alle Requirements zu einem Use Case.

@@ -5,7 +5,7 @@ status: approved
 title: "Offene Dateiformate"
 spec-id: "N-070"
 packages:
-  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
+  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:de4346c0dff1f5d3, title: Dokumentation }
 ---
 
 Alle Dateiformate des Tools müssen öffentlich dokumentiert sein, sodass andere Werkzeuge sie ohne das Tool lesen und schreiben können.

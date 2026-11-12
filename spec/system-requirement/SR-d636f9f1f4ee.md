@@ -10,7 +10,7 @@ acceptance-criteria:
   - "Gegeben ein eingefügtes Bild, wenn gespeichert wird, dann ist der Verweis ein relativer Pfad, der von der Element-Datei aus auf die Bilddatei führt, auf der Platte und im selben Commit."
 verification-method: test
 packages:
-  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 derives-from:
   - { id: 6adc5a7a-c3a4-4a8a-8a2e-49131b717bb0, version: n2:3f292d3254c41848, title: Schreiben wie in modernen Markdown-Editoren }
 based-on:

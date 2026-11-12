@@ -10,7 +10,7 @@ acceptance-criteria:
   - "Gegeben ein Commit, der lokal nicht vorhanden ist, wenn geprüft wird, dann meldet die Kommandozeile das und endet mit Exit-Code 4."
 verification-method: test
 packages:
-  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:4585916724ff3a77, title: Traceability }
+  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:dd8ebe8868421160, title: Traceability }
 derives-from:
   - { id: 6adc6159-6d45-4ace-9173-5eb99508383c, version: n2:1f7ff4ed17406ff7, title: Prüfung auf veraltete Verweise im Merge Request }
 based-on:

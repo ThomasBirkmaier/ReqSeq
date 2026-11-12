@@ -14,4 +14,4 @@ Kleine Testdateien je System Requirement und ein Generator für 50.000 Requireme
 
 Agents dürfen den Testbestand ändern. Die Spec ändern sie nur nach [D-064](reqseq:9a32f660-4f85-44f4-8b6c-7ed260532265?version=n2:ce4c97f501c9f1b3): mit dem Tool, per Merge Request, und den Status setzt nur ein Mensch.
 
-Grund: Die eigene Spec deckt nicht alle Fälle ab, und Merge Requests auf einem echten Requirements-Repository lassen sich nur so prüfen. Diese Fassung löst D-055 ab, das Agents jede Änderung der Spec verbot und damit D-064 widersprach. Entscheidung des Produktverantwortlichen, 2026-10-29.
+Grund: Die eigene Spec deckt nicht alle Fälle ab, und Merge Requests auf einem echten Requirements-Repository lassen sich nur so prüfen. Diese Fassung löst D-055 ab, das Agents jede Änderung der Spec verbot und damit D-064 widersprach.

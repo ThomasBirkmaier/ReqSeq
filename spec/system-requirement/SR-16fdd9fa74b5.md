@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Element im anderen Bereich öffnen
 spec-id: SR-150
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3); vom Produktverantwortlichen bestätigt. Nach dem Ausprobieren entschied der Produktverantwortliche am selben Tag: Der andere Bereich ist eine Vorschau, die der Auswahl folgt, auch beim Wechsel von Paket zu Paket (AK4). Betritt der Benutzer die Vorschau, bleibt sie stehen, denn zwei Elemente sollen sich weiter nebeneinander stellen lassen; einen Schalter zum Ein- und Ausschalten gibt es nicht (AK5). Die Vorschau soll gleich beim Teilen erscheinen und nicht erst nach „Open to the right“ (AK6). Alt+O wechselt die Seite, weil Ctrl/Cmd+O schon einen Arbeitsbereich öffnet und die Ctrl-Taste auf macOS dem Editor gehört (AK7). Die aktive Seite soll dezent erkennbar sein, ohne dass die Lesbarkeit leidet, denn Lesen ist der Hauptzweck (AK8)."
+rationale: "Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Nach dem Ausprobieren gilt: Der andere Bereich ist eine Vorschau, die der Auswahl folgt, auch beim Wechsel von Paket zu Paket (AK4). Betritt der Benutzer die Vorschau, bleibt sie stehen, denn zwei Elemente sollen sich weiter nebeneinander stellen lassen; einen Schalter zum Ein- und Ausschalten gibt es nicht (AK5). Die Vorschau soll gleich beim Teilen erscheinen und nicht erst nach „Open to the right“ (AK6). Alt+O wechselt die Seite, weil Ctrl/Cmd+O schon einen Arbeitsbereich öffnet und die Ctrl-Taste auf macOS dem Editor gehört (AK7). Die aktive Seite soll dezent erkennbar sein, ohne dass die Lesbarkeit leidet, denn Lesen ist der Hauptzweck (AK8)."
 requirement-type: functional
 acceptance-criteria:
   - key: skw8
@@ -24,13 +24,13 @@ acceptance-criteria:
   - key: kbtr
     text: Gegeben ein geteiltes Fenster, dann ist der Text des inaktiven Bereichs etwas blasser, also mit etwas weniger Kontrast zum Hintergrund als der des aktiven, und erreicht im hellen wie im dunklen Modus noch einen Kontrast von mindestens 4,5:1 (WCAG 2.2 AA).
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
 verification-method: test
 derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n1:49c90a7abf6c0e3c, title: Befehle finden und Kürzel lernen }
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:0aa3402d0e47fcf7, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:2ec3810c4995e7aa, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:8db21e7aaeb96d22, title: In Buffern arbeiten }
 ---

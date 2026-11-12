@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Einstieg und Anleitungen mit geprüften Beispielen
 spec-id: SR-140
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Entscheidung des Produktverantwortlichen, 2026-11-11: Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
+rationale: "Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
@@ -16,7 +16,7 @@ derives-from:
 based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 packages:
-  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
+  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:de4346c0dff1f5d3, title: Dokumentation }
 ---
 
 Das Tool muss einen Einstieg und für häufige Aufgaben je eine knappe Anleitung mitliefern, deren Beispiele der Kommandozeile mit der Version laufen, zu der die Dokumentation gehört, und deren übrige Abläufe nur Befehle, API-Pfade und MCP-Werkzeuge dieser Version nennen.

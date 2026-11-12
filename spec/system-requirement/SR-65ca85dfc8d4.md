@@ -11,7 +11,7 @@ acceptance-criteria:
   - Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056, fehlendes Repository oder Element-Datei, die sich nicht lesen lässt, nach SR-053 AK3), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
 verification-method: test
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 derives-from:
   - { id: 6adc531a-5a09-476b-9253-7a620b9698d3, version: n1:212741657b151bd3, title: Unbekannte Typen beim Import }
 based-on:

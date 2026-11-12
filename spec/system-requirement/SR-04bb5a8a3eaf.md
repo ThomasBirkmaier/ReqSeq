@@ -12,7 +12,7 @@ acceptance-criteria:
   - Gegeben die Kommandozeile oder die API, wenn die Daten im Format JSON Lines angefordert werden, dann liefern sie ein Element je Zeile.
 verification-method: test
 packages:
-  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:b4ff22abebdae679, title: Zugänge und Anbindung }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 derives-from:
   - { id: 6ad4a041-1888-4e26-831d-6384f51fb612, version: n1:09037f9c134e0487, title: Daten für externe Auswertungen }
 based-on:

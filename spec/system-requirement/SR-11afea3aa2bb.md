@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Metamodell-Ausschnitt für Attribute ohne Zuordnung vorschlagen
 spec-id: SR-170
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-02: Weil die Zuordnung das Metamodell nie ändert (SR-054), braucht jedes übernommene Attribut eine eigene Property; die Analyse soll dafür einen Ausschnitt vorschlagen, den man ins Metamodell übernehmen kann (#573)."
+rationale: Weil die Zuordnung das Metamodell nie ändert (SR-054), braucht jedes übernommene Attribut eine eigene Property; die Analyse soll dafür einen Ausschnitt vorschlagen, den man ins Metamodell übernehmen kann (#573).
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine ReqIF-Datei mit Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze export.reqif` gelesen wird, auch mit einer Zuordnung, die einen Teil der Attribute nennt (`--mapping reqif/ea.yaml`), dann enthält die Ausgabe einen Ausschnitt im Format des Metamodells mit Properties nur für die Attribute, die danach noch ohne Zuordnung sind. Ihre Wertart ist Text für STRING und XHTML, Zahl für INTEGER und REAL, Datum für DATE und Auswahl für ENUMERATION und BOOLEAN; ein Attribut mit mehreren Werten (MULTI-VALUED) ergibt eine Property mit mehreren Werten.
@@ -16,7 +16,7 @@ acceptance-criteria:
   - Gegeben die Analyse schlägt einen Ausschnitt vor, wenn die Dateien danach geprüft werden, dann ist das Metamodell unverändert (SR-054); der Ausschnitt steht nur in der Ausgabe der Analyse.
   - Gegeben dieselbe Datei und dieselbe Zuordnung, wenn die Analyse über App, Kommandozeile, API oder MCP ausgeführt wird, dann liefert das Tool dasselbe Ergebnis.
 packages:
-  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }
 verification-method: test
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }

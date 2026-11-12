@@ -11,7 +11,7 @@ acceptance-criteria:
   - Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
 verification-method: test
 packages:
-  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:5c0f285dc2db4dc4, title: Varianten }
 derives-from:
   - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:674bb62923239dd9, title: Unterschied zum Kern erkennbar }
 based-on:
