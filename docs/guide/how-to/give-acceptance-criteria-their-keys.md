@@ -19,7 +19,7 @@ acceptance-criteria:
   AK2: Given no reading, then a dash shows.
 ```
 
-The reference names the requirement by its identifier, or by its short ID when a test name with the identifier would not lead back to it (an identifier with `/`, `[` or `]`, or one another element has too). A criterion without key, and each of two criteria with the same key, have none. API and MCP give them as `criterionReferences`.
+API and MCP give them as `criterionReferences`.
 
 For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**. A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
 

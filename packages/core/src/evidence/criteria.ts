@@ -7,7 +7,13 @@
 // `hints/evidence.ts`) resolves through this file, so they agree (SR-080 AK2).
 import type { DataExportCriterionName } from "../generated/types.js";
 import type { ResolvedCriterion, VersionForms } from "../model/index.js";
-import { criterionKey, criterionText, resolveCriterionRefs, sameVersion } from "../model/index.js";
+import {
+  criterionKey,
+  criterionText,
+  isCriterionKey,
+  resolveCriterionRefs,
+  sameVersion,
+} from "../model/index.js";
 export { criterionLabel } from "../model/criterion-items.js";
 import type { EvidenceRecord } from "./record.js";
 
@@ -123,13 +129,19 @@ export const plainCriteria = (count: number): ElementCriteria => {
 export const criteriaFrom = (criteria: ElementCriteria | number): ElementCriteria =>
   typeof criteria === "number" ? plainCriteria(criteria) : criteria;
 
+/** The key of `item` in the form SR-204 AK5 allows; a key of another form is named as none. */
+const namedKey = (item: unknown): string | undefined => {
+  const key = criterionKey(item);
+  return key !== undefined && isCriterionKey(key) ? key : undefined;
+};
+
 /**
  * The criterion at `position` (from 1) of `items` as an output names it (SR-205 AK2): its number, its
  * key and its text, each where it has one.
  */
 export const criterionNameAt = (items: readonly unknown[], position: number): DataExportCriterionName => {
   const item = items[position - 1];
-  const key = criterionKey(item);
+  const key = namedKey(item);
   const text = criterionText(item);
   return {
     criterion: position,
@@ -154,7 +166,7 @@ export const namedCriterion = (
   }
   if (typeof resolved.ref === "number") {
     const item = named?.[resolved.ref - 1];
-    const key = criterionKey(item);
+    const key = namedKey(item);
     const text = criterionText(item);
     // A key gone from the current version (or carried twice there), else the number as named.
     return {
