@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Einstieg als Animation in der README zeigen
 spec-id: SR-203
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: die README zeigt den Ablauf des Einstiegs als Animation in der App, damit Besucher sofort sehen, wie das Tool arbeitet; sie endet in der Graphansicht des Need, nicht in der Prüfung des Arbeitsbereichs. Entscheidung des Produktverantwortlichen, 2026-11-10: dieses Kriterium muss nur unter Linux gelten, nicht unter Windows und macOS; deshalb steht es, bisher AK4 von SR-140, in diesem Requirement, das nur für die Variante Linux gilt."
+rationale: Die README zeigt den Ablauf des Einstiegs als Animation in der App, damit Besucher sofort sehen, wie das Tool arbeitet; sie endet in der Graphansicht des Need, nicht in der Prüfung des Arbeitsbereichs. Dieses Kriterium muss nur unter Linux gelten, nicht unter Windows und macOS; deshalb steht es, bisher AK4 von SR-140, in diesem Requirement, das nur für die Variante Linux gilt.
 requirement-type: functional
 acceptance-criteria:
   - "Gegeben die README des Repositorys, wenn sie angezeigt wird, dann zeigt sie die Schritte des Einstiegs als Animation in der App: einen Arbeitsbereich, einen Need und ein davon abgeleitetes System Requirement anlegen und die Beziehung hinzufügen; die Animation endet in der Graphansicht des Need."

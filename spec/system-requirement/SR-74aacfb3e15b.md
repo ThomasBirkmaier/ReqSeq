@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Alle Buffer schließen
 spec-id: SR-123
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-26: Es fehlt ein Befehl, der alle Buffer schließt (ThomasBirkmaier/ReqSeq-archive#411)."
+rationale: Es fehlt ein Befehl, der alle Buffer schließt (ThomasBirkmaier/ReqSeq-archive#411).
 requirement-type: functional
 acceptance-criteria:
   - Gegeben mehrere offene Buffer, wenn der Befehl „Close all buffers“ ausgeführt wird, dann sind alle Buffer außer der Übersicht geschlossen.

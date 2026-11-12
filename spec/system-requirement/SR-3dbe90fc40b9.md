@@ -19,7 +19,7 @@ derives-from:
 based-on:
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
   - { id: e4ccf89c-0e6f-4cd4-8632-c1c8d8e2f80c, version: n2:8801872f22197995, title: Frühere Dateiformate werden nicht gelesen }
-rationale: "Unbekannte Formatnummer (AK4): Entscheidung des Produktverantwortlichen, 2026-11-11: Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut. Import nur nach fehlerhafter Element-Datei abgelehnt (AK3): Entscheidung des Produktverantwortlichen, 2026-11-11 (#1457): Annahme bestätigt; die Sperre verhindert, dass Elemente einer früheren Lieferung ein zweites Mal entstehen, und andere Dateien gefährden das nicht."
+rationale: "Unbekannte Formatnummer (AK4): Annahme bestätigt; so ist es für Arbeitsbereich, Filter, Metamodell, Zuordnung und Datensatz gebaut. Import nur nach fehlerhafter Element-Datei abgelehnt (AK3, #1457): Annahme bestätigt; die Sperre verhindert, dass Elemente einer früheren Lieferung ein zweites Mal entstehen, und andere Dateien gefährden das nicht."
 ---
 
 Wenn eine Datei nicht gelesen werden kann, muss das Tool sie mit Grund melden und mit allen anderen Elementen weiterarbeiten.

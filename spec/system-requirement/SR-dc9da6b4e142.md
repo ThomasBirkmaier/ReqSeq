@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Texte vertraulicher Repositories in anderen Repositories finden
 spec-id: SR-176
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-05: in der Bereinigung der offenen Issues aus #678 als Wunsch ins Paket Später übernommen. Befund aus dem Pilot: ob ein öffentliches Repository Titel oder Text eines vertraulichen enthält, ließ sich nur mit einem eigenen Skript prüfen."
+rationale: "In der Bereinigung der offenen Issues aus #678 als Wunsch ins Paket Später übernommen. Befund aus dem Pilot: ob ein öffentliches Repository Titel oder Text eines vertraulichen enthält, ließ sich nur mit einem eigenen Skript prüfen."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben zwei Repositories, das zweite in der Arbeitsbereichs-Datei als nur über IDs referenziert gekennzeichnet, und der Titel eines Elements des zweiten steht in einer Datei des ersten, wenn der Arbeitsbereich geprüft wird, dann meldet das Tool eine Warnung mit Datei und Zeile.

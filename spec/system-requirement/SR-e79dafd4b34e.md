@@ -16,7 +16,7 @@ derives-from:
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-10: Ein Zyklus ist eine Warnung und damit ein Hinweis (SR-022 AK4, SR-067 AK3), so wie das Tool es umsetzt; Exit-Code 1 gibt es nur, wenn die Prüfung schon bei Warnungen fehlschlagen soll."
+rationale: Ein Zyklus ist eine Warnung und damit ein Hinweis (SR-022 AK4, SR-067 AK3), so wie das Tool es umsetzt; Exit-Code 1 gibt es nur, wenn die Prüfung schon bei Warnungen fehlschlagen soll.
 ---
 
 Wenn Beziehungen mit der Bedeutung Ableitung einen Zyklus bilden, muss das Tool den Zyklus mit allen beteiligten Elementen melden.

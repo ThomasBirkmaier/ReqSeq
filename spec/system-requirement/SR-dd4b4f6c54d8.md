@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Dokumentation ohne Netz mit jeder Auslieferung
 spec-id: SR-141
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Dokumentation im Standardbrowser über einen Dienst auf dem eigenen Rechner, ohne eigenes Fenster (Entscheidung des Produktverantwortlichen, 2026-11-08); die App selbst läuft nicht im Browser (D-003). Host `localhost` (AK4): Entscheidung des Produktverantwortlichen, 2026-11-11 (#1458): Annahme bestätigt; der Name zeigt wie eine Loopback-Adresse auf denselben Rechner."
+rationale: "Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Dokumentation im Standardbrowser über einen Dienst auf dem eigenen Rechner, ohne eigenes Fenster; die App selbst läuft nicht im Browser (D-003). Host `localhost` (AK4, #1458): Annahme bestätigt; der Name zeigt wie eine Loopback-Adresse auf denselben Rechner."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine entpackte Auslieferung ohne Netzverbindung, wenn ihre Dokumentation geöffnet und durchsucht wird, dann zeigt sie die Seiten und Suchtreffer der Version dieser Auslieferung.

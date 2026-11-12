@@ -6,4 +6,4 @@ title: Element bearbeiten
 spec-id: Editor
 ---
 
-Thema „Element bearbeiten“: Ein Element anlegen, schreiben, verlinken, Properties setzen, speichern und ablösen. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan (Entscheidung des Produktverantwortlichen, 2026-11-05).
+Thema „Element bearbeiten“: Ein Element anlegen, schreiben, verlinken, Properties setzen, speichern und ablösen. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.

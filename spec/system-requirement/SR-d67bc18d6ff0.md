@@ -21,7 +21,7 @@ based-on:
   - { id: da7c347e-2b28-4036-9d64-0cdcd0445751, version: n2:4cfed2babc45e7f3, title: Text als Markdown mit Live-Vorschau }
   - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:24ec2970172077cb, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
   - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:dd7c650242a62a72, title: Kontextmenü per Rechtsklick }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Teil des Ausbaus des Editors zum Maßstab von N-055 (Darstellung wie Obsidian und Typora, Tastatur wie Emacs, Maus gleich vollständig)."
+rationale: Teil des Ausbaus des Editors zum Maßstab von N-055 (Darstellung wie Obsidian und Typora, Tastatur wie Emacs, Maus gleich vollständig).
 ---
 
 Der Editor muss markierten Text über Befehle der Befehlszeile und deren Kürzel fett, kursiv, als Code oder als Link formatieren lassen.

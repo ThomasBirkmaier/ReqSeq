@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Metamodell als Graph und als Text zeigen
 spec-id: SR-130
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-27: Es muss einen Befehl geben, der das Schema des Arbeitsbereichs zeigt, grafisch und schriftlich, die grafische Darstellung zuerst; er folgt nach dem Graphen des aktuellen Elements (SR-111). Der Graph des Metamodells zeigt Typen, nicht Elemente; die Regel aus D-063, nie den ganzen Bestand zu zeigen, betrifft den Graph der Elemente. Entscheidung des Produktverantwortlichen, 2026-11-01: Der Text nennt je Property, ob sie zur Fassung zählt (D-057), denn sonst bleibt unsichtbar, welche Änderungen Nachweise veralten lassen. Anlass ist ein Befund aus dem ersten Pilotlauf (#624)."
+rationale: Es muss einen Befehl geben, der das Schema des Arbeitsbereichs zeigt, grafisch und schriftlich, die grafische Darstellung zuerst; er folgt nach dem Graphen des aktuellen Elements (SR-111). Der Graph des Metamodells zeigt Typen, nicht Elemente; die Regel aus D-063, nie den ganzen Bestand zu zeigen, betrifft den Graph der Elemente. Der Text nennt je Property, ob sie zur Fassung zählt (D-057), denn sonst bleibt unsichtbar, welche Änderungen Nachweise veralten lassen. Anlass ist ein Befund aus dem ersten Pilotlauf (#624).
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein geöffneter Arbeitsbereich, wenn in der Befehlszeile der Befehl „Show metamodel“ gewählt wird, dann öffnet sich ein Buffer mit dem Metamodell als Graph.

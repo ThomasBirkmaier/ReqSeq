@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Auswahlwerte per Mausklick setzen
 spec-id: SR-156
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Per Tastatur öffnet eine Box mit festen Werten die Werteauswahl in der Befehlszeile, per Maus öffnet sich nichts. Ein Klick soll dieselbe Auswahl öffnen wie die Tastatur, kein eigenes Dropdown an der Box, weil die Befehlszeile nach D-062 die einzige Bedienstelle ist und ein Klick dort als Weg zum Anfordern vorgesehen ist."
+rationale: Per Tastatur öffnet eine Box mit festen Werten die Werteauswahl in der Befehlszeile, per Maus öffnet sich nichts. Ein Klick soll dieselbe Auswahl öffnen wie die Tastatur, kein eigenes Dropdown an der Box, weil die Befehlszeile nach D-062 die einzige Bedienstelle ist und ein Klick dort als Weg zum Anfordern vorgesehen ist.
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein geöffnetes Element mit einer Property mit festen Werten im Metamodell, wenn der Wert in ihrer Box angeklickt wird, nicht das Symbol zum Kopieren (SR-128), dann öffnet die Befehlszeile dieselbe Werteauswahl wie beim Bearbeiten dieser Box per Tastatur (SR-104).

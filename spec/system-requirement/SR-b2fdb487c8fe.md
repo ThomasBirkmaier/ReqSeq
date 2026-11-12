@@ -30,7 +30,7 @@ derives-from:
 based-on:
   - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n2:5fa2f004bf0408a2, title: Das Metamodell gehört zum Stand }
   - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n2:1ae919bd1dbee2b0, title: Arbeitsbereich als Datei }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-09: AK4 nimmt die lokale Angabe des Orts eines Repositorys auf, die das Tool schon bietet, statt eines eigenen SR. Pfade aus der Arbeitsbereichs-Datei (AK7): Entscheidung des Produktverantwortlichen, 2026-11-07: Ein Pfad, der hinausführt, etwa auf eine Netzfreigabe, kommt nur aus der lokalen Datei, damit ein Klon das Tool keinen anderen Rechner ansprechen lässt; für absolute Pfade gilt dasselbe (Entscheidung des Produktverantwortlichen, 2026-11-11). Git verweigert oder scheitert (AK8): Entscheidung des Produktverantwortlichen, 2026-11-11: Die Datei gilt nur ohne Git-Repository oder ohne Git-Programm, wie das Tool es umsetzt (#1475)."
+rationale: "AK4 nimmt die lokale Angabe des Orts eines Repositorys auf, die das Tool schon bietet, statt eines eigenen SR. Pfade aus der Arbeitsbereichs-Datei (AK7): Ein Pfad, der hinausführt, etwa auf eine Netzfreigabe, kommt nur aus der lokalen Datei, damit ein Klon das Tool keinen anderen Rechner ansprechen lässt; für absolute Pfade gilt dasselbe. Git verweigert oder scheitert (AK8): Die Datei gilt nur ohne Git-Repository oder ohne Git-Programm, wie das Tool es umsetzt (#1475)."
 ---
 
 Das Tool muss die Repositories eines Arbeitsbereichs aus der Arbeitsbereichs-Datei im Haupt-Repository lesen und alle lokal vorhandenen gemeinsam öffnen.

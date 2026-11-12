@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Varianten und die Wahl der Ansicht auffindbar machen
 spec-id: SR-178
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-05: in der Bereinigung der offenen Issues aus #500 als Wunsch ins Paket Später übernommen. Bei der Abnahme der Stufe 5 waren die Varianten der eigenen Spec in der App zunächst nicht auffindbar, ebenso die optionalen Argumente eines Befehls."
+rationale: "In der Bereinigung der offenen Issues aus #500 als Wunsch ins Paket Später übernommen. Bei der Abnahme der Stufe 5 waren die Varianten der eigenen Spec in der App zunächst nicht auffindbar, ebenso die optionalen Argumente eines Befehls."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben die App, wenn die Ansicht gewählt werden soll, dann geht das über ein Tastenkürzel oder einen Menüeintrag, und die Statuszeile zeigt die gewählte Ansicht.

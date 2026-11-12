@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Gleichzeitige Schreibaufrufe auf dieselbe lokale Kopie
 spec-id: SR-166
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-02: Gleichzeitige Schreibaufrufe im selben Prozess (API, MCP-Server) müssen verlustfrei sein (#685)."
+rationale: Gleichzeitige Schreibaufrufe im selben Prozess (API, MCP-Server) müssen verlustfrei sein (#685).
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein Prozess der API, des MCP-Servers oder der App erhält mehrere Schreibaufrufe gleichzeitig, auch auf dasselbe Element, wenn alle beendet sind, dann melden alle Aufrufe Erfolg, die nacheinander Erfolg gemeldet hätten, und die Dateien halten das Ergebnis, das diese Aufrufe nacheinander ausgeführt ergeben hätten.

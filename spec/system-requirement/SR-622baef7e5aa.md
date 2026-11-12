@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Einstieg und Anleitungen mit geprüften Beispielen
 spec-id: SR-140
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Entscheidung des Produktverantwortlichen, 2026-11-11: Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
+rationale: "Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen System Requirements. Die Animation des Einstiegs in der README fordert SR-203. Laufende Beispiele (AK2): Wie gebaut laufen nur die Beispiele der Kommandozeile; die Abläufe für App, API und MCP prüft der Bau auf ihre Namen."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.

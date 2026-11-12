@@ -17,7 +17,7 @@ derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:94db6c18414603e6, title: Keine feste Reihenfolge }
-rationale: "Kennung absteigend (AK1): Entscheidung des Produktverantwortlichen, 2026-11-11: Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut."
+rationale: "Kennung absteigend (AK1): Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut."
 ---
 
 Das Tool muss Listen nach Properties oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern.

@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Fassungsdatum auch für Bilder, die der Checkout verändert
 spec-id: SR-159
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Wunsch für nach 1.0, im Paket Später geparkt. Nach D-013 wird das Datum der Fassung angezeigt; das soll auch für committete Elemente gelten, deren eingebettetes Bild der Checkout gegenüber dem in Git gespeicherten Inhalt verändert, etwa bei Git LFS oder bei der Umwandlung der Zeilenenden."
+rationale: Wunsch für nach 1.0, im Paket Später geparkt. Nach D-013 wird das Datum der Fassung angezeigt; das soll auch für committete Elemente gelten, deren eingebettetes Bild der Checkout gegenüber dem in Git gespeicherten Inhalt verändert, etwa bei Git LFS oder bei der Umwandlung der Zeilenenden.
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein committetes Element, das ein Bild in Git LFS einbettet, wenn seine Fassung angezeigt wird, dann zeigt das Tool das Datum des Commits und nicht „nicht committet“.

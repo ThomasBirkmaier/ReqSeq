@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Trefferkarte der Befehlszeile mit Bewegung einblenden
 spec-id: SR-182
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Das Öffnen der Befehlszeile soll den Eindruck vermitteln, dass physisch etwas auf dem Bildschirm passiert. Gewählt wurden höchstens 200 ms, das Abdunkeln des ganzen Hintergrunds mit Unschärfe nur im Saum des Schattens und die Bewegung nur beim Öffnen, für die Kürzel-Karte ebenso."
+rationale: Das Öffnen der Befehlszeile soll den Eindruck vermitteln, dass physisch etwas auf dem Bildschirm passiert. Gewählt wurden höchstens 200 ms, das Abdunkeln des ganzen Hintergrunds mit Unschärfe nur im Saum des Schattens und die Bewegung nur beim Öffnen, für die Kürzel-Karte ebenso.
 requirement-type: quality
 acceptance-criteria:
   - Gegeben die Befehlszeile ohne Trefferkarte, wenn die Trefferkarte erscheint, zum Beispiel nach Ctrl+Shift+P oder Ctrl+P, dann fährt sie von der Befehlszeile aus nach oben in ihre Lage und ist nach höchstens 200 ms vollständig zu sehen.

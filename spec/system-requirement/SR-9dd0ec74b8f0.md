@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Beim ReqIF-Export nur eine ReqIF-Datei ersetzen
 spec-id: SR-207
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-11: Die Angriffsflächen ohne Requirement aus der Liste zu #1429 werden als Draft aufgenommen, mit den empfohlenen Antworten auf die offenen Fragen. Der Export gilt über alle Zugänge, wie die Regel für Dateien der Daten je Stand (SR-062). Entscheidung des Produktverantwortlichen, 2026-11-11: Die offenen Punkte nach dem Review werden wie empfohlen geklärt: was eine ReqIF-Datei ist, welches Lesen gilt und dass die Regel auch für den Ordner der Bilder gilt."
+rationale: "Die Angriffsflächen ohne Requirement aus der Liste zu #1429 werden als Draft aufgenommen, mit den empfohlenen Antworten auf die offenen Fragen. Der Export gilt über alle Zugänge, wie die Regel für Dateien der Daten je Stand (SR-062). Die offenen Punkte nach dem Review werden wie empfohlen geklärt: was eine ReqIF-Datei ist, welches Lesen gilt und dass die Regel auch für den Ordner der Bilder gilt."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben am Zielort liegt eine Datei, die keine ReqIF-Datei ist, zum Beispiel ein JUnit-Ergebnis, wenn über Kommandozeile, API, MCP-Server oder App dorthin exportiert wird, dann lehnt das Tool ab, nennt den Grund und ändert die Datei nicht.

@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Traceability-Matrix einer Auswahl zeigen
 spec-id: SR-125
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-26: Eine Traceability-Matrix ist Pflicht und fehlt noch; sie soll neu gedacht werden: mit kaskadierten Filtern zum Beispiel alle SRs eines Pakets wählen, die Matrix aufrufen und so die relative Übersicht bekommen. Entscheidung des Produktverantwortlichen, 2026-11-04: SR-153 gilt statt AK3; als Lücke gilt nur eine Zelle, die eine Mindestzahl ab 1 aus dem Metamodell unterschreitet (SR-152)."
+rationale: "Eine Traceability-Matrix ist Pflicht und fehlt noch; sie soll neu gedacht werden: mit kaskadierten Filtern zum Beispiel alle SRs eines Pakets wählen, die Matrix aufrufen und so die relative Übersicht bekommen. SR-153 gilt statt AK3; als Lücke gilt nur eine Zelle, die eine Mindestzahl ab 1 aus dem Metamodell unterschreitet (SR-152)."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine gefilterte Liste, zum Beispiel alle System Requirements des Pakets Editor, wenn die Matrix per Befehl aufgerufen wird, dann zeigt das Tool sie in einem Buffer mit genau einer Zeile je Element der Liste, in der Reihenfolge der Liste.

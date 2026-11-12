@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Metamodell-Ausschnitt für Attribute ohne Zuordnung vorschlagen
 spec-id: SR-170
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-02: Weil die Zuordnung das Metamodell nie ändert (SR-054), braucht jedes übernommene Attribut eine eigene Property; die Analyse soll dafür einen Ausschnitt vorschlagen, den man ins Metamodell übernehmen kann (#573)."
+rationale: Weil die Zuordnung das Metamodell nie ändert (SR-054), braucht jedes übernommene Attribut eine eigene Property; die Analyse soll dafür einen Ausschnitt vorschlagen, den man ins Metamodell übernehmen kann (#573).
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine ReqIF-Datei mit Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze export.reqif` gelesen wird, auch mit einer Zuordnung, die einen Teil der Attribute nennt (`--mapping reqif/ea.yaml`), dann enthält die Ausgabe einen Ausschnitt im Format des Metamodells mit Properties nur für die Attribute, die danach noch ohne Zuordnung sind. Ihre Wertart ist Text für STRING und XHTML, Zahl für INTEGER und REAL, Datum für DATE und Auswahl für ENUMERATION und BOOLEAN; ein Attribut mit mehreren Werten (MULTI-VALUED) ergibt eine Property mit mehreren Werten.

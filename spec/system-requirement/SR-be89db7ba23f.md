@@ -20,7 +20,7 @@ derives-from:
   - { id: 6ad49bf0-0608-4419-8ed7-17ae97059199, version: n1:a8503d8bd977adba, title: Traceability bis zum Nachweis }
 based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:c94085aee93eede7, title: Fest eingebaute Bedeutungen des Metamodells }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Ein Requirement ohne Parent soll mit einem Befehl auffindbar sein, ohne eigenes Metamodell. Eine Entscheidung wird dagegen kein Parent: Based on bleibt ohne Bedeutung für die Kette; ein Projekt, das Entscheidungen als Parent zeigen will, gibt seiner Beziehungsart im eigenen Metamodell die Bedeutung Ableitung. Anlass ist ein Befund aus dem ersten Pilotlauf (#626)."
+rationale: "Ein Requirement ohne Parent soll mit einem Befehl auffindbar sein, ohne eigenes Metamodell. Eine Entscheidung wird dagegen kein Parent: Based on bleibt ohne Bedeutung für die Kette; ein Projekt, das Entscheidungen als Parent zeigen will, gibt seiner Beziehungsart im eigenen Metamodell die Bedeutung Ableitung. Anlass ist ein Befund aus dem ersten Pilotlauf (#626)."
 ---
 
 Das Tool muss zu jedem Element die vollständige Kette aufwärts bis zu den obersten Parents und abwärts bis zu den Nachweisen zeigen.

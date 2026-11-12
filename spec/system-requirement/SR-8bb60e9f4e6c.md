@@ -18,7 +18,7 @@ derives-from:
   - { id: 6ad3a129-d7b1-4b17-a9d7-6caf73d38315, version: n1:9b945f99f310e930, title: "Requirement, Baseline und Nachweis" }
 based-on:
   - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:c39ce145802bd72b, title: Baseline als Datei }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-08: Die Nachweis-Ansicht zeigte jeden Datensatz, den es je gab, und wirkte unübersichtlich. Alle Datensätze bleiben sichtbar, wie AK1 verlangt, aber offen steht nur, was den Status trägt; die Historie ist eingeklappt wie ein Abschnitt im Editor. Entscheidung des Produktverantwortlichen, 2026-11-09: Auch so wiederholte jede Zeile dieselben Angaben eines CI-Laufs, nannte weder Akzeptanzkriterium noch Testfall und klappte die anderen Plattformen desselben Laufs als ältere Datensätze weg. Auf einen Blick soll das Ergebnis je Akzeptanzkriterium zu sehen sein; die gemeinsamen Angaben stehen einmal, die Einzelheiten bis zum Datensatz liegen eine Faltung tiefer."
+rationale: Die Nachweis-Ansicht zeigte jeden Datensatz, den es je gab, und wirkte unübersichtlich. Alle Datensätze bleiben sichtbar, wie AK1 verlangt, aber offen steht nur, was den Status trägt; die Historie ist eingeklappt wie ein Abschnitt im Editor. Auch so wiederholte jede Zeile dieselben Angaben eines CI-Laufs, nannte weder Akzeptanzkriterium noch Testfall und klappte die anderen Plattformen desselben Laufs als ältere Datensätze weg. Auf einen Blick soll das Ergebnis je Akzeptanzkriterium zu sehen sein; die gemeinsamen Angaben stehen einmal, die Einzelheiten bis zum Datensatz liegen eine Faltung tiefer.
 ---
 
 Das Tool muss zu jedem Nachweis zeigen, für welche Fassung, welchen Prüfling und welche Baselines er gilt.

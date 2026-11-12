@@ -17,7 +17,7 @@ derives-from:
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:29bae319c6ed4c84, title: Aufbau der Dateien mit fester Länge des Dateinamens }
-rationale: "Was ein Export aus der Zuordnung nimmt (AK2): Entscheidung des Produktverantwortlichen, 2026-11-01 (#588)."
+rationale: "Was ein Export aus der Zuordnung nimmt (AK2): siehe #588."
 ---
 
 Das Tool muss die Zuordnung der Typen und Attribute einer Quelle zum eigenen Metamodell als Datei speichern und wiederverwenden.

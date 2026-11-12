@@ -10,6 +10,6 @@ Fest eingebaut ([D-012](reqseq:6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc?version=n2:c
 
 Das Standardmodell ([D-037](reqseq:6adc691e-6394-45b3-a796-31e830aa3392?version=n2:679806539676c56d)) enthält zusätzlich die Properties Package, Emergent, Verification Method und Statement sowie für die Herkunft Source, Source Identifier, Import Date, Delivery und Import Version; eine Variante nennt ihre Ausschlüsse mit der Beziehungsart Excludes.
 
-Ersetzt und Ablösen sind zwei getrennte Bedeutungen. Import Version hat die Bedeutung Importfassung: die Fassung, die die zuletzt importierte Lieferung für das Element ergibt. Nur der Import schreibt sie, und sie zählt nicht zur Fassung. Grund: So erkennt ein wiederholter Import, ob ein Element seit dem letzten Import lokal geändert wurde (Entscheidung des Produktverantwortlichen, 2026-10-29).
+Ersetzt und Ablösen sind zwei getrennte Bedeutungen. Import Version hat die Bedeutung Importfassung: die Fassung, die die zuletzt importierte Lieferung für das Element ergibt. Nur der Import schreibt sie, und sie zählt nicht zur Fassung. Grund: So erkennt ein wiederholter Import, ob ein Element seit dem letzten Import lokal geändert wurde.
 
 Component Requirements kommen erst mit der Architektur.

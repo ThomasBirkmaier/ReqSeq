@@ -6,4 +6,4 @@ title: "Querschnitt"
 spec-id: "Querschnitt"
 ---
 
-System Requirements, die für jede Funktion gelten. Jede Stufe prüft sie; nachgewiesen und abgeschlossen werden sie in der Konsolidierung nach Stufe 6, nicht mit der Abnahme von Stufe 6 (Entscheidung des Produktverantwortlichen, 2026-10-31).
+System Requirements, die für jede Funktion gelten. Jede Stufe prüft sie; nachgewiesen und abgeschlossen werden sie in der Konsolidierung nach Stufe 6, nicht mit der Abnahme von Stufe 6.

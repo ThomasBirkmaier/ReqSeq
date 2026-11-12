@@ -19,7 +19,7 @@ derives-from:
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n2:1b2559391ba2c4a7, title: Nachweise und Validierungen als Datensätze }
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:7ad54b00f062ca52, title: Ein offenes Format für Nachweis-Datensätze }
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-04: AK3 an SR-172 angeglichen, das den Validierungsstatus nicht beurteilbar einführt. Entscheidung des Produktverantwortlichen, 2026-11-10: Eine Validierung zeigt nur auf einen Need oder ein Requirement (D-012); ein Validierungs-Datensatz zu einem anderen Element zählt nicht und wird gemeldet (AK5)."
+rationale: AK3 an SR-172 angeglichen, das den Validierungsstatus nicht beurteilbar einführt. Eine Validierung zeigt nur auf einen Need oder ein Requirement (D-012); ein Validierungs-Datensatz zu einem anderen Element zählt nicht und wird gemeldet (AK5).
 ---
 
 Das Tool muss für jeden Need und jedes Requirement mit Validierungs-Datensätzen einen eigenen Validierungsstatus berechnen und zeigen.

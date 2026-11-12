@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: "Bestand schnell prüfen"
 spec-id: "SR-020"
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-24: Zielwert bestätigt. Die Prüfung läuft in jedem Merge Request und soll ihn nicht spürbar verzögern."
+rationale: Zielwert bestätigt. Die Prüfung läuft in jedem Merge Request und soll ihn nicht spürbar verzögern.
 requirement-type: performance
 acceptance-criteria:
   - "Gegeben ein Arbeitsbereich mit 50.000 Elementen und 200.000 Beziehungen auf einem Rechner mit 4 Kernen und 16 GB Speicher, wenn die Prüfung über die Kommandozeile ohne Zwischenspeicher läuft, dann ist sie nach höchstens 60 Sekunden fertig."
