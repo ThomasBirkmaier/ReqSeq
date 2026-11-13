@@ -9,7 +9,7 @@ import type { NamedCommand } from "./command-entry.js";
 /** The prefix of the ID of a catalog command's entry (`catalog-commands.ts`). */
 const COMMAND_ID = "command:";
 
-/** The topic of the entry `id` of the command prompt: the catalog command it runs, else the action's ID. */
+/** The topic of the entry `id` of the command prompt: the one catalog command it runs, else the action's ID. */
 export const docsTopic = (
   id: string,
   catalog: readonly NamedCommand[],
@@ -19,10 +19,15 @@ export const docsTopic = (
     return id.slice(COMMAND_ID.length);
   }
   const action = actions.find((candidate) => candidate.id === id);
-  const covered =
-    action?.covers?.[0] ??
-    (action === undefined ? undefined : catalog.find((command) => command.title === action.title)?.name);
-  return covered ?? id;
+  if (action === undefined) {
+    return id;
+  }
+  const { covers } = action;
+  // An action that runs one of several catalog commands by the shown display has its own row (SR-210 AK5).
+  if (covers !== undefined) {
+    return covers.length === 1 && covers[0] !== undefined ? covers[0] : id;
+  }
+  return catalog.find((command) => command.title === action.title)?.name ?? id;
 };
 
 /** `prompt` with F1 on its entries (`Prompt.help`), when the app can open the documentation (`context.docs`). */

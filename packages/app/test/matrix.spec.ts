@@ -371,27 +371,28 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await requirements(window);
     await matrixOpen(window, 6);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    // A candidate in the middle of the card: the first one can lie over the header row of the matrix.
-    const option = window.locator('.candidates [role="option"]').nth(3);
-    await expect(option).toBeVisible();
-    const box = await option.boundingBox();
-    if (box === null) {
-      throw new Error("no candidate box");
-    }
-    const point = { x: box.x + 8, y: box.y + box.height / 2 };
-    // The test only proves something if a cell of the fixed column lies under that point.
-    const cells = await window.locator("td.element").evaluateAll(
-      (elements, at) =>
-        elements.filter((element) => {
-          const rect = element.getBoundingClientRect();
-          return rect.left <= at.x && at.x <= rect.right && rect.top <= at.y && at.y <= rect.bottom;
-        }).length,
-      point,
-    );
-    expect(cells).toBeGreaterThan(0);
+    await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
+    // A point on a candidate with a cell of the fixed column under it: the test only proves something there. Which
+    // candidate that is depends on the font metrics of the platform, so look for one, not at a fixed position.
+    const point = await window.evaluate(() => {
+      const cells = [...document.querySelectorAll("td.element")].map((cell) => cell.getBoundingClientRect());
+      for (const option of document.querySelectorAll('.candidates [role="option"]')) {
+        const box = option.getBoundingClientRect();
+        const at = { x: box.left + 8, y: box.top + box.height / 2 };
+        if (
+          cells.some(
+            (rect) => rect.left <= at.x && at.x <= rect.right && rect.top <= at.y && at.y <= rect.bottom,
+          )
+        ) {
+          return at;
+        }
+      }
+      return null;
+    });
+    expect(point).not.toBeNull();
     const onTop = await window.evaluate(
       (at) => document.elementFromPoint(at.x, at.y)?.closest(".candidates") !== null,
-      point,
+      point as { x: number; y: number },
     );
     expect(onTop).toBe(true);
   });

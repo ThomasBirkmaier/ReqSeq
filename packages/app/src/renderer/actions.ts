@@ -119,6 +119,19 @@ export interface CommandHelp {
   }[];
   /** `reqseq element get <ref> [options]`: a catalog command only. */
   readonly cli?: string;
+  /** The key of an action with its own description, as the command prompt shows it (SR-210 AK5). */
+  readonly key?: string;
+  /** The catalog commands an action with its own description runs, each with the display it runs it in (AK5). */
+  readonly runs?: readonly CommandIn[];
+  /** F1 and the link open the action's entry in the keyboard reference, not a reference page (AK5). */
+  readonly keyReference?: true;
+}
+
+/** A catalog command an action runs, with the display it runs it in ("in the list", SR-210 AK5). */
+export interface CommandIn {
+  /** The display, as the command help names it: "in the list", "on the package page". */
+  readonly where: string;
+  readonly command: string;
 }
 
 /** What the explanation line of a marked entry says (SR-210 AK1, AK5). */
@@ -457,6 +470,11 @@ export interface Action {
    * buffer, has one; one that runs exactly one shows that command's summary (`coveredCommand`).
    */
   readonly description?: string;
+  /**
+   * The catalog commands an action with a `description` runs, each with the display it runs it in: the command
+   * help names them (SR-210 AK5). Absent for an action that runs none.
+   */
+  readonly runs?: readonly CommandIn[];
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
@@ -476,6 +494,9 @@ export interface Action {
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
+
+/** What the actions that set what the shown graph follows run (SR-210 AK5). */
+const GRAPH_RUNS: readonly CommandIn[] = [{ where: "in the graph", command: "trace.graph" }];
 
 /** Ctrl/Cmd+S saves the text of the shown element. */
 const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
@@ -1173,6 +1194,7 @@ export const ACTIONS: readonly Action[] = [
     id: "list-value",
     title: "List elements with this value",
     description: "Open the list of all elements that have the value at the cursor.",
+    runs: [{ where: "in the list", command: "element.list" }],
     shortcut: LIST_VALUE_SHORTCUT,
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1332,6 +1354,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-depth",
     title: "Graph depth",
     description: "Set how many levels the shown graph follows.",
+    runs: GRAPH_RUNS,
     hint: DEPTH_KEYS,
     available: isGraph,
     run: graphPrompt("Graph depth", (graph) => depthChoices(graph)),
@@ -1341,6 +1364,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-only",
     title: "Show only relation kind",
     description: "Let the shown graph follow only one relation kind.",
+    runs: GRAPH_RUNS,
     available: isGraph,
     run: graphPrompt("Show only", onlyChoices),
   },
@@ -1350,6 +1374,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-also",
     title: "Also show relation kind",
     description: "Let the shown graph follow one more relation kind.",
+    runs: GRAPH_RUNS,
     available: (context: ActionContext): boolean => {
       const shown = context.buffers[0];
       return (
@@ -1386,6 +1411,10 @@ export const ACTIONS: readonly Action[] = [
     id: "copy-mermaid",
     title: "Copy graph as Mermaid",
     description: "Copy the shown graph of an element or of the metamodel as a Mermaid flowchart.",
+    runs: [
+      { where: "in the graph of an element", command: "trace.mermaid" },
+      { where: "in the graph of the metamodel", command: "metamodel.mermaid" },
+    ],
     covers: ["trace.mermaid", "metamodel.mermaid"],
     available: (context: ActionContext): boolean =>
       isGraph(context) || metamodelIn(context, "graph") !== undefined,

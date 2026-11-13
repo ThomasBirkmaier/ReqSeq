@@ -1,18 +1,20 @@
 // The explanation line of the command prompt on the built app (SR-210): under the hits, two text lines high, it
 // explains the marked catalog command and, while an argument is asked, that argument and the keys of its step, with
-// the texts of the catalog; an action of the app shows its description, an element none. Ctrl+H shows the command help in the card. Also the keys of an argument step (SR-108 AK6,
-// SR-134 AK4). The light screenshots go to `test-results/electron/screenshots/` (or the folder in
+// the texts of the catalog; an action of the app shows its description, an element none. Ctrl+H slides the command
+// help in over the hits, and the keys of the list scroll it while it is open. Also the keys of an argument step
+// (SR-108 AK6, SR-134 AK4). The light screenshots go to `test-results/electron/screenshots/` (or the folder in
 // REQSEQ_SCREENSHOTS). Keys use ControlOrMeta, so the same tests run on Linux, macOS and Windows; Ctrl+H is the
 // physical Ctrl key on every system (SR-145 AK4).
 import fs from "node:fs";
 import fsp from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { ElectronApplication, Page } from "@playwright/test";
 import { userText } from "../../../scripts/contracts/user-text.mjs";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { cardSettled, launchApp, listAll, transitionsSettled } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
@@ -229,26 +231,130 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
 });
 
 const help = (window: Page) => window.getByRole("region", { name: "Command help" });
+/** The panel of the command help, open or closed. */
+const drawer = (window: Page) => window.locator("#command-help");
+const markedName = (window: Page) => window.locator('.candidates [aria-selected="true"] .name');
 
-test.describe("the command help (SR-210 AK3, AK4)", () => {
+/** The transitions of the panel that move it, with their times (ms): the slide in or out. */
+const slides = (window: Page): Promise<{ duration: number; delay: number }[]> =>
+  drawer(window).evaluate((element) =>
+    element
+      .getAnimations()
+      .filter(
+        (one): one is CSSTransition => one instanceof CSSTransition && one.transitionProperty === "transform",
+      )
+      .map((one) => {
+        const timing = one.effect?.getComputedTiming();
+        return { duration: Number(timing?.duration ?? 0), delay: timing?.delay ?? 0 };
+      }),
+  );
+
+/** The panel and the hits once they stand: their boxes, the font sizes and how the hits are shown. */
+const layout = (window: Page) =>
+  window.evaluate(() => {
+    const panel = document.querySelector("#command-help");
+    const hits = document.querySelector(".card-hits");
+    const hit = document.querySelector(".candidates li");
+    const name = document.querySelector(".candidates li .name");
+    const body = document.querySelector("#command-help .help-summary");
+    if (panel === null || hits === null || hit === null || name === null || body === null) {
+      throw new Error("no command help");
+    }
+    // 72 characters of the help's text, in its font.
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;width:72ch";
+    body.append(probe);
+    const chars = probe.getBoundingClientRect().width;
+    probe.remove();
+    const panelBox = panel.getBoundingClientRect();
+    const hitsBox = hits.getBoundingClientRect();
+    return {
+      panel: { left: panelBox.left, right: panelBox.right, width: panelBox.width },
+      // A classic scrollbar (Windows) takes its width from the text column.
+      scrollbar: panel instanceof HTMLElement ? Math.max(0, panel.offsetWidth - panel.clientWidth - 1) : 0,
+      hits: { right: hitsBox.right, width: hitsBox.width },
+      text: body.getBoundingClientRect().width,
+      chars,
+      ratio:
+        Number.parseFloat(getComputedStyle(body).fontSize) /
+        Number.parseFloat(getComputedStyle(name).fontSize),
+      opacity: Number(getComputedStyle(hit).opacity),
+      filter: getComputedStyle(hit).filter,
+    };
+  });
+
+/** A small documentation site for F1 and the link of the help, and a browser that records what it is given. */
+const docsSite = async (): Promise<string> => {
+  const top = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "reqseq-help-docs-")));
+  for (const file of [
+    "index.html",
+    "reference/commands/hint-list/index.html",
+    "reference/keyboard-shortcuts/index.html",
+  ]) {
+    await fsp.mkdir(path.dirname(path.join(top, file)), { recursive: true });
+    await fsp.writeFile(path.join(top, file), "<!doctype html><title>ReqSeq</title>");
+  }
+  return top;
+};
+
+const stubBrowser = (app: ElectronApplication): Promise<void> =>
+  app.evaluate(({ shell }) => {
+    const opened: string[] = [];
+    Object.assign(globalThis, { reqseqOpened: opened });
+    shell.openExternal = (url: string) => {
+      opened.push(url);
+      return Promise.resolve();
+    };
+  });
+
+const opened = (app: ElectronApplication): Promise<string[]> =>
+  app.evaluate(() => [...((globalThis as { reqseqOpened?: string[] }).reqseqOpened ?? [])]);
+
+test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
   let running: RunningApp;
+  let site: string;
 
   test.beforeEach(async () => {
-    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    site = await docsSite();
+    running = await launchApp(FIXTURE, { colorScheme: "light", docsFolder: site });
+    await stubBrowser(running.app);
     await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
   });
 
   test.afterEach(async () => {
     await running.close();
+    await fsp.rm(site, { recursive: true, force: true });
   });
 
-  test("[SR-210/AK-wz9v] [SR-145/AK-tbrz] Ctrl+H shows the summary, the details, each argument with its description and whether it is required, and the call on the command line", async () => {
-    const { window } = running;
+  test("[SR-210/AK-wz9v] [SR-145/AK-tbrz] Ctrl+H slides the help in from the right within 200 ms, 70 % of the card wide but at most 72 characters, over the dimmed and blurred hits, with the summary, details, arguments and the call on the command line", async () => {
+    const { window, app } = running;
+    await window.emulateMedia({ reducedMotion: "no-preference" });
     await fsp.mkdir(SHOTS, { recursive: true });
     await mark(window, "List hints", "List hints");
+    await cardSettled(window);
     // The physical Ctrl key, also on macOS.
     await window.keyboard.press("Control+H");
     const shown = help(window);
+    await expect(shown).toBeVisible();
+    // It slides in, done within 200 ms.
+    const slideIn = await slides(window);
+    expect(slideIn.length).toBe(1);
+    expect((slideIn[0]?.duration ?? 0) + (slideIn[0]?.delay ?? 0)).toBeLessThanOrEqual(200);
+    expect(slideIn[0]?.duration ?? 0).toBeGreaterThan(0);
+    await transitionsSettled(window);
+    const wide = await layout(window);
+    // At the right edge of the card; at this width the 72 characters are the limit, under 70 % of the card.
+    expect(Math.abs(wide.panel.right - wide.hits.right)).toBeLessThan(2);
+    expect(wide.panel.width).toBeLessThan(wide.hits.width * 0.7);
+    expect(wide.text).toBeLessThanOrEqual(wide.chars + 1);
+    expect(wide.text).toBeGreaterThan(wide.chars - 2 - wide.scrollbar);
+    // Its body text is 85 to 90 % of the font of the hits; the hits are dimmed and slightly blurred.
+    expect(wide.ratio).toBeGreaterThanOrEqual(0.85);
+    expect(wide.ratio).toBeLessThanOrEqual(0.9);
+    expect(wide.opacity).toBeLessThan(0.6);
+    expect(wide.filter).toMatch(/^blur\(/u);
+    await expect(markedName(window)).toHaveText("List hints");
+    // The content, as plain text from the catalog.
     const hints = catalog("hint.list");
     await expect(shown.locator("h2")).toHaveText(hints.title);
     await expect(shown.locator(".help-summary")).toHaveText(userText(hints.summary));
@@ -260,7 +366,6 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
     await expect(shown.locator("dt")).toHaveText(
       fields.map((field) => `${field} ${required.includes(field) ? "required" : "optional"}`),
     );
-    // Each argument with the description the catalog gives it.
     for (const [at, field] of fields.entries()) {
       const description = hints.input.properties?.[field]?.description;
       if (description !== undefined) {
@@ -269,9 +374,17 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
       }
     }
     await expect(shown.locator(".help-cli")).toHaveText("reqseq hint list [options]");
-    // The hits make room for it; the prompt stays open.
-    await expect(window.locator(".candidates")).toHaveCount(0);
-    await expect(label(window)).toHaveText("Command");
+    await window.screenshot({ path: path.join(SHOTS, "sr-210-help-light.png") });
+    // F1 and the link in the help open the reference page; the help stays.
+    await window.keyboard.press("F1");
+    await expect
+      .poll(async () => (await opened(app)).at(-1) ?? "")
+      .toContain("/reference/commands/hint-list/");
+    await shown.getByRole("link", { name: "Reference page" }).click();
+    await expect.poll(async () => (await opened(app)).length).toBe(2);
+    expect((await opened(app)).at(-1)).toContain("/reference/commands/hint-list/");
+    await expect(shown).toBeVisible();
+    await expect(window.locator("#prompt-input")).toBeFocused();
     // A required argument is named as such, and as a positional argument of the call.
     await window.keyboard.press("Control+H");
     await window.keyboard.press("Escape");
@@ -279,78 +392,170 @@ test.describe("the command help (SR-210 AK3, AK4)", () => {
     await window.keyboard.press("Control+H");
     await expect(shown.locator("dt")).toHaveText(["ref required", "kind optional"]);
     await expect(shown.locator(".help-cli")).toHaveText("reqseq relation options <ref> [options]");
-    await window.screenshot({ path: path.join(SHOTS, "sr-210-help-light.png") });
+    // In a narrow window it is 70 % of the card wide.
+    await window.keyboard.press("Escape");
+    await window.setViewportSize({ width: 520, height: 700 });
+    await window.keyboard.press("Control+H");
+    await transitionsSettled(window);
+    const narrow = await layout(window);
+    expect(Math.abs(narrow.panel.width - narrow.hits.width * 0.7)).toBeLessThan(2);
   });
 
-  test("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape show the hits again, the help follows the mark, Enter and Ctrl/Cmd+Enter act as without it, a click on help opens it, and it scrolls", async () => {
-    const { window } = running;
-    await mark(window, "Show relation options", "Show relation options");
-    // A click on "help" in the explanation line acts as Ctrl+H.
-    await explanation(window).getByRole("button", { name: /help/u }).click();
-    await expect(help(window).locator("h2")).toHaveText("Show relation options");
-    // Ctrl+H again, then Escape: only the help closes, the prompt stays open with its mark.
+  test("[SR-210/AK-r2d2] an action that sets what a shown list shows: its description, key and the catalog commands it runs by display; F1 and the link open its entry in the keyboard reference", async () => {
+    const { window, app } = running;
+    await listAll(window);
+    await mark(window, "Sort list", "Sort list");
     await window.keyboard.press("Control+H");
-    await expect(help(window)).toHaveCount(0);
-    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
-      "Show relation options",
-    );
-    await window.keyboard.press("Control+H");
-    await expect(help(window)).toBeVisible();
+    const shown = help(window);
+    await expect(shown.locator("h2")).toHaveText("Sort list");
+    await expect(shown.locator(".help-summary")).toHaveText("Sort the shown list by a chosen key.");
+    await expect(shown.locator(".help-runs dt")).toHaveText(["element.list", "trace.matrix", "element.list"]);
+    await expect(shown.locator(".help-runs dd")).toHaveText([
+      "in the list",
+      "in the traceability matrix",
+      "on the package page",
+    ]);
+    await expect(shown.locator(".help-cli")).toHaveCount(0);
+    await expect(shown.locator(".help-arguments")).toHaveCount(0);
+    await shown.getByRole("link", { name: "Entry in the keyboard reference" }).click();
+    await expect.poll(async () => (await opened(app)).at(-1) ?? "").toContain("#action-sort");
+    // An action with a key names it: on the matrix, "Show as list".
     await window.keyboard.press("Escape");
-    await expect(help(window)).toHaveCount(0);
-    await expect(label(window)).toHaveText("Command");
-    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
-      "Show relation options",
-    );
-    // The mark moves while the help is open: it shows the newly marked command.
-    await window.locator("#prompt-input").fill("Show relat");
-    await expect(names(window).nth(0)).toHaveText("Show relation options");
-    await expect(names(window).nth(1)).toHaveText("Show related elements");
-    await window.keyboard.press("Control+H");
-    await expect(help(window).locator("h2")).toHaveText("Show relation options");
-    await window.keyboard.press("ArrowDown");
-    await expect(help(window).locator("h2")).toHaveText("Show related elements");
-    await window.keyboard.press("ArrowUp");
-    await expect(help(window).locator("h2")).toHaveText("Show relation options");
-    // Ctrl/Cmd+Enter takes the marked command as without the help: it offers the optional arguments.
-    await window.keyboard.press("Escape");
-    await window.locator("#prompt-input").fill("List hints");
-    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
-    await window.keyboard.press("Control+H");
-    await expect(help(window).locator("h2")).toHaveText("List hints");
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label(window)).toHaveText("List hints · more arguments:");
-    await expect(help(window)).toHaveCount(0);
-    await window.keyboard.press("Escape");
-    await expect(label(window)).toHaveText("Command");
     await window.keyboard.press("Escape");
     await expect(label(window)).toHaveCount(0);
-    await mark(window, "Show relation options", "Show relation options");
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".matrix td.cell").first()).toBeVisible();
+    await mark(window, "Show as list", "Show as list");
     await window.keyboard.press("Control+H");
-    // Enter takes the marked command as without the help: it asks its argument.
-    await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Show relation options · ref:");
-    await expect(help(window)).toHaveCount(0);
-    await window.keyboard.press("Escape");
-    await window.keyboard.press("Escape");
-    // Higher than the card: Page Down, Page Up and the wheel scroll it.
-    await window.setViewportSize({ width: 520, height: 420 });
+    await expect(shown.locator(".help-key")).toHaveText(mac ? "⌘T" : "Ctrl+T");
+    await expect(shown.locator(".help-runs dt")).toHaveText(["element.list"]);
+    await window.keyboard.press("F1");
+    await expect.poll(async () => (await opened(app)).at(-1) ?? "").toContain("#action-matrix-list");
+  });
+
+  test("[SR-210/AK-pxr7] [SR-122/AK-kjhn] [SR-122/AK-h65p] [SR-122/AK-n8p6] [SR-145/AK-mk0f] [SR-134/AK-fmf6] [SR-202/AK-dcyp] [SR-202/AK-fgd8] with the help open the list keys and the wheel scroll it and keep the mark; Escape, Ctrl+H, Backspace and a click on a hit close it shorter, running nothing; Enter, Ctrl+Enter and Tab do nothing; typing closes it and acts; its text can be copied", async () => {
+    const { window, app } = running;
+    await window.emulateMedia({ reducedMotion: "no-preference" });
+    await window.setViewportSize({ width: 900, height: 520 });
     await mark(window, "List hints", "List hints");
-    await window.keyboard.press("Control+H");
-    const scroll = (): Promise<{ top: number; more: boolean }> =>
-      help(window).evaluate((element) => ({
-        top: element.scrollTop,
-        more: element.scrollHeight > element.clientHeight,
-      }));
-    expect(await scroll()).toEqual({ top: 0, more: true });
-    await window.keyboard.press("PageDown");
-    await expect.poll(async () => (await scroll()).top).toBeGreaterThan(0);
-    await window.keyboard.press("PageUp");
-    await expect.poll(async () => (await scroll()).top).toBe(0);
-    await help(window).hover();
+    // A click on "help" in the explanation line acts as Ctrl+H.
+    await explanation(window).getByRole("button", { name: /help/u }).click();
+    await expect(help(window).locator("h2")).toHaveText("List hints");
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    await transitionsSettled(window);
+    const top = (): Promise<number> => drawer(window).evaluate((element) => element.scrollTop);
+    const more = await drawer(window).evaluate((element) => element.scrollHeight > element.clientHeight);
+    expect(more).toBe(true);
+    // Down, Ctrl+N (the physical Ctrl key on every system) and Page Down scroll it down, Up, Ctrl+P and Page Up
+    // back; the mark stays.
+    for (const [down, up] of [
+      ["ArrowDown", "ArrowUp"],
+      ["Control+N", "Control+P"],
+      ["PageDown", "PageUp"],
+    ] as const) {
+      await window.keyboard.press(down);
+      await expect.poll(top).toBeGreaterThan(0);
+      await window.keyboard.press(up);
+      await expect.poll(top).toBe(0);
+      await expect(markedName(window)).toHaveText("List hints");
+    }
+    // The wheel over the dimmed hits scrolls the help too.
+    const hits = await window.locator(".card-hits").boundingBox();
+    await window.mouse.move((hits?.x ?? 0) + 40, (hits?.y ?? 0) + 40);
     await window.mouse.wheel(0, 200);
-    await expect.poll(async () => (await scroll()).top).toBeGreaterThan(0);
+    await expect.poll(top).toBeGreaterThan(0);
+    await expect(markedName(window)).toHaveText("List hints");
+    // Enter, Ctrl/Cmd+Enter and Tab do nothing.
+    for (const key of ["Enter", "ControlOrMeta+Enter", "Tab"]) {
+      await window.keyboard.press(key);
+      await expect(help(window)).toBeVisible();
+      await expect(label(window)).toHaveText("Command");
+      await expect(markedName(window)).toHaveText("List hints");
+    }
+    await expect(window.locator(".result")).toHaveCount(0);
+    // Its text can be selected and copied.
+    await help(window).locator(".help-summary").click({ clickCount: 3 });
+    await window.keyboard.press("ControlOrMeta+C");
+    await expect
+      .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()))
+      .toContain(userText(catalog("hint.list").summary).slice(0, 30));
+    // Escape slides it out, shorter than it came in, and only it: the prompt stays open with its mark.
+    const slideIn = 180;
+    await window.keyboard.press("Escape");
+    const slideOut = await slides(window);
+    expect(slideOut.length).toBe(1);
+    expect(slideOut[0]?.duration ?? slideIn).toBeLessThan(slideIn);
+    await expect(help(window)).toHaveCount(0);
     await expect(label(window)).toHaveText("Command");
+    await expect(markedName(window)).toHaveText("List hints");
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    // Ctrl+H closes it.
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toBeVisible();
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toHaveCount(0);
+    await expect(markedName(window)).toHaveText("List hints");
+    // A click on a dimmed hit closes only the help (SR-202 AK3).
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toBeVisible();
+    // At its left, beside the help.
+    await window.locator('.candidates [aria-selected="true"]').click({ position: { x: 20, y: 5 } });
+    await expect(help(window)).toHaveCount(0);
+    await expect(label(window)).toHaveText("Command");
+    await expect(markedName(window)).toHaveText("List hints");
+    // A key that changes the input closes it and then acts as without it.
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toBeVisible();
+    await window.keyboard.press("Backspace");
+    await expect(help(window)).toHaveCount(0);
+    await expect(window.locator("#prompt-input")).toHaveValue("List hint");
+    // Backspace on an empty input closes only the help (SR-134 AK4); the prompt stays open with its mark.
+    await window.locator("#prompt-input").fill("");
+    await expect(markedName(window)).not.toHaveText("");
+    const first = await markedName(window).textContent();
+    let tries = 0;
+    while ((await help(window).count()) === 0 && tries < 10) {
+      await window.keyboard.press("ArrowDown");
+      await window.keyboard.press("Control+H");
+      tries += 1;
+    }
+    await expect(help(window)).toBeVisible();
+    const withHelp = await markedName(window).textContent();
+    expect(withHelp).not.toBeNull();
+    await window.keyboard.press("Backspace");
+    await expect(help(window)).toHaveCount(0);
+    await expect(label(window)).toHaveText("Command");
+    await expect(markedName(window)).toHaveText(withHelp ?? "");
+    expect(first).not.toBeNull();
+    // Without the help the wheel scrolls the hits of the empty input again (SR-202 AK2).
+    const list = window.locator(".candidates");
+    await list.hover();
+    await window.mouse.wheel(0, 400);
+    await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  });
+
+  test("[SR-210/AK-b1r5] with reduced motion the help comes and goes without motion, and the hits stand dimmed and blurred at once", async () => {
+    const { window } = running;
+    await window.emulateMedia({ reducedMotion: "reduce" });
+    await mark(window, "List hints", "List hints");
+    await cardSettled(window);
+    await window.keyboard.press("Control+H");
+    await expect(help(window)).toBeVisible();
+    // At once in its place: no transition runs, and the hits are dimmed and blurred already.
+    expect(await window.evaluate(() => document.getAnimations().length)).toBe(0);
+    const at = await layout(window);
+    expect(Math.abs(at.panel.right - at.hits.right)).toBeLessThan(2);
+    expect(at.opacity).toBeLessThan(0.6);
+    expect(at.filter).toMatch(/^blur\(/u);
+    // And it goes at once.
+    await window.keyboard.press("Escape");
+    expect(await window.evaluate(() => document.getAnimations().length)).toBe(0);
+    await expect(help(window)).toHaveCount(0);
+    await expect(drawer(window)).toBeHidden();
+    const after = await window.evaluate(
+      () => getComputedStyle(document.querySelector(".candidates li") ?? document.body).opacity,
+    );
+    expect(after).toBe("1");
   });
 });
 
