@@ -15,11 +15,9 @@
 // - Filters are not elements (D-056); nothing is ever deleted or renamed, and no status is touched.
 // - Never into Git, also when the workspace file places the filters folder there: the file to write
 //   is checked right before each write (`refuseGitPlace`, D-036, SR-083 AK4).
-import { isDeepStrictEqual } from "node:util";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import type { YamlKeyEdit } from "../../files/index.js";
-import type { FilterFile, FilterSortKey } from "../../generated/types.js";
+import type { FilterFile } from "../../generated/types.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState, shortIdState } from "../../model/index.js";
 import type { QueryContext } from "../../query/index.js";
@@ -28,6 +26,7 @@ import {
   canonicalCondition,
   canonicalView,
   compileWhere,
+  keyEdits,
   sortElements,
   writeSaved,
 } from "../../query/index.js";
@@ -36,23 +35,6 @@ import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The keys of a filter file, in the order a new file has them. */
 const KEYS = ["reqseq-filter", "name", "description", "view", "where", "sort"] as const;
-
-/** A sort as compared: `order` absent is `asc`. */
-const sortOf = (sort: readonly FilterSortKey[] | undefined): unknown =>
-  sort?.map((key) => ({ ...key, order: key.order ?? "asc" }));
-
-/** The edits that turn the file's data into `data`, one per changed key. */
-const editsOf = (current: FilterFile, data: FilterFile): readonly YamlKeyEdit[] =>
-  KEYS.flatMap((key): YamlKeyEdit[] => {
-    const same =
-      key === "sort"
-        ? isDeepStrictEqual(sortOf(current.sort), sortOf(data.sort))
-        : isDeepStrictEqual(current[key], data[key]);
-    if (same) {
-      return [];
-    }
-    return data[key] === undefined ? [{ key }] : [{ key, value: data[key] }];
-  });
 
 export default defineCommand({
   name: "filter.save",
@@ -77,7 +59,7 @@ export default defineCommand({
       ...(input.sort === undefined ? {} : { sort: input.sort }),
     };
     return {
-      files: [...(await writeSaved(layout, FILTERS, data, (current) => editsOf(current, data)))],
+      files: [...(await writeSaved(layout, FILTERS, data, (current) => keyEdits(KEYS, current, data)))],
       problems: [],
     };
   },

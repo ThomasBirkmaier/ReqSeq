@@ -3477,7 +3477,7 @@ export interface PerspectiveListOutput {
     readonly group?: GroupKey;
     readonly sort?: readonly FilterSortKey[];
   }[];
-  /** Perspective files that cannot be read, do not match perspective.schema.json, or repeat the name of an earlier file, each with its file and reason (SR-213 AK8). */
+  /** Perspective files that cannot be read (`file.unreadable`, also for the folder, or a YAML problem), do not match perspective.schema.json (`perspective.invalid`), or repeat the name of an earlier file (`perspective.duplicate-name`, warning), each with its file and reason (SR-213 AK8); a `.yml` file is a `perspective.invalid` warning and not read. */
   readonly problems?: readonly Problem[];
   readonly incomplete?: Incomplete;
 }

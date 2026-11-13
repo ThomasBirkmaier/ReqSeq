@@ -1,6 +1,6 @@
-// Perspectives (SR-213 "Perspektive als Datei speichern und über alle Zugänge aufrufen", D-056,
-// `perspective.schema.json`): a list of elements with a name, saved with its selection (conditions
-// and optionally a saved filter by name), its grouping and its sort, without a view. The
+// Perspectives (SR-213, D-056, `perspective.schema.json`): a list of elements with a name, saved
+// with its selection (conditions and optionally a saved filter by name), its grouping and its sort,
+// without a view. The
 // `perspectives` kind of saved-files.ts, which reads and writes them as it does saved filters:
 // default folder `perspectives` in the main repository, names compared ignoring case and normal
 // form in a namespace of their own (a saved filter may have the same name), faulty files reported

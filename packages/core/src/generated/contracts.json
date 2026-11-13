@@ -9161,7 +9161,7 @@
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               },
-              "description": "Perspective files that cannot be read, do not match perspective.schema.json, or repeat the name of an earlier file, each with its file and reason."
+              "description": "Perspective files that cannot be read (`file.unreadable`, also for the folder, or a YAML problem), do not match perspective.schema.json (`perspective.invalid`), or repeat the name of an earlier file (`perspective.duplicate-name`, warning), each with its file and reason; a `.yml` file is a `perspective.invalid` warning and not read."
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"

@@ -1,5 +1,4 @@
-// Saved filters (SR-070 "Filter mit Namen als Datei im Repository", D-056, `filter.schema.json`): the
-// `filters` kind of saved-files.ts, which reads and writes them (where they lie, how names compare,
+// Saved filters (SR-070, D-056, `filter.schema.json`): the `filters` kind of saved-files.ts, which reads and writes them (where they lie, how names compare,
 // faulty and duplicate files, new file names). A name only a faulty file holds is refused by
 // `filter.save` and `selection.filter` (`file.faulty`) rather than guessed.
 import type { CommandName } from "../catalog.js";
@@ -58,11 +57,15 @@ export const findSavedFilter = (saved: SavedFilters, name: string): FoundFilter 
 export const faultyFilter = (name: string, files: readonly string[], action: string): CommandError =>
   faultySaved(FILTERS, name, files, action);
 
-/** The saved filter `name` for `selection.filter`; `input.invalid` or `file.faulty` when there is none. */
+/**
+ * The saved filter `name` for the input field `field` (`selection.filter`, the `filter` of
+ * `perspective.save`); `input.invalid` at `field` or `file.faulty` when there is none.
+ */
 export const savedFilterFor = async (
   layout: WorkspaceLayout,
   name: string,
   command: CommandName,
+  field = "selection.filter",
 ): Promise<SavedFilter> => {
   const saved = await readSavedFilters(layout);
   const found = findSavedFilter(saved, name);
@@ -77,10 +80,10 @@ export const savedFilterFor = async (
     : "; filter.list lists the saved filters";
   throw new CommandError(
     "input.invalid",
-    `selection.filter: no saved filter is named ${JSON.stringify(name)}${where}`,
+    `${field}: no saved filter is named ${JSON.stringify(name)}${where}`,
     {
       command,
-      fields: ["selection.filter"],
+      fields: [field],
     },
   );
 };

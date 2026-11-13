@@ -5,9 +5,8 @@
 // - Where: the location of the workspace file for the kind (`filters`, `perspectives`), by default
 //   the folder of that name in the main repository (`settingLocation`). A file of the kind is a
 //   `*.yaml` file directly in that folder that matches the kind's schema, as the metamodel folder is
-//   read; a `.yml` file is reported and not read. These files are not elements (D-056: "Alle anderen
-//   Dateien des Tools sind YAML"), so D-045 does not apply to them; ReqSeq never deletes, moves or
-//   renames one.
+//   read; a `.yml` file is reported and not read. These files are not elements (D-056: YAML files
+//   of the tool), so D-045 does not apply to them; ReqSeq never deletes, moves or renames one.
 // - Read on every call, never kept: a handful of small files, and a file another person committed
 //   is there as soon as the working copy has it (SR-070 AK2, SR-213 AK2), also for a running server
 //   or the app.
@@ -27,6 +26,7 @@
 //   (`file.changed-on-disk`). Never into Git, also when the workspace file places the folder there:
 //   the file to write is checked right before each write (`refuseGitPlace`, D-036, SR-083 AK4).
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
 import type { YamlFile, YamlKeyEdit } from "../files/index.js";
 import {
@@ -38,7 +38,7 @@ import {
   writeFileAtomic,
   yamlPointerLine,
 } from "../files/index.js";
-import type { Problem, WorkspaceLocation } from "../generated/types.js";
+import type { FilterSortKey, Problem, WorkspaceLocation } from "../generated/types.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { workspacePath } from "../model/index.js";
 import { fileMessage, inputViolations } from "../runtime/input-errors.js";
@@ -368,6 +368,30 @@ export const newSavedFile = (
     }
   }
 };
+
+/** A sort as compared: `order` absent is `asc`. */
+const sortOf = (sort: readonly FilterSortKey[] | undefined): unknown =>
+  sort?.map((key) => ({ ...key, order: key.order ?? "asc" }));
+
+/**
+ * The edits that turn `current` into `data` for the top-level `keys`, one per key whose value changed
+ * (a `sort` compared with `order` absent as `asc`); a key `data` does not have is removed.
+ */
+export const keyEdits = <T extends { readonly sort?: readonly FilterSortKey[] }>(
+  keys: readonly (keyof T & string)[],
+  current: T,
+  data: T,
+): readonly YamlKeyEdit[] =>
+  keys.flatMap((key): YamlKeyEdit[] => {
+    const same =
+      key === "sort"
+        ? isDeepStrictEqual(sortOf(current.sort), sortOf(data.sort))
+        : isDeepStrictEqual(current[key], data[key]);
+    if (same) {
+      return [];
+    }
+    return data[key] === undefined ? [{ key }] : [{ key, value: data[key] }];
+  });
 
 /**
  * Saves `data` under `name` in the folder of `kind` (see the file comment): a name only faulty files

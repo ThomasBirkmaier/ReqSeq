@@ -3,14 +3,14 @@
 // `evidence.enrichJunit`, `reqif.export` and `workspace.init` (#1449).
 //
 // Inside a repository (`gitPlaceOf`, #1487): a folder of the workspace file that ReqSeq writes into
-// (filters, baselines, mappings, evidence) meets Git when a name below the repository folder is one
-// that some system takes for `.git` (`isTakenForGit`: any case, trailing dots and spaces, invisible
-// format characters, an NTFS stream suffix, the short name `GIT~1`),
+// (filters, perspectives, baselines, mappings, evidence) meets Git when a name below the repository
+// folder is one that some system takes for `.git` (`isTakenForGit`: any case, trailing dots and
+// spaces, invisible format characters, an NTFS stream suffix, the short name `GIT~1`),
 // when an existing folder below it holds a `.git` entry (a repository of its own), or when the real
 // path of an existing folder, links resolved, has such a name below the real repository folder.
 // Judged relative to the repository, so a repository that itself lies below a `.git` folder (a
-// worktree in `.git/wt/x`) is fine. `filter.save` and `baseline.create` refuse such a file
-// (`refuseGitPlace`), and the workspace layout warns about such a folder.
+// worktree in `.git/wt/x`) is fine. `filter.save`, `perspective.save` and `baseline.create` refuse
+// such a file (`refuseGitPlace`), and the workspace layout warns about such a folder.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";

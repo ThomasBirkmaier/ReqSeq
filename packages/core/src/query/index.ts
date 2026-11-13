@@ -27,6 +27,7 @@ export {
   findSaved,
   inSavedFile,
   inSavedFileAsync,
+  keyEdits,
   readSavedFolder,
   writeSaved,
 } from "./saved-files.js";

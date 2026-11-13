@@ -15,11 +15,9 @@
 //   Nothing changed: nothing is written. Refused: a name only a faulty file holds (`file.faulty`), a
 //   file changed on disk since it was read (`file.changed-on-disk`), a place in Git (D-036).
 // - Perspectives are not elements (D-056); nothing is ever deleted or renamed, no status is touched.
-import { isDeepStrictEqual } from "node:util";
-import type { CommandName, CommandOutput } from "../../catalog.js";
-import { CommandError, defineCommand } from "../../catalog.js";
-import type { YamlKeyEdit } from "../../files/index.js";
-import type { FilterSortKey, PerspectiveFile } from "../../generated/types.js";
+import type { CommandOutput } from "../../catalog.js";
+import { defineCommand } from "../../catalog.js";
+import type { PerspectiveFile } from "../../generated/types.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState, shortIdState } from "../../model/index.js";
 import type { QueryContext } from "../../query/index.js";
@@ -28,59 +26,18 @@ import {
   canonicalCondition,
   checkGroupKey,
   compileWhere,
-  faultyFilter,
-  findSavedFilter,
-  readSavedFilters,
+  keyEdits,
+  savedFilterFor,
   sortElements,
   writeSaved,
 } from "../../query/index.js";
-import type { WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The keys of a perspective file, in the order a new file has them. */
 const KEYS = ["reqseq-perspective", "name", "description", "filter", "where", "group", "sort"] as const;
 
-/** A sort as compared: `order` absent is `asc`. */
-const sortOf = (sort: readonly FilterSortKey[] | undefined): unknown =>
-  sort?.map((key) => ({ ...key, order: key.order ?? "asc" }));
-
-/**
- * The edits that turn the file's data into `data`, one per changed key; `description` only when
- * `keepDescription` is false (the input gave one).
- */
-const editsOf = (
-  current: PerspectiveFile,
-  data: PerspectiveFile,
-  keepDescription: boolean,
-): readonly YamlKeyEdit[] =>
-  KEYS.flatMap((key): YamlKeyEdit[] => {
-    const same =
-      (key === "description" && keepDescription) ||
-      (key === "sort"
-        ? isDeepStrictEqual(sortOf(current.sort), sortOf(data.sort))
-        : isDeepStrictEqual(current[key], data[key]));
-    if (same) {
-      return [];
-    }
-    return data[key] === undefined ? [{ key }] : [{ key, value: data[key] }];
-  });
-
-/** The name of the saved filter `name` as saved; `input.invalid` at `filter` or `file.faulty` when there is none. */
-const filterName = async (layout: WorkspaceLayout, name: string, command: CommandName): Promise<string> => {
-  const saved = await readSavedFilters(layout);
-  const found = findSavedFilter(saved, name);
-  if (found.kind === "found") {
-    return found.filter.name;
-  }
-  if (found.kind === "faulty") {
-    throw faultyFilter(name, found.files, "used");
-  }
-  throw new CommandError(
-    "input.invalid",
-    `filter: no saved filter is named ${JSON.stringify(name)}; filter.list lists the saved filters`,
-    { command, fields: ["filter"] },
-  );
-};
+/** The keys compared when the input leaves out `description`, which then stays (AK3). */
+const KEYS_KEEPING_DESCRIPTION = KEYS.filter((key) => key !== "description");
 
 export default defineCommand({
   name: "perspective.save",
@@ -101,7 +58,10 @@ export default defineCommand({
         input.group,
       );
     }
-    const filter = input.filter === undefined ? undefined : await filterName(layout, input.filter, command);
+    const filter =
+      input.filter === undefined
+        ? undefined
+        : (await savedFilterFor(layout, input.filter, command, "filter")).name;
     const data: PerspectiveFile = {
       "reqseq-perspective": 1,
       name: input.name,
@@ -113,10 +73,8 @@ export default defineCommand({
       ...(input.group === undefined ? {} : { group: input.group }),
       ...(input.sort === undefined ? {} : { sort: input.sort }),
     };
-    const keepDescription = input.description === undefined;
-    const files = await writeSaved(layout, PERSPECTIVES, data, (current) =>
-      editsOf(current, data, keepDescription),
-    );
+    const keys = input.description === undefined ? KEYS_KEEPING_DESCRIPTION : KEYS;
+    const files = await writeSaved(layout, PERSPECTIVES, data, (current) => keyEdits(keys, current, data));
     return { files: [...files], problems: [] };
   },
 });
