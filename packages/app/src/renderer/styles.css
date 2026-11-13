@@ -58,6 +58,9 @@ body,
 
 .shell {
   display: grid;
+  /* One column as wide as the window: a long message in the minibuffer, which does not wrap, does not
+     widen the sheet (#1631). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) var(--modeline) var(--line);
   height: 100%;
   /* The blurred seam around the card of the command line reaches past the window's edge (SR-182). */

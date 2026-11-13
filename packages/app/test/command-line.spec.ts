@@ -727,4 +727,24 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     expect(await colour(".hint")).not.toBe(await colour(".name"));
     await window.keyboard.press("Escape");
   });
+
+  test("a long refused-input message in the minibuffer keeps the sheet as wide as the window (#1631)", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await listAll(window);
+    const sheetWidth = (): Promise<number> =>
+      window.locator(".sheet").evaluate((sheet) => sheet.getBoundingClientRect().width);
+    const before = await sheetWidth();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Save perspective");
+    await expect(names(window).first()).toHaveText("Save perspective");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("SR - S: ID - G: Pgk");
+    await window.keyboard.press("Enter");
+    // An empty `where`: core refuses it with a message longer than the window is wide.
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".minibuffer")).toContainText("Invalid input for perspective.save");
+    expect(await sheetWidth()).toBe(before);
+    expect(before).toBe(await window.evaluate(() => globalThis.innerWidth));
+  });
 });
