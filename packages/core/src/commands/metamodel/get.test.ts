@@ -232,4 +232,49 @@ describe("metamodel.get", () => {
       ["severity", false],
     ]);
   });
+
+  it("gives per type the relation kinds relation.options gives an element of it: subtypes, an abstract type, source types absent or empty (SR-215 AK8)", async () => {
+    const types = ["item", "requirement", "software-requirement", "decision", "package"];
+    const id = (at: number): string => `21521500-0000-4000-8000-00000000000${String(at)}`;
+    const element = (type: string, at: number): string =>
+      `---\nid: ${id(at)}\ntype: ${type}\n${type === "package" ? "" : `status: ${type === "decision" ? "open" : "draft"}\n`}title: ${type}\n---\n`;
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-130/metamodel",
+      files: Object.fromEntries(types.map((type, at) => [`kinds/${type}.md`, element(type, at)])),
+    });
+    onTestFinished(() => ws.cleanup());
+    const workspace = new Workspace(ws.root);
+    onTestFinished(() => workspace.close());
+    const out = (await invoke("metamodel.get", {}, { workspace })) as Output;
+    expect(Object.keys(out.relationKinds)).toEqual(out.types.map((type) => type.key));
+    for (const [at, type] of types.entries()) {
+      const options = (await invoke(
+        "relation.options",
+        { ref: id(at) },
+        { workspace },
+      )) as CommandOutput<"relation.options">;
+      expect(out.relationKinds[type], type).toEqual(
+        options.kinds.map((option) => ({ kind: option.kind, targetTypes: option.targetTypes })),
+      );
+    }
+    // `blocks` (source types empty) is no kind of any type; `refines` (both absent) is one of every type.
+    expect(
+      Object.values(out.relationKinds)
+        .flat()
+        .map((option) => option.kind),
+    ).not.toContain("blocks");
+    expect(out.relationKinds["software-requirement"]?.map((option) => option.kind)).toEqual([
+      "derives-from",
+      "replaces",
+      "delegates-to",
+      "based-on",
+      "concerns",
+      "refines",
+    ]);
+    expect(out.relationKinds["item"]?.map((option) => option.kind)).toEqual([
+      "based-on",
+      "concerns",
+      "refines",
+    ]);
+  });
 });

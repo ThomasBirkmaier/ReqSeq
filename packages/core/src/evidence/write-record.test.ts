@@ -377,6 +377,29 @@ describe("evidence.record folders (SR-030 AK2)", () => {
     ]);
   });
 
+  it("takes the folder workspace.status gives each location: the root, a folder, another repository, none for an unlisted one (SR-215)", async () => {
+    const { workspace } = await open({
+      "reqseq-workspace.yaml": workspaceFile(
+        "evidence:\n  - { repository: system, path: . }\n  - { repository: system, path: records/ }\n  - { repository: tests, path: evidence }\n  - { repository: unknown, path: evidence }\n",
+        '  - { name: tests, url: "git@git.example.com:ws/tests.git", path: ../no-such-repository-sr030 }\n',
+      ),
+    });
+    const status = (await invoke("workspace.status", {}, { workspace })) as CommandOutput<"workspace.status">;
+    expect(status.evidence.map((location) => location.folder)).toEqual([
+      ".",
+      "records",
+      "../no-such-repository-sr030/evidence",
+      undefined,
+    ]);
+    // Each folder of a repository on this machine is one evidence.record takes, as it is.
+    expect((await record(workspace, { ref: "SR-00c002", ...INSPECTION, folder: "." })).files).toEqual([
+      "2026-10-27-SR-00c002-inspection.md",
+    ]);
+    expect((await record(workspace, { ref: "SR-00c002", ...INSPECTION, folder: "records" })).files).toEqual([
+      "records/2026-10-27-SR-00c002-inspection.md",
+    ]);
+  });
+
   it("refuses when no location can take the record", async () => {
     const { fixture, workspace } = await open({ "reqseq-workspace.yaml": workspaceFile("") });
     const none = await refusedLeavingNothing(

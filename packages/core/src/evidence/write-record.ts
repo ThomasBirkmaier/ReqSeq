@@ -49,7 +49,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { createFolder, renderYamlDocument, writeFileAtomic } from "../files/index.js";
-import type { EvidenceRecordFile, EvidenceRecordInput, EvidenceRecordOutput } from "../generated/types.js";
+import type {
+  EvidenceRecordFile,
+  EvidenceRecordInput,
+  EvidenceRecordOutput,
+  WorkspaceLocation,
+} from "../generated/types.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
@@ -254,16 +259,31 @@ interface Location {
   readonly shown: string;
 }
 
+/** An evidence location of the workspace file, located; undefined when the file does not list its repository. */
+const locatedOf = (layout: WorkspaceLayout, location: WorkspaceLocation): Location | undefined => {
+  const { repository } = locate(layout, location);
+  if (repository === undefined) {
+    return undefined;
+  }
+  const start = normalFolder(location.path);
+  return { repository, start, shown: normalFolder(workspacePath(layout, repository, start)) };
+};
+
 /** The evidence locations of the workspace file whose repository it lists, in its order. */
 const locationsOf = (layout: WorkspaceLayout): Location[] =>
-  (layout.file.evidence ?? []).flatMap((location) => {
-    const { repository } = locate(layout, location);
-    if (repository === undefined) {
-      return [];
-    }
-    const start = normalFolder(location.path);
-    return [{ repository, start, shown: normalFolder(workspacePath(layout, repository, start)) }];
-  });
+  (layout.file.evidence ?? []).flatMap((location) => locatedOf(layout, location) ?? []);
+
+/** A location's folder as `folder` of evidence.record takes it: relative to the workspace root, `.` for the root. */
+const folderOf = (location: Location): string => (location.shown === "" ? "." : location.shown);
+
+/**
+ * The folder of an evidence location of the workspace file as `folder` of evidence.record takes it
+ * (`workspace.status` `evidence[].folder`); undefined when the workspace file does not list its repository.
+ */
+export const evidenceFolder = (layout: WorkspaceLayout, location: WorkspaceLocation): string | undefined => {
+  const located = locatedOf(layout, location);
+  return located === undefined ? undefined : folderOf(located);
+};
 
 /** Where the record goes (rule 4): the repository and the folder relative to it. */
 interface Target {
@@ -280,7 +300,7 @@ interface Target {
  */
 const targetOf = (layout: WorkspaceLayout, folder: string | undefined): Target => {
   const locations = locationsOf(layout);
-  const listed = locations.map((l) => (l.shown === "" ? "." : l.shown)).join(", ");
+  const listed = locations.map(folderOf).join(", ");
   if (locations.length === 0) {
     throw invalid("The workspace file lists no evidence location, so a record has no folder that is read", {
       fields: ["folder"],

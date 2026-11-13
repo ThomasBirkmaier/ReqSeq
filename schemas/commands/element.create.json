@@ -23,8 +23,8 @@
     { "field": "type", "complete": "type" },
     { "field": "title", "complete": "text" },
     { "field": "text", "complete": "text" },
-    { "field": "properties", "complete": "json", "flag": "set" },
-    { "field": "relations", "complete": "json" },
+    { "field": "properties", "complete": "properties", "flag": "set" },
+    { "field": "relations", "complete": "relations" },
     { "field": "repository", "complete": "repository" },
     { "field": "folder", "complete": "text" }
   ],

@@ -206,6 +206,30 @@ describe("element.get", () => {
       expect(await snapshot(opened.fixture.root)).toEqual(before);
     });
 
+    it("names in the details of ref.ambiguous for ref alone each element by id, repository and file, each of which opens it (SR-215)", async () => {
+      // The command prompt offers these files for `file` (`elementFile`); the details have no schema.
+      const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+      const error = await getError(opened, { ref: COPIED });
+      expect(error.code).toBe("ref.ambiguous");
+      const { candidates, ...rest } = error.details as { candidates: { repository: string; file: string }[] };
+      expect(rest).toEqual({ ref: COPIED });
+      expect(candidates).toEqual(
+        expect.arrayContaining([
+          { id: COPIED, repository: "system", file: ORIGINAL },
+          { id: COPIED, repository: "system", file: COPY },
+        ]),
+      );
+      expect(candidates).toHaveLength(2);
+      for (const candidate of candidates) {
+        const found = await get(opened, {
+          ref: COPIED,
+          repository: candidate.repository,
+          file: candidate.file,
+        });
+        expect([found.repository, found.file]).toEqual([candidate.repository, candidate.file]);
+      }
+    });
+
     it("stays ambiguous when the repository alone leaves both copies", async () => {
       const opened = await open({ fixture: "SR-088/copied-file" }, "system");
       const error = await getError(opened, { ref: COPIED, repository: "system" });

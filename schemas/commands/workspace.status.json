@@ -87,6 +87,11 @@
             "available": {
               "type": "boolean",
               "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not."
+            },
+            "folder": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The location relative to the workspace root, with `/`, as evidence.record takes it as `folder`; `.` for the workspace root itself. Left out when the workspace file does not list the repository of the location."
             }
           },
           "additionalProperties": false,

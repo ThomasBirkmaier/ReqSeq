@@ -12,6 +12,35 @@ scenariosOf("workspace.status", [
     expect: "output",
   },
   {
+    // SR-215: the folder of each location as evidence.record takes it, none for an unlisted repository.
+    name: "evidence locations in the main repository, its root, another repository and an unlisted one",
+    fixture: {
+      fixture: "SR-004/three-repositories",
+      git: ["system", "product"],
+      files: {
+        "system/reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          '  - { name: product, url: "git@git.example.com:ws/product.git" }\n' +
+          "metamodel: { repository: system, path: metamodel }\n" +
+          "evidence:\n  - { repository: system, path: evidence }\n  - { repository: system, path: . }\n" +
+          "  - { repository: product, path: tests/results }\n  - { repository: elsewhere, path: tests }\n",
+      },
+    },
+    root: "system",
+    input: {},
+    expect: "output",
+    check: (results) => {
+      for (const [access, { outcome }] of Object.entries(results)) {
+        const { evidence } = (outcome as { output: { evidence: { folder?: string }[] } }).output;
+        expect(
+          evidence.map((location) => location.folder),
+          access,
+        ).toEqual(["evidence", ".", "../product/tests/results", undefined]);
+      }
+    },
+  },
+  {
     name: "metamodel missing (read-only)",
     fixture: {
       files: {
