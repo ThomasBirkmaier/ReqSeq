@@ -6,6 +6,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../../catalog.js";
+import { evidenceStatusState } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import type { FullList } from "../list.test-helper.js";
@@ -326,6 +327,52 @@ describe("element.list with a perspective (SR-213)", () => {
     expect(
       shortIds(await list(workspace, { perspective: "Mountain drafts", selection: { view: "VAR-0000c1" } })),
     ).toEqual(["SWR-0000f1"]);
+  });
+
+  it("reads the perspective's where in the view of the selection's saved filter, as the selection's where", async () => {
+    const { workspace } = await open({
+      "perspectives/verified.yaml": perspective("Verified", "where: { verification: [verified] }\n"),
+    });
+    // Verified in every variant, open in the core.
+    const before = workspace.get(evidenceStatusState);
+    await before;
+    await workspace.replace(
+      evidenceStatusState,
+      before,
+      Promise.resolve({
+        verification: (_element, view) => (view.kind === "variant" ? "verified" : "open"),
+        validation: () => undefined,
+        hasEvidence: () => false,
+      }),
+    );
+    const mountain = await list(workspace, { selection: { filter: "Mountain" } });
+    expect(mountain.total).toBeGreaterThan(0);
+    // In the view of the filter Mountain (V2): every element of it is verified.
+    expect(
+      shortIds(await list(workspace, { perspective: "Verified", selection: { filter: "Mountain" } })),
+    ).toEqual(shortIds(mountain));
+    // The selection's own view wins over its filter's: in the core, none is verified.
+    expect(
+      (await list(workspace, { perspective: "Verified", selection: { filter: "Mountain", view: "core" } }))
+        .total,
+    ).toBe(0);
+  });
+
+  it("refuses a stored group by package when no property has the meaning packages, naming the perspective", async () => {
+    const bare =
+      "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
+      "  - { key: title, name: Title, kind: text, meaning: title }\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n";
+    const { workspace } = await open(
+      {
+        "metamodel/standard-model.yaml": bare,
+        "metamodel/area.yaml": "reqseq-metamodel: 1\n",
+        "perspectives/by-package.yaml": perspective("By package", "where: { all: [] }\ngroup: package\n"),
+      },
+      { fixture: "SR-149/group" },
+    );
+    const error = await failure(workspace, { perspective: "By package" });
+    expect([error.code, error.details?.["meaning"]]).toEqual(["metamodel.meaning-unassigned", "packages"]);
+    expect(error.message).toMatch(/^Perspective "By package" \(perspectives\/by-package\.yaml\): /);
   });
 
   it("says when the perspectives or filters folder is in a repository that is not on this machine (SR-006)", async () => {

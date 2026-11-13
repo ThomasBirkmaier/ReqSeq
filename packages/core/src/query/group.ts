@@ -186,8 +186,9 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
 };
 
 /**
- * Whether `by` is a property of the metamodel whose values element.facets no longer offers over the
- * whole workspace (SR-124 AK2: text, number or date with too many values), the one case in which a
+ * Whether `by` is a text, number or date property of the metamodel that SR-124 AK2 no longer
+ * offers (`offersValues` over the whole workspace: more than 30 different values, or none that two
+ * elements share), the one case in which a
  * perspective's stored grouping gives the list without groups (SR-213 AK7). Any other key that
  * cannot be grouped stays the error of `groupingOf`.
  */

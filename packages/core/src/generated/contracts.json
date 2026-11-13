@@ -5119,11 +5119,11 @@
             },
             "perspective": {
               "$ref": "../perspective.schema.json#/$defs/name",
-              "description": "List as the perspective of this name shows it, read from its file on every call, as its saved filter is. Its `where`, its saved filter and every part of `selection` must hold; the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a property whose values can no longer be chosen (a text, number or date property with too many values) gives the list without groups and the warning `perspective.group-unavailable` in `problems`; any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter; errors of its stored `where`, `sort` and `group` name the perspective and its file."
+              "description": "List as the perspective of this name shows it, read from its file on every call, as its saved filter is. Its `where`, its saved filter and every part of `selection` must hold; the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a text, number or date property whose values can no longer be chosen (more than 30 different values in the workspace, or none that two elements share) gives the list without groups and the warning `perspective.group-unavailable` in `problems`; any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter; errors of its stored `where`, `sort` and `group` name the perspective and its file."
             },
             "sort": {
               "type": "array",
-              "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's, question #1627), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
+              "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
               "items": {
                 "$ref": "../filter.schema.json#/$defs/sortKey"
               }
@@ -5181,7 +5181,7 @@
           "properties": {
             "elements": {
               "type": "array",
-              "description": "Without `fields`: one page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
+              "description": "Without `fields`: one page of the list. With `group`, or a perspective that stores one, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/element"
               }
@@ -5202,7 +5202,7 @@
             },
             "tree": {
               "type": "array",
-              "description": "Only when `sort` starts with `hierarchy`: the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
+              "description": "Only when `sort`, or the sort that applies without it (of the saved filter or the perspective), starts with `hierarchy`: the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, or a perspective that stores one, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -5247,7 +5247,7 @@
             },
             "groups": {
               "type": "array",
-              "description": "Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
+              "description": "Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/listGroup"
               }
@@ -5255,12 +5255,12 @@
             "offset": {
               "type": "integer",
               "minimum": 0,
-              "description": "Only with `group`: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input."
+              "description": "Only with `group`, or a perspective that stores one: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input."
             },
             "rows": {
               "type": "integer",
               "minimum": 0,
-              "description": "Only with `group`: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
+              "description": "Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
             },
             "total": {
               "type": "integer",

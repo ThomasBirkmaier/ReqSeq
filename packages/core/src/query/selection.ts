@@ -19,8 +19,8 @@
 // - A perspective (SR-213 AK5, perspectives.ts), given by `element.list` beside the selection: its
 //   `where` and its saved filter hold in addition to every part of the selection. Its filter is read
 //   as `filter` is: its `where` and its `view` hold, its `where` in its own view, else the selection's.
-//   The perspective stores no view; its `where` uses the view of the selection, else its filter's,
-//   else the core. Its errors name the perspective and its file (and the filter, for the filter's).
+//   The perspective stores no view; its `where` uses the view of the selection (its own, else that
+//   of its saved filter, as for the selection's `where`), else its filter's, else the core. Its errors name the perspective and its file (and the filter, for the filter's).
 // - `baseline`: the elements the baseline file lists, as they are now (`Baseline.selects`,
 //   baselines/read.ts), for every command that takes a selection (SR-101, #1353). "As they are now"
 //   is SR-061 AK2 for the export and, for every other command, the answer to
@@ -152,13 +152,14 @@ const compileSaved = (
 const storedParts = async (
   context: QueryContext,
   stored: StoredSelection,
-  view: View | undefined,
 ): Promise<{ readonly view: View | undefined; readonly compiled: readonly CompiledCondition[] }> => {
   const { perspective, filter } = stored;
   const filterView =
     filter === undefined
       ? undefined
       : inPerspective(perspective, () => savedViewOf(context, filter, context.command));
+  // The view of the selection: its own, else that of its saved filter (`context.view`).
+  const { view } = context;
   const compiled = await inPerspectiveAsync(perspective, async () => [
     ...(filter === undefined ? [] : [await compileSaved(context, filter, filterView ?? view)]),
     await compileWhere({ ...context, view: view ?? filterView }, perspective.data.where, "where"),
@@ -182,7 +183,7 @@ const savedParts = async (
   readonly fields: Pick<Selected, "filter" | "stored">;
 }> => {
   const own = saved === undefined ? [] : [await compileSaved(context, saved, savedView ?? view)];
-  const fromStored = stored === undefined ? undefined : await storedParts(context, stored, view);
+  const fromStored = stored === undefined ? undefined : await storedParts(context, stored);
   return {
     compiled: [...own, ...(fromStored?.compiled ?? [])],
     storedView: fromStored?.view,

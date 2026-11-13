@@ -13,9 +13,10 @@ import { sortElements, sortGroups } from "./sort.js";
 
 /**
  * `selected.elements` in the order of `sort` for `command`, with the derivation tree when `sort`
- * starts with `hierarchy` (`sortElements`). Without `sort` (undefined), a saved filter's own sort
- * holds (SR-070 AK3: the same elements in the same order); an explicit `sort`, also an empty one,
- * wins over it.
+ * starts with `hierarchy` (`sortElements`). Without `sort` (undefined), the first stored sort, also
+ * an empty one: of the saved filter of the selection (SR-070 AK3: the same elements in the same
+ * order), of the perspective (SR-213 AK5), of the perspective's saved filter; with none, the
+ * workspace order. An explicit `sort`, also an empty one, wins over all of them.
  */
 export const orderedSelection = (
   selected: Selected,
