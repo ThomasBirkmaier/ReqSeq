@@ -19,8 +19,8 @@
   "arguments": [
     { "field": "selection", "complete": "selection" },
     { "field": "perspective", "complete": "perspective" },
-    { "field": "sort", "complete": "json" },
-    { "field": "group", "complete": "text" },
+    { "field": "sort", "complete": "sort" },
+    { "field": "group", "complete": "group" },
     { "field": "fields", "complete": "choice" },
     { "field": "withText", "complete": "boolean" },
     { "field": "withVerification", "complete": "boolean" },

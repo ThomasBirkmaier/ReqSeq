@@ -10,7 +10,7 @@
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" },
     { "field": "repository", "complete": "repository" },
-    { "field": "file", "complete": "text" }
+    { "field": "file", "complete": "elementFile" }
   ],
   "input": {
     "type": "object",
