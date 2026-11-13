@@ -1,8 +1,8 @@
 // The layers of an area that hold a view (`BufferArea.tsx`): the shown buffer, and beside it, hidden, the
 // buffers drawn in advance (SR-212 AK5, `neighbours.ts`). A hidden view reads and draws as a fresh view of its
 // buffer would, and does nothing a reader would notice: it says nothing, takes no focus, starts no save and
-// highlights nothing until it is shown. Its reads wait until the shown buffer is drawn (`ReadGate`), so they
-// never delay the buffer the reader waits for.
+// highlights nothing until it is shown. Its reads wait until the shown buffer is drawn (`ReadGate`), so none
+// starts while the reader waits for a buffer; one already sent when the reader asks for another still runs.
 import { createContext, useContext, useLayoutEffect, useRef } from "react";
 import { DRAW_DEADLINE_MS } from "./buffer-slide.js";
 import type { BufferData } from "./modeline.js";
@@ -51,8 +51,9 @@ export const drawnBy = (data: BufferData | undefined): boolean => data !== undef
 /**
  * When the reads of the hidden views may go: once the buffer the active area shows has reported that it is
  * drawn (at least once since it was shown, or after `DRAW_DEADLINE_MS`), and not while a slide runs or a prompt
- * is open (the reader may be choosing the next buffer). So a read drawn in advance never delays the buffer the
- * reader waits for (SR-082 AK3).
+ * is open (the reader may be choosing the next buffer). So no read drawn in advance starts while the reader
+ * waits for a buffer (SR-082 AK3); one sent before the reader asks still runs, and its time counts in the open
+ * (`test/perf/neighbours.spec.ts`).
  */
 export class ReadGate {
   private shown: string | undefined;

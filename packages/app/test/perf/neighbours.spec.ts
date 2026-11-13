@@ -13,13 +13,13 @@
 // - SR-082 AK3 after a held Alt+P over more buffers than the walk draws in advance, lists among them: the open
 //   at once after the release;
 // - SR-082 AK4: the list of all elements, its first page, asked for while neighbours are drawn;
-// - SR-116 AK1: the shown element changed outside, while its neighbours read again;
+// - SR-116 AK1: the shown element changed outside, while the neighbourhood beside it reads again;
 // - SR-212 AK2: a switch just after typing loses no input;
-// - SR-082 AK5: a start with restored buffers, whose element neighbours read while the first element opens (the
-//   start itself recorded for SR-082 AK1, which `start.spec.ts` asserts).
+// - SR-082 AK5: the first open with Ctrl+P after a start with restored buffers, whose neighbours are drawn once
+//   the restored buffer is (the start itself recorded for SR-082 AK1, which `start.spec.ts` asserts).
 //
-// Recorded for comparison: Alt+P or Alt+N until a buffer drawn in advance starts to slide, and the longest frame
-// gap while typing with neighbours drawn.
+// Recorded for comparison: the reads drawn in advance, Alt+P or Alt+N until a buffer drawn in advance starts to
+// slide, and the longest frame gap while typing with neighbours drawn.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -600,7 +600,8 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     };
     const held = await heldOpen();
 
-    // A start with these buffers restored: the overview, then B's neighbours drawn while the first element opens.
+    // A start with these buffers restored: the overview, then the first open with Ctrl+P; B's neighbours are
+    // drawn once B is.
     await running.close({ keep: true });
     const launched = now();
     running = await launchApp(undefined, { kept, validateOutput: false });
