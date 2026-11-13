@@ -235,6 +235,13 @@ const flush = async (): Promise<void> => {
   });
 };
 
+/** Flushes until `done` holds, at most `times` tasks: for what waits for an idle window (`call-turn.ts`). */
+const flushUntil = async (done: () => boolean, times = 20): Promise<void> => {
+  for (let at = 0; at < times && !done(); at += 1) {
+    await flush();
+  }
+};
+
 const render = async (bridge: ReqSeqBridge): Promise<void> => {
   await act(async () => {
     root.render(createElement(App, { bridge }));
@@ -1634,6 +1641,76 @@ describe("App, the overview (SR-118)", () => {
     await runCommand("show overview");
     await click(container.querySelectorAll('[role="option"]')[2] ?? container);
     expect(query("article h1").textContent).toBe("Title 3");
+  });
+
+  it("[SR-118/AK-jtg3] a perspective line opens the perspective as Open perspective does, and counts as its use", async () => {
+    const perspective = (name: string) => ({ name, file: `perspectives/${name}.yaml`, where: { all: [] } });
+    const handlers = twoTypes();
+    handlers["perspective.list"] = () => ({ perspectives: [perspective("Alpha"), perspective("Zulu")] });
+    handlers["element.list"] = (input) =>
+      input["perspective"] === "Alpha"
+        ? new Error('Perspective "Alpha": its saved filter "Gone" does not exist')
+        : { elements: [row(1)], total: 1 };
+    const { bridge, invoke } = fakeBridge(handlers);
+    await render(bridge);
+    await flushUntil(() => options().includes("Zulu 1"));
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Alpha cannot be listed", "Zulu 1"]);
+    // Opening one that cannot be listed says why, and opens nothing.
+    await click(container.querySelectorAll('[role="option"]')[2] ?? container);
+    expect(text("Minibuffer")).toBe('Perspective "Alpha": its saved filter "Gone" does not exist');
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    await click(container.querySelectorAll('[role="option"]')[3] ?? container);
+    expect(query("[data-buffer] h1").textContent).toContain("Zulu");
+    expect(calls(invoke, "element.list")).toContainEqual({
+      perspective: "Zulu",
+      limit: 1,
+      fields: ["identifier"],
+    });
+    // The prompt of "Open perspective" lists it first now (SR-214 AK1).
+    await runCommand("Open perspective");
+    expect(
+      [...container.querySelectorAll('.candidates [role="option"] .name')].map((name) => name.textContent),
+    ).toEqual(["Zulu", "Alpha"]);
+  });
+
+  it("[SR-118/AK-h5f7] counts each perspective in the view of the window, and again when another view is chosen", async () => {
+    const handlers = twoTypes();
+    handlers["metamodel.get"] = () => ({
+      relations: [],
+      types: [{ key: "variant", name: "Variant", meaning: "variant", properties: [] }],
+      properties: [],
+      statuses: [{ key: "draft" }],
+      meanings: {},
+    });
+    handlers["perspective.list"] = () => ({
+      perspectives: [{ name: "Drafts", file: "perspectives/drafts.yaml", where: { status: ["draft"] } }],
+    });
+    handlers["element.list"] = (input) => {
+      const selection = input["selection"] as { view?: string; where?: unknown } | undefined;
+      if (input["perspective"] === undefined) {
+        return { elements: [{ ...row(9), id: "u-coast", shortId: "VAR-0000c1", title: "Coast" }], total: 1 };
+      }
+      return { partial: [], total: selection?.view === "u-coast" ? 2 : 5 };
+    };
+    const { bridge, invoke } = fakeBridge(handlers);
+    await render(bridge);
+    await flushUntil(() => options().includes("Drafts 5"));
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Drafts 5"]);
+    await runCommand("Choose view");
+    await type("Coast");
+    await keyDown(query("input"), "Enter");
+    await flushUntil(() => options().includes("Drafts 2"));
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Drafts 2"]);
+    expect(
+      calls(invoke, "element.list").filter(
+        (input) => (input as { perspective?: string }).perspective !== undefined,
+      ),
+    ).toEqual([
+      { perspective: "Drafts", limit: 1, fields: ["identifier"], sort: [] },
+      { perspective: "Drafts", limit: 1, fields: ["identifier"], sort: [], selection: { view: "u-coast" } },
+    ]);
+    expect(calls(invoke, "element.facets")).toHaveLength(2);
   });
 
   it("[SR-118/AK-dr7c] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {

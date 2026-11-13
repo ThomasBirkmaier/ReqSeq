@@ -22,6 +22,8 @@
   --badge-outdated: light-dark(#b54708, #f0883e);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --outside-change: light-dark(#ebeef1, #292e34);
+  /* A mark in the input of the command prompt (SR-215 AK3): a grey of its own, not the selection's. */
+  --mark: light-dark(#e3e5e8, #383e46);
   /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
   --dim: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 12%));
   /* The backdrop of the window "About ReqSeq" (SR-161 AK6): far darker than --dim. */
@@ -431,7 +433,7 @@ body,
   color: var(--muted);
 }
 
-/* The overview: a line per type with its count, and the recent elements below. Greys only. */
+/* The overview: a line per type with its count, the perspectives, and the recent elements below. Greys only. */
 .overview .line {
   padding: 0.1rem 0.75rem;
   cursor: default;
@@ -453,6 +455,7 @@ body,
 
 .overview .recent .id,
 .overview .count,
+.overview .reason,
 .overview .group {
   color: var(--muted);
 }
@@ -965,7 +968,7 @@ mark {
 }
 
 .prompt-input {
-  flex: 1;
+  flex: 1 0 6rem;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -973,6 +976,49 @@ mark {
   background: none;
   color: var(--text);
   font: inherit;
+}
+
+/* The marks of a value built from hits (SR-215 AK3): boxes in greys before the input (D-062), each with an
+   × that removes it (AK9). Where they do not fit, their labels are cut with "…"; the × and the input keep
+   their place. */
+.prompt-marks {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.prompt-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 12rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: var(--mark);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.prompt-mark-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-unmark {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.prompt-unmark:hover {
+  color: var(--text);
 }
 
 /* An Enter that waits for core's answer (#467). */

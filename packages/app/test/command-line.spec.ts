@@ -2,15 +2,21 @@
 // first the next time, also after the app restarts; the commands that fit the shown view come first; a catalog
 // command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With REQSEQ_SCREENSHOTS set, the argument
-// entry is also saved as a screenshot there.
+// entry is also saved as a screenshot there; the criteria hits of SR-215 AK1 always are (`SHOTS`).
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll, modifier } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
+
+/** Where a screenshot of a test goes: REQSEQ_SCREENSHOTS, else the folder the CI artifact holds. */
+const SHOTS =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const names = (window: Page) => window.locator('.candidates [role="option"] .name');
 
@@ -170,6 +176,76 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".modeline")).toContainText("Show relation options SR-0000b1 Derives from");
     await expect(window.locator(".result .line").first()).toHaveText("kinds1");
     await expect(window.locator(".result")).toContainText("derives-from");
+  });
+
+  test("[SR-215/AK-fj75] Record evidence offers the criteria with their key beside and the evidence locations as hits, and writes what was chosen", async () => {
+    running = await launchApp({ fixture: "SR-031/criteria" });
+    const { window } = running;
+    const label = window.locator("label.prompt-label");
+    const hits = window.locator('.candidates [role="option"]');
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Show temperature");
+    await expect(hits.first()).toContainText("Show temperature");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Show temperature");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Record evidence");
+    await expect(names(window).first()).toHaveText("Record evidence");
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText(/^Record evidence SR-\S+ · kind:$/);
+    await window.keyboard.type("verif");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("passed");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label).toHaveText(/ · more arguments:$/);
+    await window.keyboard.type("method");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("inspection");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await window.keyboard.type("item");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText(/ · item:$/);
+    await window.keyboard.type("Sample C1");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label).toHaveText(/ · more arguments:$/);
+    await window.keyboard.type("criteria");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText(/ · criteria:$/);
+    // Each criterion with a key by its number and text, the key beside it, quieter than the name.
+    await expect(names(window)).toHaveText([
+      "AK1 Given a reading, then it shows.",
+      "AK2 Given no reading, then a dash shows.",
+      "AK3 Given frost, then a mark shows.",
+    ]);
+    await expect(hits.locator(".hint")).toHaveText(["kred", "kdas", "kfro"]);
+    // The hits with their keys, in light, for the CI artifact.
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-criteria-light.png") });
+    await window.keyboard.type("frost");
+    await expect(names(window)).toHaveText(["AK3 Given frost, then a mark shows."]);
+    await window.keyboard.press("Enter");
+    await expect(names(window)).toHaveText([
+      "AK1 Given a reading, then it shows.",
+      "AK2 Given no reading, then a dash shows.",
+    ]);
+    // Ctrl/Cmd+Enter on the empty input ends the list and offers the other arguments.
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await window.keyboard.type("folder");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText(/ · folder:$/);
+    await expect(names(window)).toHaveText(["evidence"]);
+    await expect(hits.locator(".hint")).toHaveText(["system"]);
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(names(window).first()).toHaveText("Run");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".result")).toContainText("evidence/");
+    const written = /evidence\/\S+\.md/u.exec(await window.locator(".result").innerText())?.[0];
+    expect(written).toBeDefined();
+    const record = await fs.readFile(path.join(running.workspace?.root ?? "", written ?? ""), "utf8");
+    expect(record).toContain("kfro");
+    expect(record).not.toContain("kred");
   });
 
   test("[SR-067/AK-fcfh] Create relation with the target open writes only the file of the source", async () => {
@@ -725,6 +801,55 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     const colour = (selector: string) =>
       option.locator(selector).evaluate((element) => getComputedStyle(element).color);
     expect(await colour(".hint")).not.toBe(await colour(".name"));
+    await window.keyboard.press("Escape");
+  });
+
+  test("marks that fill the minibuffer line cut their labels and keep their × and the input visible (SR-215 AK9, #1645)", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await listAll(window);
+    await window.setViewportSize({ width: 520, height: 700 });
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    // No prompt of this part of #1645 has marks yet: three long ones in the markup `Marks` renders, on the
+    // app's own stylesheet and line.
+    await window.evaluate(() => {
+      const input = document.querySelector("#prompt-input");
+      const marks = document.createElement("span");
+      marks.className = "prompt-marks";
+      for (const text of ["type: system-requirement", "status: approved", "text: performance thresholds"]) {
+        const mark = document.createElement("span");
+        mark.className = "prompt-mark";
+        const label = document.createElement("span");
+        label.className = "prompt-mark-label";
+        label.textContent = text;
+        const unmark = document.createElement("button");
+        unmark.className = "prompt-unmark";
+        unmark.textContent = "×";
+        mark.append(label, unmark);
+        marks.append(mark);
+      }
+      input?.before(marks);
+    });
+    const boxes = await window.evaluate(() =>
+      [...document.querySelectorAll(".prompt-mark")].map((mark) => {
+        const outer = mark.getBoundingClientRect();
+        const unmark = mark.querySelector(".prompt-unmark")?.getBoundingClientRect();
+        const label = mark.querySelector(".prompt-mark-label");
+        return {
+          inside: unmark !== undefined && unmark.left >= outer.left && unmark.right <= outer.right + 0.5,
+          cut: label !== null && label.scrollWidth > label.clientWidth,
+          ellipsis: label !== null && getComputedStyle(label).textOverflow === "ellipsis",
+        };
+      }),
+    );
+    expect(boxes.every((box) => box.inside && box.ellipsis)).toBe(true);
+    // The line is too narrow for them: at least one label is cut.
+    expect(boxes.some((box) => box.cut)).toBe(true);
+    const input = await window
+      .locator("#prompt-input")
+      .evaluate((element) => element.getBoundingClientRect().width);
+    expect(input).toBeGreaterThan(60);
     await window.keyboard.press("Escape");
   });
 

@@ -49,6 +49,13 @@ export const checkedBuffer = (
 export const checkPerspective = (call: Call, name: string): Promise<Answer<"element.list">> =>
   call("element.list", { perspective: name, limit: 1, fields: ["identifier"] });
 
+/**
+ * Asks `element.list` with the perspective for its count only (SR-118 AK6): one row, in no order (`sort: []`),
+ * as the order does not change the `total` and costs the most of the call.
+ */
+export const countPerspective = (call: Call, name: string): Promise<Answer<"element.list">> =>
+  call("element.list", { perspective: name, limit: 1, fields: ["identifier"], sort: [] });
+
 /** The perspective of `name` among `listed`, as core compares the names (ignoring case and normal form). */
 export const perspectiveNamed = (
   listed: readonly ListedPerspective[],

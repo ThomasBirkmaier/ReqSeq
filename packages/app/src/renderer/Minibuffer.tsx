@@ -9,6 +9,7 @@ import type {
   Found,
   Prompt,
   PromptFill,
+  PromptMark,
 } from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
@@ -182,6 +183,9 @@ const Card = ({ children }: { readonly children: React.ReactNode }): React.JSX.E
   );
 };
 
+/** Backspace as the explanation line names it. */
+const BACKSPACE = "Backspace";
+
 /** Enter as the explanation line names it: "Enter", or "↩" under macOS. */
 const enterLabel = (mac: boolean): string => shortcutLabel({ mod: false, shift: false, key: "enter" }, mac);
 
@@ -272,10 +276,19 @@ const ArgumentLine = ({
   readonly mac: boolean;
 }): React.JSX.Element => {
   const enter = enterLabel(mac);
+  const { building } = explain;
   const keys: { readonly key: string; readonly does: string }[] = [
-    ...(explain.list ? [{ key: enter, does: "adds a value" }] : []),
-    ...(explain.ends ? [{ key: enter, does: "on an empty input ends the values" }] : []),
-    ...(explain.skips ? [{ key: enter, does: "on an empty input skips it" }] : []),
+    ...(building === undefined
+      ? [
+          ...(explain.list ? [{ key: enter, does: "adds a value" }] : []),
+          ...(explain.ends ? [{ key: enter, does: "on an empty input ends the values" }] : []),
+          ...(explain.skips ? [{ key: enter, does: "on an empty input skips it" }] : []),
+        ]
+      : [
+          { key: enter, does: building.enter },
+          ...(building.unmark ? [{ key: BACKSPACE, does: "on an empty input removes the last mark" }] : []),
+          ...(building.json ? [{ key: "{", does: "a condition in JSON" }] : []),
+        ]),
     ...(explain.more ? [{ key: shortcutLabel(MORE_SHORTCUT, mac), does: "more arguments" }] : []),
     ...(back ? [{ key: "Escape", does: "back" }] : []),
   ];
@@ -446,6 +459,42 @@ const HelpContent = ({
     </p>
   </>
 );
+
+/**
+ * The marks of a value built from hits (SR-215 AK3), in the input before the typed text: each a box in greys
+ * (D-062) with its label and an × that removes it (AK9). The × is a control of the minibuffer, as the hits are;
+ * the input keeps the focus.
+ */
+const Marks = ({
+  marks,
+  onRemove,
+}: {
+  readonly marks: readonly PromptMark[];
+  readonly onRemove: (mark: PromptMark) => void;
+}): React.JSX.Element | null =>
+  marks.length === 0 ? null : (
+    <span className="prompt-marks" role="list" aria-label="Marks">
+      {marks.map((mark, at) => (
+        <span key={`${String(at)} ${mark.label}`} className="prompt-mark" role="listitem">
+          <span className="prompt-mark-label">{mark.label}</span>
+          <button
+            type="button"
+            className="prompt-unmark"
+            tabIndex={-1}
+            aria-label={`Remove ${mark.label}`}
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={() => {
+              onRemove(mark);
+            }}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+    </span>
+  );
 
 /** The keys that only modify another one. */
 const MODIFIERS: ReadonlySet<string> = new Set(["Control", "Meta", "Shift", "Alt", "AltGraph"]);
@@ -965,10 +1014,16 @@ const PromptLine = ({
       return false;
     }
     event.stopPropagation();
-    if (prompt.back !== undefined) {
+    // The last mark goes first, where the step removes one (SR-215 AK9, SR-134 AK4).
+    const mark = prompt.unmark === true ? prompt.marks?.at(-1) : undefined;
+    const back = mark === undefined ? prompt.back : mark.remove;
+    if (back !== undefined) {
       event.preventDefault();
+      // As Escape: a prompt that waited for an answer is told it got none.
+      prompt.cancel?.();
+      waiting.current = 0;
       onClose(false);
-      prompt.back();
+      back();
     }
     return true;
   };
@@ -1079,6 +1134,15 @@ const PromptLine = ({
       <label className="prompt-label" htmlFor="prompt-input">
         {found.note === undefined ? prompt.label : `${found.note} · ${prompt.label}`}
       </label>
+      <Marks
+        marks={prompt.marks ?? []}
+        onRemove={(mark) => {
+          prompt.cancel?.();
+          waiting.current = 0;
+          onClose(false);
+          mark.remove();
+        }}
+      />
       <input
         ref={input}
         id="prompt-input"
