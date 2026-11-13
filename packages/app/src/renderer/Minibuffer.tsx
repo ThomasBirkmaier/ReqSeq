@@ -301,12 +301,17 @@ const ArgumentLine = ({
         </>
       }
       lines={1}
-      keys={keys.map(({ key, does }, at) => (
-        <Fragment key={does}>
-          {at === 0 ? null : " · "}
-          <kbd>{key}</kbd> {does}
-        </Fragment>
-      ))}
+      keys={
+        <>
+          {building?.note === undefined ? null : `${building.note} · `}
+          {keys.map(({ key, does }, at) => (
+            <Fragment key={does}>
+              {at === 0 ? null : " · "}
+              <kbd>{key}</kbd> {does}
+            </Fragment>
+          ))}
+        </>
+      }
     />
   );
 };
