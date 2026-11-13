@@ -211,6 +211,57 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     succession: [],
     exclusion: [],
   },
+  relationKinds: {
+    item: [
+      { kind: "based-on", targetTypes: ["decision"] },
+      { kind: "concerns", targetTypes: ["requirement", "software-requirement", "decision"] },
+      {
+        kind: "refines",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+    ],
+    requirement: [
+      { kind: "replaces", targetTypes: ["requirement", "software-requirement"] },
+      { kind: "delegates-to", targetTypes: ["software-requirement"] },
+      { kind: "based-on", targetTypes: ["decision"] },
+      { kind: "concerns", targetTypes: ["requirement", "software-requirement", "decision"] },
+      {
+        kind: "refines",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+    ],
+    "software-requirement": [
+      { kind: "derives-from", targetTypes: ["requirement", "software-requirement"] },
+      { kind: "replaces", targetTypes: ["requirement", "software-requirement"] },
+      { kind: "delegates-to", targetTypes: ["software-requirement"] },
+      { kind: "based-on", targetTypes: ["decision"] },
+      { kind: "concerns", targetTypes: ["requirement", "software-requirement", "decision"] },
+      {
+        kind: "refines",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+    ],
+    decision: [
+      { kind: "based-on", targetTypes: ["decision"] },
+      { kind: "concerns", targetTypes: ["requirement", "software-requirement", "decision"] },
+      {
+        kind: "refines",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+      {
+        kind: "traces-to",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+    ],
+    package: [
+      { kind: "based-on", targetTypes: ["decision"] },
+      { kind: "concerns", targetTypes: ["requirement", "software-requirement", "decision"] },
+      {
+        kind: "refines",
+        targetTypes: ["item", "requirement", "software-requirement", "decision", "package"],
+      },
+    ],
+  },
   files: [{ repository: "system", path: "metamodel/standard-model.yaml" }],
 };
 
@@ -223,6 +274,7 @@ export const metamodelOutput = (
   relations: [],
   statuses: [],
   meanings: {},
+  relationKinds: {},
   files: [],
   ...parts,
 });

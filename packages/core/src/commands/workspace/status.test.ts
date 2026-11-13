@@ -267,7 +267,7 @@ describe("workspace.status", () => {
     expect(before.repositories[0]?.commit).not.toBe(after);
   });
 
-  it("lists the evidence locations as written, each with whether the evidence walk reads it (#625)", async () => {
+  it("lists the evidence locations as written, each with whether the evidence walk reads it (#625) and its folder for evidence.record", async () => {
     const ws = await threeRepositories(["system", "sensor"]);
     await fs.rm(ws.path("product"), { recursive: true });
     await fs.mkdir(path.join(ws.path("sensor"), "tests/results"), { recursive: true });
@@ -291,13 +291,16 @@ describe("workspace.status", () => {
     const out = await status(open(ws.path("system")));
     // A folder the evidence walk skips (`node_modules`, a link) is not read, so not available.
     expect(out.evidence).toEqual([
-      { repository: "sensor", path: "tests/results", available: true },
-      { repository: "system", path: "evidence", available: false },
-      { repository: "product", path: "tests", available: false },
-      { repository: "system", path: "notes.md", available: false },
-      { repository: "system", path: "node_modules/ev", available: false },
+      { repository: "sensor", path: "tests/results", available: true, folder: "../sensor/tests/results" },
+      { repository: "system", path: "evidence", available: false, folder: "evidence" },
+      { repository: "product", path: "tests", available: false, folder: "../product/tests" },
+      { repository: "system", path: "notes.md", available: false, folder: "notes.md" },
+      { repository: "system", path: "node_modules/ev", available: false, folder: "node_modules/ev" },
+      // A repository the workspace file does not list has no folder evidence.record could take.
       { repository: "elsewhere", path: "tests", available: false },
-      ...(process.platform === "win32" ? [] : [{ repository: "system", path: "linked", available: false }]),
+      ...(process.platform === "win32"
+        ? []
+        : [{ repository: "system", path: "linked", available: false, folder: "linked" }]),
     ]);
   });
 

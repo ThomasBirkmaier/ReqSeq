@@ -23,6 +23,7 @@ const type = (key: string, properties: string[], parent?: string): Type => ({
 const output = (parts: Pick<Output, "types" | "properties" | "relations">): Output => ({
   statuses: [],
   meanings: {},
+  relationKinds: {},
   files: [],
   ...parts,
 });

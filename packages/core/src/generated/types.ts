@@ -1939,6 +1939,8 @@ export interface WorkspaceStatusOutput {
     readonly path: RelativePath;
     /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
+    /** The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location. */
+    readonly folder?: string;
   }[];
   /** The workspace opens read-only because its metamodel is missing or faulty: nothing can be written. */
   readonly readOnly: boolean;
@@ -2147,6 +2149,12 @@ export interface MetamodelGetOutput {
   readonly statuses: readonly MetamodelStatus[];
   /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
   readonly meanings: Readonly<Record<string, readonly Key[]>>;
+  /** For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with (SR-215 AK8). */
+  readonly relationKinds: Readonly<Record<string, readonly {
+    readonly kind: Key;
+    /** Every type of the metamodel a target may have, subtypes included, in metamodel order. */
+    readonly targetTypes: readonly Key[];
+  }[]>>;
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
