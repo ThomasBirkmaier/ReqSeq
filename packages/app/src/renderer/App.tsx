@@ -479,15 +479,24 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       started ||= currentKey !== undefined;
       restoreBuffers(currentKey, asked, back);
     };
-    // A write of the save of leaving, answered by its change: the change counts to the switch (SR-212 AK5).
-    const countSwitchSave = (reason: WorkspaceChangeReason): void => {
-      if (reason === "written" && leavingWrites.current > 0) {
-        leavingWrites.current -= 1;
-        setSwitchSaves((count) => count + 1);
+    // A write of the save of leaving, answered just before its change on the same channel: the change counts
+    // to the switch (SR-212 AK5). Taken when the change comes, so a refresh that ends early loses no count;
+    // another workspace starts with none.
+    const takeSwitchSave = (reason: WorkspaceChangeReason | undefined): (() => void) => {
+      if (reason === "opened") {
+        leavingWrites.current = 0;
       }
+      if (reason !== "written" || leavingWrites.current === 0) {
+        return () => undefined;
+      }
+      leavingWrites.current -= 1;
+      return () => {
+        setSwitchSaves((count) => count + 1);
+      };
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
+      const countSwitchSave = takeSwitchSave(reason);
       const result = await tracked.invoke("workspace.status", {});
       if (!mounted || asked !== opened) {
         return;
@@ -519,7 +528,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // The shown buffer asks again, also a list that is the same list of another workspace.
       if (reason !== undefined) {
         setRevision((count) => count + 1);
-        countSwitchSave(reason);
+        countSwitchSave();
       }
       // The type names come with the workspace; the modeline shows keys until they are there. A write of
       // the app changes no metamodel (no command writes it), so autosave does not read it every second.

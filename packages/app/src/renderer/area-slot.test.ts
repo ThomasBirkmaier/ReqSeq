@@ -24,10 +24,17 @@ const settled = async (promise: Promise<void>): Promise<boolean> => {
   void promise.then(() => {
     done = true;
   });
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let tick = 0; tick < 6; tick += 1) {
+    await Promise.resolve();
+  }
   return done;
 };
+
+/** Resolves when a hidden read may go, and ends its turn at once. */
+const pass = (gate: ReadGate): Promise<void> =>
+  gate.turn().turn.then((end) => {
+    end();
+  });
 
 describe("the gate of the reads drawn in advance", () => {
   afterEach(() => {
@@ -36,7 +43,7 @@ describe("the gate of the reads drawn in advance", () => {
 
   it("[SR-212/AK-tfck] opens once the shown buffer reported its drawing, closes for the next one, and stays closed while a slide runs", async () => {
     const gate = new ReadGate(1000);
-    const first = gate.pass();
+    const first = pass(gate);
     expect(await settled(first)).toBe(false);
     gate.show("a", false);
     gate.drawn("other");
@@ -44,12 +51,12 @@ describe("the gate of the reads drawn in advance", () => {
     gate.drawn("a");
     expect(gate.open).toBe(true);
     expect(await settled(first)).toBe(true);
-    expect(await settled(gate.pass())).toBe(true);
+    expect(await settled(pass(gate))).toBe(true);
     // The same buffer shown again keeps it open; another one closes it until it is drawn.
     gate.show("a", false);
     expect(gate.open).toBe(true);
     gate.show("b", false);
-    const second = gate.pass();
+    const second = pass(gate);
     gate.slide(true);
     gate.drawn("b");
     gate.drawn("b");
@@ -66,7 +73,7 @@ describe("the gate of the reads drawn in advance", () => {
     const gate = new ReadGate(1000);
     gate.show("a", true);
     gate.slide(true);
-    const waiting = gate.pass();
+    const waiting = pass(gate);
     gate.slide(false);
     gate.slide(true);
     expect(await settled(waiting)).toBe(false);
@@ -80,7 +87,7 @@ describe("the gate of the reads drawn in advance", () => {
     gate.show("a", true);
     gate.prompt(true);
     expect(gate.open).toBe(false);
-    const waiting = gate.pass();
+    const waiting = pass(gate);
     expect(await settled(waiting)).toBe(false);
     gate.prompt(false);
     expect(await settled(waiting)).toBe(true);
@@ -91,7 +98,7 @@ describe("the gate of the reads drawn in advance", () => {
     vi.useFakeTimers();
     const gate = new ReadGate(1000);
     gate.show("a", false);
-    const waiting = gate.pass();
+    const waiting = pass(gate);
     vi.advanceTimersByTime(999);
     expect(await settled(waiting)).toBe(false);
     vi.advanceTimersByTime(1);

@@ -247,6 +247,31 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     expect(naming(await requests.sent(), SECOND.id)).toEqual([]);
   });
 
+  test("[SR-212/AK-tfck] after an own save in the shown element, a neighbour is no longer drawn in advance and not read until the next switch", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    await shownLayer(window).locator(".cm-content").first().click();
+    await window.keyboard.press("ControlOrMeta+End");
+    await requests.clear();
+    await window.keyboard.type(" In gusts.");
+    // The autosave writes it: a change of the workspace, not of a switch.
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED.id])).stdout)
+      .toContain("In gusts.");
+    await expect.poll(() => hiddenViews(window)).not.toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    expect(naming(await requests.sent(), NEED.id)).toEqual([]);
+    // The switch reads and draws it, as a buffer not drawn in advance.
+    await window.keyboard.press("Alt+KeyP");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(NEED.title);
+    expect(naming(await requests.sent(), NEED.id).map((request) => request.name)).toContain("element.get");
+    // Its own neighbours are drawn in advance again after this switch.
+    await expect.poll(() => hiddenViews(window)).toContain(`SR-0000b1 ${SPEED.title}`);
+  });
+
   test("[SR-212/AK-tfck] an element drawn in advance and changed outside is no longer drawn in advance, not read in the background, and read at the switch with the highlight of a fresh open", async () => {
     const { window } = running;
     await open(window, NEED.title);

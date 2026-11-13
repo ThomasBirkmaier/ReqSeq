@@ -173,3 +173,42 @@ it("[SR-212/AK-tfck] a layer drawn in advance reads once more after the save of 
   expect(drop).toHaveBeenCalledWith(HIDDEN.key);
   gate.dispose();
 });
+
+it("[SR-212/AK-tfck] a layer drawn in advance that has not read yet is dropped by a change while its reads wait at the gate", async () => {
+  const gate = new ReadGate(60_000);
+  const { render, reads, drop } = area(gate, true);
+  gate.show(SHOWN.key, true);
+  gate.slide(true);
+  // Mounted during a slide: its reads wait; a change (an autosave's) comes before the gate opens.
+  await render([HIDDEN]);
+  await render([HIDDEN], 1);
+  await act(async () => {
+    gate.slide(false);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(0);
+  expect(drop).toHaveBeenCalledWith(HIDDEN.key);
+  gate.dispose();
+});
+
+it("[SR-212/AK-tfck] a layer drawn in advance is dropped by a save of leaving together with another change", async () => {
+  const gate = new ReadGate(60_000);
+  const { render, reads, drop } = area(gate, true);
+  await render([HIDDEN]);
+  await act(async () => {
+    gate.show(SHOWN.key, true);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(1);
+  // Two changes, one of them the save of leaving: the other one drops it.
+  await render([HIDDEN], 2, 1);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(1);
+  expect(drop).toHaveBeenCalledWith(HIDDEN.key);
+  gate.dispose();
+});

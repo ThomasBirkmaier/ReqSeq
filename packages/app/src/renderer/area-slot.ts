@@ -68,7 +68,6 @@ export class ReadGate {
   private showing = 0;
   private readonly turns: (() => void)[] = [];
   private deadline: ReturnType<typeof setTimeout> | undefined;
-  private readonly waiting = new Set<() => void>();
   private readonly wait: number;
 
   constructor(wait = DRAW_DEADLINE_MS) {
@@ -116,16 +115,6 @@ export class ReadGate {
   prompt(open: boolean): void {
     this.prompting = open;
     this.release();
-  }
-
-  /** Resolves when the reads may go: at once when they may now. */
-  pass(): Promise<void> {
-    if (this.open) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      this.waiting.add(resolve);
-    });
   }
 
   /**
@@ -183,12 +172,11 @@ export class ReadGate {
   /** Lets nothing wait any longer: the window goes. */
   dispose(): void {
     clearTimeout(this.deadline);
-    this.waiting.clear();
     this.turns.length = 0;
   }
 
   /**
-   * Lets the waiting reads go, in a microtask and only if the gate is still open then: a slide that ends and
+   * Gives the next hidden read its turn, in a microtask and only if the gate is still open then: a slide that ends and
    * the next that starts in the same task (a held Alt+P) lets nothing through.
    */
   private release(): void {
@@ -200,11 +188,6 @@ export class ReadGate {
       this.releasing = false;
       if (!this.open) {
         return;
-      }
-      const go = [...this.waiting];
-      this.waiting.clear();
-      for (const resolve of go) {
-        resolve();
       }
       if (!this.reading && this.showing === 0) {
         this.turns.shift()?.();
@@ -247,9 +230,10 @@ export class HeldCalls {
 }
 
 /**
- * `call`, counting in `pending` each write (`element.update`) it sends that succeeds and so will be answered by
- * a change of the workspace (`written`): the save of leaving an element counts to its switch only through
- * such a write (SR-212 AK5). A save with nothing to write sends none and counts nothing.
+ * `call`, counting in `pending` each write (`element.update`) once it answered ok: the host posts that answer
+ * and then the change of the workspace (`written`) on the window's channel, so the next `written` is this
+ * write's, not another window's. The save of leaving an element counts to its switch only through such a
+ * write (SR-212 AK5). A save with nothing to write sends none and counts nothing.
  */
 export const countingWrites =
   (call: Call, pending: { current: number }): Call =>
@@ -257,10 +241,9 @@ export const countingWrites =
     if (name !== "element.update") {
       return call(name, input);
     }
-    pending.current += 1;
     const answer = await call(name, input);
-    if (!answer.ok) {
-      pending.current = Math.max(0, pending.current - 1);
+    if (answer.ok) {
+      pending.current += 1;
     }
     return answer;
   };

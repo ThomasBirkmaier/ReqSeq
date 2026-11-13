@@ -290,13 +290,15 @@ const useLayerViews = (
   const latest = useRef(views);
   latest.current = views;
   const pending = useRef(0);
-  // The generation of the workspace (`seen`) and the count of switch saves its last read went in, while hidden:
-  // after another change a read is not sent, after a save of leaving it reads once more.
-  const readAt = useRef<{ readonly seen: number; readonly saves: number } | undefined>(undefined);
+  // The generation of the workspace (`seen`) and the count of switch saves the view was mounted, shown or last
+  // read in: a change since then that is not a save of leaving makes it out of date, so a read is not sent;
+  // after a save of leaving alone it reads once more.
+  const readAt = useRef({ seen: views.seen, saves: views.switchSaves });
+  if (shown) {
+    readAt.current = { seen: views.seen, saves: views.switchSaves };
+  }
   const stale = (): boolean =>
-    readAt.current !== undefined &&
-    readAt.current.seen !== latest.current.seen &&
-    readAt.current.saves === latest.current.switchSaves;
+    latest.current.seen - readAt.current.seen > latest.current.switchSaves - readAt.current.saves;
   // The layer is mounted: a read that waited at the gate for a layer gone meanwhile is not sent.
   const alive = useRef(true);
   useEffect(() => {
@@ -499,7 +501,8 @@ const Slot = ({
   }, [hidden]);
   // After the commit that follows the last answer of a read (the views' effects of the commit ran before this
   // one, so a read they started counts), and on every change of the workspace: drawn with no read pending.
-  // A change after the hidden view read: it is dropped, not read again (SR-212 AK5).
+  // A change since the hidden view was mounted or read, other than a save of leaving: it is dropped, not read
+  // again (SR-212 AK5).
   useEffect(() => {
     if (hidden && layer.stale()) {
       views.drop(buffer.key);
