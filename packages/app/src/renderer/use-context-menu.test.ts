@@ -238,9 +238,12 @@ describe("a menu of the modeline (SR-196)", () => {
     vi.useFakeTimers();
     try {
       document.body.innerHTML = `
-        <main><div data-area="left" data-active=""><article data-buffer tabindex="0">
-          <div data-field="topic" tabindex="0" id="topic">topic</div>
-        </article></div></main>
+        <main><div data-area="left" data-active="">
+          <div data-layer="neighbour" aria-hidden="true"><article data-buffer tabindex="0" id="hidden"></article></div>
+          <div data-layer="main"><article data-buffer tabindex="0" id="shown">
+            <div data-field="topic" tabindex="0" id="topic">topic</div>
+          </article></div>
+        </div></main>
         <footer class="modeline"><span data-field="Status" data-menu="field-status" tabindex="-1" id="status">draft</span></footer>
         <input id="prompt-input">`;
       render(options());
@@ -253,14 +256,15 @@ describe("a menu of the modeline (SR-196)", () => {
         vi.runAllTimers();
       });
       expect(document.activeElement).toBe(element("topic"));
-      // Opened by a key on the field: back to the buffer. An entry that opens a prompt keeps it.
+      // Opened by a key on the field: back to the shown buffer, not to one drawn hidden before it. An entry
+      // that opens a prompt keeps it.
       (element("status") as HTMLElement).focus();
       send(element("status"), mouse("contextmenu", { button: 0 }));
       act(() => {
         menu.close();
         vi.runAllTimers();
       });
-      expect(document.activeElement?.hasAttribute("data-buffer")).toBe(true);
+      expect(document.activeElement).toBe(element("shown"));
       rightClick(element("status"));
       act(() => {
         menu.close();

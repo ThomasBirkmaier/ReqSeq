@@ -102,6 +102,7 @@ const mount = async (call: Call, initial: GraphBuffer = S1) => {
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
+  const drawn: string[] = [];
   const Harness = ({ revision }: { revision: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial] as readonly Buffer[]);
     const current = buffers[0];
@@ -118,6 +119,7 @@ const mount = async (call: Call, initial: GraphBuffer = S1) => {
       },
       onData: (bufferKey, loaded) => data.push([bufferKey, loaded]),
       onEcho: (message) => echoed.push(message),
+      onDrawn: (bufferKey) => drawn.push(bufferKey),
       typeNames: TYPES,
       kindNames: KINDS,
     });
@@ -130,7 +132,7 @@ const mount = async (call: Call, initial: GraphBuffer = S1) => {
     await flush();
   };
   await show(0);
-  return { actions, data, echoed, show };
+  return { actions, data, echoed, drawn, show };
 };
 
 const selected = (): string | undefined =>
@@ -451,8 +453,10 @@ describe("GraphView", () => {
   it("says why when the call fails, and keeps what it shows when a later call fails", async () => {
     let fail = true;
     const call = fakeCall(() => (fail ? new Error("No element uuid-S1") : S1_GRAPH));
-    const { echoed, show, data } = await mount(asCall(call));
+    const { echoed, show, data, drawn } = await mount(asCall(call));
     expect(query(".graph p.quiet").textContent).toBe("No element uuid-S1");
+    // The view cannot draw its buffer and says so: a switch in motion to it starts at once (SR-212).
+    expect(drawn).toEqual([S1.key]);
     expect(query(".graph").dataset["laidOut"]).toBeUndefined();
     expect(query(".graph").getAttribute("aria-activedescendant")).toBeNull();
     expect(echoed).toEqual(["No element uuid-S1"]);
@@ -474,8 +478,9 @@ describe("GraphView", () => {
     vi.mocked(layoutModule.layoutGraph).mockImplementationOnce(() => {
       throw new Error("Not possible");
     });
-    const { echoed, show } = await mount(asCall(fakeCall()));
+    const { echoed, show, drawn } = await mount(asCall(fakeCall()));
     expect(echoed).toEqual(["The graph could not be laid out: Error: Not possible"]);
+    expect(drawn).toEqual([S1.key]);
     expect(query(".graph p.quiet").textContent).toBe("The graph could not be laid out: Error: Not possible");
     await show(1);
     expect(container.querySelectorAll(".graph-node")).toHaveLength(10);

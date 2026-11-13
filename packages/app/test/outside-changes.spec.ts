@@ -138,6 +138,19 @@ test.describe("changes from outside the app", () => {
     });
     const marks = (): Promise<{ readonly kind: string; readonly at: number }[]> =>
       window.evaluate(() => Reflect.get(globalThis, "outsideMarks") as { kind: string; at: number }[]);
+    // A mark in the picture a slide puts beside the shown buffer (the side layer, SR-212) is not counted.
+    const inSide = await window.evaluate(async () => {
+      const side = document.querySelector('[data-area][data-active] > [data-layer="side"]');
+      const mark = document.createElement("span");
+      mark.className = "outside-change";
+      side?.append(mark);
+      await Promise.resolve();
+      mark.remove();
+      await Promise.resolve();
+      return side !== null;
+    });
+    expect(inSide).toBe(true);
+    expect(await marks()).toEqual([]);
     const expectedFileSha256 = await fileSha256(running, ELEMENT);
     await mcp.call("element_update", { ref: ELEMENT, title: "Measure the wind speed", expectedFileSha256 });
     await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the wind speed");

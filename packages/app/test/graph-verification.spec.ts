@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const N1 = "37373737-3737-4737-8737-00000000a001";
 
@@ -47,8 +47,8 @@ test("[SR-136/AK-h2xg] each requirement shows its status and ring, the need its 
     await expect(window.locator("article h1")).toHaveText("See the weather");
     await window.keyboard.press("ControlOrMeta+Shift+G");
     await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(output.nodes.length));
-    const shown = await window.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".graph-node")].map((node) => ({
+    const shown = await shownLayer(window).evaluate((layer) =>
+      [...layer.querySelectorAll<HTMLElement>(".graph-node")].map((node) => ({
         key: node.dataset["node"],
         status: node.querySelector(".graph-marks .status")?.textContent ?? null,
         accent: node.querySelector(".graph-marks .status.accent") !== null,

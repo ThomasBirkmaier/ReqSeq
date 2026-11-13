@@ -34,6 +34,8 @@ export interface NeighbourhoodViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A view that cannot draw its buffer says so: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
+  readonly onDrawn?: (key: string) => void;
   /** The changes from outside (SR-116): a row of an element that changed is highlighted when it is shown. */
   readonly outside?: OutsideChanges;
 }
@@ -106,6 +108,7 @@ export const NeighbourhoodView = ({
   dispatch,
   onData,
   onEcho,
+  onDrawn,
   outside,
 }: NeighbourhoodViewProps): React.JSX.Element => {
   const scope = useIdScope();
@@ -132,6 +135,7 @@ export const NeighbourhoodView = ({
       } else {
         setErrors((before) => [...before, answer.message]);
         onEcho(answer.message);
+        onDrawn?.(buffer.key);
       }
     });
   };
@@ -151,6 +155,7 @@ export const NeighbourhoodView = ({
       } else {
         setErrors((before) => [...before, answer.message]);
         onEcho(answer.message);
+        onDrawn?.(buffer.key);
       }
     });
     return () => {

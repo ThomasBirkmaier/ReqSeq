@@ -31,6 +31,8 @@ export interface MetamodelViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A view that cannot draw its buffer says so: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
+  readonly onDrawn?: (key: string) => void;
   /** The window is split (SR-115 AK3). */
   readonly split?: boolean;
 }
@@ -101,12 +103,13 @@ const measureIn = (element: HTMLElement | null): Measure | undefined => {
 
 /**
  * Asks `metamodel.get` on mount and on every revision; the newest answer wins, an answer equal to the
- * shown one is not laid out again, and a failed call or layout keeps what the sheet shows and says why.
+ * shown one is not laid out again, and a failed call or layout keeps what the sheet shows and says why
+ * (`failed`).
  */
 const useMetamodel = (
   call: Call,
   revision: number,
-  onEcho: (message: string) => void,
+  failed: (message: string) => void,
   root: React.RefObject<HTMLDivElement | null>,
 ): { readonly shown: Shown | undefined; readonly error: string | undefined } => {
   const [shown, setShown] = useState<Shown | undefined>(undefined);
@@ -124,7 +127,7 @@ const useMetamodel = (
       }
       if (!answer.ok) {
         setError(answer.message);
-        onEcho(answer.message);
+        failed(answer.message);
         return;
       }
       const json = JSON.stringify(answer.output);
@@ -141,7 +144,7 @@ const useMetamodel = (
         // A layout that fails keeps what the sheet shows and says why (never a blank buffer).
         const message = `The metamodel could not be laid out: ${String(thrown)}`;
         setError(message);
-        onEcho(message);
+        failed(message);
       }
     });
     return () => {
@@ -422,10 +425,15 @@ export const MetamodelView = ({
   dispatch,
   onData,
   onEcho,
+  onDrawn,
   split = false,
 }: MetamodelViewProps): React.JSX.Element => {
   const root = useRef<HTMLDivElement>(null);
-  const { shown, error } = useMetamodel(call, revision, onEcho, root);
+  const failed = (message: string): void => {
+    onEcho(message);
+    onDrawn?.(buffer.key);
+  };
+  const { shown, error } = useMetamodel(call, revision, failed, root);
 
   useEffect(() => {
     if (shown !== undefined) {

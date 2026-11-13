@@ -1,13 +1,13 @@
 // SR-212 AK1 in the app's part of the performance suite (ADR-0011), on the generated workspace of N-036 with 50,000
 // elements and 200,000 relations (testkit, D-055): „… dann gleitet der gezeigte Buffer … und die Bewegung dauert
-// höchstens 200 ms.“ Read as assumption (a) of the open question #1624: the motion lasts at most 200 ms, and starts once the new buffer is fully
-// drawn; the time to draw keeps its own limits (SR-082 AK3 for an element, AK4 for a list, search, neighbourhood,
-// graph and matrix; none for the overview, the metamodel and the output of a command, which are recorded only).
+// höchstens 200 ms.“ The rationale of SR-212 says what the 200 ms bound: „Die 200 ms begrenzen nur die Bewegung. Sie
+// beginnt, sobald der neue Buffer vollständig gezeichnet ist, ohne Platzhalter; die Zeit bis dahin begrenzt dieses SR
+// nicht.“ So the time until the new buffer is drawn is recorded for comparison, with no limit.
 //
 // Each kind of buffer is the target of Alt+P and Alt+N several times, and so also the buffer that is left. For each
 // switch, in the window: the keydown's `event.timeStamp`, the moment the slide animations are made (the new buffer
 // was reported drawn two frames before; the motion's first frame), and the moment they finished. Recorded per kind:
-// the slowest input-to-motion (drawn) against the kind's limit, and the slowest motion against 200 ms.
+// the slowest input-to-motion (drawn), and the slowest motion against 200 ms.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -23,10 +23,6 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** SR-212 AK1: the motion. */
 const MOTION_MS = 200;
-/** SR-082 AK3: an element is visible after an open. */
-const ELEMENT_MS = 200;
-/** SR-082 AK4: the first page of a list, a search, a neighbourhood, a graph or a matrix. */
-const PAGE_MS = 500;
 /** The pause after each switch, longer than the reads a buffer asks after it is drawn. */
 const SETTLE_SWITCH_MS = 500;
 /** How often each buffer is the target of a switch, half with Alt+P and half with Alt+N. */
@@ -37,30 +33,21 @@ const SETTLE_MS = 2_100;
 type Kind =
   "overview" | "list" | "search" | "element" | "neighbourhood" | "graph" | "metamodel" | "result" | "matrix";
 
-/** The limit of the time to draw each kind, from the input; undefined: none, recorded only. */
-const DRAW_LIMIT: Record<Kind, number | undefined> = {
-  overview: undefined,
-  list: undefined,
-  search: PAGE_MS,
-  element: ELEMENT_MS,
-  neighbourhood: PAGE_MS,
-  graph: PAGE_MS,
-  metamodel: undefined,
-  result: undefined,
-  matrix: PAGE_MS,
-};
+/** Every kind of buffer, each the target of switches. */
+const KINDS: readonly Kind[] = [
+  "overview",
+  "list",
+  "search",
+  "element",
+  "neighbourhood",
+  "graph",
+  "metamodel",
+  "result",
+  "matrix",
+];
 
-const BASIS: Record<Kind, string> = {
-  overview: "SR-212 AK1 (recorded; no limit of its own)",
-  list: "SR-212 AK1 (recorded: a list slides once its line of coverage stands too, which no limit bounds; its first page is SR-082 AK4, measured in packages/core/test/perf)",
-  search: "SR-212 AK1 with SR-082 AK4 (first page)",
-  element: "SR-212 AK1 with SR-082 AK3",
-  neighbourhood: "SR-212 AK1 with SR-082 AK4 (first page)",
-  graph: "SR-212 AK1 with SR-082 AK4 (first page; SR-111 AK6 lays out 500 nodes in 1 s)",
-  metamodel: "SR-212 AK1 (recorded; no limit of its own)",
-  result: "SR-212 AK1 (recorded; no limit of its own)",
-  matrix: "SR-212 AK1 with SR-082 AK4 (first page)",
-};
+/** The time until the new buffer is drawn: recorded, for comparison. */
+const DRAWN_BASIS = "SR-212 (recorded; the time until the new buffer is drawn has no limit of its own)";
 
 /** One switch as the window saw it, in ms of the window's clock. */
 interface Switch {
@@ -343,18 +330,17 @@ test.describe("the switch to the previous or next buffer with 50,000 elements an
       one.shown.startsWith("matrix:") ? "matrix" : (kinds.get(one.shown) ?? "result");
     const recorded: PerfMeasurement[] = [];
     const summary: Record<string, { drawn: number[]; motion: number[]; gap: number[] }> = {};
-    for (const kind of Object.keys(DRAW_LIMIT) as Kind[]) {
+    for (const kind of KINDS) {
       const of = made.filter((one) => kindOf(one) === kind);
       expect(of.length, `no switch to the ${kind}`).toBeGreaterThan(0);
       const drawn = of.map((one) => one.motion - one.key);
       const motion = of.map((one) => (one.end ?? Number.NaN) - one.motion);
       summary[kind] = { drawn, motion, gap: of.map((one) => one.gap) };
-      const limit = DRAW_LIMIT[kind];
       recorded.push(
         await recordValue(
           `app: Alt+P or Alt+N until the ${kind} is drawn and starts to slide (slowest of ${String(of.length)})`,
           Math.max(...drawn),
-          limit === undefined ? { basis: BASIS[kind] } : { basis: BASIS[kind], thresholdMs: limit },
+          { basis: DRAWN_BASIS },
         ),
       );
       recorded.push(

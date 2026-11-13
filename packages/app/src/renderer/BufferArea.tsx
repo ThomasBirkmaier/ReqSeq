@@ -51,7 +51,7 @@ export const LoadingView = ({
     return <ResultView key={buffer.key} buffer={buffer} {...shared} />;
   }
   if (buffer.kind === "neighbourhood") {
-    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...marking} />;
+    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...drawn} {...marking} />;
   }
   return inMatrix(buffer) ? (
     <MatrixView buffer={buffer} {...shared} {...drawn} {...marking} />
@@ -140,6 +140,7 @@ const BufferView = ({
         dispatch={dispatch}
         onData={onData}
         onEcho={onEcho}
+        onDrawn={onDrawn}
         typeNames={views.typeNames}
         kindNames={views.kindNames}
         split={split}
@@ -155,6 +156,7 @@ const BufferView = ({
         dispatch={dispatch}
         onData={onData}
         onEcho={onEcho}
+        onDrawn={onDrawn}
         split={split}
       />
     );

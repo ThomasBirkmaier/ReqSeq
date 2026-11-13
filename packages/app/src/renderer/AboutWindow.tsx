@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AboutInfo, AboutRow } from "./about.js";
 import { aboutGroups, aboutText } from "./about.js";
+import { shownBuffer } from "./buffer-slide.js";
 import { CopySymbol } from "./FieldBox.js";
 
 export interface AboutWindowProps {
@@ -40,10 +41,7 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
     card.current?.focus({ preventScroll: true });
     return () => {
       // Back where the focus was, when that is still there; else to the shown buffer, so its keys work.
-      const back =
-        before instanceof HTMLElement && before.isConnected
-          ? before
-          : document.querySelector<HTMLElement>("[data-area][data-active] [data-buffer], [data-buffer]");
+      const back = before instanceof HTMLElement && before.isConnected ? before : shownBuffer();
       back?.focus({ preventScroll: true });
     };
   }, []);

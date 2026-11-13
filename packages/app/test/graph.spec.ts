@@ -97,12 +97,12 @@ interface Box {
 
 /** The boxes of the nodes by their key, the drawing (`.graph-canvas`), and the visible area of the view. */
 const boxes = async (window: Page): Promise<{ nodes: Map<string, Box>; drawing: Box; view: Box }> => {
-  const read = await window.evaluate(() => {
+  const read = await shownLayer(window).evaluate((layer) => {
     const box = (element: Element | null): Box => {
       const rect = element?.getBoundingClientRect();
       return { x: rect?.x ?? 0, y: rect?.y ?? 0, width: rect?.width ?? 0, height: rect?.height ?? 0 };
     };
-    const view = document.querySelector<HTMLElement>(".graph");
+    const view = layer.querySelector<HTMLElement>(".graph");
     const outer = box(view);
     return {
       // The visible area: without the scroll bars.
@@ -112,8 +112,8 @@ const boxes = async (window: Page): Promise<{ nodes: Map<string, Box>; drawing: 
         width: view?.clientWidth ?? 0,
         height: view?.clientHeight ?? 0,
       },
-      drawing: box(document.querySelector(".graph-canvas")),
-      nodes: [...document.querySelectorAll<HTMLElement>(".graph-node")].map(
+      drawing: box(layer.querySelector(".graph-canvas")),
+      nodes: [...layer.querySelectorAll<HTMLElement>(".graph-node")].map(
         (node) => [node.dataset["node"] ?? "", box(node)] as const,
       ),
     };
@@ -273,8 +273,8 @@ const wholeChain = async (window: Page, nodes: number): Promise<void> => {
 
 /** What cuts a box's lines: the ID and type line or the marks line wider than the box. */
 const cutLines = (window: Page): Promise<string[]> =>
-  window.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>(".graph-node")].flatMap((node) =>
+  shownLayer(window).evaluate((layer) =>
+    [...layer.querySelectorAll<HTMLElement>(".graph-node")].flatMap((node) =>
       [...node.querySelectorAll<HTMLElement>(".graph-id > span, .graph-marks")]
         .filter((line) => line.scrollWidth > line.clientWidth)
         .map((line) => line.textContent),
@@ -362,7 +362,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
       text: string;
       paths: { source: string; classes: string[]; stroke: string }[];
     }> =>
-      window.evaluate(() => {
+      shownLayer(window).evaluate((layer) => {
         const probe = document.createElement("span");
         document.body.append(probe);
         const colour = (token: string): string => {
@@ -371,7 +371,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
         };
         const tokens = { accent: colour("--accent-outdated"), text: colour("--text") };
         probe.remove();
-        const paths = [...document.querySelectorAll<SVGPathElement>("path.graph-edge")].map((path) => ({
+        const paths = [...layer.querySelectorAll<SVGPathElement>("path.graph-edge")].map((path) => ({
           source: path.dataset["source"] ?? "",
           classes: (path.getAttribute("class") ?? "").split(" "),
           stroke: getComputedStyle(path).stroke,
@@ -415,8 +415,8 @@ test.describe("the graph of an element on a fixture workspace", () => {
       ]),
     );
     await showGraph(window, output.nodes.length);
-    const shown = await window.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".graph-node")].map((node) => ({
+    const shown = await shownLayer(window).evaluate((layer) =>
+      [...layer.querySelectorAll<HTMLElement>(".graph-node")].map((node) => ({
         key: node.dataset["node"],
         head: node.querySelector(".graph-id")?.textContent,
         title: node.querySelector(".graph-title")?.textContent,
@@ -567,11 +567,11 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
 
   /** The boxes and the drawn pairs (`<source> > <target>`, by node key), sorted, as the window shows them. */
   const drawn = (window: Page): Promise<{ nodes: string[]; pairs: string[] }> =>
-    window.evaluate(() => ({
-      nodes: [...document.querySelectorAll<HTMLElement>(".graph-node")]
+    shownLayer(window).evaluate((layer) => ({
+      nodes: [...layer.querySelectorAll<HTMLElement>(".graph-node")]
         .map((node) => node.dataset["node"] ?? "")
         .sort(),
-      pairs: [...document.querySelectorAll<SVGPathElement>("path.graph-edge")]
+      pairs: [...layer.querySelectorAll<SVGPathElement>("path.graph-edge")]
         .map((path) => `${path.dataset["source"] ?? ""} > ${path.dataset["target"] ?? ""}`)
         .sort(),
     }));
@@ -653,8 +653,8 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
   });
   /** The evidence boxes the window shows: the node each sums up, and its text. */
   const evidenceBoxes = (window: Page): Promise<[string, string][]> =>
-    window.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".graph-evidence")]
+    shownLayer(window).evaluate((layer) =>
+      [...layer.querySelectorAll<HTMLElement>(".graph-evidence")]
         .map((box): [string, string] => [box.dataset["evidence"] ?? "", box.textContent])
         .sort(),
     );
@@ -774,8 +774,8 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     await expect(shownLayer(window).locator(".graph-edge-tip")).toHaveCount(0);
     // The mouse on the middle of the first curve whose middle is in view and on top there (no box over
     // it): the window's size differs between runners, so the first curve's middle may be out of view.
-    const middle = await window.evaluate(() => {
-      for (const path of document.querySelectorAll<SVGPathElement>("path.graph-edge-hit")) {
+    const middle = await shownLayer(window).evaluate((layer) => {
+      for (const path of layer.querySelectorAll<SVGPathElement>("path.graph-edge-hit")) {
         const matrix = path.getScreenCTM();
         if (matrix === null) {
           continue;
