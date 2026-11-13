@@ -18,8 +18,8 @@ const SHOTS =
 
 const PAGES: Readonly<Record<string, string>> = {
   "index.html": "<!doctype html><title>ReqSeq documentation</title><h1>Start</h1>",
-  "reference/commands/relation-options/index.html":
-    "<!doctype html><title>relation.options</title><h1>Show relation options</h1>",
+  "reference/commands/trace-chain/index.html":
+    "<!doctype html><title>trace.chain</title><h1>Show trace chain</h1>",
   "reference/keyboard-shortcuts/index.html":
     '<!doctype html><title>Keyboard shortcuts</title><h1>Keys</h1><p id="action-close-all">Close all buffers</p>',
 };
@@ -107,16 +107,14 @@ test.describe("the bundled documentation", () => {
     await expect(window.getByLabel("Modeline")).toContainText("Weather station");
     await stubBrowser(app);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("Show relation options");
-    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
-      "Show relation options",
-    );
+    await window.keyboard.type("Show trace chain");
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Show trace chain");
     await window.keyboard.press("F1");
     await expect.poll(() => opened(app)).toHaveLength(1);
     const [url = ""] = await opened(app);
     expect(url).toMatch(LOOPBACK);
-    expect(url.replace(LOOPBACK, "/")).toBe("/reference/commands/relation-options/");
-    expect((await fetchPage(url)).text).toBe(PAGES["reference/commands/relation-options/index.html"]);
+    expect(url.replace(LOOPBACK, "/")).toBe("/reference/commands/trace-chain/");
+    expect((await fetchPage(url)).text).toBe(PAGES["reference/commands/trace-chain/index.html"]);
     // The prompt stays open, and the minibuffer says where the page went once it closes.
     await expect(window.locator("label.prompt-label")).toHaveText("Command");
     await window.keyboard.press("Escape");

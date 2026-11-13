@@ -423,8 +423,8 @@ describe("App", () => {
     bridge.commands = () =>
       Promise.resolve([
         {
-          name: "relation.options",
-          title: "Show relation options",
+          name: "trace.chain",
+          title: "Show trace chain",
           effect: "read",
           implemented: true,
           arguments: [],
@@ -449,9 +449,9 @@ describe("App", () => {
     expect(openDocs).toHaveBeenLastCalledWith(undefined);
     // F1 on a catalog command: its reference page; the prompt stays open.
     await keyDown(window, "P", { ...mod(), shiftKey: true });
-    await type("Show relation options");
+    await type("Show trace chain");
     await keyDown(query("input"), "F1");
-    expect(openDocs).toHaveBeenLastCalledWith("relation.options");
+    expect(openDocs).toHaveBeenLastCalledWith("trace.chain");
     expect(query("label").textContent).toBe("Command");
     // F1 on an action that covers a command: that command's page; on any other action, the action.
     await type("List all elements");
@@ -1215,14 +1215,14 @@ describe("App", () => {
 describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-archive#85)", () => {
   const listing = (name: string, extra: object = {}) => ({
     name,
-    title: name === "filter.list" ? "List saved filters" : "Show affected elements",
+    title: name === "baseline.list" ? "List baselines" : "Show affected elements",
     summary: "A command of the catalog.",
     effect: "read",
     stage: 3,
     implements: ["SR-073"],
-    arguments: name === "filter.list" ? [] : [{ field: "ref", complete: "element" }],
+    arguments: name === "baseline.list" ? [] : [{ field: "ref", complete: "element" }],
     input:
-      name === "filter.list" ? { type: "object" } : { type: "object", required: ["ref"], properties: {} },
+      name === "baseline.list" ? { type: "object" } : { type: "object", required: ["ref"], properties: {} },
     output: { type: "object" },
     implemented: true,
     ...extra,
@@ -1231,16 +1231,16 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
   it("offers the catalog's read commands by title and shows the output in a result buffer", async () => {
     const fake = fakeBridge({
       ...workspace(),
-      "filter.list": () => ({ filters: [{ name: "open", where: {} }] }),
+      "baseline.list": () => ({ baselines: [{ name: "Release 1", file: "baselines/r1.yaml" }] }),
     });
     const bridge = {
       ...fake.bridge,
-      commands: () => Promise.resolve([listing("filter.list"), listing("trace.affected")] as never),
+      commands: () => Promise.resolve([listing("baseline.list"), listing("trace.affected")] as never),
     };
     await render(bridge);
-    await runCommand("List saved filters");
-    expect(text("Sheet")).toContain("filters1");
-    expect(text("Modeline")).toContain("List saved filters");
+    await runCommand("List baselines");
+    expect(text("Sheet")).toContain("baselines1");
+    expect(text("Modeline")).toContain("List baselines");
     // Backspace before the first argument goes back to the command prompt.
     await runCommand("Show affected elements");
     expect(query("label").textContent).toBe("Show affected elements · ref:");
@@ -1274,7 +1274,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
   it("gives a command prompt opened while the catalog is read its commands once they are there (#1413)", async () => {
     const fake = fakeBridge({
       ...workspace(),
-      "filter.list": () => ({ filters: [{ name: "open", where: {} }] }),
+      "baseline.list": () => ({ baselines: [{ name: "Release 1", file: "baselines/r1.yaml" }] }),
     });
     let answer: (commands: never) => void = () => undefined;
     const bridge = {
@@ -1286,23 +1286,23 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     };
     await render(bridge);
     await keyDown(window, "P", { ...mod(), shiftKey: true });
-    await type("List saved filters");
-    expect(texts('[role="option"] .name')).not.toContain("List saved filters");
+    await type("List baselines");
+    expect(texts('[role="option"] .name')).not.toContain("List baselines");
     // Enter while the catalog is read waits for it, and then takes the command.
     await keyDown(query("input"), "Enter");
     await act(async () => {
-      answer([listing("filter.list")] as never);
+      answer([listing("baseline.list")] as never);
       await Promise.resolve();
     });
     await flush();
-    expect(text("Modeline")).toContain("List saved filters");
+    expect(text("Modeline")).toContain("List baselines");
   });
 
   /** The two commands with a summary, details, an argument with a description and a call on the command line. */
   const helped = () => [
-    listing("filter.list", {
-      details: "Saved filters live in the workspace.",
-      cliUsage: "reqseq filter list [options]",
+    listing("baseline.list", {
+      details: "Baselines live in the workspace.",
+      cliUsage: "reqseq baseline list [options]",
     }),
     listing("trace.affected", {
       input: {
@@ -1314,7 +1314,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     }),
   ];
   const helpBridge = () => {
-    const fake = fakeBridge({ ...workspace(), "filter.list": () => ({ filters: [] }) });
+    const fake = fakeBridge({ ...workspace(), "baseline.list": () => ({ baselines: [] }) });
     return { fake, bridge: { ...fake.bridge, commands: () => Promise.resolve(helped() as never) } };
   };
   const marked = (): string | undefined =>
@@ -1371,26 +1371,26 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     const { fake, bridge } = helpBridge();
     await render(bridge);
     await keyDown(window, "P", { ...mod(), shiftKey: true });
-    await type("List saved filters");
-    expect(marked()).toBe("List saved filters");
+    await type("List baselines");
+    expect(marked()).toBe("List baselines");
     // A click on "help" in the explanation line acts as Ctrl+H.
     expect(query("#prompt-explain .explain-help").textContent).toContain("help");
     await click(query("#prompt-explain .explain-help"));
-    expect(query("#command-help h2").textContent).toBe("List saved filters");
-    expect(query("#command-help .help-details").textContent).toBe("Saved filters live in the workspace.");
+    expect(query("#command-help h2").textContent).toBe("List baselines");
+    expect(query("#command-help .help-details").textContent).toBe("Baselines live in the workspace.");
     expect(query("#command-help").textContent).toContain("No arguments.");
     // Ctrl+H again closes it, and the prompt stays open with its mark.
     await keyDown(query("input"), "h", { ctrlKey: true });
     expect(helpText()).toBeUndefined();
     expect(query("#command-help").getAttribute("aria-hidden")).toBe("true");
-    expect(marked()).toBe("List saved filters");
+    expect(marked()).toBe("List baselines");
     // Escape closes only the help.
     await keyDown(query("input"), "h", { ctrlKey: true });
     expect(helpText()).toBeDefined();
     await keyDown(query("input"), "Escape");
     expect(helpText()).toBeUndefined();
     expect(query("label").textContent).toBe("Command");
-    expect(marked()).toBe("List saved filters");
+    expect(marked()).toBe("List baselines");
     // The keys of the list scroll the help; the mark stays.
     await keyDown(query("input"), "h", { ctrlKey: true });
     const scrolled = vi.spyOn(query("#command-help"), "scrollBy").mockImplementation(() => undefined);
@@ -1405,14 +1405,14 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
       expect((await pressed(query("input"), key, init)).defaultPrevented, key).toBe(true);
     }
     expect(scrolled).toHaveBeenCalledTimes(6);
-    expect(marked()).toBe("List saved filters");
+    expect(marked()).toBe("List baselines");
     // Enter, Ctrl/Cmd+Enter and Tab do nothing.
     await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter", mod());
     await keyDown(query("input"), "Tab");
-    expect(calls(fake.invoke, "filter.list")).toEqual([]);
+    expect(calls(fake.invoke, "baseline.list")).toEqual([]);
     expect(helpText()).toBeDefined();
-    expect(marked()).toBe("List saved filters");
+    expect(marked()).toBe("List baselines");
     // A click on a dimmed hit closes only the help.
     const hit = query('.candidates [aria-selected="true"]');
     await act(async () => {
@@ -1420,7 +1420,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
       await Promise.resolve();
     });
     expect(helpText()).toBeUndefined();
-    expect(calls(fake.invoke, "filter.list")).toEqual([]);
+    expect(calls(fake.invoke, "baseline.list")).toEqual([]);
     // A key that changes the input closes the help and acts as without it.
     await keyDown(query("input"), "h", { ctrlKey: true });
     await type("Show affected elements");
@@ -1440,9 +1440,9 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("label").textContent).toBe("Command");
     expect(marked()).toBe(before);
     // Without the help, Enter takes the marked command.
-    await type("List saved filters");
+    await type("List baselines");
     await keyDown(query("input"), "Enter");
-    expect(calls(fake.invoke, "filter.list")).toEqual([{}]);
+    expect(calls(fake.invoke, "baseline.list")).toEqual([{}]);
   });
 
   it("[SR-210/AK-r2d2] [SR-145/AK-bfb2] an action of the app explains itself by its description; in Go to an element has no explanation and Ctrl+H does nothing", async () => {

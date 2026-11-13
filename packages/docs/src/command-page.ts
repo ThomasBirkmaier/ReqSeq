@@ -28,6 +28,9 @@ const appSection = (access: CommandAccess): string => {
   if (!access.implemented) {
     return "Not offered by the app yet: this version does not implement the command.";
   }
+  if (access.app.shownIn !== undefined) {
+    return `Not in the command prompt: the app shows its output in ${inline(access.app.shownIn)}.`;
+  }
   const prompt = `In the command prompt (${access.promptKey}, macOS ${access.promptKeyMac})`;
   const what = access.app.action ? "the action" : "the command";
   return `${prompt}: ${what} **${inline(access.app.name)}**.${withKey(access.app.key, access.appMac.key)}`;

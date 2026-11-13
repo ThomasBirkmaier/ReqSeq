@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-The app works like a text editor: you run everything from one command prompt, and what you open is a buffer. On macOS, read ⌘ for Ctrl and ⌥ for Alt in every key on this page except Ctrl+click.
+The app works like a text editor: you run everything from one command prompt, and what you open is a buffer. On macOS, read ⌘ for Ctrl and ⌥ for Alt in every key but Ctrl+click.
 
 ## Open a workspace
 
@@ -17,7 +17,7 @@ Ctrl+Shift+P, or a click on the bottom line, opens the command prompt. It lists 
 
 An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that may follow.
 
-The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)); F1 on one opens its reference page.
+The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)), except those whose output the app shows elsewhere; F1 on one opens its reference page.
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
@@ -43,7 +43,7 @@ A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph no
 
 ## Help
 
-**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens this documentation, which comes with the app in its version, in your browser without network.
+**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens this documentation of the app's version in your browser without network.
 
 ## Light and dark
 
