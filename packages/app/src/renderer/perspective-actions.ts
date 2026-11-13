@@ -2,13 +2,16 @@
 // (`perspective.list`), the ones opened last first, and the faulty files with their reason; Enter opens the
 // chosen one as a buffer of its own (`perspectiveBuffer`), or shows it again as saved when it is open.
 // Opening first asks `element.list` with the perspective, so core says why it cannot be listed (AK6) or
-// that its grouping can no longer be chosen (AK7); the buffer then asks with what was saved. Only the input
-// of the core is built (ADR-0002).
-import type { ElementListOutput, PerspectiveListOutput } from "@reqseq/core";
+// that its grouping can no longer be chosen (AK7); the buffer then asks with what was saved.
+//
+// "Save list as perspective" (SR-214 AK5) writes the shown list through `perspective.save`: its filter
+// steps, its grouping and the sort it is shown in; the list then is the buffer of that perspective, as
+// saved. Only the input of the core is built (ADR-0002).
+import type { CommandTypes, ElementListOutput, ElementSelection, PerspectiveListOutput } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
 import type { Action, ActionContext, Choice } from "./actions.js";
-import type { ListBuffer, ListedPerspective } from "./buffers.js";
-import { perspectiveBuffer, savedOf } from "./buffers.js";
+import type { FilterStep, ListBuffer, ListedPerspective } from "./buffers.js";
+import { inMatrix, listSort, listing, perspectiveBuffer, savedOf, selectionOf } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { INCOMPLETE } from "./modeline.js";
 import { inOrderOfUse } from "./perspective-recent.js";
@@ -126,6 +129,95 @@ export const perspectiveChoices = (
 /** What the minibuffer says for a workspace without perspectives (AK1). */
 export const NONE = "The workspace has no perspectives.";
 
+/** The ID of "Save list as perspective". */
+export const SAVE_PERSPECTIVE = "save-perspective";
+
+type Condition = NonNullable<ElementSelection["where"]>;
+
+/** The parts of `condition` under one `all`: those of an `all`, else the condition itself. */
+const allParts = (condition: Condition): readonly Condition[] =>
+  "all" in condition && Object.keys(condition).length === 1 ? condition.all : [condition];
+
+/**
+ * The conditions of the steps as the `where` of a perspective: one alone as it is, several under one `all`
+ * (an `all` among them, such as the selection of a perspective, adds its parts), none as `{ all: [] }`. A
+ * text step is its `text` condition (SR-068).
+ */
+export const perspectiveWhere = (steps: readonly FilterStep[]): Condition => {
+  const parts = steps.flatMap((step) =>
+    step.selection.where === undefined ? [] : allParts(step.selection.where),
+  );
+  const [only] = parts;
+  return parts.length === 1 && only !== undefined ? only : { all: parts };
+};
+
+/**
+ * The input of `perspective.save` for the list shown in `list` under `name`: the conditions of its steps,
+ * the saved filter of a step by its name, its grouping, and the sort it is shown in (`listSort`), so the
+ * other accesses give the same order (SR-213 AK4). A list sorted by nothing chosen and without a saved
+ * filter is shown in `DEFAULT_SORT`, which is then written. No `description`: core keeps the one saved.
+ */
+export const perspectiveInput = (
+  list: ListBuffer,
+  name: string,
+): CommandTypes["perspective.save"]["input"] => {
+  const filter = selectionOf(list.steps)?.filter;
+  const sort = listSort(list);
+  return {
+    name,
+    where: perspectiveWhere(list.steps),
+    ...(filter === undefined ? {} : { filter }),
+    ...(list.group === undefined ? {} : { group: list.group }),
+    ...(sort === undefined ? {} : { sort: [...sort] }),
+  };
+};
+
+/**
+ * Saves the shown `list` as the perspective `name` (SR-214 AK5). The list then is the buffer of that
+ * perspective as saved, at the same row: under the name of its own perspective it shows no "modified" any
+ * more (AK6), and under another name, or for a list that was no perspective, it takes the place of the
+ * buffer it was, as that perspective's buffer (one already open of it is replaced).
+ */
+export const savePerspective = async (
+  context: ActionContext,
+  list: ListBuffer,
+  name: string,
+): Promise<void> => {
+  const saved = await context.call("perspective.save", perspectiveInput(list, name));
+  if (!saved.ok) {
+    context.echo(saved.message);
+    return;
+  }
+  const listed = await context.call("perspective.list", {});
+  if (!listed.ok) {
+    context.echo(listed.message);
+    return;
+  }
+  const found = perspectiveNamed(listed.output.perspectives, name);
+  if (found === undefined) {
+    context.echo(`No perspective is named ${name}`);
+    return;
+  }
+  const buffer = {
+    ...perspectiveBuffer({ name: found.name, saved: savedOf(found, true) }),
+    cursor: list.cursor,
+  };
+  context.dispatch({ type: "open", buffer, replacing: list.key });
+  context.echo(`Saved perspective ${found.name}`);
+};
+
+/**
+ * The list "Save list as perspective" saves: the shown list, unless it is in the matrix (which shows no
+ * groups), lists nothing, or the workspace is read-only (`perspective.save` refuses then). The hits of a
+ * search and the elements of a package page are no list buffer (SR-214 rationale).
+ */
+const savableList = (context: ActionContext): ListBuffer | undefined => {
+  const [shown] = context.buffers;
+  return context.workspace && context.readOnly !== true && listing(shown) && !inMatrix(shown)
+    ? shown
+    : undefined;
+};
+
 export const PERSPECTIVE_ACTIONS: readonly Action[] = [
   {
     id: OPEN_PERSPECTIVE,
@@ -149,6 +241,46 @@ export const PERSPECTIVE_ACTIONS: readonly Action[] = [
         }
         // No `use` (SR-121 AK2): the order is the order of use of the perspectives (AK1).
         context.ask({ label: "Perspective", items: perspectiveChoices(context, answer.output) });
+      });
+    },
+  },
+  {
+    id: SAVE_PERSPECTIVE,
+    title: "Save list as perspective",
+    description: "Save the filters, grouping and sort of the shown list as a perspective.",
+    runs: [
+      { where: "in the prompt", command: "perspective.list" },
+      { where: "in the list", command: "perspective.save" },
+    ],
+    available: (context: ActionContext): boolean => savableList(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const list = savableList(context);
+      if (list === undefined) {
+        return;
+      }
+      void context.call("perspective.list", {}).then((answer) => {
+        const names = answer.ok ? answer.output.perspectives.map((perspective) => perspective.name) : [];
+        const save = (name: string): void => {
+          const given = name.trim();
+          if (given !== "") {
+            void savePerspective(context, list, given);
+          }
+        };
+        // Only the name (AK5): that of the perspective the list comes from to start with, and the
+        // perspectives there are while typing; Enter takes the typed name unless one of them is chosen.
+        context.ask({
+          label: "Perspective name",
+          items: names.map((name) => ({
+            id: `perspective:${name}`,
+            name,
+            run: () => {
+              save(name);
+            },
+          })),
+          text: save,
+          preview: true,
+          ...(list.perspective === undefined ? {} : { initial: list.perspective.name }),
+        });
       });
     },
   },
