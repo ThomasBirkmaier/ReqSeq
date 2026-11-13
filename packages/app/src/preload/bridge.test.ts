@@ -11,6 +11,7 @@ import {
   RECENT_WORKSPACES_CHANNEL,
   SAVED_CHANNEL,
   SAVE_CHANNEL,
+  SWIPE_CHANNEL,
   WORKSPACE_CHANNEL,
 } from "../shared/protocol.js";
 import type { IpcRendererLike } from "./bridge.js";
@@ -51,6 +52,11 @@ class FakeIpc implements IpcRendererLike {
   /** Help > ReqSeq Documentation was chosen. */
   help(): void {
     this.#listeners.get(HELP_CHANNEL)?.({ ports: [] }, undefined);
+  }
+
+  /** Main passes a swipe macOS reported to the window. */
+  swipe(direction: unknown): void {
+    this.#listeners.get(SWIPE_CHANNEL)?.({ ports: [] }, direction);
   }
 
   /** Main asks the window to save. */
@@ -107,7 +113,7 @@ describe("createBridge", () => {
   it("listens on the workspace channel; calls wait for the first message", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc, false);
-    expect(ipc.channels).toEqual([WORKSPACE_CHANNEL, HELP_CHANNEL, SAVE_CHANNEL]);
+    expect(ipc.channels).toEqual([WORKSPACE_CHANNEL, HELP_CHANNEL, SWIPE_CHANNEL, SAVE_CHANNEL]);
     const early = bridge.invoke("workspace.status");
     ipc.post({ open: false });
     expect(await early).toEqual(NO_WORKSPACE);
@@ -509,6 +515,41 @@ describe("createBridge", () => {
   });
 });
 
+describe("a swipe macOS reports to the window (SR-163 AK4)", () => {
+  it("[SR-163/AK-fkcm] reaches the swipe listeners with its direction, left or right only", () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const swiped = vi.fn();
+    const off = bridge.on("swipe", swiped);
+    ipc.swipe("left");
+    ipc.swipe("right");
+    for (const value of ["up", "down", undefined, { direction: "left" }, 3]) {
+      ipc.swipe(value);
+    }
+    expect(swiped.mock.calls).toEqual([[{ direction: "left" }], [{ direction: "right" }]]);
+    off();
+    ipc.swipe("left");
+    expect(swiped).toHaveBeenCalledTimes(2);
+  });
+
+  it("[SR-163/AK-fkcm] a swipe from the core process's port is dropped: only main sends it", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const swiped = vi.fn();
+    bridge.on("swipe", swiped);
+    const heard = vi.fn();
+    bridge.on("workspace-changed", heard);
+    const { port, core } = fakeCore(() => undefined);
+    ipc.post({ open: true }, [port]);
+    core.postMessage({ event: "swipe", data: { direction: "left" } });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(heard).toHaveBeenCalledOnce();
+    });
+    expect(swiped).not.toHaveBeenCalled();
+  });
+});
+
 describe("what the renderer can reach", () => {
   it("[SR-080/AK-dq1w] gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
     const ipc = new FakeIpc();
@@ -534,6 +575,8 @@ describe("what the renderer can reach", () => {
       "pasteText",
       "recentWorkspaces",
     ]);
-    expect(ipc.channels.sort()).toEqual([HELP_CHANNEL, SAVE_CHANNEL, WORKSPACE_CHANNEL].sort());
+    expect(ipc.channels.sort()).toEqual(
+      [HELP_CHANNEL, SAVE_CHANNEL, SWIPE_CHANNEL, WORKSPACE_CHANNEL].sort(),
+    );
   });
 });

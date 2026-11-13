@@ -38,6 +38,7 @@ import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import { OPEN_WORKSPACE_ACTION } from "../shared/open-hint.js";
+import type { SwipeDirection } from "../shared/protocol.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
   DEPTH_KEYS,
@@ -561,6 +562,10 @@ export const mouseButtonAction = (context: ActionContext, button: number): Actio
 };
 /** Whether `button` is Back or Forward, which `mouseButtonAction` takes. */
 export const isBufferMouseButton = (button: number): boolean => MOUSE_BUTTON_ACTIONS[button] !== undefined;
+/** A swipe macOS reports to the window does what the mouse buttons do (SR-163 AK4): left Back, right Forward. */
+const SWIPE_BUTTONS: Readonly<Record<SwipeDirection, number>> = { left: 3, right: 4 };
+export const swipeAction = (context: ActionContext, direction: SwipeDirection): Action | undefined =>
+  mouseButtonAction(context, SWIPE_BUTTONS[direction]);
 /**
  * Cmd+[ and Cmd+] on macOS do what the mouse buttons Back and Forward do (SR-163 AK3): mouse software such as
  * Logi Options+ sends the side buttons as these keys, as Finder takes them. By the character or by the

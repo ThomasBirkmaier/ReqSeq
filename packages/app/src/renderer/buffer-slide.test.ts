@@ -302,6 +302,36 @@ describe("a slide in a window", () => {
     expect(listening).not.toHaveBeenCalled();
   });
 
+  it("[SR-212/AK-kqvx] a swipe macOS reports (interrupt) ends a running slide at once in its end state, and one that has not drawn keeps its picture for the next switch", () => {
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    slides.drawn("two");
+    frame();
+    frame();
+    const animations = running();
+    expect(animations).toHaveLength(2);
+    slides.interrupt();
+    expect(animations.map((one) => one.playState)).toEqual(["idle", "idle"]);
+    expect(side().hidden).toBe(true);
+    expect(main().style.transform).toBe("");
+    expect(slides.busy).toBe(false);
+    // A switch whose view has not drawn: the next swipe switches on from the picture the reader still sees.
+    slides.prepare({ side: "left", from: "two", to: "three", direction: "back" });
+    commit("<article data-buffer>Three</article>");
+    slides.settle("left", "three");
+    slides.interrupt();
+    expect(slides.busy).toBe(false);
+    slides.prepare({ side: "left", from: "three", to: "four", direction: "back" });
+    commit("<article data-buffer>Four</article>");
+    slides.settle("left", "four");
+    expect(side().textContent).toBe("Two");
+    // Nothing runs: it does nothing.
+    slides.finish();
+    slides.interrupt();
+    expect(slides.busy).toBe(false);
+  });
+
   it("[SR-212/AK-kqvx] a second switch before the first one moved slides from the view the reader still sees", () => {
     slides.prepare(BACK);
     commit("<article data-buffer>Two</article>");

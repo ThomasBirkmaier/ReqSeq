@@ -723,6 +723,16 @@ export const slideSettled = (window: Page): Promise<void> =>
     .toBe(true);
 
 /**
+ * A swipe to the left or right as macOS reports it to the window, as older mouse software sends the buttons Back
+ * and Forward (SR-163 AK4): the window's own `swipe` event in the main process, which Electron emits through the
+ * same emitter as a native one. Only macOS has a listener for it, so elsewhere it does nothing.
+ */
+export const swipe = (running: RunningApp, direction: "left" | "right"): Promise<void> =>
+  running.app.evaluate(({ BrowserWindow }, to) => {
+    BrowserWindow.getAllWindows()[0]?.emit("swipe", {}, to);
+  }, direction);
+
+/**
  * The sort the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418), as the CLI takes it: a test that compares a list with
  * `element list` gives the CLI this input. A unit test pins the real `DEFAULT_SORT` of the renderer.
  */

@@ -74,6 +74,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
     "workspace-changed": new Set<(data: never) => void>(),
     "agent-activity": new Set<(data: never) => void>(),
     "save-expired": new Set<(data: never) => void>(),
+    swipe: new Set<(data: never) => void>(),
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
     const output = (handlers[name] ?? NO_SUMMARY[name])?.(input);
