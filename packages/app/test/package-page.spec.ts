@@ -59,14 +59,23 @@ const openPackage = async (window: Page): Promise<void> => {
   await expect(window.locator(".members .row").first()).toBeVisible();
 };
 
-/** Opens the command prompt, types `command` and runs the first candidate; then types `choice` for the prompt "Sort by". */
-const sortBy = async (window: Page, choice: string): Promise<void> => {
+/**
+ * Runs "Sort list" from the command prompt and types `key` for the prompt "Sort by", then `order`, when given,
+ * for the prompt "Order".
+ */
+const sortBy = async (window: Page, key: string, order?: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+Shift+P");
   await window.keyboard.type("sort list");
   await window.keyboard.press("Enter");
-  await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Sort by");
-  await window.keyboard.type(choice);
+  const label = window.getByLabel("Minibuffer").locator("label");
+  await expect(label).toHaveText("Sort by");
+  await window.keyboard.type(key);
   await window.keyboard.press("Enter");
+  if (order !== undefined) {
+    await expect(label).toHaveText("Order");
+    await window.keyboard.type(order);
+    await window.keyboard.press("Enter");
+  }
 };
 
 test.describe("the package page on a fixture workspace", () => {
@@ -123,7 +132,7 @@ test.describe("the package page on a fixture workspace", () => {
   test("[SR-112/AK-vv6f] the elements of the package sort by title descending, as the CLI sorts them", async () => {
     const { window } = running;
     await openPackage(window);
-    await sortBy(window, "title desc");
+    await sortBy(window, "title", "desc");
     const listed = await listedBy(running, [{ by: "title", order: "desc" }]);
     await expect(window.locator(".members h2")).toContainText("sorted by title descending");
     expect(await memberTitles(window)).toEqual(listed.elements.map((element) => element.title));

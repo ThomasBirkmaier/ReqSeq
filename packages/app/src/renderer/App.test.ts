@@ -3022,7 +3022,10 @@ describe("App, the package page (SR-112)", () => {
     const { invoke } = await openPackage();
     await runCommand("sort list");
     expect(query("label").textContent).toBe("Sort by");
-    await type("title desc");
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("Order");
+    await type("desc");
     await keyDown(query("input"), "Enter");
     expect(memberCalls(invoke).at(-1)).toEqual({
       selection: { where: { package: "uuid-p" } },
@@ -3060,7 +3063,10 @@ describe("App, the package page (SR-112)", () => {
   it("[SR-112/AK-vv6f] the sort and the row of the elements are kept while the buffer is open", async () => {
     await openPackage();
     await runCommand("sort list");
-    await type("title desc");
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("Order");
+    await type("desc");
     await keyDown(query("input"), "Enter");
     await keyDown(query("article"), "ArrowDown");
     await keyDown(query(".members .list"), "ArrowDown");
