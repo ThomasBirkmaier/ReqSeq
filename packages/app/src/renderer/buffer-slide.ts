@@ -9,8 +9,9 @@
 // input, and the new one is live at once and has the focus (AK2). The swipe (SR-211) moves the same layers
 // from any offset (`slideKeyframes`, `from`).
 //
-// The motion starts once the new view is drawn (`drawn`; a view that cannot draw its buffer says so too), and
-// then always runs. By the rationale of SR-212 the 200 ms bound only the motion: it starts once the new buffer is
+// The motion starts once the new view is drawn (`drawn`; a view that cannot draw its buffer says so too), at once
+// for a buffer drawn in advance in the current generation of the workspace (`ready`, SR-212 AK5), and then
+// always runs. By the rationale of SR-212 the 200 ms bound only the motion: it starts once the new buffer is
 // fully drawn, without a placeholder, and the time until then has no limit in SR-212. A key, a press of a mouse button, a swipe macOS
 // reports to the window (`interrupt`, SR-163 AK4), or any other change of the area's buffer ends it at once in
 // its end state (AK2, AK3). Without motion in the system ("Bewegung reduzieren", AK4) nothing is taken and
@@ -224,12 +225,20 @@ export interface SlideSpec {
 export interface SlideHost {
   readonly view: Window;
   readonly root: () => ParentNode | null | undefined;
+  /** A slide is taken, waits or runs (`true`), or ended (`false`): the reads drawn in advance wait meanwhile. */
+  readonly busy?: (busy: boolean) => void;
 }
 
 type Phase =
   | { readonly kind: "idle" }
-  // Taken in the keydown; the commit that shows `to` has not come yet.
-  | { readonly kind: "armed"; readonly spec: SlideSpec; readonly picture: Picture; readonly drawn: boolean }
+  // Taken in the keydown; the commit that shows `to` has not come yet. `ahead`: `to` is drawn in advance.
+  | {
+      readonly kind: "armed";
+      readonly spec: SlideSpec;
+      readonly picture: Picture;
+      readonly drawn: boolean;
+      readonly ahead: boolean;
+    }
   // The picture covers the area, the new view stands beside it, and its draw is awaited.
   | {
       readonly kind: "waiting";
@@ -261,6 +270,9 @@ const ENDING = ["keydown", "pointerdown", "mousedown", "mouseup"] as const;
 export class SlideController {
   private phase: Phase = { kind: "idle" };
   private readonly host: SlideHost;
+  // The buffers drawn in advance (SR-212 AK5), by key: the mount of the hidden view and the generation of the
+  // workspace (`seen`) it is drawn in. A slide to one drawn in the current generation starts at once.
+  private readonly ahead = new Map<string, { readonly mount: number; readonly generation: number }>();
   // The picture of a switch that an input ended before it moved, while the view it switched to has not
   // drawn: what the reader still sees of that area, so a switch on from there takes it again. It goes once
   // that view drew, at the next commit, or after `DRAW_DEADLINE_MS`.
@@ -291,8 +303,23 @@ export class SlideController {
     return this.phase.kind !== "idle";
   }
 
-  /** Takes the picture of the area `spec.side` for a switch; nothing without motion (AK4). */
-  prepare(spec: SlideSpec): void {
+  /** The hidden view `mount` of `key` is drawn, with no read of it pending, in `generation` (SR-212 AK5). */
+  ready(key: string, mount: number, generation: number): void {
+    this.ahead.set(key, { mount, generation });
+  }
+
+  /** The hidden view `mount` of `key` is drawn no longer: it reads again, or it went. */
+  unready(key: string, mount: number): void {
+    if (this.ahead.get(key)?.mount === mount) {
+      this.ahead.delete(key);
+    }
+  }
+
+  /**
+   * Takes the picture of the area `spec.side` for a switch; nothing without motion (AK4). When `to` is drawn in
+   * advance in `generation`, the commit that shows it starts the motion at once (SR-212 AK5).
+   */
+  prepare(spec: SlideSpec, generation?: number): void {
     const { phase } = this;
     if (!motionAllowed(this.host.view)) {
       this.finish();
@@ -308,7 +335,8 @@ export class SlideController {
     if (picture === undefined) {
       return;
     }
-    this.phase = { kind: "armed", spec, picture, drawn: false };
+    const ahead = generation !== undefined && this.ahead.get(spec.to)?.generation === generation;
+    this.phase = { kind: "armed", spec, picture, drawn: ahead, ahead };
     this.listen(true);
   }
 
@@ -340,8 +368,18 @@ export class SlideController {
     const deadline = setTimeout(() => {
       this.start();
     }, DRAW_DEADLINE_MS);
-    this.phase = { ...phase, kind: "waiting", track, deadline };
-    if (phase.drawn) {
+    this.phase = {
+      kind: "waiting",
+      spec: phase.spec,
+      picture: phase.picture,
+      track,
+      deadline,
+      drawn: phase.drawn,
+    };
+    if (phase.ahead) {
+      // Drawn in advance: nothing is left to wait for, so the motion starts in this commit.
+      this.start();
+    } else if (phase.drawn) {
       this.afterPaint();
     }
   }
@@ -460,6 +498,7 @@ export class SlideController {
   }
 
   private listen(on: boolean): void {
+    this.host.busy?.(on);
     for (const type of ENDING) {
       if (on) {
         this.host.view.addEventListener(type, this.end, { capture: true });

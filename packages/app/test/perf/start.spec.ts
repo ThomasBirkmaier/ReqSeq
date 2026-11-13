@@ -233,8 +233,10 @@ const timeOpen = async (window: Page, title: string, text: string): Promise<numb
       );
       w.__open = new Promise((resolve) => {
         const check = (): void => {
-          const heading = document.querySelector("article h1")?.textContent ?? "";
-          const shown = document.querySelector("article .cm-content")?.textContent ?? "";
+          // The shown buffer's layer: the buffers drawn in advance stand hidden beside it (SR-212 AK5).
+          const layer = '[data-area][data-active] > [data-layer="main"]';
+          const heading = document.querySelector(`${layer} article h1`)?.textContent ?? "";
+          const shown = document.querySelector(`${layer} article .cm-content`)?.textContent ?? "";
           if (start !== undefined && heading === title && shown.trim() !== "" && shown.includes(text)) {
             observer.disconnect();
             const from = start;

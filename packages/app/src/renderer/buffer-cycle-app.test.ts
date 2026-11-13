@@ -23,6 +23,9 @@ import { askDate, calendarOpen } from "./editor/calendar.js";
 import { App } from "./App.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
+/** The layer of the shown buffer of the active area: views drawn in advance stand hidden beside it (SR-212 AK5). */
+const SHOWN = '[data-area][data-active] > [data-layer="main"]';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const row = (n: number, extra: object = {}) => ({
@@ -275,6 +278,39 @@ const editorView = (): EditorView => {
 };
 
 describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
+  it("[SR-212/AK-tfck] the element left is drawn again hidden as a fresh view; the switch back shows that view, with no read of it", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    expect(shown()).toBe("SR-000001 Title 1");
+    const invoke = vi.spyOn(bridge, "invoke");
+    await alt(window, "p");
+    expect(shown()).toBe("All elements");
+    // Hidden beside the list: inert, out of the accessibility tree, not a buffer to any lookup.
+    const layer = query('[data-area][data-active] > [data-layer="neighbour"]');
+    const hidden = layer.querySelector("article");
+    expect(hidden?.getAttribute("aria-label")).toBe("SR-000001 Title 1");
+    expect(layer.inert).toBe(true);
+    expect(layer.getAttribute("aria-hidden")).toBe("true");
+    expect(layer.querySelector("[data-buffer]")).toBeNull();
+    expect(layer.contains(document.activeElement)).toBe(false);
+    // A fresh view: it read its element after it was left.
+    const reads = (): number =>
+      invoke.mock.calls.filter(
+        ([name, input]) =>
+          name === "element.get" && (input as { ref?: string } | undefined)?.ref === "uuid-1",
+      ).length;
+    expect(reads()).toBeGreaterThan(0);
+    const before = reads();
+    await alt(window, "n");
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(query(`${SHOWN} article`)).toBe(hidden);
+    expect(reads()).toBe(before);
+    expect(document.activeElement).toBe(hidden);
+    // The list, a buffer of another kind, is not drawn hidden.
+    expect(container.querySelector('[data-layer="neighbour"]')).toBeNull();
+  });
+
   it("[SR-115/AK-m5pg] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
     await openFour();
     // Go to the element, the buffer used before the search: shown last are now the element, the search,
@@ -316,7 +352,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     const next = await press(content, { key: "Dead", code: "KeyN", altKey: true });
     expect(next.defaultPrevented).toBe(true);
     expect(shown()).toBe("Overview");
-    expect(container.querySelector(".cm-editor")).toBeNull();
+    expect(container.querySelector(`${SHOWN} .cm-editor`)).toBeNull();
     expect(document.activeElement?.closest(".cm-editor") ?? null).toBeNull();
     expect(document.activeElement).toBe(query("[data-buffer]"));
     // Option+P is "π": back to the element, its text as it was typed (and saved on leaving, SR-105).

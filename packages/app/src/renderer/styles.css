@@ -106,6 +106,14 @@ body,
   pointer-events: none;
 }
 
+/* A buffer drawn in advance (SR-212 AK5): laid out beside the shown one, not painted, and not reached by the
+   pointer; showing it only flips its layer's attributes. */
+.slide-layer[data-layer="neighbour"] {
+  contain: strict;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .slide-picture {
   height: 100%;
 }

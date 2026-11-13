@@ -665,6 +665,63 @@ export const shownLayer = (window: Page, side?: string): Locator =>
     `${side === undefined ? "[data-area][data-active]" : `[data-area="${side}"]`} > [data-layer="main"]`,
   );
 
+/** A request of the window to core: the command and its input. */
+export interface CoreRequest {
+  readonly name: string;
+  readonly input: unknown;
+}
+
+/** The requests of the window to core from `start()` on (`CoreRequests`). */
+export interface CoreRequests {
+  /** Forgets what was recorded so far. */
+  readonly clear: () => Promise<void>;
+  /** The requests since `start()` or the last `clear()`, in the order they were sent. */
+  readonly sent: () => Promise<readonly CoreRequest[]>;
+}
+
+/**
+ * Records every request the window sends to core from now on. The bridge's port lives in the world of the
+ * preload script, which a page script cannot reach (the bridge is frozen), so this goes through the DevTools
+ * protocol into that world and watches `postMessage` of its ports. Only for tests that count what a view reads.
+ */
+export const recordRequests = async (window: Page): Promise<CoreRequests> => {
+  const session = await window.context().newCDPSession(window);
+  const contexts: { readonly id: number; readonly name: string }[] = [];
+  session.on("Runtime.executionContextCreated", (event: { context: { id: number; name: string } }) => {
+    contexts.push(event.context);
+  });
+  await session.send("Runtime.enable");
+  await expect
+    .poll(() => contexts.some((context) => context.name === "Electron Isolated Context"))
+    .toBe(true);
+  const preload = contexts.find((context) => context.name === "Electron Isolated Context")?.id ?? 0;
+  const run = async (expression: string): Promise<unknown> =>
+    (
+      (await session.send("Runtime.evaluate", { contextId: preload, expression, returnByValue: true })) as {
+        result: { value: unknown };
+      }
+    ).result.value;
+  await run(`(() => {
+    const own = globalThis;
+    if (own.__requests === undefined) {
+      own.__requests = [];
+      const post = MessagePort.prototype.postMessage;
+      MessagePort.prototype.postMessage = function (message, ...rest) {
+        if (message !== null && typeof message === "object" && message.kind === "invoke") {
+          own.__requests.push({ name: message.name, input: message.input });
+        }
+        return post.call(this, message, ...rest);
+      };
+    }
+  })()`);
+  return {
+    clear: async () => {
+      await run("globalThis.__requests.length = 0");
+    },
+    sent: async () => JSON.parse(String(await run("JSON.stringify(globalThis.__requests)"))) as CoreRequest[],
+  };
+};
+
 /** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */
 export const listAll = async (window: Page): Promise<void> => {
   // Keys count once the workspace is open and its first buffer is shown.

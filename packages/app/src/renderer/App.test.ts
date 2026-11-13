@@ -26,6 +26,9 @@ import { NOTICE_MS } from "./copy.js";
 import { focusEffect } from "./editor/preview.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
+/** The layer of the shown buffer of the active area: views drawn in advance stand hidden beside it (SR-212 AK5). */
+const SHOWN = '[data-area][data-active] > [data-layer="main"]';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Handler = (input: Record<string, unknown>) => unknown;
@@ -777,7 +780,8 @@ describe("App", () => {
     await click(query('[role="link"]'));
     expect(text("Minibuffer")).toBe('The element "uuid-3" is gone');
     expect(query("article .quiet").textContent).toBe('The element "uuid-3" is gone');
-    expect(container.querySelector("article h1")).toBeNull();
+    // The element left is drawn hidden in advance beside it (SR-212 AK5).
+    expect(container.querySelector(`${SHOWN} article h1`)).toBeNull();
   });
 
   it("filters the list by a type through the command prompt", async () => {
@@ -2467,7 +2471,7 @@ describe("App, the text editor", () => {
     const { invoke } = await openElement(handlers);
     await typeText("!");
     await keyDown(query(".cm-content"), "n", { altKey: true });
-    expect(container.querySelector("article")).toBeNull();
+    expect(container.querySelector(`${SHOWN} article`)).toBeNull();
     // No prompt opened, and no second has passed: the save is the leaving's own.
     expect(calls(invoke, "element.update")).toEqual([
       { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
@@ -3063,10 +3067,13 @@ describe("App, the package page (SR-112)", () => {
     await keyDown(query(".members .list"), "ArrowDown");
     await keyDown(query(".members .list"), "Enter");
     expect(query("article h1").textContent).toBe("Title 4");
+    // The element left for the package is drawn in advance as its previous buffer (SR-212 AK5): read once
+    // more, hidden; the package page, a neighbour of the last one, is not.
     expect(calls(invoke, "element.get").map((input) => (input as { ref: string }).ref)).toEqual([
       "uuid-p",
       "uuid-3",
       "uuid-p",
+      "uuid-3",
       "uuid-4",
     ]);
   });

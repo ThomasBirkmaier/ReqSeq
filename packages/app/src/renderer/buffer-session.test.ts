@@ -189,6 +189,8 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(search).toEqual(searchBuffer("wind"));
     expect(element).toEqual({
       ...elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Secret title 1"),
+      // The type comes back from the read of the names (SR-212 AK5), not from what is stored.
+      type: "need",
       memberSort: [{ by: "title", order: "desc" }],
       memberSteps: [step("status: draft", { status: ["draft"] })],
     });
@@ -234,7 +236,11 @@ describe("buffer session (SR-115 AK4)", () => {
       names.call,
       CATALOG,
     );
-    expect(again).toEqual({ buffers: plain, complete: true });
+    // The element buffers come back with the type the read of the names gave (SR-212 AK5).
+    expect(again).toEqual({
+      buffers: plain.map((buffer) => (buffer.kind === "element" ? { ...buffer, type: "need" } : buffer)),
+      complete: true,
+    });
     // The names come from one read of the elements by their UUIDs; nothing is written.
     expect(names.calls).toEqual([
       { name: "element.list", input: { selection: { ids: ["uuid-1", "uuid-2", "uuid-3"] } } },
@@ -375,6 +381,8 @@ describe("buffer session (SR-115 AK4)", () => {
       "search:wind",
     ]);
     expect(calls.map((made) => made.name)).toEqual(["element.list", "element.get", "element.get"]);
+    // The type comes from the read of each, for the elements drawn in advance (SR-212 AK5).
+    expect(restored.buffers[0]).toMatchObject({ kind: "element", type: row(1).type });
     // An element that is gone leaves the restore complete: the stored session may be overwritten.
     expect(restored.complete).toBe(true);
     // Without the catalog no result comes back; without anything stored nothing is read.

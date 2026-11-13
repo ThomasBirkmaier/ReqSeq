@@ -24,6 +24,7 @@ import { OUTDATED_WORD } from "./outdated-codes.js";
 import { ParentsLine } from "./ParentsLine.js";
 import type { Row } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
+import { bufferMark, useHidden, useReveal } from "./area-slot.js";
 
 export interface NeighbourhoodViewProps {
   readonly call: Call;
@@ -112,6 +113,8 @@ export const NeighbourhoodView = ({
   outside,
 }: NeighbourhoodViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Drawn in advance, hidden beside the shown buffer (SR-212 AK5): no highlight until it is shown.
+  const hidden = useHidden();
   const { marked, mark } = useOutsideMarks();
   const [fetched, setFetched] = useState<Fetched | undefined>(undefined);
   const [incomingOutput, setIncomingOutput] = useState<TraceNeighbourhoodOutput | undefined>(undefined);
@@ -188,12 +191,15 @@ export const NeighbourhoodView = ({
     ...groups.flatMap((group) => group.entries),
   ];
 
-  // The rows shown after an answer: those of elements that changed outside are highlighted.
-  useEffect(() => {
+  // The rows shown after an answer: those of elements that changed outside are highlighted; a view drawn in
+  // advance highlights them when it is shown, as a fresh view at the switch would.
+  const markFresh = (): void => {
     if (outside !== undefined) {
       mark(entries.map((entry) => entry.row.open.id).filter(outside.fresh));
     }
-  }, [tree, incoming]);
+  };
+  useEffect(markFresh, [tree, incoming]);
+  useReveal(markFresh);
   const cursor = Math.min(buffer.cursor, Math.max(0, entries.length - 1));
   const markedRow = markedOf(entries, cursor);
 
@@ -296,7 +302,7 @@ export const NeighbourhoodView = ({
       ref={root}
       className="buffer neighbourhood"
       aria-label={`Neighbourhood: ${buffer.name}`}
-      data-buffer=""
+      {...bufferMark(hidden)}
       tabIndex={0}
       onKeyDown={keyDown}
     >
