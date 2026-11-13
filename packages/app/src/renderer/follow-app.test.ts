@@ -387,7 +387,9 @@ describe("Follow agent in the window (SR-117)", () => {
     await keyDown(query("input"), "Enter");
     // The next prompt (the sorts) keeps the hold; the sort keeps the list's key.
     await fake.activity(access(1));
-    await type("Title descending");
+    await type("Title");
+    await keyDown(query("input"), "Enter");
+    await type("descending");
     await keyDown(query("input"), "Enter");
     expect(title()).toBeUndefined();
     expect(container.querySelectorAll(".row").length).toBeGreaterThan(0);

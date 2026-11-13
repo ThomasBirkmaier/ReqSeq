@@ -3,6 +3,7 @@
 // workspace (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -10,6 +11,10 @@ import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded, shownLayer 
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
+
+const OUT =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 interface Listed {
   readonly elements: readonly { readonly title: string; readonly shortId: string; readonly status: string }[];
@@ -421,5 +426,52 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toBeVisible();
     expect(running.stderr()).not.toContain("Blocked a request");
+  });
+});
+
+test.describe("the prompt of Sort list", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    await listAll(running.window);
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test('"Sort by" names each key once; a key with a direction asks "Order" next and sorts as the CLI does', async () => {
+    const { window } = running;
+    const label = window.getByLabel("Minibuffer").locator("label");
+    const names = window.locator('.candidates [role="option"] .name');
+    await runCommand(window, "sort list");
+    await expect(label).toHaveText("Sort by");
+    await expect(names).toHaveText([
+      "Type and ID",
+      "Workspace order",
+      "ID",
+      "Title",
+      "Type",
+      "Status",
+      "Hierarchy (tree)",
+    ]);
+    await window.keyboard.type("title");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Order");
+    await expect(names).toHaveText(["ascending", "descending"]);
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sort-order-prompt-light.png") });
+    await window.keyboard.type("descending");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Modeline")).toContainText("sorted by title descending");
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ sort: [{ by: "title", order: "desc" }] }),
+    ]);
+    await showFolded(window, listed.elements);
+    await expect(shownLayer(window).locator(".row .title")).toHaveText(
+      inShownOrder(listed.elements).map((e) => e.title),
+    );
   });
 });
