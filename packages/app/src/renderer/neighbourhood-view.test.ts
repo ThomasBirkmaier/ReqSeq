@@ -188,6 +188,7 @@ const mount = async (call: Call, initial: NeighbourhoodBuffer = N1, revision = 0
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
+  const drawn: string[] = [];
   const Harness = ({ rev }: { rev: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial] as readonly Buffer[]);
     const current = buffers[0];
@@ -204,11 +205,12 @@ const mount = async (call: Call, initial: NeighbourhoodBuffer = N1, revision = 0
       },
       onData: (key, loaded) => data.push([key, loaded]),
       onEcho: (message) => echoed.push(message),
+      onDrawn: (key) => drawn.push(key),
     });
   };
   const show = (rev: number): Promise<void> => render(createElement(Harness, { rev }));
   await show(revision);
-  return { actions, data, echoed, show };
+  return { actions, data, echoed, drawn, show };
 };
 
 const rows = (selector = '[role="treeitem"]'): string[] =>
@@ -486,10 +488,13 @@ describe("NeighbourhoodView", () => {
     const first = await mount(asCall(fakeCall({ tree: () => broken })));
     expect(texts(".quiet")).toEqual(["The workspace is not valid"]);
     expect(first.echoed).toEqual(["The workspace is not valid"]);
+    // The view cannot draw its buffer and says so: a switch in motion to it starts at once (SR-212).
+    expect(first.drawn).toEqual([N1.key]);
     expect(container.querySelector('[role="tree"]')).toBeNull();
     expect(texts("h2")).toEqual(["← excludes", "← inline reference"]);
     const second = await mount(asCall(fakeCall({ incoming: () => broken })));
     expect(second.echoed).toEqual(["The workspace is not valid"]);
+    expect(second.drawn).toEqual([N1.key]);
     expect(rows()).toEqual(["X-S1 (S1) ▸Title S1", "X-S2 (S2) ▸Title S2"]);
   });
 

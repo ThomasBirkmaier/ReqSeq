@@ -656,6 +656,33 @@ describe("App, the switch to the previous or next buffer in motion (SR-212)", ()
     expect(document.querySelector('[role="menu"]')).not.toBeNull();
   });
 
+  it("a switch to the overview whose counts cannot be read slides without waiting for the guard (#1664)", async () => {
+    const failing = vi
+      .spyOn(bridge, "invoke")
+      .mockImplementation((name, input) =>
+        name === "element.facets"
+          ? Promise.resolve({ ok: false, error: { code: "core.stopped", message: "stopped" } as never })
+          : Promise.resolve({ ok: true, output: HANDLERS[name]?.((input ?? {}) as Record<string, unknown>) }),
+      );
+    const animate = vi.spyOn(HTMLElement.prototype, "animate");
+    try {
+      await render();
+      await runCommand("List all elements");
+      expect(shown()).toBe("All elements");
+      animate.mockClear();
+      await alt(query("[data-buffer]"), "p");
+      expect(shown()).toBe("Overview");
+      // Well before the guard of the slide (DRAW_DEADLINE_MS, 1 s): the failed read counts as drawn.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      });
+      expect(animate).toHaveBeenCalled();
+    } finally {
+      failing.mockRestore();
+      animate.mockRestore();
+    }
+  });
+
   it("[SR-212/AK-hmwp] opening an element, Ctrl+P and closing a buffer show the other buffer without a picture", async () => {
     await render();
     await runCommand("List all elements");

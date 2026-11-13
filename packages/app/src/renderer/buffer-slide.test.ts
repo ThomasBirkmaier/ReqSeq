@@ -15,6 +15,7 @@ import {
   slideDuration,
   slideEase,
   slideKeyframes,
+  shownBuffer,
   takePicture,
   trackOf,
 } from "./buffer-slide.js";
@@ -103,6 +104,21 @@ describe("the picture of the view that is left", () => {
     const bare = document.createElement("div");
     bare.innerHTML = '<div data-area="left"><div data-layer="main"></div></div>';
     expect(trackOf(bare, "left")).toBeUndefined();
+  });
+
+  it("finds the view of the shown buffer of the active area, never a buffer drawn hidden beside it", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<div data-area="left"><div data-layer="main"><article data-buffer id="other"></article></div></div>' +
+      '<div data-area="right" data-active=""><div data-layer="neighbour" aria-hidden="true">' +
+      '<article data-buffer id="hidden"></article></div><div data-layer="main"><article data-buffer id="shown">' +
+      "</article></div></div>";
+    expect(shownBuffer(root)?.id).toBe("shown");
+    document.body.replaceChildren(root);
+    expect(shownBuffer()?.id).toBe("shown");
+    root.querySelector("#shown")?.remove();
+    expect(shownBuffer(root)).toBeNull();
+    expect(shownBuffer(document.createElement("div"))).toBeNull();
   });
 });
 

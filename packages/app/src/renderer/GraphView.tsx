@@ -51,6 +51,8 @@ export interface GraphViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A view that cannot draw its buffer says so: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
+  readonly onDrawn?: (key: string) => void;
   /** The names of the types by their key, from the metamodel. */
   readonly typeNames: ReadonlyMap<string, string>;
   /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
@@ -84,6 +86,7 @@ export const GraphView = ({
   dispatch,
   onData,
   onEcho,
+  onDrawn,
   typeNames,
   kindNames,
   split = false,
@@ -117,6 +120,7 @@ export const GraphView = ({
       if (!answer.ok) {
         setError(answer.message);
         onEcho(answer.message);
+        onDrawn?.(buffer.key);
         return;
       }
       performance.mark(GRAPH_MARKS.answer);
@@ -136,6 +140,7 @@ export const GraphView = ({
         const message = `The graph could not be laid out: ${String(thrown)}`;
         setError(message);
         onEcho(message);
+        onDrawn?.(buffer.key);
       }
     });
     return () => {
