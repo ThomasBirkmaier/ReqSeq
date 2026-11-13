@@ -7,7 +7,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll } from "./support/app.js";
+import { goTo, launchApp, listAll, shownLayer } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
@@ -79,7 +79,7 @@ const openElement = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(candidates(window).first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1").first()).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1").first()).toHaveText(title);
 };
 
 /**
@@ -157,13 +157,15 @@ test.describe("the context menu of an element as an entry", () => {
     const { window } = running;
     // A row of a list; its commands act on it: "Show graph" shows its graph.
     await listAll(window);
-    const row = window.locator(".row").nth(2);
+    const row = shownLayer(window).locator(".row").nth(2);
     const rowTitle = (await row.locator(".title").textContent()) ?? "";
     await hasEntries(row);
     await rightClick(row);
     await choose(window, "Show graph");
-    await expect(window.locator(".graph")).toBeVisible();
-    await expect(window.locator('.graph-node[aria-selected="true"] .graph-title')).toHaveText(rowTitle);
+    await expect(shownLayer(window).locator(".graph")).toBeVisible();
+    await expect(shownLayer(window).locator('.graph-node[aria-selected="true"] .graph-title')).toHaveText(
+      rowTitle,
+    );
 
     // A node of the graph, not the one the graph is of: "Show neighbourhood" shows the node's.
     // Pinned by its key: once right-clicked, it is the selected one.
@@ -171,7 +173,7 @@ test.describe("the context menu of an element as an entry", () => {
       .locator('.graph-node:not([aria-selected="true"])')
       .first()
       .getAttribute("data-node");
-    const node = window.locator(`.graph-node[data-node="${key ?? ""}"]`);
+    const node = shownLayer(window).locator(`.graph-node[data-node="${key ?? ""}"]`);
     const nodeTitle = (await node.locator(".graph-title").textContent()) ?? "";
     await hasEntries(node);
     await allCommandsAsPrompt(node);
@@ -183,12 +185,12 @@ test.describe("the context menu of an element as an entry", () => {
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await window.keyboard.type("wind");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".row").nth(1)).toBeVisible();
-    await hasEntries(window.locator(".row").nth(1));
+    await expect(shownLayer(window).locator(".row").nth(1)).toBeVisible();
+    await hasEntries(shownLayer(window).locator(".row").nth(1));
 
     // An entry of a package page: "Set status" asks for the entry's status, not the package's.
     await openElement(window, "Sensors");
-    const entry = window.locator(".members .row").nth(1);
+    const entry = shownLayer(window).locator(".members .row").nth(1);
     const entryId = (await entry.locator(".id").textContent()) ?? "";
     await hasEntries(entry);
     await allCommandsAsPrompt(entry);
@@ -200,19 +202,19 @@ test.describe("the context menu of an element as an entry", () => {
     // The matrix: the head of a row and a connected element in a cell.
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+T");
-    const head = window.locator(".matrix td.element .target").first();
+    const head = shownLayer(window).locator(".matrix td.element .target").first();
     await expect(head).toBeVisible();
     await hasEntries(head);
     // A connected element: "Show graph" shows its graph, not the one of its row.
-    const target = window.locator(".matrix td.cell .target").first();
+    const target = shownLayer(window).locator(".matrix td.cell .target").first();
     const targetLabel = (await target.textContent()) ?? "";
     const rowId = (await target.locator("xpath=ancestor::tr").locator("td.element .id").textContent()) ?? "";
     // SR-199 AK4 adds "Remove relation" after the entries of the element.
     await hasEntries(target, ["Remove relation"]);
     await rightClick(target);
     await choose(window, "Show graph");
-    await expect(window.locator(".graph")).toBeVisible();
-    const graphOf = window.locator('.graph-node[aria-selected="true"] .graph-id');
+    await expect(shownLayer(window).locator(".graph")).toBeVisible();
+    const graphOf = shownLayer(window).locator('.graph-node[aria-selected="true"] .graph-id');
     const graphId = ((await graphOf.textContent()) ?? "").split(" · ")[0] ?? "";
     expect(graphId).not.toBe("");
     expect(targetLabel).toContain(graphId);
@@ -226,17 +228,17 @@ test.describe("the context menu of an element as an entry", () => {
     // A row of the neighbourhood of "See the wind": its children.
     await openElement(window, "See the wind");
     await window.keyboard.press("ControlOrMeta+J");
-    const child = window.locator(".neighbourhood .row").first();
+    const child = shownLayer(window).locator(".neighbourhood .row").first();
     await expect(child).toBeVisible();
     await hasEntries(child);
     // A recent row of the overview; "Show element" opens its element.
     await fromCommandLine(window, "Show overview");
-    const recent = window.locator(".overview .line.recent", { hasText: "See the wind" });
+    const recent = shownLayer(window).locator(".overview .line.recent", { hasText: "See the wind" });
     await expect(recent).toBeVisible();
     await hasEntries(recent);
     await rightClick(recent);
     await choose(window, "Show element");
-    await expect(window.locator("article h1").first()).toHaveText("See the wind");
+    await expect(shownLayer(window).locator("article h1").first()).toHaveText("See the wind");
   });
 
   test("[SR-197/AK-frfw] [SR-197/AK-tzn9] a connected element in a group of relations or a relation box has the field's menu; a result row and a parent title have the buffer's", async () => {
@@ -246,8 +248,8 @@ test.describe("the context menu of an element as an entry", () => {
     await openElement(window, GUSTS);
     // AK3: the link in the group "derives-from" and in the box "packages" (a property of kind relation).
     for (const link of [
-      window.locator('article [data-field="derives-from"] [role="link"]').first(),
-      window.locator('article [data-field="packages"] [role="link"]').first(),
+      shownLayer(window).locator('article [data-field="derives-from"] [role="link"]').first(),
+      shownLayer(window).locator('article [data-field="packages"] [role="link"]').first(),
     ]) {
       await expect(link).toBeVisible();
       await rightClick(link);
@@ -257,19 +259,19 @@ test.describe("the context menu of an element as an entry", () => {
       await window.keyboard.press("Escape");
       await expect(menu(window)).toBeHidden();
     }
-    await rightClick(window.locator('article [data-field="packages"] [role="link"]').first());
+    await rightClick(shownLayer(window).locator('article [data-field="packages"] [role="link"]').first());
     expect(await entryNames(window)).toContain("Add property");
     await window.keyboard.press("Escape");
 
     // AK4: a title in the line of the parents has the menu of the buffer, as its empty sheet has.
-    const buffer = window.locator('[data-area="left"] .buffer');
+    const buffer = shownLayer(window, "left").locator(".buffer");
     const box = await buffer.boundingBox();
     await buffer.click({ button: "right", position: { x: 30, y: (box?.height ?? 100) - 30 } });
     await expect(menu(window)).toBeVisible();
     const ofBuffer = await entryNames(window);
     await window.keyboard.press("Escape");
     expect(ofBuffer.slice(0, 3)).toEqual(["Go to element or buffer", "Search elements", "Close buffer"]);
-    const parent = window.locator('.parents [role="link"]', { hasText: "See the wind" });
+    const parent = shownLayer(window).locator('.parents [role="link"]', { hasText: "See the wind" });
     await expect(parent).toBeVisible();
     await rightClick(parent);
     expect(await entryNames(window)).toEqual(ofBuffer);
@@ -277,7 +279,7 @@ test.describe("the context menu of an element as an entry", () => {
 
     // AK4: a row of the output of "List hints", which no other buffer shows.
     await fromCommandLine(window, "List hints");
-    const line = window.locator(".result .hint").first();
+    const line = shownLayer(window).locator(".result .hint").first();
     await expect(line).toBeVisible();
     await rightClick(line);
     const names = await entryNames(window);
@@ -305,14 +307,14 @@ test.describe("the context menu of an element as an entry", () => {
     const side = await area.getAttribute("data-area");
     await fromCommandLine(window, "Other window");
     await expect(window.locator(`[data-area="${side ?? ""}"]`)).toHaveAttribute("data-active", "");
-    const listed = window.locator(`[data-area="${side ?? ""}"] .row`);
+    const listed = shownLayer(window, side ?? "").locator(".row");
     for (let step = 0; step < 3; step += 1) {
       await window.keyboard.press("ArrowDown");
     }
     await expect(listed.nth(2)).toHaveAttribute("aria-selected", "true");
     const title = (await listed.nth(2).locator(".title").textContent()) ?? "";
     await window.keyboard.press("Enter");
-    await expect(window.locator(`[data-area="${side ?? ""}"] article h1`)).toHaveText(title);
+    await expect(shownLayer(window, side ?? "").locator("article h1")).toHaveText(title);
     const byKeyboard = await settled(window);
     await running.close();
 
@@ -323,7 +325,7 @@ test.describe("the context menu of an element as an entry", () => {
     expect(await area.getAttribute("data-area")).toBe(side);
     await rightClick(area.locator(".row").nth(2));
     await choose(window, "Show element");
-    await expect(window.locator(`[data-area="${side ?? ""}"] article h1`)).toHaveText(title);
+    await expect(shownLayer(window, side ?? "").locator("article h1")).toHaveText(title);
     expect(await settled(window)).toEqual(byKeyboard);
   });
 
@@ -332,7 +334,7 @@ test.describe("the context menu of an element as an entry", () => {
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
     await openElement(window, "Sensors");
-    await rightClick(window.locator(".members .row").nth(1));
+    await rightClick(shownLayer(window).locator(".members .row").nth(1));
     const folder = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
     await window.screenshot({ path: path.join(folder, "context-menu-entry-light.png") });
   });

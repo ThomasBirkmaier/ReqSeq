@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { ElectronApplication, Page } from "@playwright/test";
+import type { ElectronApplication, Locator, Page } from "@playwright/test";
 import { _electron as electron, expect } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 import { TEST_COMPILE_CACHE } from "./compile-cache.js";
@@ -654,6 +654,17 @@ export const saveAndRead = async (window: Page, file: string, expected: string |
   return text;
 };
 
+/**
+ * The shown buffer of the active area, or of the area on `side`: its layer in the area (`BufferArea.tsx`). The
+ * buffers drawn in advance stand hidden in the same area (SR-212 AK5), and a CSS locator ignores `aria-hidden`
+ * and `visibility`, so a locator of view content starts here. `getByRole` and `[data-buffer]` find only the shown
+ * buffer anyway.
+ */
+export const shownLayer = (window: Page, side?: string): Locator =>
+  window.locator(
+    `${side === undefined ? "[data-area][data-active]" : `[data-area="${side}"]`} > [data-layer="main"]`,
+  );
+
 /** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */
 export const listAll = async (window: Page): Promise<void> => {
   // Keys count once the workspace is open and its first buffer is shown.
@@ -661,7 +672,7 @@ export const listAll = async (window: Page): Promise<void> => {
   await window.keyboard.press(`${await modifier(window)}+Shift+P`);
   await window.keyboard.type("List all elements");
   await window.keyboard.press("Enter");
-  await window.locator(".row").first().waitFor();
+  await shownLayer(window).locator(".row").first().waitFor();
 };
 
 /**
@@ -757,7 +768,7 @@ export const showFolded = async (
   elements: readonly { readonly status: string }[],
 ): Promise<void> => {
   if (elements.some((element) => element.status === FOLDED_STATUS)) {
-    await window.locator('.row.fold-row[aria-expanded="false"]').click();
-    await window.locator('.row.fold-row[aria-expanded="true"]').waitFor();
+    await shownLayer(window).locator('.row.fold-row[aria-expanded="false"]').click();
+    await shownLayer(window).locator('.row.fold-row[aria-expanded="true"]').waitFor();
   }
 };

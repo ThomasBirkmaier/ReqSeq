@@ -7,7 +7,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded } from "./support/app.js";
+import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded, shownLayer } from "./support/app.js";
 
 /** 14 elements: 6 types, 5 of them system requirements (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -104,33 +104,36 @@ test.describe("the overview of a fixture workspace", () => {
   test("[SR-118/AK-yggg] below the types the overview shows the elements opened last, newest first", async () => {
     const { window } = running;
     await jumpToHit(window, "icing", "Survive icing");
-    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Survive icing");
     await jumpToHit(window, "dial", "Show a dial");
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show a dial");
     await jumpToHit(window, "storms", "Warn of storms");
-    await expect(window.locator("article h1")).toHaveText("Warn of storms");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of storms");
     await runCommand(window, "show overview");
     await expect(overview(window)).toBeVisible();
     const facets = await cliJson<Facets>(running, ["element", "facets"]);
-    const recent = window.locator(".recent .title");
+    const recent = shownLayer(window).locator(".recent .title");
     await expect(recent).toHaveText(["Warn of storms", "Show a dial", "Survive icing"]);
     await expect(window.getByRole("option")).toHaveCount(facets.types.length + 3);
     // Enter on a recent element opens it.
     await window.getByRole("option").filter({ hasText: "Show a dial" }).click();
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show a dial");
   });
 
   test("[SR-118/AK-yggg] the recent elements are there again after the app restarts", async () => {
     const { window } = running;
     await jumpToHit(window, "icing", "Survive icing");
-    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Survive icing");
     await jumpToHit(window, "dial", "Show a dial");
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show a dial");
     const { kept } = running;
     await running.close({ keep: true });
     running = await launchApp(undefined, { kept });
     await expect(overview(running.window)).toBeVisible();
-    await expect(running.window.locator(".recent .title")).toHaveText(["Show a dial", "Survive icing"]);
+    await expect(shownLayer(running.window).locator(".recent .title")).toHaveText([
+      "Show a dial",
+      "Survive icing",
+    ]);
   });
 
   test("[SR-118/AK-p9z9] a type line opens the list of that type, as long as its count", async () => {
@@ -152,7 +155,7 @@ test.describe("the overview of a fixture workspace", () => {
     ]);
     expect(listed.total).toBe(requirements?.count);
     await showFolded(window, listed.elements);
-    expect(await window.locator(".row .title").allTextContents()).toEqual(
+    expect(await shownLayer(window).locator(".row .title").allTextContents()).toEqual(
       inShownOrder(listed.elements).map((element) => element.title),
     );
     // The same with the keys: Down to the line, Enter.
@@ -170,7 +173,7 @@ test.describe("the overview of a fixture workspace", () => {
       for (const text of [element.shortId, element.title]) {
         // Each round starts like a fresh start: the overview is the only buffer.
         await jumpToHit(window, text, element.title);
-        await expect(window.locator("article h1")).toHaveText(element.title);
+        await expect(shownLayer(window).locator("article h1")).toHaveText(element.title);
         await expect(modeline(window)).toContainText(element.shortId);
         await runCommand(window, "close buffer");
         await expect(overview(window)).toBeVisible();
@@ -180,7 +183,7 @@ test.describe("the overview of a fixture workspace", () => {
 
   test('[SR-118/AK-t1qm] the overview lists no element until "List all elements"', async () => {
     const { window } = running;
-    await expect(window.locator(".row")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".row")).toHaveCount(0);
     await expect(window.getByLabel("Sheet")).not.toContainText("Survive icing");
     await runCommand(window, "list all");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
@@ -191,7 +194,7 @@ test.describe("the overview of a fixture workspace", () => {
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
     await showFolded(window, listed.elements);
-    expect(await window.locator(".row .title").allTextContents()).toEqual(
+    expect(await shownLayer(window).locator(".row .title").allTextContents()).toEqual(
       inShownOrder(listed.elements).map((element) => element.title),
     );
     // Closing the list shows the overview again.
@@ -206,12 +209,12 @@ test.describe("the overview of a fixture workspace", () => {
     const before = await snapshot(root);
     expect(Object.keys(before).length).toBeGreaterThan(14);
     await jumpToHit(window, "icing", "Survive icing");
-    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Survive icing");
     await jumpToHit(window, "dial", "Show a dial");
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show a dial");
     await listAll(window);
     await runCommand(window, "show overview");
-    await expect(window.locator(".recent .title")).toHaveText(["Show a dial", "Survive icing"]);
+    await expect(shownLayer(window).locator(".recent .title")).toHaveText(["Show a dial", "Survive icing"]);
     expect(await snapshot(root)).toEqual(before);
   });
 
@@ -224,9 +227,9 @@ test.describe("the overview of a fixture workspace", () => {
     ]);
     // Two key presses and the text, with no waiting in between.
     await jump(window, got.element.shortId);
-    await expect(window.locator("article h1")).toHaveText(got.element.title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(got.element.title);
     await runCommand(window, "close buffer");
     await jump(window, "icing");
-    await expect(window.locator("article h1")).toHaveText(got.element.title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(got.element.title);
   });
 });

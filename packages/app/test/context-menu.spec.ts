@@ -9,7 +9,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll } from "./support/app.js";
+import { goTo, launchApp, listAll, shownLayer } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
@@ -72,7 +72,7 @@ const openElement = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(candidates(window).first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1").first()).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1").first()).toHaveText(title);
 };
 
 /** What the window shows: the areas with their buffers, the modeline and the minibuffer's line. */
@@ -145,7 +145,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const list = window.locator('[data-area="left"] .buffer');
+    const list = shownLayer(window, "left").locator(".buffer");
     const box = await boxOf(list);
     // Below the rows, on the empty sheet, with room for the menu below.
     const at = { x: 40, y: box.height - 300 };
@@ -176,7 +176,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const sheet = (side: string): Locator => window.locator(`[data-area="${side}"] .buffer`).first();
+    const sheet = (side: string): Locator => shownLayer(window, side).locator(".buffer").first();
     const empty = async (side: string): Promise<{ x: number; y: number }> => {
       const box = await sheet(side).boundingBox();
       return { x: 20, y: (box?.height ?? 100) - 20 };
@@ -196,19 +196,19 @@ test.describe("the context menu", () => {
     // Close buffer with unsaved input: it is saved first, then the buffer goes, both ways.
     const typed = async (word: string): Promise<void> => {
       await openElement(window, "See the wind");
-      await window.locator(".cm-content").first().click();
+      await shownLayer(window).locator(".cm-content").first().click();
       await window.keyboard.press("ControlOrMeta+End");
       await window.keyboard.type(` ${word}`);
     };
     await typed("first");
     await fromCommandLine(window, "Close buffer");
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     const closed = await settled(window);
     await typed("second");
     // On no field of the element (the title has its own menu, SR-196).
     await rightClick(sheet("left"), await empty("left"));
     await choose(window, "Close buffer");
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     await expect.poll(() => shown(window)).toEqual(closed);
     const file = await running.cli(["element", "get", "N-0000a1"]);
     expect((JSON.parse(file.stdout) as { element: { text: string } }).element.text).toMatch(/first\s+second/);
@@ -237,7 +237,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const row = window.locator(".row").nth(2);
+    const row = shownLayer(window).locator(".row").nth(2);
     await rightClick(row);
     await expect(row).toHaveAttribute("aria-selected", "true");
     await choose(window, ALL);
@@ -255,7 +255,7 @@ test.describe("the context menu", () => {
     const { window } = running;
     await listAll(window);
     const before = await settled(window);
-    const list = window.locator('[data-area="left"] .buffer');
+    const list = shownLayer(window, "left").locator(".buffer");
     const box = await list.boundingBox();
     const empty = { x: 30, y: (box?.height ?? 100) - 30 };
     await rightClick(list, empty);
@@ -270,11 +270,11 @@ test.describe("the context menu", () => {
     const second = await menu(window).boundingBox();
     expect(second?.x).not.toBe(first?.x);
     // A left click outside closes it and does what it does without the menu: the row opens.
-    const row = window.locator(".row").nth(1);
+    const row = shownLayer(window).locator(".row").nth(1);
     const title = (await row.locator(".title").textContent()) ?? "";
     await row.click();
     await expect(menu(window)).toBeHidden();
-    await expect(window.locator("article h1").first()).toHaveText(title);
+    await expect(shownLayer(window).locator("article h1").first()).toHaveText(title);
     // A left click into the inactive area of a split window closes it and makes that area active.
     await fromCommandLine(window, "Split window");
     await expect(window.locator("[data-area]")).toHaveCount(2);
@@ -290,47 +290,47 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    expect(await selectedWhenMenuOpens(window.locator(".row").nth(3))).toBe(true);
+    expect(await selectedWhenMenuOpens(shownLayer(window).locator(".row").nth(3))).toBe(true);
     await window.keyboard.press("Escape");
     // A search hit.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await window.keyboard.type("wind");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".row").nth(1)).toBeVisible();
-    expect(await selectedWhenMenuOpens(window.locator(".row").nth(1))).toBe(true);
+    await expect(shownLayer(window).locator(".row").nth(1)).toBeVisible();
+    expect(await selectedWhenMenuOpens(shownLayer(window).locator(".row").nth(1))).toBe(true);
     await window.keyboard.press("Escape");
     // A package entry; "Open to the right" opens it beside the page.
     await openElement(window, "Sensors");
-    const entry = window.locator(".members .row").nth(1);
+    const entry = shownLayer(window).locator(".members .row").nth(1);
     const title = (await entry.locator(".title").textContent()) ?? "";
     expect(await selectedWhenMenuOpens(entry)).toBe(true);
     await choose(window, ALL);
     await window.keyboard.type("Open to the right");
     await expect(candidates(window).first().locator(".name")).toHaveText("Open to the right");
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-area="right"] article h1')).toHaveText(title);
+    await expect(shownLayer(window, "right").locator("article h1")).toHaveText(title);
   });
 
   test("[SR-194/AK-j5rp] a node of the graph and of the metamodel is selected before the menu opens", async () => {
     running = await launchApp({ fixture: "SR-111/graph" });
     const { window } = running;
     await listAll(window);
-    await window.locator(".row").first().click();
-    await expect(window.locator("article h1").first()).toBeVisible();
+    await shownLayer(window).locator(".row").first().click();
+    await expect(shownLayer(window).locator("article h1").first()).toBeVisible();
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeFocused();
-    const node = window.locator('.graph-node:not([aria-selected="true"])').first();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
+    const node = shownLayer(window).locator('.graph-node:not([aria-selected="true"])').first();
     const title = (await node.locator(".graph-title").textContent()) ?? "";
     expect(await selectedWhenMenuOpens(node)).toBe(true);
     await choose(window, ALL);
     await window.keyboard.type("Open to the right");
     await expect(candidates(window).first().locator(".name")).toHaveText("Open to the right");
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-area="right"] article h1')).toHaveText(title);
+    await expect(shownLayer(window, "right").locator("article h1")).toHaveText(title);
     await fromCommandLine(window, "Unsplit window");
     // The metamodel.
     await fromCommandLine(window, "Show metamodel");
-    const type = window.locator('.mm-type:not([aria-selected="true"])').first();
+    const type = shownLayer(window).locator('.mm-type:not([aria-selected="true"])').first();
     await expect(type).toBeVisible();
     expect(await selectedWhenMenuOpens(type)).toBe(true);
   });
@@ -340,7 +340,7 @@ test.describe("the context menu", () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+T");
-    const target = window.locator(".matrix td.cell .target").first();
+    const target = shownLayer(window).locator(".matrix td.cell .target").first();
     await expect(target).toBeVisible();
     const name = (await target.textContent()) ?? "";
     expect(await selectedWhenMenuOpens(target)).toBe(true);
@@ -348,11 +348,11 @@ test.describe("the context menu", () => {
     await window.keyboard.type("Open to the right");
     await expect(candidates(window).first().locator(".name")).toHaveText("Open to the right");
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-area="right"] article h1')).toBeVisible();
-    expect(name).toContain((await window.locator('[data-area="right"] article h1').textContent()) ?? "-");
+    await expect(shownLayer(window, "right").locator("article h1")).toBeVisible();
+    expect(name).toContain((await shownLayer(window, "right").locator("article h1").textContent()) ?? "-");
     await fromCommandLine(window, "Unsplit window");
     // A cell, pressed beside its relations: the cell is selected, in its row.
-    const cell = window.locator(".matrix td.cell").nth(1);
+    const cell = shownLayer(window).locator(".matrix td.cell").nth(1);
     const box = await cell.boundingBox();
     expect(await selectedWhenMenuOpens(cell, { x: (box?.width ?? 10) - 3, y: (box?.height ?? 10) - 3 })).toBe(
       true,
@@ -363,7 +363,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const list = window.locator('[data-area="left"] .buffer');
+    const list = shownLayer(window, "left").locator(".buffer");
     const box = await list.boundingBox();
     await rightClick(list, { x: 30, y: (box?.height ?? 100) - 30 });
     expect(await entryNames(window)).toEqual([...BUFFER_ENTRIES, "Split window", ALL]);
@@ -377,12 +377,12 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const row = window.locator(".row").nth(2);
+    const row = shownLayer(window).locator(".row").nth(2);
     await row.click({ modifiers: ["Control"] });
     await expect(menu(window)).toHaveCount(1);
     await expect(row).toHaveAttribute("aria-selected", "true");
     // The row did not open.
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
   });
 
   test("Ctrl+click on Linux and Windows opens no menu", async () => {
@@ -394,7 +394,7 @@ test.describe("the context menu", () => {
       .locator(".row")
       .nth(2)
       .click({ modifiers: ["Control"] });
-    await expect(window.locator("article h1").first()).toBeVisible();
+    await expect(shownLayer(window).locator("article h1").first()).toBeVisible();
     await expect(menu(window)).toHaveCount(0);
   });
 
@@ -402,7 +402,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await listAll(window);
-    const row = window.locator(".row").nth(2);
+    const row = shownLayer(window).locator(".row").nth(2);
     await rightClick(row);
     const folder = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
     await window.screenshot({ path: path.join(folder, "context-menu-light.png") });

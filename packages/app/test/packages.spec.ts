@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { fileSha256, launchApp } from "./support/app.js";
+import { fileSha256, launchApp, shownLayer } from "./support/app.js";
 
 const R1 = "SR-0000b1";
 
@@ -16,7 +16,7 @@ const cliJson = async <T>(running: RunningApp, argv: readonly string[]): Promise
 };
 
 const memberTitles = (window: Page): Promise<string[]> =>
-  window.locator(".members .row .title").allTextContents();
+  shownLayer(window).locator(".members .row .title").allTextContents();
 
 /** Opens the package `title` with Ctrl+P and waits for its elements. */
 const openPackage = async (window: Page, title: string): Promise<void> => {
@@ -24,8 +24,8 @@ const openPackage = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator(".members .row").first()).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
 };
 
 test.describe("packages on a fixture workspace", () => {
@@ -50,7 +50,7 @@ test.describe("packages on a fixture workspace", () => {
     await window.keyboard.press("Enter");
     await window.keyboard.type("Release 3");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Release 3");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Release 3");
     const found = await cliJson<{ hits: { id: string; title: string }[] }>(running, [
       "element",
       "search",
@@ -90,13 +90,15 @@ test.describe("packages on a fixture workspace", () => {
     const texts: string[] = [];
     for (const pkg of ["Release 1", "Release 2"]) {
       await openPackage(window, pkg);
-      await expect(window.locator(".members .row .title").first()).toHaveText("Measure the wind speed");
+      await expect(shownLayer(window).locator(".members .row .title").first()).toHaveText(
+        "Measure the wind speed",
+      );
       // The element opened from this package: the same title and text.
       await window.keyboard.press("ArrowDown");
-      await expect(window.locator(".members .list")).toBeFocused();
+      await expect(shownLayer(window).locator(".members .list")).toBeFocused();
       await window.keyboard.press("Enter");
-      await expect(window.locator("article h1")).toHaveText("Measure the wind speed");
-      texts.push((await window.locator(".cm-content").first().innerText()).trim());
+      await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the wind speed");
+      texts.push((await shownLayer(window).locator(".cm-content").first().innerText()).trim());
     }
     expect(texts).toEqual(["R1: changed once.", "R1: changed once."]);
     const listed = await cliJson<{ total: number }>(running, [

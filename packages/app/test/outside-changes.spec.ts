@@ -6,7 +6,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { fileSha256, launchApp, listAll } from "./support/app.js";
+import { fileSha256, launchApp, listAll, shownLayer } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -34,9 +34,9 @@ const opened = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
   await expect(text(window)).toBeVisible();
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 test.describe("changes from outside the app", () => {
@@ -53,7 +53,7 @@ test.describe("changes from outside the app", () => {
     const { window } = running;
     const mcp = await running.mcp();
     // A list row: the title an agent gives an element is in the list within 2 s, and its row is marked.
-    const row = window.locator(".row", { hasText: "SR-0000b2" });
+    const row = shownLayer(window).locator(".row", { hasText: "SR-0000b2" });
     await expect(row).toBeVisible();
     // A change of the title or the text carries the bytes it was made on (#269), read before the clock starts.
     const b2 = await fileSha256(running, "SR-0000b2");
@@ -68,7 +68,7 @@ test.describe("changes from outside the app", () => {
     });
     expect(Date.now() - start).toBeLessThanOrEqual(SHOWN_WITHIN_MS);
     await expect(row).toHaveClass(/outside-change/);
-    await expect(window.locator(".outside-change")).toHaveCount(1);
+    await expect(shownLayer(window).locator(".outside-change")).toHaveCount(1);
     // The element buffer: the text field that changed is marked, the title is not.
     await opened(window, TITLE);
     const expectedFileSha256 = await fileSha256(running, ELEMENT);
@@ -82,8 +82,8 @@ test.describe("changes from outside the app", () => {
       timeout: Math.max(1, SHOWN_WITHIN_MS - (Date.now() - start)),
     });
     expect(Date.now() - start).toBeLessThanOrEqual(SHOWN_WITHIN_MS);
-    await expect(window.locator('[data-field="Text"]')).toHaveClass(/outside-change/);
-    await expect(window.locator('[data-field="Title"]')).not.toHaveClass(/outside-change/);
+    await expect(shownLayer(window).locator('[data-field="Text"]')).toHaveClass(/outside-change/);
+    await expect(shownLayer(window).locator('[data-field="Title"]')).not.toHaveClass(/outside-change/);
     // Quiet: the minibuffer says nothing about it (D-062).
     await expect(window.getByLabel("Minibuffer")).toHaveText("");
   });
@@ -102,6 +102,10 @@ test.describe("changes from outside the app", () => {
         (node.matches(".outside-change") || node.querySelector(".outside-change") !== null);
       new MutationObserver((records) => {
         for (const record of records) {
+          // Only the shown buffer: one drawn in advance stands hidden beside it (SR-212 AK5).
+          if (!(record.target instanceof Element) || record.target.closest('[data-layer="main"]') === null) {
+            continue;
+          }
           const at = performance.now();
           if (record.type === "attributes" && record.target instanceof Element) {
             const before = (record.oldValue ?? "").split(/\s+/).includes("outside-change");
@@ -133,7 +137,7 @@ test.describe("changes from outside the app", () => {
       window.evaluate(() => Reflect.get(globalThis, "outsideMarks") as { kind: string; at: number }[]);
     const expectedFileSha256 = await fileSha256(running, ELEMENT);
     await mcp.call("element_update", { ref: ELEMENT, title: "Measure the wind speed", expectedFileSha256 });
-    await expect(window.locator("article h1")).toHaveText("Measure the wind speed");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the wind speed");
     await expect
       .poll(async () => (await marks()).map((mark) => mark.kind), { timeout: GONE_AFTER_MS + 2000 })
       .toEqual(["shown", "gone"]);
@@ -142,7 +146,7 @@ test.describe("changes from outside the app", () => {
     // timer starts before the mark is drawn, so no lower bound is measured here.
     expect((gone?.at ?? 0) - (shown?.at ?? 0)).toBeLessThanOrEqual(GONE_AFTER_MS + FRAME_MS);
     await window.waitForTimeout(500);
-    await expect(window.locator(".outside-change")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".outside-change")).toHaveCount(0);
     expect((await marks()).map((mark) => mark.kind)).toEqual(["shown", "gone"]);
   });
 
@@ -187,7 +191,7 @@ test.describe("changes from outside the app", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}${AFFECTED}`);
     // Longer than a batch of the watcher takes (at most 1 s).
     await window.waitForTimeout(1500);
-    await expect(window.locator(".outside-change")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".outside-change")).toHaveCount(0);
     await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} ${TITLE}${AFFECTED}`);
   });
 });

@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll, shownLayer } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 /** 14 elements with a derivation tree, types, statuses and the package Sensors (fixtures/README.md). */
@@ -16,7 +16,8 @@ const FIXTURE = { fixture: "SR-069/filter" };
 const promptLabel = (window: Page): Locator => window.getByLabel("Minibuffer").locator("label");
 
 /** The selected rows of the shown buffer: none, or exactly one. */
-const selectedRow = (window: Page): Locator => window.locator('[data-buffer] [aria-selected="true"]');
+const selectedRow = (window: Page): Locator =>
+  shownLayer(window).locator('[data-buffer] [aria-selected="true"]');
 
 /** Opens the package Sensors: Ctrl/Cmd+P, its title, and Enter once the hit is there. */
 const openPackage = async (window: Page): Promise<void> => {
@@ -24,9 +25,9 @@ const openPackage = async (window: Page): Promise<void> => {
   await window.keyboard.type("Sensors");
   await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText("Sensors");
-  await expect(window.locator(".members .row").first()).toBeVisible();
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
+  await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
@@ -34,7 +35,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
     await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   });
   test.afterEach(async () => {
     await running.close();
@@ -45,45 +46,45 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     // The overview after the start: no line is selected.
     await expect(selectedRow(window)).toHaveCount(0);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "overview-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_overview-0$/);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "overview-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_overview-1$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "overview-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_overview-0$/);
     await window.keyboard.press("ArrowDown");
-    await expect(selectedRow(window)).toHaveAttribute("id", "overview-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_overview-1$/);
     // The list of all elements.
     await listAll(window);
     const list = window.getByRole("listbox");
     await expect(selectedRow(window)).toHaveCount(0);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-0$/);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-1");
-    await expect(list).toHaveAttribute("aria-activedescendant", "row-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-1$/);
+    await expect(list).toHaveAttribute("aria-activedescendant", /_row-1$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-0");
-    await expect(list).toHaveAttribute("aria-activedescendant", "row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-0$/);
+    await expect(list).toHaveAttribute("aria-activedescendant", /_row-0$/);
     // The search result.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await window.keyboard.type("wind");
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: wind");
-    await expect(window.locator(".row").nth(1)).toBeVisible();
+    await expect(shownLayer(window).locator(".row").nth(1)).toBeVisible();
     await expect(selectedRow(window)).toHaveCount(0);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-0$/);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-1$/);
     // The matrix of the list of all elements.
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+T");
-    await expect(window.locator("tbody tr").first()).toBeVisible();
+    await expect(shownLayer(window).locator("tbody tr").first()).toBeVisible();
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "matrix-row-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_matrix-row-1$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "matrix-row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_matrix-row-0$/);
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
@@ -100,7 +101,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
       (element) => element.title,
     );
     expect(titles.length).toBeGreaterThanOrEqual(2);
-    const members = window.locator(".members .list");
+    const members = shownLayer(window).locator(".members .list");
     const selected = members.locator('[aria-selected="true"] .title');
     await window.keyboard.press("Control+N");
     await expect(members).toBeFocused();
@@ -110,7 +111,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await window.keyboard.press("Control+P");
     await expect(selected).toHaveText(titles[0] ?? "");
     await window.keyboard.press("Control+P");
-    await expect(window.locator("article")).toBeFocused();
+    await expect(shownLayer(window).locator("article")).toBeFocused();
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
@@ -120,17 +121,17 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-2");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-2$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-1$/);
     await expect(promptLabel(window)).toHaveCount(0);
     await window.keyboard.press("Control+P");
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-0$/);
     await expect(promptLabel(window)).toHaveCount(0);
     // Cmd+N and Cmd+P are not Ctrl: they do not move the selection, and Cmd+P is "Go to".
     await window.keyboard.press("Meta+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "row-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_row-0$/);
     await window.keyboard.press("Meta+P");
     await expect(promptLabel(window)).toHaveText("Go to");
     await window.keyboard.press("Escape");
@@ -138,10 +139,10 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Show overview");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".overview")).toBeFocused();
+    await expect(shownLayer(window).locator(".overview")).toBeFocused();
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "overview-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_overview-0$/);
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
@@ -179,27 +180,31 @@ test.describe("Ctrl+N and Ctrl+P in the neighbourhood", () => {
     await window.keyboard.type("SR-b0000000001");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Show wind speed");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Show wind speed");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show wind speed");
     await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator(".neighbourhood")).toBeFocused();
-    const tree = window.locator('[role="tree"] [role="treeitem"]');
+    await expect(shownLayer(window).locator(".neighbourhood")).toBeFocused();
+    const tree = shownLayer(window).locator('[role="tree"] [role="treeitem"]');
     await expect(tree.first()).toBeVisible();
-    await expect(window.locator("h2")).toHaveText(["Children", "← excludes", "← inline reference"]);
+    await expect(shownLayer(window).locator("h2")).toHaveText([
+      "Children",
+      "← excludes",
+      "← inline reference",
+    ]);
     const treeRows = await tree.count();
     await expect(selectedRow(window)).toHaveCount(0);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "nrow-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_nrow-0$/);
     await window.keyboard.press("Control+N");
-    await expect(selectedRow(window)).toHaveAttribute("id", "nrow-1");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_nrow-1$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "nrow-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_nrow-0$/);
     await window.keyboard.press("Control+P");
-    await expect(selectedRow(window)).toHaveAttribute("id", "nrow-0");
+    await expect(selectedRow(window)).toHaveAttribute("id", /_nrow-0$/);
     // After the last row of the tree, Ctrl+N reaches the first incoming link.
     for (let step = 1; step <= treeRows; step += 1) {
       await window.keyboard.press("Control+N");
     }
-    await expect(selectedRow(window)).toHaveAttribute("id", `nrow-${String(treeRows)}`);
+    await expect(selectedRow(window)).toHaveAttribute("id", new RegExp(`_nrow-${String(treeRows)}$`));
     await expect(selectedRow(window)).not.toHaveRole("treeitem");
     await expect(promptLabel(window)).toHaveCount(0);
   });
@@ -219,7 +224,7 @@ test.describe("the physical Ctrl key under macOS", () => {
       Object.defineProperty(Navigator.prototype, "platform", { get: () => "MacIntel" });
     });
     await window.reload();
-    await expect(window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
     expect(await window.evaluate(() => navigator.platform)).toBe("MacIntel");
   });
   test.afterEach(async () => {
@@ -233,8 +238,8 @@ test.describe("the physical Ctrl key under macOS", () => {
     await window.keyboard.type(DEMO_TITLE);
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(DEMO_TITLE);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
-    const article = window.locator("article");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(DEMO_TITLE);
+    const article = shownLayer(window).locator("article");
     await expect(article).toBeFocused();
     // On the element: Ctrl+P is not "Go to".
     await window.keyboard.press("Control+P");
@@ -242,7 +247,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await expect(article).toBeFocused();
     // In the text editor Ctrl+P is CodeMirror's "line up" of macOS: from the end, one line up.
     await window.keyboard.press("Enter");
-    const content = window.locator('[data-field="Text"] .cm-content');
+    const content = shownLayer(window).locator('[data-field="Text"] .cm-content');
     await expect(content).toBeFocused();
     await window.keyboard.press("Control+P");
     await window.keyboard.type("X");
@@ -253,7 +258,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await expect(promptLabel(window)).toHaveCount(0);
     // On the first line Ctrl+P goes up into the title, as Up does (ThomasBirkmaier/ReqSeq-archive#621), and in the title, where nothing
     // is above, it is still no "Go to"; Ctrl+N comes back into the text.
-    const title = window.locator('[data-field="Title"] .cm-content');
+    const title = shownLayer(window).locator('[data-field="Title"] .cm-content');
     for (let line = 0; line < 40; line += 1) {
       await window.keyboard.press("Control+P");
     }
@@ -279,15 +284,15 @@ test.describe("the physical Ctrl key under macOS", () => {
     await window.keyboard.type(DEMO_TITLE);
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(DEMO_TITLE);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(DEMO_TITLE);
     await window.keyboard.press("Enter");
-    const content = window.locator('[data-field="Text"] .cm-content');
+    const content = shownLayer(window).locator('[data-field="Text"] .cm-content');
     await expect(content).toBeFocused();
     // A new last line, and the slash menu on it.
     await window.keyboard.press("Meta+ArrowDown");
     await window.keyboard.press("Enter");
     await window.keyboard.type("/");
-    const menu = window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
+    const menu = shownLayer(window).locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
     const selected = menu.locator('li[aria-selected="true"] .cm-completionLabel');
     await expect(selected).toHaveText("Heading 1");
     await window.keyboard.press("Control+N");
@@ -300,7 +305,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     // The caret stayed after the /: Enter takes the entry there.
     await window.keyboard.press("Enter");
     await expect(menu).toHaveCount(0);
-    const last = window.locator('[data-field="Text"] .cm-line').last();
+    const last = shownLayer(window).locator('[data-field="Text"] .cm-line').last();
     await expect.poll(() => last.innerText()).toMatch(/^## ?$/);
   });
 });

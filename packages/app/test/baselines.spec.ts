@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { FixtureWorkspace, RunningApp } from "./support/app.js";
-import { copyFixture, launchApp } from "./support/app.js";
+import { copyFixture, launchApp, shownLayer } from "./support/app.js";
 
 const execFileAsync = promisify(execFile);
 const ID = "61061061-0000-4000-8000-0000000000";
@@ -97,7 +97,7 @@ const launchIn = async (ws: GitWorkspace, root: string): Promise<RunningApp> => 
   const running = await launchApp(undefined, {
     kept: { home, workspace: { root: ws.path(root), cleanup: () => ws.cleanup() } },
   });
-  await expect(running.window.locator(".overview .line").first()).toBeVisible();
+  await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   return running;
 };
 
@@ -163,7 +163,7 @@ const runOnBaseline = async (window: Page, title: string, name: string, more = f
 
 /** The lines of the result buffer as "<label> <text>", indented by two spaces per level. */
 const resultLines = async (window: Page): Promise<string[]> => {
-  const lines = window.locator(".result .line");
+  const lines = shownLayer(window).locator(".result .line");
   await expect(lines.first()).toBeVisible();
   return lines.evaluateAll((all) =>
     all.map((line) => {
@@ -228,8 +228,8 @@ test.describe("baselines in the app", () => {
     await window.keyboard.type("Display");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Display");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Display");
-    await expect(window.locator(".members .row")).toHaveCount(2);
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Display");
+    await expect(shownLayer(window).locator(".members .row")).toHaveCount(2);
     // "Create baseline" asks only the name: the selection is the package of the page.
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Create baseline");
@@ -284,7 +284,7 @@ test.describe("baselines in the app", () => {
       expect.arrayContaining(["version n1:697a2ad17ed49170", `versionDate ${date}`]),
     );
     // No old content: Git shows it (D-033).
-    await expect(running.window.locator(".result")).not.toContainText("then it shows the speed.");
+    await expect(shownLayer(running.window).locator(".result")).not.toContainText("then it shows the speed.");
     expect(entry(await cliGet(running, ["Release 2"]), "b1")).toMatchObject({
       version: "n1:697a2ad17ed49170",
       versionDate: date,
@@ -309,9 +309,9 @@ test.describe("baselines in the app", () => {
     ]);
     // Without a stored selection: nothing added, and the result says so.
     await runOnBaseline(window, "Show baseline", "Release 1");
-    await expect(window.locator(".result .line").filter({ hasText: "selectionKnown" })).toHaveText(
-      "selectionKnownfalse",
-    );
+    await expect(
+      shownLayer(window).locator(".result .line").filter({ hasText: "selectionKnown" }),
+    ).toHaveText("selectionKnownfalse");
     const without = await resultLines(window);
     expect(without.filter((line) => line.trim() === "state added")).toEqual([]);
     expect(without).toContain("  added 0");
@@ -331,9 +331,9 @@ test.describe("baselines in the app", () => {
     // The current version next to the one in the baseline.
     expect(a1).toContain(`current ${String(cli?.current)}`);
     await runOnBaseline(window, "Show baseline", "Release 1");
-    await expect(window.locator(".result .line").filter({ hasText: "selectionKnown" })).toHaveText(
-      "selectionKnownfalse",
-    );
+    await expect(
+      shownLayer(window).locator(".result .line").filter({ hasText: "selectionKnown" }),
+    ).toHaveText("selectionKnownfalse");
     const without = await resultLines(window);
     expect(without.filter((line) => line.trim() === "state removed")).toEqual([]);
     expect(without).toContain("  removed 0");
@@ -384,7 +384,7 @@ test.describe("baselines in the app", () => {
     await window.keyboard.press("Enter");
     await expect(candidates(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".result")).toContainText("verification");
+    await expect(shownLayer(window).locator(".result")).toContainText("verification");
     const lines = await resultLines(window);
     /** The fields under the row of `shortId`, as "Show baseline" gives them. */
     const fields = (shortId: string): string[] =>

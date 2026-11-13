@@ -347,7 +347,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     const markers = await window
       .locator("path.mm-edge")
       .evaluateAll((paths) => paths.map((path) => path.getAttribute("marker-end")));
-    expect(markers.every((marker) => marker?.startsWith("url(#mm-arrow") === true)).toBe(true);
+    expect(markers.every((marker) => /^url\(#\w*mm-arrow/.test(marker ?? ""))).toBe(true);
     // No name or property line is cut, no label line is wider than its label, no label covers anything.
     expect(await drawingProblems(window)).toEqual([]);
   });
@@ -385,7 +385,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expectSelected(window, "software-requirement");
     await window.keyboard.press("Home");
     await expectSelected(window, "item");
-    await expect(window.locator(".metamodel")).toHaveAttribute("aria-activedescendant", "mm-type-0");
+    await expect(window.locator(".metamodel")).toHaveAttribute("aria-activedescendant", /_mm-type-0$/);
   });
 
   test("[SR-130/AK-g9gk] Ctrl/Cmd+T switches between graph and text and keeps the selected type, by keys only", async () => {

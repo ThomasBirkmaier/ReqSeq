@@ -6,7 +6,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded } from "./support/app.js";
+import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded, shownLayer } from "./support/app.js";
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -23,7 +23,8 @@ const cliJson = async <T>(running: RunningApp, argv: readonly string[]): Promise
   return JSON.parse(result.stdout) as T;
 };
 
-const rowTitles = (window: Page): Promise<string[]> => window.locator(".row .title").allTextContents();
+const rowTitles = (window: Page): Promise<string[]> =>
+  shownLayer(window).locator(".row .title").allTextContents();
 
 /** Opens the command prompt, types `command` and runs the first candidate. */
 const runCommand = async (window: Page, command: string): Promise<void> => {
@@ -79,9 +80,11 @@ test.describe("the main view on a fixture workspace", () => {
       // The only buttons are the copy symbols of the fields (SR-128), and they are seen only while a field
       // is hovered or has the focus: none is visible here.
       expect(
-        await window.locator("button:not(.copy), input, textarea, select, form, nav, aside, dialog").count(),
+        await shownLayer(window)
+          .locator("button:not(.copy), input, textarea, select, form, nav, aside, dialog")
+          .count(),
       ).toBe(0);
-      await expect(window.locator(".copy:visible")).toHaveCount(0);
+      await expect(shownLayer(window).locator(".copy:visible")).toHaveCount(0);
       // The window has the sheet, the modeline and the minibuffer, nothing else. On macOS the top strip of the
       // sheet stands in for the native title bar (ThomasBirkmaier/ReqSeq-archive#490): it is aria-hidden and holds no control.
       expect(
@@ -97,11 +100,13 @@ test.describe("the main view on a fixture workspace", () => {
     await permanent(0);
     // ... and with an element open.
     await window.keyboard.press("Enter");
-    await expect(window.locator("article")).toBeVisible();
+    await expect(shownLayer(window).locator("article")).toBeVisible();
     // The text and the two text properties of the first element (acceptance criteria and priority, a number).
     await permanent(3);
-    await expect(window.locator('article [data-field="acceptance-criteria"] .cm-content')).toHaveCount(1);
-    await expect(window.locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
+    await expect(
+      shownLayer(window).locator('article [data-field="acceptance-criteria"] .cm-content'),
+    ).toHaveCount(1);
+    await expect(shownLayer(window).locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
     // A list numbers its values from 1, as `element get` does (#615); a single value has no numbers.
     const numbers = await window
       .locator('article [data-field="acceptance-criteria"] .cm-lineNumbers .cm-gutterElement')
@@ -110,7 +115,9 @@ test.describe("the main view on a fixture workspace", () => {
       );
     expect(numbers.length).toBeGreaterThan(0);
     expect(numbers).toEqual(numbers.map((_, at) => String(at + 1)));
-    await expect(window.locator('article [data-field="priority"] .cm-lineNumbers')).toHaveCount(0);
+    await expect(shownLayer(window).locator('article [data-field="priority"] .cm-lineNumbers')).toHaveCount(
+      0,
+    );
     // The prompt, which is the search line, is there only while it is asked for.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await expect(window.getByRole("combobox")).toBeVisible();
@@ -144,7 +151,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
     const stored = await cliJson<Listed>(running, ["element", "list"]);
     await showFolded(running.window, stored.elements);
-    await expect(running.window.locator(".row .title")).toHaveText(
+    await expect(shownLayer(running.window).locator(".row .title")).toHaveText(
       inShownOrder(stored.elements).map((e) => e.title),
     );
     // And back: "Type and ID" is the default again, which says nothing.
@@ -159,7 +166,7 @@ test.describe("the main view on a fixture workspace", () => {
     ]);
     await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
     await showFolded(running.window, listed.elements);
-    await expect(running.window.locator(".row .title")).toHaveText(
+    await expect(shownLayer(running.window).locator(".row .title")).toHaveText(
       inShownOrder(listed.elements).map((e) => e.title),
     );
   });
@@ -224,7 +231,7 @@ test.describe("the main view on a fixture workspace", () => {
     const got = await cliJson<{
       element: { title: string; shortId: string; type: string; status: string; text?: string };
     }>(running, ["element", "get", "SR-0000b3"]);
-    await expect(window.locator("article h1")).toHaveText(got.element.title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(got.element.title);
     // The modeline names the ID, the type by its name in the metamodel and the status (SR-114 AK1).
     const types = await cliJson<{ types: { key: string; name: string }[] }>(running, ["metamodel", "get"]);
     const typeName = types.types.find((type) => type.key === got.element.type)?.name;
@@ -233,7 +240,7 @@ test.describe("the main view on a fixture workspace", () => {
       `${got.element.shortId} · ${typeName ?? ""} · ${got.element.status}`,
     );
     if (got.element.text !== undefined) {
-      await expect(window.locator('article [data-field="Text"] .cm-content')).toHaveText(
+      await expect(shownLayer(window).locator('article [data-field="Text"] .cm-content')).toHaveText(
         got.element.text.trim(),
       );
     }
@@ -258,8 +265,8 @@ test.describe("the main view on a fixture workspace", () => {
       )
       .map(([key]) => key);
     expect(textKeys).toEqual(["acceptance-criteria"]);
-    await expect(window.locator("article input, article textarea")).toHaveCount(0);
-    await expect(window.locator("article [contenteditable]")).toHaveCount(1 + textKeys.length);
+    await expect(shownLayer(window).locator("article input, article textarea")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article [contenteditable]")).toHaveCount(1 + textKeys.length);
     expect(
       await window
         .locator("article [contenteditable]")
@@ -270,7 +277,7 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
     // No row of the list was used, so none is selected (SR-122): Ctrl+P is still "Go to" there.
-    await expect(window.locator('[aria-selected="true"]')).toHaveCount(0);
+    await expect(shownLayer(window).locator('[aria-selected="true"]')).toHaveCount(0);
   });
 
   test("[SR-122/AK-kjhn] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt", async () => {
@@ -310,10 +317,10 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.type("Measure wind speed");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-field="Text"] .cm-content')).toBeVisible();
-    await expect(window.locator("article")).toBeFocused();
+    await expect(shownLayer(window).locator('[data-field="Text"] .cm-content')).toBeVisible();
+    await expect(shownLayer(window).locator("article")).toBeFocused();
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
+    await expect(shownLayer(window).locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.insertText(" ENDE");
     await expect(window.getByLabel("Modeline")).toContainText("modified");
     // Input is saved a second after the last key and when the buffer is left (SR-105), so text stays
@@ -345,14 +352,14 @@ test.describe("the main view on a fixture workspace", () => {
       .poll(() => window.evaluate(() => (window as unknown as { echoes: string[] }).echoes))
       .toContainEqual(expect.stringContaining("Closed 1 buffer"));
     // The buffer with the unsaved text is kept and shown, its input there.
-    await expect(window.locator("article h1")).toHaveText("Measure wind speed");
-    await expect(window.locator('[data-field="Text"] .cm-content')).toContainText("ENDE");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Measure wind speed");
+    await expect(shownLayer(window).locator('[data-field="Text"] .cm-content')).toContainText("ENDE");
     await expect(window.getByLabel("Modeline")).toContainText("modified");
     await runCommand(window, "close all buffers");
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Enter");
     // Every buffer is closed; the overview is what remains (SR-118), and the unsaved text is gone.
-    await expect(window.locator("[data-buffer]")).toHaveCount(1);
+    await expect(shownLayer(window).locator("[data-buffer]")).toHaveCount(1);
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Overview");
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
     // Nothing was saved over the other editor's change.
@@ -369,10 +376,10 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("Enter");
     // The first link of the relations (the parents line above the title has links too). The targets of a
     // property of kind relation are a box, the other relations a group below it.
-    const link = window.locator('article [data-field] li [role="link"]').first();
+    const link = shownLayer(window).locator('article [data-field] li [role="link"]').first();
     const target = (await link.textContent()) ?? "";
     await link.click();
-    await expect(window.locator("article h1")).toBeVisible();
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
     expect(target).not.toBe("");
     await expect(window.getByLabel("Modeline")).not.toContainText("SR-0000b3");
   });
@@ -391,7 +398,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: wind");
     expect(await rowTitles(window)).toEqual(searched.hits.map((h) => h.title));
     await expect(window.getByLabel("Modeline")).toContainText(`${String(searched.total)} hits`);
-    expect(await window.locator(".row mark").count()).toBeGreaterThan(0);
+    expect(await shownLayer(window).locator(".row mark").count()).toBeGreaterThan(0);
   });
 
   test("Show element ID and version says the UUID and the date of the version, not the check value (D-013)", async () => {

@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 import { expectNextToLine } from "./support/tooltip-place.js";
 
 const GET_STARTED = { fixture: "SR-140/get-started" };
@@ -50,7 +50,7 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(candidates(window).first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
   await expect(text(window)).toBeVisible();
 };
 
@@ -91,24 +91,24 @@ test("screenshots of Get started and of the text editor, on the workspace the st
 
     await open(window, "See the wind speed");
     await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(1);
+    await expect(shownLayer(window).locator('[role="tree"] [role="treeitem"]')).toHaveCount(1);
     await shot("neighbourhood");
 
     // "Write the text of an element": the slash menu on a new line below the text, before anything is typed after
     // the slash.
     await open(window, "Show the wind speed");
-    await window.locator("article").focus();
+    await shownLayer(window).locator("article").focus();
     await window.keyboard.press("Enter");
-    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
+    await expect(shownLayer(window).locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.press("ControlOrMeta+End");
     await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
     await window.keyboard.type("/");
-    const menu = window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
+    const menu = shownLayer(window).locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
     await expect(menu.locator("li").first()).toBeVisible();
-    await expect(window.locator(".cm-lr-slash-leaving")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".cm-lr-slash-leaving")).toHaveCount(0);
     // In place next to the line, not where CodeMirror first measures it (#1126).
-    await expectNextToLine(menu, window.locator('[data-field="Text"] .cm-line').last());
+    await expectNextToLine(menu, shownLayer(window).locator('[data-field="Text"] .cm-line').last());
     await shot("slash-menu");
   } finally {
     await running.close();
@@ -126,7 +126,7 @@ test("screenshots of the traceability matrix and the standard model", async () =
     await expect(window.getByLabel("Modeline")).toContainText("5 elements");
 
     // The end of "Trace a requirement": the requirements as a matrix, each with the need it derives from.
-    const lines = await window.locator(".overview .line").allTextContents();
+    const lines = await shownLayer(window).locator(".overview .line").allTextContents();
     const at = lines.findIndex((line) => line.startsWith("System Requirement"));
     expect(at).toBeGreaterThanOrEqual(0);
     // No line is selected at first (SR-122): the first Down selects the first line.
@@ -134,9 +134,9 @@ test("screenshots of the traceability matrix and the standard model", async () =
       await window.keyboard.press("ArrowDown");
     }
     await window.keyboard.press("Enter");
-    await expect(window.locator(".row")).toHaveCount(3);
+    await expect(shownLayer(window).locator(".row")).toHaveCount(3);
     await window.keyboard.press("ControlOrMeta+T");
-    await expect(window.locator("tbody tr")).toHaveCount(3);
+    await expect(shownLayer(window).locator("tbody tr")).toHaveCount(3);
     await shot("trace-matrix");
 
     // The standard model (the fixture's metamodel is the one `workspace.init` writes), on its own page: the
@@ -148,7 +148,7 @@ test("screenshots of the traceability matrix and the standard model", async () =
     await window.keyboard.type("Show metamodel");
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Show metamodel");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".metamodel")).toHaveAttribute("data-laid-out", "7");
+    await expect(shownLayer(window).locator(".metamodel")).toHaveAttribute("data-laid-out", "7");
     const boxes = await window
       .locator(".mm-type, [data-any]")
       .evaluateAll((elements) =>
@@ -186,14 +186,14 @@ test("screenshots of the verification status: the marks on a requirement and the
 
     // A requirement whose test failed: its badge in the accent colour.
     await open(window, "Show reading 7");
-    await expect(window.locator('article .badge[data-status="failed"]')).toBeVisible();
+    await expect(shownLayer(window).locator('article .badge[data-status="failed"]')).toBeVisible();
     await shot("verification-badges");
 
     // The need: each requirement with its status and ring, the need with its degree.
     // The need in the middle of the window, with the requirements next to it below.
     await open(window, "See the weather");
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", "12");
+    await expect(shownLayer(window).locator(".graph")).toHaveAttribute("data-laid-out", "12");
     await shot("verification-graph");
   } finally {
     await running.close();

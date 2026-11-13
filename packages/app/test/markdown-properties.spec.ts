@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { REFERENCE_FILES, REFERENCE_TARGET_ID, REFERENCE_TARGET_TITLE } from "./support/demo.js";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, saveAndRead } from "./support/app.js";
+import { launchApp, saveAndRead, shownLayer } from "./support/app.js";
 import { markdownMetamodel, quoted } from "./support/boxes.js";
 
 const OUT =
@@ -42,7 +42,7 @@ Das Tool zeigt veraltete Messwerte an.
 `,
 });
 
-const field = (window: Page, label: string): Locator => window.locator(`[data-field="${label}"]`);
+const field = (window: Page, label: string): Locator => shownLayer(window).locator(`[data-field="${label}"]`);
 
 /** Opens the element with "Go to"; the buffer has the focus. */
 const openElement = async (window: Page): Promise<void> => {
@@ -51,8 +51,8 @@ const openElement = async (window: Page): Promise<void> => {
   await window.keyboard.type("Veraltete");
   await expect(window.locator('.candidates [role="option"]').first()).toContainText("Veraltete");
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(`**${SR_TITLE}**`);
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(`**${SR_TITLE}**`);
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 test.describe("Markdown properties in the element buffer", () => {
@@ -98,7 +98,7 @@ test.describe("Markdown properties in the element buffer", () => {
 
   test("[SR-127/AK-mdr7] the title and a property that is not marked markdown show their text as it is", async () => {
     const { window } = running;
-    await expect(window.locator("article h1")).toHaveText(`**${SR_TITLE}**`);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(`**${SR_TITLE}**`);
     await expect(field(window, "topic")).toContainText("**Anzeige**");
     // The plain property is edited in place too, but nothing in it is formatted.
     await expect(field(window, "topic").locator(".cm-content")).toHaveText("**Anzeige**");
@@ -151,7 +151,7 @@ test.describe("Markdown properties in the element buffer", () => {
     );
     await expect(criteria.locator(".cm-lr-outdated")).toHaveAttribute("title", /older|outdated|changed/i);
     await criteria.locator(".cm-lr-ref").click();
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
   test("[SR-127/AK-k3yf] [[ in an acceptance criterion inserts a reference: saved with ID and version in that criterion, shown with the title of the target, and a click opens it", async () => {
@@ -184,14 +184,14 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(lines.nth(2)).not.toContainText("reqseq:");
     await expect(lines.nth(1)).toHaveText("Die Anzeige bleibt lesbar, und n/a erscheint ohne Messung.");
     await lines.nth(2).locator(".cm-lr-ref").click();
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
   test("[SR-127/AK-bd1x] Ctrl/Cmd+Enter with the focus in the box of the criteria opens the first reference", async () => {
     const { window } = running;
     await field(window, "acceptance-criteria").focus();
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
   test("[SR-128/AK-yqp3] copying the criteria still puts the stored Markdown source on the clipboard", async () => {

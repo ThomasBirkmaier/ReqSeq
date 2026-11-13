@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -53,7 +53,7 @@ test.describe("the hits of the search prompt", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp({ fixture: "SR-183/preview" });
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
     });
@@ -91,7 +91,7 @@ test.describe("the hits of the search prompt", () => {
     const shown = await names(window);
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: gust");
-    await expect(window.locator(".row")).toHaveCount(8);
+    await expect(shownLayer(window).locator(".row")).toHaveCount(8);
     const rows = await window
       .locator(".row")
       .evaluateAll((all) =>
@@ -107,7 +107,7 @@ test.describe("the hits of the search prompt", () => {
     await running.close();
     running = await launchApp({ fixture: "SR-183/preview", files: { [GAUGE_FILE]: GAUGE } });
     const { window } = running;
-    await expect(window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
     });
@@ -134,9 +134,9 @@ test.describe("the hits of the search prompt", () => {
     expect(shown[0]).toMatch(/ Gust gauge$/);
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: gust");
-    const section = window.locator(".row.fold-row");
+    const section = shownLayer(window).locator(".row.fold-row");
     await expect(section).toHaveText("▸ Folded statuses (1)");
-    const rows = window.locator(".row:not(.fold-row)");
+    const rows = shownLayer(window).locator(".row:not(.fold-row)");
     await expect(rows).toHaveCount(8);
     const rowNames = async (): Promise<string[]> =>
       rows.evaluateAll((all) =>
@@ -199,11 +199,11 @@ test.describe("the hits of the search prompt", () => {
     await window.keyboard.press("Control+P");
     await expect(card(window).locator('[aria-selected="true"] .name')).toHaveText(second ?? "");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Show a dial");
 
     await preview(window, "squall", 2);
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Survive a squall");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Survive a squall");
   });
 });

@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll, slideSettled } from "./support/app.js";
+import { goTo, launchApp, listAll, slideSettled, shownLayer } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -159,7 +159,7 @@ const expectSlide = async (window: Page, shown: string, way: typeof BACK): Promi
   await slideSettled(window);
 };
 
-const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
+const shownBuffer = (window: Page): Locator => shownLayer(window).locator("[data-buffer]");
 
 /** Opens `title` with Ctrl/Cmd+P. */
 const open = async (window: Page, title: string): Promise<void> => {
@@ -167,7 +167,7 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 const command = async (window: Page, title: string): Promise<void> => {
@@ -191,7 +191,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
-    await expect(window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
     // The overview, the list of all elements, an element: three small buffers, each drawn once.
     await listAll(window);
     await open(window, ELEMENT);
@@ -279,7 +279,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     // From the text editor of the element: Alt+P, then letters at once.
     const before = await savedText(running);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
     await slideOf(window, "All elements");
     expect(await held()).toEqual(["paused", "paused"]);
@@ -291,7 +291,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await expect(shownBuffer(window)).toBeFocused();
     // A key that is no shortcut acts on the new buffer: Down moves the list's mark.
     // No row is marked yet (a fresh list), so the first Down marks the first row.
-    await expect(window.locator('.row[aria-selected="true"]')).toHaveCount(0);
+    await expect(shownLayer(window).locator('.row[aria-selected="true"]')).toHaveCount(0);
     await window.keyboard.press("Alt+KeyN");
     await slideOf(window, element);
     await window.keyboard.press("Alt+KeyP");
@@ -299,7 +299,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await window.keyboard.press("ArrowDown");
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
-    await expect(window.locator('.row[aria-selected="true"]')).toHaveCount(1);
+    await expect(shownLayer(window).locator('.row[aria-selected="true"]')).toHaveCount(1);
     // Alt+P twice: the second ends the first and walks on from the new buffer.
     await window.evaluate(() => {
       (window as unknown as { held: Animation[] }).held.length = 0;
@@ -325,7 +325,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await slideSettled(window);
     // Nothing was typed into the element: its text in the app and on disk is as before.
     await open(window, ELEMENT);
-    await expect(window.locator(".cm-content")).not.toContainText("zz");
+    await expect(shownLayer(window).locator(".cm-content")).not.toContainText("zz");
     expect(await savedText(running)).toBe(before);
   });
 
@@ -338,11 +338,14 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     // A click on a row opens its element.
-    await window.locator(".row", { hasText: "Send data to the cloud" }).click();
-    await expect(window.locator("article h1")).toHaveText("Send data to the cloud");
+    await shownLayer(window).locator(".row", { hasText: "Send data to the cloud" }).click();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Send data to the cloud");
     // A reference of the element opens its target.
-    await window.locator('[role="link"][data-target-id]', { hasText: "Warn of storms" }).first().click();
-    await expect(window.locator("article h1")).toHaveText("Warn of storms");
+    await shownLayer(window)
+      .locator('[role="link"][data-target-id]', { hasText: "Warn of storms" })
+      .first()
+      .click();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of storms");
     // Closing the buffer shows the one before.
     await command(window, "Close buffer");
     await expect(shownBuffer(window)).toBeVisible();

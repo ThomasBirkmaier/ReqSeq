@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, shownLayer } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
@@ -38,7 +38,7 @@ test("screenshots of the main view on the specification workspace", async () => 
     // A type line opens the list of that type.
     await window.getByRole("option", { name: /^System Requirement \d+$/ }).click();
     await expect(window.getByLabel("Modeline")).toContainText("type: system-requirement");
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
     await shot("overview-type-list");
     await listAll(window);
     await shot("main-view-list");
@@ -54,7 +54,7 @@ test("screenshots of the main view on the specification workspace", async () => 
     await expect(candidates(window).first()).toContainText("Hauptansicht schlank halten");
     await shot("main-view-jump");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Hauptansicht schlank halten");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Hauptansicht schlank halten");
     await shot("main-view-element");
 
     await window.keyboard.press("ControlOrMeta+P");
@@ -65,7 +65,7 @@ test("screenshots of the main view on the specification workspace", async () => 
     await window.keyboard.type("hierarchy");
     await window.keyboard.press("Enter");
     await expect(window.getByLabel("Modeline")).toContainText("All elements · tree");
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
     // The roots come first; go down to the first element below one, so the tree shows. A fresh list has no
     // row selected (SR-122): Down selects the first.
     await window.keyboard.press("ArrowDown");
@@ -83,7 +83,7 @@ test("screenshots of the main view on the specification workspace", async () => 
     await window.keyboard.type("Befehlszeile");
     await window.keyboard.press("Enter");
     await expect(window.getByLabel("Modeline")).toContainText("Search: Befehlszeile");
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
     await shot("main-view-search");
   } finally {
     await running.close();
@@ -103,8 +103,8 @@ test("screenshot of a package page on the specification workspace (SR-112)", asy
     await window.keyboard.type("Editor");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Editor");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Element bearbeiten");
-    await expect(window.locator(".members .row").first()).toBeVisible();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Element bearbeiten");
+    await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
     await window.screenshot({ path: path.join(OUT, "package-page.png") });
   } finally {
     await running.close();

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp } from "./support/app.js";
+import { goTo, launchApp, shownLayer } from "./support/app.js";
 
 const WORKSPACE =
   "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
@@ -41,15 +41,15 @@ const openEditor = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  const text = window.locator('article [data-field="Text"] .cm-content');
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  const text = shownLayer(window).locator('article [data-field="Text"] .cm-content');
   await expect(text).toBeVisible();
   await window.keyboard.press("Enter");
   await expect(text).toBeFocused();
 };
 
 const line = (window: Page, label: string): Locator =>
-  window.locator("article").getByRole("group", { name: label, exact: true });
+  shownLayer(window).locator("article").getByRole("group", { name: label, exact: true });
 
 /** The verification badges (SR-157) are `names` on the left and `statuses` on the right, in this order. */
 const badges = async (window: Page, names: readonly string[], statuses: readonly string[]): Promise<void> => {
@@ -93,7 +93,7 @@ test.describe("the page of a requirement with variants", () => {
   test("[SR-046/AK-nbwh] the editor of a requirement with validity [A, B] shows the titles of A and B", async () => {
     const { window } = running;
     await openEditor(window, "Warn of storms");
-    await expect(window.locator('article [data-field="validity"] li')).toHaveText([
+    await expect(shownLayer(window).locator('article [data-field="validity"] li')).toHaveText([
       "VAR-0000c1 Coast",
       "VAR-0000c2 Mountain",
     ]);
@@ -118,7 +118,7 @@ test.describe("the page of a requirement with variants", () => {
     );
     // Each name opens its element.
     await use.getByRole("link", { name: "Mountain" }).click();
-    await expect(window.locator("article h1")).toHaveText("Mountain");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Mountain");
   });
 
   test("[SR-047/AK-qncz] the status shows one row for the core and each variant it is in, none for excluding or replacing variants", async () => {
@@ -186,6 +186,6 @@ test.describe("the page of a requirement with variants", () => {
     // In its padding before the word, at mid height inside the round end: the whole half is the link.
     const box = await mountain.boundingBox();
     await mountain.click({ position: { x: 4, y: (box?.height ?? 0) / 2 } });
-    await expect(window.locator("article h1")).toHaveText("Mountain");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Mountain");
   });
 });

@@ -175,6 +175,17 @@ export const takePicture = (layer: Element, prefix = PICTURE_PREFIX): Picture =>
   };
 };
 
+/**
+ * The layer of an area that holds the shown buffer, as a selector from the area. Buffers drawn in advance stand
+ * hidden beside it (SR-212 AK5), so a lookup of the shown view through its area goes through this layer, never
+ * to the first match in the area.
+ */
+export const SHOWN_LAYER = ':scope > [data-layer="main"]';
+
+/** The shown layer of `area`, or null when there is none. */
+export const shownLayer = (area: ParentNode | null | undefined): HTMLElement | null =>
+  area?.querySelector<HTMLElement>(SHOWN_LAYER) ?? null;
+
 /** The two layers of an area's track (`BufferArea.tsx`). */
 export interface Track {
   readonly main: HTMLElement;
@@ -184,11 +195,9 @@ export interface Track {
 /** The layers of the area on `side` in `root`, or undefined when there is no such area. */
 export const trackOf = (root: ParentNode | null | undefined, side: string): Track | undefined => {
   const area = root?.querySelector(`[data-area="${side}"]`);
-  const main = area?.querySelector<HTMLElement>(':scope > [data-layer="main"]');
+  const main = shownLayer(area);
   const layer = area?.querySelector<HTMLElement>(':scope > [data-layer="side"]');
-  return main === null || main === undefined || layer === null || layer === undefined
-    ? undefined
-    : { main, side: layer };
+  return main === null || layer === null || layer === undefined ? undefined : { main, side: layer };
 };
 
 /** One switch: the area, the buffer left, the buffer shown, and the way. */

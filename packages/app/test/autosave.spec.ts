@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, slideSettled } from "./support/app.js";
+import { goTo, launchApp, slideSettled, shownLayer } from "./support/app.js";
 import { markdownMetamodel } from "./support/boxes.js";
 
 const SR_FILE = "requirements/SR-0000000000c4.md";
@@ -46,7 +46,7 @@ const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
-const field = (window: Page, label: string): Locator => window.locator(`[data-field="${label}"]`);
+const field = (window: Page, label: string): Locator => shownLayer(window).locator(`[data-field="${label}"]`);
 const text = (window: Page): Locator => window.getByRole("textbox", { name: "Text" });
 const modeline = (window: Page): Locator => window.getByLabel("Modeline");
 const minibuffer = (window: Page): Locator => window.getByLabel("Minibuffer");
@@ -58,9 +58,9 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator("article")).toBeFocused();
-  await expect(window.locator('article [data-field="Text"] .cm-content')).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator('article [data-field="Text"] .cm-content')).toBeVisible();
 };
 
 /** Runs the command `title` from the command prompt. */
@@ -148,7 +148,7 @@ test.describe("saving without a save command", () => {
     // Go to another element: the prompt that opens writes the input already.
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.type("Zwei.");
     typed = Date.now();
@@ -156,14 +156,14 @@ test.describe("saving without a save command", () => {
     expect(await written(read(running, SR_FILE), "Zwei.", typed)).toBeLessThan(900);
     await window.keyboard.press("Escape");
     // Close buffer closes without asking: the input is written first.
-    await window.locator("article").focus();
+    await shownLayer(window).locator("article").focus();
     await window.keyboard.press("Enter");
     await window.keyboard.type("Drei.");
     // The input is in the editor before closing, so a file without it below is not keys that went
     // elsewhere (#1336).
     await expect(text(window)).toContainText("Drei.");
     await run(window, "Close buffer");
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     const atClose = await read(running, SR_FILE)();
     if (!atClose.includes("Drei.")) {
       // Whether the input comes later (Close buffer did not wait for its save) or never (it was lost).
@@ -184,7 +184,7 @@ test.describe("saving without a save command", () => {
     await window.keyboard.type("Fünf.");
     await run(window, "Close all buffers");
     await expect(minibuffer(window)).not.toContainText("unsaved");
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     expect(await read(running, SR_FILE)()).toContain("Vier.");
     expect(await read(running, OTHER_FILE)()).toContain("Fünf.");
   });
@@ -205,10 +205,10 @@ test.describe("saving without a save command", () => {
     // Another buffer and back: the history is still there.
     await window.keyboard.press("Alt+KeyN");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Z");
     await expect(text(window)).toHaveText(TEXT);
@@ -245,7 +245,7 @@ test.describe("saving without a save command", () => {
     await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SR_TITLE);
     await field(window, "requirement-type").focus();
     await window.keyboard.press("ControlOrMeta+Shift+Z");
     await expect(field(window, "requirement-type")).toContainText("quality");
@@ -350,7 +350,9 @@ test.describe("saving without a save command", () => {
       await expect(window.getByRole("button", { name: /save/i })).toHaveCount(0);
       await expect(window.locator('[role="dialog"], [role="alertdialog"], dialog')).toHaveCount(0);
       expect(
-        await window.locator("button").evaluateAll((buttons) => buttons.map((b) => b.textContent)),
+        await shownLayer(window)
+          .locator("button")
+          .evaluateAll((buttons) => buttons.map((b) => b.textContent)),
       ).not.toContainEqual(expect.stringMatching(/save/i));
     };
     await window.keyboard.press("Enter");
@@ -361,11 +363,11 @@ test.describe("saving without a save command", () => {
     await noSaving();
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toHaveText(SR_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.type("Mehr.");
     await run(window, "Close buffer");
-    await expect(window.locator("article h1")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveCount(0);
     await noSaving();
     expect(await read(running, SR_FILE)()).toContain("Mehr.");
     expect(await app.evaluate(() => (globalThis as { savingDialogs?: string[] }).savingDialogs)).toEqual([]);
