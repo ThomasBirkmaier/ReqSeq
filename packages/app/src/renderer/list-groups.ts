@@ -53,36 +53,38 @@ const BUILT_IN = [
   { group: "package", name: "Package" },
 ] as const;
 
+/** One grouping a list can take: its `group` key, its name and, for a property, how many values it has. */
+export interface Grouping {
+  readonly group: string;
+  readonly name: string;
+  readonly values?: number;
+}
+
 /**
- * The choices of the prompt "Group by" (SR-149 AK4): type, status and package, then each property of the
- * listed elements whose values can be chosen (`choosableProperties`, as "Filter by" offers them), but
- * not the property of the packages (`packages`), which "Package" groups by. Without a property of the
- * packages there is no "Package": `element.list` would refuse it (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
+ * The groupings of the elements `facets` describes (SR-149 AK4): type, status and package, then each property
+ * of the elements whose values can be chosen (`choosableProperties`, as "Filter by" offers them), but not the
+ * property of the packages (`packages`), which "Package" groups by. Without a property of the packages there
+ * is no "Package": `element.list` would refuse it (`metamodel.meaning-unassigned`). "Group list" and the
+ * `group` of the command prompt offer them (SR-215 AK1).
  */
+export const groupings = (facets: ElementFacetsOutput, packages: readonly string[]): Grouping[] => [
+  ...BUILT_IN.filter(({ group }) => group !== "package" || packages.length > 0),
+  ...choosableProperties(facets).flatMap(({ facet, values }) =>
+    packages.includes(facet.key) ? [] : [{ group: facet.key, name: facet.name, values: values.length }],
+  ),
+];
+
+/** The choices of the prompt "Group by" (`groupings`); `apply` gets the `group` of the one that is taken. */
 export const groupChoices = (
   facets: ElementFacetsOutput,
   packages: readonly string[],
   apply: (group: string) => void,
-): Choice[] => [
-  ...BUILT_IN.filter(({ group }) => group !== "package" || packages.length > 0).map(({ group, name }) => ({
-    id: group,
+): Choice[] =>
+  groupings(facets, packages).map(({ group, name, values }) => ({
+    id: values === undefined ? group : `property:${group}`,
     name,
+    ...(values === undefined ? {} : { hint: String(values) }),
     run: () => {
       apply(group);
     },
-  })),
-  ...choosableProperties(facets).flatMap(({ facet, values }) =>
-    packages.includes(facet.key)
-      ? []
-      : [
-          {
-            id: `property:${facet.key}`,
-            name: facet.name,
-            hint: String(values.length),
-            run: () => {
-              apply(facet.key);
-            },
-          },
-        ],
-  ),
-];
+  }));
