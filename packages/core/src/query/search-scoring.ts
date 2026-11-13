@@ -140,7 +140,8 @@ const derivedTerms = (tree: WordTree, term: string, prefix: boolean, fuzzy: numb
 interface Lengths {
   readonly generation: number;
   readonly fields: number;
-  readonly lengths: Float64Array;
+  /** Whole numbers (MiniSearch counts the distinct words of a field). */
+  readonly lengths: Uint32Array;
   readonly live: Uint8Array;
 }
 
@@ -154,7 +155,7 @@ export const lengthsOf = (mini: MiniSearch, generation: number): Lengths => {
   }
   const inner = internals(mini);
   const fields = Object.keys(inner._fieldIds).length;
-  const lengths = new Float64Array(inner._nextId * fields);
+  const lengths = new Uint32Array(inner._nextId * fields);
   const live = new Uint8Array(inner._nextId);
   for (const [doc, perField] of inner._fieldLength) {
     for (const [field, length] of perField.entries()) {
@@ -187,7 +188,7 @@ export const carryLengths = (
   }
   const inner = internals(mini);
   const { fields } = known;
-  const lengths = new Float64Array(inner._nextId * fields);
+  const lengths = new Uint32Array(inner._nextId * fields);
   lengths.set(known.lengths);
   const live = new Uint8Array(inner._nextId);
   live.set(known.live);

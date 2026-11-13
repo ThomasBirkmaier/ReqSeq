@@ -19,6 +19,15 @@
 //   the type and the status (fields of their own, D-012): by the name the metamodel gives them, by
 //   the key as written when it gives none (SR-068 "Properties", ThomasBirkmaier/ReqSeq-archive#80; the name only, since the key
 //   mostly holds the same words, which would cost the build a fifth more time at N-036);
+// - `property:<key>`, one field per property a search can be restricted to (SR-216 AK2,
+//   `searchPropertyKeys`: not the title, no relations, no key of a fixed field), after the three
+//   above in metamodel order: the same texts of that key as `properties` holds, a choice also by
+//   the names of its values. A document without the key has the empty text there, so field lengths
+//   and averages do not depend on the order documents were added in (a carried or cached index
+//   scores as a fresh build). The three fields above keep their IDs, lengths and words, so a search
+//   in all fields scores as before these fields existed (SR-216 AK4). A search restricted to
+//   fields scores only the words of those fields (SR-216 AK1); a hit found in `property:<key>`
+//   names `properties`;
 // - `id`: the UUID, the short ID (D-017) and the identifier (ThomasBirkmaier/ReqSeq-archive#305), compared with the records of the
 //   store, not indexed (150,000 random tokens would cost about 110 MB and 1 s at N-036): a word that
 //   is a short ID as written (`SR-46fb54`, also with the 12 digits of the file name) finds the
@@ -74,13 +83,89 @@ export const SEARCH_FIELDS: readonly SearchField[] = ["title", "text", "properti
 export type WordField = Exclude<SearchField, "id">;
 export const WORD_FIELDS: readonly WordField[] = ["title", "text", "properties"];
 
-/** One MiniSearch document: an element record, keyed by `docKey`. */
+/**
+ * One MiniSearch document: an element record, keyed by `docKey`. `parts` holds the texts of the
+ * `properties` field per key, flat: `[key1, text1, key2, text2, ...]` in frontmatter order, a key
+ * only when it has a text; the fields are taken from it (`extractField`).
+ */
 export interface SearchDocument {
   readonly key: string;
   readonly title: string;
   readonly text: string;
-  readonly properties: string;
+  readonly parts: readonly string[];
 }
+
+/** The prefix of the field of a single property (`propertyField`). */
+const PROPERTY_FIELD = "property:";
+
+/** The MiniSearch field of the property `key` (see the file comment). */
+export const propertyField = (key: string): string => `${PROPERTY_FIELD}${key}`;
+
+/**
+ * Keys that never get a field of their own: those of the fixed fields, which always mean the fixed
+ * field, and type and status, which are found in `properties` by their names.
+ */
+const FIXED_KEYS: ReadonlySet<string> = new Set(["title", "text", "properties", "id", "type", "status"]);
+
+const propertyKeysCache = new WeakMap<Metamodel, readonly string[]>();
+
+/**
+ * The keys of the properties a search can be restricted to one by one (SR-216 AK2), in metamodel
+ * order: every property that holds no relations and is not the title, without the keys of
+ * `FIXED_KEYS`. Each has the field `propertyField(key)`.
+ */
+export const searchPropertyKeys = (metamodel: Metamodel): readonly string[] => {
+  let keys = propertyKeysCache.get(metamodel);
+  if (keys === undefined) {
+    const titleKey = titleKeyOf(metamodel);
+    keys = metamodel.properties
+      .filter(
+        ({ key, kind }) =>
+          kind !== "relation" &&
+          key !== titleKey &&
+          !FIXED_KEYS.has(key) &&
+          relationKey(metamodel, key) === undefined,
+      )
+      .map(({ key }) => key);
+    propertyKeysCache.set(metamodel, keys);
+  }
+  return keys;
+};
+
+/** The text of the `properties` field of a document: the texts of its parts, one per line. */
+const propertiesOf = (parts: readonly string[]): string => {
+  let out = "";
+  for (let at = 1; at < parts.length; at += 2) {
+    out += at === 1 ? String(parts[at]) : `\n${String(parts[at])}`;
+  }
+  return out;
+};
+
+/** The text of the key `key` in `parts`; empty when the document has none (see the file comment). */
+const partOf = (parts: readonly string[], key: string): string => {
+  for (let at = 0; at < parts.length; at += 2) {
+    if (parts[at] === key) {
+      return String(parts[at + 1]);
+    }
+  }
+  return "";
+};
+
+/** The value of `field` of `document`, as MiniSearch reads it (`Options.extractField`). */
+export const extractField = (document: SearchDocument, field: string): string => {
+  switch (field) {
+    case "key":
+      return document.key;
+    case "title":
+      return document.title;
+    case "text":
+      return document.text;
+    case "properties":
+      return propertiesOf(document.parts);
+    default:
+      return partOf(document.parts, field.slice(PROPERTY_FIELD.length));
+  }
+};
 
 /** Splits text into words: at every character that is not a letter, a mark or a digit. */
 export const WORD_SEPARATOR = /[^\p{L}\p{M}\p{N}]+/u;
@@ -94,19 +179,36 @@ export const normalizeWord = (word: string): string | undefined => {
 const words = (text: string): string[] => text.split(WORD_SEPARATOR);
 
 /**
- * The options of every MiniSearch object of the index, also of one loaded from the cache
- * (`search-cache.ts`): the same fields, tokenizer and term processing. Vacuuming is off and never
- * started: MiniSearch 7.2.0 walks its term tree in batches with a pause between them, and a document
- * added or a search made in a pause (a search cleans up the words of discarded documents it meets)
- * can change the nodes the walk stands on, which then throws in its timer. A carry removes the
- * documents it replaces instead (`carrySearchIndex`), so nothing is left to vacuum.
+ * The options of a MiniSearch object with the fields of the properties `propertyKeys` besides
+ * `WORD_FIELDS` (see the file comment): the tokenizer, the term processing and `extractField`.
+ * Vacuuming is off and never started: MiniSearch 7.2.0 walks its term tree in batches with a pause
+ * between them, and a document added or a search made in a pause (a search cleans up the words of
+ * discarded documents it meets) can change the nodes the walk stands on, which then throws in its
+ * timer. A carry removes the documents it replaces instead (`carrySearchIndex`), so nothing is left
+ * to vacuum.
  */
-export const ENGINE_OPTIONS: Options<SearchDocument> = {
+export const engineOptionsFor = (propertyKeys: readonly string[]): Options<SearchDocument> => ({
   idField: "key",
-  fields: [...WORD_FIELDS],
+  fields: [...WORD_FIELDS, ...propertyKeys.map(propertyField)],
+  extractField,
   tokenize: words,
   processTerm: normalizeWord,
   autoVacuum: false,
+});
+
+const engineOptionsCache = new WeakMap<Metamodel, Options<SearchDocument>>();
+
+/**
+ * The options of every MiniSearch object of an index built with `metamodel`, also of one loaded from
+ * the cache (`search-cache.ts`): `engineOptionsFor` its `searchPropertyKeys`.
+ */
+export const engineOptions = (metamodel: Metamodel): Options<SearchDocument> => {
+  let options = engineOptionsCache.get(metamodel);
+  if (options === undefined) {
+    options = engineOptionsFor(searchPropertyKeys(metamodel));
+    engineOptionsCache.set(metamodel, options);
+  }
+  return options;
 };
 
 /** The MiniSearch object of an index, shared by the indexes carried from it (see `carrySearchIndex`). */
@@ -195,26 +297,37 @@ const choiceNames = (metamodel: Metamodel, key: string, value: unknown): readonl
   return choices.filter((choice) => chosen.has(choice.key)).map((choice) => choice.name);
 };
 
-/** The text of the `properties` field of `record` (see the file comment). */
-const propertiesText = (
+/**
+ * The parts of the `properties` field of `record` (`SearchDocument.parts`, see the file comment):
+ * per key its texts, one per line; a key without a text adds none, so the field is the texts of
+ * every key one per line, as before it had parts.
+ */
+const propertyParts = (
   record: ElementRecord,
   metamodel: Metamodel,
   titleKey: string | undefined,
-): string => {
-  const out: string[] = [];
+): string[] => {
+  const parts: string[] = [];
   for (const [key, value] of Object.entries(record.data)) {
     if (key === titleKey || key === "id" || relationKey(metamodel, key) !== undefined) {
       continue;
     }
+    const out: string[] = [];
     if (key === "type" || key === "status") {
       valueTexts(structuralName(metamodel, key, value) ?? value, out);
     } else {
       valueTexts(value, out);
       out.push(...choiceNames(metamodel, key, value));
     }
+    if (out.length > 0) {
+      parts.push(key, out.join("\n"));
+    }
   }
-  return out.join("\n");
+  return parts;
 };
+
+/** The text of the `properties` field of `document` (see the file comment). */
+export const propertiesText = (document: SearchDocument): string => propertiesOf(document.parts);
 
 /**
  * `text` without the destinations of its links and images (see the file comment), each replaced by
@@ -238,7 +351,7 @@ export const documentOf = (record: ElementRecord, text: string, metamodel: Metam
     key: recordKey(record),
     title: typeof title === "string" ? title : "",
     text: visibleText(text),
-    properties: propertiesText(record, metamodel, titleKey),
+    parts: propertyParts(record, metamodel, titleKey),
   };
 };
 
@@ -401,7 +514,7 @@ export const buildSearchIndex = async (
   metamodel: Metamodel,
   control: BuildControl = {},
 ): Promise<BuiltSearchIndex> => {
-  const mini = new MiniSearch<SearchDocument>(ENGINE_OPTIONS);
+  const mini = new MiniSearch<SearchDocument>(engineOptions(metamodel));
   const documents = new Map<string, SearchDocument>();
   const add = (document: SearchDocument): void => {
     mini.add(document);
@@ -507,8 +620,16 @@ export const carrySearchIndex = async (
 
 /** How to search (`searchElements`). */
 export interface SearchElementsOptions {
-  /** Only these fields; default every field (`SEARCH_FIELDS`). */
+  /**
+   * Only these fields, and the properties of `propertyKeys`; default every field (`SEARCH_FIELDS`),
+   * or none besides those properties when `propertyKeys` is given.
+   */
   readonly fields?: readonly SearchField[];
+  /**
+   * Also, or only, these single properties (SR-216 AK2): keys of `searchPropertyKeys` of the index's
+   * metamodel. Left out when `fields` holds `properties`, which holds them all.
+   */
+  readonly propertyKeys?: readonly string[];
   /**
    * Only these element records, by repository and file (the selection of a view or filter, SR-068
    * AK3: `Selected.elements`; two files with one UUID are two records, SR-088); default all.
@@ -560,8 +681,8 @@ export const MIN_PREFIX = 2;
  */
 const DIGIT = /\p{N}/u;
 
-/** Field weights: a match in the title counts twice. */
-const BOOST: Readonly<Record<WordField, number>> = { title: 2, text: 1, properties: 1 };
+/** The weight of a field: a match in the title counts twice. */
+const boostOf = (field: string): number => (field === "title" ? 2 : 1);
 
 /** A short ID (`SR-46fb54`; `common.schema.json#/$defs/shortId`). */
 const SHORT_ID = /^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$/;
@@ -745,22 +866,21 @@ interface Search {
   readonly placeOf: (record: ElementRecord) => number;
 }
 
-/** The scoring options of a search of `searched` (the fields of words), as `SearchElementsOptions.fuzzy` and `prefix` say. */
-export const scoringOf = (
-  searched: readonly WordField[],
-  fuzzy: number,
-  prefix: boolean,
-): ScoringOptions => ({
+/**
+ * The scoring options of a search of `searched` (the MiniSearch fields: `WordField`s and
+ * `propertyField`s), as `SearchElementsOptions.fuzzy` and `prefix` say.
+ */
+export const scoringOf = (searched: readonly string[], fuzzy: number, prefix: boolean): ScoringOptions => ({
   fields: searched,
-  boost: BOOST,
+  boost: Object.fromEntries(searched.map((field) => [field, boostOf(field)])),
   fuzzy: (term) => term.length >= MIN_FUZZY && !DIGIT.test(term) && fuzzy,
   prefix: (term) => term.length >= MIN_PREFIX && prefix,
 });
 
-/** The search of `options` in `searched` (the fields of words). */
+/** The search of `options` in `searched` (the MiniSearch fields). */
 const searchOf = (
   index: SearchIndex,
-  searched: readonly WordField[],
+  searched: readonly string[],
   options: SearchElementsOptions,
 ): Search => {
   const within = options.within === undefined ? undefined : new Set(Array.from(options.within, recordKey));
@@ -982,7 +1102,7 @@ const hitOf = ({ element, score, matches, ids }: Found): SearchHit => {
     for (const [term, found] of Object.entries(match)) {
       terms.add(term);
       for (const field of found) {
-        fields.add(field);
+        fields.add(field.startsWith(PROPERTY_FIELD) ? "properties" : field);
       }
     }
   }
@@ -1082,31 +1202,69 @@ export const rankedHits = (
 /** A hit of `rankedHits` with its score, fields and terms, as `searchElements` gives it. */
 export const describeHit = (hit: RankedHit): SearchHit => hitOf(hit);
 
+/** The fixed fields a search of `options` searches, and its MiniSearch fields of words (`propertyField`s included). */
+const fieldsOf = (
+  options: SearchElementsOptions,
+): { readonly fields: ReadonlySet<SearchField>; readonly searched: readonly string[] } => {
+  const fields = new Set(options.fields ?? (options.propertyKeys === undefined ? SEARCH_FIELDS : []));
+  const keys = fields.has("properties") ? [] : (options.propertyKeys ?? []);
+  return {
+    fields,
+    searched: [...WORD_FIELDS.filter((field) => fields.has(field)), ...keys.map(propertyField)],
+  };
+};
+
+/** A word of a query that may be an ID: whether it is also searched as words, and how it matches IDs. */
+interface SpecialWord {
+  readonly word: string;
+  readonly text: boolean;
+  readonly ids: IdMatch;
+}
+
+/**
+ * The words of `query`: those searched as words only (`plain`) and those that may be IDs (`special`);
+ * undefined when a word can match nothing in the fields searched (one with letters or digits, but
+ * no field of words and no ID form) and every word must match (SR-216 AK1). A word without a
+ * letter or digit, or one that can match nothing while any word is enough, is left out.
+ */
+const queryWords = (
+  index: SearchIndex,
+  query: string,
+  fields: ReadonlySet<SearchField>,
+  searched: readonly string[],
+  and: boolean,
+): { readonly plain: readonly string[]; readonly special: readonly SpecialWord[] } | undefined => {
+  const plain: string[] = [];
+  const special: SpecialWord[] = [];
+  for (const word of query.split(/\s+/u)) {
+    const hasWord = words(word).some((w) => normalizeWord(w) !== undefined);
+    const text = searched.length > 0 && hasWord;
+    const ids = fields.has("id") ? idMatcher(word, index) : undefined;
+    if (ids !== undefined) {
+      special.push({ word, text, ids });
+    } else if (text) {
+      plain.push(word);
+    } else if (hasWord && and) {
+      return undefined;
+    }
+  }
+  return { plain, special };
+};
+
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (
   index: SearchIndex,
   query: string,
   options: SearchElementsOptions,
 ): Iterable<Found> | undefined => {
-  const fields = new Set(options.fields ?? SEARCH_FIELDS);
-  const searched = WORD_FIELDS.filter((field) => fields.has(field));
+  const { fields, searched } = fieldsOf(options);
   const and = options.combineWith !== "or";
-  const search = searchOf(index, searched, options);
-  const plain: string[] = [];
-  const special: {
-    readonly word: string;
-    readonly text: boolean;
-    readonly ids: IdMatch;
-  }[] = [];
-  for (const word of query.split(/\s+/u)) {
-    const text = searched.length > 0 && words(word).some((w) => normalizeWord(w) !== undefined);
-    const ids = fields.has("id") ? idMatcher(word, index) : undefined;
-    if (ids !== undefined) {
-      special.push({ word, text, ids });
-    } else if (text) {
-      plain.push(word);
-    }
+  const split = queryWords(index, query, fields, searched, and);
+  if (split === undefined) {
+    return undefined;
   }
+  const { plain, special } = split;
+  const search = searchOf(index, searched, options);
   const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
   if (special.length === 0) {
     return byWords;
@@ -1124,9 +1282,10 @@ const foundBy = (
  * The elements of `index` that `query` finds, the best first: each word of the query (split at
  * white space) is searched in the words of the fields (fuzzy, prefix) and compared with the IDs;
  * the words are combined with `options.combineWith`. Elements whose ID a word matched come first
- * (by the number of such words), then by score; equal ones keep store order. A word that can match
- * nothing in `options.fields` (punctuation only, or no ID form with only `id`) is left out; a query
- * without a word finds nothing. Only the page (`offset`, `limit`) is described (`fields`, `terms`).
+ * (by the number of such words), then by score; equal ones keep store order. A word without a
+ * letter or digit is left out; a word with one that can match nothing in the fields searched (no
+ * ID form with only `id`) finds nothing with `and` and is left out with `or`; a query without a
+ * word finds nothing. Only the page (`offset`, `limit`) is described (`fields`, `terms`).
  *
  * The words without an ID form are searched as one query, scored as MiniSearch scores it but in
  * arrays (`scoreWords`, SR-098); a word that may be an ID is searched on its own and joined with the
