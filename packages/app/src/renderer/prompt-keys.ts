@@ -27,6 +27,24 @@ export const COMMAND_HELP_KEY: KeyPress = press("h", true);
 export const isCommandHelpKey = (event: KeyPress): boolean =>
   event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "h";
 
+/**
+ * The last row of the command prompt with an empty input, and the last entry of the context menu: it lists every
+ * command that can run in the shown view, by name (SR-133 AK3, SR-194 AK3).
+ */
+export const ALL_COMMANDS = "All commands…";
+
+/**
+ * What the explanation line says on "All commands…" (SR-210 AK5), as the keyboard reference gives it in its row
+ * (`ALL_COMMANDS_ROW`, SR-210 AK6).
+ */
+export const ALL_COMMANDS_DESCRIPTION = "Show every command you can run here, by name.";
+
+/** The row of "All commands…" in the keyboard reference: Enter on it, with its description (SR-210 AK6). */
+export const ALL_COMMANDS_ROW: KeyRow = {
+  keys: [{ press: press("Enter") }],
+  does: `On “${ALL_COMMANDS}” in the command prompt`,
+};
+
 /** The keys of every prompt, the command prompt and "Go to" among them. */
 export const PROMPT_KEYS: readonly KeyRow[] = [
   ...PROMPT_MOVES,

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
-import { ACTIONS, commandPrompt } from "./actions.js";
+import { ACTIONS, commandPrompt, unusedOrder } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {
   elementBuffer,
@@ -34,7 +34,8 @@ import {
 import { coveredCommand, SHOWN_IN, shownIn } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
-import { rankByUse } from "./usage.js";
+import type { PromptUse } from "./usage.js";
+import { openingRows, promptUse, rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import { contextOf } from "../../../../scripts/contracts/catalog-checks.mjs";
@@ -1524,7 +1525,9 @@ describe("the commands that fit the shown view", () => {
     expect(fitting([list], "evidence.coverage")).toBe(true);
     expect(fitting([list], "trace.chain")).toBe(false);
     expect(fitting([list], "workspace.status")).toBe(false);
-    expect(fitting([overviewBuffer()], "trace.chain")).toBe(false);
+    // In the overview every command fits.
+    expect(fitting([overviewBuffer()], "trace.chain")).toBe(true);
+    expect(fitting([overviewBuffer()], "workspace.status")).toBe(true);
     expect(fitting([], "evidence.degree")).toBe(false);
   });
 
@@ -1573,7 +1576,8 @@ describe("the commands that fit the shown view", () => {
   });
 
   it("[SR-133/AK-w23t] shows the actions and the fitting commands above the others when nothing is typed", () => {
-    for (const buffers of [[shown], [list], [overviewBuffer()]]) {
+    expect(prompt([overviewBuffer()]).every((choice) => choice.fits === true)).toBe(true);
+    for (const buffers of [[shown], [list]]) {
       const items = prompt(buffers);
       const below = items.findIndex((choice) => choice.fits !== true);
       // The fitting ones come first, all of them: none is below the first that does not fit.
@@ -1598,6 +1602,88 @@ describe("the commands that fit the shown view", () => {
       "Show evidence coverage",
       "Show trace chain",
     ]);
+  });
+
+  /** The rows of the command prompt with an empty input as the window builds it, without use (SR-133 AK1). */
+  const opening = (context: CatalogContext, use?: PromptUse): string[] => {
+    const built = commandPrompt(context, use, catalogItems(context, CATALOG, ACTIONS), undefined, vi.fn());
+    return openingRows({ ...built, items: unusedOrder(built.items) }, "", []).map(({ item }) => item.name);
+  };
+
+  it("[SR-133/AK-w23t] opens with the first nine fitting commands: the letters after the prefix key, the own shortcuts, then by name; last All commands…", () => {
+    expect(opening(setup([shown]).context)).toEqual([
+      "Create relation",
+      "Set status",
+      "Confirm hints",
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "All commands…",
+    ]);
+    expect(opening(setup([list]).context)).toEqual([
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Filter list by type",
+      "Sort list",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "Show traceability matrix",
+      "All commands…",
+    ]);
+    // In a read-only workspace the write commands are not among them (SR-011 AK3).
+    expect(opening({ ...setup([shown]).context, readOnly: true }).slice(0, 4)).toEqual([
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Close buffer",
+    ]);
+    // In the overview every command fits; without use the letters come first there too.
+    expect(opening(setup([overviewBuffer()]).context).slice(0, 3)).toEqual([
+      "Create element",
+      "Create relation",
+      "Set status",
+    ]);
+  });
+
+  it("[SR-133/AK-w23t] puts the commands in use first, and orders as without use when the use cannot be read", () => {
+    const used: PromptUse = {
+      score: (id) => (id === "command:trace.chain" ? 2 : id === "sort" ? 1 : 0),
+      remembered: () => undefined,
+      record: vi.fn(),
+    };
+    // "Sort list" does not fit an element: in use or not, it is not among the nine there.
+    expect(opening(setup([shown]).context, used).slice(0, 3)).toEqual([
+      "Show trace chain",
+      "Create relation",
+      "Set status",
+    ]);
+    const unreadable = promptUse(() => {
+      throw new Error("no storage");
+    });
+    expect(opening(setup([shown]).context, unreadable)).toEqual(opening(setup([shown]).context));
+  });
+
+  it("[SR-133/AK-w23t] shows every command without All commands… where at most ten can run", () => {
+    const few = (count: number): Prompt => ({
+      label: "Command",
+      opening: { first: 9, last: { id: "all", name: "All commands…", run: vi.fn() } },
+      items: Array.from({ length: count }, (_, at) => ({
+        id: String(at),
+        name: `C${String(at)}`,
+        run: vi.fn(),
+      })),
+    });
+    // None of them fits: at most ten are shown all the same, more give the fitting ones and the last row.
+    expect(openingRows(few(10), "", [])).toHaveLength(10);
+    expect(openingRows(few(11), "", []).map(({ item }) => item.name)).toEqual(["All commands…"]);
+    // A typed text finds among all of them, never the last row.
+    expect(openingRows(few(11), "all", []).map(({ item }) => item.name)).toEqual([]);
+    expect(openingRows(few(11), "C1", []).map(({ item }) => item.name)).toEqual(["C1", "C10"]);
   });
 });
 
@@ -3155,6 +3241,23 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       expect(action.description, action.id).not.toMatch(/\b(SR|D|N|ADR)-\d/);
     }
     expect(own).toBeGreaterThan(60);
+  });
+
+  it("[SR-210/AK-cbzd] All commands… shows the sentence of its row in the keyboard reference", () => {
+    const rows = shortcutReference(CATALOG).flatMap((section) => section.rows);
+    const row = rows.find((candidate) => candidate.does.startsWith("On “All commands…”"));
+    const { context } = setup([shown]);
+    const prompt = commandPrompt(context, undefined, [], undefined, vi.fn());
+    const last =
+      prompt.opening === undefined || prompt.opening === "as-given" ? undefined : prompt.opening.last;
+    expect(last?.name).toBe("All commands…");
+    expect(row?.keys).toEqual(["Enter"]);
+    expect(row?.description).toBe("Show every command you can run here, by name.");
+    expect(last?.explain).toEqual({ summary: row?.description, enter: true });
+    // No command help, no key and no optional arguments of its own (SR-210 AK5).
+    expect(last?.help).toBeUndefined();
+    expect(last?.hint).toBeUndefined();
+    expect(last?.more).toBeUndefined();
   });
 
   it("[SR-210/AK-wz9v] a catalog command has the command help: the catalog's texts and the call on the command line", () => {

@@ -64,8 +64,10 @@ test.describe("the hits of the search prompt", () => {
 
   test("[SR-183/AK-c47w] shows as many hits as fit the card at its size for commands, none chosen; fewer hits all", async () => {
     const { window } = running;
-    // The card at its size for commands: the command prompt lists more commands than it holds.
+    // The card at its size for commands: "All commands…" lists more commands than it holds (SR-133 AK3).
     await window.keyboard.press("ControlOrMeta+Shift+P");
+    await card(window).getByRole("option").filter({ hasText: "All commands…" }).click();
+    await expect(window.locator("label.prompt-label")).toHaveText("All commands");
     await expect(card(window).getByRole("option").nth(12)).toBeAttached();
     const commands = await measure(window);
     expect(commands.scrolls).toBe(true);

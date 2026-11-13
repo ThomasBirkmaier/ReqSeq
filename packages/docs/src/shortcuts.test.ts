@@ -48,9 +48,12 @@ describe("keyboard shortcuts page", () => {
       '| <span id="action-close-all"></span>— | — | Close all buffers — Close every buffer except the overview. |',
     );
     expect(
-      rowOf(page, "Open the command prompt: the actions and commands that apply to the shown buffer"),
+      rowOf(
+        page,
+        "Open the command prompt: up to nine commands that fit the shown buffer, then “All commands…”",
+      ),
     ).toBe(
-      "| `Ctrl+Shift+P` | `⌘⇧P` | Open the command prompt: the actions and commands that apply to the shown buffer |",
+      "| `Ctrl+Shift+P` | `⌘⇧P` | Open the command prompt: up to nine commands that fit the shown buffer, then “All commands…” |",
     );
     expect(rowOf(page, "Create element")).toBe("| `Ctrl+K E` | `⌘K E` | Create element |");
     // An action's row carries its anchor, where F1 in the command prompt opens the page (SR-141 AK3).

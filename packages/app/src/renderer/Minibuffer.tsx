@@ -26,7 +26,7 @@ import {
   isCommandHelpKey,
 } from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
-import { promptRows } from "./usage.js";
+import { openingRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
 
 export interface MinibufferProps {
@@ -236,6 +236,7 @@ const CommandLine = ({
       lines={2}
       side={
         <>
+          {explain.enter === true ? <kbd>{enterLabel(mac)}</kbd> : null}
           {optional === 0 ? null : (
             <span className="explain-optional">
               {`${String(optional)} optional`} · <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd>
@@ -817,14 +818,14 @@ const PromptLine = ({
     return choice === undefined ? [] : [choice];
   };
   /**
-   * The rows for `text` with what was found for it: the literal choice, then `promptRows`, or only the
+   * The rows for `text` with what was found for it: the literal choice, then `openingRows`, or only the
    * found ones when they stand `alone` (the folder of a typed path, SR-143 AK1).
    */
   const rowsFor = (text: string, { choices, alone }: Found): PromptRow<Choice>[] => [
     ...literalOf(text).map((item) => ({ item, ranges: [], own: true })),
     ...(alone === true
       ? choices.map((item) => ({ item, ranges: [], own: false }))
-      : promptRows(prompt.items, choices, (choice) => choice.name, text, prompt.use)),
+      : openingRows(prompt, text, choices)),
   ];
   const rows = rowsFor(query, found);
   const current = rows[selected];
@@ -971,6 +972,8 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
       setPending(true);
+    } else if (current?.item.opens === true) {
+      // "All commands…" is taken only by Enter or a click (SR-210 AK5).
     } else if (prompt.preview === true) {
       // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
       enter();
@@ -1069,7 +1072,8 @@ const PromptLine = ({
     }
     event.preventDefault();
     event.stopPropagation();
-    prompt.help(current?.item.inert === true ? undefined : current?.item);
+    // An entry that only informs, and "All commands…", open the start page (SR-210 AK5).
+    prompt.help(current?.item.inert === true || current?.item.opens === true ? undefined : current?.item);
     return true;
   };
 
