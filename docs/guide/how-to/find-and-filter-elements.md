@@ -72,6 +72,36 @@ hits:
 total: 1
 ```
 
+`--fields` searches only the fields it names; `element search-fields` lists them with key and name. Here the word in titles only, so "Warn of gusts", whose topic is wind, is not a hit:
+
+```sh
+reqseq element search-fields
+```
+
+```text title="Output"
+fields:
+  - key: title
+    name: Title
+  - key: text
+    name: Text
+  - key: id
+    name: IDs
+  - key: properties
+    name: All properties
+...
+```
+
+```sh
+reqseq element search wind --fields title
+```
+
+```text title="Output"
+hits:
+  N-7fe707  draft  See the wind speed
+  SR-c67baa  draft  Show the wind speed
+total: 2
+```
+
 `--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: the system requirements without a parent:
 
 ```sh

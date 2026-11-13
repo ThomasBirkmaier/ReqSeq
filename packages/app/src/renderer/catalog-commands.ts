@@ -824,6 +824,14 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
     );
     return candidates.length > 0 ? { kind: "list", values: fileValues(candidates) } : asText();
   },
+  // The fields a search can be restricted to (`element.searchFields`, SR-216 AK3) that are not taken
+  // yet, by name with the key beside.
+  searchField: async ({ context, taken }) =>
+    listOf(await context.call("element.searchFields", {}), (output) =>
+      output.fields
+        .filter((field) => !taken.includes(field.key))
+        .map((field) => ({ value: field.key, name: field.name, key: field.key })),
+    ),
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>
     Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),

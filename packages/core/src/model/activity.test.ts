@@ -324,6 +324,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "hint.list": "none",
       "hint.confirm": "written element",
       "element.search": "none",
+      "element.searchFields": "none",
       "filter.list": "none",
       "filter.save": "written element",
       "perspective.list": "none",

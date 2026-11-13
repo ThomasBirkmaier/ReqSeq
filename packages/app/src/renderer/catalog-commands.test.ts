@@ -1020,6 +1020,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     "group",
     "condition",
     "sort",
+    "searchField",
     "properties",
     "relations",
   ]);
@@ -1092,6 +1093,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
         "element.list group group",
         "element.list sort sort",
         "element.resolve file elementFile",
+        "element.search fields searchField",
         "element.search group group",
         "evidence.list file elementFile",
         "evidence.record criteria criterion",
@@ -1156,6 +1158,39 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     // A value whose name is its key (a choice of the catalog, a repository) shows it once.
     catalogItems(context, [only("element.get", "versionDate")], [])[0]?.run();
     expect(await hits(asked)).toEqual(["yes | ", "no | "]);
+  });
+
+  it("[SR-216/AK-s99w] offers the fields of element.searchFields by name with the key beside, without those taken", async () => {
+    const { context, asked, call } = setup([shown], {
+      "element.searchFields": () => ({
+        fields: [
+          { key: "title", name: "Title" },
+          { key: "text", name: "Text" },
+          { key: "id", name: "IDs" },
+          { key: "properties", name: "All properties" },
+          { key: "rationale", name: "Rationale" },
+        ],
+      }),
+      "element.search": () => ({ hits: [], total: 0 }),
+    });
+    catalogItems(context, [only("element.search", "fields")], [])[0]?.run();
+    expect(await hits(asked)).toEqual([
+      "Title | title",
+      "Text | text",
+      "IDs | id",
+      "All properties | properties",
+      "Rationale | rationale",
+    ]);
+    item((await last(asked)).items, "Rationale").run();
+    expect(await hits(asked)).toEqual([
+      "Title | title",
+      "Text | text",
+      "IDs | id",
+      "All properties | properties",
+    ]);
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.search", { fields: ["rationale"] });
   });
 
   it("[SR-215/AK-fj75] offers the saved filters, the variants and the packages as hits and puts in what the command expects", async () => {
