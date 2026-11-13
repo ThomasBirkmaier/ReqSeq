@@ -249,7 +249,7 @@ test.describe("the switch to the previous or next buffer with 50,000 elements an
     }
   });
 
-  test("[SR-212/AK-d25h] every kind of buffer slides in at most 200 ms once drawn, and is drawn within its own limit", async () => {
+  test("[SR-212/AK-d25h] every kind of buffer slides in at most 200 ms once drawn; the time until it is drawn is recorded", async () => {
     test.setTimeout(600_000);
     running = await launchApp(undefined, {
       kept: { home, workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() } },
