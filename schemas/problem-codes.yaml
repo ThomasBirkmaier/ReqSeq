@@ -192,6 +192,9 @@ problems:
   perspective.duplicate-name:
     cause: Two perspective files have the same name, ignoring case and Unicode normal form. The first file in file order is the perspective.
     remedy: Rename one of them.
+  perspective.group-unavailable:
+    cause: The perspective groups by a text, number or date property whose values can no longer be chosen, because the elements now have too many different values or none that two share. The list is shown without groups.
+    remedy: Group by another key in the call, or save the perspective again with another grouping.
   metamodel.invalid:
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
     remedy: Fix the metamodel files at the places the messages give and open the workspace again.

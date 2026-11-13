@@ -421,6 +421,7 @@
         "filter.duplicate-name",
         "perspective.invalid",
         "perspective.duplicate-name",
+        "perspective.group-unavailable",
         "metamodel.invalid",
         "metamodel.optional-status",
         "metamodel.meaning-unassigned",

@@ -783,6 +783,7 @@
             "filter.duplicate-name",
             "perspective.invalid",
             "perspective.duplicate-name",
+            "perspective.group-unavailable",
             "metamodel.invalid",
             "metamodel.optional-status",
             "metamodel.meaning-unassigned",
@@ -4613,17 +4614,21 @@
         "properties": {
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
-            "description": "Every part given must hold."
+            "description": "Every part given must hold; with `perspective`, in addition to the perspective's selection."
+          },
+          "perspective": {
+            "$ref": "#/$defs/perspective/$defs/name",
+            "description": "List as the perspective of this name shows it, read from its file on every call, as its saved filter is. Its `where`, its saved filter and every part of `selection` must hold; the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a property whose values can no longer be chosen (a text, number or date property with too many values) gives the list without groups and the warning `perspective.group-unavailable` in `problems`; any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter; errors of its stored `where`, `sort` and `group` name the perspective and its file."
           },
           "sort": {
             "type": "array",
-            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`.",
+            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's, question #1627), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
             "items": {
               "$ref": "#/$defs/filter/$defs/sortKey"
             }
           },
           "group": {
-            "description": "Group the list: `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID. Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
+            "description": "Group the list: `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID. Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the stored sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
             "$ref": "#/$defs/common/$defs/groupKey"
           },
           "fields": {
@@ -4763,6 +4768,13 @@
           },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "description": "Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups; else empty."
           }
         },
         "additionalProperties": false,

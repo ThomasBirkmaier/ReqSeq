@@ -6,7 +6,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { EMERGENT, EXPORT, FILTER, SAVED, VARIANT_VIEWS } from "../../fixtures.js";
+import { EMERGENT, EXPORT, FILTER, PERSPECTIVES, SAVED, VARIANT_VIEWS } from "../../fixtures.js";
 
 /**
  * SR-069/filter with a topic shared by a single value and a list, so that a value of a list property selects
@@ -71,6 +71,25 @@ const groupLines = ({ elements, groups }: Grouped): string[] =>
         .join(" ")}`,
   );
 const BY_TITLE = [{ by: "title", order: "asc" }];
+
+/** PERSPECTIVES with a perspective by package over a filter with a view, one by topic, and two with filters that fail (SR-213). */
+const PERSPECTIVE: FixtureOptions = {
+  ...PERSPECTIVES,
+  files: {
+    ...PERSPECTIVES.files,
+    "perspectives/by-package.yaml":
+      "# Open and done work in the mountains\nreqseq-perspective: 1\nname: Requirements by package\nfilter: Mountain\n" +
+      "where: { status: [draft, approved] }\ngroup: package\nsort: [{ by: title }]\n",
+    "perspectives/by-topic.yaml":
+      "reqseq-perspective: 1\nname: By topic\nwhere: { type: [system-requirement], subtypes: false }\ngroup: topic\n",
+    "perspectives/gone.yaml": "reqseq-perspective: 1\nname: Gone\nfilter: Old ones\nwhere: { all: [] }\n",
+    "perspectives/faulty-filter.yaml":
+      "reqseq-perspective: 1\nname: Faulty filter\nfilter: Broken\nwhere: { all: [] }\n",
+  },
+};
+/** The error of core in `results`. */
+const coreError = (results: Readonly<Record<string, Result>>): { code: string; message: string } =>
+  (results["core"]?.outcome as { error: { code: string; message: string } }).error;
 
 scenariosOf("element.list", [
   {
@@ -430,6 +449,79 @@ scenariosOf("element.list", [
     fixture: GROUP,
     input: { group: "status", sort: [{ by: "hierarchy", order: "asc" }], fields: ["type"], withText: true },
     expect: "output",
+  },
+  {
+    tag: "[SR-213/AK-gcgz]",
+    name: "a perspective by name: its filter with its view, its where, its grouping and its sort",
+    fixture: PERSPECTIVE,
+    input: { perspective: "requirements by package" },
+    expect: "output",
+    check: (results) => {
+      expect(groupLines(grouped(results))).toEqual([
+        "PKG-0000d1: SR-0000b1",
+        "-: SWR-0000f1 SWR-0000f2 SR-0000b5 SR-0000b3",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-213/AK-ynyk]",
+    name: "a perspective with a selection, a sort and a grouping of the input",
+    fixture: PERSPECTIVE,
+    input: {
+      perspective: "Requirements by package",
+      selection: { where: { status: ["draft"] } },
+      group: "status",
+      sort: [{ by: "title", order: "desc" }],
+    },
+    expect: "output",
+    check: (results) => {
+      expect(groupLines(grouped(results))).toEqual(["draft: SR-0000b3 SWR-0000f1"]);
+    },
+  },
+  {
+    tag: "[SR-213/AK-tj6p]",
+    name: "a perspective whose saved filter does not exist: refused, naming perspective and filter",
+    fixture: PERSPECTIVE,
+    input: { perspective: "Gone" },
+    expect: "error",
+    check: (results) => {
+      expect(coreError(results)).toMatchObject({
+        code: "input.invalid",
+        message:
+          'Perspective "Gone" (perspectives/gone.yaml): perspective: its saved filter "Old ones" does not exist; filter.list lists them',
+      });
+    },
+  },
+  {
+    tag: "[SR-213/AK-tj6p]",
+    name: "a perspective whose saved filter is in a faulty file: refused, naming perspective and filter",
+    fixture: PERSPECTIVE,
+    input: { perspective: "Faulty filter" },
+    expect: "error",
+    check: (results) => {
+      expect(coreError(results).code).toBe("file.faulty");
+      expect(coreError(results).message).toMatch(/^Perspective "Faulty filter" .*saved filter "Broken"/);
+    },
+  },
+  {
+    tag: "[SR-213/AK-zz87]",
+    name: "a perspective grouped by a property whose values can no longer be chosen: no groups, and a warning",
+    fixture: PERSPECTIVE,
+    input: { perspective: "By topic" },
+    expect: "output",
+    check: (results) => {
+      const { output } = results["core"]?.outcome as {
+        output: { groups?: unknown; problems: readonly { code: string }[] };
+      };
+      expect(output.groups).toBeUndefined();
+      expect(output.problems.map((p) => p.code)).toEqual(["perspective.group-unavailable"]);
+    },
+  },
+  {
+    name: "an unknown perspective: input.invalid at perspective",
+    fixture: PERSPECTIVE,
+    input: { perspective: "Open ones" },
+    expect: "error",
   },
   {
     name: "a regular expression that is none",

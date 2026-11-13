@@ -7,7 +7,7 @@ export { compileWhere } from "./condition.js";
 export type { CompiledCondition } from "./condition.js";
 export type { CompileContext, Predicate, QueryContext, QueryNotes } from "./context.js";
 export { evidenceStatusState } from "./evidence.js";
-export { facetsOf } from "./facets.js";
+export { FACET_MAX_VALUES, facetsOf } from "./facets.js";
 export type { EvidenceStatuses } from "./evidence.js";
 export {
   FILTERS,
@@ -29,16 +29,23 @@ export {
   inSavedFileAsync,
   keyEdits,
   readSavedFolder,
+  savedProblem,
   writeSaved,
 } from "./saved-files.js";
 export type { FoundSaved, SavedFile, SavedFolder, SavedKind } from "./saved-files.js";
-export { PERSPECTIVES, readPerspectives } from "./perspectives.js";
+export {
+  PERSPECTIVES,
+  inPerspective,
+  perspectiveFilterFor,
+  perspectiveFor,
+  readPerspectives,
+} from "./perspectives.js";
 export type { SavedPerspective, SavedPerspectives } from "./perspectives.js";
 export { orderedGroups, orderedSelection } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
-export { checkGroupKey, groupingOf } from "./group.js";
+export { checkGroupKey, groupUnavailable, groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";
-export type { Selected } from "./selection.js";
+export type { Selected, StoredSelection } from "./selection.js";
 export { sortElements } from "./sort.js";
 export type { SortContext, SortedElements, TreePlace } from "./sort.js";
 export {

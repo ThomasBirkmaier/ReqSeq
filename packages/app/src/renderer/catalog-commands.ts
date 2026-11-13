@@ -41,7 +41,8 @@
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
 // that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285);
-// `baseline` the baselines by name (`baseline.list`), by file name where two share a name. `filter` stays
+// `baseline` the baselines by name (`baseline.list`), by file name where two share a name; `perspective`
+// the perspectives by name (`perspective.list`). `filter` stays
 // typed text. A `selection` is never asked: it is the shown list's, or on a package page its package
 // (`selection.package`), for every command with a selection, reads and writes alike.
 import type { AboutInfo } from "./about.js";
@@ -633,6 +634,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
           : { value: baseline.name, name: baseline.name };
       });
     }),
+  // The perspectives of the workspace by name (`perspective.list`, SR-213).
+  perspective: async ({ context }) =>
+    listOf(await context.call("perspective.list", {}), (output) =>
+      output.perspectives.map((perspective) => ({ value: perspective.name, name: perspective.name })),
+    ),
   // `core` and the variants of the workspace, as "Choose view" offers them (#285).
   view: async ({ context }) => {
     const views = await viewsOf(context.call);

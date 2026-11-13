@@ -491,8 +491,8 @@ describe("every problem of every output schema is located (ThomasBirkmaier/ReqSe
     expect(filledElsewhere).toEqual([]);
     expect(nowhere).toEqual(NOT_LOCATED);
     // Every problem reference the outputs reach: the command files of schemas/commands/ and data-export.schema.json. A new
-    // one changes this number on purpose (element.list `partial`, #982: 40; trace.mermaid and metamodel.mermaid, #1537: 42; perspective.save and perspective.list, #1616: 44).
-    expect(found).toBe(44);
+    // one changes this number on purpose (element.list `partial`, #982: 40; trace.mermaid and metamodel.mermaid, #1537: 42; perspective.save and perspective.list, #1616: 44; element.list `problems`, #1617: 45).
+    expect(found).toBe(45);
   });
 });
 

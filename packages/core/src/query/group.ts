@@ -186,6 +186,20 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
 };
 
 /**
+ * Whether `by` is a property of the metamodel whose values element.facets no longer offers over the
+ * whole workspace (SR-124 AK2: text, number or date with too many values), the one case in which a
+ * perspective's stored grouping gives the list without groups (SR-213 AK7). Any other key that
+ * cannot be grouped stays the error of `groupingOf`.
+ */
+export const groupUnavailable = (selected: Pick<Selected, "metamodel" | "store">, by: string): boolean => {
+  if (by === "type" || by === "status" || by === "package") {
+    return false;
+  }
+  const found = keyDefinition(selected.metamodel, by);
+  return found?.kind === "property" && !offersValues(selected.store.elements, found.definition);
+};
+
+/**
  * Checks that a list can be grouped by `by`, as `groupingOf` checks it, without reading a selection:
  * whether a text, number or date property offers values is decided over the whole workspace
  * (`offersValues` over the store). Errors name the field `group`.
