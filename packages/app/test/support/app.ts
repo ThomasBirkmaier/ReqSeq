@@ -691,10 +691,10 @@ export interface CoreRequests {
   readonly sent: () => Promise<readonly CoreRequest[]>;
   /**
    * The next request named `name` whose input is `input` (compared as JSON) dispatches a keydown and keyup of
-   * Enter on the focused element in the microtask after it was sent: as a person who presses Enter at that
-   * moment. `fired()` tells when.
+   * Enter on the focused element (first on the element `focus` selects, when given) in the microtask after it
+   * was sent: as a person who presses Enter at that moment. These events are not trusted. `fired()` tells when.
    */
-  readonly enterOn: (name: string, input: unknown) => Promise<void>;
+  readonly enterOn: (name: string, input: unknown, focus?: string) => Promise<void>;
   /** The Enter set off by `enterOn`, once it went. */
   readonly fired: () => Promise<ArmedEnter | undefined>;
 }
@@ -747,6 +747,9 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
           if (armed !== undefined && armed.name === message.name && armed.input === JSON.stringify(message.input)) {
             own.__armed = undefined;
             queueMicrotask(() => {
+              if (armed.focus !== undefined) {
+                document.querySelector(armed.focus)?.focus();
+              }
               const target = document.activeElement ?? document.body;
               const firedAt = now();
               for (const type of ["keydown", "keyup"]) {
@@ -772,9 +775,9 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
           id?: number;
         })[]
       ).map(({ id: _id, ...request }) => request),
-    enterOn: async (name, input) => {
+    enterOn: async (name, input, focus) => {
       await run(
-        `globalThis.__fired = undefined; globalThis.__armed = ${JSON.stringify({ name, input: JSON.stringify(input) })};`,
+        `globalThis.__fired = undefined; globalThis.__armed = ${JSON.stringify({ name, input: JSON.stringify(input), focus })};`,
       );
     },
     fired: async () =>

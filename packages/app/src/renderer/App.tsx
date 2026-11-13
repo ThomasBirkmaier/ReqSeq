@@ -227,6 +227,28 @@ const useSlides = (
   return controller;
 };
 
+const NONE: ReadonlySet<string> = new Set();
+
+/**
+ * The buffers drawn in advance that a change dropped since the shown `buffer` was switched to: they are
+ * not read again in the background, and drawn in advance again only after the next switch (SR-212 AK5).
+ */
+const useDropped = (
+  buffer: Buffer | undefined,
+): { readonly dropped: ReadonlySet<string>; readonly drop: (key: string) => void } => {
+  const shown = buffer?.key;
+  const switches = useRef({ key: shown, count: 0 });
+  if (switches.current.key !== shown) {
+    switches.current = { key: shown, count: switches.current.count + 1 };
+  }
+  const [dropped, setDropped] = useState({ at: 0, keys: NONE });
+  const drop = useCallback((key: string): void => {
+    const at = switches.current.count;
+    setDropped((before) => ({ at, keys: new Set([...(before.at === at ? before.keys : []), key]) }));
+  }, []);
+  return { dropped: dropped.at === switches.current.count ? dropped.keys : NONE, drop };
+};
+
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
@@ -665,11 +687,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   useLayoutEffect(() => {
     gate.prompt(prompting);
   }, [gate, prompting]);
-  // The previous and the next buffer of the active area, drawn hidden beside the shown one (SR-212 AK5).
+  // The previous and the next buffer of the active area, drawn hidden beside the shown one (SR-212 AK5),
+  // without those dropped after a change since the last switch: they are not read again in the background.
+  const { dropped, drop } = useDropped(current);
   const neighbours = neighbourBuffers(buffers, walk.current.order, layout.other, {
     known: typeNames.size > 0,
     model: packages,
-  });
+  }).filter((buffer) => !dropped.has(buffer.key));
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
     if (session === undefined) {
@@ -1306,6 +1330,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     onDrawn,
     gate,
     ready,
+    drop,
     typeNames,
     kindNames,
     // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).

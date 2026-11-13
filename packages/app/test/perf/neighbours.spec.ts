@@ -5,15 +5,16 @@
 // how soon a switch to one of them starts to slide:
 //
 // - SR-082 AK3, the hostile case: an element opened without a prompt (Enter on a relation of the shown element)
-//   in the microtask after the slowest read of a neighbour was sent (that read found first, after a change from
-//   outside, among the reads drawn in advance; their times recorded, also warm), set off in the preload's world
-//   (`recordRequests`);
+//   in the microtask after the slowest read of a neighbour was sent, set off in the preload's world
+//   (`recordRequests`). A change drops the buffers drawn in advance, which read nothing in the background; the
+//   next switch draws them again, so the slowest read is the first after a change (found first, its time
+//   recorded, also warm), sent when the reader is back on the shown element;
 // - SR-082 AK3 with Ctrl+P: the prompt opened at once after that read was sent; the read may be done by the
 //   Enter, and no read drawn in advance starts while the prompt is open;
 // - SR-082 AK3 after a held Alt+P over more buffers than the walk draws in advance, lists among them: the open
 //   at once after the release;
 // - SR-082 AK4: the list of all elements, its first page, asked for while neighbours are drawn;
-// - SR-116 AK1: the shown element changed outside, while the neighbourhood beside it reads again;
+// - SR-116 AK1: the shown element changed outside, its neighbours dropped;
 // - SR-212 AK2: a switch just after typing loses no input;
 // - SR-082 AK5: the first open with Ctrl+P after a start with restored buffers, whose neighbours are drawn once
 //   the restored buffer is (the start itself recorded for SR-082 AK1, which `start.spec.ts` asserts).
@@ -97,16 +98,17 @@ const open = async (window: Page, title: string): Promise<void> => {
 };
 
 /**
- * Watches for the next Enter: gives the ms from its keydown until the shown element has `title` and a text, in
+ * Watches for the next Enter (with `synthetic`, the next one not typed): gives the ms from its keydown until the shown element has `title` and a text, in
  * the frame after the paint (as `start.spec.ts` times an open), once the returned function is awaited.
  */
-const watchOpen = async (window: Page, title: string): Promise<() => Promise<number>> => {
+const watchOpen = async (window: Page, title: string, synthetic = false): Promise<() => Promise<number>> => {
   await window.evaluate(
-    ({ title, shown }) => {
+    ({ title, shown, synthetic }) => {
       const w = globalThis as unknown as { __open?: Promise<number> };
       let start: number | undefined;
       const listener = (event: KeyboardEvent): void => {
-        if (event.key === "Enter") {
+        // `synthetic`: only the Enter `recordRequests` sets off, not one typed before it.
+        if (event.key === "Enter" && (!synthetic || !event.isTrusted)) {
           start = event.timeStamp;
           removeEventListener("keydown", listener, { capture: true });
         }
@@ -135,7 +137,7 @@ const watchOpen = async (window: Page, title: string): Promise<() => Promise<num
         });
       });
     },
-    { title, shown: SHOWN },
+    { title, shown: SHOWN, synthetic },
   );
   return () => window.evaluate(() => (globalThis as unknown as { __open: Promise<number> }).__open);
 };
@@ -272,7 +274,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
   test("[SR-082/AK-tndr] [SR-082/AK-h27y] [SR-116/AK-w091] [SR-212/AK-kqvx] [SR-082/AK-csnf] the limits hold while the previous and next buffer are drawn in advance; the switch to one is recorded", async () => {
     test.setTimeout(900_000);
     const [a, second, ...others] = requirements;
-    if (a === undefined || second === undefined || pkg === undefined || others.length < ROUNDS + 4) {
+    if (a === undefined || second === undefined || pkg === undefined || others.length < ROUNDS + 6) {
       throw new Error("the generated workspace has too few elements with a title of their own");
     }
     let b: GeneratedElement = second;
@@ -329,21 +331,48 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     // The reads drawn in advance and how long each takes: first after a change from outside (A named, so mounted
     // again; the neighbourhood of the package reads again on every change), and warm (a switch away and back
     // mounts both again with nothing changed).
+    // A change from outside drops the buffers drawn in advance: nothing reads in the background. The next switch
+    // draws the neighbours of the buffer it shows: back to B, A reads for the first time after the change (and
+    // the neighbourhood again); a switch away and back without a change reads them warm.
+    const ids = new Map([
+      [a.id, "A"],
+      [thePackage.id, "package"],
+    ]);
     const measureReads = async () => {
-      const ids = new Map([
-        [a.id, "A"],
-        [thePackage.id, "package"],
-      ]);
       await quiet(requests);
       await requests.clear();
       await retitle(a, `${a.title} read`);
-      const afterWrite = readTimes(await quiet(requests), ids);
-      await requests.clear();
+      await expect.poll(() => hiddenViews(window), { timeout: 10_000 }).toEqual([]);
+      expect(readTimes(await quiet(requests), ids)).toEqual([]);
       await window.keyboard.press("Alt+KeyP");
       await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await quiet(requests);
+      await requests.clear();
+      await window.keyboard.press("Alt+KeyN");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
+      const afterWrite = readTimes(await quiet(requests), ids);
+      await window.keyboard.press("Alt+KeyP");
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await quiet(requests);
+      await requests.clear();
       await window.keyboard.press("Alt+KeyN");
       await expect.poll(() => shownTitle(window)).toBe(b.title);
       const warm = readTimes(await quiet(requests), ids);
+      // A change of another element: are the first reads of the unchanged neighbours slow too?
+      const elsewhere = others[ROUNDS + 4];
+      if (elsewhere === undefined) {
+        throw new Error("no other element to change");
+      }
+      await retitle(elsewhere, `${elsewhere.title} elsewhere`);
+      await expect.poll(() => hiddenViews(window), { timeout: 10_000 }).toEqual([]);
+      await window.keyboard.press("Alt+KeyP");
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await quiet(requests);
+      await requests.clear();
+      await window.keyboard.press("Alt+KeyN");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      const afterOther = readTimes(await quiet(requests), ids);
       const slowest = afterWrite[0];
       if (slowest === undefined || warm[0] === undefined) {
         throw new Error("no read drawn in advance was answered");
@@ -357,23 +386,33 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         await recordValue(`app: the slowest read drawn in advance, warm (${warm[0].label})`, warm[0].ms, {
           basis: "SR-212 AK5 (recorded)",
         }),
+        await recordValue(
+          `app: the slowest read drawn in advance, first after a change of another element (${afterOther[0]?.label ?? "none"})`,
+          afterOther[0]?.ms ?? 0,
+          { basis: "SR-212 AK5 (recorded)" },
+        ),
       );
-      return { afterWrite, warm, slowest };
+      return { afterWrite, warm, afterOther, slowest };
     };
-    const { afterWrite, warm, slowest } = await measureReads();
+    const { afterWrite, warm, afterOther, slowest } = await measureReads();
 
-    /** A relation of the shown element B to an element neither drawn in advance nor A: focused, and its title. */
-    const focusRelation = async (): Promise<string> => {
+    /** A relation of the shown element B to an element neither drawn in advance nor A: its title and selector. */
+    const relation = async (): Promise<{ readonly title: string; readonly selector: string }> => {
       const links = window.locator(`${SHOWN} [role="link"][data-target-id]`);
       await expect(links.first()).toBeVisible({ timeout: 60_000 });
       for (const link of await links.all()) {
         const target = byId.get((await link.getAttribute("data-target-id")) ?? "");
         if (target !== undefined && target.id !== a.id && target.id !== thePackage.id && target.id !== b.id) {
-          await link.focus();
-          return target.title;
+          return { title: target.title, selector: `${SHOWN} [role="link"][data-target-id="${target.id}"]` };
         }
       }
       throw new Error("the shown element has no relation to open");
+    };
+    /** Focuses a relation of B (`relation`) and gives its title. */
+    const focusRelation = async (): Promise<string> => {
+      const { title, selector } = await relation();
+      await window.locator(selector).first().focus();
+      return title;
     };
     /** Back to B with the opened element closed, so its neighbours are the neighbourhood and A again. */
     const backToB = async (): Promise<void> => {
@@ -383,18 +422,42 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
       await window.waitForTimeout(SETTLE_SWITCH_MS);
     };
+    /**
+     * Away from B to `away`, A changed outside meanwhile (so its next read is the first after the change), and
+     * back to B with `away` closed: B draws, then its neighbours read.
+     */
+    const changedAndBack = async (
+      away: GeneratedElement,
+      title: string,
+      arm: () => Promise<void> = () => Promise.resolve(),
+    ): Promise<void> => {
+      await open(window, away.title);
+      await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).not.toEqual([]);
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await retitle(a, title);
+      // The change drops what is drawn beside `away`.
+      await expect.poll(() => hiddenViews(window), { timeout: 10_000 }).toEqual([]);
+      await quiet(requests);
+      await requests.clear();
+      await arm();
+      await command(window, "Close buffer");
+    };
 
-    // SR-082 AK3, hostile: a change from outside makes the neighbours read again, and Enter on a relation of B
-    // goes in the microtask after the slowest of these reads was sent.
+    // SR-082 AK3, hostile: back on B after a change from outside, Enter on a relation of B goes in the
+    // microtask after the slowest read drawn in advance was sent.
     const hostileOpens = async () => {
       const hostile: number[] = [];
       const lags: number[] = [];
       for (let round = 0; round < ROUNDS; round += 1) {
-        const title = await focusRelation();
-        await requests.clear();
-        await requests.enterOn(slowest.request.name, slowest.request.input);
-        const opened = await watchOpen(window, title);
-        await retitle(a, `${a.title} ${String(round)}`);
+        const away = others[round];
+        if (away === undefined) {
+          throw new Error("no element to open");
+        }
+        const target = await relation();
+        const opened = await watchOpen(window, target.title, true);
+        await changedAndBack(away, `${a.title} ${String(round)}`, () =>
+          requests.enterOn(slowest.request.name, slowest.request.input, target.selector),
+        );
         hostile.push(await opened());
         const fired = await requests.fired();
         expect(fired?.target).toBe("SPAN");
@@ -413,8 +476,9 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     };
     const { hostile, lags } = await hostileOpens();
 
-    // SR-082 AK3 with Ctrl+P: the prompt opens at once after the slowest read was sent; no read drawn in advance
-    // starts while it is open, and the one sent may be done by the Enter.
+    // SR-082 AK3 with Ctrl+P: back on B after a change from outside, the prompt opens at once after the slowest
+    // read drawn in advance was sent; no read drawn in advance starts while it is open, and the one sent may be
+    // done by the Enter.
     const promptOpens = async () => {
       const opens: number[] = [];
       for (let round = 0; round < ROUNDS; round += 1) {
@@ -422,8 +486,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         if (target === undefined) {
           throw new Error("no element to open");
         }
-        await requests.clear();
-        await retitle(a, `${a.title} prompt ${String(round)}`);
+        await changedAndBack(target, `${a.title} prompt ${String(round)}`);
         await expect
           .poll(
             async () =>
@@ -492,7 +555,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
     await window.waitForTimeout(SETTLE_SWITCH_MS);
 
-    // SR-116 AK1: B changed outside while shown, its neighbours read again meanwhile.
+    // SR-116 AK1: B changed outside while shown; the change drops its neighbours, which read nothing meanwhile.
     const outside: number[] = [];
     for (let round = 0; round < ROUNDS; round += 1) {
       const title = `${b.title} outside ${String(round)}`;
@@ -551,6 +614,55 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     await window.keyboard.press("Alt+KeyP");
     await expect.poll(() => fs.readFile(fileOf(b), "utf8"), { timeout: 10_000 }).toContain(typed.trim());
     await window.waitForTimeout(SETTLE_SWITCH_MS);
+
+    // SR-082 AK3 with the save of leaving (SR-105 AK1): typed in B, then Alt+P to another element C at once. B
+    // is saved, then drawn hidden beside C, its first read after its own save; Enter on a relation of C goes in
+    // the microtask after that read was sent.
+    const leavingOpens = async () => {
+      const c = others[ROUNDS + 5];
+      if (c === undefined) {
+        throw new Error("no element to switch to");
+      }
+      await open(window, c.title);
+      const target = await relation();
+      const timed: number[] = [];
+      for (let round = 0; round < ROUNDS; round += 1) {
+        await open(window, b.title);
+        await window.waitForTimeout(SETTLE_SWITCH_MS);
+        const opened = await watchOpen(window, target.title, true);
+        await quiet(requests);
+        await requests.clear();
+        await requests.enterOn("element.get", { ref: b.id, repository: b.repository }, target.selector);
+        // Typed and left at once, before the autosave: the save of leaving writes it. B was opened after C, so
+        // Alt+P goes back to C.
+        await window.locator(`${SHOWN} .cm-content`).first().click();
+        await window.keyboard.press("ControlOrMeta+End");
+        await window.keyboard.type(` left ${String(round)}`);
+        await window.keyboard.press("Alt+KeyP");
+        timed.push(await opened());
+        const fired = await requests.fired();
+        expect(fired?.target).toBe("SPAN");
+        expect((fired?.firedAt ?? Infinity) - (fired?.sentAt ?? 0)).toBeLessThanOrEqual(ARMED_LAG_MS);
+        await expect.poll(() => fs.readFile(fileOf(b), "utf8")).toContain(`left ${String(round)}`);
+        // Back to C with the opened element closed, so B, opened next, has C as its previous buffer.
+        await window.waitForTimeout(SETTLE_SWITCH_MS);
+        await command(window, "Close buffer");
+        await expect.poll(() => shownTitle(window)).toBe(c.title);
+      }
+      recorded.push(
+        await recordValue(
+          `app: Enter on a relation until the element shows, sent with the first read of the element left with a save (slowest of ${String(ROUNDS)})`,
+          Math.max(...timed),
+          {
+            basis:
+              "SR-082 AK3 (with the save of leaving, SR-105 AK1, and buffers drawn in advance, SR-212 AK5; the app)",
+            thresholdMs: OPEN_MS,
+          },
+        ),
+      );
+      return timed;
+    };
+    const leaving = await leavingOpens();
 
     // SR-082 AK3 after a held Alt+P: B, then two lists and the overview between three elements; Alt held over
     // the key repeat back to B, through buffers drawn in advance and not, then Enter on a relation of B at once.
@@ -640,7 +752,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(
-      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, opens, list, outside, gap, held, started, firstOpen })}`,
+      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, leaving, afterOther: afterOther.map(({ label, ms }) => ({ label, ms })), opens, list, outside, gap, held, started, firstOpen })}`,
     );
     for (const measurement of recorded) {
       if (measurement.thresholdMs !== undefined) {

@@ -21,7 +21,6 @@ import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import type { OverviewData } from "./OverviewView.js";
 import { OverviewView } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { touchedSince } from "./outside-marks.js";
 import type { PerspectiveRow, RecentRow } from "./overview.js";
 import { ResultView } from "./ResultView.js";
 import type { Area, WindowAction } from "./window-layout.js";
@@ -103,6 +102,11 @@ export interface AreaViews {
    * (`generation`), or no longer (undefined): a switch to it slides at once (SR-212 AK5).
    */
   readonly ready: (key: string, mount: number, generation: number | undefined) => void;
+  /**
+   * The hidden view of `key` read in an older generation of the workspace: it is not read again in the
+   * background but dropped from the buffers drawn in advance until the next switch (SR-212 AK5).
+   */
+  readonly drop: (key: string) => void;
 }
 
 const BufferView = ({
@@ -210,19 +214,14 @@ const ownLayer = (buffer: Buffer): boolean => buffer.kind === "element" || buffe
  * The layers of an area: the shown buffer, then the buffers drawn hidden beside it (SR-212 AK5) in the order
  * they were mounted. The view of an element or a neighbourhood has a layer of its
  * own per mount: shown, then left, it is mounted again hidden, as a fresh view, after the save of leaving
- * (SR-105 AK1); a hidden element named by a change from outside is mounted again too, so its read is a first
- * load. Any other view shares the layer `main`, where a list shown after another one updates in place.
+ * (SR-105 AK1). A hidden layer is never read again: after a change it is dropped (`AreaViews.drop`). Any other
+ * view shares the layer `main`, where a list shown after another one updates in place.
  */
-const useSlots = (
-  shown: Buffer,
-  hidden: readonly Buffer[],
-  outside: OutsideChanges,
-): readonly SlotEntry[] => {
+const useSlots = (shown: Buffer, hidden: readonly Buffer[]): readonly SlotEntry[] => {
   const state = useRef({
     mounts: new Map<string, number>(),
     order: [] as string[],
     shown: undefined as string | undefined,
-    seq: outside.seq,
   });
   const now = state.current;
   const kept = new Set([shown.key, ...hidden.map((buffer) => buffer.key)]);
@@ -233,16 +232,8 @@ const useSlots = (
     if (buffer.key === now.shown) {
       // The buffer just left: a fresh hidden view.
       bump(buffer.key);
-    } else if (
-      outside.seq !== now.seq &&
-      buffer.kind === "element" &&
-      now.order.includes(buffer.key) &&
-      touchedSince(outside, buffer.id, now.seq)
-    ) {
-      bump(buffer.key);
     }
   }
-  now.seq = outside.seq;
   now.shown = shown.key;
   const all = [shown, ...hidden];
   const slotKey = (buffer: Buffer): string => (ownLayer(buffer) ? buffer.key : "main");
@@ -283,6 +274,8 @@ const useLayerViews = (
 ): {
   readonly views: AreaViews;
   readonly pending: () => number;
+  /** The view read while hidden, in an older generation of the workspace than now. */
+  readonly stale: () => boolean;
   readonly reveal: () => void;
   readonly flush: () => void;
 } => {
@@ -292,6 +285,8 @@ const useLayerViews = (
   const latest = useRef(views);
   latest.current = views;
   const pending = useRef(0);
+  // The generation of the workspace (`seen`) its first read went in, while hidden: a later read is not sent.
+  const readAt = useRef<number | undefined>(undefined);
   // The layer is mounted: a read that waited at the gate for a layer gone meanwhile is not sent.
   const alive = useRef(true);
   useEffect(() => {
@@ -311,6 +306,7 @@ const useLayerViews = (
   }, []);
   const settled = useRef(drawn);
   settled.current = drawn;
+  const hiddenNow = (): boolean => !shownNow.current;
   const call = useMemo((): Call => {
     const inner = views.call;
     return async (name, input) => {
@@ -320,6 +316,13 @@ const useLayerViews = (
           await Promise.race([latest.current.gate.pass(), revealed.promise]);
           if (!alive.current) {
             return { ok: false, code: "LAYER_GONE", message: "The view drawn in advance is gone." };
+          }
+          // Shown meanwhile, it reads as a shown view does.
+          if (hiddenNow()) {
+            readAt.current ??= latest.current.seen;
+            if (readAt.current !== latest.current.seen) {
+              return { ok: false, code: "LAYER_STALE", message: "The view drawn in advance is out of date." };
+            }
           }
         }
         return await inner(name, input);
@@ -398,6 +401,7 @@ const useLayerViews = (
   return {
     views: { ...views, call, ...callbacks, element },
     pending: () => pending.current,
+    stale: () => readAt.current !== undefined && readAt.current !== latest.current.seen,
     reveal: () => {
       ever.current = true;
       revealed.open();
@@ -470,6 +474,12 @@ const Slot = ({
   }, [hidden]);
   // After the commit that follows the last answer of a read (the views' effects of the commit ran before this
   // one, so a read they started counts), and on every change of the workspace: drawn with no read pending.
+  // A change after the hidden view read: it is dropped, not read again (SR-212 AK5).
+  useEffect(() => {
+    if (hidden && layer.stale()) {
+      views.drop(buffer.key);
+    }
+  }, [views.seen, hidden]);
   useEffect(() => {
     if (!hidden) {
       return;
@@ -477,7 +487,7 @@ const Slot = ({
     views.ready(
       buffer.key,
       mount,
-      reported.current === buffer.key && layer.pending() === 0 ? views.seen : undefined,
+      reported.current === buffer.key && layer.pending() === 0 && !layer.stale() ? views.seen : undefined,
     );
   }, [tick, views.seen, hidden]);
   useEffect(
@@ -523,7 +533,7 @@ export const BufferArea = ({
   hidden = NO_BUFFERS,
 }: BufferAreaProps): React.JSX.Element => {
   const activate = area.active ? undefined : onActivate;
-  const slots = useSlots(area.buffer, hidden, views.outside);
+  const slots = useSlots(area.buffer, hidden);
   return (
     <div
       className="area"

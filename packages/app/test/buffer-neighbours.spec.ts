@@ -211,7 +211,7 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
   });
 
-  test("[SR-212/AK-tfck] an element drawn in advance and changed outside shows the content and highlight of a fresh open", async () => {
+  test("[SR-212/AK-tfck] an element drawn in advance and changed outside is no longer drawn in advance, not read in the background, and read at the switch with the highlight of a fresh open", async () => {
     const { window } = running;
     await open(window, NEED.title);
     await open(window, SPEED.title);
@@ -219,14 +219,19 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await quiet(requests);
     await requests.clear();
     await retitle(running, "See the gusts");
-    // Read again hidden, highlighted only when shown.
-    await expect.poll(() => hiddenTitle(window)).toEqual(["See the gusts"]);
+    // Dropped from the buffers drawn in advance, and not read again until a switch.
+    await expect.poll(() => hiddenViews(window)).not.toContain(`N-0000a1 ${NEED.title}`);
     await expect(window.locator(".outside-change")).toHaveCount(0);
     await quiet(requests);
-    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    expect(naming(await requests.sent(), NEED.id)).toEqual([]);
+    // The switch reads and draws it, as a buffer not drawn in advance.
+    await window.keyboard.press("Alt+KeyP");
     await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    expect(naming(await requests.sent(), NEED.id).map((request) => request.name)).toContain("element.get");
     const drawnAhead = await highlighted(window);
     expect(drawnAhead).toEqual(["Title"]);
+    // Its own neighbours are drawn in advance again after this switch.
+    await expect.poll(() => hiddenViews(window)).toContain(`SR-0000b1 ${SPEED.title}`);
     // The same as a fresh open: closed, changed outside again, opened with Ctrl+P.
     await command(window, "Close buffer");
     await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
