@@ -6,7 +6,7 @@
 // does without the menu (AK4, as the command prompt in SR-134 AK3).
 import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { shownLayer } from "./buffer-slide.js";
+import { shownBuffer, shownLayer } from "./buffer-slide.js";
 import type { MenuHit } from "./context-menu.js";
 import { isMacCtrlPress, menuKey, menuSelection, opensMenu, placeAt } from "./context-menu.js";
 import { pressedPosition } from "./text-menu.js";
@@ -95,10 +95,7 @@ export const giveFocusBack = (target: Element, back: Element | null): void => {
   if (field?.contains(document.activeElement) !== true) {
     return;
   }
-  const to =
-    back instanceof HTMLElement && back.isConnected
-      ? back
-      : document.querySelector<HTMLElement>("[data-area][data-active] [data-buffer], [data-buffer]");
+  const to = back instanceof HTMLElement && back.isConnected ? back : shownBuffer();
   to?.focus({ preventScroll: true });
 };
 

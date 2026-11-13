@@ -7999,7 +7999,7 @@
           },
           "where": {
             "$ref": "#/$defs/filter/$defs/condition",
-            "description": "Checked as in a selection; element references are written as UUIDs."
+            "description": "Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`."
           },
           "sort": {
             "type": "array",
@@ -8139,7 +8139,7 @@
           },
           "where": {
             "$ref": "#/$defs/filter/$defs/condition",
-            "description": "The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`."
+            "description": "Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`."
           },
           "group": {
             "$ref": "#/$defs/common/$defs/groupKey",

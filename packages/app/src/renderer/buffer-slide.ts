@@ -9,9 +9,9 @@
 // input, and the new one is live at once and has the focus (AK2). The swipe (SR-211) moves the same layers
 // from any offset (`slideKeyframes`, `from`).
 //
-// The motion starts once the new view is drawn (`drawn`, or after `DRAW_DEADLINE_MS` when it never says so),
-// and then always runs: assumption (a) of the open question #1624, by which the 200 ms bound the motion and the
-// time to draw keeps its own limits (SR-082, SR-111 AK6). A key, a press of a mouse button, a swipe macOS
+// The motion starts once the new view is drawn (`drawn`; a view that cannot draw its buffer says so too), and
+// then always runs. By the rationale of SR-212 the 200 ms bound only the motion: it starts once the new buffer is
+// fully drawn, without a placeholder, and the time until then has no limit in SR-212. A key, a press of a mouse button, a swipe macOS
 // reports to the window (`interrupt`, SR-163 AK4), or any other change of the area's buffer ends it at once in
 // its end state (AK2, AK3). Without motion in the system ("Bewegung reduzieren", AK4) nothing is taken and
 // nothing moves.
@@ -25,7 +25,10 @@ export const SLIDE_ID = "buffer-slide";
 /** The time of a whole slide (AK1: at most 200 ms). */
 export const SLIDE_MS = 160;
 
-/** The longest wait for a view that never reports that it is drawn: after it, the motion starts anyway. */
+/**
+ * A guard for a view that never reports that it is drawn: after it, the motion starts anyway. Every view reports,
+ * also when its read fails, so a switch that reaches it is a bug.
+ */
 export const DRAW_DEADLINE_MS = 1000;
 
 /** The curve where the page has no `--card-ease` (the token of the card of the command line, SR-182). */
@@ -186,6 +189,14 @@ export const SHOWN_LAYER = ':scope > [data-layer="main"]';
 /** The shown layer of `area`, or null when there is none. */
 export const shownLayer = (area: ParentNode | null | undefined): HTMLElement | null =>
   area?.querySelector<HTMLElement>(SHOWN_LAYER) ?? null;
+
+/**
+ * The view of the shown buffer of the active area in `root`, or null when there is none: where the focus goes
+ * back to when nothing else holds it, never to a buffer drawn hidden beside it.
+ */
+export const shownBuffer = (root: ParentNode = document): HTMLElement | null =>
+  shownLayer(root.querySelector("[data-area][data-active]"))?.querySelector<HTMLElement>("[data-buffer]") ??
+  null;
 
 /** The two layers of an area's track (`BufferArea.tsx`). */
 export interface Track {

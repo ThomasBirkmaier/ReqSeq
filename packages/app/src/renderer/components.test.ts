@@ -7282,7 +7282,7 @@ describe("ElementView", () => {
   });
 });
 
-describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #1645)", () => {
+describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
   const prompt = (unmark: boolean) => {
     const removed: string[] = [];
     const back = vi.fn();
@@ -7330,7 +7330,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     expect(query('[aria-label="Remove status: draft"]').tagName).toBe("BUTTON");
   });
 
-  it("a click on the × of a mark removes that mark; the input keeps the focus", async () => {
+  it("[SR-215/AK-rx2z] a click on the × of a mark removes that mark; the input keeps the focus", async () => {
     const { marked, removed } = prompt(true);
     const closed = await mount(marked);
     const unmark = query('[aria-label="Remove type: need"]');
@@ -7342,7 +7342,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     expect(closed).toHaveBeenCalledWith(false);
   });
 
-  it("Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
+  it("[SR-134/AK-fmf6] [SR-215/AK-rx2z] Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
     const removing = prompt(true);
     await mount(removing.marked);
     await press(queryInput(), "Backspace");
@@ -7362,7 +7362,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     expect(values.back).toHaveBeenCalledTimes(1);
   });
 
-  it("the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
+  it("[SR-210/AK-t8sc] the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
     await mount(prompt(true).marked);
     expect(query("#prompt-explain .explain-keys").textContent).toBe(
       "Enter takes the marked hit; all conditions must hold · Backspace on an empty input removes the last mark · { a condition in JSON · Ctrl+Enter more arguments · Escape back",

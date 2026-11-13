@@ -72,6 +72,7 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
+  const drawn: string[] = [];
   let reduce: ((action: BufferAction) => void) | undefined;
   const Harness = ({ revision }: { revision: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial] as readonly Buffer[]);
@@ -90,6 +91,7 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
       },
       onData: (bufferKey, loaded) => data.push([bufferKey, loaded]),
       onEcho: (message) => echoed.push(message),
+      onDrawn: (bufferKey) => drawn.push(bufferKey),
     });
   };
   const show = async (revision: number): Promise<void> => {
@@ -108,7 +110,7 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
     });
     await flush();
   };
-  return { actions, data, echoed, show, change };
+  return { actions, data, echoed, drawn, show, change };
 };
 
 const selected = (): string | undefined => {
@@ -258,8 +260,10 @@ describe("MetamodelView", () => {
 
   it("says that the metamodel defines no types, and why when the call or the layout fails", async () => {
     let answer: MetamodelGetOutput | Error = new Error("No metamodel");
-    const { echoed, show, data } = await mount(asCall(fakeCall(() => answer)));
+    const { echoed, show, data, drawn } = await mount(asCall(fakeCall(() => answer)));
     expect(query(".metamodel p.quiet").textContent).toBe("No metamodel");
+    // The view cannot draw its buffer and says so: a switch in motion to it starts at once (SR-212).
+    expect(drawn).toEqual(["metamodel"]);
     expect(query(".metamodel").getAttribute("aria-activedescendant")).toBeNull();
     expect(echoed).toEqual(["No metamodel"]);
     expect(data).toEqual([]);
@@ -283,6 +287,7 @@ describe("MetamodelView", () => {
     answer = metamodelOutput({ types: [effectiveType("a")] });
     await show(4);
     expect(echoed.at(-1)).toBe("The metamodel could not be laid out: Error: Not possible");
+    expect(drawn).toEqual(["metamodel", "metamodel", "metamodel"]);
     expect(container.querySelectorAll(".mm-type")).toHaveLength(6);
   });
 

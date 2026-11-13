@@ -200,9 +200,9 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(gaps).toBe(3);
     await expect(shownLayer(window).locator("td.cell .gap")).toHaveCount(gaps);
     await expect(shownLayer(window).locator("td.cell .gap").first()).toHaveText("—");
-    const colours = await window.evaluate(() => ({
-      gap: getComputedStyle(document.querySelector("td.cell .gap") ?? document.body).color,
-      text: getComputedStyle(document.querySelector("td.element") ?? document.body).color,
+    const colours = await shownLayer(window).evaluate((layer) => ({
+      gap: getComputedStyle(layer.querySelector("td.cell .gap") ?? document.body).color,
+      text: getComputedStyle(layer.querySelector("td.element") ?? document.body).color,
       accent: getComputedStyle(document.documentElement).getPropertyValue("--accent-gap").trim(),
     }));
     expect(colours.gap).not.toBe(colours.text);
@@ -226,9 +226,9 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     ).length;
     expect(empty).toBeGreaterThan(0);
     await expect(shownLayer(window).locator("td.cell .none")).toHaveCount(empty);
-    const colours = await window.evaluate(() => ({
-      none: getComputedStyle(document.querySelector("td.cell .none") ?? document.body).color,
-      gap: getComputedStyle(document.querySelector("td.cell .gap") ?? document.body).color,
+    const colours = await shownLayer(window).evaluate((layer) => ({
+      none: getComputedStyle(layer.querySelector("td.cell .none") ?? document.body).color,
+      gap: getComputedStyle(layer.querySelector("td.cell .gap") ?? document.body).color,
     }));
     expect(colours.none).not.toBe(colours.gap);
     expect((await shown(window)).heads.find((head) => head.name === "Refines")?.count).toBe("1");
@@ -247,9 +247,9 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(shownLayer(window).locator("td.cell .outdated")).toHaveCount(outdated);
     await expect(shownLayer(window).locator("td.cell .state")).toHaveCount(missing);
     await expect(shownLayer(window).locator("td.cell .state").first()).toHaveText("missing");
-    const colours = await window.evaluate(() => ({
-      outdated: getComputedStyle(document.querySelector("td.cell .outdated") ?? document.body).color,
-      text: getComputedStyle(document.querySelector("td.element") ?? document.body).color,
+    const colours = await shownLayer(window).evaluate((layer) => ({
+      outdated: getComputedStyle(layer.querySelector("td.cell .outdated") ?? document.body).color,
+      text: getComputedStyle(layer.querySelector("td.element") ?? document.body).color,
     }));
     expect(colours.outdated).not.toBe(colours.text);
   });
@@ -376,8 +376,8 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
     // A point on a candidate with a cell of the fixed column under it: the test only proves something there. Which
     // candidate that is depends on the font metrics of the platform, so look for one, not at a fixed position.
-    const point = await window.evaluate(() => {
-      const cells = [...document.querySelectorAll("td.element")].map((cell) => cell.getBoundingClientRect());
+    const point = await shownLayer(window).evaluate((layer) => {
+      const cells = [...layer.querySelectorAll("td.element")].map((cell) => cell.getBoundingClientRect());
       for (const option of document.querySelectorAll('.candidates [role="option"]')) {
         const box = option.getBoundingClientRect();
         const at = { x: box.left + 8, y: box.top + box.height / 2 };
@@ -446,7 +446,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
         .evaluateAll((rows) => {
           const box = (element: Element | null | undefined): { left: number; right: number } =>
             element?.getBoundingClientRect() ?? { left: 0, right: 0 };
-          const current = document.querySelector("td.cell .current");
+          const current = rows[0]?.closest('[data-layer="main"]')?.querySelector("td.cell .current");
           return {
             // The test only proves something if the long title and the long link run past their cells.
             overflow: rows.map((row) => {
