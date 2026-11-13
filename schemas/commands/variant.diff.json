@@ -5,7 +5,7 @@
   "effect": "read",
   "stage": 5,
   "implements": ["SR-041", "SR-042", "SR-044"],
-  "arguments": [{ "field": "variant", "complete": "element" }],
+  "arguments": [{ "field": "variant", "complete": "element", "meaning": "variant" }],
   "input": {
     "type": "object",
     "properties": {

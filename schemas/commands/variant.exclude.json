@@ -8,7 +8,7 @@
   "stage": 5,
   "implements": ["SR-042"],
   "arguments": [
-    { "field": "variant", "complete": "element" },
+    { "field": "variant", "complete": "element", "meaning": "variant" },
     { "field": "refs", "complete": "element" },
     { "field": "undo", "complete": "boolean" }
   ],

@@ -10,11 +10,11 @@
   "implements": ["SR-213"],
   "arguments": [
     { "field": "name", "complete": "text" },
-    { "field": "where", "complete": "json" },
+    { "field": "where", "complete": "condition" },
     { "field": "description", "complete": "text" },
     { "field": "filter", "complete": "filter" },
-    { "field": "group", "complete": "text" },
-    { "field": "sort", "complete": "json" }
+    { "field": "group", "complete": "group" },
+    { "field": "sort", "complete": "sort" }
   ],
   "input": {
     "type": "object",

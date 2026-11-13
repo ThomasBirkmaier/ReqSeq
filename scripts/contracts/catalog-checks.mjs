@@ -6,8 +6,8 @@
 const ELEMENTS = ["element", "relationTarget"];
 /**
  * Sources that read an earlier field, and the sources that field may have. Without `of`, a source reads
- * the nearest earlier field of such a source (the same rule as `contextField` in the app's
- * `catalog-commands.ts`).
+ * the nearest earlier field of such a source that has no `meaning` (`contextOf`, the same rule as
+ * `contextField` in the app's `catalog-commands.ts`).
  */
 export const CONTEXT = {
   status: ELEMENTS,
@@ -18,9 +18,31 @@ export const CONTEXT = {
   relation: [...ELEMENTS, "relation"],
   relationTarget: ["relationKind"],
   value: ["property"],
+  criterion: ["element"],
+  elementFile: ["element"],
+  properties: ["type"],
+  relations: ["type"],
+  metamodelLocation: ["folder"],
 };
 /** Sources that give every value of the metamodel or the workspace when no such field comes before. */
 const WITHOUT_CONTEXT = new Set(["status", "invalidStatus", "relationKind", "hint", "property"]);
+
+/**
+ * The field the argument at `at` reads: `of`, else the nearest earlier field of a fitting source, never
+ * an `element` field with a `meaning` (a variant or a package: `evidence.record criteria` reads `ref`, not
+ * `variant`). Undefined for a source that reads nothing, or when no such field comes before.
+ */
+export const contextOf = (args, at) => {
+  const arg = args[at];
+  if (arg?.of !== undefined) {
+    return arg.of;
+  }
+  const fitting = arg === undefined ? undefined : CONTEXT[arg.complete];
+  return args
+    .slice(0, at)
+    .reverse()
+    .find((earlier) => fitting?.includes(earlier.complete) === true && earlier.meaning === undefined)?.field;
+};
 
 /** The inline schema of a field, or of the items of an array field. */
 const itemOf = (property) => (property.type === "array" ? (property.items ?? {}) : property);
@@ -80,6 +102,60 @@ function checkDescription(arg, property, schemas) {
     : [`"${arg.field}": needs a description, its own or one of the type its $ref names`];
 }
 
+/** Whether `ref` names the definition `name` of the schema file `file`. */
+const names = (ref, file, name) => typeof ref === "string" && ref.endsWith(`${file}#/$defs/${name}`);
+
+/**
+ * The composed sources bound to their schema in both directions, as `folder`/`file` to `localPath`: a
+ * field of that schema is completed so, and only such a field.
+ */
+const BOUND = {
+  condition: {
+    holds: (property) => names(property.$ref, "filter.schema.json", "condition"),
+    is: "a condition",
+  },
+  sort: {
+    holds: (property) =>
+      property.type === "array" && names(property.items?.$ref, "filter.schema.json", "sortKey"),
+    is: "a list of sortKey",
+  },
+  group: { holds: (property) => names(property.$ref, "common.schema.json", "groupKey"), is: "a groupKey" },
+};
+
+/** The sources bound one way: each needs its kind of field, which may also be asked otherwise (`json`). */
+const NEEDS = {
+  properties: {
+    holds: (property) =>
+      property.type === "object" &&
+      names(property.additionalProperties?.$ref, "element.schema.json", "inputValue"),
+    is: "an object of inputValue",
+  },
+  relations: {
+    holds: (property) => names(property.$ref, "common.schema.json", "relationRefs"),
+    is: "a relationRefs",
+  },
+  metamodelLocation: {
+    holds: (property) =>
+      property.type === "object" &&
+      property.properties?.repository !== undefined &&
+      property.properties?.path !== undefined,
+    is: "an object with repository and path",
+  },
+  evidenceLocation: { holds: (property) => property.type === "string", is: "a string" },
+};
+
+/** The composed and located sources: each fits its kind of field (`BOUND`, `NEEDS`). */
+function checkBound(arg, property) {
+  const bound = Object.entries(BOUND).find(([, rule]) => rule.holds(property));
+  if (bound !== undefined && bound[0] !== arg.complete) {
+    return [`"${arg.field}": ${bound[1].is} field is completed as ${bound[0]}`];
+  }
+  const rule = BOUND[arg.complete] ?? NEEDS[arg.complete];
+  return rule === undefined || rule.holds(property)
+    ? []
+    : [`"${arg.field}": ${arg.complete} needs ${rule.is} field`];
+}
+
 /** The sources whose kind has to fit the type of the field. */
 function checkKind(arg, property, schemas) {
   const item = itemOf(property);
@@ -87,6 +163,10 @@ function checkKind(arg, property, schemas) {
     return PATHS.has(arg.complete)
       ? [`"${arg.field}": ${arg.complete} needs a localPath field`]
       : [`"${arg.field}": a localPath field is completed as folder or file`];
+  }
+  const bound = checkBound(arg, property);
+  if (bound.length > 0) {
+    return bound;
   }
   if (arg.complete === "choice" && !Array.isArray(choiceValues(item, schemas))) {
     return [`"${arg.field}": choice needs an enum, inline or as the definition its $ref names`];
@@ -100,7 +180,10 @@ function checkKind(arg, property, schemas) {
   return [];
 }
 
-/** `of`: only for sources that read a field, and only an earlier field of a fitting source. */
+/**
+ * `of`: only for sources that read a field, and only an earlier field of a fitting source; without it a
+ * fitting field without `meaning` must come before (`contextOf`), unless the source gives every value.
+ */
 function checkContext(arg, earlier) {
   const fitting = CONTEXT[arg.complete];
   if (fitting === undefined) {
@@ -113,10 +196,16 @@ function checkContext(arg, earlier) {
       ? []
       : [`"${arg.field}": "of" must name an earlier ${kinds} field, not "${arg.of}"`];
   }
-  return WITHOUT_CONTEXT.has(arg.complete) || earlier.some((e) => fitting.includes(e.complete))
+  return WITHOUT_CONTEXT.has(arg.complete) || contextOf([...earlier, arg], earlier.length) !== undefined
     ? []
     : [`"${arg.field}": ${arg.complete} needs an earlier ${kinds} field`];
 }
+
+/** `meaning`: only on an `element` source (`variant` or `package`, the enum of the meta schema). */
+const checkMeaning = (arg) =>
+  arg.meaning === undefined || arg.complete === "element"
+    ? []
+    : [`"${arg.field}": meaning is only for an element source, not ${arg.complete}`];
 
 /** `replaces`: only earlier optional fields, each once (a required one is always given). */
 function checkReplaces(arg, earlier, required) {
@@ -234,6 +323,7 @@ function checkArguments(cmd, schemas) {
     }
     errors.push(
       ...checkContext(arg, cmd.arguments.slice(0, index)),
+      ...checkMeaning(arg),
       ...checkKind(arg, property, schemas),
       ...checkDescription(arg, property, schemas),
       ...checkReplaces(arg, cmd.arguments.slice(0, index), required),

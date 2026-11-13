@@ -10,7 +10,7 @@
     { "field": "version", "complete": "text" },
     { "field": "versionDate", "complete": "boolean" },
     { "field": "repository", "complete": "repository" },
-    { "field": "file", "complete": "text" }
+    { "field": "file", "complete": "elementFile" }
   ],
   "input": {
     "type": "object",

@@ -30,7 +30,7 @@
     },
     {
       "field": "file",
-      "complete": "text"
+      "complete": "elementFile"
     }
   ],
   "input": {

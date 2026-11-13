@@ -9,7 +9,7 @@
     { "field": "query", "complete": "text" },
     { "field": "selection", "complete": "selection" },
     { "field": "fields", "complete": "choice" },
-    { "field": "group", "complete": "text" },
+    { "field": "group", "complete": "group" },
     { "field": "withVerification", "complete": "boolean" },
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" }

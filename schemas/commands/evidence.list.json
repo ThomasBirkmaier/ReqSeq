@@ -9,7 +9,7 @@
     { "field": "ref", "complete": "element" },
     { "field": "view", "complete": "view" },
     { "field": "repository", "complete": "repository" },
-    { "field": "file", "complete": "text" }
+    { "field": "file", "complete": "elementFile" }
   ],
   "input": {
     "type": "object",
