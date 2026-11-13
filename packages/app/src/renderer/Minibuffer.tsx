@@ -476,7 +476,7 @@ const Marks = ({
     <span className="prompt-marks" role="list" aria-label="Marks">
       {marks.map((mark, at) => (
         <span key={`${String(at)} ${mark.label}`} className="prompt-mark" role="listitem">
-          {mark.label}
+          <span className="prompt-mark-label">{mark.label}</span>
           <button
             type="button"
             className="prompt-unmark"
@@ -1019,6 +1019,9 @@ const PromptLine = ({
     const back = mark === undefined ? prompt.back : mark.remove;
     if (back !== undefined) {
       event.preventDefault();
+      // As Escape: a prompt that waited for an answer is told it got none.
+      prompt.cancel?.();
+      waiting.current = 0;
       onClose(false);
       back();
     }
@@ -1134,6 +1137,8 @@ const PromptLine = ({
       <Marks
         marks={prompt.marks ?? []}
         onRemove={(mark) => {
+          prompt.cancel?.();
+          waiting.current = 0;
           onClose(false);
           mark.remove();
         }}

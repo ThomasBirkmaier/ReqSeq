@@ -804,6 +804,55 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await window.keyboard.press("Escape");
   });
 
+  test("marks that fill the minibuffer line cut their labels and keep their × and the input visible (SR-215 AK9, #1645)", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await listAll(window);
+    await window.setViewportSize({ width: 520, height: 700 });
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    // No prompt of this part of #1645 has marks yet: three long ones in the markup `Marks` renders, on the
+    // app's own stylesheet and line.
+    await window.evaluate(() => {
+      const input = document.querySelector("#prompt-input");
+      const marks = document.createElement("span");
+      marks.className = "prompt-marks";
+      for (const text of ["type: system-requirement", "status: approved", "text: performance thresholds"]) {
+        const mark = document.createElement("span");
+        mark.className = "prompt-mark";
+        const label = document.createElement("span");
+        label.className = "prompt-mark-label";
+        label.textContent = text;
+        const unmark = document.createElement("button");
+        unmark.className = "prompt-unmark";
+        unmark.textContent = "×";
+        mark.append(label, unmark);
+        marks.append(mark);
+      }
+      input?.before(marks);
+    });
+    const boxes = await window.evaluate(() =>
+      [...document.querySelectorAll(".prompt-mark")].map((mark) => {
+        const outer = mark.getBoundingClientRect();
+        const unmark = mark.querySelector(".prompt-unmark")?.getBoundingClientRect();
+        const label = mark.querySelector(".prompt-mark-label");
+        return {
+          inside: unmark !== undefined && unmark.left >= outer.left && unmark.right <= outer.right + 0.5,
+          cut: label !== null && label.scrollWidth > label.clientWidth,
+          ellipsis: label !== null && getComputedStyle(label).textOverflow === "ellipsis",
+        };
+      }),
+    );
+    expect(boxes.every((box) => box.inside && box.ellipsis)).toBe(true);
+    // The line is too narrow for them: at least one label is cut.
+    expect(boxes.some((box) => box.cut)).toBe(true);
+    const input = await window
+      .locator("#prompt-input")
+      .evaluate((element) => element.getBoundingClientRect().width);
+    expect(input).toBeGreaterThan(60);
+    await window.keyboard.press("Escape");
+  });
+
   test("a long refused-input message in the minibuffer keeps the sheet as wide as the window (#1631)", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
