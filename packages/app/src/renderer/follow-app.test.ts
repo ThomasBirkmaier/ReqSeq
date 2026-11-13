@@ -241,10 +241,10 @@ const openBuffers = async (): Promise<string[]> => {
 const calls = (invoke: ReturnType<typeof fakeBridge>["invoke"], name: string): unknown[] =>
   invoke.mock.calls.filter(([called]) => called === name).map(([, input]) => input);
 
-/** The catalog's `filter.list`, as the command prompt offers it ("List saved filters"). */
-const FILTER_LIST = {
-  name: "filter.list",
-  title: "List saved filters",
+/** The catalog's `baseline.list`, as the command prompt offers it ("List baselines"). */
+const BASELINE_LIST = {
+  name: "baseline.list",
+  title: "List baselines",
   summary: "A command of the catalog.",
   effect: "read",
   stage: 3,
@@ -366,16 +366,16 @@ describe("Follow agent in the window (SR-117)", () => {
   });
 
   it("an access that the open prompt held does not override a catalog command the user ran there", async () => {
-    const handlers = { ...workspace(), "filter.list": () => ({ filters: [{ name: "open", where: {} }] }) };
-    const fake = await started(handlers, [FILTER_LIST]);
+    const handlers = { ...workspace(), "baseline.list": () => ({ baselines: [{ name: "Release 1" }] }) };
+    const fake = await started(handlers, [BASELINE_LIST]);
     await toggle();
     await fake.activity(access(2));
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await fake.activity(access(1));
-    await type("List saved filters");
+    await type("List baselines");
     await keyDown(query("input"), "Enter");
     // The result buffer opens after core answers, a render later than the prompt closed: it stays.
-    expect(text("Modeline")).toContain("List saved filters");
+    expect(text("Modeline")).toContain("List baselines");
     expect(title()).toBeUndefined();
     expect(calls(fake.invoke, "element.get")).not.toContainEqual({ ref: "uuid-1", repository: "spec" });
   });
@@ -390,7 +390,9 @@ describe("Follow agent in the window (SR-117)", () => {
     await keyDown(query("input"), "Enter");
     // The next prompt (the sorts) keeps the hold; the sort keeps the list's key.
     await fake.activity(access(1));
-    await type("Title descending");
+    await type("Title");
+    await keyDown(query("input"), "Enter");
+    await type("descending");
     await keyDown(query("input"), "Enter");
     expect(title()).toBeUndefined();
     expect(container.querySelectorAll(".row").length).toBeGreaterThan(0);

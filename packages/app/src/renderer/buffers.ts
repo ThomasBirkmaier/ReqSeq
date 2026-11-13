@@ -95,11 +95,28 @@ export interface SearchBuffer extends Omit<ListQuery, "sort"> {
   readonly kind: "search";
   readonly key: string;
   readonly query: string;
+  /**
+   * The fields the search is restricted to (SR-216 AK10), as `element.searchFields` names them; none: all fields.
+   * They are no filter step: clearing the steps keeps them.
+   */
+  readonly fields?: readonly SearchField[];
   /** What the steps select together, the `selection` of `element.search` (`selectionOf`). */
   readonly selection?: ElementSelection;
   /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
+
+/** A field a search can be restricted to (SR-216 AK3): its key for `element.search` `fields`, and its name. */
+export interface SearchField {
+  readonly key: string;
+  readonly name: string;
+}
+
+/** The `fields` of `element.search` for the chosen fields: none without them, so the search is over all fields. */
+export const fieldsInput = (
+  fields: readonly SearchField[] | undefined,
+): { readonly fields?: readonly string[] } =>
+  fields === undefined || fields.length === 0 ? {} : { fields: fields.map((field) => field.key) };
 
 /** One element. `repository` and `id` identify it: a UUID may exist in several repositories. */
 export interface ElementBuffer {
@@ -497,19 +514,29 @@ export const listGroup = (list: ListBuffer): string | undefined =>
 export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer =>
   withQuery(list, { group });
 
-/** The hits of `query` within the steps, grouped by `group` (none: not grouped), from the first row. */
+/**
+ * The hits of `query` in `fields` (none: all fields) within the steps, grouped by `group` (none: not grouped), from
+ * the first row. The same text in other fields is another buffer (SR-216 AK10).
+ */
 export const searchBuffer = (
   query: string,
   steps: readonly FilterStep[] = [],
   group?: string,
+  fields: readonly SearchField[] = [],
 ): SearchBuffer => {
   const selection = selectionOf(steps);
+  // In any order the same fields are the same search.
+  const keys = fields
+    .map((field) => field.key)
+    .sort()
+    .join(",");
   return {
     kind: "search",
-    key: `search:${query}`,
+    key: fields.length === 0 ? `search:${query}` : `search[${keys}]:${query}`,
     query,
     steps,
     cursor: NO_ROW,
+    ...(fields.length === 0 ? {} : { fields }),
     ...(selection === undefined ? {} : { selection }),
     ...(group === undefined ? {} : { group }),
   };
@@ -524,12 +551,15 @@ export const searchQueryOf = (search: SearchBuffer): ListQuery => ({
 /** The same search with some parts of its query changed (SR-124 AK4, SR-149 AK6), from its first row. */
 export const withSearchQuery = (search: SearchBuffer, change: QueryChange): SearchBuffer => {
   const query = changeQuery(searchQueryOf(search), change, "search");
-  return searchBuffer(search.query, query.steps, query.group);
+  return searchBuffer(search.query, query.steps, query.group, search.fields);
 };
 
-/** " · type: need · grouped by status": the steps and the grouping of a search, nothing without them. */
+/**
+ * " · in Rationale, Text · type: need · grouped by status": the fields, the steps and the grouping of a search,
+ * nothing without them.
+ */
 const searchParts = (search: SearchBuffer): string =>
-  `${search.steps.map((step) => ` · ${step.label}`).join("")}${
+  `${search.fields === undefined ? "" : ` · in ${search.fields.map((field) => field.name).join(", ")}`}${search.steps.map((step) => ` · ${step.label}`).join("")}${
     search.group === undefined ? "" : ` · grouped by ${search.group}`
   }`;
 

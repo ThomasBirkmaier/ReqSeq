@@ -259,7 +259,10 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     it("[SR-125/AK-mzzq] sort keeps it, and the steps", () => {
       const { context, shown, asked } = start([base]);
       action("sort").run(context);
-      asked.at(-1)?.items[10]?.run();
+      asked
+        .at(-1)
+        ?.items.find((item) => item.name === "Hierarchy (tree)")
+        ?.run();
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toEqual(base.steps);
       expect(shown().sort).toEqual([{ by: "hierarchy", order: "asc" }]);

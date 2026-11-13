@@ -448,7 +448,7 @@ describe("Minibuffer", () => {
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
     it("[SR-108/AK-qr4w] marks the matched characters of an argument's candidates", async () => {
       await mount({
-        label: "Show relation options SR-1 · kind:",
+        label: "Create relation SR-1 · kind:",
         items: [choice("a", "derives from"), choice("b", "refines")],
       });
       await type(input(), "der");
@@ -591,8 +591,8 @@ describe("Minibuffer", () => {
 
       it("is open with its label at once and keeps what is typed while the parts load", async () => {
         const { fill, arrive } = later();
-        const { closed } = await mount({ label: "Show relation options · kind:", items: [], fill });
-        expect(query("label").textContent).toBe("Show relation options · kind:");
+        const { closed } = await mount({ label: "Create relation · kind:", items: [], fill });
+        expect(query("label").textContent).toBe("Create relation · kind:");
         expect(document.activeElement).toBe(input());
         await type(input(), "ref");
         await arrive({ items: [choice("a", "derives from"), choice("b", "refines")] });
@@ -3140,6 +3140,40 @@ describe("ListView, a search", () => {
       ["search:wind", undefined],
       ["search:wind", { kind: "search", total: 2, incomplete: false, rows: expect.any(Array) as unknown }],
     ]);
+  });
+
+  it("[SR-216/AK-yq3n] [SR-216/AK-gg4w] a search in chosen fields asks element.search with them and names them under its heading; core's refusal stands in place of the hits", async () => {
+    const fields = [
+      { key: "acceptance-criteria", name: "Acceptance Criteria" },
+      { key: "text", name: "Text" },
+    ];
+    const call = fakeCall({
+      "element.search": () => ({ hits: [hit(1, { title: "Wind speed" })], total: 1, incomplete: false }),
+    });
+    await listHarness(asCall(call), searchBuffer("wind", [], undefined, fields));
+    // The input of the hits while typing (`searchPrompt`), with the page of the list.
+    expect(call).toHaveBeenCalledWith("element.search", {
+      query: "wind",
+      fields: ["acceptance-criteria", "text"],
+      limit: 50,
+      offset: 0,
+    });
+    expect(query("h1").textContent).toMatch(/^Search: wind /u);
+    expect(query('[aria-label="Fields"]').textContent).toBe("inAcceptance CriteriaText");
+    expect(texts(".search-field")).toEqual(["Acceptance Criteria", "Text"]);
+
+    // Without fields: nothing under the heading.
+    await listHarness(asCall(call), searchBuffer("wind"));
+    expect(container.querySelector('[aria-label="Fields"]')).toBeNull();
+
+    // A property the metamodel no longer knows: core's message (SR-216 AK2), no hits.
+    const refused = fakeCall({
+      "element.search": () =>
+        Object.assign(new Error("Unknown search field gone"), { code: "input.invalid" }),
+    });
+    await listHarness(asCall(refused), searchBuffer("wind", [], undefined, [{ key: "gone", name: "Gone" }]));
+    expect(texts("p.quiet")).toContain("Unknown search field gone");
+    expect(container.querySelectorAll(".row")).toHaveLength(0);
   });
 
   it("pages in steps of 50", async () => {
@@ -7286,7 +7320,7 @@ describe("ElementView", () => {
   });
 });
 
-describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #1645)", () => {
+describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
   const prompt = (unmark: boolean) => {
     const removed: string[] = [];
     const back = vi.fn();
@@ -7327,14 +7361,14 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     return closed;
   };
 
-  it("shows each mark before the input, a box with its label and an ×", async () => {
+  it("[SR-215/AK-dt5s] shows each mark before the input, a box with its label and an ×", async () => {
     await mount(prompt(true).marked);
     expect(texts('[aria-label="Marks"] [role="listitem"]')).toEqual(["type: need×", "status: draft×"]);
     expect(query(".prompt-marks").nextElementSibling).toBe(queryInput());
     expect(query('[aria-label="Remove status: draft"]').tagName).toBe("BUTTON");
   });
 
-  it("a click on the × of a mark removes that mark; the input keeps the focus", async () => {
+  it("[SR-215/AK-rx2z] a click on the × of a mark removes that mark; the input keeps the focus", async () => {
     const { marked, removed } = prompt(true);
     const closed = await mount(marked);
     const unmark = query('[aria-label="Remove type: need"]');
@@ -7346,7 +7380,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     expect(closed).toHaveBeenCalledWith(false);
   });
 
-  it("Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
+  it("[SR-134/AK-fmf6] [SR-215/AK-rx2z] Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
     const removing = prompt(true);
     await mount(removing.marked);
     await press(queryInput(), "Backspace");
@@ -7366,7 +7400,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     expect(values.back).toHaveBeenCalledTimes(1);
   });
 
-  it("the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
+  it("[SR-210/AK-t8sc] the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
     await mount(prompt(true).marked);
     expect(query("#prompt-explain .explain-keys").textContent).toBe(
       "Enter takes the marked hit; all conditions must hold · Backspace on an empty input removes the last mark · { a condition in JSON · Ctrl+Enter more arguments · Escape back",
@@ -7374,6 +7408,22 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #
     await mount({ ...prompt(false).marked });
     expect(query("#prompt-explain .explain-keys").textContent).toBe(
       "Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
+    );
+  });
+
+  it("[SR-215/AK-w8q6] the explanation line says why a hit is missing before the keys", async () => {
+    const { marked } = prompt(false);
+    const explain = marked.explain;
+    if (explain?.building === undefined) {
+      throw new Error("no building");
+    }
+    await mount({
+      ...marked,
+      marks: [],
+      explain: { ...explain, building: { ...explain.building, note: "No conditions of the shown list" } },
+    });
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "No conditions of the shown list · Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
     );
   });
 });

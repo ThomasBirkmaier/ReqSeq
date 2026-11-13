@@ -19,7 +19,7 @@ const CATALOG = [{ name: "element.list", title: "List all elements" }];
 
 describe("docsTopic", () => {
   it("is the catalog command of an entry, by its ID, the action's `covers` or the same title, else the action", () => {
-    expect(docsTopic("command:relation.options", CATALOG, ACTIONS)).toBe("relation.options");
+    expect(docsTopic("command:trace.chain", CATALOG, ACTIONS)).toBe("trace.chain");
     expect(docsTopic("go-to", CATALOG, ACTIONS)).toBe("element.get");
     expect(docsTopic("list-all", CATALOG, ACTIONS)).toBe("element.list");
     expect(docsTopic("close-all", CATALOG, ACTIONS)).toBe("close-all");

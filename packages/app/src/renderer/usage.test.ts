@@ -218,6 +218,37 @@ describe("ranking by use", () => {
   });
 });
 
+describe("ranking a whole name", () => {
+  const SORT_KEYS = ["Type and ID", "Workspace order", "ID", "Title", "Type", "Status"].map((name) => ({
+    id: name,
+    name,
+  }));
+  const keys = (query: string, storage?: UsageStorage): string[] =>
+    rankByUse(
+      SORT_KEYS,
+      (key) => key.name,
+      query,
+      storage === undefined
+        ? undefined
+        : promptUse(
+            () => storage,
+            () => NOW,
+          ),
+    ).map(({ item }) => item.id);
+
+  it("puts the item whose whole name is the typed text first, ignoring case and spaces", () => {
+    expect(keys("Type")).toEqual(["Type", "Type and ID"]);
+    expect(keys(" type ")).toEqual(["Type", "Type and ID"]);
+    expect(keys("type and id")[0]).toBe("Type and ID");
+    // Only a whole name: "typ" keeps the given order.
+    expect(keys("typ")).toEqual(["Type and ID", "Type"]);
+  });
+
+  it("[SR-121/AK-ynwj] lets the item chosen for exactly this text stay first", () => {
+    expect(keys("type", used(["type", "Type and ID", 0]))[0]).toBe("Type and ID");
+  });
+});
+
 describe("the usage record", () => {
   it("normalizes a typed text", () => {
     expect(queryKey("  Fl   By  ")).toBe("fl by");

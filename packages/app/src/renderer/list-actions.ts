@@ -4,10 +4,11 @@
 // the target's view does not show is not offered (a search is not sorted). Only the input of
 // `element.list` and `element.search` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { Action, ActionContext, Choice, CommandIn } from "./actions.js";
+import type { Action, ActionContext, Choice, CommandIn, Prompt } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
+  fieldsInput,
   inMatrix,
   listBuffer,
   listOf,
@@ -63,6 +64,11 @@ interface QueryTarget {
   readonly query: ListQuery;
   readonly view: QueryView;
   readonly selection: ElementSelection | undefined;
+  /**
+   * The search of a list of search hits restricted to fields (SR-216): `element.facets` counts only its hits, which
+   * a text condition over every field cannot select.
+   */
+  readonly search?: { readonly query: string; readonly fields?: readonly string[] };
   readonly apply: (change: QueryChange) => void;
 }
 
@@ -85,8 +91,14 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
       query: searchQueryOf(shown),
       view: "search",
       // What the filters offer are the values of the hits: the selection with the search's own text
-      // condition, which selects what element.search finds (SR-068 AK3).
-      selection: selectionOf([textStep(shown.query), ...shown.steps]),
+      // condition, which selects what element.search finds (SR-068 AK3); in chosen fields the steps' selection
+      // with the search itself, since the text condition searches every field (SR-216).
+      ...(shown.fields === undefined
+        ? { selection: selectionOf([textStep(shown.query), ...shown.steps]) }
+        : {
+            selection: selectionOf(shown.steps),
+            search: { query: shown.query, ...fieldsInput(shown.fields) },
+          }),
       apply: (change) => {
         context.dispatch({ type: "open", buffer: withSearchQuery(shown, change) });
       },
@@ -162,26 +174,48 @@ const onList =
 export const choice = (name: string, run: () => void): Choice => ({ id: name, name, run });
 
 // "Type and ID" is the explicit default and "Workspace order" is `[]`, so a choice holds on a list with a
-// saved filter too (it does not fall back to the sort of the filter). "ID" is what the rows show.
-const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[]])[] = [
+// saved filter too (it does not fall back to the sort of the filter). "ID" is what the rows show. A key with a
+// direction asks for it in a second step, so the first list names each key once.
+const SORTS: readonly (readonly [
+  string,
+  readonly FilterSortKeyWithDefaults[] | FilterSortKeyWithDefaults["by"],
+])[] = [
   ["Type and ID", DEFAULT_SORT],
   ["Workspace order", []],
-  ["ID ascending", [{ by: "identifier", order: "asc" }]],
-  ["ID descending", [{ by: "identifier", order: "desc" }]],
-  ["Title ascending", [{ by: "title", order: "asc" }]],
-  ["Title descending", [{ by: "title", order: "desc" }]],
-  ["Type ascending", [{ by: "type", order: "asc" }]],
-  ["Type descending", [{ by: "type", order: "desc" }]],
-  ["Status ascending", [{ by: "status", order: "asc" }]],
-  ["Status descending", [{ by: "status", order: "desc" }]],
+  ["ID", "identifier"],
+  ["Title", "title"],
+  ["Type", "type"],
+  ["Status", "status"],
   ["Hierarchy (tree)", [{ by: "hierarchy", order: "asc" }]],
 ];
 
-/** The choices of the prompt "Sort by"; `apply` gets the sort of the one that is taken. */
-const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[]) => void): Choice[] =>
+const ORDERS = [
+  ["ascending", "asc"],
+  ["descending", "desc"],
+] as const;
+
+/**
+ * The choices of the prompt "Sort by"; a key with a direction asks "Order" next with `ask`. `apply` gets the
+ * sort that is taken.
+ */
+const sortChoices = (
+  apply: (sort: readonly FilterSortKeyWithDefaults[]) => void,
+  ask: (prompt: Prompt) => void,
+): Choice[] =>
   SORTS.map(([name, sort]) =>
     choice(name, () => {
-      apply(sort);
+      if (typeof sort !== "string") {
+        apply(sort);
+        return;
+      }
+      ask({
+        label: "Order",
+        items: ORDERS.map(([word, order]) =>
+          choice(word, () => {
+            apply([{ by: sort, order }]);
+          }),
+        ),
+      });
     }),
   );
 
@@ -235,7 +269,10 @@ const filterBy = (by: FilterBy): Action => ({
 
 /** The facets of the shown list or page: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, target: QueryTarget): Promise<Answer<"element.facets">> =>
-  call("element.facets", target.selection === undefined ? {} : { selection: target.selection });
+  call("element.facets", {
+    ...(target.selection === undefined ? {} : { selection: target.selection }),
+    ...(target.search === undefined ? {} : { search: target.search }),
+  });
 
 export const LIST_ACTIONS: readonly Action[] = [
   {
@@ -367,7 +404,7 @@ export const LIST_ACTIONS: readonly Action[] = [
         label: "Sort by",
         items: sortChoices((sort) => {
           target.apply({ sort });
-        }),
+        }, context.ask),
       });
     }),
   },

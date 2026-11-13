@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
-import { appCommandEntry, commandPromptKey, coveringAction } from "./command-entry.js";
+import { appCommandEntry, commandPromptKey, coveringAction, SHOWN_IN, shownIn } from "./command-entry.js";
 
 describe("appCommandEntry", () => {
   it("names the action that covers a command, with its shortcut", () => {
@@ -34,6 +34,17 @@ describe("appCommandEntry", () => {
 
   it("finds a covering action by title too", () => {
     expect(coveringAction({ name: "test.none", title: "Show graph" })?.covers).toEqual(["trace.graph"]);
+  });
+
+  it("names the place that shows the output of a command without an entry of its own, and no key", () => {
+    expect(appCommandEntry({ name: "filter.list", title: "List saved filters" }, false)).toEqual({
+      name: "List saved filters",
+      action: false,
+      shownIn: '"Filter list by saved filter"',
+    });
+    expect(Object.keys(SHOWN_IN)).toHaveLength(7);
+    expect(shownIn({ name: "element.get", title: "Show element" })).toBeUndefined();
+    expect(shownIn({ name: "toString", title: "" })).toBeUndefined();
   });
 
   it("names the key of the command prompt", () => {

@@ -1,0 +1,41 @@
+{
+  "name": "element.searchFields",
+  "title": "List search fields",
+  "summary": "The fields a search can be restricted to, each with its key and name, for choosing the fields of element.search.",
+  "details": "Title, text, IDs and all properties first, then each property of the metamodel that a type of the workspace's elements has, in metamodel order: one that holds no relations and is not the title. A property whose key is `title`, `text`, `id` or `properties` is not listed, since that key names the fixed field. Every listed key is a value element.search `fields` takes.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-216"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "fields": {
+        "type": "array",
+        "description": "The fields in the order above.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "$ref": "../common.schema.json#/$defs/searchFieldKey",
+              "description": "What element.search `fields` takes: `title`, `text`, `id`, `properties` or the key of a property."
+            },
+            "name": {
+              "type": "string",
+              "description": "The name: of the title property for `title` (\"Title\" without one), \"Text\", \"IDs\", \"All properties\", else the property's name in the metamodel."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["key", "name"]
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["fields"]
+  }
+}

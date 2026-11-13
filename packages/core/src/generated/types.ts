@@ -496,6 +496,12 @@ export interface ElementSelection {
 }
 
 /**
+ * A field a search is restricted to (SR-216): `title`, `text`, `properties`, `id` or the key of a property; element.search checks the key against the metamodel, and element.searchFields lists the keys it takes.
+ * Schema: `schemas/common.schema.json#/$defs/searchFieldKey`.
+ */
+export type SearchFieldKey = string;
+
+/**
  * A key to group a list by (SR-149): `type`, `status`, `package` or a property key.
  * Schema: `schemas/common.schema.json#/$defs/groupKey`.
  */
@@ -1815,11 +1821,11 @@ export interface CommandCatalog {
     /** The stage of the delivery plan in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
-    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of core and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, the one read command made for completion, because only core reads the file system). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
+    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of core and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only core reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1847,6 +1853,7 @@ export interface CommandCatalog {
         | "group"
         | "condition"
         | "sort"
+        | "searchField"
         | "properties"
         | "relations"
         | "text"
@@ -2380,6 +2387,13 @@ export type ElementListOutput = {
 export interface ElementFacetsInput {
   /** Every part given must hold (SR-101 AK2). Without it, every element. */
   readonly selection?: ElementSelection;
+  /** Only the elements of the selection that element.search finds for `query` in `fields` (SR-216): the facets of a list of search hits restricted to fields. `fields` as in element.search, refused the same way. */
+  readonly search?: {
+    /** As element.search `query`. */
+    readonly query: string;
+    /** As element.search `fields`; default all. */
+    readonly fields?: readonly SearchFieldKey[];
+  };
   /** A property of kind text, number or date gives its values only when it has at most this many distinct values in the whole workspace and at least one of them is shared by two elements; otherwise it is free text, found with element.search (SR-068). Choice and relation properties always give their values. */
   readonly maxValues: number;
 }
@@ -3350,16 +3364,16 @@ export interface HintConfirmOutput {
 }
 
 /**
- * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
+ * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search of the elements of a selection in all fields or only in chosen ones (title, text, IDs, all properties or single properties), typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
-  /** Words split at spaces; every word must match (in the title, the text, a property value, the type or status name, or an ID). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing. */
+  /** Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing. */
   readonly query: string;
   /** Search only within it (SR-068 AK3): a view, a filter, a package or IDs. */
   readonly selection?: ElementSelection;
-  /** Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all. */
-  readonly fields?: readonly ("title" | "text" | "properties" | "id")[];
+  /** Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values); element.searchFields lists them. Every word must occur in a chosen field, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields. */
+  readonly fields?: readonly SearchFieldKey[];
   /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
   readonly group?: GroupKey;
   /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
@@ -3371,7 +3385,7 @@ export interface ElementSearchInput {
 }
 
 /**
- * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
+ * Output of `element.search`. Full-text search of the elements of a selection in all fields or only in chosen ones (title, text, IDs, all properties or single properties), typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
@@ -3390,13 +3404,13 @@ export interface ElementSearchOutput {
     readonly title: string;
     /** Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only. */
     readonly score: number;
-    /** What a word of the query was found in. */
+    /** What a word of the query was found in, among the fields searched; a single property is `properties`. */
     readonly fields: readonly ("title" | "text" | "properties" | "id")[];
     /** The words of the element that matched, in lower case, for highlighting; none for an ID. */
     readonly terms: readonly string[];
     /** The matched words in `title` (SR-174 AK4); only when a word was found in the title. */
     readonly titleMarks?: TextMarks;
-    /** Where a word was found and one line around the first match in reading order (SR-174): in the text when a visible word of it matched, else in the first property value with a match, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
+    /** Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
     readonly snippet?:
       | {
         readonly field: "text";
@@ -3424,6 +3438,26 @@ export interface ElementSearchOutput {
   /** Hits, each once. */
   readonly total: number;
   readonly incomplete: Incomplete;
+}
+
+/**
+ * Input of `element.searchFields` as `run` gets it: validated, properties with a `default` filled in. The fields a search can be restricted to, each with its key and name, for choosing the fields of element.search.
+ * Schema: `schemas/commands/element.searchFields.json input`.
+ */
+export type ElementSearchFieldsInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `element.searchFields`. The fields a search can be restricted to, each with its key and name, for choosing the fields of element.search.
+ * Schema: `schemas/commands/element.searchFields.json output`.
+ */
+export interface ElementSearchFieldsOutput {
+  /** The fields in the order above. */
+  readonly fields: readonly {
+    /** What element.search `fields` takes: `title`, `text`, `id`, `properties` or the key of a property. */
+    readonly key: SearchFieldKey;
+    /** The name: of the title property for `title` ("Title" without one), "Text", "IDs", "All properties", else the property's name in the metamodel. */
+    readonly name: string;
+  }[];
 }
 
 /**
@@ -3463,7 +3497,7 @@ export interface FilterSaveInput {
   readonly description?: string;
   /** The view saved with the filter: `core` or a variant ID. The filter then holds only the elements that apply in this view. */
   readonly view?: View;
-  /** Checked as in a selection; element references are written as UUIDs. */
+  /** Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
   readonly where: FilterCondition;
   /** Order of element.list with this filter when its input gives no sort. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -3517,7 +3551,7 @@ export interface PerspectiveSaveInput {
   readonly description?: string;
   /** Name of a saved filter that the selection also uses; written as the filter's name is saved. */
   readonly filter?: string;
-  /** The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
+  /** Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
   readonly where: FilterCondition;
   /** The grouping of the list, checked as element.list checks `group`. */
   readonly group?: GroupKey;
@@ -4272,6 +4306,7 @@ export interface CommandTypes {
   readonly "hint.list": { readonly input: HintListInput; readonly output: HintListOutput };
   readonly "hint.confirm": { readonly input: HintConfirmInput; readonly output: HintConfirmOutput };
   readonly "element.search": { readonly input: ElementSearchInput; readonly output: ElementSearchOutput };
+  readonly "element.searchFields": { readonly input: ElementSearchFieldsInput; readonly output: ElementSearchFieldsOutput };
   readonly "filter.list": { readonly input: FilterListInput; readonly output: FilterListOutput };
   readonly "filter.save": { readonly input: FilterSaveInput; readonly output: FilterSaveOutput };
   readonly "perspective.list": { readonly input: PerspectiveListInput; readonly output: PerspectiveListOutput };

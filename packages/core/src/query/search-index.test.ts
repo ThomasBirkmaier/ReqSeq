@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
+import MiniSearch from "minisearch";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -12,14 +13,19 @@ import { createElement, updateElement } from "../model/write.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import type { SearchElementsOptions, SearchIndex } from "./search-index.js";
+import type { SearchDocument, SearchElementsOptions, SearchIndex } from "./search-index.js";
 import {
   MIN_FUZZY,
   PAUSE_MS,
+  WORD_SEPARATOR,
   SearchBuildCancelled,
   buildSearchIndex,
   documentOf,
+  engineOptions,
+  normalizeWord,
   prepareSearchIndex,
+  propertiesText,
+  valueTexts,
   recordKey,
   searchElements,
 } from "./search-index.js";
@@ -156,10 +162,10 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       title: "Wind speed on the display",
       // The destinations of links and images are left out; labels, alt texts and titles stay.
       text: '\nThe station shall show [the gusts]() and ![a chart]( "Chart").\n',
-      // Type and status by the names the metamodel gives them (ThomasBirkmaier/ReqSeq-archive#80).
-      properties: "Need\nDraft\nPilots need it\nWeather",
+      // Type and status by the names the metamodel gives them (ThomasBirkmaier/ReqSeq-archive#80); per key (SR-216).
+      parts: ["type", "Need", "status", "Draft", "rationale", "Pilots need it", "topic", "Weather"],
     });
-    const { properties } = documentOf(recordOf(store, S1), "", metamodel);
+    const properties = propertiesText(documentOf(recordOf(store, S1), "", metamodel));
     expect(properties.split("\n")).toEqual([
       "System Requirement",
       "Approved",
@@ -213,8 +219,70 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       key: "system\0n.md",
       title: "",
       text: "",
-      properties: "need\nKept as a property\nx\ngone",
+      // The invalid date has no text, so its key no part.
+      parts: ["type", "need", "title", "Kept as a property", "title2", "x", "status", "gone"],
     });
+  });
+
+  it("[SR-216/AK-hpd4] keeps the text and field lengths of properties as one line per value: empty, binary, invalid and missing values", () => {
+    const metamodel = {
+      properties: [{ key: "notes", name: "Notes", kind: "text" }],
+      relations: [],
+      meanings: {},
+      effectiveTypes: [],
+      statuses: [],
+    } as unknown as Metamodel;
+    const record = (data: Record<string, unknown>): ElementRecord => ({
+      id: N1,
+      type: "need",
+      repository: "system",
+      file: "n.md",
+      data: { id: N1, type: "need", ...data },
+      eol: "\n",
+      closingEol: "\n",
+      bom: false,
+      snapshot: { path: "n.md", size: 0, mtimeMs: 0, sha256: "" },
+    });
+    /** The text of `properties` as one list of every value of every key, before it had parts. */
+    const flat = (data: Readonly<Record<string, unknown>>): string => {
+      const out: string[] = [];
+      for (const [key, value] of Object.entries(data)) {
+        if (key !== "id") {
+          valueTexts(value, out);
+        }
+      }
+      return out.join("\n");
+    };
+    const cases: Record<string, unknown>[] = [
+      {},
+      { empty: [] },
+      { blob: new Uint8Array([104, 105]) },
+      { when: new Date(Number.NaN) },
+      { blank: "" },
+      { blank: "", notes: ["", "a", ""], last: "z" },
+      { empty: [], blank: "", blob: new Uint8Array([1]), notes: "", when: new Date(Number.NaN) },
+    ];
+    for (const data of cases) {
+      const document = documentOf(record(data), "", metamodel);
+      const text = propertiesText(document);
+      expect(text).toBe(flat(record(data).data));
+      // The same lengths of title, text and properties as a document with that text, and a length of
+      // the empty text for a property it does not hold (never none).
+      const mini = new MiniSearch<SearchDocument>(engineOptions(metamodel));
+      mini.add(document);
+      const plain = new MiniSearch({
+        idField: "key",
+        fields: ["title", "text", "properties"],
+        tokenize: (t: string) => t.split(WORD_SEPARATOR),
+        processTerm: normalizeWord,
+      });
+      plain.add({ key: document.key, title: document.title, text: document.text, properties: text });
+      const lengths = (m: MiniSearch<never> | MiniSearch<SearchDocument>): number[] => [
+        ...((m as unknown as { _fieldLength: Map<number, number[]> })._fieldLength.get(0) ?? []),
+      ];
+      expect(lengths(mini).slice(0, 3)).toEqual(lengths(plain as MiniSearch<never>));
+      expect(lengths(mini)).toHaveLength(4);
+    }
   });
 });
 
@@ -336,7 +404,11 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     expect(ids(index, "barometer", { fields: ["title", "text"] })).toEqual([]);
     // Without the ID field an ID is only words; without word fields only IDs count.
     expect(ids(index, "379da2", { fields: ["title", "text", "properties"] })).toEqual([]);
-    expect(ids(index, "379da2 wind", { fields: ["id"] })).toEqual([N1]);
+    expect(ids(index, "379da2", { fields: ["id"] })).toEqual([N1]);
+    // A word that can match nothing in the fields searched finds nothing (SR-216 AK1), unless any
+    // word is enough.
+    expect(ids(index, "379da2 wind", { fields: ["id"] })).toEqual([]);
+    expect(ids(index, "379da2 wind", { fields: ["id"], combineWith: "or" })).toEqual([N1]);
     expect(ids(index, "wind", { fields: ["id"] })).toEqual([]);
     // Only elements of a selection (SR-068 AK3 at index level).
     expect(ids(index, "temperature", { within: [recordOf(index.store, U1)] })).toEqual([U1]);
@@ -369,6 +441,56 @@ describe("searchElements (ADR-0008, SR-068)", () => {
       "platform",
     ]);
     expect(searchElements(index, "copied", { limit: 1 })).toEqual({ total: 2, hits: [copied.hits[0]] });
+  });
+
+  it("[SR-216/AK-wf2k] finds in the chosen fields only, ranks by them only, and puts ID matches first only with the IDs", async () => {
+    // b-rationale: "vane" in its rationale only; a-title: in its title and rationale, so ahead of it
+    // in all fields, and after it (store order, equal scores) in the rationale alone. The text of
+    // c-text names N1's short ID.
+    const B = "6b000000-0000-4000-8000-0000000000b1";
+    const A = "6b000000-0000-4000-8000-0000000000b2";
+    const C = "6b000000-0000-4000-8000-0000000000b3";
+    const { workspace } = await open({
+      ...FILES,
+      "system/requirements/SR-0000000000b1.md": element(B, "system-requirement", [
+        "title: Other alarm",
+        "rationale: A vane sensor",
+      ]),
+      "system/requirements/SR-0000000000b2.md": element(A, "system-requirement", [
+        "title: Vane alarm",
+        "rationale: A vane sensor",
+        "acceptance-criteria: [Given wind, then it warns]",
+      ]),
+      "system/requirements/SR-0000000000b3.md": element(
+        C,
+        "system-requirement",
+        ["title: Cites a need"],
+        "\nSee N-545b7b379da2 first.\n",
+      ),
+    });
+    const index = await searchIndex(workspace);
+    expect(ids(index, "vane")).toEqual([A, B]);
+    const rationale = searchElements(index, "vane", { propertyKeys: ["rationale"] });
+    expect(rationale.hits.map((h) => h.element.id)).toEqual([B, A]);
+    expect(rationale.hits[0]?.score).toBe(rationale.hits[1]?.score);
+    // A hit in a single property names `properties`; only words of the chosen fields count.
+    expect(rationale.hits.map((h) => [h.fields, h.terms])).toEqual([
+      [["properties"], ["vane"]],
+      [["properties"], ["vane"]],
+    ]);
+    // Every word must be in a chosen field, fuzzy and in any case (SR-068 AK2).
+    expect(ids(index, "WARMS", { propertyKeys: ["acceptance-criteria"] })).toEqual([A]);
+    expect(ids(index, "warns alarm", { propertyKeys: ["acceptance-criteria"] })).toEqual([]);
+    expect(ids(index, "warns alarm", { fields: ["title"], propertyKeys: ["acceptance-criteria"] })).toEqual([
+      A,
+    ]);
+    expect(ids(index, "warns", { propertyKeys: ["rationale"] })).toEqual([]);
+    expect(ids(index, "barometer", { propertyKeys: ["acceptance-criteria", "rationale"] })).toEqual([S1]);
+    // An ID match first only with the IDs: else the short ID is words of the text.
+    expect(ids(index, "N-545b7b379da2")).toEqual([N1, C]);
+    expect(ids(index, "N-545b7b379da2", { fields: ["text"] })).toEqual([C]);
+    expect(ids(index, "N-545b7b379da2", { fields: ["text", "id"] })).toEqual([N1, C]);
+    expect(ids(index, "N-545b7b379da2 wind", { fields: ["id"] })).toEqual([]);
   });
 
   it("reads a file changed since the store read it as it is now, and marks the build inexact", async () => {
@@ -448,13 +570,16 @@ describe("carried search index (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184)", 
   /** The answers of `index` to every query: files, fields, words and scores (rounded). */
   const answers = (index: SearchIndex): unknown =>
     queries(index.store).map((q) =>
-      searchElements(index, q).hits.map((h) => [
-        h.element.repository,
-        h.element.file,
-        h.fields,
-        h.terms,
-        Math.round(h.score * 1e9),
-      ]),
+      // In every field, and in single properties that most elements do not hold (SR-216).
+      [{}, { fields: ["title"], propertyKeys: ["rationale", "acceptance-criteria"] }].map((options) =>
+        searchElements(index, q, options as SearchElementsOptions).hits.map((h) => [
+          h.element.repository,
+          h.element.file,
+          h.fields,
+          h.terms,
+          Math.round(h.score * 1e9),
+        ]),
+      ),
     );
 
   /** The carried index of the workspace's store, compared with a fresh build and a fresh workspace. */

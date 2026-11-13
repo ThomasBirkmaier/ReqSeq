@@ -253,6 +253,24 @@ body,
   font-weight: 400;
 }
 
+/* The fields of a search under its heading (SR-216 AK10), each a mark as in the input of the search. */
+.buffer.list .search-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  margin: -0.5rem 0 1rem;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.buffer.list .search-field {
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: var(--mark);
+  color: var(--text);
+}
+
 /* The groups of a grouped list (SR-149), headed like the groups of a package page: a small muted heading
    with the name and the count. */
 .buffer.list .group h2 {

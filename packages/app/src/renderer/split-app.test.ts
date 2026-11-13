@@ -104,7 +104,7 @@ const HANDLERS: Record<string, Handler> = {
     total: 1,
     incomplete: false,
   }),
-  "filter.list": () => ({ filters: [{ name: "open", where: {} }] }),
+  "baseline.list": () => ({ baselines: [{ name: "Release 1" }] }),
   "metamodel.get": () => ({
     relations: [],
     types: [
@@ -124,9 +124,9 @@ const HANDLERS: Record<string, Handler> = {
   }),
 };
 
-const FILTER_LIST = {
-  name: "filter.list",
-  title: "List saved filters",
+const BASELINE_LIST = {
+  name: "baseline.list",
+  title: "List baselines",
   summary: "A command of the catalog.",
   effect: "read",
   stage: 3,
@@ -142,7 +142,7 @@ const listeners = new Set<(change: WorkspaceChange) => void>();
 const bridge: ReqSeqBridge = {
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve((HANDLERS[name] ?? NO_SUMMARY[name])?.(input)).then((output) => ({ ok: true, output })),
-  commands: () => Promise.resolve([FILTER_LIST]),
+  commands: () => Promise.resolve([BASELINE_LIST]),
   on: (event: string, listener: (data: never) => void) => {
     if (event !== "workspace-changed") {
       return () => undefined;
@@ -398,18 +398,18 @@ describe("App, Split window (SR-115 AK3)", () => {
 
   it("[SR-115/AK-cycg] a result beside an element that reads again stays in its area; the modeline still names the element and the editor keeps the focus", async () => {
     await render();
-    await runCommand("List saved filters");
+    await runCommand("List baselines");
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "Enter" });
     // The result was used before the list: switch to it, then to the element, so it is the one beside.
     await press(window, { key: "p", ctrlKey: true });
-    await type("List saved filters");
+    await type("List baselines");
     await press(query("input"), { key: "Enter" });
     await press(window, { key: "p", ctrlKey: true });
     await type("SR-000001");
     await press(query("input"), { key: "Enter" });
     await runCommand("Split window");
-    expect(areas()).toEqual(["SR-000001 Title 1*", "List saved filters"]);
+    expect(areas()).toEqual(["SR-000001 Title 1*", "List baselines"]);
     await typeIn("left", " X");
     // A write of the window: every view that shows several elements reads again.
     await act(async () => {
@@ -420,7 +420,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     });
     await flush();
     await flush();
-    expect(areas()).toEqual(["SR-000001 Title 1*", "List saved filters"]);
+    expect(areas()).toEqual(["SR-000001 Title 1*", "List baselines"]);
     expect(modeline()).toContain("SR-000001");
     expect(document.activeElement?.closest('[data-area="left"] .cm-editor')).not.toBeNull();
   });

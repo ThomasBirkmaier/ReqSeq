@@ -47,7 +47,8 @@
 // acceptance criteria of the element that have a key (`element.get`); `evidenceLocation` the evidence
 // locations evidence.record takes (`workspace.status`), typed text too; `elementFile` the file of the
 // element, or those of an ambiguous reference (`ref.ambiguous`); `metamodelLocation` the repository, then
-// the path. A hit the metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
+// the path; a `condition` is built from hits as marks (`condition-prompt.ts`, SR-215 AK3). A hit the
+// metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
 // asked: it is the shown list's, or on a package page its package (`selection.package`), for every command
 // with a selection, reads and writes alike.
 import type { AboutInfo } from "./about.js";
@@ -68,9 +69,9 @@ import { ACTIONS, findElements } from "./actions.js";
 import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
-import { coveredCommand, coveringAction } from "./command-entry.js";
+import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, listing, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, listing, resultBuffer, selectionOf } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
@@ -78,7 +79,10 @@ import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
+import type { ConditionAsk, ConditionMark, ShownConditions } from "./condition-prompt.js";
+import { askCondition, conditionLabel, conditionOf, shownMarks } from "./condition-prompt.js";
 import { rowName } from "./rows.js";
+import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
 
@@ -109,6 +113,8 @@ interface Given {
   readonly skipped?: true;
   /** Given before the prompt asked (`startCommand`, SR-199): not offered first to another argument. */
   readonly prefilled?: true;
+  /** A condition built from hits (SR-215 AK3): its marks, which stand again when it is asked again (AK9). */
+  readonly marks?: readonly ConditionMark[];
   /**
    * Where the value stands among the values given (`ordered`): the next number when it is given, the
    * number of the value it replaces when it is asked again, so it keeps that value's place.
@@ -133,6 +139,13 @@ interface Entry {
   readonly error?: string;
   /** The rank of the value asked again: the answer takes its place (`Given.rank`). */
   readonly again?: number;
+  /** The marks of the condition asked again (SR-215 AK6, AK9). */
+  readonly marks?: readonly ConditionMark[];
+  /**
+   * The marks of a condition left by going back before it was taken (Escape, SR-215 AK9): they stand again
+   * when the prompt returns to its field.
+   */
+  readonly held?: { readonly field: string; readonly marks: readonly ConditionMark[] };
 }
 
 /** The values given with one more: in the place of the value asked again, else after the others. */
@@ -393,17 +406,20 @@ const offered = (context: ActionContext, command: CommandListing): boolean =>
  * which the prompt offers first for it. A selection counts even when it is optional, because `inputOf`
  * fills it in from the list without asking, so the command runs on what the list shows. An optional
  * element argument does not count: it is asked only after Ctrl/Cmd+Enter and the command runs without
- * it, so the shown element plays no part in a plain run.
+ * it, so the shown element plays no part in a plain run. In the overview every command fits.
  */
 export const fits = (context: ActionContext, command: CommandListing): boolean => {
   const shown = context.buffers[0]?.kind;
   const required = askedOf(command);
-  return command.arguments.some((arg) =>
-    arg.complete === "selection"
-      ? givesSelection(context)
-      : arg.complete === "element" &&
-        required.includes(arg.field) &&
-        (shown === "element" || shown === "neighbourhood"),
+  return (
+    shown === "overview" ||
+    command.arguments.some((arg) =>
+      arg.complete === "selection"
+        ? givesSelection(context)
+        : arg.complete === "element" &&
+          required.includes(arg.field) &&
+          (shown === "element" || shown === "neighbourhood"),
+    )
   );
 };
 
@@ -812,14 +828,24 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
     );
     return candidates.length > 0 ? { kind: "list", values: fileValues(candidates) } : asText();
   },
+  // The fields a search can be restricted to (`element.searchFields`, SR-216 AK3) that are not taken
+  // yet, and after all properties no single property (AK6), by name with the key beside.
+  searchField: async ({ context, taken }) =>
+    listOf(await context.call("element.searchFields", {}), (output) =>
+      offeredFields(output.fields, taken).map((field) => ({
+        value: field.key,
+        name: field.name,
+        key: field.key,
+      })),
+    ),
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>
     Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),
-  // The sources the catalog names for SR-215 whose issues are still open (#1645 to #1648) are asked as
-  // before: a grouping as text; conditions, sorts and the properties and relations of a new element as
-  // JSON. Their `FITTING` entries make them readers: a value of one is dropped when the field it reads is
-  // refused.
+  // The sources the catalog names for SR-215 whose issues are still open (#1646 to #1648) are asked as
+  // before: a grouping as text; sorts and the properties and relations of a new element as JSON. Their
+  // `FITTING` entries make them readers: a value of one is dropped when the field it reads is refused.
   group: asText,
+  // Built step by step from hits (`askCondition`, #1645); never asked through its offer.
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -855,7 +881,7 @@ const offerFor = (
   });
 };
 
-/** "Show relation options SR-1" : the title and the values given so far (a skipped property shows nothing). */
+/** "Create relation SR-1" : the title and the values given so far (a skipped property shows nothing). */
 const lineOf = (entry: Entry): string =>
   [
     entry.command.title,
@@ -1175,7 +1201,11 @@ const readersOf = (args: readonly Argument[], field: string): ReadonlySet<string
  */
 const askAgain = (context: CatalogContext, answered: Entry, at: number): void => {
   const again = answered.given[at];
-  const entry = { ...answered, ...(again === undefined ? {} : { again: again.rank }) };
+  const entry = {
+    ...answered,
+    ...(again === undefined ? {} : { again: again.rank }),
+    ...(again?.marks === undefined ? {} : { marks: again.marks }),
+  };
   const itsProperties = new Set((again?.asks ?? []).map((asked) => asked.key));
   const readers = again === undefined ? new Set<string>() : readersOf(entry.command.arguments, again.field);
   const given = entry.given.filter(
@@ -1249,12 +1279,12 @@ const give = (
   value: unknown,
   label: string,
   more: boolean,
-  asks?: readonly RequiredProperty[],
+  extra: Pick<Given, "asks" | "marks"> = {},
 ): void => {
   const { collecting: _was, error: _error, ...rest } = entry;
   step(context, {
     ...rest,
-    given: appended(entry, { field, value, label, ...(asks === undefined ? {} : { asks }) }),
+    given: appended(entry, { field, value, label, ...extra }),
     more: entry.more || more,
     ...(isListField(entry.command, field) && !more ? { collecting: field } : {}),
   });
@@ -1393,6 +1423,84 @@ const askProperty = (context: CatalogContext, entry: Entry, property: RequiredPr
   }
 };
 
+/** Why "Save filter" offers no conditions of a shown list with a saved filter (SR-215 AK5). */
+export const NO_SHOWN_FILTER = "No conditions of the shown list: a filter cannot hold its saved filter";
+
+/**
+ * The conditions of the shown list for the condition of "Save filter" and "Save perspective" (SR-215 AK5): a
+ * list, not the matrix, the search hits or a package page, whose steps give a condition or a saved filter.
+ * Its saved filter goes to `filter` of "Save perspective"; "Save filter" has none for such a list, and says
+ * why.
+ */
+const shownConditions = (
+  context: CatalogContext,
+  entry: Entry,
+  field: string,
+  explain: ArgumentExplanation,
+): ShownConditions | undefined => {
+  const list = context.buffers[0];
+  const perspective = entry.command.name === "perspective.save";
+  if (
+    (!perspective && entry.command.name !== "filter.save") ||
+    !listing(list) ||
+    list.matrix === true ||
+    list.steps.length === 0
+  ) {
+    return undefined;
+  }
+  const filter = selectionOf(list.steps)?.filter;
+  if (filter !== undefined && !perspective) {
+    return { note: NO_SHOWN_FILTER };
+  }
+  const marks = shownMarks(list.steps);
+  if (marks.length === 0 && filter === undefined) {
+    return undefined;
+  }
+  // The saved filter goes in first, labelled so the line says it is saved with the condition.
+  const at =
+    filter === undefined
+      ? entry
+      : {
+          ...entry,
+          given: appended(
+            { ...entry, given: entry.given.filter((given) => given.field !== "filter") },
+            { field: "filter", value: filter, label: `filter: ${filter}` },
+          ),
+        };
+  return {
+    marks,
+    key: list.steps.map((step) => step.label).join(" · "),
+    ask: () => conditionAsk(context, at, field, explain),
+  };
+};
+
+/**
+ * What the steps of a condition need (SR-215): its schema, the line, back with the marks held, the value the
+ * marks give; `shown` the conditions of the shown list (AK5).
+ */
+const conditionAsk = (
+  context: CatalogContext,
+  entry: Entry,
+  field: string,
+  explain: ArgumentExplanation,
+): ConditionAsk => {
+  return {
+    context,
+    schema: schemaOf(entry.command, field),
+    line: `${lineOf(entry)} · ${field}`,
+    ...(entry.error === undefined ? {} : { error: entry.error }),
+    explain,
+    back: (marks) => {
+      back(context, { ...entry, held: { field, marks } });
+    },
+    take: (marks, more) => {
+      const { held: _held, ...rest } = entry;
+      give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
+    },
+    shown: () => shownConditions(context, entry, field, explain),
+  };
+};
+
 /** Asks the argument at `at`: its candidates from its source, or its text. */
 const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): void => {
   const field = arg.field;
@@ -1418,6 +1526,13 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
           }
         : {}),
   };
+  if (arg.complete === "condition") {
+    askCondition(
+      conditionAsk(context, entry, field, shared.explain),
+      entry.marks ?? (entry.held?.field === field ? entry.held.marks : []),
+    );
+    return;
+  }
   const take = (
     value: unknown,
     name: string,
@@ -1428,10 +1543,10 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     const at = also === undefined ? entry : withAlso(entry, also);
     return {
       run: () => {
-        give(context, at, field, value, name, false, asks);
+        give(context, at, field, value, name, false, asks === undefined ? {} : { asks });
       },
       more: () => {
-        give(context, at, field, value, name, true, asks);
+        give(context, at, field, value, name, true, asks === undefined ? {} : { asks });
       },
     };
   };
@@ -1782,7 +1897,7 @@ const nextProperty = (entry: Entry): RequiredProperty | undefined =>
  */
 const step = (context: CatalogContext, answered: Entry): void => {
   // The value asked again has its answer: the next one goes after the others.
-  const { again: _again, ...entry } = answered;
+  const { again: _again, marks: _marks, ...entry } = answered;
   const { arguments: args } = entry.command;
   const asked = askedOf(entry.command);
   const open = (arg: Argument): boolean =>
@@ -1832,17 +1947,17 @@ export const startCommand = (
 const WITHOUT_WORKSPACE = "workspace.init";
 
 /**
- * Whether the prompt offers the command (SR-073 AK2: every function of the app by its name): every
- * implemented read and write command, except `element.update`, which the element buffer does ("Save
- * element" covers it, with "Edit title", "Add property" and "Clear property"), and only
- * `workspace.init` while no workspace is open.
+ * Whether the prompt may offer the command (SR-073 AK2: every function of the app by its name): every
+ * implemented read and write command, and only `workspace.init` while no workspace is open. `catalogItems`
+ * then leaves out the covered ones (`element.update`: "Save element", with "Edit title", "Add property" and
+ * "Clear property") and those whose output other commands show (`shownIn`, SR-133 AK4).
  */
 const listed = (context: CatalogContext, command: CommandListing): boolean =>
   command.implemented && (context.workspace || command.name === WITHOUT_WORKSPACE);
 
 /**
  * The catalog commands the command prompt offers now (`listed`) that no action covers (by title or by
- * `covers`), each by its title and whether it fits the shown view (SR-133). While the workspace is
+ * `covers`) and whose output the app does not show only in another command (`shownIn`, SR-133 AK4), each by its title and whether it fits the shown view (SR-133). While the workspace is
  * read-only, no write command that core refuses then (`whileReadOnly`).
  */
 export const catalogItems = (
@@ -1856,6 +1971,7 @@ export const catalogItems = (
         listed(context, command) &&
         !(context.readOnly === true && command.whileReadOnly === "refuse") &&
         coveringAction(command, actions) === undefined &&
+        shownIn(command) === undefined &&
         offered(context, command),
     )
     .map((command) => {

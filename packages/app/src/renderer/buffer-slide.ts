@@ -452,9 +452,11 @@ export class SlideController {
       phase.track.side.animate(frames.leaving, timing),
       phase.track.main.animate(frames.coming, timing),
     ];
-    // Also where `animate` leaves out the id of its options.
+    // Also where `animate` leaves out the id of its options. `clear` cancels both, which rejects their
+    // `finished`; happy-dom creates that promise for each, so each needs a handler (#1687).
     for (const animation of animations) {
       animation.id = SLIDE_ID;
+      animation.finished.catch(() => undefined);
     }
     phase.track.side.style.removeProperty("transform");
     phase.track.main.style.removeProperty("transform");

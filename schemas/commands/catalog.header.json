@@ -35,6 +35,7 @@
     "hint.list",
     "hint.confirm",
     "element.search",
+    "element.searchFields",
     "filter.list",
     "filter.save",
     "perspective.list",

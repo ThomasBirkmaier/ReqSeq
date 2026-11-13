@@ -4,26 +4,38 @@ import { describe, expect, it, vi } from "vitest";
 import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
-import { ACTIONS, commandPrompt } from "./actions.js";
+import { ACTIONS, commandPrompt, unusedOrder } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {
   elementBuffer,
+  filteredList,
   listBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
   perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
+  withQuery,
 } from "./buffers.js";
+import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
+import { perspectiveInput } from "./perspective-actions.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
-import { coveredCommand } from "./command-entry.js";
+import {
+  NO_SHOWN_FILTER,
+  catalogItems,
+  contextField,
+  fits,
+  refusedOf,
+  withExplanations,
+} from "./catalog-commands.js";
+import { coveredCommand, SHOWN_IN, shownIn } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
-import { rankByUse } from "./usage.js";
+import type { PromptUse } from "./usage.js";
+import { openingRows, promptUse, rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import { contextOf } from "../../../../scripts/contracts/catalog-checks.mjs";
@@ -130,8 +142,19 @@ const last = async (asked: readonly Prompt[]): Promise<Prompt> => {
 const refusedWith = (message: string, details: Record<string, unknown>): Error =>
   Object.assign(new Error(message), { name: "input.invalid", details });
 
+/**
+ * A read command that asks an element and then, optional, a relation kind that element may have: the
+ * arguments of `relation.options`, which the prompt neither lists nor finds (SR-133 AK4), under a name of
+ * its own, so the tests of the argument entry keep their command.
+ */
+const KINDS: CommandListing = { ...command("relation.options"), name: "test.kinds", title: "Show kinds" };
+
+/** The catalog with `KINDS`. */
+const WITH_KINDS: readonly CommandListing[] = [...CATALOG, KINDS];
+
 const start = (context: ActionContext & CatalogContext, name: string, more = false): void => {
-  const choice = item(catalogItems(context, CATALOG, ACTIONS), command(name).title);
+  const listing = name === KINDS.name ? KINDS : command(name);
+  const choice = item(catalogItems(context, WITH_KINDS, ACTIONS), listing.title);
   (more ? choice.more : choice.run)?.();
 };
 
@@ -221,13 +244,16 @@ describe("catalog commands in the command prompt", () => {
       ACTIONS.some((action) => action.title === entry.title || action.covers?.includes(entry.name) === true);
     const reads = CATALOG.filter((entry) => entry.implemented && entry.effect === "read");
     expect(reads.length).toBeGreaterThan(10);
-    expect(reads.filter((entry) => !reachable(entry)).map((entry) => entry.name)).toEqual([]);
+    // Only those whose output the app shows in other commands are not reachable (SR-133 AK4).
+    expect(reads.filter((entry) => !reachable(entry)).map((entry) => entry.name)).toEqual(
+      reads.filter((entry) => shownIn(entry) !== undefined).map((entry) => entry.name),
+    );
     // Covered commands are not listed twice; the implemented ones are, reqif.export too.
     expect(offered.has("Get element")).toBe(false);
     expect(offered.has("Update element")).toBe(false);
     expect(offered.has("Export ReqIF")).toBe(true);
     expect(offered.has("Analyse ReqIF file")).toBe(true);
-    expect(offered.has("Show relation options")).toBe(true);
+    expect(offered.has("Show trace chain")).toBe(true);
   });
 
   it("lists trace.graph only as the action that opens the graph buffer, whatever its title", () => {
@@ -311,7 +337,7 @@ describe("catalog commands in the command prompt", () => {
       rank(items, (i) => i.name, query)
         .slice(0, 3)
         .map(({ item: i }) => i.name);
-    expect(top("sro")).toContain("Show relation options");
+    expect(top("sae")).toContain("Show affected elements");
     expect(top("lh")).toContain("List hints");
     expect(top("chek workspace")).toContain("Check workspace");
     expect(top("shwo trace chain")).toContain("Show trace chain");
@@ -319,26 +345,26 @@ describe("catalog commands in the command prompt", () => {
 
   it("offers a command that needs the shown list's selection only on a list, and fills it in", async () => {
     const needs = {
-      ...command("element.facets"),
-      input: { ...command("element.facets").input, required: ["selection"] },
+      ...command("evidence.coverage"),
+      input: { ...command("evidence.coverage").input, required: ["selection"] },
     };
     expect(catalogItems(setup([shown]).context, [needs], [])).toEqual([]);
     // A perspective buffer that came back with nothing saved lists nothing, so it gives no selection
     // (it would read as every element).
     const faulty = perspectiveBuffer({ name: "Broken", error: "faulty file" });
     expect(catalogItems(setup([faulty]).context, [needs], [])).toEqual([]);
-    const { context, dispatched, call } = setup([list], { "element.facets": () => ({ total: 1 }) });
+    const { context, dispatched, call } = setup([list], { "evidence.coverage": () => ({ total: 1 }) });
     const [only] = catalogItems(context, [needs], []);
     only?.run();
     await flush();
-    expect(call).toHaveBeenCalledWith("element.facets", { selection: { where: { type: ["need"] } } });
+    expect(call).toHaveBeenCalledWith("evidence.coverage", { selection: { where: { type: ["need"] } } });
     expect(dispatched).toEqual([
       {
         type: "open",
         buffer: resultBuffer(
-          "element.facets",
+          "evidence.coverage",
           { selection: { where: { type: ["need"] } } },
-          "Show facets",
+          "Show evidence coverage",
           { total: 1 },
           3,
         ),
@@ -363,29 +389,29 @@ describe("catalog commands in the command prompt", () => {
   });
 
   it("fills in the package of a package page for every selection, an optional one too, and offers Bulk update there", async () => {
-    const { context, call } = setup([shown], { "element.facets": () => ({ total: 1 }) });
+    const { context, call } = setup([shown], { "evidence.coverage": () => ({ total: 1 }) });
     const page = { ...context, element: { members: true } as ElementControls };
     expect(catalogItems(context, [command("element.bulkUpdate")], [])).toEqual([]);
     expect(catalogItems(page, [command("element.bulkUpdate")], [])).toHaveLength(1);
     expect(fits(page, command("element.bulkUpdate"))).toBe(true);
-    expect(fits(page, command("element.facets"))).toBe(true);
-    start(page, "element.facets");
+    expect(fits(page, command("evidence.coverage"))).toBe(true);
+    start(page, "evidence.coverage");
     await flush();
-    expect(call).toHaveBeenLastCalledWith("element.facets", { selection: { package: "uuid-1" } });
+    expect(call).toHaveBeenLastCalledWith("evidence.coverage", { selection: { package: "uuid-1" } });
   });
 
   it("runs a command without required arguments at once and shows its output in a result buffer", async () => {
-    const { context, dispatched, asked } = setup([shown], { "filter.list": () => ({ filters: [] }) });
-    start(context, "filter.list");
+    const { context, dispatched, asked } = setup([shown], { "baseline.list": () => ({ baselines: [] }) });
+    start(context, "baseline.list");
     await flush();
     expect(asked).toEqual([]);
     expect(dispatched).toEqual([
-      { type: "open", buffer: resultBuffer("filter.list", {}, "List saved filters", { filters: [] }, 3) },
+      { type: "open", buffer: resultBuffer("baseline.list", {}, "List baselines", { baselines: [] }, 3) },
     ]);
     // A selection that is not required is left out where no list is shown.
-    start(context, "element.facets");
+    start(context, "evidence.coverage");
     await flush();
-    expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "element.facets", input: {} } });
+    expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "evidence.coverage", input: {} } });
   });
 
   it("[SR-161/AK-hbxy] About ReqSeq shows the output of tool.info in its own window, not in a result buffer", async () => {
@@ -406,17 +432,17 @@ describe("catalog commands in the command prompt", () => {
     const { context, asked, dispatched, call } = setup([shown], {
       "relation.options": () => OPTIONS,
     });
-    start(context, "relation.options");
+    start(context, "test.kinds");
     const ref = await last(asked);
-    expect(ref.label).toBe("Show relation options · ref:");
+    expect(ref.label).toBe("Show kinds · ref:");
     expect(ref.items.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
     ref.items[0]?.run();
     await flush();
     // ref was the last required argument: Enter runs the command.
-    expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
+    expect(call).toHaveBeenLastCalledWith("test.kinds", { ref: "uuid-1" });
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
-      buffer: { name: "Show relation options SR-000001 (SR-1)" },
+      buffer: { name: "Show kinds SR-000001 (SR-1)" },
     });
   });
 
@@ -427,16 +453,16 @@ describe("catalog commands in the command prompt", () => {
         "relation.options": () => OPTIONS,
       },
     );
-    start(context, "relation.options");
+    start(context, "test.kinds");
     const ref = await last(asked);
     ref.items[0]?.more?.();
     const more = await last(asked);
-    expect(more.label).toBe("Show relation options SR-000001 (SR-1) · more arguments:");
+    expect(more.label).toBe("Show kinds SR-000001 (SR-1) · more arguments:");
     expect(more.items.map((i) => i.name)).toEqual(["Run", "kind"]);
     item(more.items, "kind").run();
     const kind = await last(asked);
     expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
-    expect(kind.label).toBe("Show relation options SR-000001 (SR-1) · kind:");
+    expect(kind.label).toBe("Show kinds SR-000001 (SR-1) · kind:");
     expect(kind.items.map((i) => i.name)).toEqual(["derives from", "refines"]);
     item(kind.items, "refines").run();
     // Still in "more": the prompt offers what is left, and Run runs it.
@@ -444,7 +470,7 @@ describe("catalog commands in the command prompt", () => {
     expect(again.items.map((i) => i.name)).toEqual(["Run"]);
     again.items[0]?.more?.();
     await flush();
-    expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1", kind: "refines" });
+    expect(call).toHaveBeenLastCalledWith("test.kinds", { ref: "uuid-1", kind: "refines" });
   });
 
   it("puts the selected row of the shown list first for an element argument", async () => {
@@ -475,9 +501,9 @@ describe("catalog commands in the command prompt", () => {
 
   it("opens the prompt of an argument at once with its label and fills its candidates when they arrive", async () => {
     const { context, asked } = setup([shown], { "relation.options": () => OPTIONS });
-    start(context, "relation.options");
+    start(context, "test.kinds");
     // Before any answer: the prompt is there, with its label and no candidates yet.
-    expect(asked.at(-1)?.label).toBe("Show relation options · ref:");
+    expect(asked.at(-1)?.label).toBe("Show kinds · ref:");
     expect(asked.at(-1)?.items).toEqual([]);
     expect((await asked.at(-1)?.fill)?.items?.map((i) => i.name)).toEqual(["SR-000001 (SR-1) Title 1"]);
   });
@@ -486,7 +512,7 @@ describe("catalog commands in the command prompt", () => {
     const { context, asked, dispatched, changed } = setup([shown], {
       "relation.options": () => OPTIONS,
     });
-    start(context, "relation.options");
+    start(context, "test.kinds");
     const ref = await last(asked);
     changed();
     ref.items[0]?.run();
@@ -503,7 +529,7 @@ describe("catalog commands in the command prompt", () => {
       },
     });
     during = changed;
-    start(context, "relation.options");
+    start(context, "test.kinds");
     const ref = await last(asked);
     ref.items[0]?.run();
     await flush();
@@ -755,26 +781,27 @@ describe("catalog commands in the command prompt", () => {
   it("drops with a refused value the values whose offer was read from it, and asks them again", async () => {
     let refuse = true;
     const { context, asked, call } = setup([shown], {
-      "relation.options": (input) =>
+      "relation.options": () => OPTIONS,
+      "test.kinds": (input) =>
         refuse && input["kind"] !== undefined
           ? refusedWith("ref: wrong", { errors: [{ field: "ref", message: "ref: wrong" }] })
           : OPTIONS,
     });
-    start(context, "relation.options", true);
+    start(context, "test.kinds", true);
     (await last(asked)).items[0]?.run();
     item((await last(asked)).items, "kind").run();
     item((await last(asked)).items, "refines").run();
     item((await last(asked)).items, "Run").run();
     const again = await last(asked);
     // `kind` was offered for the refused `ref`: it goes with it.
-    expect(again.label).toBe("ref: wrong · Show relation options · ref:");
+    expect(again.label).toBe("ref: wrong · Show kinds · ref:");
     refuse = false;
     again.items[0]?.run();
     const more = await last(asked);
     expect(more.items.map((i) => i.name)).toEqual(["Run", "kind"]);
     item(more.items, "Run").run();
     await flush();
-    expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
+    expect(call).toHaveBeenLastCalledWith("test.kinds", { ref: "uuid-1" });
   });
 
   it("says why a command failed in the minibuffer, and why a source failed in the prompt's label", async () => {
@@ -933,7 +960,7 @@ describe("catalog commands in the command prompt", () => {
   });
 
   const numbers = {
-    ...command("element.facets"),
+    ...command("evidence.coverage"),
     title: "Numbers",
     arguments: [
       { field: "maxValues", complete: "number" as const },
@@ -959,7 +986,7 @@ describe("catalog commands in the command prompt", () => {
     await pick(asked);
     await answer(asked, "draft");
     await flush();
-    expect(call).toHaveBeenLastCalledWith("element.facets", {
+    expect(call).toHaveBeenLastCalledWith("evidence.coverage", {
       maxValues: 30,
       data: { a: 1 },
       kinds: "refines",
@@ -971,7 +998,7 @@ describe("catalog commands in the command prompt", () => {
     await pick(asked);
     await answer(asked, "");
     await flush();
-    expect(call).toHaveBeenLastCalledWith("element.facets", {
+    expect(call).toHaveBeenLastCalledWith("evidence.coverage", {
       maxValues: "many",
       data: "{a",
       kinds: "refines",
@@ -1020,6 +1047,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     "group",
     "condition",
     "sort",
+    "searchField",
     "properties",
     "relations",
   ]);
@@ -1092,6 +1120,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
         "element.list group group",
         "element.list sort sort",
         "element.resolve file elementFile",
+        "element.search fields searchField",
         "element.search group group",
         "evidence.list file elementFile",
         "evidence.record criteria criterion",
@@ -1115,11 +1144,9 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
   });
 
   it.each([
-    // The sources of #1645 to #1648 stay as they were: a grouping as text, the composed values as JSON.
+    // The sources of #1646 to #1648 stay as they were: a grouping as text, the composed values as JSON.
     ["element.list", "group", "status", "status"],
     ["perspective.save", "group", "{not json", "{not json"],
-    ["filter.save", "where", '{"status":["draft"]}', { status: ["draft"] }],
-    ["perspective.save", "where", "{a", "{a"],
     // A sort is a list: one key per Enter.
     ["perspective.save", "sort", '{"by":"title"}', [{ by: "title" }]],
     ["trace.matrix", "sort", '{"by":"id","order":"desc"}', [{ by: "id", order: "desc" }]],
@@ -1152,12 +1179,45 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     expect(await hits(asked)).toContain("Component | component");
     item((await last(asked)).items, "Component").run();
     expect(await hits(asked)).toEqual(["Display | display", "Sensor | sensor"]);
-    catalogItems(context, [only("relation.options", "ref", "kind")], [])[0]?.run();
+    catalogItems(context, [only("relation.add", "source", "kind")], [])[0]?.run();
     (await last(asked)).items[0]?.run();
     expect(await hits(asked)).toEqual(["derives from | derives-from", "refines | "]);
     // A value whose name is its key (a choice of the catalog, a repository) shows it once.
     catalogItems(context, [only("element.get", "versionDate")], [])[0]?.run();
     expect(await hits(asked)).toEqual(["yes | ", "no | "]);
+  });
+
+  it("[SR-216/AK-s99w] offers the fields of element.searchFields by name with the key beside, without those taken", async () => {
+    const { context, asked, call } = setup([shown], {
+      "element.searchFields": () => ({
+        fields: [
+          { key: "title", name: "Title" },
+          { key: "text", name: "Text" },
+          { key: "id", name: "IDs" },
+          { key: "properties", name: "All properties" },
+          { key: "rationale", name: "Rationale" },
+        ],
+      }),
+      "element.search": () => ({ hits: [], total: 0 }),
+    });
+    catalogItems(context, [only("element.search", "fields")], [])[0]?.run();
+    expect(await hits(asked)).toEqual([
+      "Title | title",
+      "Text | text",
+      "IDs | id",
+      "All properties | properties",
+      "Rationale | rationale",
+    ]);
+    item((await last(asked)).items, "Rationale").run();
+    expect(await hits(asked)).toEqual([
+      "Title | title",
+      "Text | text",
+      "IDs | id",
+      "All properties | properties",
+    ]);
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.search", { fields: ["rationale"] });
   });
 
   it("[SR-215/AK-fj75] offers the saved filters, the variants and the packages as hits and puts in what the command expects", async () => {
@@ -1490,22 +1550,69 @@ describe("the commands that fit the shown view", () => {
     const fitting = (buffers: Buffers, name: string): boolean => fits(setup(buffers).context, command(name));
     for (const buffers of [[shown], [around]]) {
       expect(fitting(buffers, "trace.chain")).toBe(true);
-      expect(fitting(buffers, "relation.options")).toBe(true);
+      expect(fitting(buffers, "trace.affected")).toBe(true);
       // An element argument that is not required, the selection, or no argument: the view gives nothing.
       expect(fitting(buffers, "hint.list")).toBe(false);
-      expect(fitting(buffers, "element.facets")).toBe(false);
+      expect(fitting(buffers, "evidence.degree")).toBe(false);
       expect(fitting(buffers, "baseline.list")).toBe(false);
     }
-    expect(fitting([list], "element.facets")).toBe(true);
+    expect(fitting([list], "evidence.degree")).toBe(true);
     expect(fitting([list], "evidence.coverage")).toBe(true);
     expect(fitting([list], "trace.chain")).toBe(false);
     expect(fitting([list], "workspace.status")).toBe(false);
-    expect(fitting([overviewBuffer()], "trace.chain")).toBe(false);
-    expect(fitting([], "element.facets")).toBe(false);
+    // In the overview every command fits.
+    expect(fitting([overviewBuffer()], "trace.chain")).toBe(true);
+    expect(fitting([overviewBuffer()], "workspace.status")).toBe(true);
+    expect(fitting([], "evidence.degree")).toBe(false);
+  });
+
+  it("[SR-133/AK-smn1] neither lists nor finds the seven commands whose output other commands show; every other command stays", () => {
+    const hidden = CATALOG.filter((entry) => shownIn(entry) !== undefined);
+    expect(hidden.map((entry) => entry.title).sort()).toEqual([
+      "List folder",
+      "List perspectives",
+      "List recent workspaces",
+      "List saved filters",
+      "Show facets",
+      "Show last agent access",
+      "Show relation options",
+    ]);
+    expect(hidden.map((entry) => entry.name).sort()).toEqual(Object.keys(SHOWN_IN).sort());
+    const page = { ...setup([shown]).context, element: { members: true } as ElementControls };
+    const views: CatalogContext[] = [
+      setup([shown]).context,
+      setup([list]).context,
+      setup([overviewBuffer()]).context,
+      page,
+      { ...setup([shown]).context, readOnly: true },
+      { ...setup([list]).context, readOnly: true },
+    ];
+    const offered = new Set<string>();
+    for (const context of views) {
+      const { items } = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS));
+      for (const choice of items) {
+        offered.add(choice.id);
+      }
+      for (const entry of hidden) {
+        expect(items.map((choice) => choice.id)).not.toContain(`command:${entry.name}`);
+        // Typing its title finds no entry of it; what the title finds is another entry.
+        const found = rank(items, (choice) => choice.name, entry.title).map(({ item: choice }) => choice);
+        expect(found.map((choice) => choice.name)).not.toContain(entry.title);
+      }
+    }
+    // Every other implemented command is offered by its title, or covered by an action (which the prompt
+    // offers where it applies: "Copy graph as Mermaid" in a graph).
+    for (const entry of CATALOG.filter((listing) => listing.implemented && shownIn(listing) === undefined)) {
+      const covered = ACTIONS.some(
+        (candidate) => candidate.title === entry.title || candidate.covers?.includes(entry.name) === true,
+      );
+      expect(covered || offered.has(`command:${entry.name}`), entry.name).toBe(true);
+    }
   });
 
   it("[SR-133/AK-w23t] shows the actions and the fitting commands above the others when nothing is typed", () => {
-    for (const buffers of [[shown], [list], [overviewBuffer()]]) {
+    expect(prompt([overviewBuffer()]).every((choice) => choice.fits === true)).toBe(true);
+    for (const buffers of [[shown], [list]]) {
       const items = prompt(buffers);
       const below = items.findIndex((choice) => choice.fits !== true);
       // The fitting ones come first, all of them: none is below the first that does not fit.
@@ -1523,10 +1630,95 @@ describe("the commands that fit the shown view", () => {
     expect(
       order(
         [shown],
-        ["Show relation options", "Show trace chain", "Show workspace status", "Check workspace"],
+        ["Show affected elements", "Show trace chain", "Show workspace status", "Check workspace"],
       ),
-    ).toEqual(["Show relation options", "Show trace chain", "Show workspace status", "Check workspace"]);
-    expect(order([list], ["Show trace chain", "Show facets"])).toEqual(["Show facets", "Show trace chain"]);
+    ).toEqual(["Show trace chain", "Show affected elements", "Show workspace status", "Check workspace"]);
+    expect(order([list], ["Show trace chain", "Show evidence coverage"])).toEqual([
+      "Show evidence coverage",
+      "Show trace chain",
+    ]);
+  });
+
+  /** The rows of the command prompt with an empty input as the window builds it, without use (SR-133 AK1). */
+  const opening = (context: CatalogContext, use?: PromptUse): string[] => {
+    const built = commandPrompt(context, use, catalogItems(context, CATALOG, ACTIONS), undefined, vi.fn());
+    return openingRows({ ...built, items: unusedOrder(built.items) }, "", []).map(({ item }) => item.name);
+  };
+
+  it("[SR-133/AK-w23t] opens with the first nine fitting commands: the letters after the prefix key, the own shortcuts, then by name; last All commands…", () => {
+    expect(opening(setup([shown]).context)).toEqual([
+      "Create relation",
+      "Set status",
+      "Confirm hints",
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "All commands…",
+    ]);
+    expect(opening(setup([list]).context)).toEqual([
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Filter list by type",
+      "Sort list",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "Show traceability matrix",
+      "All commands…",
+    ]);
+    // In a read-only workspace the write commands are not among them (SR-011 AK3).
+    expect(opening({ ...setup([shown]).context, readOnly: true }).slice(0, 4)).toEqual([
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Close buffer",
+    ]);
+    // In the overview every command fits; without use the letters come first there too.
+    expect(opening(setup([overviewBuffer()]).context).slice(0, 3)).toEqual([
+      "Create element",
+      "Create relation",
+      "Set status",
+    ]);
+  });
+
+  it("[SR-133/AK-w23t] puts the commands in use first, and orders as without use when the use cannot be read", () => {
+    const used: PromptUse = {
+      score: (id) => (id === "command:trace.chain" ? 2 : id === "sort" ? 1 : 0),
+      remembered: () => undefined,
+      record: vi.fn(),
+    };
+    // "Sort list" does not fit an element: in use or not, it is not among the nine there.
+    expect(opening(setup([shown]).context, used).slice(0, 3)).toEqual([
+      "Show trace chain",
+      "Create relation",
+      "Set status",
+    ]);
+    const unreadable = promptUse(() => {
+      throw new Error("no storage");
+    });
+    expect(opening(setup([shown]).context, unreadable)).toEqual(opening(setup([shown]).context));
+  });
+
+  it("[SR-133/AK-w23t] shows every command without All commands… where at most ten can run", () => {
+    const few = (count: number): Prompt => ({
+      label: "Command",
+      opening: { first: 9, last: { id: "all", name: "All commands…", run: vi.fn() } },
+      items: Array.from({ length: count }, (_, at) => ({
+        id: String(at),
+        name: `C${String(at)}`,
+        run: vi.fn(),
+      })),
+    });
+    // None of them fits: at most ten are shown all the same, more give the fitting ones and the last row.
+    expect(openingRows(few(10), "", [])).toHaveLength(10);
+    expect(openingRows(few(11), "", []).map(({ item }) => item.name)).toEqual(["All commands…"]);
+    // A typed text finds among all of them, never the last row.
+    expect(openingRows(few(11), "all", []).map(({ item }) => item.name)).toEqual([]);
+    expect(openingRows(few(11), "C1", []).map(({ item }) => item.name)).toEqual(["C1", "C10"]);
   });
 });
 
@@ -1972,7 +2164,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
       );
     }
     expect(readOnly).toContain("Initialise workspace");
-    expect(readOnly).toContain("Show relation options");
+    expect(readOnly).toContain("Show trace chain");
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
@@ -1992,15 +2184,19 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { written: true } });
   });
 
-  it("saves a filter by its name, with its condition typed as JSON", async () => {
+  it("saves a filter by its name, with its condition built from hits (#1645)", async () => {
     const { context, asked, call } = setup([list], {
       "filter.save": () => ({ files: ["filters/open.yaml"] }),
     });
     start(context, "filter.save");
     (await last(asked)).text?.("open");
-    (await last(asked)).text?.('{"status":["draft"]}');
+    (await last(asked)).literal?.('{"status":["draft"]}')?.run();
+    item((await last(asked)).items, "Take 1 condition").run();
     await flush();
-    expect(call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { status: ["draft"] } });
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ status: ["draft"] }] },
+    });
   });
 
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
@@ -2164,7 +2360,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     const unsaving = setup([shown], {
       "hint.confirm": () => ({ confirmed: [] }),
       "hint.list": () => HINTS,
-      "relation.options": () => OPTIONS,
+      "test.kinds": () => OPTIONS,
     });
     const plain = { ...unsaving.context, drafted: () => true };
     start(plain, "hint.confirm");
@@ -2173,11 +2369,11 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     await flush();
     expect(unsaving.call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
     const saveDraft = vi.fn(() => Promise.resolve(true));
-    start({ ...unsaving.context, drafted: () => true, saveDraft }, "relation.options");
+    start({ ...unsaving.context, drafted: () => true, saveDraft }, "test.kinds");
     (await last(unsaving.asked)).items[0]?.run();
     await flush();
     expect(saveDraft).not.toHaveBeenCalled();
-    expect(unsaving.call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
+    expect(unsaving.call).toHaveBeenLastCalledWith("test.kinds", { ref: "uuid-1" });
   });
 });
 
@@ -2305,7 +2501,7 @@ describe("the arguments a command expects, completed with the values of the meta
       "metamodel.get": () => FIXTURE_METAMODEL,
       "element.bulkUpdate": () => ({ total: 0, changes: [] }),
       "baseline.create": () => ({ files: [] }),
-      "element.facets": () => ({ total: 0 }),
+      "evidence.coverage": () => ({ total: 0 }),
     });
     start(all.context, "element.bulkUpdate");
     item((await last(all.asked)).items, "Severity").run();
@@ -2325,12 +2521,12 @@ describe("the arguments a command expects, completed with the values of the meta
     expect(all.call).toHaveBeenLastCalledWith("baseline.create", { name: "Release 1", selection: {} });
     // A command whose selection is optional reads every element without one.
     const facets = {
-      ...command("element.facets"),
+      ...command("evidence.coverage"),
       arguments: [{ field: "selection", complete: "selection" as const }],
     };
     catalogItems(all.context, [facets], [])[0]?.run();
     await flush();
-    expect(all.call).toHaveBeenLastCalledWith("element.facets", {});
+    expect(all.call).toHaveBeenLastCalledWith("evidence.coverage", {});
   });
 
   it("offers the properties of the element's type for a property of an element, and says why the metamodel cannot be read", async () => {
@@ -2879,8 +3075,10 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   /** The command prompt as the window builds it: the actions, the catalog commands, each with its explanation. */
   const entries = (context: CatalogContext): readonly Choice[] =>
-    withExplanations(commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)), CATALOG)
-      .items;
+    withExplanations(
+      commandPrompt(context, undefined, catalogItems(context, WITH_KINDS, ACTIONS)),
+      WITH_KINDS,
+    ).items;
   /** The description of `field` in the input schema of `name`, as the catalog has it. */
   const described = (name: string, field: string): unknown =>
     (command(name).input as { properties: Record<string, { description?: unknown }> }).properties[field]
@@ -2889,14 +3087,14 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   it("[SR-210/AK-gqgt] a marked catalog command has its catalog summary and the number of its optional arguments; the prompt keeps the line", () => {
     const { context } = setup([shown]);
     const prompt = withExplanations(
-      commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)),
-      CATALOG,
+      commandPrompt(context, undefined, catalogItems(context, WITH_KINDS, ACTIONS)),
+      WITH_KINDS,
     );
     // The line keeps its place whatever is marked, also an entry without an explanation.
     expect(prompt.explains).toBe(true);
     const items = prompt.items;
-    expect(item(items, "Show relation options").explain).toEqual({
-      summary: command("relation.options").summary,
+    expect(item(items, "Show kinds").explain).toEqual({
+      summary: KINDS.summary,
       optional: 1,
     });
     // A write command without a required argument asks its first one; the others are optional.
@@ -2910,8 +3108,8 @@ describe("the explanation line of the command prompt (SR-210)", () => {
       optional: 0,
     });
     // An argument given before the prompt asks (as the matrix gives one, SR-199) is not asked: not counted.
-    const given = { "relation.options": [{ field: "kind", value: "refines", label: "Refines" }] };
-    expect(item(entries({ ...context, given }), "Show relation options").explain?.optional).toBe(0);
+    const given = { "test.kinds": [{ field: "kind", value: "refines", label: "Refines" }] };
+    expect(item(entries({ ...context, given }), "Show kinds").explain?.optional).toBe(0);
   });
 
   it("[SR-210/AK-r2d2] an action of the app has its own description; one that runs one catalog command that command's summary; an element has none", () => {
@@ -2987,6 +3185,38 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(other.items[0]?.help).toBeUndefined();
   });
 
+  it("[SR-210/AK-r2d2] an action that runs a catalog command only to show its output as hits (SR-133 AK4) has its own description", () => {
+    // No action covers one of them, so none takes over a summary of theirs.
+    for (const action of ACTIONS) {
+      expect(
+        (action.covers ?? []).filter((name) => Object.hasOwn(SHOWN_IN, name)),
+        action.id,
+      ).toEqual([]);
+    }
+    const carrying = [
+      ["Open workspace", "workspace.recent"],
+      ["Follow agent", "workspace.activity"],
+      ["Filter list by saved filter", "filter.list"],
+      ["Open perspective", "perspective.list"],
+      ["Save list as perspective", "perspective.list"],
+    ] as const;
+    const actions = carrying.map(([title]) => ACTIONS.find((candidate) => candidate.title === title));
+    const feeding = withExplanations(
+      {
+        label: "Command",
+        items: actions.map((action) => ({ id: action?.id ?? "", name: action?.title ?? "", run: vi.fn() })),
+      },
+      CATALOG,
+    );
+    carrying.forEach(([title, shows], at) => {
+      const action = actions[at];
+      expect(action?.description, title).toMatch(/^[A-Z][^.]*\.$/);
+      expect(shownIn(command(shows))).toContain(`"${title}"`);
+      expect(feeding.items[at]?.explain).toEqual({ summary: action?.description });
+      expect(feeding.items[at]?.explain?.summary).not.toBe(command(shows).summary);
+    });
+  });
+
   it("[SR-210/AK-r2d2] the actions that set what a shown list or graph shows name the catalog commands of each display", () => {
     const runsOf = (id: string) => ACTIONS.find((action) => action.id === id)?.runs;
     expect(runsOf("filter-type")).toEqual([
@@ -3048,6 +3278,23 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(own).toBeGreaterThan(60);
   });
 
+  it("[SR-210/AK-cbzd] All commands… shows the sentence of its row in the keyboard reference", () => {
+    const rows = shortcutReference(CATALOG).flatMap((section) => section.rows);
+    const row = rows.find((candidate) => candidate.does.startsWith("On “All commands…”"));
+    const { context } = setup([shown]);
+    const prompt = commandPrompt(context, undefined, [], undefined, vi.fn());
+    const last =
+      prompt.opening === undefined || prompt.opening === "as-given" ? undefined : prompt.opening.last;
+    expect(last?.name).toBe("All commands…");
+    expect(row?.keys).toEqual(["Enter"]);
+    expect(row?.description).toBe("Show every command you can run here, by name.");
+    expect(last?.explain).toEqual({ summary: row?.description, enter: true });
+    // No command help, no key and no optional arguments of its own (SR-210 AK5).
+    expect(last?.help).toBeUndefined();
+    expect(last?.hint).toBeUndefined();
+    expect(last?.more).toBeUndefined();
+  });
+
   it("[SR-210/AK-wz9v] a catalog command has the command help: the catalog's texts and the call on the command line", () => {
     const { context } = setup([shown]);
     const items = entries({ ...context, docs: () => undefined });
@@ -3075,7 +3322,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     expect(help?.arguments?.find((arg) => arg.name === "versionDate")?.description).toBe(
       described("element.get", "versionDate"),
     );
-    expect(item(items, "Show relation options").help?.arguments).toContainEqual(
+    expect(item(items, "Show kinds").help?.arguments).toContainEqual(
       expect.objectContaining({ name: "kind", required: false }),
     );
     // A command with details on its reference page shows them.
@@ -3089,7 +3336,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
 
   it("[SR-210/AK-t8sc] an asked argument has its name, its catalog description and the keys of its step", async () => {
     const { context, asked } = setup([shown], { "relation.options": () => OPTIONS });
-    start(context, "relation.options");
+    start(context, "test.kinds");
     // A required argument, while the command has an optional one.
     const ref = await last(asked);
     expect(ref.explain).toEqual({
@@ -3131,5 +3378,425 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     start(confirm.context, "hint.confirm");
     (await last(confirm.asked)).items[0]?.run();
     expect((await last(confirm.asked)).explain).toMatchObject({ name: "hintIds", ends: false, skips: true });
+  });
+});
+
+describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, AK9, AK10, #1645)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const FACETS = {
+    total: 3,
+    types: [],
+    statuses: [{ key: "draft", count: 2 }],
+    properties: [
+      {
+        key: "component",
+        name: "Component",
+        kind: "choice",
+        count: 2,
+        missing: 1,
+        distinct: 1,
+        values: [{ value: "display", name: "Display", count: 2 }],
+      },
+      { key: "rationale", name: "Rationale", kind: "text", count: 3, missing: 0, distinct: 3 },
+    ],
+  };
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => FACETS,
+    "filter.save": () => ({ files: ["filters/open.yaml"] }),
+  };
+
+  /** "Save filter" asked up to its condition: the name given. */
+  const atWhere = async (
+    more = false,
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+  ) => {
+    const run = setup([shown], { ...answers, ...extra });
+    start(run.context, "filter.save", more);
+    (await last(run.asked)).text?.("open");
+    return run;
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map(
+      (choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`,
+    );
+
+  const marks = async (asked: readonly Prompt[]): Promise<(string | undefined)[]> =>
+    ((await last(asked)).marks ?? []).map((mark) => mark.label);
+
+  /** Chooses `kind`, then the value `value`, in the steps of the condition. */
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
+    }
+    await flush();
+  };
+
+  const KINDS = [
+    "Type | type",
+    "Status | status",
+    "Property | property",
+    "Verification status | verification",
+    "Validation status | validation",
+    "Validity | validFor",
+    "Relation | relation",
+    "Text search | text",
+  ];
+
+  it("[SR-215/AK-dt5s] offers the kinds, then their values; each chosen condition is a mark with the label of its list filter step, and the hits keep their place", async () => {
+    const { asked, call } = await atWhere();
+    const first = await last(asked);
+    expect(first.label).toBe("Save filter open · where:");
+    expect(await names(asked)).toEqual(["No condition: all elements", ...KINDS]);
+    // Types by their name in the metamodel, the key beside; the mark is the list's "type: <key>".
+    await choose(asked, "Type");
+    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+    expect(await names(asked)).toContain("System Requirement | requirement");
+    await choose(asked, "System Requirement");
+    expect(await marks(asked)).toEqual(["type: requirement"]);
+    // The hits keep their place: only the finishing hit says what it takes.
+    expect(await names(asked)).toEqual(["Take 1 condition", ...KINDS]);
+    // Statuses of the elements the marks select, by their name in the metamodel.
+    await choose(asked, "Status");
+    expect(call).toHaveBeenCalledWith("element.facets", {
+      selection: { where: { all: [{ type: ["requirement"] }] } },
+    });
+    expect(await names(asked)).toEqual(["Draft | draft"]);
+    await choose(asked, "Draft");
+    // Properties whose values can be chosen (SR-124 AK2, AK3: free text is left out), then their values.
+    await choose(asked, "Property");
+    expect(await names(asked)).toEqual(["Component | component"]);
+    await choose(asked, "Component");
+    expect(await names(asked)).toEqual(["Display | display", "(no value)"]);
+    await choose(asked, "(no value)");
+    expect(await marks(asked)).toEqual(["type: requirement", "status: draft", "component: (no value)"]);
+    // Verification and validation statuses from the condition's schema in the catalog.
+    await choose(asked, "Verification status");
+    expect(await names(asked)).toEqual(["open", "verified", "indirect", "failed", "outdated"]);
+    await choose(asked, "failed");
+    await choose(asked, "Validation status");
+    expect(await names(asked)).toContain("open");
+    await choose(asked, "open");
+    // Validity: the views, the core first.
+    await choose(asked, "Validity", "Core");
+    // Relations: the ends of a derivation and evidence, then each relation kind and relation property.
+    await choose(asked, "Relation");
+    expect((await names(asked)).slice(0, 7)).toEqual([
+      "without child",
+      "with child",
+      "without parent",
+      "with parent",
+      "without evidence",
+      "with evidence",
+      "without Derives from | derives-from",
+    ]);
+    expect(await names(asked)).toContain("with Package | packages");
+    await choose(asked, "without child");
+    // A text search takes the typed words; an empty input asks again.
+    await choose(asked, "Text search");
+    (await last(asked)).text?.("  ");
+    expect((await last(asked)).label).toBe("Save filter open · where · Text search:");
+    (await last(asked)).text?.("brake");
+    expect(await marks(asked)).toEqual([
+      "type: requirement",
+      "status: draft",
+      "component: (no value)",
+      "verification: failed",
+      "validation: open",
+      "validity: Core",
+      "relation: without child",
+      "text: brake",
+    ]);
+    expect(await names(asked)).toEqual(["Take 8 conditions", ...KINDS]);
+    item((await last(asked)).items, "Take 8 conditions").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: {
+        all: [
+          { type: ["requirement"] },
+          { status: ["draft"] },
+          { property: "component", op: "missing" },
+          { verification: ["failed"] },
+          { validation: ["open"] },
+          { validFor: "core" },
+          { relation: { meaning: "derivation", direction: "down" }, exists: false },
+          { text: "brake" },
+        ],
+      },
+    });
+  });
+
+  it("[SR-215/AK-fm4s] the finishing hit is marked first: without a mark it takes no condition, with marks all of them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+    const none = await atWhere();
+    expect((await last(none.asked)).items[0]?.name).toBe("No condition: all elements");
+    (await last(none.asked)).items[0]?.run();
+    await flush();
+    expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
+
+    const some = await atWhere();
+    await choose(some.asked, "Type", "Decision");
+    await choose(some.asked, "Type", "Package");
+    expect((await last(some.asked)).items[0]?.name).toBe("Take 2 conditions");
+    // Ctrl/Cmd+Enter on any hit of this step takes the marks and offers the optional arguments.
+    item((await last(some.asked)).items, "Status").more?.();
+    const more = await last(some.asked);
+    expect(more.label).toBe("Save filter open type: decision · type: package · more arguments:");
+    item(more.items, "Run").run();
+    await flush();
+    expect(some.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ type: ["decision"] }, { type: ["package"] }] },
+    });
+  });
+
+  it("[SR-215/AK-z4bq] text that starts with { is one condition in JSON as a mark; a refused condition is asked again with core's message and the marks back", async () => {
+    const refusal = refusedWith("where.all[1]: must be an object", { errors: [{ field: "where.all[1]" }] });
+    const { asked, call } = await atWhere(false, { "filter.save": () => refusal });
+    await choose(asked, "Type", "Decision");
+    const prompt = await last(asked);
+    // No hit for other text: Enter does nothing.
+    expect(prompt.literal?.("type")).toBeUndefined();
+    expect(prompt.text).toBeUndefined();
+    const json = prompt.literal?.(' {"any":[{"status":["draft"]},{"not":{"type":["need"]}}]}');
+    expect(json?.name).toBe("Add the condition in JSON");
+    json?.run();
+    expect(await marks(asked)).toEqual([
+      "type: decision",
+      '{"any":[{"status":["draft"]},{"not":{"type":["need"]}}]}',
+    ]);
+    // Text that is no JSON goes in as it is: core says what is wrong with it.
+    (await last(asked)).literal?.("{a")?.run();
+    expect(await marks(asked)).toContain("{a");
+    item((await last(asked)).items, "Take 3 conditions").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: {
+        all: [{ type: ["decision"] }, { any: [{ status: ["draft"] }, { not: { type: ["need"] } }] }, "{a"],
+      },
+    });
+    const again = await last(asked);
+    expect(again.label).toBe("where.all[1]: must be an object · Save filter open · where:");
+    expect(await marks(asked)).toHaveLength(3);
+    // The message is said once: the next step has the plain label.
+    await choose(asked, "Type");
+    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+  });
+
+  it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the kind is chosen; Escape keeps the marks, which stand again when the prompt returns to the argument", async () => {
+    const { asked } = await atWhere(true);
+    await choose(asked, "Type", "Decision");
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Type", "Package");
+    const kinds = await last(asked);
+    expect(kinds.unmark).toBe(true);
+    // The × of the middle mark.
+    kinds.marks?.[1]?.remove();
+    expect(await marks(asked)).toEqual(["type: decision", "type: package"]);
+    // In a step of the values Backspace goes back to the kinds (`back`) and removes no mark; its × does.
+    await choose(asked, "Status");
+    const values = await last(asked);
+    expect(values.unmark).toBeUndefined();
+    values.back?.();
+    expect((await last(asked)).label).toBe("Save filter open · where:");
+    await choose(asked, "Property", "Component");
+    (await last(asked)).marks?.[0]?.remove();
+    // A property's values go back to the properties, read anew for the marks left.
+    expect((await last(asked)).label).toBe("Save filter open · where · Property:");
+    expect(await marks(asked)).toEqual(["type: package"]);
+    (await last(asked)).back?.();
+    // Ctrl/Cmd+Enter takes the marks; Escape (back) from the optional arguments returns to the condition, marks and all.
+    (await last(asked)).items[0]?.more?.();
+    expect((await last(asked)).label).toBe("Save filter open type: package · more arguments:");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter open · where:");
+    expect(await marks(asked)).toEqual(["type: package"]);
+    // Without a mark, back goes to the argument before.
+    (await last(asked)).marks?.[0]?.remove();
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+  });
+
+  it("[SR-215/AK-rx2z] Escape at the kinds keeps the marks: they stand again when the prompt returns to the condition, also after a refusal", async () => {
+    const { asked } = await atWhere();
+    await choose(asked, "Type", "Decision");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+    (await last(asked)).text?.("open");
+    expect(await marks(asked)).toEqual(["type: decision"]);
+
+    const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
+    const refused = await atWhere(false, { "filter.save": () => refusal });
+    (await last(refused.asked)).literal?.("{a")?.run();
+    await choose(refused.asked, "Take 1 condition");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+    (await last(refused.asked)).back?.();
+    (await last(refused.asked)).text?.("open");
+    expect((await last(refused.asked)).label).toBe("Save filter open · where:");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+  });
+
+  it("[SR-215/AK-hnzf] the input is the marks in their order under all, as the command line takes it", async () => {
+    const { asked, call } = await atWhere();
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Property", "Component", "Display");
+    await choose(asked, "Take 2 conditions");
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ status: ["draft"] }, { property: "component", op: "eq", value: "display" }] },
+    });
+  });
+
+  it("[SR-210/AK-t8sc] each step of a condition names the argument and the keys of the step: Enter, Backspace for the last mark where it removes one, and { for JSON", async () => {
+    const { asked } = await atWhere();
+    const first = (await last(asked)).explain;
+    expect(first).toMatchObject({
+      name: "where",
+      description: (command("filter.save").input as { properties: Record<string, { description?: unknown }> })
+        .properties["where"]?.description,
+      building: { enter: "takes the marked hit; all conditions must hold", unmark: false, json: true },
+    });
+    await choose(asked, "Type");
+    expect((await last(asked)).explain).toMatchObject({
+      name: "where",
+      more: false,
+      building: { enter: "adds the condition", unmark: false, json: false },
+    });
+    await choose(asked, "Decision");
+    expect((await last(asked)).explain?.building?.unmark).toBe(true);
+    await choose(asked, "Text search");
+    expect((await last(asked)).explain?.building?.enter).toBe("adds the text search");
+  });
+
+  it("[SR-215/AK-w8q6] without a mark the conditions of the shown list are the first hit: Enter takes each filter step as a mark with its label", async () => {
+    const list = filteredList([typeStep("need"), statusStep("draft")]);
+    const run = setup([list], answers);
+    start(run.context, "filter.save");
+    (await last(run.asked)).text?.("open");
+    expect(await names(run.asked)).toEqual([
+      "Conditions of the shown list | type: need · status: draft",
+      "No condition: all elements",
+      ...KINDS,
+    ]);
+    await choose(run.asked, "Conditions of the shown list");
+    expect(await marks(run.asked)).toEqual(["type: need", "status: draft"]);
+    // With marks the hit is gone and the finishing hit is first: Enter, Enter.
+    expect(await names(run.asked)).toEqual(["Take 2 conditions", ...KINDS]);
+    await choose(run.asked, "Take 2 conditions");
+    expect(run.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
+    });
+    // Taken once, it is not offered again when × removes every mark.
+    const again = setup([list], answers);
+    start(again.context, "filter.save");
+    (await last(again.asked)).text?.("open");
+    await choose(again.asked, "Conditions of the shown list");
+    (await last(again.asked)).marks?.[1]?.remove();
+    (await last(again.asked)).marks?.[0]?.remove();
+    expect((await last(again.asked)).items[0]?.name).toBe("No condition: all elements");
+    // Ctrl/Cmd+Enter on it takes them and offers the optional arguments.
+    const more = setup([list], answers);
+    start(more.context, "filter.save");
+    (await last(more.asked)).text?.("open");
+    item((await last(more.asked)).items, "Conditions of the shown list").more?.();
+    expect((await last(more.asked)).label).toBe(
+      "Save filter open type: need · status: draft · more arguments:",
+    );
+  });
+
+  it("[SR-215/AK-w8q6] Save filter has no such hit for a list with a saved filter and says why; the matrix, a search and a list without steps have none", async () => {
+    const saved = setup([filteredList([savedStep("Sensors"), typeStep("need")])], answers);
+    start(saved.context, "filter.save");
+    (await last(saved.asked)).text?.("open");
+    const prompt = await last(saved.asked);
+    expect(prompt.items[0]?.name).toBe("No condition: all elements");
+    expect(prompt.explain?.building?.note).toBe(NO_SHOWN_FILTER);
+    // With a mark the note is gone.
+    await choose(saved.asked, "Type", "Decision");
+    expect((await last(saved.asked)).explain?.building?.note).toBeUndefined();
+    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
+    for (const shown of [filteredList([typeStep("need")], undefined, true), filteredList([]), search]) {
+      const run = setup([shown], answers);
+      start(run.context, "filter.save");
+      (await last(run.asked)).text?.("open");
+      expect((await last(run.asked)).items[0]?.name).toBe("No condition: all elements");
+      expect((await last(run.asked)).explain?.building?.note).toBeUndefined();
+    }
+  });
+
+  it("[SR-215/AK-w8q6] Save perspective takes a perspective's selection as the marks of its conditions and its saved filter as filter: the selection Save list as perspective saves", async () => {
+    const origin = {
+      name: "Drafts",
+      saved: { where: { all: [{ type: ["need"] }, { not: { status: ["draft"] } }] }, filter: "Sensors" },
+    };
+    const perspective = perspectiveBuffer(origin);
+    const list = withQuery(perspective, { steps: [...perspective.steps, textStep("x")] });
+    const run = setup([list], {
+      ...answers,
+      "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+    });
+    start(run.context, "perspective.save");
+    (await last(run.asked)).text?.("Rain");
+    expect(await names(run.asked)).toContain("Conditions of the shown list | perspective: Drafts · text: x");
+    await choose(run.asked, "Conditions of the shown list");
+    // A stored condition with a list filter step has its label; or and not are JSON.
+    expect(await marks(run.asked)).toEqual(["type: need", '{"not":{"status":["draft"]}}', "text: x"]);
+    // The saved filter is given to `filter`, before the condition, and the line says so.
+    expect((await last(run.asked)).label).toBe("Save perspective Rain filter: Sensors · where:");
+    await choose(run.asked, "Take 3 conditions");
+    const { where, filter } = perspectiveInput(list, "Rain");
+    expect(run.call).toHaveBeenLastCalledWith("perspective.save", { name: "Rain", where, filter });
+  });
+
+  it("[SR-215/AK-w8q6] Enter on the hit moves on when the list gives no condition: a saved filter alone goes to filter", async () => {
+    const save = { ...answers, "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }) };
+    // A list filtered only by a saved filter, and a perspective that stores only a filter.
+    for (const shown of [
+      filteredList([savedStep("Sensors")]),
+      perspectiveBuffer({ name: "Only", saved: { where: { all: [] }, filter: "Sensors" } }),
+    ]) {
+      const run = setup([shown], save);
+      start(run.context, "perspective.save");
+      (await last(run.asked)).text?.("Rain");
+      await choose(run.asked, "Conditions of the shown list");
+      expect(await marks(run.asked)).toEqual([]);
+      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
+      await choose(run.asked, "No condition: all elements");
+      expect(run.call).toHaveBeenLastCalledWith("perspective.save", {
+        name: "Rain",
+        filter: "Sensors",
+        where: { all: [] },
+      });
+    }
+    // A perspective without a condition or a filter gives no hit, to either command.
+    const empty = perspectiveBuffer({ name: "All", saved: { where: { all: [] } } });
+    for (const name of ["perspective.save", "filter.save"]) {
+      const run = setup([empty], save);
+      start(run.context, name);
+      (await last(run.asked)).text?.("Rain");
+      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
+    }
+  });
+
+  it("says why the values of a kind cannot be read", async () => {
+    const failing = new Error("The metamodel is faulty");
+    const { asked } = await atWhere(false, {
+      "metamodel.get": () => failing,
+      "element.facets": () => failing,
+    });
+    for (const kind of ["Type", "Status", "Property", "Validity", "Relation"]) {
+      await choose(asked, kind);
+      expect((await last(asked)).label).toBe(`The metamodel is faulty · Save filter open · where · ${kind}:`);
+      (await last(asked)).back?.();
+    }
+    // Statuses need the names of the metamodel too.
+    const named = await atWhere(false, { "metamodel.get": () => failing });
+    await choose(named.asked, "Status");
+    expect((await last(named.asked)).label).toBe(
+      "The metamodel is faulty · Save filter open · where · Status:",
+    );
   });
 });

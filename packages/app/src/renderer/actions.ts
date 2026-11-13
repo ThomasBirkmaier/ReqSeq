@@ -17,6 +17,7 @@ import type {
   GraphBuffer,
   MetamodelBuffer,
   ResultBuffer,
+  SearchField,
 } from "./buffers.js";
 import {
   bufferName,
@@ -27,18 +28,21 @@ import {
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
+  fieldsInput,
   searchBuffer,
   showBuffer,
 } from "./buffers.js";
+import { SEARCH_COMMAND, searchFieldsPrompt, summaryOf } from "./search-fields.js";
 import type { Call } from "./call.js";
-import { bindingLabel } from "./bindings.js";
+import { PREFIX_BINDINGS, bindingLabel } from "./bindings.js";
+import { ALL_COMMANDS, ALL_COMMANDS_DESCRIPTION } from "./prompt-keys.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import { OPEN_WORKSPACE_ACTION } from "../shared/open-hint.js";
-import type { SwipeDirection } from "../shared/protocol.js";
+import type { CommandListing, SwipeDirection } from "../shared/protocol.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
   DEPTH_KEYS,
@@ -96,7 +100,7 @@ export interface Choice {
   readonly inert?: boolean;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
-  /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
+  /** It fits the shown view (SR-133): only such entries are among the first nine of an empty input, and they come first among equal matches. */
   readonly fits?: boolean;
   /**
    * The explanation line while it is marked: the catalog command it runs, or the action's description (SR-210 AK1,
@@ -105,6 +109,11 @@ export interface Choice {
   readonly explain?: CommandExplanation;
   /** The command help of the catalog command it runs, or the action's description, shown on Ctrl+H (SR-210 AK3). */
   readonly help?: CommandHelp;
+  /**
+   * It opens another list of the same prompt ("All commands…", SR-133 AK3): only Enter or a click takes it, so
+   * Ctrl/Cmd+Enter does nothing, and F1 opens the start page of the documentation (SR-210 AK5).
+   */
+  readonly opens?: true;
 }
 
 /**
@@ -147,6 +156,8 @@ export interface CommandExplanation {
    * the command asks none of them (SR-210 AK5).
    */
   readonly optional?: number;
+  /** At the right the key Enter alone, which takes the entry: the row "All commands…" (SR-210 AK5). */
+  readonly enter?: true;
 }
 
 /** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */
@@ -165,9 +176,25 @@ export interface ArgumentExplanation {
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
    * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
-   * place of the keys of `list`, `ends` and `skips`.
+   * place of the keys of `list`, `ends` and `skips`. `note` says, before the keys, why a hit is missing
+   * (SR-215 AK5: "Save filter" on a list with a saved filter).
    */
-  readonly building?: { readonly enter: string; readonly unmark: boolean; readonly json: boolean };
+  readonly building?: {
+    readonly enter: string;
+    readonly unmark: boolean;
+    readonly json: boolean;
+    readonly note?: string;
+  };
+}
+
+/**
+ * The explanation line of the search words (SR-216 AK9): the summary of the catalog command the search runs, and in
+ * the second line what Enter and Ctrl/Cmd+Enter do; a click on Ctrl/Cmd+Enter there does what the key does (AK6).
+ */
+export interface StepExplanation {
+  readonly summary?: string;
+  readonly enter: string;
+  readonly more: string;
 }
 
 /** A part of a value built from hits, shown as a mark in the input with an × that removes it (SR-215 AK3, AK9). */
@@ -219,6 +246,8 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /** The explanation line of a step of an action of its own, the search words (SR-216 AK9). */
+  readonly explainStep?: StepExplanation;
   /** The marks in the input before the typed text (SR-215 AK3). */
   readonly marks?: readonly PromptMark[];
   /** Backspace in an empty input removes the last mark, while there is one, before it goes back (SR-215 AK9). */
@@ -233,12 +262,22 @@ export interface Prompt {
    * Escape ends the prompt (the first step, AK2).
    */
   readonly previous?: () => void;
-  /** Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments. */
+  /**
+   * Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments; in a prompt whose hits
+   * only preview, also with a chosen one (the fields of a search, SR-216 AK6).
+   */
   readonly more?: (text: string) => void;
   /** Enter on an empty input: end a list argument; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly empty?: (more: boolean) => void;
   /** What was chosen before, to order equal matches and to put the command chosen for this text first (the command prompt). */
   readonly use?: PromptUse;
+  /**
+   * What an empty input shows of the items (the command prompt, SR-133 AK1, AK3). `first`: the first that many
+   * items that fit, in the order of `rankByUse`, then `last`; a prompt with at most one item more than `first`
+   * shows them all without `last`. `"as-given"`: every item in the order given (alphabetically by name). A typed
+   * text finds among all items as without it, never `last`.
+   */
+  readonly opening?: { readonly first: number; readonly last: Choice } | "as-given";
   /**
    * The parts that come later (a catalog argument's values): the prompt is open and takes keys while they
    * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them.
@@ -458,6 +497,8 @@ export interface ActionContext {
    * metamodel; without them only "Everything" is offered.
    */
   readonly graphChoices?: readonly GraphFilterChoice[];
+  /** The command catalog as read last: the texts of the explanation lines of the search (SR-216 AK9). */
+  readonly catalog?: () => readonly CommandListing[];
   /** The mode „Agent folgen“ (SR-117); absent where the window offers no such mode. */
   readonly follow?: FollowControls;
   /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
@@ -866,37 +907,77 @@ export const nameMarks = (row: Row, query: string): Range[] => {
 /**
  * The prompt of Ctrl/Cmd+Shift+F (SR-183): while typing it shows the first hits of the search buffer for
  * the text, in its order, as many as fit the card, each with its title and snippet; none is chosen.
- * Enter on a chosen hit opens it, Enter without one opens the search buffer.
+ * Enter on a chosen hit opens it, Enter without one opens the search buffer. The `fields` chosen (SR-216) stand as
+ * marks before the text, and the hits and the search buffer come only from them (AK8); Ctrl/Cmd+Enter, or a click
+ * on it in the explanation line, chooses them (AK6, `search-fields.ts`), and the text `words` stays.
  */
-const searchPrompt = (context: ActionContext): Prompt => ({
-  label: "Search",
-  items: [],
-  preview: true,
-  find: async (text) => {
-    // The query of the search buffer, so the hits are its first ones (AK2).
-    const answer = await context.call("element.search", { query: text.trim(), limit: CARD_LINES });
-    if (!answer.ok) {
-      context.echo(answer.message);
-      return [];
-    }
-    return fittingRows(searchRows(answer.output)).map((row) => ({
-      id: row.open.key,
-      name: rowName(row),
-      marks: nameMarks(row, text),
-      ...(row.status === undefined ? {} : { hint: row.status }),
-      ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
-      run: () => {
-        context.dispatch({ type: "open", buffer: row.open });
+export const searchPrompt = (
+  context: ActionContext,
+  fields: readonly SearchField[] = [],
+  words = "",
+): Prompt => {
+  // The text typed so far, kept when a mark is removed or the fields are chosen.
+  let typed = words;
+  const again = (next: readonly SearchField[], text: string): void => {
+    context.ask(searchPrompt(context, next, text));
+  };
+  return {
+    label: "Search",
+    items: [],
+    preview: true,
+    ...(words === "" ? {} : { initial: words }),
+    typing: (text) => {
+      typed = text;
+    },
+    marks: fields.map((field) => ({
+      label: field.name,
+      remove: () => {
+        again(
+          fields.filter((other) => other !== field),
+          typed,
+        );
       },
-    }));
-  },
-  text: (text) => {
-    const query = text.trim();
-    if (query !== "") {
-      context.dispatch({ type: "open", buffer: searchBuffer(query) });
-    }
-  },
-});
+    })),
+    // Backspace on an empty input removes the last field (SR-134 AK4, SR-216 AK7).
+    unmark: true,
+    explainStep: {
+      ...summaryOf(context, SEARCH_COMMAND),
+      enter: "opens the list of search hits",
+      more: "chooses fields",
+    },
+    more: (text) => {
+      context.ask(searchFieldsPrompt(context, fields, text, again));
+    },
+    find: async (text) => {
+      // The query and fields of the search buffer, so the hits are its first ones (SR-183 AK2, SR-216 AK8).
+      const answer = await context.call(SEARCH_COMMAND, {
+        query: text.trim(),
+        ...fieldsInput(fields),
+        limit: CARD_LINES,
+      });
+      if (!answer.ok) {
+        context.echo(answer.message);
+        return [];
+      }
+      return fittingRows(searchRows(answer.output)).map((row) => ({
+        id: row.open.key,
+        name: rowName(row),
+        marks: nameMarks(row, text),
+        ...(row.status === undefined ? {} : { hint: row.status }),
+        ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
+        run: () => {
+          context.dispatch({ type: "open", buffer: row.open });
+        },
+      }));
+    },
+    text: (text) => {
+      const query = text.trim();
+      if (query !== "") {
+        context.dispatch({ type: "open", buffer: searchBuffer(query, [], undefined, fields) });
+      }
+    },
+  };
+};
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
@@ -1064,6 +1145,7 @@ export const ACTIONS: readonly Action[] = [
     inPrompt: true,
     available: hasWorkspace,
     run: (context: ActionContext): void => {
+      // A new search starts without fields (SR-216 AK10).
       context.ask(searchPrompt(context));
     },
   },
@@ -1640,19 +1722,67 @@ const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
   return hint === undefined ? {} : { hint };
 };
 
+/** How many fitting commands the command prompt shows with an empty input, before "All commands…" (SR-133 AK1). */
+export const OPENING_COMMANDS = 9;
+
+/**
+ * The order of the entries without use (SR-133 AK1): first those with a letter after the prefix key, in the order of
+ * the next keys (`PREFIX_BINDINGS`, SR-109 AK3); then the actions with a shortcut of their own, in the order of
+ * `ACTIONS` (the order among them is not set by the requirement); then the others by name. `rankByUse` keeps this
+ * order among entries in equal use.
+ */
+export const unusedOrder = (items: readonly Choice[], actions: readonly Action[] = ACTIONS): Choice[] => {
+  const place = (item: Choice): readonly [number, number] => {
+    const letter = PREFIX_BINDINGS.findIndex((binding) => binding.id === item.id);
+    if (letter !== -1) {
+      return [0, letter];
+    }
+    const keyed = actions.findIndex((action) => action.id === item.id && action.shortcut !== undefined);
+    return keyed === -1 ? [2, 0] : [1, keyed];
+  };
+  return items
+    .map((item) => ({ item, place: place(item) }))
+    .sort(
+      (a, b) =>
+        a.place[0] - b.place[0] || a.place[1] - b.place[1] || (a.place[0] === 2 ? byName(a.item, b.item) : 0),
+    )
+    .map(({ item }) => item);
+};
+
+/** Two entries alphabetically by their name, ignoring case. */
+const byName = (a: Choice, b: Choice): number =>
+  a.name.localeCompare(b.name, "en", { sensitivity: "base" }) || a.name.localeCompare(b.name, "en");
+
+/**
+ * The last row of the command prompt with an empty input (SR-133 AK3): `open` shows every command. It records no
+ * use, has no key and no command help; its explanation line names Enter, which takes it (SR-210 AK5).
+ */
+const allCommandsRow = (open: () => void): Choice => ({
+  id: "all-commands",
+  name: ALL_COMMANDS,
+  opens: true,
+  explain: { summary: ALL_COMMANDS_DESCRIPTION, enter: true },
+  run: open,
+});
+
 /**
  * The command prompt: the actions that apply now, with their shortcuts, then `commands` (the catalog's,
- * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2). An action is shown only where it
- * applies, so each one fits the view (SR-133 AK1).
+ * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2); the window puts them in `unusedOrder` first.
+ * An action is shown only where it applies, so each one fits the view (SR-133 AK1). With `everything`, an
+ * empty input shows the first nine that fit and "All commands…", which calls it (SR-133 AK1, AK3).
  */
 export const commandPrompt = (
   context: ActionContext,
   use?: PromptUse,
   commands: readonly Choice[] = [],
   reopen?: () => void,
+  everything?: () => void,
 ): Prompt => ({
   label: "Command",
   ...(use === undefined ? {} : { use }),
+  ...(everything === undefined
+    ? {}
+    : { opening: { first: OPENING_COMMANDS, last: allCommandsRow(everything) } }),
   items: [
     ...ACTIONS.filter((action) => action.available(context)).map((action) => ({
       id: action.id,
@@ -1665,6 +1795,18 @@ export const commandPrompt = (
     })),
     ...commands,
   ],
+});
+
+/**
+ * The list of every command of the command prompt `prompt` (SR-133 AK3): an empty input shows all its entries
+ * alphabetically by name, the first one marked, under the label "All commands"; a typed text finds as in the
+ * command prompt (AK2).
+ */
+export const allCommandsPrompt = (prompt: Prompt): Prompt => ({
+  ...prompt,
+  label: "All commands",
+  opening: "as-given",
+  items: [...prompt.items].sort(byName),
 });
 
 /**

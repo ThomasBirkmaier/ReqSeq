@@ -133,6 +133,14 @@ const answered = async (window: Page, title: string, label: string, value: strin
   await window.keyboard.press("Enter");
 };
 
+/** Answers the prompt "Order" that a sort key with a direction asks after "Sort by". */
+const answerOrder = async (window: Page, order: string): Promise<void> => {
+  await expect(window.locator("label.prompt-label")).toHaveText("Order");
+  await window.keyboard.type(order);
+  await expect(candidates(window).first()).toHaveText(order);
+  await window.keyboard.press("Enter");
+};
+
 /** "Filter list by text search" with `text`. */
 const textFilter = async (window: Page, text: string): Promise<void> => {
   await command(window, "Filter list by text search");
@@ -305,7 +313,8 @@ test.describe("perspectives in the app", () => {
     await open(window, "By title");
     const saved = await shownIds(window);
     await command(window, "Ungroup list");
-    await command(window, "Sort list", "ID ascending");
+    await command(window, "Sort list", "ID");
+    await answerOrder(window, "ascending");
     await expect(shownBuffer(window)).not.toHaveAttribute("aria-label", /grouped by/);
     await command(window, "Show traceability matrix");
     await expect(window.locator(".matrix")).toBeVisible();
@@ -447,7 +456,7 @@ test.describe("perspectives in the app", () => {
     // The text step is a text condition, the saved filter is named, the grouping is saved, and no sort:
     // the order shown is the filter's.
     expect(await cliPerspective(running, "Measured")).toMatchObject({
-      where: { text: "Measure" },
+      where: { all: [{ text: "Measure" }] },
       filter: "Requirements",
       group: "status",
     });
@@ -508,6 +517,28 @@ test.describe("perspectives in the app", () => {
     expect(await offersSave(window)).toBe(false);
   });
 
+  test("[SR-213/AK-mfbk] saved again under its name with only a new grouping, a perspective keeps its bare where and the comments on it", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const file = path.join(running.workspace?.root ?? "", "perspectives", "commented.yaml");
+    await fs.writeFile(
+      file,
+      perspective([
+        "name: commented",
+        "# Only the system requirements.",
+        "where: { type: [system-requirement] } # bare, not under all",
+      ]),
+    );
+    await open(window, "commented");
+    await answered(window, "Group list", "Group by", "Status");
+    await saveAs(window, "commented");
+    const saved = await fs.readFile(file, "utf8");
+    expect(saved).toContain(
+      "# Only the system requirements.\nwhere: { type: [system-requirement] } # bare, not under all\n",
+    );
+    expect(saved).toContain("group: status");
+  });
+
   test("[SR-214/AK-fgs9] the modeline says modified after the name when a step, the sort or the grouping changes, until saved under this name or opened again; Clear all list filters keeps the perspective's selection", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
@@ -534,7 +565,8 @@ test.describe("perspectives in the app", () => {
     await expect(shownBuffer(window).locator("h1")).toHaveText(/^By title /);
     await expect(modeline(window)).not.toContainText(["modified"]);
     // Another sort: modified; opened again: no more.
-    await answered(window, "Sort list", "Sort by", "ID ascending");
+    await answered(window, "Sort list", "Sort by", "ID");
+    await answerOrder(window, "ascending");
     await expect(modeline(window).nth(1)).toHaveText("modified");
     await open(window, "By title");
     await expect(modeline(window).first()).toHaveText(NAME);

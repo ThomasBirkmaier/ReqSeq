@@ -219,9 +219,13 @@ describe("cascading list filters (SR-124)", () => {
 
   it("sorting keeps the steps", async () => {
     const steps = [typeStep("need"), statusStep("draft")];
-    const { run, shown } = start(filteredList(steps));
+    const { run, shown, asked } = start(filteredList(steps));
     const prompt = await run("sort");
-    prompt.items[4]?.run();
+    prompt.items.find((item) => item.name === "Title")?.run();
+    asked
+      .at(-1)
+      ?.items.find((item) => item.name === "ascending")
+      ?.run();
     expect(shown()).toEqual(filteredList(steps, [{ by: "title", order: "asc" }]));
   });
 });
@@ -250,6 +254,24 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
     expect(
       listHeading(searchBuffer("wind", [{ ...typeStep("need"), heading: "Need" }, statusStep("draft")])),
     ).toBe("Search: wind · Need · status: draft");
+  });
+
+  it("[SR-124/AK-mtm9] [SR-216/AK-yq3n] on a search in chosen fields the facets are those of its hits: the steps with the search in its fields", async () => {
+    const fields = [{ key: "acceptance-criteria", name: "Acceptance Criteria" }];
+    const { context, choose, call } = start(searchBuffer("gust", [], undefined, fields), {
+      "element.facets": FACETS,
+    });
+    await choose("filter-status", "draft");
+    // Not a text condition, which searches every field and would count elements the list does not show.
+    expect(call).toHaveBeenLastCalledWith("element.facets", {
+      search: { query: "gust", fields: ["acceptance-criteria"] },
+    });
+    expect(shownSearch(context)).toEqual(searchBuffer("gust", [statusStep("draft")], undefined, fields));
+    await choose("filter-property", "Topic");
+    expect(call).toHaveBeenLastCalledWith("element.facets", {
+      selection: { where: { status: ["draft"] } },
+      search: { query: "gust", fields: ["acceptance-criteria"] },
+    });
   });
 
   it("[SR-149/AK-byyt] [SR-075/AK-qgzh] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {

@@ -43,6 +43,13 @@ test("screenshots of the main view on the specification workspace", async () => 
     await listAll(window);
     await shot("main-view-list");
 
+    // The empty command prompt: the first nine commands that fit the list, then "All commands…" (SR-133 AK1).
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(candidates(window)).toHaveCount(10);
+    await expect(candidates(window).last()).toContainText("All commands…");
+    await shot("main-view-commands-empty");
+    await window.keyboard.press("Escape");
+
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("sort");
     await expect(candidates(window).first()).toContainText("Sort list");

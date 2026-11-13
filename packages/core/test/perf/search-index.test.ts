@@ -21,8 +21,8 @@ import type { ElementRecord, ElementStore } from "../../src/model/index.js";
 import { applyStoreChange, elementStoreState, updateElements, warmModel } from "../../src/model/index.js";
 import type { SearchDocument, SearchElementsOptions } from "../../src/query/search-index.js";
 import {
-  ENGINE_OPTIONS,
   buildSearchIndex,
+  engineOptions,
   documentOf,
   searchElements,
   searchIndexOf,
@@ -98,7 +98,7 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
   it("records building the index, its heap, and searches", async () => {
     const before = heapMb();
     const { result: built } = await measure(
-      "search index: build (read 50,000 texts, index title, text, properties)",
+      "search index: build (read 50,000 texts, index title, text, properties and single properties)",
       () => blocking(() => searchIndex(opened())),
       { basis: "ADR-0008 (built once per store, in slices)" },
     );
@@ -134,6 +134,18 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       ["one word within a selection of 10,000", "wind", { within: store.elements.slice(0, 10_000) }],
       ["one word, the first 50 hits", "wind", { limit: 50 }],
       ["one word, every hit described", "wind", { limit: ELEMENTS }],
+      // Restricted to fields (SR-216).
+      [
+        "a word in every acceptance criterion, in them only",
+        "runs",
+        { propertyKeys: ["acceptance-criteria"] },
+      ],
+      [
+        "two letters, in the rationale and the text only",
+        "th",
+        { fields: ["text"], propertyKeys: ["rationale"] },
+      ],
+      ["two letters, in the title only", "st", { fields: ["title"] }],
     ];
     for (const [name, query, options] of queries) {
       const { result } = await measure(
@@ -153,6 +165,10 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       ["two letters (as-you-type)", { query: "st" }],
       ["a word of every text", { query: "the" }],
       ["a short ID, title and IDs only (SR-066)", { query: shortId, fields: ["title", "id"] }],
+      [
+        "two letters, in the acceptance criteria only (SR-216)",
+        { query: "th", fields: ["acceptance-criteria"] },
+      ],
       ["one word within a filter", { query: "wind", selection: { where: { type: ["system-requirement"] } } }],
       ["one word within a variant view", { query: "wind", selection: { view: String(variant?.id) } }],
     ];
@@ -337,22 +353,31 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       problems: [],
     };
     const before = heapMb();
+    let kept = 0;
     const { result: index } = await measure(
       "search index (synthetic, 150 words per text, 30,000 words): build in memory",
       () => {
-        // As a build does it: the documents kept for carries (`SearchEngine.documents`).
-        const mini = new MiniSearch<SearchDocument>(ENGINE_OPTIONS);
+        // As a build does it: the documents kept for carries (`SearchEngine.documents`), measured first.
         const documents = new Map<string, SearchDocument>();
         for (const record of records) {
           const document = documentOf(record, sentence(150), metamodel);
-          mini.add(document);
           documents.set(document.key, document);
         }
+        kept = Math.round(heapMb() - before);
+        const mini = new MiniSearch<SearchDocument>(engineOptions(metamodel));
+        mini.addAll([...documents.values()]);
         return searchIndexOf(synthetic, layout, metamodel, mini, documents);
       },
       { basis: "ADR-0008 (texts longer than the generated ones)" },
     );
     const heap = Math.round(heapMb() - before);
+    await measure(
+      `search index documents kept for carries (synthetic): about ${String(kept)} MB`,
+      () => kept,
+      {
+        basis: "ADR-0008 (memory)",
+      },
+    );
     await measure(`search index heap (synthetic): about ${String(heap)} MB`, () => heap, {
       basis: "ADR-0008 (memory)",
     });

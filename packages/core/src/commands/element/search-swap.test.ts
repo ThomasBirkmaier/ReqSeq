@@ -7,6 +7,8 @@ import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
+import { CommandError } from "../../catalog.js";
+import { metamodelState } from "../../metamodel/index.js";
 import type * as Query from "../../query/index.js";
 import { applyStoreChange, elementStoreState, updateElements } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -84,5 +86,46 @@ describe("element.search over a store swapped while it runs", () => {
     // Found by its new text, and grouped by its new status.
     expect(out.hits.map((hit) => [hit.id, hit.status])).toEqual([[B2, "approved"]]);
     expect(out.groups).toEqual([{ value: "approved", name: "Approved", count: 1, offset: 0 }]);
+  });
+
+  it("checks the fields again against the metamodel of the index when it changed meanwhile (SR-216 AK2)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    // The selection reads the metamodel with `topic`; the index is built with the one without it.
+    hook.afterSelection = async () => {
+      const file = fixture.path("metamodel/standard-model.yaml");
+      const text = await fs.readFile(file, "utf8");
+      await fs.writeFile(file, text.replace(/^ {2}- \{ key: topic, .*\n/mu, ""));
+      await ws.reset(metamodelState);
+    };
+    const error = await invoke(
+      "element.search",
+      { query: "wind", fields: ["topic"] },
+      { workspace: ws },
+    ).catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(CommandError);
+    expect((error as CommandError).message).toContain('"topic" is not a property of the metamodel');
+  });
+
+  it("element.facets with search checks the fields again against the metamodel of the index too (SR-216 AK2)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    hook.afterSelection = async () => {
+      const file = fixture.path("metamodel/standard-model.yaml");
+      const text = await fs.readFile(file, "utf8");
+      await fs.writeFile(file, text.replace(/^ {2}- \{ key: topic, .*\n/mu, ""));
+      await ws.reset(metamodelState);
+    };
+    const error = await invoke(
+      "element.facets",
+      { search: { query: "wind", fields: ["topic"] } },
+      { workspace: ws },
+    ).catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(CommandError);
+    expect((error as CommandError).message).toContain('"topic" is not a property of the metamodel');
   });
 });

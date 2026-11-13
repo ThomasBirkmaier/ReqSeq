@@ -144,7 +144,7 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     expect((await geometry(window)).height).toBe(height);
     // A command with one optional argument; one without any shows only the help.
     await window.keyboard.press("Escape");
-    await mark(window, "Show relation options", "Show relation options");
+    await mark(window, "Remove relation", "Remove relation");
     await expect(line.locator(".explain-side")).toHaveText(`1 optional · ${MORE} · ${HELP} help`);
     await window.keyboard.press("Escape");
     await mark(window, "List baselines", "List baselines");
@@ -227,6 +227,50 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await window.keyboard.type("Measure wind speed");
     await expect(window.locator('.candidates [aria-selected="true"]')).toContainText("Measure wind speed");
     await expect(explanation(window)).toHaveCount(0);
+  });
+
+  test("[SR-210/AK-r2d2] [SR-133/AK-w7wd] All commands… explains itself with Enter, Ctrl+H and Ctrl+Enter do nothing; Enter lists every command by name", async () => {
+    const { window } = running;
+    await fsp.mkdir(SHOTS, { recursive: true });
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(names(window)).toHaveCount(10);
+    await expect(names(window).last()).toHaveText("All commands…");
+    for (let step = 0; step < 9; step += 1) {
+      await window.keyboard.press("ArrowDown");
+    }
+    const marked = window.locator('.candidates [aria-selected="true"] .name');
+    await expect(marked).toHaveText("All commands…");
+    const line = explanation(window);
+    await expect(line.locator(".explain-text")).toHaveText("Show every command you can run here, by name.");
+    await expect(line.locator(".explain-side")).toHaveText(ENTER);
+    expect((await geometry(window)).lines).toBe(2);
+    await cardSettled(window);
+    await window.screenshot({ path: path.join(SHOTS, "sr-133-prompt-empty-light.png") });
+    // Ctrl+H and Ctrl/Cmd+Enter do nothing: no help, the same prompt with the same mark.
+    await window.keyboard.press("Control+h");
+    await expect(window.locator('#command-help[data-open="true"]')).toHaveCount(0);
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label(window)).toHaveText("Command");
+    await expect(marked).toHaveText("All commands…");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("All commands");
+    const all = await names(window).allTextContents();
+    expect(all.length).toBeGreaterThan(10);
+    expect(all).toEqual([...all].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
+    await expect(marked).toHaveText(all[0] ?? "");
+    await cardSettled(window);
+    await window.screenshot({ path: path.join(SHOTS, "sr-133-all-commands-light.png") });
+    // Typed text searches as in the command prompt; cleared, the whole list is back. Escape closes.
+    await window.keyboard.type("sort");
+    await expect(names(window).first()).toHaveText("Sort list");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await expect(names(window)).toHaveText(all);
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveCount(0);
   });
 });
 
@@ -388,10 +432,17 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     // A required argument is named as such, and as a positional argument of the call.
     await window.keyboard.press("Control+H");
     await window.keyboard.press("Escape");
-    await mark(window, "Show relation options", "Show relation options");
+    await mark(window, "Remove relation", "Remove relation");
     await window.keyboard.press("Control+H");
-    await expect(shown.locator("dt")).toHaveText(["ref required", "kind optional"]);
-    await expect(shown.locator(".help-cli")).toHaveText("reqseq relation options <ref> [options]");
+    await expect(shown.locator("dt")).toHaveText([
+      "source required",
+      "kind required",
+      "target required",
+      "repository optional",
+    ]);
+    await expect(shown.locator(".help-cli")).toHaveText(
+      "reqseq relation remove <source> <kind> <target> [options]",
+    );
     // In a narrow window it is 70 % of the card wide.
     await window.keyboard.press("Escape");
     await window.setViewportSize({ width: 520, height: 700 });
@@ -527,7 +578,12 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     await expect(label(window)).toHaveText("Command");
     await expect(markedName(window)).toHaveText(withHelp ?? "");
     expect(first).not.toBeNull();
-    // Without the help the wheel scrolls the hits of the empty input again (SR-202 AK2).
+    // Without the help the wheel scrolls the hits of the empty input again, in the list of every command
+    // (SR-202 AK2).
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.locator('.candidates [role="option"]').filter({ hasText: "All commands…" }).click();
+    await expect(label(window)).toHaveText("All commands");
     const list = window.locator(".candidates");
     await list.hover();
     await window.mouse.wheel(0, 400);
@@ -573,12 +629,13 @@ test.describe("the keys of an argument step", () => {
 
   test("[SR-108/AK-ch3r] Ctrl/Cmd+Enter takes the answer and offers the optional arguments; a list takes a value per Enter, and Enter on an empty input ends it", async () => {
     const { window } = running;
-    await mark(window, "Show relation options", "Show relation options");
+    await mark(window, "Show trace chain", "Show trace chain");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Show relation options · ref:");
+    await expect(label(window)).toHaveText("Show trace chain · ref:");
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label(window)).toHaveText("Show relation options SR-0000b1 · more arguments:");
-    await expect(names(window)).toHaveText(["Run", "kind"]);
+    await expect(label(window)).toHaveText("Show trace chain SR-0000b1 · more arguments:");
+    await expect(names(window).nth(0)).toHaveText("Run");
+    await expect(names(window).nth(1)).toHaveText("direction");
     await window.keyboard.press("Escape");
     await window.keyboard.press("Escape");
     await window.keyboard.press("Escape");
@@ -598,24 +655,24 @@ test.describe("the keys of an argument step", () => {
 
   test("[SR-134/AK-fmf6] Backspace in an empty input shows the previous step, as Escape does", async () => {
     const { window } = running;
-    await mark(window, "Show relation options", "Show relation options");
+    await mark(window, "Show trace chain", "Show trace chain");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Show relation options · ref:");
+    await expect(label(window)).toHaveText("Show trace chain · ref:");
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label(window)).toHaveText("Show relation options SR-0000b1 · more arguments:");
+    await expect(label(window)).toHaveText("Show trace chain SR-0000b1 · more arguments:");
     await window.keyboard.press("Backspace");
-    await expect(label(window)).toHaveText("Show relation options · ref:");
+    await expect(label(window)).toHaveText("Show trace chain · ref:");
     await expect(window.locator("#prompt-input")).toHaveValue("");
     // Before the first argument: the command prompt, still open, with nothing run.
     await window.keyboard.press("Backspace");
     await expect(label(window)).toHaveText("Command");
     await expect(window.locator(".result")).toHaveCount(0);
     // Escape takes the same steps back.
-    await mark(window, "Show relation options", "Show relation options");
+    await mark(window, "Show trace chain", "Show trace chain");
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label(window)).toHaveText("Show relation options SR-0000b1 · more arguments:");
+    await expect(label(window)).toHaveText("Show trace chain SR-0000b1 · more arguments:");
     await window.keyboard.press("Escape");
-    await expect(label(window)).toHaveText("Show relation options · ref:");
+    await expect(label(window)).toHaveText("Show trace chain · ref:");
   });
 });

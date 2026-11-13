@@ -1,0 +1,25 @@
+# SR-216, a search restricted to fields: a text property (rationale), acceptance criteria and a
+# relation kind (derives-from), which a search refuses.
+reqseq-metamodel: 1
+types:
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, rationale, acceptance-criteria]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: rationale, name: Rationale, kind: text }
+  - {
+      key: acceptance-criteria,
+      name: Acceptance Criteria,
+      kind: text,
+      many: true,
+      meaning: acceptance-criteria,
+    }
+relations:
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
