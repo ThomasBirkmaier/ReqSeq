@@ -228,6 +228,50 @@ test.describe("the explanation line of the command prompt (SR-210)", () => {
     await expect(window.locator('.candidates [aria-selected="true"]')).toContainText("Measure wind speed");
     await expect(explanation(window)).toHaveCount(0);
   });
+
+  test("[SR-210/AK-r2d2] [SR-133/AK-w7wd] All commands… explains itself with Enter, Ctrl+H and Ctrl+Enter do nothing; Enter lists every command by name", async () => {
+    const { window } = running;
+    await fsp.mkdir(SHOTS, { recursive: true });
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(names(window)).toHaveCount(10);
+    await expect(names(window).last()).toHaveText("All commands…");
+    for (let step = 0; step < 9; step += 1) {
+      await window.keyboard.press("ArrowDown");
+    }
+    const marked = window.locator('.candidates [aria-selected="true"] .name');
+    await expect(marked).toHaveText("All commands…");
+    const line = explanation(window);
+    await expect(line.locator(".explain-text")).toHaveText("Show every command you can run here, by name.");
+    await expect(line.locator(".explain-side")).toHaveText(ENTER);
+    expect((await geometry(window)).lines).toBe(2);
+    await cardSettled(window);
+    await window.screenshot({ path: path.join(SHOTS, "sr-133-prompt-empty-light.png") });
+    // Ctrl+H and Ctrl/Cmd+Enter do nothing: no help, the same prompt with the same mark.
+    await window.keyboard.press("Control+h");
+    await expect(window.locator('#command-help[data-open="true"]')).toHaveCount(0);
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label(window)).toHaveText("Command");
+    await expect(marked).toHaveText("All commands…");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("All commands");
+    const all = await names(window).allTextContents();
+    expect(all.length).toBeGreaterThan(10);
+    expect(all).toEqual([...all].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
+    await expect(marked).toHaveText(all[0] ?? "");
+    await cardSettled(window);
+    await window.screenshot({ path: path.join(SHOTS, "sr-133-all-commands-light.png") });
+    // Typed text searches as in the command prompt; cleared, the whole list is back. Escape closes.
+    await window.keyboard.type("sort");
+    await expect(names(window).first()).toHaveText("Sort list");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Backspace");
+    await expect(names(window)).toHaveText(all);
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveCount(0);
+  });
 });
 
 const help = (window: Page) => window.getByRole("region", { name: "Command help" });
@@ -534,7 +578,12 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     await expect(label(window)).toHaveText("Command");
     await expect(markedName(window)).toHaveText(withHelp ?? "");
     expect(first).not.toBeNull();
-    // Without the help the wheel scrolls the hits of the empty input again (SR-202 AK2).
+    // Without the help the wheel scrolls the hits of the empty input again, in the list of every command
+    // (SR-202 AK2).
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.locator('.candidates [role="option"]').filter({ hasText: "All commands…" }).click();
+    await expect(label(window)).toHaveText("All commands");
     const list = window.locator(".candidates");
     await list.hover();
     await window.mouse.wheel(0, 400);

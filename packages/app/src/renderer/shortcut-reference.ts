@@ -21,7 +21,7 @@ import { CONTEXT_MENU_KEYS } from "./context-menu.js";
 import { GRAPH_KEYS, GRAPH_MORE_KEYS } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
 import { COMMAND_SHORTCUT, HISTORY_KEYS, LIST_KEYS, keySpecLabel, shortcutLabel } from "./keys.js";
-import { PROMPT_KEYS } from "./prompt-keys.js";
+import { ALL_COMMANDS_DESCRIPTION, ALL_COMMANDS_ROW, PROMPT_KEYS } from "./prompt-keys.js";
 
 /**
  * A row of the reference: the keys on Windows and Linux (`keys`) and on macOS (`mac`), each of which does the same,
@@ -71,7 +71,7 @@ export const SHORTCUT_TABLES: ShortcutTables = {
   global: [
     {
       keys: [{ shortcut: COMMAND_SHORTCUT }],
-      does: "Open the command prompt: the actions and commands that apply to the shown buffer",
+      does: "Open the command prompt: up to nine commands that fit the shown buffer, then “All commands…”",
     },
     { keys: [{ shortcut: PREFIX }], does: "The prefix key: then one letter (below)" },
     ...MENU_KEYS,
@@ -250,7 +250,11 @@ export const shortcutReference = (
       {
         title: "In a prompt",
         about: "In the command prompt, in “Go to” and while a command asks its arguments in the minibuffer.",
-        rows: rows(tables.prompt),
+        rows: [
+          ...rows(tables.prompt),
+          // "All commands…" says what it does in this row, as its explanation line does (SR-210 AK6).
+          ...rows([ALL_COMMANDS_ROW]).map((row) => ({ ...row, description: ALL_COMMANDS_DESCRIPTION })),
+        ],
       },
       {
         title: "In the context menu",

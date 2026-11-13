@@ -216,8 +216,8 @@ export const openEntries = (
   return { opened, entries };
 };
 
-/** The name of the last entry, which opens the command prompt (SR-194 AK3). */
-export const ALL_COMMANDS = "All commands…";
+/** The name of the last entry, which opens the list of every command of the command prompt (SR-194 AK3). */
+export { ALL_COMMANDS } from "./prompt-keys.js";
 
 /** A press of a mouse button, as far as the menu reads it. */
 export interface Press {

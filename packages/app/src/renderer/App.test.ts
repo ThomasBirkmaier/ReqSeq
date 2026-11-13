@@ -317,11 +317,26 @@ const clickLine = async (): Promise<void> => {
   await click(line);
 };
 
-/** Opens the command prompt, types `name` and runs the first candidate. */
+/** In the command prompt with an empty input: a click on its last row, "All commands…" (SR-133 AK3). */
+const allCommands = async (): Promise<void> => {
+  const last = [...container.querySelectorAll('[role="option"]')].find(
+    (option) => option.querySelector(".name")?.textContent === "All commands…",
+  );
+  if (last === undefined) {
+    throw new Error("the command prompt has no row All commands…");
+  }
+  await act(async () => {
+    last.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+  });
+  await flush();
+};
+
 /** The modifier of the shortcuts on the platform of the test: Cmd under macOS, else Ctrl. */
 const mod = (): { readonly ctrlKey: true } | { readonly metaKey: true } =>
   navigator.platform.startsWith("Mac") ? { metaKey: true } : { ctrlKey: true };
 
+/** Opens the command prompt, types `name` and runs the first candidate. */
 const runCommand = async (name: string): Promise<void> => {
   await keyDown(window, "P", { ...mod(), shiftKey: true });
   await type(name);
@@ -502,14 +517,16 @@ describe("App", () => {
     await render(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
-    expect(texts('[role="option"] .name')).toEqual(["Open workspace", "Open documentation"]);
+    // At most ten commands: all of them, by name, without "All commands…" (SR-133 AK1).
+    expect(texts('[role="option"] .name')).toEqual(["Open documentation", "Open workspace"]);
     await keyDown(query("input"), "Escape");
     // A click whose press did not begin on the idle line (a hit taken by its press) asks nothing.
     await click(query(".echo"));
     expect(document.querySelector("input")).toBeNull();
     // A click on the idle line asks for a command too.
     await clickLine();
-    expect(texts('[role="option"] .name')).toEqual(["Open workspace", "Open documentation"]);
+    expect(texts('[role="option"] .name')).toEqual(["Open documentation", "Open workspace"]);
+    await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Workspace");
     expect(texts('[role="option"] .name')).toEqual(["/req/buoy", "/req/gone"]);
@@ -518,6 +535,7 @@ describe("App", () => {
     await keyDown(query("input"), "Enter");
     expect(openWorkspace).not.toHaveBeenCalled();
     expect(text("Minibuffer")).toBe("/req/gone is not found; no workspace is open");
+    // Now in use, "Open workspace" is first.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter");
@@ -567,8 +585,15 @@ describe("App", () => {
     await renderList(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await type("fl");
-    // By match "Filter list by type" is first.
-    expect(options().slice(0, 2)).toEqual(["Filter list by type", "Filter list by status"]);
+    // By match "Filter list by type" is first, then the other filters (by name, SR-133 AK1).
+    expect(options().slice(0, 4)).toEqual([
+      "Filter list by type",
+      "Filter list by property",
+      "Filter list by saved filter",
+      "Filter list by status",
+    ]);
+    await keyDown(query("input"), "ArrowDown");
+    await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Status");
@@ -598,13 +623,16 @@ describe("App", () => {
     expect(options()[0]).toBe("Filter list by type");
   });
 
-  it("[SR-108/AK-f6t5] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
+  it("[SR-108/AK-f6t5] [SR-134/AK-trng] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
     // Every reading of the clock is a minute later, so that the later choice is the more recent one.
     let clock = Date.UTC(2026, 9, 27);
     vi.spyOn(Date, "now").mockImplementation(() => (clock += 60_000));
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
     await clickLine();
+    // Not among the first nine without use: from "All commands…".
+    expect(texts('[role="option"] .name')).not.toContain("Filter list by status");
+    await allCommands();
     const status = [...container.querySelectorAll('[role="option"]')].find(
       (option) => option.textContent === "Filter list by status",
     );
@@ -613,9 +641,12 @@ describe("App", () => {
       await Promise.resolve();
     });
     expect(query("label").textContent).toBe("Status");
-    // Escape goes back to the command prompt (SR-134 AK1).
+    // Escape goes back to the list it was chosen in (SR-134 AK1), and there to the command prompt no more.
     await keyDown(query("input"), "Escape");
-    expect(query("label").textContent).toBe("Command");
+    expect(query("label").textContent).toBe("All commands");
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    await clickLine();
     // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
     expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
       "Filter list by status",
@@ -1472,6 +1503,53 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(ctrl.defaultPrevented).toBe(true);
     expect(helpText()).toBeUndefined();
     expect((query("input") as HTMLInputElement).value).toBe("Title");
+  });
+
+  it("[SR-133/AK-w7wd] [SR-210/AK-r2d2] All commands… explains itself with Enter; Ctrl+H and Ctrl+Enter do nothing, F1 opens the start page; Enter lists every command by name", async () => {
+    const { fake, bridge } = helpBridge();
+    await render(bridge);
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    const opening = texts('#candidates [role="option"] .name');
+    expect(opening).toHaveLength(10);
+    expect(opening.at(-1)).toBe("All commands…");
+    for (let step = 0; step < 9; step += 1) {
+      await keyDown(query("input"), "ArrowDown");
+    }
+    expect(marked()).toBe("All commands…");
+    expect(query("#prompt-explain .explain-text").textContent).toBe(
+      "Show every command you can run here, by name.",
+    );
+    expect(query("#prompt-explain .explain-side").textContent).toBe("Enter");
+    // Ctrl+H and Ctrl/Cmd+Enter do nothing; F1 opens the start page of the documentation.
+    await keyDown(query("input"), "h", { ctrlKey: true });
+    expect(helpText()).toBeUndefined();
+    await keyDown(query("input"), "Enter", mod());
+    expect(query("label").textContent).toBe("Command");
+    expect(marked()).toBe("All commands…");
+    await keyDown(query("input"), "F1");
+    expect(fake.openDocs).toHaveBeenLastCalledWith(undefined);
+    // Enter: every command that can run here, by name, the first one marked, under "All commands".
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("All commands");
+    const all = texts('#candidates [role="option"] .name');
+    expect(all.length).toBeGreaterThan(10);
+    expect(all).toEqual([...all].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
+    expect(all).not.toContain("All commands…");
+    for (const name of opening.slice(0, 9)) {
+      expect(all).toContain(name);
+    }
+    expect(marked()).toBe(all[0]);
+    // A typed text searches as in the command prompt, and never finds "All commands…"; cleared, the list is back.
+    await type("all commands");
+    expect(texts('#candidates [role="option"] .name')).not.toContain("All commands…");
+    await type("toggle dark");
+    expect(marked()).toBe("Toggle dark mode");
+    await type("");
+    expect(texts('#candidates [role="option"] .name')).toEqual(all);
+    // Escape closes it (SR-134 AK2); "All commands…" recorded no use.
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    expect(window.localStorage.getItem("reqseq.usage.v1") ?? "").not.toContain("all-commands");
   });
 
   it("[SR-210/AK-gqgt] keeps the explanation line, empty, while no hit is left", async () => {
@@ -2349,6 +2427,7 @@ describe("App, the text editor", () => {
     await runCommand("save element");
     expect(calls(invoke, "element.update")).toHaveLength(1);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    await allCommands();
     expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
       "Edit textEnter",
     );
@@ -2796,6 +2875,7 @@ describe("App, the text editor", () => {
     it("[SR-066/AK-c5xd] follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
       const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      await allCommands();
       expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
         "Follow referenceCtrl+Enter",
       );
@@ -2876,6 +2956,7 @@ describe("App, the text editor", () => {
     it("[SR-132/AK-y207] is in the command prompt with its key", async () => {
       await openElement();
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      await allCommands();
       expect(options()).toContain("List elements with this valueCtrl+Shift+Enter");
       await type("list elements with");
       await keyDown(query("input"), "Enter");
@@ -3452,6 +3533,7 @@ describe("App, copy field (SR-128)", () => {
       await Promise.resolve();
     });
     await keyDown(query('[data-field="criteria"]'), "P", copyKeys);
+    await allCommands();
     expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
       "Copy fieldCtrl+Shift+C",
     );

@@ -1,6 +1,6 @@
 // The command line by mouse (SR-202) on the built app: a click on the command line at the bottom opens it
-// with an empty input and the commands, as Ctrl/Cmd+Shift+P does (AK1); the wheel scrolls its card to every
-// command it holds (AK2); a click on a hit acts as Enter on it (AK3). Clicks and the wheel go through
+// with an empty input and the commands, as Ctrl/Cmd+Shift+P does (AK1); after "All commands…" the wheel scrolls
+// its card to every command (AK2); a click on a hit acts as Enter on it (AK3). Clicks and the wheel go through
 // Chromium's input (Playwright's mouse), as a person's do.
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -89,15 +89,20 @@ test.describe("the command line by mouse", () => {
     }
   });
 
-  test("[SR-202/AK-fgd8] the wheel scrolls the card of the empty command line to every command it would find", async () => {
+  test("[SR-202/AK-fgd8] after All commands… the wheel scrolls the card of the empty command line to every command it would find", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    const all = (await byKeys(window)).names;
     const line = await boxOf(minibuffer(window));
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
-    await expect(options(window).locator(".name")).toHaveText(all);
+    // The first nine and "All commands…" (SR-133 AK1); its click lists every command (AK3).
+    await expect(options(window)).toHaveCount(10);
+    await options(window).filter({ hasText: "All commands…" }).click();
+    await expect(label(window)).toHaveText("All commands");
     await cardSettled(window);
+    const all = await names(window);
+    // Every command that can run here, by name (SR-133 AK3).
+    expect(all).toEqual([...all].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
     // More commands than the card shows at once, so the wheel has something to reach.
     const shown = await boxOf(card(window));
     const rowHeight = (await boxOf(options(window).first())).height;
@@ -185,8 +190,11 @@ test.describe("the command line by mouse", () => {
     await expect(input(window)).toHaveCount(0);
     await expect(modeline).toHaveText(clicked.modeline);
     await expect.poll(() => rowCells(window)).toEqual(clicked.rows);
-    // A command that runs at once: its result buffer by a click is the one Enter gives.
+    // A command that runs at once: its result buffer by a click is the one Enter gives. It is not among the
+    // first nine of the list, so it is clicked in "All commands…" (SR-133 AK3).
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
+    await options(window).filter({ hasText: "All commands…" }).click();
+    await expect(label(window)).toHaveText("All commands");
     await options(window)
       .filter({ hasText: /^Show workspace status/ })
       .click();
