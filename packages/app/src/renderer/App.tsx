@@ -28,7 +28,7 @@ import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
 import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
 import { OVERVIEW_KEY, elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
-import { ReadGate, drawnBy } from "./area-slot.js";
+import { ReadGate, countingWrites, drawnBy } from "./area-slot.js";
 import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
@@ -643,10 +643,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (draft === undefined) {
         return true;
       }
-      leavingWrites.current += 1;
       const result = await saveOne(
         {
-          call,
+          call: countingWrites(call, leavingWrites),
           buffers: [buffer],
           drafts: drafts.current,
           properties: propertiesNow.current,
@@ -659,8 +658,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         draft,
       );
       if (!result.ok) {
-        // Nothing written: no change answers it.
-        leavingWrites.current = Math.max(0, leavingWrites.current - 1);
         setEcho(leftUnsaved(result));
       } else if (result.affected !== undefined) {
         // The minibuffer names the element that was left with its directly affected elements (SR-024 AK2).

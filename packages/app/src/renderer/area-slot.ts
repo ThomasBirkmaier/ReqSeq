@@ -5,6 +5,7 @@
 // starts while the reader waits for a buffer; one already sent when the reader asks for another still runs.
 import { createContext, useContext, useLayoutEffect, useRef } from "react";
 import { DRAW_DEADLINE_MS } from "./buffer-slide.js";
+import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 
 /** What a view knows of its layer: whether it is hidden beside the shown buffer. */
@@ -183,3 +184,22 @@ export class HeldCalls {
     }
   }
 }
+
+/**
+ * `call`, counting in `pending` each write (`element.update`) it sends that succeeds and so will be answered by
+ * a change of the workspace (`written`): the save of leaving an element counts to its switch only through
+ * such a write (SR-212 AK5). A save with nothing to write sends none and counts nothing.
+ */
+export const countingWrites =
+  (call: Call, pending: { current: number }): Call =>
+  async (name, input) => {
+    if (name !== "element.update") {
+      return call(name, input);
+    }
+    pending.current += 1;
+    const answer = await call(name, input);
+    if (!answer.ok) {
+      pending.current = Math.max(0, pending.current - 1);
+    }
+    return answer;
+  };

@@ -5,7 +5,16 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HeldCalls, ReadGate, SlotContext, drawnBy, useHidden, useReveal } from "./area-slot.js";
+import {
+  HeldCalls,
+  ReadGate,
+  SlotContext,
+  countingWrites,
+  drawnBy,
+  useHidden,
+  useReveal,
+} from "./area-slot.js";
+import type { Call } from "./call.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -148,5 +157,29 @@ describe("a view shown after it was drawn in advance", () => {
     show(false);
     show(false);
     expect(revealed).toEqual([false]);
+  });
+});
+
+describe("the writes of the save of leaving", () => {
+  it("[SR-212/AK-tfck] counts a write that goes and succeeds, not a save with nothing to write or a failed write", async () => {
+    const pending = { current: 0 };
+    let fail = false;
+    const inner = vi.fn((name: string) =>
+      Promise.resolve(
+        name === "element.update" && fail
+          ? { ok: false, code: "x", message: "refused" }
+          : { ok: true, output: {} },
+      ),
+    );
+    const call = countingWrites(inner as unknown as Call, pending);
+    // Nothing to write: the save reads only.
+    await call("element.get", { ref: "uuid-1" });
+    expect(pending.current).toBe(0);
+    await call("element.update", { ref: "uuid-1" });
+    expect(pending.current).toBe(1);
+    fail = true;
+    await call("element.update", { ref: "uuid-1" });
+    expect(pending.current).toBe(1);
+    expect(inner).toHaveBeenCalledTimes(3);
   });
 });
