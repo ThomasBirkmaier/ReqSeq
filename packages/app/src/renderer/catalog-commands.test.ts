@@ -3455,17 +3455,20 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
       name: "open",
       where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
     });
-    // Without a mark again (its ×), the hit is back.
+    // Taken once, it is not offered again when × removes every mark.
     const again = setup([list], answers);
     start(again.context, "filter.save");
     (await last(again.asked)).text?.("open");
     await choose(again.asked, "Conditions of the shown list");
     (await last(again.asked)).marks?.[1]?.remove();
     (await last(again.asked)).marks?.[0]?.remove();
-    expect((await last(again.asked)).items[0]?.name).toBe("Conditions of the shown list");
+    expect((await last(again.asked)).items[0]?.name).toBe("No condition: all elements");
     // Ctrl/Cmd+Enter on it takes them and offers the optional arguments.
-    (await last(again.asked)).items[0]?.more?.();
-    expect((await last(again.asked)).label).toBe(
+    const more = setup([list], answers);
+    start(more.context, "filter.save");
+    (await last(more.asked)).text?.("open");
+    item((await last(more.asked)).items, "Conditions of the shown list").more?.();
+    expect((await last(more.asked)).label).toBe(
       "Save filter open type: need · status: draft · more arguments:",
     );
   });
@@ -3505,12 +3508,43 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     (await last(run.asked)).text?.("Rain");
     expect(await names(run.asked)).toContain("Conditions of the shown list | perspective: Drafts · text: x");
     await choose(run.asked, "Conditions of the shown list");
-    expect(await marks(run.asked)).toEqual(['{"type":["need"]}', '{"not":{"status":["draft"]}}', "text: x"]);
-    // The saved filter is given to `filter`, before the condition.
-    expect((await last(run.asked)).label).toBe("Save perspective Rain Sensors · where:");
+    // A stored condition with a list filter step has its label; or and not are JSON.
+    expect(await marks(run.asked)).toEqual(["type: need", '{"not":{"status":["draft"]}}', "text: x"]);
+    // The saved filter is given to `filter`, before the condition, and the line says so.
+    expect((await last(run.asked)).label).toBe("Save perspective Rain filter: Sensors · where:");
     await choose(run.asked, "Take 3 conditions");
     const { where, filter } = perspectiveInput(list, "Rain");
     expect(run.call).toHaveBeenLastCalledWith("perspective.save", { name: "Rain", where, filter });
+  });
+
+  it("[SR-215/AK-w8q6] Enter on the hit moves on when the list gives no condition: a saved filter alone goes to filter", async () => {
+    const save = { ...answers, "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }) };
+    // A list filtered only by a saved filter, and a perspective that stores only a filter.
+    for (const shown of [
+      filteredList([savedStep("Sensors")]),
+      perspectiveBuffer({ name: "Only", saved: { where: { all: [] }, filter: "Sensors" } }),
+    ]) {
+      const run = setup([shown], save);
+      start(run.context, "perspective.save");
+      (await last(run.asked)).text?.("Rain");
+      await choose(run.asked, "Conditions of the shown list");
+      expect(await marks(run.asked)).toEqual([]);
+      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
+      await choose(run.asked, "No condition: all elements");
+      expect(run.call).toHaveBeenLastCalledWith("perspective.save", {
+        name: "Rain",
+        filter: "Sensors",
+        where: { all: [] },
+      });
+    }
+    // A perspective without a condition or a filter gives no hit, to either command.
+    const empty = perspectiveBuffer({ name: "All", saved: { where: { all: [] } } });
+    for (const name of ["perspective.save", "filter.save"]) {
+      const run = setup([empty], save);
+      start(run.context, name);
+      (await last(run.asked)).text?.("Rain");
+      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
+    }
   });
 
   it("says why the values of a kind cannot be read", async () => {

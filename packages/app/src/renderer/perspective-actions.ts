@@ -143,14 +143,21 @@ export const SAVE_PERSPECTIVE = "save-perspective";
 type Condition = NonNullable<ElementSelection["where"]>;
 
 /**
- * The conditions of the steps as the `where` of a perspective: always under one `all`, in the order of the
- * steps, none as `{ all: [] }` (a text step is its `text` condition, SR-068). The selection of a perspective,
- * the first step of its buffer, gives the parts of its stored `all`, else its stored condition as one part.
- * These are the marks the condition of "Save perspective" takes from the shown list (`shownMarks`, SR-215
- * AK5), so both ways write the same file (SR-214 AK5).
+ * The conditions of the steps as the `where` of a perspective. The selection of a perspective, the first step
+ * of its buffer, with no further condition stays as stored, so saving it again under its name changes no line
+ * of it (SR-213 AK3). Otherwise always under one `all`, in the order of the steps, none as `{ all: [] }` (a text
+ * step is its `text` condition, SR-068), the perspective's stored `all` giving its parts, a stored condition of
+ * another kind one part: the marks the condition of "Save perspective" takes from the shown list
+ * (`shownMarks`, SR-215 AK5), so for a list without an unchanged perspective selection both ways write the
+ * same file (SR-214 AK5).
  */
-export const perspectiveWhere = (steps: readonly FilterStep[]): Condition =>
-  conditionOf(shownMarks(steps)) as Condition;
+export const perspectiveWhere = (steps: readonly FilterStep[]): Condition => {
+  const [first, ...rest] = steps;
+  const stored = first?.perspective === true ? first.selection.where : undefined;
+  return stored !== undefined && rest.every((step) => step.selection.where === undefined)
+    ? stored
+    : (conditionOf(shownMarks(steps)) as Condition);
+};
 
 /**
  * The input of `perspective.save` for the list shown in `list` under `name`: the conditions of its steps,

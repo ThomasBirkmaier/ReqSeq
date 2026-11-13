@@ -26,6 +26,8 @@ import {
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
+import { shownMarks } from "./condition-prompt.js";
+import type { FilterCondition } from "@reqseq/core";
 import { LIST_MENU } from "./list-menu.js";
 import { bufferView } from "./modeline.js";
 import {
@@ -455,14 +457,17 @@ describe("Save list as perspective (SR-214 AK5)", () => {
       where: { all: [{ type: ["need"] }, { text: "x" }] },
       sort: [{ by: "title", order: "desc" }],
     });
-    // Always under one `all` (SR-215 AK5: the marks "Save perspective" takes from the shown list), the parts of
-    // a perspective's stored `all` first, a stored condition of another kind as one part.
+    // Else always under one `all` (SR-215 AK5: the marks "Save perspective" takes from the shown list), the
+    // parts of a perspective's stored `all` first, a stored condition of another kind as one part.
     expect(perspectiveWhere([typeStep("need")])).toEqual({ all: [{ type: ["need"] }] });
     const stored = perspectiveBuffer({ name: "One", saved: { where: { all: [{ type: ["need"] }] } } });
     expect(perspectiveWhere(stored.steps)).toEqual({ all: [{ type: ["need"] }] });
     expect(perspectiveInput(stored, "One").where).toEqual({ all: [{ type: ["need"] }] });
+    // An unchanged perspective selection stays as stored, also a bare condition (SR-213 AK3); a saved filter
+    // step adds no condition.
     const single = perspectiveBuffer({ name: "Two", saved: { where: { not: { status: ["draft"] } } } });
-    expect(perspectiveWhere(single.steps)).toEqual({ all: [{ not: { status: ["draft"] } }] });
+    expect(perspectiveWhere(single.steps)).toEqual({ not: { status: ["draft"] } });
+    expect(perspectiveWhere([...single.steps, savedStep("Sensors")])).toEqual({ not: { status: ["draft"] } });
     expect(perspectiveWhere([...single.steps, textStep("x")])).toEqual({
       all: [{ not: { status: ["draft"] } }, { text: "x" }],
     });
@@ -476,6 +481,30 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({
       all: [{ any: [] }],
     });
+    // The marks of a perspective's stored parts carry the labels of their list filter steps, else JSON (also
+    // a `null` value, which the type does not allow but a hand-written file may hold).
+    const parts = [
+      { status: ["draft"] },
+      { text: "rain" },
+      { property: "component", op: "eq", value: "display" },
+      { property: "component", op: "missing" },
+      { type: ["need", "decision"] },
+      { property: "component", op: "contains", value: "dis" },
+      { property: "component", op: "eq", value: null },
+    ] as unknown as readonly FilterCondition[];
+    expect(
+      shownMarks(perspectiveBuffer({ name: "Labels", saved: { where: { all: parts } } }).steps).map(
+        (mark) => mark.label,
+      ),
+    ).toEqual([
+      "status: draft",
+      "text: rain",
+      "component: display",
+      "component: (no value)",
+      '{"type":["need","decision"]}',
+      '{"property":"component","op":"contains","value":"dis"}',
+      '{"property":"component","op":"eq","value":null}',
+    ]);
     // A perspective that came back with nothing saved gives no part.
     expect(perspectiveWhere(perspectiveBuffer({ name: "Gone", error: "faulty file" }).steps)).toEqual({
       all: [],

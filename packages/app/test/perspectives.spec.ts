@@ -508,6 +508,28 @@ test.describe("perspectives in the app", () => {
     expect(await offersSave(window)).toBe(false);
   });
 
+  test("[SR-213/AK-mfbk] saved again under its name with only a new grouping, a perspective keeps its bare where and the comments on it", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const file = path.join(running.workspace?.root ?? "", "perspectives", "commented.yaml");
+    await fs.writeFile(
+      file,
+      perspective([
+        "name: commented",
+        "# Only the system requirements.",
+        "where: { type: [system-requirement] } # bare, not under all",
+      ]),
+    );
+    await open(window, "commented");
+    await answered(window, "Group list", "Group by", "Status");
+    await saveAs(window, "commented");
+    const saved = await fs.readFile(file, "utf8");
+    expect(saved).toContain(
+      "# Only the system requirements.\nwhere: { type: [system-requirement] } # bare, not under all\n",
+    );
+    expect(saved).toContain("group: status");
+  });
+
   test("[SR-214/AK-fgs9] the modeline says modified after the name when a step, the sort or the grouping changes, until saved under this name or opened again; Clear all list filters keeps the perspective's selection", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;

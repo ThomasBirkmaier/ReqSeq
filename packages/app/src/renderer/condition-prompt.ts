@@ -10,7 +10,8 @@
 // by their name in `metamodel.get`, the properties by SR-124 AK2 and AK3 (`choosableProperties`); verification
 // and validation statuses from the condition's schema in the catalog; the views of validity from `viewsOf`.
 // Without a mark, the conditions of the shown list come first (AK5, `shownMarks`): the same parts that "Save
-// list as perspective" writes (`perspectiveWhere`), so both ways save the same file (SR-214 AK5).
+// list as perspective" writes under `all` (`perspectiveWhere`), which keeps only an unchanged perspective
+// selection as stored (SR-213 AK3).
 import type { ElementFacetsOutput, ElementSelection } from "@reqseq/core";
 import type {
   ActionContext,
@@ -27,6 +28,7 @@ import {
   choosableProperties,
   facetValueStep,
   missingStep,
+  propertyStep,
   statusStep,
   textStep,
   typeStep,
@@ -59,8 +61,11 @@ export interface ConditionAsk {
   readonly back: (marks: readonly ConditionMark[]) => void;
   /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly take: (marks: readonly ConditionMark[], more: boolean) => void;
-  /** The conditions of the shown list, the first hit without a mark (AK5); or why there is none. */
-  readonly shown?: ShownConditions;
+  /**
+   * The conditions of the shown list, the first hit without a mark (AK5), or why there is none; worked out
+   * only when no mark is set.
+   */
+  readonly shown?: () => ShownConditions | undefined;
 }
 
 /**
@@ -98,10 +103,44 @@ const stepMark = (step: FilterStep): ConditionMark => ({
 const allParts = (condition: Condition): readonly Condition[] =>
   "all" in condition && Object.keys(condition).length === 1 ? condition.all : [condition];
 
+/** The list filter step a stored condition is, where there is one: "type: need", not its JSON. */
+const stepOf = (part: Condition): FilterStep | undefined => {
+  const fields = part as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(fields).sort().join(",");
+  const one = (values: unknown): string | undefined =>
+    Array.isArray(values) && values.length === 1 && typeof values[0] === "string" ? values[0] : undefined;
+  const { type, status, text, property, op, value } = fields;
+  const typeKey = one(type);
+  const statusKey = one(status);
+  if (keys === "type" && typeKey !== undefined) {
+    return typeStep(typeKey);
+  }
+  if (keys === "status" && statusKey !== undefined) {
+    return statusStep(statusKey);
+  }
+  if (keys === "text" && typeof text === "string") {
+    return textStep(text);
+  }
+  if (typeof property !== "string") {
+    return undefined;
+  }
+  if (keys === "op,property" && op === "missing") {
+    return missingStep(property);
+  }
+  return keys === "op,property,value" &&
+    op === "eq" &&
+    (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+    ? propertyStep(property, String(value), value)
+    : undefined;
+};
+
+/** The label of a stored condition: that of its list filter step, else its JSON (or, not, AK5 and AK6). */
+const partLabel = (part: Condition): string => stepOf(part)?.label ?? JSON.stringify(part);
+
 /**
  * The marks of the conditions of a list's steps (AK5): each filter step with its label, the selection of a
- * perspective (its first step) as one mark in JSON per condition of it; a saved filter gives none (it is the
- * argument `filter`).
+ * perspective (its first step) as one mark per condition of it, with the label of its list filter step, else
+ * in JSON; a saved filter gives none (it is the argument `filter`).
  */
 export const shownMarks = (steps: readonly FilterStep[]): readonly ConditionMark[] =>
   steps.flatMap((step) => {
@@ -110,7 +149,7 @@ export const shownMarks = (steps: readonly FilterStep[]): readonly ConditionMark
       return [];
     }
     return step.perspective === true
-      ? allParts(where).map((part) => ({ label: JSON.stringify(part), condition: part }))
+      ? allParts(where).map((part) => ({ label: partLabel(part), condition: part }))
       : [stepMark(step)];
   });
 
@@ -444,16 +483,18 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
   const take = (taken: readonly ConditionMark[], more: boolean) => (): void => {
     given.take(taken, more);
   };
-  const { shown } = given;
+  const shown = marks.length === 0 ? given.shown?.() : undefined;
   const first: readonly Choice[] =
-    marks.length === 0 && shown !== undefined && "marks" in shown
+    shown !== undefined && "marks" in shown
       ? [
           {
             id: "shown",
             name: SHOWN_CONDITIONS,
             hint: shown.key,
             run: () => {
-              askCondition(shown.ask(), shown.marks);
+              // Taken once: the step goes on without the hit, also when the list gave no mark (a saved filter).
+              const { shown: _taken, ...next } = shown.ask();
+              askCondition(next, shown.marks);
             },
             more: () => {
               shown.ask().take(shown.marks, true);
@@ -505,7 +546,7 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
         enter: "takes the marked hit; all conditions must hold",
         unmark: marks.length > 0,
         json: true,
-        ...(marks.length === 0 && shown !== undefined && "note" in shown ? { note: shown.note } : {}),
+        ...(shown !== undefined && "note" in shown ? { note: shown.note } : {}),
       },
     },
     back: () => {

@@ -1414,8 +1414,9 @@ export const NO_SHOWN_FILTER = "No conditions of the shown list: a filter cannot
 
 /**
  * The conditions of the shown list for the condition of "Save filter" and "Save perspective" (SR-215 AK5): a
- * list, not the matrix, the search hits or a package page, with filter steps. Its saved filter goes to
- * `filter` of "Save perspective"; "Save filter" has none for such a list, and says why.
+ * list, not the matrix, the search hits or a package page, whose steps give a condition or a saved filter.
+ * Its saved filter goes to `filter` of "Save perspective"; "Save filter" has none for such a list, and says
+ * why.
  */
 const shownConditions = (
   context: CatalogContext,
@@ -1437,9 +1438,23 @@ const shownConditions = (
   if (filter !== undefined && !perspective) {
     return { note: NO_SHOWN_FILTER };
   }
-  const at = filter === undefined ? entry : withAlso(entry, { field: "filter", value: filter });
+  const marks = shownMarks(list.steps);
+  if (marks.length === 0 && filter === undefined) {
+    return undefined;
+  }
+  // The saved filter goes in first, labelled so the line says it is saved with the condition.
+  const at =
+    filter === undefined
+      ? entry
+      : {
+          ...entry,
+          given: appended(
+            { ...entry, given: entry.given.filter((given) => given.field !== "filter") },
+            { field: "filter", value: filter, label: `filter: ${filter}` },
+          ),
+        };
   return {
-    marks: shownMarks(list.steps),
+    marks,
     key: list.steps.map((step) => step.label).join(" · "),
     ask: () => conditionAsk(context, at, field, explain),
   };
@@ -1455,7 +1470,6 @@ const conditionAsk = (
   field: string,
   explain: ArgumentExplanation,
 ): ConditionAsk => {
-  const conditions = shownConditions(context, entry, field, explain);
   return {
     context,
     schema: schemaOf(entry.command, field),
@@ -1469,7 +1483,7 @@ const conditionAsk = (
       const { held: _held, ...rest } = entry;
       give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
     },
-    ...(conditions === undefined ? {} : { shown: conditions }),
+    shown: () => shownConditions(context, entry, field, explain),
   };
 };
 

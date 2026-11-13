@@ -5,18 +5,18 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements by its name. Grouping and sorting change no file, unless you save the list as a perspective.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective.
 
 ## App
 
 1. To open one element, press Ctrl+P (⌘P on macOS) for **Go to element or buffer**, type its short ID or words of its title, and press Enter.
 2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Open a hit with the arrow keys and Enter, or all hits in a buffer with Enter alone.
 3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property”, “Filter list by text search” and “Filter list by saved filter”. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
-4. “Sort list” (Ctrl+K S) orders the list, for example by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows of a list offers most of these.
+4. “Sort list” (Ctrl+K S) orders the list, for example by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
-6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold, for you on this computer.
-7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort under a name; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
-8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P), name it, and pick each condition as a kind and value; all must hold. On a filtered list, the first hit takes its steps. `{` starts JSON. **List saved filters** lists them.
+6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold on this computer.
+7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
+8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P), name it, and pick each condition as a kind and value; all must hold. On a list filtered without a saved filter, not search hits or the matrix, the first hit takes its steps. `{` starts JSON. **List saved filters** lists them.
 
 ## CLI
 
