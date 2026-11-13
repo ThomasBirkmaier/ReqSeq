@@ -3138,6 +3138,40 @@ describe("ListView, a search", () => {
     ]);
   });
 
+  it("[SR-216/AK-yq3n] [SR-216/AK-gg4w] a search in chosen fields asks element.search with them and names them under its heading; core's refusal stands in place of the hits", async () => {
+    const fields = [
+      { key: "acceptance-criteria", name: "Acceptance Criteria" },
+      { key: "text", name: "Text" },
+    ];
+    const call = fakeCall({
+      "element.search": () => ({ hits: [hit(1, { title: "Wind speed" })], total: 1, incomplete: false }),
+    });
+    await listHarness(asCall(call), searchBuffer("wind", [], undefined, fields));
+    // The input of the hits while typing (`searchPrompt`), with the page of the list.
+    expect(call).toHaveBeenCalledWith("element.search", {
+      query: "wind",
+      fields: ["acceptance-criteria", "text"],
+      limit: 50,
+      offset: 0,
+    });
+    expect(query("h1").textContent).toMatch(/^Search: wind /u);
+    expect(query('[aria-label="Fields"]').textContent).toBe("inAcceptance CriteriaText");
+    expect(texts(".search-field")).toEqual(["Acceptance Criteria", "Text"]);
+
+    // Without fields: nothing under the heading.
+    await listHarness(asCall(call), searchBuffer("wind"));
+    expect(container.querySelector('[aria-label="Fields"]')).toBeNull();
+
+    // A property the metamodel no longer knows: core's message (SR-216 AK2), no hits.
+    const refused = fakeCall({
+      "element.search": () =>
+        Object.assign(new Error("Unknown search field gone"), { code: "input.invalid" }),
+    });
+    await listHarness(asCall(refused), searchBuffer("wind", [], undefined, [{ key: "gone", name: "Gone" }]));
+    expect(texts("p.quiet")).toContain("Unknown search field gone");
+    expect(container.querySelectorAll(".row")).toHaveLength(0);
+  });
+
   it("pages in steps of 50", async () => {
     const call = fakeCall({
       "element.search": (input) => ({
