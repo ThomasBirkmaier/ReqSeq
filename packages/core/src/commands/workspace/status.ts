@@ -2,7 +2,7 @@
 // which are available and writable, where the metamodel lies, whether it is valid and whether the
 // workspace is read-only. `variantIndependent` shows the mark of the workspace file (SR-173).
 // `evidence` lists the evidence locations of the workspace file with whether the evidence walk reads
-// each (#625); `workspace.check` says why not. Its `folder` is what evidence.record takes (SR-215).
+// each (#625); `workspace.check` says why not. Its `folder` is in the form evidence.record takes (refused while the repository is not on this machine).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
@@ -48,8 +48,8 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
 };
 
 /**
- * The `evidence` locations as written, each with whether the evidence walk reads it and its folder as
- * evidence.record takes it (`evidenceFolder`, the same rule), which a location of an unlisted repository lacks.
+ * The `evidence` locations as written, each with whether the evidence walk reads it and its folder in the form
+ * evidence.record takes (`evidenceFolder`, the same rule), which a location of an unlisted repository lacks.
  */
 const evidenceLocations = (layout: WorkspaceLayout): Promise<CommandOutput<"workspace.status">["evidence"]> =>
   Promise.all(

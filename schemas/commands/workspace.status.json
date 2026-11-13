@@ -91,7 +91,7 @@
             "folder": {
               "type": "string",
               "minLength": 1,
-              "description": "The location relative to the workspace root, with `/`, as evidence.record takes it as `folder`; `.` for the workspace root itself. Left out when the workspace file does not list the repository of the location."
+              "description": "The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location."
             }
           },
           "additionalProperties": false,

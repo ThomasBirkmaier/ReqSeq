@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { checkCatalog, contextOf, SUMMARY_WORDS } from "./catalog-checks.mjs";
+import { checkCatalog, SUMMARY_WORDS } from "./catalog-checks.mjs";
 
 const input = {
   type: "object",
@@ -97,7 +97,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     const selection = { $ref: "../common.schema.json#/$defs/selection" };
     const sort = { type: "array", items: { $ref: "../filter.schema.json#/$defs/sortKey" } };
     expect(
-      check(withParts({ selection, sort }, [arg("selection", "selection"), arg("sort", "sort")])),
+      check(withParts({ selection, sort }, [arg("selection", "selection"), arg("sort", "json")])),
     ).toEqual([]);
     expect(
       check(
@@ -112,13 +112,10 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     const condition = { $ref: "../filter.schema.json#/$defs/condition" };
     expect(
       check(
-        withParts({ selection, where: condition }, [
-          arg("selection", "selection"),
-          arg("where", "condition"),
-        ]),
+        withParts({ selection, where: condition }, [arg("selection", "selection"), arg("where", "json")]),
       ),
     ).toHaveLength(6);
-    expect(check(withParts({ json: sort }, [arg("json", "sort")]))).toEqual([
+    expect(check(withParts({ json: sort }, [arg("json", "json")]))).toEqual([
       'schemas/commands/test.one.json: arguments: "json": part flag "json" is a common option',
     ]);
   });
@@ -278,134 +275,6 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     const blankNamed = { ...named, description: "" };
     expect(checkCatalog({ commands: [raw({ blankNamed })] }, schemas)).toEqual([
       'schemas/commands/test.one.json: arguments: "blankNamed": has a blank description',
-    ]);
-  });
-
-  it("binds condition, sort and group to their schemas both ways, the others one way (SR-215)", () => {
-    const at = (field, complete, of) => (of === undefined ? { field, complete } : { field, complete, of });
-    const fields = {
-      ref: { type: "string" },
-      type: { type: "string" },
-      where: { $ref: "../filter.schema.json#/$defs/condition" },
-      sort: { type: "array", items: { $ref: "../filter.schema.json#/$defs/sortKey" } },
-      group: { $ref: "../common.schema.json#/$defs/groupKey" },
-      properties: {
-        type: "object",
-        additionalProperties: { $ref: "../element.schema.json#/$defs/inputValue" },
-      },
-      relations: { $ref: "../common.schema.json#/$defs/relationRefs" },
-      path: { $ref: "../common.schema.json#/$defs/localPath" },
-      metamodel: { type: "object", properties: { repository: { type: "string" }, path: { type: "string" } } },
-      folder: { type: "string" },
-      criteria: { type: "array", items: { type: "string" } },
-      file: { type: "string" },
-    };
-    const right = [
-      at("ref", "element"),
-      at("type", "type"),
-      at("where", "condition"),
-      at("sort", "sort"),
-      at("group", "group"),
-      at("properties", "properties"),
-      at("relations", "relations"),
-      at("path", "folder"),
-      at("metamodel", "metamodelLocation"),
-      at("folder", "evidenceLocation"),
-      at("criteria", "criterion"),
-      at("file", "elementFile"),
-    ];
-    const schema = { type: "object", properties: fields, required: ["ref"] };
-    const with_ = (args) => check(command("test.one", "One", args, schema));
-    const swap = (field, complete) => right.map((a) => (a.field === field ? at(field, complete) : a));
-    expect(with_(right)).toEqual([]);
-    const error = (text) => `schemas/commands/test.one.json: arguments: ${text}`;
-    // Both ways: such a field only so, and the source only on such a field.
-    expect(with_(swap("where", "json"))).toEqual([
-      error('"where": a condition field is completed as condition'),
-    ]);
-    expect(with_(swap("sort", "json"))).toEqual([
-      error('"sort": a list of sortKey field is completed as sort'),
-    ]);
-    expect(with_(swap("group", "text"))).toEqual([error('"group": a groupKey field is completed as group')]);
-    expect(with_(swap("file", "condition"))).toEqual([error('"file": condition needs a condition field')]);
-    expect(with_(swap("file", "sort"))).toEqual([error('"file": sort needs a list of sortKey field')]);
-    expect(with_(swap("file", "group"))).toEqual([error('"file": group needs a groupKey field')]);
-    // One way: such a field may stay json (element.update), the source needs it.
-    expect(with_(swap("properties", "json"))).toEqual([]);
-    expect(with_(swap("relations", "json"))).toEqual([]);
-    expect(with_(swap("metamodel", "json"))).toEqual([]);
-    expect(with_(swap("relations", "properties"))).toEqual([
-      error('"relations": properties needs an object of inputValue field'),
-    ]);
-    expect(with_(swap("properties", "relations"))).toEqual([
-      error('"properties": relations needs a relationRefs field'),
-    ]);
-    expect(with_(swap("folder", "metamodelLocation"))).toEqual([
-      error('"folder": metamodelLocation needs an object with repository and path field'),
-    ]);
-    expect(with_(swap("metamodel", "evidenceLocation"))).toEqual([
-      error('"metamodel": evidenceLocation needs a string field'),
-    ]);
-    // The sources that read a field need it before them.
-    const early = [
-      at("ref", "element"),
-      at("properties", "properties"),
-      ...right.filter((a) => a.field !== "ref" && a.field !== "properties"),
-    ];
-    expect(with_(early)).toEqual([error('"properties": properties needs an earlier type field')]);
-    const first = { ...schema, required: ["criteria"] };
-    const criteriaFirst = [at("criteria", "criterion"), ...right.filter((a) => a.field !== "criteria")];
-    expect(check(command("test.one", "One", criteriaFirst, first))).toEqual([
-      error('"criteria": criterion needs an earlier element field'),
-    ]);
-    const noFolder = right.map((a) => (a.field === "path" ? at("path", "text") : a));
-    expect(with_(noFolder)).toEqual([
-      error('"path": a localPath field is completed as folder or file'),
-      error('"metamodel": metamodelLocation needs an earlier folder field'),
-    ]);
-  });
-
-  it("a meaning only on an element source, and never the field a source without `of` reads (SR-215)", () => {
-    const fields = {
-      ref: { type: "string" },
-      variant: { type: "string" },
-      criteria: { type: "string" },
-      file: { type: "string" },
-    };
-    const schema = { type: "object", properties: fields, required: ["ref"] };
-    const variant = { field: "variant", complete: "element", meaning: "variant" };
-    const args = [arg("ref", "element"), variant, arg("criteria", "criterion"), arg("file", "elementFile")];
-    expect(check(command("test.one", "One", args, schema))).toEqual([]);
-    // `criteria` reads `ref`, not the nearer `variant`.
-    expect(contextOf(args, 2)).toBe("ref");
-    expect(contextOf(args, 3)).toBe("ref");
-    expect(contextOf(args, 1)).toBeUndefined();
-    expect(contextOf(args, 9)).toBeUndefined();
-    // Without another element field before it, nothing fits; an explicit `of` may name it.
-    const only = [variant, arg("ref", "element"), arg("criteria", "criterion"), arg("file", "elementFile")];
-    const variantFirst = { ...schema, required: ["variant"] };
-    expect(contextOf([variant, arg("criteria", "criterion")], 1)).toBeUndefined();
-    expect(
-      check(
-        command(
-          "test.one",
-          "One",
-          [variant, arg("criteria", "criterion"), arg("ref", "element"), arg("file", "elementFile")],
-          variantFirst,
-        ),
-      ),
-    ).toEqual([
-      'schemas/commands/test.one.json: arguments: "criteria": criterion needs an earlier element field',
-    ]);
-    expect(check(command("test.one", "One", only, variantFirst))).toEqual([]);
-    expect(contextOf([variant, arg("criteria", "criterion", "variant")], 1)).toBe("variant");
-    const onText = [
-      arg("ref", "element"),
-      { ...arg("variant", "text"), meaning: "variant" },
-      ...args.slice(2),
-    ];
-    expect(check(command("test.one", "One", onText, schema))).toEqual([
-      'schemas/commands/test.one.json: arguments: "variant": meaning is only for an element source, not text',
     ]);
   });
 

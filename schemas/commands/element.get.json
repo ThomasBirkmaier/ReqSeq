@@ -27,7 +27,7 @@
     { "field": "versionDate", "complete": "boolean" },
     { "field": "hintDates", "complete": "boolean" },
     { "field": "repository", "complete": "repository" },
-    { "field": "file", "complete": "elementFile" }
+    { "field": "file", "complete": "text" }
   ],
   "input": {
     "type": "object",

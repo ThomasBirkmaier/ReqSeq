@@ -8,7 +8,7 @@
   "implements": ["SR-125", "SR-126", "SR-153", "SR-205"],
   "arguments": [
     { "field": "selection", "complete": "selection" },
-    { "field": "sort", "complete": "sort" },
+    { "field": "sort", "complete": "json" },
     { "field": "kinds", "complete": "relationKind" },
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" }

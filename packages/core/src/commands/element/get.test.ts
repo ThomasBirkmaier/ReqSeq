@@ -207,7 +207,7 @@ describe("element.get", () => {
     });
 
     it("names in the details of ref.ambiguous for ref alone each element by id, repository and file, each of which opens it (SR-215)", async () => {
-      // The command prompt offers these files for `file` (`elementFile`); the details have no schema.
+      // The command prompt is to offer these files for `file` (#1643); the details have no schema.
       const opened = await open({ fixture: "SR-088/copied-file" }, "system");
       const error = await getError(opened, { ref: COPIED });
       expect(error.code).toBe("ref.ambiguous");

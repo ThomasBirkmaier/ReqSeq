@@ -398,6 +398,14 @@ describe("evidence.record folders (SR-030 AK2)", () => {
     expect((await record(workspace, { ref: "SR-00c002", ...INSPECTION, folder: "records" })).files).toEqual([
       "records/2026-10-27-SR-00c002-inspection.md",
     ]);
+    // The folder of a repository not on this machine is listed but refused, as its description says.
+    const elsewhere = await failure(() =>
+      record(workspace, { ref: "SR-00c002", ...INSPECTION, folder: "../no-such-repository-sr030/evidence" }),
+    );
+    expect([elsewhere.code, (elsewhere.details as { reason?: unknown }).reason]).toEqual([
+      "input.invalid",
+      "not-available",
+    ]);
   });
 
   it("refuses when no location can take the record", async () => {

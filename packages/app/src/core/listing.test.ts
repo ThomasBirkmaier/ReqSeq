@@ -51,8 +51,8 @@ describe("the catalog entries the windows get (SR-108)", () => {
   });
 
   it("keeps an inline enum, a field that is no choice and a reference that leads to no enum as they are", () => {
-    const inline = listed("element.get");
-    expect(inline).toEqual(entry("element.get"));
+    const inline = listed("element.list");
+    expect(inline).toEqual(entry("element.list"));
     const args: CatalogEntry["arguments"] = [
       { field: "a", complete: "choice" },
       { field: "b", complete: "choice" },
@@ -74,79 +74,6 @@ describe("the catalog entries the windows get (SR-108)", () => {
     expect(listedEntry(none, schemas)).toBe(none);
     const empty = { ...entry("hint.list"), input: { type: "object" } };
     expect(listedEntry(empty, schemas)).toBe(empty);
-  });
-
-  it("gives a condition, a sort and a grouping their whole schema inline, the recursion of a condition as a reference (SR-215)", () => {
-    const fields = (
-      listed("perspective.save").input as { properties: Record<string, Record<string, unknown>> }
-    ).properties;
-    /** Every `$ref` in `node`. */
-    const refsIn = (node: unknown): string[] =>
-      Array.isArray(node)
-        ? node.flatMap(refsIn)
-        : typeof node === "object" && node !== null
-          ? Object.entries(node).flatMap(([key, value]) =>
-              key === "$ref" && typeof value === "string" ? [value] : refsIn(value),
-            )
-          : [];
-    const condition = "https://reqseq.dev/schemas/filter.schema.json#/$defs/condition";
-    const where = fields["where"] ?? {};
-    // Only the references back to the condition itself stay, absolute (`all`, `any`, `not`).
-    expect(new Set(refsIn(where))).toEqual(new Set([condition]));
-    expect(where["description"]).toBe(sourceDescription("perspective.save", "where"));
-    const branches = where["oneOf"] as { properties: Record<string, Record<string, unknown>> }[];
-    const part = (name: string): Record<string, unknown> | undefined =>
-      branches.find((branch) => name in branch.properties)?.properties[name];
-    expect(part("all")?.["items"]).toEqual({ $ref: condition });
-    const statuses = (name: string): unknown =>
-      (
-        (schemas.find((s) => String(s["$id"]).endsWith("/common.schema.json"))?.["$defs"] ?? {}) as Record<
-          string,
-          { enum: unknown }
-        >
-      )[name]?.enum;
-    expect((part("verification")?.["items"] as { enum: unknown }).enum).toEqual(
-      statuses("verificationStatus"),
-    );
-    expect((part("validation")?.["items"] as { enum: unknown }).enum).toEqual(statuses("validationStatus"));
-    // The relation condition with its meanings and directions.
-    expect(JSON.stringify(where)).toContain('"enum":["derivation","replacement","succession","exclusion"]');
-    expect(JSON.stringify(where)).toContain('"enum":["up","down","evidence"]');
-    // A sort: the keys of `by` and the orders; a grouping: its fixed keys.
-    const sortKey = (fields["sort"]?.["items"] ?? {}) as {
-      properties: Record<string, Record<string, unknown>>;
-    };
-    expect(refsIn(fields["sort"])).toEqual([]);
-    expect((sortKey.properties["by"]?.["anyOf"] as { enum?: unknown }[])[0]?.enum).toEqual([
-      "id",
-      "identifier",
-      "hierarchy",
-      "type",
-      "status",
-      "title",
-    ]);
-    expect(sortKey.properties["order"]?.["enum"]).toEqual(["asc", "desc"]);
-    expect(refsIn(fields["group"])).toEqual([]);
-    expect((fields["group"]?.["anyOf"] as { enum?: unknown }[])[0]?.enum).toEqual([
-      "type",
-      "status",
-      "package",
-    ]);
-    expect(fields["group"]?.["description"]).toBe(sourceDescription("perspective.save", "group"));
-    // A reference that names nothing stays, absolute.
-    const nowhere = test([{ field: "where", complete: "condition" }], {
-      where: { $ref: "../nowhere.schema.json#/$defs/x", description: "Nowhere." },
-    });
-    expect(listedEntry(nowhere, schemas).input).toEqual({
-      type: "object",
-      properties: {
-        where: { $ref: "https://reqseq.dev/schemas/nowhere.schema.json#/$defs/x", description: "Nowhere." },
-      },
-    });
-    // Not the other arguments: a filter name stays as the catalog has it.
-    expect(fields["filter"]).toEqual(
-      (entry("perspective.save").input as { properties: Record<string, unknown> }).properties["filter"],
-    );
   });
 
   it("[SR-210/AK-cbzd] gives every argument the catalog's description, its own or else the one of its value type", () => {

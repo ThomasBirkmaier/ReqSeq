@@ -180,10 +180,7 @@ export interface CatalogContext extends ActionContext {
   readonly reopen: () => void;
 }
 
-/**
- * The sources an earlier field may have for a source that reads one (`of`); as `CONTEXT` in
- * `catalog-checks.mjs`, which the tests compare over the whole catalog.
- */
+/** The sources an earlier field may have for a source that reads one (`of`); as in `catalog-checks.mjs`. */
 const ELEMENTS: readonly Source[] = ["element", "relationTarget"];
 const FITTING: Partial<Record<Source, readonly Source[]>> = {
   status: ELEMENTS,
@@ -194,17 +191,9 @@ const FITTING: Partial<Record<Source, readonly Source[]>> = {
   relation: [...ELEMENTS, "relation"],
   relationTarget: ["relationKind"],
   value: ["property"],
-  criterion: ["element"],
-  elementFile: ["element"],
-  properties: ["type"],
-  relations: ["type"],
-  metamodelLocation: ["folder"],
 };
 
-/**
- * The field a source reads: `of`, else the nearest earlier field of a fitting source, never an element
- * field with a `meaning` (a variant or a package: `evidence.record criteria` reads `ref`, not `variant`).
- */
+/** The field a source reads: `of`, else the nearest earlier field of a fitting source. */
 export const contextField = (args: readonly Argument[], at: number): string | undefined => {
   const arg = args[at];
   if (arg?.of !== undefined) {
@@ -214,7 +203,7 @@ export const contextField = (args: readonly Argument[], at: number): string | un
   return args
     .slice(0, at)
     .reverse()
-    .find((earlier) => fitting?.includes(earlier.complete) === true && earlier.meaning === undefined)?.field;
+    .find((earlier) => fitting?.includes(earlier.complete) === true)?.field;
 };
 
 const schemaOf = (command: CommandListing, field: string): FieldSchema => {
@@ -657,19 +646,6 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       ? { kind: "list", values: views.views.map((shown) => ({ value: shown.view, name: viewName(shown) })) }
       : { kind: "failed", message: views.message };
   },
-  // The sources the catalog names for SR-215 are asked as before until their issues (#1644 to #1648) offer
-  // their values: the acceptance criteria one per Enter, a grouping, an evidence location and the file of
-  // an ambiguous reference as text; conditions, sorts, the properties and relations of a new element and
-  // the metamodel location as JSON. An element field with a `meaning` stays an element search.
-  criterion: asText,
-  evidenceLocation: asText,
-  elementFile: asText,
-  group: asText,
-  metamodelLocation: typed(jsonOr),
-  condition: typed(jsonOr),
-  sort: typed(jsonOr),
-  properties: typed(jsonOr),
-  relations: typed(jsonOr),
 };
 
 /** What the argument at `at` offers, or why its values cannot be read. */

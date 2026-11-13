@@ -9,10 +9,10 @@
   "implements": ["SR-070"],
   "arguments": [
     { "field": "name", "complete": "text" },
-    { "field": "where", "complete": "condition" },
+    { "field": "where", "complete": "json" },
     { "field": "description", "complete": "text" },
     { "field": "view", "complete": "view" },
-    { "field": "sort", "complete": "sort" }
+    { "field": "sort", "complete": "json" }
   ],
   "input": {
     "type": "object",
