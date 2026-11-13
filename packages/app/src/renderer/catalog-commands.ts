@@ -19,9 +19,11 @@
 // "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
 // the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
 // found by search among its target types, or typed text; a list property takes one value per Enter. An
-// empty input skips the property, or ends the values of a list. The optional `properties` are not offered:
-// the other properties are added in the element buffer ("Add property", SR-104). The new element opens in
-// its element buffer, and the minibuffer says how many hints core gave.
+// empty input skips the property, or ends the values of a list. With Ctrl/Cmd+Enter the optional `properties`
+// (the properties of the type without a value, skipped required ones too) and `relations` (the kinds the type
+// may have as source, then a target) are built from hits as marks (`create-prompt.ts`, SR-215 AK8); their
+// value joins the required properties in `properties`. The new element opens in its element buffer, and the
+// minibuffer says how many hints core gave.
 //
 // A write command is asked like a read command, with two more rules: one without required arguments asks
 // its first argument (`hint.confirm`: `ref`), and an optional argument whose explicit `of` names a field
@@ -49,7 +51,8 @@
 // element, or those of an ambiguous reference (`ref.ambiguous`); `metamodelLocation` the repository, then
 // the path; `group` the groupings of the elements the call's earlier `where`, `filter`, `perspective` and shown
 // selection select (one `element.facets`, `list-groups.ts`); a `condition` is built from hits as marks
-// (`condition-prompt.ts`, SR-215 AK3). A hit the
+// (`condition-prompt.ts`, SR-215 AK3), a `sort` (`sort-prompt.ts`, AK7), `properties` and `relations` of a new
+// element (`create-prompt.ts`, AK8). A hit the
 // metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
 // asked: it is the shown list's, or on a package page its package (`selection.package`), for every command
 // with a selection, reads and writes alike.
@@ -92,6 +95,8 @@ import { choiceItems } from "./property-edit.js";
 import type { ConditionAsk, ConditionMark, ShownConditions } from "./condition-prompt.js";
 import { askCondition, conditionLabel, conditionOf, shownMarks } from "./condition-prompt.js";
 import type { ShownSort, SortMark } from "./sort-prompt.js";
+import type { BuildAsk, PropertyMark, RelationMark } from "./create-prompt.js";
+import { askProperties, askRelations, marksLabel, propertiesOf, relationsOf } from "./create-prompt.js";
 import { askSort, sortMarksLabel, sortOf } from "./sort-prompt.js";
 import { groupings } from "./list-groups.js";
 import { rowName } from "./rows.js";
@@ -113,8 +118,8 @@ interface FieldSchema {
   readonly items?: { readonly enum?: readonly unknown[] };
 }
 
-/** A part of a value built from hits: a condition (`condition-prompt.ts`) or a sort key (`sort-prompt.ts`). */
-type BuiltMark = ConditionMark | SortMark;
+/** A part of a value built from hits (`condition-prompt.ts`, `sort-prompt.ts`, `create-prompt.ts`). */
+type BuiltMark = ConditionMark | SortMark | PropertyMark | RelationMark;
 
 /** One value given to an argument, and how the prompt shows it. */
 interface Given {
@@ -925,9 +930,9 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       groupings(output, packages).map(({ group, name }) => ({ value: group, name, key: group })),
     );
   },
-  // Built step by step from hits (`askCondition`, `askSort`); never asked through their offer. The
-  // properties and relations of a new element are asked as JSON until #1648; their `FITTING` entries make
-  // them readers: a value of one is dropped when the field it reads is refused.
+  // Built step by step from hits (`askCondition`, `askSort`, `askProperties`, `askRelations`); never asked
+  // through their offer. The `FITTING` entries of properties and relations make them readers of the type: their
+  // value is dropped when the type is asked again.
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -1023,8 +1028,10 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       if (taken !== undefined) {
         input[arg.field] = taken;
       }
-    } else if (entry.given.some((given) => given.field === arg.field && given.property !== undefined)) {
-      const properties = propertiesInput(asksOf(entry), answersOf(entry));
+    } else if (arg.complete === "properties" && entry.given.some((given) => given.field === arg.field)) {
+      // The required properties asked one by one (SR-064), then those built from marks (SR-215 AK8).
+      const built = givens.find((given) => given.marks !== undefined)?.value as object | undefined;
+      const properties = { ...propertiesInput(asksOf(entry), answersOf(entry)), ...built };
       if (Object.keys(properties).length > 0) {
         input[arg.field] = properties;
       }
@@ -1256,8 +1263,12 @@ export const refusedOf = (details: Readonly<Record<string, unknown>> | undefined
  */
 const refusedAt = (entry: Entry, details: Readonly<Record<string, unknown>> | undefined): number => {
   const refused = refusedOf(details);
+  // A property of the marks of `properties` (SR-215 AK8) is refused in the value built from them.
+  const built = (given: Given): boolean =>
+    given.property === undefined &&
+    given.marks?.some((mark) => "property" in mark && mark.property === refused?.property) === true;
   const places = entry.given.flatMap((given, at) =>
-    refused?.field === given.field && refused.property === given.property ? [at] : [],
+    refused?.field === given.field && (refused.property === given.property || built(given)) ? [at] : [],
   );
   const named =
     refused?.index !== undefined
@@ -1653,6 +1664,49 @@ const unheld = (entry: Entry, field: string): Entry => {
 const heldMarks = (entry: Entry, field: string): readonly BuiltMark[] =>
   entry.marks ?? (entry.held?.field === field ? entry.held.marks : []);
 
+/** Asks the properties or the relations of a new element of the type given from marks (SR-215 AK8). */
+const askBuilt = (
+  context: CatalogContext,
+  entry: Entry,
+  arg: Argument,
+  at: number,
+  explain: ArgumentExplanation,
+): void => {
+  const { field } = arg;
+  const rest = unheld(entry, field);
+  const of = contextField(entry.command.arguments, at);
+  const shared = <M extends BuiltMark>(value: (marks: readonly M[]) => unknown): BuildAsk<M> => ({
+    context,
+    line: `${lineOf(entry)} · ${field}`,
+    ...(entry.error === undefined ? {} : { error: entry.error }),
+    explain,
+    type: ordered(entry.given).find((given) => given.field === of && given.skipped !== true)?.value,
+    filled: answersOf(entry).map((answer) => answer.key),
+    back: (marks) => {
+      const { marks: _again, ...left } = entry;
+      back(context, { ...left, held: { field, marks } });
+    },
+    take: (marks, more) => {
+      give(context, rest, field, value(marks), marksLabel(marks), more, { marks });
+    },
+    skip: (more) => {
+      skip(context, rest, field, more);
+    },
+  });
+  const held = heldMarks(entry, field);
+  if (arg.complete === "properties") {
+    askProperties(
+      shared(propertiesOf),
+      held.filter((mark): mark is PropertyMark => "property" in mark),
+    );
+  } else {
+    askRelations(
+      shared(relationsOf),
+      held.filter((mark): mark is RelationMark => "target" in mark),
+    );
+  }
+};
+
 /** Asks the argument at `at`: its candidates from its source, or its text. */
 const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): void => {
   const field = arg.field;
@@ -1707,6 +1761,10 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
       },
       heldMarks(entry, field).filter((mark): mark is SortMark => "key" in mark),
     );
+    return;
+  }
+  if (arg.complete === "properties" || arg.complete === "relations") {
+    askBuilt(context, entry, arg, at, shared.explain);
     return;
   }
   const take = (
@@ -2002,13 +2060,14 @@ const pathFill = (
 });
 
 /**
- * Whether the prompt of the optional arguments offers `arg`: one it can ask that has no value yet, and not the
- * properties of a new element once its type asked them (SR-064).
+ * Whether the prompt of the optional arguments offers `arg`: one it can ask that has no value yet; the properties
+ * of a new element also after its required ones were asked (SR-215 AK8), until they are built from marks.
  */
 const offeredLater = (entry: Entry, arg: Argument): boolean =>
   arg.complete !== "selection" &&
-  !entry.given.some((given) => given.field === arg.field && given.skipped !== true) &&
-  !(arg.field === PROPERTIES && entry.given.some((given) => given.asks !== undefined));
+  !entry.given.some(
+    (given) => given.field === arg.field && given.skipped !== true && given.property === undefined,
+  );
 
 /**
  * The explanation line of `arg` while it is asked (SR-210 AK2): its name and catalog description, and what
