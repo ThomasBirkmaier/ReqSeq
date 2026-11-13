@@ -43,6 +43,7 @@ export const LoadingView = ({
     onData: props.onData,
     onEcho: props.onEcho,
   };
+  const drawn = props.onDrawn === undefined ? {} : { onDrawn: props.onDrawn };
   // The rows that changed outside are highlighted (SR-116).
   const marking = props.outside === undefined ? {} : { outside: props.outside };
   if (buffer.kind === "result") {
@@ -52,7 +53,7 @@ export const LoadingView = ({
     return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...marking} />;
   }
   return inMatrix(buffer) ? (
-    <MatrixView buffer={buffer} {...shared} {...marking} />
+    <MatrixView buffer={buffer} {...shared} {...drawn} {...marking} />
   ) : (
     <ListView buffer={buffer} {...props} />
   );
@@ -61,7 +62,7 @@ export const LoadingView = ({
 /** The props of an element view that the app gives for its buffer, besides those every view gets. */
 export type ElementProps = Omit<
   ElementViewProps,
-  "buffer" | "active" | "call" | "revision" | "outside" | "onData" | "onEcho" | "dispatch"
+  "buffer" | "active" | "call" | "revision" | "outside" | "onData" | "onEcho" | "onDrawn" | "dispatch"
 >;
 
 /** What every view of an area gets from the app. */
@@ -75,6 +76,8 @@ export interface AreaViews {
   readonly dispatch: (action: WindowAction) => void;
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A view cannot draw its buffer: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
+  readonly onDrawn: (key: string) => void;
   /** The names of the types by their key, from the metamodel. */
   readonly typeNames: ReadonlyMap<string, string>;
   /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
@@ -96,7 +99,7 @@ const BufferView = ({
   readonly split: boolean;
   readonly views: AreaViews;
 }): React.JSX.Element => {
-  const { call, revision, seen, outside, dispatch, onData, onEcho } = views;
+  const { call, revision, seen, outside, dispatch, onData, onEcho, onDrawn } = views;
   if (buffer.kind === "element") {
     return (
       <ElementView
@@ -108,6 +111,7 @@ const BufferView = ({
         outside={outside}
         onData={onData}
         onEcho={onEcho}
+        onDrawn={onDrawn}
         dispatch={dispatch}
         active={active}
       />
@@ -163,6 +167,7 @@ const BufferView = ({
       dispatch={dispatch}
       onData={onData}
       onEcho={onEcho}
+      onDrawn={onDrawn}
     />
   );
 };
@@ -196,10 +201,16 @@ export const BufferArea = ({ area, split, onActivate, views }: BufferAreaProps):
       }
       onFocus={activate}
     >
-      {/* The right area of a split prefixes the ids of its view, so no id is in both areas. */}
-      <IdScope.Provider value={split && area.side === "right" ? "r-" : ""}>
-        <BufferView buffer={area.buffer} active={area.active} split={split} views={views} />
-      </IdScope.Provider>
+      {/* The track of a switch in motion (SR-212, `buffer-slide.ts`): the live view, and beside it, only while
+          a slide runs, the picture of the view that was left. The picture comes after the live view, so a
+          query for the first node of a kind finds the live one. */}
+      <div className="slide-layer" data-layer="main">
+        {/* The right area of a split prefixes the ids of its view, so no id is in both areas. */}
+        <IdScope.Provider value={split && area.side === "right" ? "r-" : ""}>
+          <BufferView buffer={area.buffer} active={area.active} split={split} views={views} />
+        </IdScope.Provider>
+      </div>
+      <div className="slide-layer" data-layer="side" hidden />
     </div>
   );
 };

@@ -3,7 +3,7 @@
 // The sheet shows the most recent buffer: a list, a search result or an element; the modeline names the
 // buffer of the active area. Nothing else is permanently visible (SR-100). Every datum comes from a
 // catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
@@ -43,6 +43,7 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
+import { SlideController, directionOf } from "./buffer-slide.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
@@ -185,6 +186,31 @@ const shownOnly = (loaded: Loaded, keys: readonly string[]): Loaded =>
   [...loaded.keys()].every((key) => keys.includes(key))
     ? loaded
     : new Map([...loaded].filter(([key]) => keys.includes(key)));
+
+/**
+ * The switch to the previous or next buffer in motion (SR-212): one at a time, taken in the keydown (`cycled`),
+ * started by the commit that shows its buffer in the active area `side`, and ended by any other change of it.
+ */
+const useSlides = (
+  sheet: React.RefObject<HTMLElement | null>,
+  side: string,
+  shown: Buffer | undefined,
+): SlideController => {
+  const slides = useRef<SlideController | undefined>(undefined);
+  slides.current ??= new SlideController({ view: window, root: () => sheet.current });
+  const controller = slides.current;
+  const key = shown?.key;
+  useLayoutEffect(() => {
+    controller.settle(side, key);
+  }, [controller, side, key]);
+  useEffect(
+    () => () => {
+      controller.finish();
+    },
+    [controller],
+  );
+  return controller;
+};
 
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
@@ -607,6 +633,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, [buffers]);
 
   walk.current = cycleOrder(walk.current, buffers);
+  const slides = useSlides(sheet, layout.active, current);
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
     if (session === undefined) {
@@ -626,8 +653,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     readOnly: readOnlyNow(view),
     buffers,
     cycleOrder: walk.current.order,
-    cycled: (key) => {
+    cycled: (key, step) => {
       walk.current = { order: walk.current.order, cycled: key };
+      const from = buffers[0]?.key;
+      if (from !== undefined) {
+        slides.prepare({ side: layout.active, from, to: key, direction: directionOf(step) });
+      }
     },
     leaveEditor: () => {
       const focused = document.activeElement;
@@ -1093,9 +1124,23 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [current?.key, token, marked?.key, layout.other, layout.preview]);
 
-  const onData = useCallback((key: string, data: BufferData | undefined): void => {
-    setLoaded((before) => new Map(before).set(key, data));
-  }, []);
+  const onData = useCallback(
+    (key: string, data: BufferData | undefined): void => {
+      setLoaded((before) => new Map(before).set(key, data));
+      // What a view loaded is drawn in the same commit: a switch in motion to it starts (SR-212). A list or a
+      // search result (the data with its rows) says so itself (`onDrawn`), once its rows show their verification.
+      if (data !== undefined && !("rows" in data)) {
+        slides.drawn(key);
+      }
+    },
+    [slides],
+  );
+  const onDrawn = useCallback(
+    (key: string): void => {
+      slides.drawn(key);
+    },
+    [slides],
+  );
   // What a buffer that no area shows any more loaded goes: shown again, it loads again.
   const shownKeys = shownAreas.map((area) => area.buffer.key);
   useEffect(() => {
@@ -1160,6 +1205,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     onData,
     onEcho: setEcho,
+    onDrawn,
     typeNames,
     kindNames,
     overview,

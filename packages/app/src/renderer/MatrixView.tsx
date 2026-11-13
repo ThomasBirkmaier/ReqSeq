@@ -61,6 +61,8 @@ export interface MatrixViewProps {
   /** `undefined` while the buffer asks again, so the modeline never shows an old count. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The view cannot draw its buffer (its read failed): a switch in motion to it starts (SR-212). Default: nothing. */
+  readonly onDrawn?: (key: string) => void;
   /** The changes from outside (SR-116): the row element of an element that changed is highlighted. */
   readonly outside?: OutsideChanges;
 }
@@ -196,6 +198,7 @@ export const MatrixView = ({
   dispatch,
   onData,
   onEcho,
+  onDrawn,
   outside,
 }: MatrixViewProps): React.JSX.Element => {
   const scope = useIdScope();
@@ -246,6 +249,7 @@ export const MatrixView = ({
       } else {
         setView({ status: "error", message: answer.message });
         onEcho(answer.message);
+        onDrawn?.(buffer.key);
       }
     });
     return () => {

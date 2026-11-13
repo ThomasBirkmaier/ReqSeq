@@ -438,7 +438,10 @@ describe("App, Split window (SR-115 AK3)", () => {
     for (const area of container.querySelectorAll("[data-area]")) {
       expect(area.getAttribute("aria-label")).toBeNull();
       expect(area.getAttribute("title")).toBeNull();
-      expect(area.querySelector(":scope > :not([data-buffer])")).toBeNull();
+      // Only the track of a switch in motion (SR-212): the live buffer, and an empty layer beside it.
+      expect(area.querySelector(":scope > :not(.slide-layer)")).toBeNull();
+      expect(area.querySelector(':scope > [data-layer="main"] > :not([data-buffer])')).toBeNull();
+      expect(area.querySelector(':scope > [data-layer="side"]')?.childElementCount).toBe(0);
     }
     // Two lists side by side share no id, and each names its own selected row.
     const ids = [...container.querySelectorAll("[id]")].map((element) => element.id);

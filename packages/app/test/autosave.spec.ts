@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp } from "./support/app.js";
+import { goTo, launchApp, slideSettled } from "./support/app.js";
 import { markdownMetamodel } from "./support/boxes.js";
 
 const SR_FILE = "requirements/SR-0000000000c4.md";
@@ -144,8 +144,10 @@ test.describe("saving without a save command", () => {
     let typed = Date.now();
     await window.keyboard.press("Alt+KeyN");
     expect(await written(read(running, SR_FILE), "Eins.", typed)).toBeLessThan(900);
+    await slideSettled(window);
     // Go to another element: the prompt that opens writes the input already.
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.type("Zwei.");
@@ -202,8 +204,10 @@ test.describe("saving without a save command", () => {
     await written(read(running, SR_FILE), "Neu.", Date.now());
     // Another buffer and back: the history is still there.
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toHaveCount(0);
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Z");
@@ -240,6 +244,7 @@ test.describe("saving without a save command", () => {
     // After another buffer was shown, the step forth is still there.
     await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toHaveText(SR_TITLE);
     await field(window, "requirement-type").focus();
     await window.keyboard.press("ControlOrMeta+Shift+Z");
@@ -352,8 +357,10 @@ test.describe("saving without a save command", () => {
     await window.keyboard.type("Neu.");
     await noSaving();
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await noSaving();
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toHaveText(SR_TITLE);
     await window.keyboard.press("Enter");
     await window.keyboard.type("Mehr.");
