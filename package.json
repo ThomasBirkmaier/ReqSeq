@@ -21,6 +21,7 @@
     "licenses:check": "node scripts/licenses/check.mjs",
     "merge:main": "node scripts/git/merge-main.mjs",
     "trace-check": "node scripts/trace-check/trace-check.mjs",
+    "issue-check": "node scripts/issue-check/issue-check.mjs",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:delivery": "vitest run --config vitest.delivery.config.ts",
