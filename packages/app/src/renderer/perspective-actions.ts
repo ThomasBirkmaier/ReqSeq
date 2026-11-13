@@ -13,6 +13,7 @@ import type { Action, ActionContext, Choice } from "./actions.js";
 import type { FilterStep, ListBuffer, ListedPerspective } from "./buffers.js";
 import { inMatrix, listSort, listing, perspectiveBuffer, savedOf, selectionOf } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
+import { conditionOf, shownMarks } from "./condition-prompt.js";
 import { INCOMPLETE } from "./modeline.js";
 import { inOrderOfUse } from "./perspective-recent.js";
 
@@ -141,29 +142,21 @@ export const SAVE_PERSPECTIVE = "save-perspective";
 
 type Condition = NonNullable<ElementSelection["where"]>;
 
-/** The parts of `condition` under one `all`: those of an `all`, else the condition itself. */
-const allParts = (condition: Condition): readonly Condition[] =>
-  "all" in condition && Object.keys(condition).length === 1 ? condition.all : [condition];
-
 /**
- * The conditions of the steps as the `where` of a perspective (a text step is its `text` condition,
- * SR-068). The selection of a perspective, the first step of its buffer, stays as stored: alone without
- * further steps, so saving it again under its name changes no line of it (SR-213 AK3); with further steps
- * its parts come first under one `all`, unchanged. Other conditions: one alone as it is, several under one
- * `all`, none as `{ all: [] }`.
+ * The conditions of the steps as the `where` of a perspective. The selection of a perspective, the first step
+ * of its buffer, with no further condition stays as stored, so saving it again under its name changes no line
+ * of it (SR-213 AK3). Otherwise always under one `all`, in the order of the steps, none as `{ all: [] }` (a text
+ * step is its `text` condition, SR-068), the perspective's stored `all` giving its parts, a stored condition of
+ * another kind one part: the marks the condition of "Save perspective" takes from the shown list
+ * (`shownMarks`, SR-215 AK5), so for a list without an unchanged perspective selection both ways write the
+ * same file (SR-214 AK5).
  */
 export const perspectiveWhere = (steps: readonly FilterStep[]): Condition => {
-  const [first] = steps;
+  const [first, ...rest] = steps;
   const stored = first?.perspective === true ? first.selection.where : undefined;
-  const own = (stored === undefined ? steps : steps.slice(1)).flatMap((step) =>
-    step.selection.where === undefined ? [] : [step.selection.where],
-  );
-  if (stored !== undefined && own.length === 0) {
-    return stored;
-  }
-  const parts = [...(stored === undefined ? [] : allParts(stored)), ...own];
-  const [only] = parts;
-  return parts.length === 1 && only !== undefined ? only : { all: parts };
+  return stored !== undefined && rest.every((step) => step.selection.where === undefined)
+    ? stored
+    : (conditionOf(shownMarks(steps)) as Condition);
 };
 
 /**

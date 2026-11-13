@@ -71,7 +71,7 @@ import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, listing, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, listing, resultBuffer, selectionOf } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
@@ -79,8 +79,8 @@ import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
-import type { ConditionMark } from "./condition-prompt.js";
-import { askCondition, conditionLabel, conditionOf } from "./condition-prompt.js";
+import type { ConditionAsk, ConditionMark, ShownConditions } from "./condition-prompt.js";
+import { askCondition, conditionLabel, conditionOf, shownMarks } from "./condition-prompt.js";
 import { rowName } from "./rows.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
@@ -1409,6 +1409,84 @@ const askProperty = (context: CatalogContext, entry: Entry, property: RequiredPr
   }
 };
 
+/** Why "Save filter" offers no conditions of a shown list with a saved filter (SR-215 AK5). */
+export const NO_SHOWN_FILTER = "No conditions of the shown list: a filter cannot hold its saved filter";
+
+/**
+ * The conditions of the shown list for the condition of "Save filter" and "Save perspective" (SR-215 AK5): a
+ * list, not the matrix, the search hits or a package page, whose steps give a condition or a saved filter.
+ * Its saved filter goes to `filter` of "Save perspective"; "Save filter" has none for such a list, and says
+ * why.
+ */
+const shownConditions = (
+  context: CatalogContext,
+  entry: Entry,
+  field: string,
+  explain: ArgumentExplanation,
+): ShownConditions | undefined => {
+  const list = context.buffers[0];
+  const perspective = entry.command.name === "perspective.save";
+  if (
+    (!perspective && entry.command.name !== "filter.save") ||
+    !listing(list) ||
+    list.matrix === true ||
+    list.steps.length === 0
+  ) {
+    return undefined;
+  }
+  const filter = selectionOf(list.steps)?.filter;
+  if (filter !== undefined && !perspective) {
+    return { note: NO_SHOWN_FILTER };
+  }
+  const marks = shownMarks(list.steps);
+  if (marks.length === 0 && filter === undefined) {
+    return undefined;
+  }
+  // The saved filter goes in first, labelled so the line says it is saved with the condition.
+  const at =
+    filter === undefined
+      ? entry
+      : {
+          ...entry,
+          given: appended(
+            { ...entry, given: entry.given.filter((given) => given.field !== "filter") },
+            { field: "filter", value: filter, label: `filter: ${filter}` },
+          ),
+        };
+  return {
+    marks,
+    key: list.steps.map((step) => step.label).join(" · "),
+    ask: () => conditionAsk(context, at, field, explain),
+  };
+};
+
+/**
+ * What the steps of a condition need (SR-215): its schema, the line, back with the marks held, the value the
+ * marks give; `shown` the conditions of the shown list (AK5).
+ */
+const conditionAsk = (
+  context: CatalogContext,
+  entry: Entry,
+  field: string,
+  explain: ArgumentExplanation,
+): ConditionAsk => {
+  return {
+    context,
+    schema: schemaOf(entry.command, field),
+    line: `${lineOf(entry)} · ${field}`,
+    ...(entry.error === undefined ? {} : { error: entry.error }),
+    explain,
+    back: (marks) => {
+      back(context, { ...entry, held: { field, marks } });
+    },
+    take: (marks, more) => {
+      const { held: _held, ...rest } = entry;
+      give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
+    },
+    shown: () => shownConditions(context, entry, field, explain),
+  };
+};
+
 /** Asks the argument at `at`: its candidates from its source, or its text. */
 const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): void => {
   const field = arg.field;
@@ -1436,19 +1514,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
   };
   if (arg.complete === "condition") {
     askCondition(
-      {
-        context,
-        line: `${lineOf(entry)} · ${field}`,
-        ...(entry.error === undefined ? {} : { error: entry.error }),
-        explain: shared.explain,
-        back: (marks) => {
-          back(context, { ...entry, held: { field, marks } });
-        },
-        take: (marks, more) => {
-          const { held: _held, ...rest } = entry;
-          give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
-        },
-      },
+      conditionAsk(context, entry, field, shared.explain),
       entry.marks ?? (entry.held?.field === field ? entry.held.marks : []),
     );
     return;

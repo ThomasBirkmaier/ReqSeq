@@ -7323,7 +7323,7 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
     return closed;
   };
 
-  it("shows each mark before the input, a box with its label and an ×", async () => {
+  it("[SR-215/AK-dt5s] shows each mark before the input, a box with its label and an ×", async () => {
     await mount(prompt(true).marked);
     expect(texts('[aria-label="Marks"] [role="listitem"]')).toEqual(["type: need×", "status: draft×"]);
     expect(query(".prompt-marks").nextElementSibling).toBe(queryInput());
@@ -7370,6 +7370,22 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
     await mount({ ...prompt(false).marked });
     expect(query("#prompt-explain .explain-keys").textContent).toBe(
       "Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
+    );
+  });
+
+  it("[SR-215/AK-w8q6] the explanation line says why a hit is missing before the keys", async () => {
+    const { marked } = prompt(false);
+    const explain = marked.explain;
+    if (explain?.building === undefined) {
+      throw new Error("no building");
+    }
+    await mount({
+      ...marked,
+      marks: [],
+      explain: { ...explain, building: { ...explain.building, note: "No conditions of the shown list" } },
+    });
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "No conditions of the shown list · Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
     );
   });
 });
