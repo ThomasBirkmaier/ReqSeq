@@ -60,12 +60,12 @@ const rightClick = (target: Element): { press: MouseEvent; menu: MouseEvent } =>
 
 beforeEach(() => {
   document.body.innerHTML = `
-    <main><div data-area="left" data-active="">
+    <main><div data-area="left" data-active=""><div data-layer="main">
       <div class="list" tabindex="0">
         <div id="row" role="option" aria-selected="true" data-menu="element-entry">row</div>
         <p id="empty">empty</p>
       </div>
-    </div></main>
+    </div></div></main>
     <div class="minibuffer"><span id="echo">echo</span></div>
     <div class="context-menu"><div id="item">item</div></div>`;
   host = document.createElement("div");
@@ -299,6 +299,18 @@ describe("keyboardHit", () => {
     expect(keyboardHit(element("empty")).target).toBe(element("row"));
     element("row").setAttribute("aria-selected", "false");
     expect(keyboardHit(element("empty"))).toEqual({ target: element("empty"), point: { x: 0, y: 0 } });
+  });
+
+  it("opens at the selected row of the shown buffer, not of a buffer drawn hidden before it", () => {
+    document.body.innerHTML = `
+      <div data-area="left" data-active="">
+        <div data-layer="neighbour" aria-hidden="true"><div id="hidden" aria-selected="true">hidden</div></div>
+        <div data-layer="main"><div id="list" tabindex="0"><div id="row" aria-selected="true">row</div></div></div>
+      </div>`;
+    expect(keyboardHit(element("list")).target).toBe(element("row"));
+    // With no row selected in the shown buffer, the menu opens at the focused list, not at the hidden row.
+    element("row").setAttribute("aria-selected", "false");
+    expect(keyboardHit(element("list")).target).toBe(element("list"));
   });
 
   it("[SR-198/AK-qc75] opens on the place of a focused buffer's content, such as the column of a list", () => {

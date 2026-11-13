@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 import { criteriaMetamodel } from "./support/boxes.js";
 
 const SR_ID = "20420420-0000-4000-8000-0000000000c7";
@@ -40,7 +40,8 @@ interface Stored {
   readonly text: string;
 }
 
-const criteriaBox = (window: Page): Locator => window.locator('[data-field="acceptance-criteria"]');
+const criteriaBox = (window: Page): Locator =>
+  shownLayer(window).locator('[data-field="acceptance-criteria"]');
 const line = (window: Page, at: number): Locator => criteriaBox(window).locator(".cm-line").nth(at);
 
 /** Opens an element with "Go to"; the buffer has the focus. */
@@ -50,7 +51,7 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 /**

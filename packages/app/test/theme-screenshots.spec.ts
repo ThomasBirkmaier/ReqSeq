@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, shownLayer } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE, REFERENCE_FILES, REFERENCE_SOURCE_TITLE } from "./support/demo.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
@@ -30,9 +30,9 @@ const opened = async (window: Page, query: string, title = query): Promise<void>
   await window.keyboard.type(query);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator(".cm-content")).toBeVisible();
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator(".cm-content")).toBeVisible();
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 for (const scheme of ["light", "dark"] as const) {
@@ -71,10 +71,10 @@ for (const scheme of ["light", "dark"] as const) {
     try {
       const shot = await prepare(running);
       await opened(window, DEMO_TITLE);
-      await expect(window.locator(".cm-content table.cm-lr-table")).toHaveCount(1);
+      await expect(shownLayer(window).locator(".cm-content table.cm-lr-table")).toHaveCount(1);
       await shot(`theme-${scheme}-element`);
       await opened(window, REFERENCE_SOURCE_TITLE);
-      await expect(window.locator(".cm-content .cm-lr-outdated").first()).toBeVisible();
+      await expect(shownLayer(window).locator(".cm-content .cm-lr-outdated").first()).toBeVisible();
       await shot(`theme-${scheme}-outdated`);
     } finally {
       await running.close();

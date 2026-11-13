@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const openEditor = async (window: Page, title: string): Promise<void> => {
   await window.locator('[aria-label="Sheet"] > *').first().waitFor();
@@ -15,11 +15,11 @@ const openEditor = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 const line = (window: Page, label: string): Locator =>
-  window.locator("article").getByRole("group", { name: label, exact: true });
+  shownLayer(window).locator("article").getByRole("group", { name: label, exact: true });
 
 test.describe("the children missing for an indirect verification", () => {
   let running: RunningApp;
@@ -51,7 +51,7 @@ test.describe("the children missing for an indirect verification", () => {
       "open (missing SR-00b121, SR-00b122, SR-00b123)",
     );
     await verification.getByRole("link", { name: "SR-00b122" }).click();
-    await expect(window.locator("article h1")).toHaveText("Warn of hail");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of hail");
   });
 });
 
@@ -138,7 +138,9 @@ test("a line that cuts a long reason gives the whole reason on hover, click and 
     await expect(line(window, "Validation")).not.toHaveAttribute("title", /./);
     // The evidence record of the same validation cuts its reason as well and opens the same way.
     // It stands in the validation row and its case, one fold each (SR-032 AK4).
-    const evidence = window.locator("article").getByRole("group", { name: "Evidence", exact: true });
+    const evidence = shownLayer(window)
+      .locator("article")
+      .getByRole("group", { name: "Evidence", exact: true });
     await evidence.getByRole("button", { name: /^Validation · inconclusive/ }).click();
     await evidence.getByRole("button", { name: "2026-11-03 09:00 UTC · inconclusive" }).click();
     const record = evidence.getByRole("group", { name: "Evidence record" }).first();

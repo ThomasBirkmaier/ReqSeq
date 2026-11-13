@@ -1,6 +1,7 @@
 // An area of the window (SR-115 AK3, D-062): the view of one buffer. The window has one area, or two side
 // by side after "Split window" (`window-layout.ts`). An area has no heading, label or tab (AK2): the
 // modeline names the buffer of the active one. A press or a focus in the inactive area makes it active.
+import { useId } from "react";
 import type { ElementBuffer, GraphBuffer, MetamodelBuffer, OverviewBuffer } from "./buffers.js";
 import type { Buffer } from "./buffers.js";
 import { inMatrix } from "./buffers.js";
@@ -172,6 +173,20 @@ const BufferView = ({
   );
 };
 
+/**
+ * The layer of an area that holds a view. It gives the view its own id prefix, unique in the window, so no id
+ * is in two views: not in the two areas of a split, nor in a view drawn in advance beside the shown one
+ * (SR-212 AK5).
+ */
+const Slot = ({ children }: { readonly children: React.ReactNode }): React.JSX.Element => {
+  const scope = useId();
+  return (
+    <div className="slide-layer" data-layer="main">
+      <IdScope.Provider value={scope}>{children}</IdScope.Provider>
+    </div>
+  );
+};
+
 export interface BufferAreaProps {
   readonly area: Area;
   /** The window shows two areas. */
@@ -202,14 +217,11 @@ export const BufferArea = ({ area, split, onActivate, views }: BufferAreaProps):
       onFocus={activate}
     >
       {/* The track of a switch in motion (SR-212, `buffer-slide.ts`): the live view, and beside it, only while
-          a slide runs, the picture of the view that was left. The picture comes after the live view, so a
-          query for the first node of a kind finds the live one. */}
-      <div className="slide-layer" data-layer="main">
-        {/* The right area of a split prefixes the ids of its view, so no id is in both areas. */}
-        <IdScope.Provider value={split && area.side === "right" ? "r-" : ""}>
-          <BufferView buffer={area.buffer} active={area.active} split={split} views={views} />
-        </IdScope.Provider>
-      </div>
+          a slide runs, the picture of the view that was left. A lookup of the live view goes through its layer
+          (`shownLayer`), not to the first match in the area. */}
+      <Slot>
+        <BufferView buffer={area.buffer} active={area.active} split={split} views={views} />
+      </Slot>
       <div className="slide-layer" data-layer="side" hidden />
     </div>
   );

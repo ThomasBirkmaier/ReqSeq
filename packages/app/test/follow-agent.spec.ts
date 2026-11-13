@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { McpSession, RunningApp } from "./support/app.js";
-import { fileSha256, launchApp } from "./support/app.js";
+import { fileSha256, launchApp, shownLayer } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 const SEE = { id: "69069069-0000-4000-8000-0000000000a1", title: "See the wind" };
@@ -15,7 +15,7 @@ const MEASURE = { id: "69069069-0000-4000-8000-0000000000b1", title: "Measure wi
 /** AK1: „nach höchstens 1 Sekunde“. */
 const LIMIT_MS = 1000;
 
-const title = (window: Page) => window.locator("article h1");
+const title = (window: Page) => shownLayer(window).locator("article h1");
 const modeline = (window: Page) => window.locator('[aria-label="Modeline"]');
 
 const ready = async (window: Page): Promise<void> => {
@@ -72,7 +72,9 @@ const arm = (window: Page, id: string | undefined, text: string): Promise<void> 
         }
       });
       const observer = new MutationObserver(() => {
-        if (document.querySelector("article h1")?.textContent === text) {
+        // In the shown layer of an area: a buffer drawn in advance is hidden (SR-212 AK5).
+        const titles = document.querySelectorAll('[data-area] > [data-layer="main"] article h1');
+        if ([...titles].some((title) => title.textContent === text)) {
           observer.disconnect();
           requestAnimationFrame(() => {
             probe.shown = performance.timeOrigin + performance.now();

@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp } from "./support/app.js";
+import { goTo, launchApp, shownLayer } from "./support/app.js";
 
 /** fixtures/SR-024/affected: SR-00b002 derives from "Show wind speed", SR-00b003 refers to it in its text. */
 const FIXTURE = { fixture: "SR-024/affected" };
@@ -23,9 +23,9 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator("article")).toBeFocused();
-  await expect(window.locator('article [data-field="Text"] .cm-content')).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator('article [data-field="Text"] .cm-content')).toBeVisible();
 };
 
 const OUT =
@@ -72,7 +72,9 @@ test.describe("affected elements after a save", () => {
     expect(cli.code).toBe(0);
     expect(JSON.parse(cli.stdout)).toMatchObject({ affected: 2 });
     // The window follows the CLI's change without input left, so it closes without asking.
-    await expect(window.locator('article [data-field="Text"] .cm-content')).toHaveText("In knots.");
+    await expect(shownLayer(window).locator('article [data-field="Text"] .cm-content')).toHaveText(
+      "In knots.",
+    );
     await expect(window.getByLabel("Modeline")).not.toContainText(/modified|on disk/);
   });
 
@@ -93,7 +95,7 @@ test.describe("affected elements after a save", () => {
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
     // Escape back to the element, Tab past the links of the parents line to the title.
     await window.keyboard.press("Escape");
-    const title = window.locator('[data-field="Title"]');
+    const title = shownLayer(window).locator('[data-field="Title"]');
     for (let tab = 0; tab < 6; tab += 1) {
       if (await title.evaluate((node) => node === document.activeElement)) {
         break;

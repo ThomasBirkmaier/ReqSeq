@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -32,11 +32,11 @@ const openElement = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 const verification = (window: Page): Locator =>
-  window.locator("article").getByRole("group", { name: "Verification", exact: true });
+  shownLayer(window).locator("article").getByRole("group", { name: "Verification", exact: true });
 
 type Rgb = readonly [number, number, number];
 

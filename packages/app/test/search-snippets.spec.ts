@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -50,33 +50,35 @@ const search = async (running: RunningApp, query: string): Promise<readonly Hit[
   await window.keyboard.type(query);
   await window.keyboard.press("Enter");
   await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", `Search: ${query}`);
-  await expect(window.locator(".row")).toHaveCount(hits.length);
+  await expect(shownLayer(window).locator(".row")).toHaveCount(hits.length);
   return hits;
 };
 
 /** What each row shows: its title, its marked words, and the snippet line with its marked words. */
 const shown = (window: Page) =>
-  window.locator(".row").evaluateAll((rows) =>
-    rows.map((row) => {
-      const marks = (selector: string): string[] =>
-        [...row.querySelectorAll(`${selector} mark`)].map((mark) => mark.textContent);
-      const snippet = row.querySelector(".snippet");
-      return {
-        title: row.querySelector(".title")?.textContent,
-        titleMarks: marks(".title"),
-        snippet: snippet?.textContent,
-        snippetMarks: marks(".snippet"),
-        // Marked words are heavier, in the colour of the text around them (meaning, no colour).
-        heavier: [...row.querySelectorAll("mark")].every(
-          (mark) =>
-            Number(getComputedStyle(mark).fontWeight) >
-              Number(getComputedStyle(mark.parentElement ?? row).fontWeight) &&
-            getComputedStyle(mark).color === getComputedStyle(mark.parentElement ?? row).color &&
-            getComputedStyle(mark).backgroundColor === "rgba(0, 0, 0, 0)",
-        ),
-      };
-    }),
-  );
+  shownLayer(window)
+    .locator(".row")
+    .evaluateAll((rows) =>
+      rows.map((row) => {
+        const marks = (selector: string): string[] =>
+          [...row.querySelectorAll(`${selector} mark`)].map((mark) => mark.textContent);
+        const snippet = row.querySelector(".snippet");
+        return {
+          title: row.querySelector(".title")?.textContent,
+          titleMarks: marks(".title"),
+          snippet: snippet?.textContent,
+          snippetMarks: marks(".snippet"),
+          // Marked words are heavier, in the colour of the text around them (meaning, no colour).
+          heavier: [...row.querySelectorAll("mark")].every(
+            (mark) =>
+              Number(getComputedStyle(mark).fontWeight) >
+                Number(getComputedStyle(mark.parentElement ?? row).fontWeight) &&
+              getComputedStyle(mark).color === getComputedStyle(mark.parentElement ?? row).color &&
+              getComputedStyle(mark).backgroundColor === "rgba(0, 0, 0, 0)",
+          ),
+        };
+      }),
+    );
 
 /** The rows the CLI's hits give: the snippet named by its field, as the app shows it. */
 const expected = (hits: readonly Hit[]) =>
@@ -100,7 +102,7 @@ test.describe("the place of a search hit", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp({ fixture: "SR-174/snippets" });
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
     });
@@ -121,9 +123,9 @@ test.describe("the place of a search hit", () => {
       },
     ]);
     // One line under the title, in the centred column (SR-148).
-    const title = await window.locator(".row .title").boundingBox();
-    const snippet = await window.locator(".row .snippet").boundingBox();
-    const column = await window.locator(".buffer.list .column").boundingBox();
+    const title = await shownLayer(window).locator(".row .title").boundingBox();
+    const snippet = await shownLayer(window).locator(".row .snippet").boundingBox();
+    const column = await shownLayer(window).locator(".buffer.list .column").boundingBox();
     expect(title !== null && snippet !== null && column !== null).toBe(true);
     if (title !== null && snippet !== null && column !== null) {
       // Right under the title, without a gap between them.
@@ -135,7 +137,7 @@ test.describe("the place of a search hit", () => {
     // Down selects the hit and Enter opens it, as in any list.
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Measure the wind");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the wind");
   });
 
   test("[SR-174/AK-mxnw] a match deep in a snippet longer than the column stays in view: the words before it are left out", async () => {
@@ -144,7 +146,7 @@ test.describe("the place of a search hit", () => {
     const full = hit?.snippet?.text ?? "";
     expect(full.length).toBeGreaterThan(100);
     expect(hit?.snippet?.marks[0]?.start).toBeGreaterThan(90);
-    const snippet = window.locator(".row .snippet");
+    const snippet = shownLayer(window).locator(".row .snippet");
     await expect(snippet.locator("mark")).toHaveText("squall");
     const { line, mark } = await snippet.evaluate((element) => ({
       line: element.getBoundingClientRect().right,
@@ -186,8 +188,8 @@ test.describe("the place of a search hit", () => {
       { title: "Survive icing", titleMarks: ["icing"], snippet: undefined },
     ]);
     await search(running, "SR-203");
-    expect(await window.locator(".row .snippet").count()).toBe(0);
-    await expect(window.locator(".row .id mark")).toHaveText("SR-203");
+    expect(await shownLayer(window).locator(".row .snippet").count()).toBe(0);
+    await expect(shownLayer(window).locator(".row .id mark")).toHaveText("SR-203");
 
     // The screenshot for the pull request: a hit in the title only above a hit in the text.
     const wind = await search(running, "wind");

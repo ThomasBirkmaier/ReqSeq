@@ -43,7 +43,7 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
-import { SlideController, directionOf } from "./buffer-slide.js";
+import { SlideController, directionOf, shownLayer } from "./buffer-slide.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
@@ -1098,7 +1098,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
     // Not while "About ReqSeq" is open: it keeps the focus (SR-161), and gives it back when it closes.
     if (prompt === undefined && about === undefined && area?.contains(document.activeElement) !== true) {
-      area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
+      shownLayer(area)?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
   }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 

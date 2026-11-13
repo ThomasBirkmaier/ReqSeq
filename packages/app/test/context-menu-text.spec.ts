@@ -9,7 +9,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, shownLayer } from "./support/app.js";
 
 const SOURCE_ID = "69069069-0000-4000-8000-00000000e195";
 const SOURCE_FILE = "needs/N-0000000e195.md";
@@ -51,7 +51,7 @@ const menu = (window: Page): Locator => window.getByRole("menu", { name: "Contex
 const entries = (window: Page): Locator => menu(window).getByRole("menuitem");
 const entryNames = (window: Page): Promise<string[]> => entries(window).locator(".name").allTextContents();
 const candidates = (window: Page): Locator => window.locator('.candidates [role="option"]');
-const content = (window: Page): Locator => window.locator(".cm-content").first();
+const content = (window: Page): Locator => shownLayer(window).locator(".cm-content").first();
 /** The rendered text of the editor, without the source marks of the lines off the caret. */
 const line = (window: Page, text: string): Locator => content(window).locator(".cm-line", { hasText: text });
 
@@ -146,7 +146,7 @@ test.describe("the context menu in the text", () => {
     await window.keyboard.type(SOURCE_TITLE);
     await expect(candidates(window).first()).toContainText(SOURCE_TITLE);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1").first()).toHaveText(SOURCE_TITLE);
+    await expect(shownLayer(window).locator("article h1").first()).toHaveText(SOURCE_TITLE);
   });
 
   test.afterEach(async () => {
@@ -242,13 +242,13 @@ test.describe("the context menu in the text", () => {
     await rightClickOn(window, "Messung");
     expect((await entryNames(window))[0]).toBe("Follow reference");
     await choose(window, "Follow reference");
-    await expect(window.locator("article h1").first()).toHaveText(TARGET_TITLE);
+    await expect(shownLayer(window).locator("article h1").first()).toHaveText(TARGET_TITLE);
   });
 
   test("[SR-195/AK-s8c5] in a table cell the menu adds the table actions, which act on that cell", async () => {
     const { window } = running;
     // The table is drawn while the caret is elsewhere: the right-click goes to the cell of the drawing.
-    await rightClickOn(window, "25", window.locator(".cm-lr-table"));
+    await rightClickOn(window, "25", shownLayer(window).locator(".cm-lr-table"));
     expect(await entryNames(window)).toEqual([...AK1, ...TABLE, ALL]);
     await choose(window, "Insert column");
     await window.keyboard.press("ControlOrMeta+s");

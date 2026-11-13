@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll, shownLayer } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const NAMES_SENSORS = (title: string, extra = ""): string =>
@@ -42,10 +42,10 @@ const listedBy = async (
 };
 
 const memberTitles = (window: Page): Promise<string[]> =>
-  window.locator(".members .row .title").allTextContents();
+  shownLayer(window).locator(".members .row .title").allTextContents();
 
 const memberIndents = (window: Page): Promise<string[]> =>
-  window
+  shownLayer(window)
     .locator(".members .row .title")
     .evaluateAll((titles) => titles.map((e) => (e as HTMLElement).style.paddingLeft));
 
@@ -55,8 +55,8 @@ const openPackage = async (window: Page): Promise<void> => {
   await window.keyboard.type("Sensors");
   await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText("Sensors");
-  await expect(window.locator(".members .row").first()).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
+  await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
 };
 
 /** Opens the command prompt, types `command` and runs the first candidate; then types `choice` for the prompt "Sort by". */
@@ -96,7 +96,7 @@ test.describe("the package page on a fixture workspace", () => {
     ];
     expect(title).toBeGreaterThanOrEqual(0);
     expect([title, text, heading, first]).toEqual([...[title, text, heading, first]].sort((a, b) => a - b));
-    await expect(window.locator(".members h2")).toContainText("5");
+    await expect(shownLayer(window).locator(".members h2")).toContainText("5");
   });
 
   test("Down and Enter open an element of the package, and Ctrl+P Enter comes back to the same row", async () => {
@@ -104,20 +104,20 @@ test.describe("the package page on a fixture workspace", () => {
     await openPackage(window);
     const listed = await listedBy(running);
     await window.keyboard.press("ArrowDown");
-    await expect(window.locator(".members .list")).toBeFocused();
+    await expect(shownLayer(window).locator(".members .list")).toBeFocused();
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(listed.elements[1]?.title ?? "");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(listed.elements[1]?.title ?? "");
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Sensors");
-    await expect(window.locator(".members .list")).toBeFocused();
-    await expect(window.locator('.members [aria-selected="true"] .title')).toHaveText(
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
+    await expect(shownLayer(window).locator(".members .list")).toBeFocused();
+    await expect(shownLayer(window).locator('.members [aria-selected="true"] .title')).toHaveText(
       listed.elements[1]?.title ?? "",
     );
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(listed.elements[2]?.title ?? "");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(listed.elements[2]?.title ?? "");
   });
 
   test("[SR-112/AK-vv6f] the elements of the package sort by title descending, as the CLI sorts them", async () => {
@@ -125,13 +125,13 @@ test.describe("the package page on a fixture workspace", () => {
     await openPackage(window);
     await sortBy(window, "title desc");
     const listed = await listedBy(running, [{ by: "title", order: "desc" }]);
-    await expect(window.locator(".members h2")).toContainText("sorted by title descending");
+    await expect(shownLayer(window).locator(".members h2")).toContainText("sorted by title descending");
     expect(await memberTitles(window)).toEqual(listed.elements.map((element) => element.title));
     expect([...listed.elements.map((element) => element.title)]).toEqual(
       [...listed.elements.map((element) => element.title)].sort().reverse(),
     );
     // The page is still the package: its title and text are there.
-    await expect(window.locator("article h1")).toHaveText("Sensors");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
   });
 
   test("[SR-112/AK-vv6f] the elements of the package filter step by step as the CLI selects them, and the filters clear again", async () => {
@@ -155,8 +155,8 @@ test.describe("the package page on a fixture workspace", () => {
     });
     expect(rain.total).toBeGreaterThan(0);
     expect(rain.total).toBeLessThan(5);
-    await expect(window.locator(".members h2")).toContainText(`text: rain ${String(rain.total)}`);
-    await expect(window.locator(".members .row .title")).toHaveText(
+    await expect(shownLayer(window).locator(".members h2")).toContainText(`text: rain ${String(rain.total)}`);
+    await expect(shownLayer(window).locator(".members .row .title")).toHaveText(
       rain.elements.map((element) => element.title),
     );
     // A second step narrows the elements further.
@@ -165,24 +165,24 @@ test.describe("the package page on a fixture workspace", () => {
     const both = await listedBy(running, DEFAULT_SORT, {
       all: [{ package: "PKG-0000d1" }, { text: "rain" }, { text: "calibrate" }],
     });
-    await expect(window.locator(".members h2")).toContainText("text: rain · text: calibrate");
-    await expect(window.locator(".members .row .title")).toHaveText(
+    await expect(shownLayer(window).locator(".members h2")).toContainText("text: rain · text: calibrate");
+    await expect(shownLayer(window).locator(".members .row .title")).toHaveText(
       both.elements.map((element) => element.title),
     );
     // Title and text stay the package's.
-    await expect(window.locator("article h1")).toHaveText("Sensors");
-    await expect(window.locator(".cm-editor")).toBeVisible();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
+    await expect(shownLayer(window).locator(".cm-editor")).toBeVisible();
     await command("Clear list filter");
-    await expect(window.locator(".members h2")).not.toContainText("calibrate");
-    await expect(window.locator(".members .row .title")).toHaveText(
+    await expect(shownLayer(window).locator(".members h2")).not.toContainText("calibrate");
+    await expect(shownLayer(window).locator(".members .row .title")).toHaveText(
       rain.elements.map((element) => element.title),
     );
     await command("Filter list by text search");
     await answer("Text", "calibrate");
-    await expect(window.locator(".members h2")).toContainText("calibrate");
+    await expect(shownLayer(window).locator(".members h2")).toContainText("calibrate");
     await command("Clear all list filters");
-    await expect(window.locator(".members h2")).not.toContainText("text:");
-    await expect(window.locator(".members .row .title")).toHaveText(
+    await expect(shownLayer(window).locator(".members h2")).not.toContainText("text:");
+    await expect(shownLayer(window).locator(".members .row .title")).toHaveText(
       (await listedBy(running)).elements.map((element) => element.title),
     );
   });
@@ -192,7 +192,7 @@ test.describe("the package page on a fixture workspace", () => {
     await openPackage(window);
     await sortBy(window, "hierarchy");
     const listed = await listedBy(running, [{ by: "hierarchy", order: "asc" }]);
-    await expect(window.locator(".members h2")).toContainText("tree");
+    await expect(shownLayer(window).locator(".members h2")).toContainText("tree");
     expect(await memberTitles(window)).toEqual(listed.elements.map((element) => element.title));
     const depths = (listed.tree ?? []).map((node) => node.depth);
     expect(Math.max(...depths)).toBe(1);
@@ -226,8 +226,8 @@ const openById = async (window: Page, shortId: string, title: string): Promise<v
   await window.keyboard.type(shortId);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator(".members .row").first()).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
 };
 
 test.describe("the line under the title of a package page", () => {
@@ -257,7 +257,7 @@ test.describe("the line under the title of a package page", () => {
     await openById(window, "PKG-00d003", "AK3");
     const line =
       "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)";
-    await expect(window.locator("article .package-summary")).toHaveText(line);
+    await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d003")).toBe(line);
     // Under the title, before the text.
     const top = async (selector: string): Promise<number> =>
@@ -288,7 +288,7 @@ test.describe("the line under the title of a package page", () => {
       JSON.parse(degree.stdout) as Parameters<typeof packageSummaryText>[1],
     );
     expect(line).toMatch(/^Coverage \d+ of \d+ with evidence/);
-    await expect(window.locator(".buffer.list .package-summary")).toHaveText(line ?? "");
+    await expect(shownLayer(window).locator(".buffer.list .package-summary")).toHaveText(line ?? "");
     // Under the heading, above the rows.
     const top = async (selector: string): Promise<number> =>
       (await window.locator(selector).first().boundingBox())?.y ?? -1;
@@ -304,12 +304,12 @@ test.describe("the line under the title of a package page", () => {
     const { window } = running;
     await openById(window, "PKG-00d004", "Ten open");
     const line = "Coverage 0 of 10 with evidence · Degree (core) 0 % (10 open)";
-    await expect(window.locator("article .package-summary")).toHaveText(line);
+    await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d004")).toBe(line);
     await openById(window, "PKG-00d005", "Only a need");
     // The line is there once core answered, and hidden: no requirement is counted.
-    await expect(window.locator("article .package-summary")).toBeAttached();
-    await expect(window.locator("article .package-summary")).toBeHidden();
+    await expect(shownLayer(window).locator("article .package-summary")).toBeAttached();
+    await expect(shownLayer(window).locator("article .package-summary")).toBeHidden();
     expect(await lineOfCli("PKG-00d005")).toBeUndefined();
   });
   test("[SR-036/AK-xbxh] a click on a coverage number lists its requirements, those without coverage included", async () => {
@@ -325,17 +325,17 @@ test.describe("the line under the title of a package page", () => {
     const without = levels.flatMap((level) => level.elements["withoutEvidence"] ?? []);
     // The ten requirements have no evidence: each is listed under the number of those without.
     expect(without).toHaveLength(10);
-    await window.locator("article .package-summary [role=link]").click();
+    await shownLayer(window).locator("article .package-summary [role=link]").click();
     await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
-    const rows = window.locator(".result .line.element");
+    const rows = shownLayer(window).locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
-    const count = window.locator(".result .line", {
+    const count = shownLayer(window).locator(".result .line", {
       has: window.locator(".label", { hasText: /^withoutEvidence$/ }),
     });
     await expect(count.locator(".text")).toHaveText(["10"]);
     // A row opens its requirement.
     const first = (await rows.first().locator(".text").textContent()) ?? "";
     await rows.first().click();
-    await expect(window.locator("article h1")).toHaveText(first);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(first);
   });
 });

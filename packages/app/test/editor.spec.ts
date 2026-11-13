@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll, saveAndRead } from "./support/app.js";
+import { goTo, launchApp, listAll, saveAndRead, shownLayer } from "./support/app.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -29,10 +29,10 @@ const opened = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator(".cm-content")).toBeVisible();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator(".cm-content")).toBeVisible();
   // The buffer has the focus once the prompt is gone; its keys (Enter) work from then on.
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 const runCommand = async (window: Page, command: string): Promise<void> => {
@@ -42,7 +42,7 @@ const runCommand = async (window: Page, command: string): Promise<void> => {
 };
 
 /** The text of the editor as it is shown. */
-const shown = (window: Page): Promise<string> => window.locator(".cm-content").innerText();
+const shown = (window: Page): Promise<string> => shownLayer(window).locator(".cm-content").innerText();
 
 /** The message after a save: "Saved <ID> <title>". */
 const SAVED = new RegExp(`^Saved .*${DEMO_TITLE}$`);
@@ -70,7 +70,7 @@ test.describe("the Markdown editor in the element buffer", () => {
   test("[SR-065/AK-z3qg] the editor shows headings, emphasis, lists, tables and code blocks set, and the source only on the cursor line", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
-    const content = window.locator(".cm-content");
+    const content = shownLayer(window).locator(".cm-content");
     // Not focused: every construct is set, none of its Markdown characters is visible.
     await expect(content.locator(".cm-lr-h1")).toHaveCount(1);
     await expect(content.locator(".cm-lr-h2")).toHaveCount(1);
@@ -122,26 +122,26 @@ test.describe("the Markdown editor in the element buffer", () => {
     // the answer when no `/` was typed. Before ThomasBirkmaier/ReqSeq-archive#574 about one round in ten kept the focus in the editor.
     for (let round = 0; round < 30; round += 1) {
       await window.keyboard.press("Enter");
-      await expect(window.locator(".cm-content")).toBeFocused();
+      await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
       await window.keyboard.insertText(` r${String(round)}`);
       await window.keyboard.press("Escape");
-      await expect(window.locator("article")).toBeFocused();
+      await expect(shownLayer(window).locator("article")).toBeFocused();
     }
   });
 
   test("Escape leaves the text: the buffer has the focus and no source line is shown; Enter edits again", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
-    await window.locator(".cm-lr-strong").first().click();
-    await expect(window.locator(".cm-content")).toContainText("**sofort**");
+    await shownLayer(window).locator(".cm-lr-strong").first().click();
+    await expect(shownLayer(window).locator(".cm-content")).toContainText("**sofort**");
     await window.keyboard.press("Escape");
-    await expect(window.locator("article")).toBeFocused();
-    await expect(window.locator(".cm-content")).not.toContainText("**");
+    await expect(shownLayer(window).locator("article")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).not.toContainText("**");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     // The cursor is at the end of the text: what is typed comes after the last line.
     await window.keyboard.insertText("ENDE");
-    await expect(window.locator(".cm-line").last()).toHaveText("ENDE");
+    await expect(shownLayer(window).locator(".cm-line").last()).toHaveText("ENDE");
   });
 
   test("[SR-065/AK-m5px] a text typed in the app is saved with Ctrl/Cmd+S and the file is CommonMark with GitHub extensions", async () => {
@@ -212,7 +212,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     const got = await running.cli(["element", "get", DEMO_ID]);
     expect((JSON.parse(got.stdout) as { element: { text: string } }).element.text).toBe(body);
     // The editor still shows the text; saving did not rebuild it.
-    await expect(window.locator(".cm-content")).toContainText("Heading one");
+    await expect(shownLayer(window).locator(".cm-content")).toContainText("Heading one");
   });
 
   test("Ctrl/Cmd+Z undoes one step and Ctrl/Cmd+Shift+Z redoes it; the Undo item of the Edit menu also goes back one step", async () => {
@@ -288,7 +288,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(window.getByRole("listbox")).toBeVisible();
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toContainText(" ENDE");
+    await expect(shownLayer(window).locator(".cm-content")).toContainText(" ENDE");
     await expect(modeline(window)).not.toContainText("modified");
     await runCommand(window, "close buffer");
     await expect(window.getByRole("listbox")).toBeVisible();
@@ -332,8 +332,11 @@ test.describe("the Markdown editor in the element buffer", () => {
       /: (stored version from .+, current version from .+|neither version has a date \(.+\))$/,
     );
     await opened(window, REFERENCE_SOURCE_TITLE);
-    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
-    await expect(window.locator(".cm-lr-outdated")).toHaveAttribute("title", reference?.message ?? "");
+    await expect(shownLayer(window).locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
+    await expect(shownLayer(window).locator(".cm-lr-outdated")).toHaveAttribute(
+      "title",
+      reference?.message ?? "",
+    );
     // A relation of the element: its row is marked with the same word (ThomasBirkmaier/ReqSeq-archive#665), the dated hint on hover.
     // SR-0000b5 is approved: an obsolete element has no such hint (SR-025 AK5).
     const [relation] = await datedHints("SR-0000b5");
@@ -344,8 +347,8 @@ test.describe("the Markdown editor in the element buffer", () => {
       "Send data to the cloud",
     );
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Send data to the cloud");
-    const mark = window.locator("article .relation .outdated");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Send data to the cloud");
+    const mark = shownLayer(window).locator("article .relation .outdated");
     await expect(mark).toHaveCount(1);
     await expect(mark).toHaveText(` ${word(relation ?? {})}`);
     await expect(mark).toHaveAttribute("title", relation?.message ?? "");
@@ -357,23 +360,23 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).toContain(`Siehe ${REFERENCE_LABEL}`);
     expect(await shown(window)).not.toContain("reqseq:");
     expect(await shown(window)).not.toContain("n1:");
-    await expect(window.locator(".cm-lr-outdated")).toBeVisible();
-    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(/^ link outdated/);
+    await expect(shownLayer(window).locator(".cm-lr-outdated")).toBeVisible();
+    await expect(shownLayer(window).locator(".cm-lr-outdated-word")).toHaveText(/^ link outdated/);
     // A click on the label opens the element it refers to.
-    await window.locator(".cm-lr-ref").click();
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    await shownLayer(window).locator(".cm-lr-ref").click();
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
     // Back to the text; the cursor inside the label, Ctrl/Cmd+Enter follows the reference as well.
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_SOURCE_TITLE);
-    await expect(window.locator("article")).toBeFocused();
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_SOURCE_TITLE);
+    await expect(shownLayer(window).locator("article")).toBeFocused();
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Home");
     for (let step = 0; step < 8; step += 1) {
       await window.keyboard.press("ArrowRight");
     }
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
   test("[SR-066/AK-c5xd] a link to a web address opens nothing on a click or with Ctrl/Cmd+Enter, which says there is no element reference", async () => {
@@ -389,17 +392,19 @@ test.describe("the Markdown editor in the element buffer", () => {
       };
     });
     await opened(window, DEMO_TITLE);
-    const link = window.locator(".cm-content .cm-lr-link", { hasText: "das Beispiel" });
+    const link = shownLayer(window).locator(".cm-content .cm-lr-link", { hasText: "das Beispiel" });
     await link.click();
-    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(DEMO_TITLE);
     // The cursor in the address of the link (the end of the text is after its last line): its line shows
     // the source, and Follow reference finds no element there.
-    await window.locator(".cm-content").focus();
+    await shownLayer(window).locator(".cm-content").focus();
     await window.keyboard.press("ControlOrMeta+End");
     for (let step = 0; step < 6; step += 1) {
       await window.keyboard.press("ArrowLeft");
     }
-    await expect(window.locator(".cm-content")).toContainText("[das Beispiel](https://example.org/wind)");
+    await expect(shownLayer(window).locator(".cm-content")).toContainText(
+      "[das Beispiel](https://example.org/wind)",
+    );
     // The caret is in the address: its line as the DOM selection has it, and the offset in that line.
     const [line, caret] = await window.evaluate(() => {
       const selection = document.getSelection();
@@ -424,7 +429,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(caret).toBeLessThan(line.indexOf(")"));
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(minibuffer(window)).toHaveText("No element reference at the cursor");
-    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(DEMO_TITLE);
     expect(
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().map((w) => w.webContents.getURL()),

@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
@@ -21,7 +21,7 @@ const open = async (window: Page, id: string, title: string): Promise<void> => {
   await window.keyboard.type(id);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(id);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 test("screenshots of the neighbourhood on the specification workspace", async () => {
@@ -51,13 +51,17 @@ test("screenshots of the neighbourhood on the specification workspace", async ()
     ) as { nodes: { depth: number; title: string }[] };
     const requirements = children.nodes.filter((node) => node.depth === 1).map((node) => node.title);
     expect(requirements.length).toBeGreaterThan(1);
-    await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(requirements.length);
+    await expect(shownLayer(window).locator('[role="tree"] [role="treeitem"]')).toHaveCount(
+      requirements.length,
+    );
     await shot("neighbourhood");
 
     // A system requirement with two parents: the parents line stands above its title.
     await window.keyboard.press("ControlOrMeta+J");
     await open(window, "SR-107", "Umgebung am Element zeigen");
-    await expect(window.locator(".parents")).toContainText("Vollständige Kette vom Parent bis zum Child");
+    await expect(shownLayer(window).locator(".parents")).toContainText(
+      "Vollständige Kette vom Parent bis zum Child",
+    );
     await shot("parents-line");
   } finally {
     await running.close();

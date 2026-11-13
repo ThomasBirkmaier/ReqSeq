@@ -6,6 +6,7 @@
 // does without the menu (AK4, as the command prompt in SR-134 AK3).
 import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shownLayer } from "./buffer-slide.js";
 import type { MenuHit } from "./context-menu.js";
 import { isMacCtrlPress, menuKey, menuSelection, opensMenu, placeAt } from "./context-menu.js";
 import { pressedPosition } from "./text-menu.js";
@@ -129,7 +130,8 @@ export const keyboardHit = (focused: Element): Omit<MenuHit, "place"> => {
   if (caret !== undefined) {
     return { target: focused, point: { x: caret.left, y: caret.bottom } };
   }
-  const selected = area?.querySelector('[aria-selected="true"]');
+  // Only the shown buffer's row: a buffer drawn hidden beside it has its own (SR-212 AK5).
+  const selected = shownLayer(area)?.querySelector('[aria-selected="true"]');
   if (selected !== null && selected !== undefined) {
     const box = selected.getBoundingClientRect();
     return { target: selected, point: { x: box.left, y: box.bottom } };
