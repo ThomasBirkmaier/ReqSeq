@@ -370,15 +370,17 @@ test.describe("saving without a save command", () => {
     expect(await read(running, SR_FILE)()).toContain("Mehr.");
     expect(await app.evaluate(() => (globalThis as { savingDialogs?: string[] }).savingDialogs)).toEqual([]);
     // The command prompt offers no other command to save the element than "Save element" (Ctrl/Cmd+S, a key,
-    // not a button or a dialog). "Save filter" (`filter.save`, SR-073) saves the shown list's filter and "Save ReqIF
-    // mapping" (`reqif.saveMapping`, SR-054) the mapping of a ReqIF source, not the element.
+    // not a button or a dialog). "Save filter" (`filter.save`, SR-073) saves the shown list's filter,
+    // "Save perspective" (`perspective.save`, SR-213) a list as a perspective, and "Save ReqIF mapping"
+    // (`reqif.saveMapping`, SR-054) the mapping of a ReqIF source, not the element.
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("save");
     const names = await window.locator('.candidates [role="option"] .name').allInnerTexts();
     expect(
       names.filter(
         (name) =>
-          /\bsave\b/i.test(name) && !["Save element", "Save filter", "Save ReqIF mapping"].includes(name),
+          /\bsave\b/i.test(name) &&
+          !["Save element", "Save filter", "Save perspective", "Save ReqIF mapping"].includes(name),
       ),
     ).toEqual([]);
     await window.keyboard.press("Escape");

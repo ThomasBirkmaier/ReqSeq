@@ -132,6 +132,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "drafts", where: { status: ["draft", "obsolete"] } },
     { name: "Unknown package", where: { package: "SR-ffffff" } },
   ],
+  // Saving under an existing name replaces the perspective in its own file; nothing is deleted.
+  "perspective.save": [
+    { name: "Drafts", description: "Open work", where: { status: ["draft"] }, group: "status" },
+    { name: "drafts", where: { status: ["draft", "obsolete"] } },
+    { name: "Unknown package", where: { package: "SR-ffffff" } },
+  ],
   "hint.confirm": [
     {
       hintIds: [

@@ -1,0 +1,10 @@
+reqseq-perspective: 1
+name: Draft requirements by package
+description: System requirements still in draft, grouped by package.
+where:
+  all:
+    - type: [system-requirement]
+    - status: [draft]
+group: package
+sort:
+  - { by: identifier }

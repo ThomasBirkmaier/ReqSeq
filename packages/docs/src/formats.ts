@@ -20,6 +20,7 @@ export const FORMATS: readonly string[] = [
   "evidence-record",
   "baseline",
   "filter",
+  "perspective",
   "reqif-mapping",
   "data-export",
   "api-endpoint",

@@ -186,6 +186,12 @@ problems:
   filter.duplicate-name:
     cause: Two saved filters have the same name.
     remedy: Rename one of them.
+  perspective.invalid:
+    cause: A perspective file cannot be read or does not match its format. The file is not listed and ReqSeq does not overwrite it.
+    remedy: Fix the file at the line the message gives, or save the perspective again under another name.
+  perspective.duplicate-name:
+    cause: Two perspective files have the same name, ignoring case and Unicode normal form. The first file in file order is the perspective.
+    remedy: Rename one of them.
   metamodel.invalid:
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
     remedy: Fix the metamodel files at the places the messages give and open the workspace again.

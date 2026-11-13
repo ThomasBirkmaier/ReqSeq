@@ -234,6 +234,13 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "Retired", where: { status: ["retired"] } },
     { name: "Unknown", where: { package: "SR-ffffff" } },
   ],
+  "perspective.list": [{}, { extra: true }],
+  "perspective.save": [
+    { name: "Drafts", where: { status: ["draft"] }, group: "status", sort: [{ by: "status" }] },
+    { name: "drafts", where: { any: [{ status: ["retired"] }, { invalid: true }] } },
+    { name: "Retired", description: "Gone", where: { status: ["retired"] } },
+    { name: "Unknown", where: { package: "SR-ffffff" } },
+  ],
   "hint.confirm": [
     { hintIds: [hintId("requirements/SR-1d2e3f4a5b6c.md", GUSTS, WIND)] },
     {

@@ -419,6 +419,8 @@
         "baseline.repository-commit-differs",
         "filter.invalid",
         "filter.duplicate-name",
+        "perspective.invalid",
+        "perspective.duplicate-name",
         "metamodel.invalid",
         "metamodel.optional-status",
         "metamodel.meaning-unassigned",

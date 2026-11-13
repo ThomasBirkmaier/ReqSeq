@@ -1,0 +1,13 @@
+{
+  "name": "Display requirements by status",
+  "description": "What the screen shows, by status.",
+  "where": {
+    "package": "PKG-899714"
+  },
+  "group": "status",
+  "sort": [
+    {
+      "by": "title"
+    }
+  ]
+}

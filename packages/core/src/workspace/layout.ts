@@ -93,9 +93,14 @@ export const locate = (
 };
 
 /** Folders of settings that have a default in the main repository (workspace.schema.json). */
-export const DEFAULT_FOLDERS = { baselines: "baselines", filters: "filters", mappings: "reqif" } as const;
+export const DEFAULT_FOLDERS = {
+  baselines: "baselines",
+  filters: "filters",
+  perspectives: "perspectives",
+  mappings: "reqif",
+} as const;
 
-/** The location of `baselines`, `filters` or `mappings`: as configured, else the default in the main repository. */
+/** The location of `baselines`, `filters`, `perspectives` or `mappings`: as configured, else the default in the main repository. */
 export const settingLocation = (
   layout: Pick<WorkspaceLayout, "file" | "main">,
   setting: keyof typeof DEFAULT_FOLDERS,
@@ -282,6 +287,7 @@ const settingLocations = (file: CheckedWorkspaceFile): readonly (readonly [strin
   ...(file.evidence ?? []).map((e) => ["evidence", e] as const),
   ...(file.baselines === undefined ? [] : [["baselines", file.baselines] as const]),
   ...(file.filters === undefined ? [] : [["filters", file.filters] as const]),
+  ...(file.perspectives === undefined ? [] : [["perspectives", file.perspectives] as const]),
   ...(file.mappings === undefined ? [] : [["mappings", file.mappings] as const]),
 ];
 
@@ -303,7 +309,7 @@ const unknownLocationRepositories = (
 
 /**
  * A warning per folder of the workspace file that ReqSeq writes into and that meets Git inside its
- * repository (`gitPlaceOf`): filters, baselines and mappings, configured or by default, and each
+ * repository (`gitPlaceOf`): filters, perspectives, baselines and mappings, configured or by default, and each
  * evidence location. ReqSeq never writes there (D-036), so saving there is refused.
  */
 const gitFolderLocations = async (

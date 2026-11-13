@@ -1,0 +1,72 @@
+{
+  "name": "perspective.save",
+  "title": "Save perspective",
+  "summary": "Save a list with its selection, grouping and sort as a named perspective in the repository; an existing name replaces that perspective.",
+  "details": "A perspective stores no view. Saving under an existing name, in any case or Unicode normal form, changes only the lines of what changed and keeps comments on unchanged lines. A `description` the input leaves out stays in the file; an empty `description` removes it. `filter`, `group` and `sort` the input leaves out are removed. A selection with no condition is `where: { all: [] }`.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Checks the conditions, sort and grouping of the perspective against the metamodel, which is missing or faulty.",
+  "stage": 3,
+  "implements": ["SR-213"],
+  "arguments": [
+    { "field": "name", "complete": "text" },
+    { "field": "where", "complete": "json" },
+    { "field": "description", "complete": "text" },
+    { "field": "filter", "complete": "filter" },
+    { "field": "group", "complete": "text" },
+    { "field": "sort", "complete": "json" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "$ref": "../perspective.schema.json#/$defs/name"
+      },
+      "description": {
+        "description": "What the perspective is for, for people. Left out: an existing description stays. Empty: it is removed.",
+        "type": "string"
+      },
+      "filter": {
+        "description": "Name of a saved filter that the selection also uses; written as the filter's name is saved.",
+        "type": "string"
+      },
+      "where": {
+        "$ref": "../filter.schema.json#/$defs/condition",
+        "description": "The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`."
+      },
+      "group": {
+        "$ref": "../common.schema.json#/$defs/groupKey",
+        "description": "The grouping of the list, checked as element.list checks `group`."
+      },
+      "sort": {
+        "type": "array",
+        "description": "The sort of the list, checked against the metamodel.",
+        "items": {
+          "$ref": "../filter.schema.json#/$defs/sortKey"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "where"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

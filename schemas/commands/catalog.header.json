@@ -37,6 +37,8 @@
     "element.search",
     "filter.list",
     "filter.save",
+    "perspective.list",
+    "perspective.save",
     "evidence.list",
     "evidence.record",
     "evidence.enrichJunit",

@@ -39,6 +39,10 @@
       "$ref": "#/$defs/location",
       "description": "Where saved filters are written (SR-070). Default: folder `filters` in the main repository."
     },
+    "perspectives": {
+      "$ref": "#/$defs/location",
+      "description": "Where perspectives are written (SR-213). Default: folder `perspectives` in the main repository."
+    },
     "mappings": {
       "$ref": "#/$defs/location",
       "description": "Where ReqIF mapping files are written (SR-054). Default: folder `reqif` in the main repository."
