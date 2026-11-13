@@ -47,7 +47,8 @@
 // acceptance criteria of the element that have a key (`element.get`); `evidenceLocation` the evidence
 // locations evidence.record takes (`workspace.status`), typed text too; `elementFile` the file of the
 // element, or those of an ambiguous reference (`ref.ambiguous`); `metamodelLocation` the repository, then
-// the path. A hit the metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
+// the path; a `condition` is built from hits as marks (`condition-prompt.ts`, SR-215 AK3). A hit the
+// metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
 // asked: it is the shown list's, or on a package page its package (`selection.package`), for every command
 // with a selection, reads and writes alike.
 import type { AboutInfo } from "./about.js";
@@ -78,6 +79,8 @@ import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
+import type { ConditionMark } from "./condition-prompt.js";
+import { askCondition, conditionLabel, conditionOf } from "./condition-prompt.js";
 import { rowName } from "./rows.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
@@ -109,6 +112,8 @@ interface Given {
   readonly skipped?: true;
   /** Given before the prompt asked (`startCommand`, SR-199): not offered first to another argument. */
   readonly prefilled?: true;
+  /** A condition built from hits (SR-215 AK3): its marks, which stand again when it is asked again (AK9). */
+  readonly marks?: readonly ConditionMark[];
   /**
    * Where the value stands among the values given (`ordered`): the next number when it is given, the
    * number of the value it replaces when it is asked again, so it keeps that value's place.
@@ -133,6 +138,8 @@ interface Entry {
   readonly error?: string;
   /** The rank of the value asked again: the answer takes its place (`Given.rank`). */
   readonly again?: number;
+  /** The marks of the condition asked again (SR-215 AK6, AK9). */
+  readonly marks?: readonly ConditionMark[];
 }
 
 /** The values given with one more: in the place of the value asked again, else after the others. */
@@ -815,11 +822,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>
     Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),
-  // The sources the catalog names for SR-215 whose issues are still open (#1645 to #1648) are asked as
-  // before: a grouping as text; conditions, sorts and the properties and relations of a new element as
-  // JSON. Their `FITTING` entries make them readers: a value of one is dropped when the field it reads is
+  // The sources the catalog names for SR-215 whose issues are still open (#1646 to #1648) are asked as
+  // before: a grouping as text; sorts and the properties and relations of a new element as JSON. Their `FITTING` entries make them readers: a value of one is dropped when the field it reads is
   // refused.
   group: asText,
+  // Built step by step from hits (`askCondition`, #1645); never asked through its offer.
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -1175,7 +1182,11 @@ const readersOf = (args: readonly Argument[], field: string): ReadonlySet<string
  */
 const askAgain = (context: CatalogContext, answered: Entry, at: number): void => {
   const again = answered.given[at];
-  const entry = { ...answered, ...(again === undefined ? {} : { again: again.rank }) };
+  const entry = {
+    ...answered,
+    ...(again === undefined ? {} : { again: again.rank }),
+    ...(again?.marks === undefined ? {} : { marks: again.marks }),
+  };
   const itsProperties = new Set((again?.asks ?? []).map((asked) => asked.key));
   const readers = again === undefined ? new Set<string>() : readersOf(entry.command.arguments, again.field);
   const given = entry.given.filter(
@@ -1249,12 +1260,12 @@ const give = (
   value: unknown,
   label: string,
   more: boolean,
-  asks?: readonly RequiredProperty[],
+  extra: Pick<Given, "asks" | "marks"> = {},
 ): void => {
   const { collecting: _was, error: _error, ...rest } = entry;
   step(context, {
     ...rest,
-    given: appended(entry, { field, value, label, ...(asks === undefined ? {} : { asks }) }),
+    given: appended(entry, { field, value, label, ...extra }),
     more: entry.more || more,
     ...(isListField(entry.command, field) && !more ? { collecting: field } : {}),
   });
@@ -1418,6 +1429,22 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
           }
         : {}),
   };
+  if (arg.complete === "condition") {
+    askCondition(
+      {
+        context,
+        line: `${lineOf(entry)} · ${field}`,
+        ...(entry.error === undefined ? {} : { error: entry.error }),
+        explain: shared.explain,
+        back: shared.back,
+        take: (marks, more) => {
+          give(context, entry, field, conditionOf(marks), conditionLabel(marks), more, { marks });
+        },
+      },
+      entry.marks ?? [],
+    );
+    return;
+  }
   const take = (
     value: unknown,
     name: string,
@@ -1428,10 +1455,10 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     const at = also === undefined ? entry : withAlso(entry, also);
     return {
       run: () => {
-        give(context, at, field, value, name, false, asks);
+        give(context, at, field, value, name, false, asks === undefined ? {} : { asks });
       },
       more: () => {
-        give(context, at, field, value, name, true, asks);
+        give(context, at, field, value, name, true, asks === undefined ? {} : { asks });
       },
     };
   };
@@ -1782,7 +1809,7 @@ const nextProperty = (entry: Entry): RequiredProperty | undefined =>
  */
 const step = (context: CatalogContext, answered: Entry): void => {
   // The value asked again has its answer: the next one goes after the others.
-  const { again: _again, ...entry } = answered;
+  const { again: _again, marks: _marks, ...entry } = answered;
   const { arguments: args } = entry.command;
   const asked = askedOf(entry.command);
   const open = (arg: Argument): boolean =>
