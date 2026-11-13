@@ -46,6 +46,7 @@ describe("reference", () => {
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
     expect(pages).toHaveLength(runtime.contracts.commands.length + 3 + FORMATS.length + 4);
     expect(runtime.contracts.commands.length).toBeGreaterThanOrEqual(49);
+    const shown: string[] = [];
     for (const entry of runtime.contracts.commands) {
       const page = pageOf(pages, entry.name);
       expect(page).toContain(`title: ${JSON.stringify(entry.title)}`);
@@ -56,16 +57,28 @@ describe("reference", () => {
       expect(section(page, "CLI")).toMatch(/^`reqseq \S+ \S+`[^]*```text\nUsage: reqseq \S+ \S+/);
       if (runtime.commands.has(entry.name)) {
         const app = appCommandEntry(entry, false);
-        expect(section(page, "App"), entry.name).toMatch(
-          new RegExp(
-            `^In the command prompt \\(Ctrl\\+Shift\\+P, macOS .+\\): the ${app.action ? "action" : "command"} \\*\\*`,
-          ),
-        );
-        expect(section(page, "App"), entry.name).toContain(`**${inline(app.name)}**`);
+        if (app.shownIn === undefined) {
+          expect(section(page, "App"), entry.name).toMatch(
+            new RegExp(
+              `^In the command prompt \\(Ctrl\\+Shift\\+P, macOS .+\\): the ${app.action ? "action" : "command"} \\*\\*`,
+            ),
+          );
+          expect(section(page, "App"), entry.name).toContain(`**${inline(app.name)}**`);
+        } else {
+          shown.push(entry.name);
+          expect(section(page, "App"), entry.name).toBe(
+            `Not in the command prompt: the app shows its output in ${inline(app.shownIn)}.`,
+          );
+        }
       }
       expect(section(page, "API")).toContain(`POST /v1/commands/${entry.name}`);
       expect(section(page, "MCP")).toContain(`\`${entry.name.replace(".", "_")}\``);
     }
+    // The commands whose output the app shows in other commands (SR-133 AK4) name that place.
+    expect(shown).toHaveLength(7);
+    expect(section(pageOf(pages, "workspace.recent"), "App")).toBe(
+      'Not in the command prompt: the app shows its output in "Open workspace".',
+    );
     const index = pages[0]?.text ?? "";
     expect(index).toContain("](/ReqSeq/reference/commands/element-get/): ");
   });

@@ -448,7 +448,7 @@ describe("Minibuffer", () => {
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
     it("[SR-108/AK-qr4w] marks the matched characters of an argument's candidates", async () => {
       await mount({
-        label: "Show relation options SR-1 · kind:",
+        label: "Create relation SR-1 · kind:",
         items: [choice("a", "derives from"), choice("b", "refines")],
       });
       await type(input(), "der");
@@ -591,8 +591,8 @@ describe("Minibuffer", () => {
 
       it("is open with its label at once and keeps what is typed while the parts load", async () => {
         const { fill, arrive } = later();
-        const { closed } = await mount({ label: "Show relation options · kind:", items: [], fill });
-        expect(query("label").textContent).toBe("Show relation options · kind:");
+        const { closed } = await mount({ label: "Create relation · kind:", items: [], fill });
+        expect(query("label").textContent).toBe("Create relation · kind:");
         expect(document.activeElement).toBe(input());
         await type(input(), "ref");
         await arrive({ items: [choice("a", "derives from"), choice("b", "refines")] });

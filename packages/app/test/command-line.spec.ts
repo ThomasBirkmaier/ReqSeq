@@ -132,13 +132,13 @@ test.describe("the command prompt", () => {
     const status = await running.cli(["workspace", "status"]);
     expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
     // Reading still works.
-    await finds(window, "Show facets");
+    await finds(window, "Show evidence coverage");
     for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
       await findsNothing(window, write);
     }
   });
 
-  test("a catalog read command asks its arguments in the minibuffer, with the kinds core allows, and shows its output", async () => {
+  test("a catalog read command asks its arguments in the minibuffer, the optional ones with the values the catalog allows, and shows its output", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     const label = window.locator("label.prompt-label");
@@ -149,33 +149,30 @@ test.describe("the command prompt", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator("article h1")).toContainText("Measure wind speed");
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("sro");
-    await expect(names(window).first()).toHaveText("Show relation options");
+    await window.keyboard.type("Show trace chain");
+    await expect(names(window).first()).toHaveText("Show trace chain");
     // Ctrl/Cmd+Enter: the arguments, and then the optional ones.
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label).toHaveText("Show relation options · ref:");
+    await expect(label).toHaveText("Show trace chain · ref:");
     await expect(names(window).first()).toHaveText("SR-0000b1 Measure wind speed");
     await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label).toHaveText("Show relation options SR-0000b1 · more arguments:");
-    await expect(names(window)).toHaveText(["Run", "kind"]);
+    await expect(label).toHaveText("Show trace chain SR-0000b1 · more arguments:");
+    await expect(names(window).nth(0)).toHaveText("Run");
+    await expect(names(window).nth(1)).toHaveText("direction");
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("Enter");
-    await expect(label).toHaveText("Show relation options SR-0000b1 · kind:");
-    const options = await running.cli(["relation", "options", "SR-0000b1"]);
-    const kinds = (JSON.parse(options.stdout) as { kinds: { name: string }[] }).kinds.map(
-      (kind) => kind.name,
-    );
-    await expect(names(window)).toHaveText(kinds);
-    await window.keyboard.type("der");
+    await expect(label).toHaveText("Show trace chain SR-0000b1 · direction:");
+    await expect(names(window)).toHaveText(["up", "down", "both"]);
+    await window.keyboard.type("up");
     const shots = process.env["REQSEQ_SCREENSHOTS"];
     if (shots !== undefined) {
       await window.screenshot({ path: path.join(shots, "catalog-prompt.png") });
     }
     await window.keyboard.press("Enter");
+    await expect(names(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".modeline")).toContainText("Show relation options SR-0000b1 Derives from");
-    await expect(window.locator(".result .line").first()).toHaveText("kinds1");
-    await expect(window.locator(".result")).toContainText("derives-from");
+    await expect(window.locator(".modeline")).toContainText("Show trace chain SR-0000b1 up");
+    await expect(window.locator(".result")).toContainText("N-0000a1");
   });
 
   test("[SR-215/AK-fj75] Record evidence offers the criteria with their key beside and the evidence locations as hits, and writes what was chosen", async () => {
@@ -309,7 +306,7 @@ test.describe("the command prompt", () => {
     await expect(window.locator("article h1")).toContainText("Measure wind speed");
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(names(window).filter({ hasText: "Show workspace status" })).toHaveCount(1);
-    const wanted = ["Show relation options", "Show trace chain", "Show workspace status"];
+    const wanted = ["Show trace chain", "Show affected elements", "Show workspace status"];
     const shown = (await names(window).allTextContents()).filter((name) => wanted.includes(name));
     // In the catalog "Show workspace status" comes first; it needs no element, so it is below them now. A
     // missing name fails the check too.

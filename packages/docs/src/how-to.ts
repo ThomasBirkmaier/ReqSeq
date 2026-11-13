@@ -32,7 +32,12 @@ export function accessNames(commands: readonly CatalogEntry[], generated: Genera
     }
   }
   return {
-    appEntries: new Set(commands.map((entry) => appCommandEntry(entry, false).name)),
+    appEntries: new Set(
+      commands.flatMap((entry) => {
+        const app = appCommandEntry(entry, false);
+        return app.shownIn === undefined ? [app.name] : [];
+      }),
+    ),
     inputs,
   };
 }

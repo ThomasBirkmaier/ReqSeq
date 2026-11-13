@@ -16,7 +16,7 @@ The search finds words in titles, texts, property values, type and status names 
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold, for you on this computer.
 7. Ctrl+K V (⌘K V) opens a perspective in a buffer of its own. “Save list as perspective” saves a list’s filter steps, grouping and sort under a name; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
-8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, the `where` of the API section below. **List saved filters** shows the filters of the workspace.
+8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, the `where` of the API section below. “Filter list by saved filter” offers them by name.
 
 ## CLI
 
