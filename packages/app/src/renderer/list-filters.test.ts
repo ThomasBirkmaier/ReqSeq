@@ -94,21 +94,23 @@ describe("the properties whose values can be chosen (#993)", () => {
 describe("the property prompt (SR-124)", () => {
   it("[SR-124/AK-hxcz] offers the status first, then the properties with values, in the order of the core", () => {
     const { items } = use(facets);
-    expect(items.map((item) => item.name)).toEqual(["status", "topic", "requirement-type", "packages"]);
+    // By display name, as the built-in choices read; the key stays the id.
+    expect(items.map((item) => item.name)).toEqual(["Status", "Topic", "Requirement type", "Packages"]);
+    expect(items.map((item) => item.id)).toEqual(["status", "topic", "requirement-type", "packages"]);
     expect(items.map((item) => item.hint)).toEqual(["2", "2", "1", "2"]);
   });
 
   it("[SR-124/AK-mch4] does not offer free text, which has no values, nor a property without a value in the list", () => {
-    const names = use(facets).items.map((item) => item.name);
-    expect(names).not.toContain("acceptance-criteria");
-    expect(names).not.toContain("title");
-    expect(names).not.toContain("priority");
+    const ids = use(facets).items.map((item) => item.id);
+    expect(ids).not.toContain("acceptance-criteria");
+    expect(ids).not.toContain("title");
+    expect(ids).not.toContain("priority");
   });
 
   it("offers the statuses of the list with their counts", () => {
     const { items, asked, ran } = use(facets);
     items[0]?.run();
-    expect(asked[0]?.label).toBe("status");
+    expect(asked[0]?.label).toBe("Status");
     expect(asked[0]?.items.map((item) => [item.name, item.hint])).toEqual([
       ["draft", "3"],
       ["approved", "2"],
@@ -120,7 +122,7 @@ describe("the property prompt (SR-124)", () => {
   it("offers the values with their counts and a choice for no value", () => {
     const { items, asked, ran } = use(facets);
     items[1]?.run();
-    expect(asked[0]?.label).toBe("topic");
+    expect(asked[0]?.label).toBe("Topic");
     expect(asked[0]?.items.map((item) => [item.name, item.hint])).toEqual([
       ["Bearbeiten und Finden", "2"],
       ["Wind", "1"],
@@ -138,10 +140,12 @@ describe("the property prompt (SR-124)", () => {
     });
   });
 
-  it("offers no choice for no value when every element has a value", () => {
-    const { items, asked } = use(facets);
+  it("offers no choice for no value when every element has a value; a choice reads by its display name", () => {
+    const { items, asked, ran } = use(facets);
     items[2]?.run();
-    expect(asked[0]?.items.map((item) => item.name)).toEqual(["functional"]);
+    expect(asked[0]?.items.map((item) => item.name)).toEqual(["Functional"]);
+    asked[0]?.items[0]?.run();
+    expect(ran).toEqual([propertyStep("requirement-type", "functional", "functional")]);
   });
 
   it("names a relation target by identifier and title and filters by its short ID", () => {

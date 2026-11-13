@@ -115,11 +115,11 @@ describe("cascading list filters (SR-124)", () => {
     expect(call).toHaveBeenLastCalledWith("element.facets", {
       selection: { where: { type: ["system-requirement"] } },
     });
-    await choose("filter-property", "topic");
+    await choose("filter-property", "Topic");
     expect(call).toHaveBeenLastCalledWith("element.facets", {
       selection: { where: { all: [{ type: ["system-requirement"] }, { status: ["draft"] }] } },
     });
-    expect(asked.at(-1)?.label).toBe("topic");
+    expect(asked.at(-1)?.label).toBe("Topic");
     asked.at(-1)?.items[0]?.run();
     const steps = [
       typeStep("system-requirement"),
@@ -146,7 +146,7 @@ describe("cascading list filters (SR-124)", () => {
       selection: { where: { type: ["system-requirement"] } },
     });
     expect(prompt.label).toBe("Property");
-    expect(prompt.items.map((item) => item.name)).toEqual(["status", "topic"]);
+    expect(prompt.items.map((item) => item.name)).toEqual(["Status", "Topic"]);
   });
 
   it("[SR-124/AK-hxcz] asks without a selection on the list of all elements", async () => {
@@ -242,7 +242,7 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
     expect(call).toHaveBeenLastCalledWith("element.facets", { selection: { where: { text: "wind" } } });
     expect(shownSearch(context)).toEqual(searchBuffer("wind", [statusStep("draft")]));
     expect(shownSearch(context).selection).toEqual({ where: { status: ["draft"] } });
-    await choose("filter-property", "topic");
+    await choose("filter-property", "Topic");
     expect(call).toHaveBeenLastCalledWith("element.facets", {
       selection: { where: { all: [{ text: "wind" }, { status: ["draft"] }] } },
     });

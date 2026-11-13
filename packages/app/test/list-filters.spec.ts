@@ -67,15 +67,15 @@ test.describe("cascading list filters on a fixture workspace", () => {
   const cascade = async (): Promise<void> => {
     const { window } = running;
     await runCommand(window, "flp");
-    await answer(window, "Property", "packages");
-    await answer(window, "packages", "Sensors");
+    await answer(window, "Property", "Package");
+    await answer(window, "Package", "Sensors");
     await runCommand(window, "filter list by type");
     await answer(window, "Type", "system-requirement");
     await runCommand(window, "filter list by status");
     await answer(window, "Status", "draft");
     await runCommand(window, "flp");
-    await answer(window, "Property", "topic");
-    await answer(window, "topic", "Timing");
+    await answer(window, "Property", "Topic");
+    await answer(window, "Topic", "Timing");
   };
 
   test("[SR-124/AK-jz48] package, type, status and property by keyboard give the list of the CLI for all four conditions", async () => {

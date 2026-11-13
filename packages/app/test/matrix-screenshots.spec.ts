@@ -77,9 +77,9 @@ test("[SR-125/AK-mzzq] all system requirements of the package Editor as a matrix
     // The values come from a command: keys typed before the prompt is there would be lost, so the test waits.
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
     await typed.type("pa");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("packages");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Package");
     await typed.press("Enter");
-    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("packages");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Package");
     await typed.type("edi");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Editor");
     await typed.press("Enter");
