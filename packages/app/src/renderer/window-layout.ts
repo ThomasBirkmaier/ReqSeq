@@ -6,7 +6,9 @@
 // The rules, in this order:
 // - Of the actions that keep both areas, only `open` and `switch` change the active area: when the buffer
 //   they show is the one in the inactive area, that area becomes active and the other one shows the
-//   buffer that was active. A buffer is never shown in both areas.
+//   buffer that was active; when an `open` replaced and so closed that buffer (a list saved as the
+//   perspective of the inactive area), the next buffer in the order of use, or none. A buffer is never
+//   shown in both areas.
 // - `cursor`, `select`, `restore` and `update` never change the active area (a view in the inactive area
 //   that reads again replaces its buffer in place).
 // - `close` of the active area's buffer in a split leaves one area, the inactive one, which becomes active.
@@ -125,8 +127,10 @@ const settle = (before: WindowState, action: BufferAction, buffers: Buffers): Wi
   }
   if ((action.type === "open" || action.type === "switch") && buffers[0]?.key === other) {
     // The inactive area's buffer was chosen: that area becomes active, the other one keeps what was shown
-    // (`open` of the inactive buffer moves it, so nothing is pushed out).
-    return { buffers, layout: withOther(opposite(layout.active), shownBefore) };
+    // (`open` of the inactive buffer moves it, so nothing is pushed out). When that buffer closed (an `open`
+    // that replaces it, a list saved as the perspective of the inactive area), the next one takes its place.
+    const kept = shownBefore !== undefined && isOpen(buffers, shownBefore) ? shownBefore : nextOther(buffers);
+    return { buffers, layout: withOther(opposite(layout.active), kept) };
   }
   return isOpen(buffers, other)
     ? { buffers, layout }

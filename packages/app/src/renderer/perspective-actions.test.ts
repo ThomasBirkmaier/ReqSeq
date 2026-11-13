@@ -407,12 +407,18 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     expect(rows(own.asked)).toEqual(["Drafts", "Approved"]);
     // Enter takes the typed name unless one of them is chosen.
     expect(prompt?.preview).toBe(true);
-    // A plain list starts empty; without the list of names the prompt still asks.
-    const plain = start({});
+    // A plain list starts empty.
+    const plain = start({ "perspective.list": listed([]) });
     action(SAVE_PERSPECTIVE).run(plain.context);
     await flush();
     expect(plain.asked.at(-1)?.initial).toBeUndefined();
     expect(rows(plain.asked)).toEqual([]);
+    // Without the list of names, core's message is said and nothing is asked.
+    const failed = start({});
+    action(SAVE_PERSPECTIVE).run(failed.context);
+    await flush();
+    expect(failed.echoed).toEqual(["perspective.list failed"]);
+    expect(failed.asked).toHaveLength(0);
   });
 
   it("saves the filter steps, the grouping and the shown sort: a text step as a text condition, a saved filter by name", () => {
@@ -450,6 +456,24 @@ describe("Save list as perspective (SR-214 AK5)", () => {
       sort: [{ by: "title", order: "desc" }],
     });
     expect(perspectiveWhere([typeStep("need")])).toEqual({ type: ["need"] });
+    // The selection of a perspective stays as stored: alone without further steps (SR-213 AK3), and its
+    // parts first, unchanged, with them.
+    const stored = perspectiveBuffer({ name: "One", saved: { where: { all: [{ type: ["need"] }] } } });
+    expect(perspectiveWhere(stored.steps)).toEqual({ all: [{ type: ["need"] }] });
+    expect(perspectiveInput(stored, "One").where).toEqual({ all: [{ type: ["need"] }] });
+    const single = perspectiveBuffer({ name: "Two", saved: { where: { not: { status: ["draft"] } } } });
+    expect(perspectiveWhere([...single.steps, textStep("x")])).toEqual({
+      all: [{ not: { status: ["draft"] } }, { text: "x" }],
+    });
+    expect(
+      perspectiveWhere([
+        ...perspectiveBuffer({ name: "All", saved: { where: { all: [] } } }).steps,
+        typeStep("need"),
+      ]),
+    ).toEqual({
+      type: ["need"],
+    });
+    expect(perspectiveWhere([])).toEqual({ all: [] });
     expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({ any: [] });
   });
 

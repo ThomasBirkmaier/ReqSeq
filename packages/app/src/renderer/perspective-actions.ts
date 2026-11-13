@@ -139,14 +139,22 @@ const allParts = (condition: Condition): readonly Condition[] =>
   "all" in condition && Object.keys(condition).length === 1 ? condition.all : [condition];
 
 /**
- * The conditions of the steps as the `where` of a perspective: one alone as it is, several under one `all`
- * (an `all` among them, such as the selection of a perspective, adds its parts), none as `{ all: [] }`. A
- * text step is its `text` condition (SR-068).
+ * The conditions of the steps as the `where` of a perspective (a text step is its `text` condition,
+ * SR-068). The selection of a perspective, the first step of its buffer, stays as stored: alone without
+ * further steps, so saving it again under its name changes no line of it (SR-213 AK3); with further steps
+ * its parts come first under one `all`, unchanged. Other conditions: one alone as it is, several under one
+ * `all`, none as `{ all: [] }`.
  */
 export const perspectiveWhere = (steps: readonly FilterStep[]): Condition => {
-  const parts = steps.flatMap((step) =>
-    step.selection.where === undefined ? [] : allParts(step.selection.where),
+  const [first] = steps;
+  const stored = first?.perspective === true ? first.selection.where : undefined;
+  const own = (stored === undefined ? steps : steps.slice(1)).flatMap((step) =>
+    step.selection.where === undefined ? [] : [step.selection.where],
   );
+  if (stored !== undefined && own.length === 0) {
+    return stored;
+  }
+  const parts = [...(stored === undefined ? [] : allParts(stored)), ...own];
   const [only] = parts;
   return parts.length === 1 && only !== undefined ? only : { all: parts };
 };
@@ -259,7 +267,11 @@ export const PERSPECTIVE_ACTIONS: readonly Action[] = [
         return;
       }
       void context.call("perspective.list", {}).then((answer) => {
-        const names = answer.ok ? answer.output.perspectives.map((perspective) => perspective.name) : [];
+        if (!answer.ok) {
+          context.echo(answer.message);
+          return;
+        }
+        const names = answer.output.perspectives.map((perspective) => perspective.name);
         const save = (name: string): void => {
           const given = name.trim();
           if (given !== "") {

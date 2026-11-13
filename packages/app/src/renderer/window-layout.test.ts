@@ -9,6 +9,7 @@ import {
   graphBuffer,
   listBuffer,
   overviewBuffer,
+  perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
 } from "./buffers.js";
@@ -57,6 +58,22 @@ const sound = (state: WindowState): void => {
 };
 
 describe("window layout (SR-115 AK3)", () => {
+  it("a list saved as the perspective of the inactive area leaves one area, or the next buffer beside it", () => {
+    const b = perspectiveBuffer({ name: "B", saved: { where: { all: [] } } });
+    const saved = perspectiveBuffer({ name: "B", saved: { where: { type: ["need"] } } });
+    const save = { type: "open", buffer: saved, replacing: list.key } as const;
+    const two = reduceWindow({ buffers: [list, b], layout: { active: "left", other: b.key } }, save);
+    sound(two);
+    expect(isSplit(two.layout)).toBe(false);
+    expect(shown(two)).toEqual([`${b.key}*`]);
+    const three = reduceWindow(
+      { buffers: [list, b, overview], layout: { active: "left", other: b.key } },
+      save,
+    );
+    sound(three);
+    expect(shown(three)).toEqual([overview.key, `${b.key}*`]);
+  });
+
   it("[SR-115/AK-cycg] Split window shows the shown buffer and the one used before side by side; the shown one stays active", () => {
     const state = run(opened(element(1), graph), { type: "split" });
     expect(isSplit(state.layout)).toBe(true);
