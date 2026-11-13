@@ -227,7 +227,13 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     await tick(499);
     expect(nextKeys()).toBeUndefined();
     await tick(1);
-    expect(nextKeys()).toEqual([...WRITE_ROWS, "L List all elements", "O Show overview", "B Close buffer"]);
+    expect(nextKeys()).toEqual([
+      ...WRITE_ROWS,
+      "L List all elements",
+      "V Open perspective",
+      "O Show overview",
+      "B Close buffer",
+    ]);
     expect(echo()).toBe("Ctrl+K-");
     // On a list the list's own commands come in, in the order of the table.
     await press(window, { key: "l" });
@@ -238,6 +244,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(nextKeys()).toEqual([
       ...WRITE_ROWS,
       "L List all elements",
+      "V Open perspective",
       "O Show overview",
       "F Filter list by type",
       "S Sort list",
@@ -252,7 +259,13 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     await ctrlK(window, true);
     expect(echo()).toBe("⌘K-");
     await tick(500);
-    expect(nextKeys()).toEqual([...WRITE_ROWS, "L List all elements", "O Show overview", "B Close buffer"]);
+    expect(nextKeys()).toEqual([
+      ...WRITE_ROWS,
+      "L List all elements",
+      "V Open perspective",
+      "O Show overview",
+      "B Close buffer",
+    ]);
     await press(window, { key: "o", metaKey: true });
     expect(shown()).toBe("Overview");
     expect(nextKeys()).toBeUndefined();
@@ -265,7 +278,12 @@ describe("the prefix key Ctrl/Cmd+K", () => {
       vi.useFakeTimers();
       await ctrlK();
       await tick(500);
-      expect(nextKeys()).toEqual(["L List all elements", "O Show overview", "B Close buffer"]);
+      expect(nextKeys()).toEqual([
+        "L List all elements",
+        "V Open perspective",
+        "O Show overview",
+        "B Close buffer",
+      ]);
       await press(window, { key: "r" });
       expect(echo()).toBe("Create relation is not available here");
       expect(shown()).toBe("SR-000001 Title 1");
@@ -293,7 +311,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     vi.useFakeTimers();
     await ctrlK();
     await tick(500);
-    expect(nextKeys()).toHaveLength(7);
+    expect(nextKeys()).toHaveLength(8);
     const taken = await press(window, { key: "o" });
     expect(taken.defaultPrevented).toBe(true);
     expect(shown()).toBe("Overview");
@@ -354,7 +372,12 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     await press(window, { key: "Control", ctrlKey: true });
     expect(nextKeys()).toBeUndefined();
     await ctrlK();
-    expect(nextKeys()).toEqual([...WRITE_ROWS, "L List all elements", "B Close buffer"]);
+    expect(nextKeys()).toEqual([
+      ...WRITE_ROWS,
+      "L List all elements",
+      "V Open perspective",
+      "B Close buffer",
+    ]);
     // Still waiting: L runs.
     await press(window, { key: "l", ctrlKey: true });
     expect(shown()).toBe("All elements");

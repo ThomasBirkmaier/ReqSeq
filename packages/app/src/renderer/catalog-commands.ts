@@ -65,7 +65,7 @@ import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, listing, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId } from "./id-title.js";
@@ -335,7 +335,7 @@ export const withExplanations = (
 
 /** A list or a package page is shown: it gives the selection of a `selection` argument. */
 const givesSelection = (context: ActionContext): boolean =>
-  context.buffers[0]?.kind === "list" || packagePage(context) !== undefined;
+  listing(context.buffers[0]) || packagePage(context) !== undefined;
 
 /**
  * The selection a `selection` argument takes (it is never asked): the shown list's, or on a package page its
@@ -344,7 +344,7 @@ const givesSelection = (context: ActionContext): boolean =>
 const shownSelection = (context: ActionContext): object | undefined => {
   const shown = context.buffers[0];
   const page = packagePage(context);
-  return shown?.kind === "list" ? shown.selection : page === undefined ? undefined : { package: page.id };
+  return listing(shown) ? shown.selection : page === undefined ? undefined : { package: page.id };
 };
 
 /** A command that needs a selection is offered only while a list or a package page is shown. */
@@ -701,7 +701,7 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
  * all of them, the empty selection (#856: "Bulk update elements" was refused there); else none.
  */
 const everyElement = (context: ActionContext, command: CommandListing, field: string): object | undefined =>
-  context.buffers[0]?.kind === "list" && requiredOf(command).includes(field) ? {} : undefined;
+  listing(context.buffers[0]) && requiredOf(command).includes(field) ? {} : undefined;
 
 /**
  * The input the given values make, with the shown list's selection for a `selection` argument, in the view

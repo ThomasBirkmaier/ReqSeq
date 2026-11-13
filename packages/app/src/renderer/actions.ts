@@ -448,6 +448,16 @@ export interface ActionContext {
   readonly views?: ViewControls;
   /** Which statuses fold to the end of lists (SR-201, `fold-statuses.ts`), where the window offers it. */
   readonly folds?: FoldControls;
+  /** The perspectives opened last (SR-214 AK1, `perspective-recent.ts`), where the window keeps them. */
+  readonly perspectives?: PerspectiveUse;
+}
+
+/** The order of use of the perspectives: display state of the app, never in the workspace (SR-214 AK1). */
+export interface PerspectiveUse {
+  /** The names opened last, the most recent first. */
+  readonly used: () => readonly string[];
+  /** The user opened the perspective of this name. */
+  readonly opened: (name: string) => void;
 }
 
 /** The statuses folded in lists (SR-201): display state of the app, kept for this user (AK4). */

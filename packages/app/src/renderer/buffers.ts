@@ -8,6 +8,7 @@ import type {
   FilterSortKeyWithDefaults,
   TraceGraphInput,
 } from "@reqseq/core";
+import { fold } from "@reqseq/core/fold";
 import { refIdTitle, shownIdTitle } from "./id-title.js";
 import { hasSavedFilter } from "./list-filters.js";
 import type { ListQuery, QueryChange } from "./list-query.js";
@@ -19,6 +20,47 @@ export interface FilterStep {
   /** What the heading of the list says for this step instead of the label: the name of a type (SR-148). */
   readonly heading?: string;
   readonly selection: Pick<ElementSelection, "where" | "filter">;
+  /**
+   * The selection of a perspective (SR-214 AK2): the first step of its buffer, which "Clear list filter"
+   * and "Clear all list filters" never take back.
+   */
+  readonly perspective?: true;
+}
+
+/** A perspective as `perspective.list` gives it. */
+export type ListedPerspective = CommandTypes["perspective.list"]["output"]["perspectives"][number];
+
+/**
+ * What a perspective buffer shows (SR-214 AK2): the perspective by its name, and what was saved when the
+ * buffer was opened (`saved`: the selection, grouping and sort; the grouping left out when it could no
+ * longer be chosen at opening, SR-213 AK7). The buffer asks `element.list` with that, not with the name, so
+ * a change of the file outside the app leaves the list as it is until the perspective is opened again
+ * (SR-214, rationale). `warning` is core's warning that the grouping was left out, for a buffer that came
+ * back at a restart: the minibuffer says it when the buffer is first shown, and it is then dropped.
+ *
+ * A buffer that came back at a restart for a name only a faulty file holds has nothing saved: it shows
+ * core's refusal (`error`, `file.faulty`) and lists nothing, so it offers no list action and gives no
+ * selection, until the perspective is opened again (`listing`).
+ */
+export type PerspectiveOrigin =
+  | {
+      readonly name: string;
+      readonly saved: SavedPerspective;
+      readonly warning?: string;
+      readonly error?: undefined;
+    }
+  | {
+      readonly name: string;
+      readonly error: string;
+      readonly saved?: undefined;
+      readonly warning?: undefined;
+    };
+
+export interface SavedPerspective {
+  readonly where: NonNullable<ElementSelection["where"]>;
+  readonly filter?: string;
+  readonly group?: string;
+  readonly sort?: readonly FilterSortKeyWithDefaults[];
 }
 
 /**
@@ -41,6 +83,8 @@ export interface ListBuffer extends ListQuery {
   readonly matrix?: true;
   /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
+  /** The list is the buffer of a perspective (SR-214), keyed by its name (`perspectiveKey`). */
+  readonly perspective?: PerspectiveOrigin;
 }
 
 /**
@@ -252,16 +296,70 @@ const makeList = (
   selection: ElementSelection | undefined,
   sort: readonly FilterSortKeyWithDefaults[] | undefined,
   matrix: boolean,
+  perspective?: PerspectiveOrigin,
 ): ListBuffer => ({
   kind: "list",
-  key: LIST_KEY,
+  key: perspective === undefined ? LIST_KEY : perspectiveKey(perspective.name),
   label,
   steps,
   cursor: NO_ROW,
   ...(selection === undefined ? {} : { selection }),
   ...(sort === undefined ? {} : { sort }),
   ...(matrix ? { matrix: true as const } : {}),
+  ...(perspective === undefined ? {} : { perspective }),
 });
+
+/**
+ * The key of the buffer of the perspective `name`: its name folded as core compares perspective names
+ * (case, Unicode normal form), so the same perspective saved again in other case is the same buffer.
+ */
+export const perspectiveKey = (name: string): string => `perspective:${fold(name)}`;
+
+/** The first step of a perspective buffer: its selection, headed by its name (SR-214 AK2). */
+const perspectiveStep = (perspective: PerspectiveOrigin): FilterStep => ({
+  label: `perspective: ${perspective.name}`,
+  heading: perspective.name,
+  selection:
+    perspective.saved === undefined
+      ? {}
+      : {
+          where: perspective.saved.where,
+          ...(perspective.saved.filter === undefined ? {} : { filter: perspective.saved.filter }),
+        },
+  perspective: true,
+});
+
+/** What `perspective.list` gives as `saved`: the sort with its order, as `element.list` reads it. */
+export const savedOf = (listed: ListedPerspective, grouped: boolean): SavedPerspective => ({
+  where: listed.where,
+  ...(listed.filter === undefined ? {} : { filter: listed.filter }),
+  ...(listed.group === undefined || !grouped ? {} : { group: listed.group }),
+  ...(listed.sort === undefined
+    ? {}
+    : { sort: listed.sort.map((key) => ({ by: key.by, order: key.order ?? "asc" })) }),
+});
+
+/**
+ * The buffer of a perspective as it is saved (SR-214 AK2, AK4): its selection as the first step, its
+ * grouping and its sort, a list (not the matrix), no row selected.
+ */
+export const perspectiveBuffer = (perspective: PerspectiveOrigin): ListBuffer => {
+  const steps = [perspectiveStep(perspective)];
+  const list = makeList(
+    steps[0]?.label ?? perspective.name,
+    steps,
+    selectionOf(steps),
+    perspective.saved?.sort,
+    false,
+    perspective,
+  );
+  const group = perspective.saved?.group;
+  return group === undefined ? list : { ...list, group };
+};
+
+/** The steps of a list that its filter actions can take back: all but the selection of a perspective. */
+export const ownSteps = (steps: readonly FilterStep[]): number =>
+  steps.filter((step) => step.perspective !== true).length;
 
 /** A list with one step: the selection under its label (or every element, without a selection). */
 export const listBuffer = (
@@ -298,6 +396,7 @@ export const filteredList = (
   steps: readonly FilterStep[],
   sort?: readonly FilterSortKeyWithDefaults[],
   matrix = false,
+  perspective?: PerspectiveOrigin,
 ): ListBuffer =>
   makeList(
     steps.length === 0 ? "All elements" : steps.map((step) => step.label).join(" · "),
@@ -305,6 +404,7 @@ export const filteredList = (
     selectionOf(steps),
     sort,
     matrix,
+    perspective,
   );
 
 /** The buffer is a list in matrix mode (SR-125). */
@@ -321,33 +421,58 @@ export const queryOf = (list: ListBuffer): ListQuery => ({
   ...(list.group === undefined ? {} : { group: list.group }),
 });
 
-/** The list that asks `query`, in `view`, from its first row: the parts the view does not show are dropped. */
-export const listOf = (query: ListQuery, view: "list" | "matrix"): ListBuffer => {
-  const shown = queryIn(query, view);
-  const list = filteredList(shown.steps, shown.sort, view === "matrix");
+/**
+ * The list that asks `query`, in `view`, from its first row: the parts the view does not show are dropped,
+ * except in the buffer of a perspective (`perspective`), which keeps its grouping in the matrix and asks
+ * without it there (`listGroup`), so it is grouped again as a list.
+ */
+export const listOf = (
+  query: ListQuery,
+  view: "list" | "matrix",
+  perspective?: PerspectiveOrigin,
+): ListBuffer => {
+  const shown = queryIn(query, perspective === undefined ? view : "list");
+  const list = filteredList(shown.steps, shown.sort, view === "matrix", perspective);
   return shown.group === undefined ? list : { ...list, group: shown.group };
 };
 
 /**
  * The same list with some parts of its query changed (other steps, another sort or grouping), from its
- * first row; the other parts and the mode stay (SR-124, SR-149 AK3).
+ * first row; the other parts, the mode and the perspective stay (SR-124, SR-149 AK3).
  */
 export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer =>
-  listOf(changeQuery(queryOf(list), change, listView(list)), listView(list));
+  listOf(
+    changeQuery(queryOf(list), change, list.perspective === undefined ? listView(list) : "list"),
+    listView(list),
+    list.perspective,
+  );
 
 /**
  * The same list in matrix mode, or (`on` false) as a list. The row and everything else stay, unless the
  * view drops a part of the query (the matrix shows no groups, SR-149): then the rows change and it starts
- * from the first row, since a row of the groups is another element in the matrix.
+ * from the first row, since a row of the groups is another element in the matrix. A perspective buffer
+ * keeps its grouping (`listOf`), and starts from the first row too.
  */
 export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
   const view = on ? "matrix" : "list";
   if (!fitsView(queryOf(list), view)) {
-    return listOf(queryOf(list), view);
+    return listOf(queryOf(list), view, list.perspective);
   }
   const { matrix: _before, ...rest } = list;
   return on ? { ...rest, matrix: true } : rest;
 };
+
+/**
+ * The buffer is a list that lists elements: not the buffer of a perspective that came back with nothing
+ * saved (`PerspectiveOrigin`), which only shows why it cannot. The list actions and every command that takes
+ * the shown list's selection act only on such a list.
+ */
+export const listing = (buffer: Buffer | undefined): buffer is ListBuffer =>
+  buffer?.kind === "list" && buffer.perspective?.error === undefined;
+
+/** The grouping a list asks for: none in the matrix, which shows no groups (SR-149). */
+export const listGroup = (list: ListBuffer): string | undefined =>
+  list.matrix === true ? undefined : list.group;
 
 /** The same list grouped by `group`, or without groups (undefined), from its first row (SR-149 AK3). */
 export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer =>
@@ -513,10 +638,13 @@ export const DEFAULT_SORT: readonly FilterSortKeyWithDefaults[] = Object.freeze(
 
 /**
  * The `sort` a list asks `element.list` for: the one chosen; else, with a saved filter among the
- * steps, none, so the sort of the filter holds (SR-070 AK3); else `DEFAULT_SORT`.
+ * steps, none, so the sort of the filter holds (SR-070 AK3); else `DEFAULT_SORT`. A perspective buffer
+ * asks with the sort as saved and nothing of its own (SR-213 AK4): without one, the sort of its saved
+ * filter or the workspace order holds, as for `element.list` with the perspective.
  */
 export const listSort = (buffer: ListBuffer): readonly FilterSortKeyWithDefaults[] | undefined =>
-  buffer.sort ?? (hasSavedFilter(buffer.steps) ? undefined : DEFAULT_SORT);
+  buffer.sort ??
+  (hasSavedFilter(buffer.steps) || buffer.perspective !== undefined ? undefined : DEFAULT_SORT);
 
 const sameSort = (
   a: readonly FilterSortKeyWithDefaults[],
@@ -562,11 +690,15 @@ export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
       ? buffer.label
       : buffer.steps.map((step) => step.heading ?? step.label).join(" · ");
 
+/** " · grouped by <key>", or nothing without a grouping. */
+const groupLabel = (group: string | undefined): string =>
+  group === undefined ? "" : ` · grouped by ${group}`;
+
 /** The name of a buffer, as the minibuffer lists it and the sheet is labelled. */
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":
-      return `${buffer.label}${sortLabel(buffer.sort)}${buffer.group === undefined ? "" : ` · grouped by ${buffer.group}`}${buffer.matrix === true ? " · matrix" : ""}`;
+      return `${buffer.label}${sortLabel(buffer.sort)}${groupLabel(listGroup(buffer))}${buffer.matrix === true ? " · matrix" : ""}`;
     case "search":
       return `Search: ${buffer.query}${searchParts(buffer)}`;
     case "element":

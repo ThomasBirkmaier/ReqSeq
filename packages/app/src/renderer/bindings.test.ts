@@ -32,6 +32,9 @@ describe("the prefix key and its letters (ThomasBirkmaier/ReqSeq-archive#472)", 
   it("writes a letter after the prefix as each platform writes a shortcut", () => {
     expect(prefixLabel("l", false)).toBe("Ctrl+K L");
     expect(prefixLabel("l", true)).toBe("⌘K L");
+    // V opens a perspective (SR-214 AK1: Ctrl+K V, on macOS Cmd+K V).
+    expect(bindingLabel("open-perspective", false)).toBe("Ctrl+K V");
+    expect(bindingLabel("open-perspective", true)).toBe("⌘K V");
     expect(prefixWaiting(false)).toBe("Ctrl+K-");
     expect(prefixWaiting(true)).toBe("⌘K-");
   });
