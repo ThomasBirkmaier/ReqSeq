@@ -744,6 +744,9 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     // An empty `where`: core refuses it with a message longer than the window is wide.
     await window.keyboard.press("Enter");
     await expect(window.locator(".minibuffer")).toContainText("Invalid input for perspective.save");
+    // The message is wider than the minibuffer line, so without the fix it would widen the sheet.
+    const line = window.locator(".minibuffer");
+    expect(await line.evaluate((minibuffer) => minibuffer.scrollWidth > minibuffer.clientWidth)).toBe(true);
     expect(await sheetWidth()).toBe(before);
     expect(before).toBe(await window.evaluate(() => globalThis.innerWidth));
   });
