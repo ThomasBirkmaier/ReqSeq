@@ -69,7 +69,7 @@ import { ACTIONS, findElements } from "./actions.js";
 import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
-import { coveredCommand, coveringAction } from "./command-entry.js";
+import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, listing, resultBuffer, selectionOf } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
@@ -875,7 +875,7 @@ const offerFor = (
   });
 };
 
-/** "Show relation options SR-1" : the title and the values given so far (a skipped property shows nothing). */
+/** "Create relation SR-1" : the title and the values given so far (a skipped property shows nothing). */
 const lineOf = (entry: Entry): string =>
   [
     entry.command.title,
@@ -1941,17 +1941,17 @@ export const startCommand = (
 const WITHOUT_WORKSPACE = "workspace.init";
 
 /**
- * Whether the prompt offers the command (SR-073 AK2: every function of the app by its name): every
- * implemented read and write command, except `element.update`, which the element buffer does ("Save
- * element" covers it, with "Edit title", "Add property" and "Clear property"), and only
- * `workspace.init` while no workspace is open.
+ * Whether the prompt may offer the command (SR-073 AK2: every function of the app by its name): every
+ * implemented read and write command, and only `workspace.init` while no workspace is open. `catalogItems`
+ * then leaves out the covered ones (`element.update`: "Save element", with "Edit title", "Add property" and
+ * "Clear property") and those whose output other commands show (`shownIn`, SR-133 AK4).
  */
 const listed = (context: CatalogContext, command: CommandListing): boolean =>
   command.implemented && (context.workspace || command.name === WITHOUT_WORKSPACE);
 
 /**
  * The catalog commands the command prompt offers now (`listed`) that no action covers (by title or by
- * `covers`), each by its title and whether it fits the shown view (SR-133). While the workspace is
+ * `covers`) and whose output the app does not show only in another command (`shownIn`, SR-133 AK4), each by its title and whether it fits the shown view (SR-133). While the workspace is
  * read-only, no write command that core refuses then (`whileReadOnly`).
  */
 export const catalogItems = (
@@ -1965,6 +1965,7 @@ export const catalogItems = (
         listed(context, command) &&
         !(context.readOnly === true && command.whileReadOnly === "refuse") &&
         coveringAction(command, actions) === undefined &&
+        shownIn(command) === undefined &&
         offered(context, command),
     )
     .map((command) => {
