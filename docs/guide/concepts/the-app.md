@@ -29,7 +29,7 @@ Above it, the modeline describes the buffer (a list by filter, sort and count, a
 
 ## Buffers
 
-Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer, and opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, like the mouse buttons Back and Forward, go back and forth with a sideways slide; on macOS a swipe to the left or right that the system reports as its own event, not as scrolling, does the same as Back or Forward: older mouse software such as Logi Options sends the side buttons so, and a three-finger swipe arrives so when the system pages with three fingers. **Close buffer** (Ctrl+K B) saves an element's input first.
+Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer, and opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, like the mouse buttons Back and Forward, go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
 A workspace opens on the overview, with the number of elements per type and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
 
