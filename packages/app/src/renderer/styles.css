@@ -975,6 +975,42 @@ mark {
   font: inherit;
 }
 
+/* The marks of a value built from hits (SR-215 AK3): boxes in greys before the input (D-062), each with an
+   × that removes it; they shrink and cut their labels rather than widen the line. */
+.prompt-marks {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.prompt-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: var(--select);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-unmark {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.prompt-unmark:hover {
+  color: var(--text);
+}
+
 /* An Enter that waits for core's answer (#467). */
 .prompt-waiting {
   color: var(--muted);
