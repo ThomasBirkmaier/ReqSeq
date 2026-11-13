@@ -933,7 +933,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them, also on an
   // action (the read is short: core answers at once, or the bridge gives none without a connection).
   const commands = useCallback(
-    (shown = true, all = false): Prompt => {
+    (shown = true, all = false, from?: ActionContext): Prompt => {
       // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
       // chosen here (SR-134 AK1), open the command prompt again, or the list of every command it was chosen in.
       const reopen = (): void => {
@@ -942,16 +942,15 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // "All commands…" (SR-133 AK3): the shown prompt with an empty input offers it after the first nine. It lists
       // the commands of the context the prompt opened in, as its other rows run in it: a click on the row must not
       // drop what the shown buffer had selected.
-      const opened = latest.current;
+      const opened = from ?? latest.current;
       const everything =
         shown && !all
           ? (): void => {
-              latest.current = opened;
-              ask(commands(true, true));
+              ask(commands(true, true, opened));
             }
           : undefined;
       const build = (): Prompt => {
-        const now = latest.current;
+        const now = from ?? latest.current;
         const items = catalogItems(
           { ...now, revision: () => revisionNow.current, reopen },
           catalog.current,
@@ -1012,8 +1011,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     if (id === undefined) {
       // "All commands…" (AK3): every command of the command prompt alphabetically, as its row "All commands…"
       // gives it on this buffer (SR-133 AK3): from the context without the menu's entry (SR-197).
-      latest.current = context;
-      ask(commands(true, true));
+      ask(commands(true, true, context));
       return;
     }
     beforeCommand();

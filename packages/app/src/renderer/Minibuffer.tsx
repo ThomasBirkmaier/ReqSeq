@@ -969,11 +969,11 @@ const PromptLine = ({
     if (query === "" && prompt.empty !== undefined) {
       onClose(false);
       prompt.empty(true);
+    } else if (current?.item.opens === true) {
+      // "All commands…" is taken only by Enter or a click (SR-210 AK5), also while the parts load.
     } else if (loading) {
       early.current = "more";
       setPending(true);
-    } else if (current?.item.opens === true) {
-      // "All commands…" is taken only by Enter or a click (SR-210 AK5).
     } else if (prompt.preview === true) {
       // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
       enter();
