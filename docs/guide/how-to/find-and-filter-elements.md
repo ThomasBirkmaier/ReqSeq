@@ -10,7 +10,7 @@ The search finds words in titles, texts, property values, type and status names 
 ## App
 
 1. To open one element, press Ctrl+P (⌘P on macOS) for **Go to element or buffer**, type its short ID or title words, and press Enter.
-2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Open a hit with the arrow keys and Enter, or all hits in a buffer with Enter alone.
+2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Ctrl+Enter (⌘↩) picks fields to search in. Open a hit with the arrows and Enter, or all hits with Enter alone.
 3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property”, “Filter list by text search” and “Filter list by saved filter”. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
 4. “Sort list” (Ctrl+K S) orders the list, for example by title, ascending or descending, or as the derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).

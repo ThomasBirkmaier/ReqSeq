@@ -376,8 +376,7 @@ describe("the search prompt in the minibuffer", () => {
     });
     await flush();
     await type("wind");
-    // Ctrl/Cmd+Enter as Enter: it does not wait for the hits either.
-    await press("Enter", { ctrlKey: true });
+    await press("Enter");
     expect(late.dispatched).toEqual([{ type: "open", buffer: searchBuffer("wind") }]);
     expect(container.querySelector('[role="status"]')).toBeNull();
   });

@@ -10,6 +10,7 @@ import type {
   Prompt,
   PromptFill,
   PromptMark,
+  StepExplanation,
 } from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
@@ -317,7 +318,53 @@ const ArgumentLine = ({
 };
 
 /**
- * The explanation line (SR-210): of the argument asked, else of the marked entry in a prompt that keeps its place
+ * The explanation line of the search words (SR-216 AK9), as high as the others: the summary of the catalog command
+ * in the first line, the keys of the step in the second. Ctrl/Cmd+Enter there is a button that does what the key
+ * does (AK6); Backspace is named while a mark stands that it removes (AK7).
+ */
+const StepLine = ({
+  explain,
+  unmarks,
+  mac,
+  onMore,
+}: {
+  readonly explain: StepExplanation;
+  readonly unmarks: boolean;
+  readonly mac: boolean;
+  readonly onMore: () => void;
+}): React.JSX.Element => (
+  <ExplainLine
+    text={explain.summary}
+    lines={1}
+    keys={
+      <>
+        <kbd>{enterLabel(mac)}</kbd> {explain.enter} ·{" "}
+        <button
+          type="button"
+          className="explain-help"
+          tabIndex={-1}
+          // The input keeps the focus, as on a click on a hit.
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
+          onClick={onMore}
+        >
+          <kbd>{shortcutLabel(MORE_SHORTCUT, mac)}</kbd> {explain.more}
+        </button>
+        {unmarks ? (
+          <>
+            {" "}
+            · <kbd>{BACKSPACE}</kbd> on an empty input removes the last mark
+          </>
+        ) : null}{" "}
+        · <kbd>Escape</kbd> closes
+      </>
+    }
+  />
+);
+
+/**
+ * The explanation line (SR-210): of a step of an action of its own (`StepLine`), of the argument asked, else of the marked entry in a prompt that keeps its place
  * (`explains`, the command prompt), empty for an entry without one (AK5: an element, a buffer) and without hits.
  * Other prompts have none.
  */
@@ -326,7 +373,21 @@ const explanationOf = (
   marked: Choice | undefined,
   mac: boolean,
   onHelp: () => void,
+  onMore: () => void,
 ): { readonly line: React.JSX.Element | null; readonly said: boolean } => {
+  if (prompt.explainStep !== undefined) {
+    return {
+      line: (
+        <StepLine
+          explain={prompt.explainStep}
+          unmarks={prompt.unmark === true && (prompt.marks?.length ?? 0) > 0}
+          mac={mac}
+          onMore={onMore}
+        />
+      ),
+      said: true,
+    };
+  }
   if (prompt.explain !== undefined) {
     return {
       line: <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />,
@@ -790,13 +851,22 @@ const PromptLine = ({
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // The text the input starts with is searched as if typed (the search words kept from the field choice,
+    // SR-216 AK6); while the parts load, once they are there.
+    const start = given.initial ?? "";
+    if (start.trim() !== "") {
+      if (given.fill !== undefined) {
+        unsearched.current = true;
+      } else if (seeker !== undefined) {
+        search(seeker, start);
+      }
+    }
+    return () => {
       // A late answer must not open anything after the prompt closed.
       waiting.current = 0;
-    },
-    [],
-  );
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -971,8 +1041,12 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
       setPending(true);
+    } else if (prompt.preview === true && prompt.more !== undefined) {
+      // The fields of the search, whatever hit is chosen (SR-216 AK6).
+      onClose(false);
+      prompt.more(query);
     } else if (prompt.preview === true) {
-      // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
+      // A prompt whose hits only preview, without more: as Enter, which never waits there (SR-183 AK4, AK5).
       enter();
     } else if (stale()) {
       awaitAnswer(true);
@@ -1131,7 +1205,7 @@ const PromptLine = ({
     }
   };
 
-  const explained = explanationOf(prompt, current?.item, mac, help.toggle);
+  const explained = explanationOf(prompt, current?.item, mac, help.toggle, more);
   const explanation = explained.line;
 
   return (

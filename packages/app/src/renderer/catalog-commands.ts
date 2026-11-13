@@ -82,6 +82,7 @@ import { choiceItems } from "./property-edit.js";
 import type { ConditionAsk, ConditionMark, ShownConditions } from "./condition-prompt.js";
 import { askCondition, conditionLabel, conditionOf, shownMarks } from "./condition-prompt.js";
 import { rowName } from "./rows.js";
+import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
 
@@ -825,12 +826,14 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
     return candidates.length > 0 ? { kind: "list", values: fileValues(candidates) } : asText();
   },
   // The fields a search can be restricted to (`element.searchFields`, SR-216 AK3) that are not taken
-  // yet, by name with the key beside.
+  // yet, and after all properties no single property (AK6), by name with the key beside.
   searchField: async ({ context, taken }) =>
     listOf(await context.call("element.searchFields", {}), (output) =>
-      output.fields
-        .filter((field) => !taken.includes(field.key))
-        .map((field) => ({ value: field.key, name: field.name, key: field.key })),
+      offeredFields(output.fields, taken).map((field) => ({
+        value: field.key,
+        name: field.name,
+        key: field.key,
+      })),
     ),
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>

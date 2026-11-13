@@ -662,6 +662,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The default of an element argument when no element is shown (ThomasBirkmaier/ReqSeq-archive#85).
   const row = selectedRow(current, loaded);
   const marked = markedElement(current, loaded);
+  // The catalog, read once (it is the same for every workspace).
+  const catalog = useRef<readonly CommandListing[]>([]);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
@@ -738,6 +740,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         : saveKept(buffer);
     },
     graphChoices,
+    catalog: () => catalog.current,
     follow: follow.controls,
     // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
     layout: {
@@ -884,8 +887,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       unsubscribe();
     };
   }, [bridge, call]);
-  // The catalog, read once (it is the same for every workspace), and the revision now, read when a command runs.
-  const catalog = useRef<readonly CommandListing[]>([]);
   // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
   // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
   const catalogRead = useRef<Promise<void> | undefined>(undefined);
