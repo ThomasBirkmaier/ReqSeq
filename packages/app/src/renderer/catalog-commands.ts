@@ -73,7 +73,15 @@ import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, listSort, listing, resultBuffer, selectionOf } from "./buffers.js";
+import {
+  bufferName,
+  elementBufferOf,
+  listGroup,
+  listSort,
+  listing,
+  resultBuffer,
+  selectionOf,
+} from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
@@ -1627,10 +1635,7 @@ const shownGroup = (
   take: (value: unknown, name: string) => Pick<Choice, "run" | "more">,
 ): Choice[] => {
   const list = context.buffers[0];
-  const group =
-    entry.command.name === "perspective.save" && listing(list) && list.matrix !== true
-      ? list.group
-      : undefined;
+  const group = entry.command.name === "perspective.save" && listing(list) ? listGroup(list) : undefined;
   if (group === undefined) {
     return [];
   }

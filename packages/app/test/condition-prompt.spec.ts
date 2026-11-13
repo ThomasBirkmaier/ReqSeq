@@ -3,7 +3,7 @@
 // each chosen condition a mark in the input; Backspace and the × of a mark remove it; text that starts with "{"
 // is one condition in JSON; the finishing hit saves the file the command line writes for the same input. On a
 // filtered list, "Save perspective" takes the list's conditions with Enter, Enter, on a sorted list its sort,
-// each key then "Order", and on a grouped list its grouping (AK1), as "Save list as perspective" does. The
+// each key then "Order", and on a grouped list its grouping (AK1, AK5), as "Save list as perspective" does. The
 // light screenshots go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS). Keys use
 // ControlOrMeta, so the same test runs on Linux, macOS and Windows.
 import fsp from "node:fs/promises";
