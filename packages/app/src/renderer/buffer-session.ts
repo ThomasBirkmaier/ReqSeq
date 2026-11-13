@@ -25,6 +25,7 @@ import type {
   GraphDepth,
   ListBuffer,
   SearchBuffer,
+  SearchField,
 } from "./buffers.js";
 import {
   MAX_BUFFERS,
@@ -66,7 +67,13 @@ export type StoredBuffer =
     }
   /** The buffer of a perspective (SR-214 AK7): only its name, since it comes back as saved. */
   | { readonly kind: "perspective"; readonly name: string }
-  | { readonly kind: "search"; readonly query: string; readonly steps?: readonly FilterStep[] }
+  | {
+      readonly kind: "search";
+      readonly query: string;
+      readonly steps?: readonly FilterStep[];
+      /** The fields the search is restricted to (SR-216 AK10). */
+      readonly fields?: readonly SearchField[];
+    }
   | (Named & {
       readonly kind: "element";
       readonly memberSort?: readonly FilterSortKeyWithDefaults[];
@@ -147,13 +154,17 @@ const storedElement = (buffer: ElementBuffer): StoredBuffer => {
   };
 };
 
-/** What is stored of a search: its text and the steps a restart keeps (`keptQuery`), not the grouping. */
+/**
+ * What is stored of a search: its text, its fields (SR-216 AK10) and the steps a restart keeps (`keptQuery`), not
+ * the grouping.
+ */
 const storedSearch = (buffer: SearchBuffer): StoredBuffer => {
   const kept = keptQuery(searchQueryOf(buffer));
   return {
     kind: "search",
     query: buffer.query,
     ...(kept.steps.length === 0 ? {} : { steps: storedSteps(kept.steps) }),
+    ...(buffer.fields === undefined ? {} : { fields: buffer.fields }),
   };
 };
 
@@ -292,8 +303,16 @@ const parseSearch = (value: Fields): StoredBuffer | undefined => {
     value["steps"],
     (found): found is FilterStep[] => Array.isArray(found) && found.every(isStep),
   );
-  return isText(value["query"]) && steps !== undefined
-    ? { kind: "search", query: value["query"], ...steps }
+  const fields = optional(
+    "fields",
+    value["fields"],
+    (found): found is SearchField[] =>
+      Array.isArray(found) &&
+      found.length > 0 &&
+      found.every((field: unknown) => isObject(field) && isText(field["key"]) && isText(field["name"])),
+  );
+  return isText(value["query"]) && steps !== undefined && fields !== undefined
+    ? { kind: "search", query: value["query"], ...steps, ...fields }
     : undefined;
 };
 
@@ -535,7 +554,7 @@ const rebuild = (
     case "perspective":
       return perspectives.get(fold(stored.name));
     case "search":
-      return searchBuffer(stored.query, stored.steps);
+      return searchBuffer(stored.query, stored.steps, undefined, stored.fields);
     case "metamodel":
       return metamodelBuffer(stored.mode);
     case "result":

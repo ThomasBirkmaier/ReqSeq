@@ -2387,6 +2387,13 @@ export type ElementListOutput = {
 export interface ElementFacetsInput {
   /** Every part given must hold (SR-101 AK2). Without it, every element. */
   readonly selection?: ElementSelection;
+  /** Only the elements of the selection that element.search finds for `query` in `fields` (SR-216): the facets of a list of search hits restricted to fields. `fields` as in element.search, refused the same way. */
+  readonly search?: {
+    /** As element.search `query`. */
+    readonly query: string;
+    /** As element.search `fields`; default all. */
+    readonly fields?: readonly SearchFieldKey[];
+  };
   /** A property of kind text, number or date gives its values only when it has at most this many distinct values in the whole workspace and at least one of them is shared by two elements; otherwise it is free text, found with element.search (SR-068). Choice and relation properties always give their values. */
   readonly maxValues: number;
 }

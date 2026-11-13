@@ -3233,7 +3233,8 @@
         "x-reqseq-implements": [
           "SR-069",
           "SR-124",
-          "SR-118"
+          "SR-118",
+          "SR-216"
         ],
         "requestBody": {
           "required": true,
@@ -3245,6 +3246,29 @@
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection",
                     "description": "Every part given must hold. Without it, every element."
+                  },
+                  "search": {
+                    "type": "object",
+                    "description": "Only the elements of the selection that element.search finds for `query` in `fields`: the facets of a list of search hits restricted to fields. `fields` as in element.search, refused the same way.",
+                    "properties": {
+                      "query": {
+                        "type": "string",
+                        "description": "As element.search `query`."
+                      },
+                      "fields": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "$ref": "#/components/schemas/common/$defs/searchFieldKey"
+                        },
+                        "description": "As element.search `fields`; default all."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "additionalProperties": false
                   },
                   "maxValues": {
                     "type": "integer",

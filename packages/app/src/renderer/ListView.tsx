@@ -29,7 +29,7 @@ import { useIdScope } from "./area-scope.js";
 import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import { useDrawnParts } from "./list-drawn.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, listHeading, listSort } from "./buffers.js";
+import { bufferName, fieldsInput, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightRanges, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
@@ -175,6 +175,7 @@ const fetchPage = async (
   // The hits within the steps, grouped as a list (SR-124 AK4, SR-149 AK6), in the order of the search.
   const answer = await call("element.search", {
     query: buffer.query,
+    ...fieldsInput(buffer.fields),
     ...(selection === undefined ? {} : { selection }),
     ...(buffer.group === undefined ? {} : { group: buffer.group }),
     limit,
@@ -242,7 +243,11 @@ const fetchVerification = async (
     });
     return answer.ok ? paired(answer.output.partial, answer.output.rowVerification) : undefined;
   }
-  const answer = await call("element.search", { ...common, query: buffer.query });
+  const answer = await call("element.search", {
+    ...common,
+    query: buffer.query,
+    ...fieldsInput(buffer.fields),
+  });
   return answer.ok ? paired(answer.output.hits, answer.output.rowVerification) : undefined;
 };
 
@@ -461,7 +466,27 @@ const ListHeading = ({
 );
 
 /**
- * The top of a list of its own: the heading (SR-148) and, for a list, the line of coverage of its elements
+ * The fields a search is restricted to, under its heading, each by its name as a mark (SR-216 AK10); nothing for a
+ * search in all fields.
+ */
+const SearchFields = ({
+  buffer,
+}: {
+  readonly buffer: ListBuffer | SearchBuffer;
+}): React.JSX.Element | null =>
+  buffer.kind !== "search" || buffer.fields === undefined ? null : (
+    <p className="search-fields" aria-label="Fields">
+      in
+      {buffer.fields.map((field) => (
+        <span key={field.key} className="search-field">
+          {field.name}
+        </span>
+      ))}
+    </p>
+  );
+
+/**
+ * The top of a list of its own: the heading (SR-148), the fields of a search (SR-216 AK10) and, for a list, the line of coverage of its elements
  * (a list shows the line a package page has). The line is asked only once
  * the first page stands, so the rows come first in a large workspace; keyed by the selection, so a line from
  * the list before never stands over another one. It follows `revision` only: a list reads again on a change
@@ -499,6 +524,7 @@ const ListTop = ({
   return (
     <>
       <ListHeading buffer={buffer} view={view} />
+      <SearchFields buffer={buffer} />
       {buffer.kind === "list" &&
       buffer.perspective?.error === undefined &&
       selection !== undefined &&

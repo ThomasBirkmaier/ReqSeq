@@ -17,6 +17,7 @@ import type {
   GraphBuffer,
   MetamodelBuffer,
   ResultBuffer,
+  SearchField,
 } from "./buffers.js";
 import {
   bufferName,
@@ -27,9 +28,11 @@ import {
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
+  fieldsInput,
   searchBuffer,
   showBuffer,
 } from "./buffers.js";
+import { SEARCH_COMMAND, searchFieldsPrompt, summaryOf } from "./search-fields.js";
 import type { Call } from "./call.js";
 import { PREFIX_BINDINGS, bindingLabel } from "./bindings.js";
 import { ALL_COMMANDS, ALL_COMMANDS_DESCRIPTION } from "./prompt-keys.js";
@@ -39,7 +42,7 @@ import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import { OPEN_WORKSPACE_ACTION } from "../shared/open-hint.js";
-import type { SwipeDirection } from "../shared/protocol.js";
+import type { CommandListing, SwipeDirection } from "../shared/protocol.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
   DEPTH_KEYS,
@@ -184,6 +187,16 @@ export interface ArgumentExplanation {
   };
 }
 
+/**
+ * The explanation line of the search words (SR-216 AK9): the summary of the catalog command the search runs, and in
+ * the second line what Enter and Ctrl/Cmd+Enter do; a click on Ctrl/Cmd+Enter there does what the key does (AK6).
+ */
+export interface StepExplanation {
+  readonly summary?: string;
+  readonly enter: string;
+  readonly more: string;
+}
+
 /** A part of a value built from hits, shown as a mark in the input with an × that removes it (SR-215 AK3, AK9). */
 export interface PromptMark {
   readonly label: string;
@@ -233,6 +246,8 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /** The explanation line of a step of an action of its own, the search words (SR-216 AK9). */
+  readonly explainStep?: StepExplanation;
   /** The marks in the input before the typed text (SR-215 AK3). */
   readonly marks?: readonly PromptMark[];
   /** Backspace in an empty input removes the last mark, while there is one, before it goes back (SR-215 AK9). */
@@ -247,7 +262,10 @@ export interface Prompt {
    * Escape ends the prompt (the first step, AK2).
    */
   readonly previous?: () => void;
-  /** Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments. */
+  /**
+   * Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments; in a prompt whose hits
+   * only preview, also with a chosen one (the fields of a search, SR-216 AK6).
+   */
   readonly more?: (text: string) => void;
   /** Enter on an empty input: end a list argument; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly empty?: (more: boolean) => void;
@@ -479,6 +497,8 @@ export interface ActionContext {
    * metamodel; without them only "Everything" is offered.
    */
   readonly graphChoices?: readonly GraphFilterChoice[];
+  /** The command catalog as read last: the texts of the explanation lines of the search (SR-216 AK9). */
+  readonly catalog?: () => readonly CommandListing[];
   /** The mode „Agent folgen“ (SR-117); absent where the window offers no such mode. */
   readonly follow?: FollowControls;
   /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
@@ -887,37 +907,77 @@ export const nameMarks = (row: Row, query: string): Range[] => {
 /**
  * The prompt of Ctrl/Cmd+Shift+F (SR-183): while typing it shows the first hits of the search buffer for
  * the text, in its order, as many as fit the card, each with its title and snippet; none is chosen.
- * Enter on a chosen hit opens it, Enter without one opens the search buffer.
+ * Enter on a chosen hit opens it, Enter without one opens the search buffer. The `fields` chosen (SR-216) stand as
+ * marks before the text, and the hits and the search buffer come only from them (AK8); Ctrl/Cmd+Enter, or a click
+ * on it in the explanation line, chooses them (AK6, `search-fields.ts`), and the text `words` stays.
  */
-const searchPrompt = (context: ActionContext): Prompt => ({
-  label: "Search",
-  items: [],
-  preview: true,
-  find: async (text) => {
-    // The query of the search buffer, so the hits are its first ones (AK2).
-    const answer = await context.call("element.search", { query: text.trim(), limit: CARD_LINES });
-    if (!answer.ok) {
-      context.echo(answer.message);
-      return [];
-    }
-    return fittingRows(searchRows(answer.output)).map((row) => ({
-      id: row.open.key,
-      name: rowName(row),
-      marks: nameMarks(row, text),
-      ...(row.status === undefined ? {} : { hint: row.status }),
-      ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
-      run: () => {
-        context.dispatch({ type: "open", buffer: row.open });
+export const searchPrompt = (
+  context: ActionContext,
+  fields: readonly SearchField[] = [],
+  words = "",
+): Prompt => {
+  // The text typed so far, kept when a mark is removed or the fields are chosen.
+  let typed = words;
+  const again = (next: readonly SearchField[], text: string): void => {
+    context.ask(searchPrompt(context, next, text));
+  };
+  return {
+    label: "Search",
+    items: [],
+    preview: true,
+    ...(words === "" ? {} : { initial: words }),
+    typing: (text) => {
+      typed = text;
+    },
+    marks: fields.map((field) => ({
+      label: field.name,
+      remove: () => {
+        again(
+          fields.filter((other) => other !== field),
+          typed,
+        );
       },
-    }));
-  },
-  text: (text) => {
-    const query = text.trim();
-    if (query !== "") {
-      context.dispatch({ type: "open", buffer: searchBuffer(query) });
-    }
-  },
-});
+    })),
+    // Backspace on an empty input removes the last field (SR-134 AK4, SR-216 AK7).
+    unmark: true,
+    explainStep: {
+      ...summaryOf(context, SEARCH_COMMAND),
+      enter: "opens the list of search hits",
+      more: "chooses fields",
+    },
+    more: (text) => {
+      context.ask(searchFieldsPrompt(context, fields, text, again));
+    },
+    find: async (text) => {
+      // The query and fields of the search buffer, so the hits are its first ones (SR-183 AK2, SR-216 AK8).
+      const answer = await context.call(SEARCH_COMMAND, {
+        query: text.trim(),
+        ...fieldsInput(fields),
+        limit: CARD_LINES,
+      });
+      if (!answer.ok) {
+        context.echo(answer.message);
+        return [];
+      }
+      return fittingRows(searchRows(answer.output)).map((row) => ({
+        id: row.open.key,
+        name: rowName(row),
+        marks: nameMarks(row, text),
+        ...(row.status === undefined ? {} : { hint: row.status }),
+        ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
+        run: () => {
+          context.dispatch({ type: "open", buffer: row.open });
+        },
+      }));
+    },
+    text: (text) => {
+      const query = text.trim();
+      if (query !== "") {
+        context.dispatch({ type: "open", buffer: searchBuffer(query, [], undefined, fields) });
+      }
+    },
+  };
+};
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
@@ -1085,6 +1145,7 @@ export const ACTIONS: readonly Action[] = [
     inPrompt: true,
     available: hasWorkspace,
     run: (context: ActionContext): void => {
+      // A new search starts without fields (SR-216 AK10).
       context.ask(searchPrompt(context));
     },
   },

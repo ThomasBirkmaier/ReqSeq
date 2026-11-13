@@ -8,6 +8,7 @@ import type { Action, ActionContext, Choice, CommandIn, Prompt } from "./actions
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
+  fieldsInput,
   inMatrix,
   listBuffer,
   listOf,
@@ -63,6 +64,11 @@ interface QueryTarget {
   readonly query: ListQuery;
   readonly view: QueryView;
   readonly selection: ElementSelection | undefined;
+  /**
+   * The search of a list of search hits restricted to fields (SR-216): `element.facets` counts only its hits, which
+   * a text condition over every field cannot select.
+   */
+  readonly search?: { readonly query: string; readonly fields?: readonly string[] };
   readonly apply: (change: QueryChange) => void;
 }
 
@@ -85,8 +91,14 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
       query: searchQueryOf(shown),
       view: "search",
       // What the filters offer are the values of the hits: the selection with the search's own text
-      // condition, which selects what element.search finds (SR-068 AK3).
-      selection: selectionOf([textStep(shown.query), ...shown.steps]),
+      // condition, which selects what element.search finds (SR-068 AK3); in chosen fields the steps' selection
+      // with the search itself, since the text condition searches every field (SR-216).
+      ...(shown.fields === undefined
+        ? { selection: selectionOf([textStep(shown.query), ...shown.steps]) }
+        : {
+            selection: selectionOf(shown.steps),
+            search: { query: shown.query, ...fieldsInput(shown.fields) },
+          }),
       apply: (change) => {
         context.dispatch({ type: "open", buffer: withSearchQuery(shown, change) });
       },
@@ -258,7 +270,10 @@ const filterBy = (by: FilterBy): Action => ({
 
 /** The facets of the shown list or page: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, target: QueryTarget): Promise<Answer<"element.facets">> =>
-  call("element.facets", target.selection === undefined ? {} : { selection: target.selection });
+  call("element.facets", {
+    ...(target.selection === undefined ? {} : { selection: target.selection }),
+    ...(target.search === undefined ? {} : { search: target.search }),
+  });
 
 export const LIST_ACTIONS: readonly Action[] = [
   {
