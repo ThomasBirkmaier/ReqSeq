@@ -1,13 +1,16 @@
-// "Open perspective" (SR-214 AK1–AK4, SR-213 AK6–AK8) and the perspective buffer: the prompt, the opening
-// with its check, and the list actions on the buffer. The actions run against a context that records what
+// "Open perspective" (SR-214 AK1–AK4, SR-213 AK6–AK8), "Save list as perspective" (SR-214 AK5) and the
+// perspective buffer: the prompts, the opening with its check, saving, "modified" (AK6) and the list
+// actions on the buffer. The actions run against a context that records what
 // they dispatch, ask and echo.
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS } from "./actions.js";
 import type { ActionContext, Choice, Prompt } from "./actions.js";
 import type { Buffers, ListBuffer } from "./buffers.js";
 import {
+  DEFAULT_SORT,
   LIST_KEY,
   bufferName,
+  elementBuffer,
   listBuffer,
   listGroup,
   listHeading,
@@ -15,13 +18,25 @@ import {
   listing,
   perspectiveBuffer,
   perspectiveKey,
+  perspectiveModified,
   reduceBuffers,
+  searchBuffer,
   withMatrix,
   withQuery,
 } from "./buffers.js";
 import type { Call } from "./call.js";
-import { statusStep, typeStep } from "./list-filters.js";
-import { NONE, OPEN_PERSPECTIVE, openPerspective } from "./perspective-actions.js";
+import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
+import { LIST_MENU } from "./list-menu.js";
+import { bufferView } from "./modeline.js";
+import {
+  NONE,
+  OPEN_PERSPECTIVE,
+  SAVE_PERSPECTIVE,
+  openPerspective,
+  perspectiveInput,
+  perspectiveWhere,
+  savePerspective,
+} from "./perspective-actions.js";
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -355,5 +370,225 @@ describe("the list actions on a perspective buffer", () => {
     expect(shownList().perspective?.error).toBeUndefined();
     expect(shownList().key).toBe(faulty.key);
     expect(action("matrix").available(context)).toBe(true);
+  });
+});
+
+describe("Save list as perspective (SR-214 AK5)", () => {
+  const drafts = (): ListBuffer => perspectiveBuffer({ name: "Drafts", saved: SAVED });
+
+  it("is offered on a list, not on the hits of a search, a package page, a list in the matrix, nor in the context menu", () => {
+    const offered = (shown: Buffers, more: Partial<ActionContext> = {}): boolean =>
+      action(SAVE_PERSPECTIVE).available({ ...start({}, shown).context, ...more });
+    expect(offered([listBuffer("All elements")])).toBe(true);
+    expect(offered([drafts()])).toBe(true);
+    expect(offered([searchBuffer("rain")])).toBe(false);
+    // A package page is an element buffer.
+    expect(offered([elementBuffer("p1", "main", "PKG-1 Sensors")])).toBe(false);
+    expect(offered([withMatrix(listBuffer("All elements"), true)])).toBe(false);
+    expect(offered([perspectiveBuffer({ name: "Broken", error: "faulty" })])).toBe(false);
+    // Core refuses it in a read-only workspace, and without a workspace there is nothing to save.
+    expect(offered([listBuffer("All elements")], { readOnly: true })).toBe(false);
+    expect(offered([listBuffer("All elements")], { workspace: false })).toBe(false);
+    expect(LIST_MENU.map((entry) => entry.id)).not.toContain(SAVE_PERSPECTIVE);
+    // Run where it is not offered, it does nothing.
+    const shown = start({}, [searchBuffer("rain")]);
+    action(SAVE_PERSPECTIVE).run(shown.context);
+    expect(shown.call).not.toHaveBeenCalled();
+  });
+
+  it("asks only for the name: the perspective's own to start with, the existing ones while typing", async () => {
+    const other = { name: "Approved", file: "perspectives/approved.yaml", where: { status: ["approved"] } };
+    const own = start({ "perspective.list": listed([DRAFTS, other]) }, [drafts()]);
+    action(SAVE_PERSPECTIVE).run(own.context);
+    await flush();
+    const prompt = own.asked.at(-1);
+    expect(prompt?.label).toBe("Perspective name");
+    expect(prompt?.initial).toBe("Drafts");
+    expect(rows(own.asked)).toEqual(["Drafts", "Approved"]);
+    // Enter takes the typed name unless one of them is chosen.
+    expect(prompt?.preview).toBe(true);
+    // A plain list starts empty.
+    const plain = start({ "perspective.list": listed([]) });
+    action(SAVE_PERSPECTIVE).run(plain.context);
+    await flush();
+    expect(plain.asked.at(-1)?.initial).toBeUndefined();
+    expect(rows(plain.asked)).toEqual([]);
+    // Without the list of names, core's message is said and nothing is asked.
+    const failed = start({});
+    action(SAVE_PERSPECTIVE).run(failed.context);
+    await flush();
+    expect(failed.echoed).toEqual(["perspective.list failed"]);
+    expect(failed.asked).toHaveLength(0);
+  });
+
+  it("saves the filter steps, the grouping and the shown sort: a text step as a text condition, a saved filter by name", () => {
+    const list = withQuery(listBuffer("All elements"), {
+      steps: [typeStep("need"), textStep("rain"), savedStep("Sensors")],
+      group: "status",
+    });
+    // No sort chosen, but a saved filter: the filter's sort is the one shown, so none is written.
+    expect(perspectiveInput(list, "Rain")).toEqual({
+      name: "Rain",
+      where: { all: [{ type: ["need"] }, { text: "rain" }] },
+      filter: "Sensors",
+      group: "status",
+    });
+    // No sort chosen and no saved filter: the app's default sort is shown, and written (SR-213 AK4).
+    expect(perspectiveInput(listBuffer("All elements"), "All")).toEqual({
+      name: "All",
+      where: { all: [] },
+      sort: DEFAULT_SORT,
+    });
+    // A perspective with more steps: its own conditions and the new ones under one `all`, its sort.
+    const more = withQuery(
+      perspectiveBuffer({ name: "Drafts", saved: { where: { all: [{ type: ["need"] }] } } }),
+      {
+        steps: [
+          ...perspectiveBuffer({ name: "Drafts", saved: { where: { all: [{ type: ["need"] }] } } }).steps,
+          textStep("x"),
+        ],
+        sort: [{ by: "title", order: "desc" }],
+      },
+    );
+    expect(perspectiveInput(more, "Drafts")).toEqual({
+      name: "Drafts",
+      where: { all: [{ type: ["need"] }, { text: "x" }] },
+      sort: [{ by: "title", order: "desc" }],
+    });
+    expect(perspectiveWhere([typeStep("need")])).toEqual({ type: ["need"] });
+    // The selection of a perspective stays as stored: alone without further steps (SR-213 AK3), and its
+    // parts first, unchanged, with them.
+    const stored = perspectiveBuffer({ name: "One", saved: { where: { all: [{ type: ["need"] }] } } });
+    expect(perspectiveWhere(stored.steps)).toEqual({ all: [{ type: ["need"] }] });
+    expect(perspectiveInput(stored, "One").where).toEqual({ all: [{ type: ["need"] }] });
+    const single = perspectiveBuffer({ name: "Two", saved: { where: { not: { status: ["draft"] } } } });
+    expect(perspectiveWhere([...single.steps, textStep("x")])).toEqual({
+      all: [{ not: { status: ["draft"] } }, { text: "x" }],
+    });
+    expect(
+      perspectiveWhere([
+        ...perspectiveBuffer({ name: "All", saved: { where: { all: [] } } }).steps,
+        typeStep("need"),
+      ]),
+    ).toEqual({
+      type: ["need"],
+    });
+    expect(perspectiveWhere([])).toEqual({ all: [] });
+    expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({ any: [] });
+  });
+
+  it("writes through perspective.save; the list is then the buffer of the perspective as saved, at the same row", async () => {
+    const list = { ...withQuery(listBuffer("All elements"), { steps: [statusStep("draft")] }), cursor: 2 };
+    const answers: Answers = {
+      "perspective.save": () => ok({ files: ["perspectives/drafts.yaml"] }),
+      "perspective.list": listed([{ ...DRAFTS, filter: undefined, group: undefined }]),
+    };
+    const { context, call, shownList, buffers, echoed, asked } = start(answers, [list, drafts()]);
+    action(SAVE_PERSPECTIVE).run(context);
+    await flush();
+    asked.at(-1)?.text?.("  drafts ");
+    await flush();
+    expect(call).toHaveBeenCalledWith("perspective.save", {
+      name: "drafts",
+      where: { status: ["draft"] },
+      sort: DEFAULT_SORT,
+    });
+    // The plain list became the buffer of "Drafts", which replaces the one open before.
+    expect(buffers().map((buffer) => buffer.key)).toEqual([perspectiveKey("Drafts")]);
+    expect(shownList().cursor).toBe(2);
+    expect(listHeading(shownList())).toBe("Drafts");
+    expect(perspectiveModified(shownList())).toBe(false);
+    expect(echoed).toEqual(["Saved perspective Drafts"]);
+    // A chosen name saves under it; an empty one saves nothing.
+    asked.at(-1)?.text?.(" ");
+    asked.at(-1)?.items[0]?.run();
+    await flush();
+    expect(call.mock.calls.filter(([name]) => name === "perspective.save")).toHaveLength(2);
+  });
+
+  it("under another name the buffer becomes the buffer of that perspective", async () => {
+    const other = { name: "Approved", file: "perspectives/approved.yaml", where: { status: ["approved"] } };
+    const changed = withQuery(drafts(), { sort: [] });
+    const { context, buffers, shownList } = start(
+      { "perspective.save": () => ok({ files: [other.file] }), "perspective.list": listed([DRAFTS, other]) },
+      [changed, listBuffer("All elements")],
+    );
+    await savePerspective(context, changed, "approved");
+    expect(buffers().map((buffer) => buffer.key)).toEqual([perspectiveKey("Approved"), LIST_KEY]);
+    expect(shownList().perspective?.name).toBe("Approved");
+  });
+
+  it("says core's refusal, and a failed or missing perspective after saving, and leaves the list as it is", async () => {
+    const list = listBuffer("All elements");
+    const refused = start({
+      "perspective.save": () => ({
+        ok: false,
+        code: "file.faulty",
+        message: "perspectives/x.yaml is faulty",
+      }),
+    });
+    await savePerspective(refused.context, list, "X");
+    expect(refused.echoed).toEqual(["perspectives/x.yaml is faulty"]);
+    const unlisted = start({ "perspective.save": () => ok({ files: [] }) });
+    await savePerspective(unlisted.context, list, "X");
+    expect(unlisted.echoed).toEqual(["perspective.list failed"]);
+    const gone = start({ "perspective.save": () => ok({ files: [] }), "perspective.list": listed([]) });
+    await savePerspective(gone.context, list, "X");
+    expect(gone.echoed).toEqual(["No perspective is named X"]);
+    expect(gone.buffers().map((buffer) => buffer.key)).toEqual([LIST_KEY]);
+  });
+});
+
+describe("modified (SR-214 AK6)", () => {
+  const drafts = (): ListBuffer => perspectiveBuffer({ name: "Drafts", saved: SAVED });
+  const parts = (list: ListBuffer): string[] =>
+    bufferView(list, { kind: "list", total: 3, incomplete: false });
+
+  it("is set by a filter step, another sort or another grouping, after the name, and not by the matrix and back", () => {
+    expect(parts(drafts())).toEqual([
+      "perspective: Drafts · sorted by title · grouped by type",
+      "3 elements",
+    ]);
+    const stepped = withQuery(drafts(), { steps: [...drafts().steps, typeStep("need")] });
+    expect(parts(stepped)).toEqual([
+      "perspective: Drafts · type: need · sorted by title · grouped by type",
+      "modified",
+      "3 elements",
+    ]);
+    expect(bufferView(stepped, undefined)).toEqual([
+      "perspective: Drafts · type: need · sorted by title · grouped by type",
+      "modified",
+    ]);
+    expect(perspectiveModified(withQuery(drafts(), { sort: [] }))).toBe(true);
+    expect(perspectiveModified(withQuery(drafts(), { sort: [{ by: "title", order: "asc" }] }))).toBe(false);
+    expect(perspectiveModified(withQuery(drafts(), { group: "status" }))).toBe(true);
+    expect(perspectiveModified(withQuery(drafts(), { group: undefined }))).toBe(true);
+    // Saved without a sort: choosing one is a change.
+    const { sort: _sort, ...unsorted } = SAVED;
+    const plain = perspectiveBuffer({ name: "Drafts", saved: unsorted });
+    expect(perspectiveModified(plain)).toBe(false);
+    expect(perspectiveModified(withQuery(plain, { sort: DEFAULT_SORT }))).toBe(true);
+    // The matrix and back keep the grouping.
+    expect(perspectiveModified(withMatrix(drafts(), true))).toBe(false);
+    expect(perspectiveModified(withMatrix(withMatrix(drafts(), true), false))).toBe(false);
+    // Taking the step back again.
+    expect(perspectiveModified(withQuery(stepped, { steps: drafts().steps }))).toBe(false);
+    // Not on a plain list, nor on a perspective buffer with nothing saved.
+    expect(parts(withQuery(listBuffer("All elements"), { sort: [] }))).toEqual([
+      "All elements · workspace order",
+      "3 elements",
+    ]);
+    expect(perspectiveModified(perspectiveBuffer({ name: "Broken", error: "faulty" }))).toBe(false);
+  });
+
+  it("is cleared by opening the perspective again", async () => {
+    const stepped = withQuery(drafts(), { steps: [...drafts().steps, typeStep("need")] });
+    const { context, shownList } = start(
+      { "perspective.list": listed([DRAFTS]), "element.list": checked() },
+      [stepped],
+    );
+    expect(perspectiveModified(shownList())).toBe(true);
+    await openPerspective(context, "Drafts");
+    expect(perspectiveModified(shownList())).toBe(false);
   });
 });

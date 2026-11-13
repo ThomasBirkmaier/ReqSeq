@@ -231,8 +231,12 @@ export type Buffer =
 export type Buffers = readonly Buffer[];
 
 export type BufferAction =
-  /** Shows `buffer`; one with the same key is replaced and moved to the front. */
-  | { readonly type: "open"; readonly buffer: Buffer }
+  /**
+   * Shows `buffer`; one with the same key is replaced and moved to the front. `replacing` names a buffer
+   * that `buffer` takes the place of under another key, which closes (a list saved as a perspective,
+   * SR-214 AK5, becomes the buffer of that perspective).
+   */
+  | { readonly type: "open"; readonly buffer: Buffer; readonly replacing?: string }
   /** Shows the open buffer with this key. */
   | { readonly type: "switch"; readonly key: string }
   /**
@@ -652,6 +656,24 @@ const sameSort = (
 ): boolean =>
   a.length === b.length && a.every((key, index) => key.by === b[index]?.by && key.order === b[index].order);
 
+/**
+ * The buffer of a perspective no longer shows it as saved (SR-214 AK6): a filter step was added, or its
+ * sort or grouping differs from the saved one. The mode does not count: in the matrix the buffer keeps its
+ * grouping (`listOf`), so the matrix and back again change nothing. Saving under its name or opening it
+ * again gives a buffer as saved (`perspectiveBuffer`).
+ */
+export const perspectiveModified = (list: ListBuffer): boolean => {
+  const saved = list.perspective?.saved;
+  if (saved === undefined) {
+    return false;
+  }
+  const sortKept =
+    list.sort === undefined || saved.sort === undefined
+      ? list.sort === saved.sort
+      : sameSort(list.sort, saved.sort);
+  return ownSteps(list.steps) > 0 || !sortKept || list.group !== saved.group;
+};
+
 const SORT_WORDS: Readonly<Record<string, string>> = {
   id: "ID",
   title: "title",
@@ -750,12 +772,20 @@ const renamed = (buffers: Buffers, id: string, repository: string, name: string)
     : buffers;
 };
 
+/** `buffer` in front, in place of the one with its key or with the key `replacing`. */
+const opened = (buffers: Buffers, buffer: Buffer, replacing: string | undefined): Buffers => {
+  const kept =
+    replacing === undefined || replacing === buffer.key
+      ? buffers
+      : buffers.filter((open) => open.key !== replacing);
+  const moved = front(kept, buffer.key, buffer);
+  return (moved === kept ? [buffer, ...kept] : moved).slice(0, MAX_BUFFERS);
+};
+
 export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers => {
   switch (action.type) {
-    case "open": {
-      const moved = front(buffers, action.buffer.key, action.buffer);
-      return (moved === buffers ? [action.buffer, ...buffers] : moved).slice(0, MAX_BUFFERS);
-    }
+    case "open":
+      return opened(buffers, action.buffer, action.replacing);
     case "switch":
       return front(buffers, action.key);
     case "update":

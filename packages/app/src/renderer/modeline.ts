@@ -4,7 +4,7 @@ import type { DataExportElement } from "@reqseq/core";
 import type { InvokeResult } from "../shared/protocol.js";
 import { initHint } from "../shared/open-hint.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
-import { bufferName } from "./buffers.js";
+import { bufferName, perspectiveModified } from "./buffers.js";
 import { shownId } from "./id-title.js";
 import { depthLabel, filterLabel } from "./graph.js";
 import { isOutdatedCode } from "./outdated-codes.js";
@@ -299,8 +299,13 @@ export const bufferView = (
   typeNames: ReadonlyMap<string, string> = new Map(),
   graphChoices: readonly GraphFilterChoice[] = [],
 ): string[] => {
+  // The buffer of a perspective that no longer shows it as saved says so after its name (SR-214 AK6).
+  const named = [
+    bufferName(buffer),
+    ...(buffer.kind === "list" && perspectiveModified(buffer) ? ["modified"] : []),
+  ];
   if (data === undefined) {
-    return [bufferName(buffer)];
+    return named;
   }
   if (data.kind === "element") {
     return elementParts(data, typeNames);
@@ -319,7 +324,7 @@ export const bufferView = (
     return buffer.kind === "graph" ? graphParts(buffer, data, graphChoices) : [bufferName(buffer)];
   }
   return [
-    bufferName(buffer),
+    ...named,
     plural(data.total, data.kind === "search" ? "hit" : "element"),
     ...(data.incomplete ? [INCOMPLETE] : []),
   ];
