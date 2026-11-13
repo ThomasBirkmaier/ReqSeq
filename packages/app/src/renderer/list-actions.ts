@@ -12,6 +12,7 @@ import {
   listBuffer,
   listOf,
   listView,
+  ownSteps,
   queryOf,
   searchQueryOf,
   selectionOf,
@@ -31,7 +32,8 @@ import {
 } from "./list-filters.js";
 import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
-import { QUERY_VIEWS, supports } from "./list-query.js";
+import { QUERY_VIEWS, queryIn, supports } from "./list-query.js";
+import { PERSPECTIVE_ACTIONS } from "./perspective-actions.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
@@ -67,7 +69,8 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
   const list = currentList(context);
   if (list !== undefined) {
     return {
-      query: queryOf(list),
+      // As the view shows it: a perspective buffer in the matrix keeps a grouping it does not show.
+      query: queryIn(queryOf(list), listView(list)),
       view: listView(list),
       selection: list.selection,
       apply: (change) => {
@@ -125,7 +128,15 @@ const sets =
   };
 
 const canFilter = sets("steps");
-const isFiltered = (context: ActionContext): boolean => (queryTarget(context)?.query.steps.length ?? 0) > 0;
+/** The target has a step its filter actions can take back: not the selection of a perspective (SR-214 AK6). */
+const isFiltered = (context: ActionContext): boolean => {
+  const steps = queryTarget(context)?.query.steps ?? [];
+  return ownSteps(steps) > 0;
+};
+
+/** The steps the filter actions never take back: the selection of a perspective, first in its buffer. */
+const fixedSteps = (steps: readonly FilterStep[]): readonly FilterStep[] =>
+  steps.slice(0, steps.length - ownSteps(steps));
 
 /** An action on the shown list or package page; without one it does nothing. */
 const onTarget =
@@ -237,6 +248,8 @@ export const LIST_ACTIONS: readonly Action[] = [
       });
     },
   },
+  // "Open perspective" (SR-214), next to "List all elements".
+  ...PERSPECTIVE_ACTIONS,
   filterBy({
     id: "filter-type",
     title: "Filter list by type",
@@ -339,7 +352,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     // Offered on every filtered list, as the context menu of a list has it (SR-198 AK1).
     available: isFiltered,
     run: onTarget((_context, target) => {
-      target.apply({ steps: [] });
+      target.apply({ steps: fixedSteps(target.query.steps) });
     }),
   },
   {

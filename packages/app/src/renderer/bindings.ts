@@ -1,11 +1,12 @@
 // The fixed keys of the most frequent commands (SR-121 AK3) and the prefix key (SR-109 AK3): Ctrl+K, or
-// Cmd+K on macOS, then one letter. The set, the letters and the prefix are the assumption of the open spec
-// question ThomasBirkmaier/ReqSeq-archive#472, kept in this one table; the window wires them up in `use-prefix.ts`.
+// Cmd+K on macOS, then one letter. V opens a perspective (SR-214 AK1); the other letters are the app's own
+// key map (SR-214, rationale), first listed in ThomasBirkmaier/ReqSeq-archive#472, kept in this one table;
+// the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./actions.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { matches, press, pressLabel, rowStep, shortcutLabel } from "./keys.js";
 
-/** The prefix key: Ctrl+K, or Cmd+K on macOS (ThomasBirkmaier/ReqSeq-archive#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
+/** The prefix key: Ctrl+K, or Cmd+K on macOS (SR-214 AK1: "Ctrl+K V, unter macOS Cmd+K V"; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
 
 /** How long the prefix waits for the next key before it shows the possible next keys (SR-109 AK3). */
@@ -19,9 +20,10 @@ export interface PrefixBinding {
 }
 
 /**
- * The letters after the prefix, in the order ThomasBirkmaier/ReqSeq-archive#472 lists them (the order of the list of next keys). A row
- * is shown only where the command prompt offers its entry, so the write commands drop out in a read-only
- * workspace (`whileReadOnly`, `catalogItems`).
+ * The letters after the prefix, in the order of the list of next keys: those of ThomasBirkmaier/ReqSeq-archive#472
+ * in its order, with V for "Open perspective" (SR-214 AK1) after L. A row is shown only where the command
+ * prompt offers its entry, so the write commands drop out in a read-only workspace (`whileReadOnly`,
+ * `catalogItems`).
  */
 export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
   { key: "e", id: "command:element.create" },
@@ -29,6 +31,7 @@ export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
   { key: "t", id: "command:element.setStatus" },
   { key: "h", id: "command:hint.confirm" },
   { key: "l", id: "list-all" },
+  { key: "v", id: "open-perspective" },
   { key: "o", id: "overview" },
   { key: "f", id: "filter-type" },
   { key: "s", id: "sort" },

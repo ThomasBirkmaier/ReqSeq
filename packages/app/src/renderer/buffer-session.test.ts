@@ -12,9 +12,11 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
   searchBuffer,
+  withQuery,
 } from "./buffers.js";
 import type { SessionStorage, StoredSession } from "./buffer-session.js";
 import {
@@ -116,9 +118,40 @@ const everyKind = (): Buffer[] => [
     ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { secret: "output" }, 7),
     cursor: 0,
   },
+  // A perspective buffer that differs from its perspective: it comes back as saved (SR-214 AK7).
+  {
+    ...withQuery(perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED }), {
+      sort: [{ by: "id", order: "desc" }],
+    }),
+    cursor: 2,
+  },
 ];
 
-const names = fakeCall({ "element.list": listing(row(1), row(2), row(3, "other")) });
+/** A perspective as `perspective.list` gives it: drafts, grouped by type, sorted by title. */
+const DRAFTS = {
+  name: "Drafts",
+  file: "perspectives/drafts.yaml",
+  where: { status: ["draft"] },
+  group: "type",
+  sort: [{ by: "title" }],
+};
+
+const DRAFTS_SAVED = {
+  where: { status: ["draft"] },
+  group: "type",
+  sort: [{ by: "title", order: "asc" as const }],
+};
+
+/** `element.list` with a perspective answers one row; with UUIDs, the elements named. */
+const elementsOrPerspective =
+  (byIds: Handler, check: Handler = () => ({ ok: true, output: { elements: [], total: 0 } })): Handler =>
+  (input) =>
+    input["perspective"] === undefined ? byIds(input) : check(input);
+
+const names = fakeCall({
+  "element.list": elementsOrPerspective(listing(row(1), row(2), row(3, "other"))),
+  "perspective.list": () => ({ ok: true, output: { perspectives: [DRAFTS] } }),
+});
 
 describe("buffer session (SR-115 AK4)", () => {
   it("[SR-115/AK-qtv5] keeps the filter steps of a search across a restart, not its grouping", async () => {
@@ -151,7 +184,8 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(restored.buffers.map((buffer) => buffer.key)).toEqual(buffers.map((buffer) => buffer.key));
     // What rebuilds a buffer comes back; the selected rows and the output do not (a list starts with no row
     // selected, a result runs again when it is shown).
-    const [search, element, overview, list, neighbourhood, graph, metamodel, result] = restored.buffers;
+    const [search, element, overview, list, neighbourhood, graph, metamodel, result, perspective] =
+      restored.buffers;
     expect(search).toEqual(searchBuffer("wind"));
     expect(element).toEqual({
       ...elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Secret title 1"),
@@ -185,6 +219,7 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(result).toEqual(
       resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
     );
+    expect(perspective).toEqual(perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED }));
     // Buffers as they open first, with nothing chosen, come back the same; an element shown read-only
     // (SR-044 AK2) comes back read-only.
     const plain = [
@@ -203,6 +238,8 @@ describe("buffer session (SR-115 AK4)", () => {
     // The names come from one read of the elements by their UUIDs; nothing is written.
     expect(names.calls).toEqual([
       { name: "element.list", input: { selection: { ids: ["uuid-1", "uuid-2", "uuid-3"] } } },
+      { name: "perspective.list", input: {} },
+      { name: "element.list", input: { perspective: "Drafts", limit: 1, fields: ["identifier"] } },
       { name: "element.list", input: { selection: { ids: ["uuid-1", "uuid-3"] } } },
     ]);
   });
@@ -395,3 +432,96 @@ describe("buffer session (SR-115 AK4)", () => {
 });
 
 const CATALOG_LIST = [command("evidence.list", "read"), command("element.setStatus", "write")];
+
+describe("perspective buffers across a restart (SR-214 AK7)", () => {
+  const stored = (...names: string[]): StoredSession => ({
+    buffers: names.map((name) => ({ kind: "perspective", name })),
+  });
+  const restore = (session: StoredSession, handlers: Record<string, Handler>) =>
+    restoreSession(session, fakeCall(handlers).call, CATALOG);
+  const failing =
+    (code: CommandErrorObject["code"]): Handler =>
+    () => ({ ok: false, code });
+  const listed =
+    (output: Record<string, unknown>): Handler =>
+    () => ({ ok: true, output });
+
+  it("[SR-214/AK-sf7b] stores only the name of a perspective buffer, and drops an entry without one", () => {
+    const changed = withQuery(perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED }), {
+      group: undefined,
+    });
+    expect(JSON.parse(sessionText([changed]))).toEqual({
+      buffers: [{ kind: "perspective", name: "Drafts" }],
+    });
+    const storage = memory({
+      key: JSON.stringify({ buffers: [{ kind: "perspective" }, { kind: "perspective", name: "A" }] }),
+    });
+    expect(loadSession(() => storage, "key")).toEqual(stored("A"));
+  });
+
+  it("[SR-214/AK-sf7b] a perspective comes back as saved with its grouping; one no file holds any more does not", async () => {
+    const restored = await restore(stored("drafts", "Gone", "DRAFTS"), {
+      "perspective.list": listed({ perspectives: [DRAFTS] }),
+      "element.list": (input) =>
+        input["perspective"] === "Drafts"
+          ? { ok: true, output: { elements: [], total: 0 } }
+          : { ok: false, code: "input.invalid" },
+    });
+    expect(restored).toEqual({
+      buffers: [perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED })],
+      complete: true,
+    });
+  });
+
+  it("[SR-214/AK-sf7b] [SR-213/AK-zz87] a grouping that can no longer be chosen is left out, its warning kept to be shown", async () => {
+    const warning = { code: "perspective.group-unavailable", severity: "warning", message: "Cannot group" };
+    const restored = await restore(stored("Drafts"), {
+      "perspective.list": listed({ perspectives: [DRAFTS] }),
+      "element.list": listed({ elements: [], total: 0, problems: [warning] }),
+    });
+    const { group: _group, ...ungrouped } = DRAFTS_SAVED;
+    expect(restored.buffers).toEqual([
+      perspectiveBuffer({ name: "Drafts", saved: ungrouped, warning: "Cannot group" }),
+    ]);
+  });
+
+  it("[SR-214/AK-sf7b] [SR-213/AK-tj6p] a perspective core refuses comes back and shows the error; one held only by a faulty file too", async () => {
+    // Its saved filter is gone (SR-213 AK6): it still exists, so it comes back as saved.
+    const refused = await restore(stored("Drafts"), {
+      "perspective.list": listed({ perspectives: [DRAFTS] }),
+      "element.list": failing("input.invalid"),
+    });
+    expect(refused).toEqual({
+      buffers: [perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED })],
+      complete: true,
+    });
+    // Only a faulty file holds the name: the buffer asks with the name, and shows `file.faulty`.
+    const faulty = await restore(stored("Broken"), {
+      "perspective.list": listed({ perspectives: [] }),
+      "element.list": failing("file.faulty"),
+    });
+    expect(faulty).toEqual({ buffers: [perspectiveBuffer({ name: "Broken" })], complete: true });
+  });
+
+  it("[SR-214/AK-sf7b] keeps the stored buffers when the perspectives could not all be read", async () => {
+    // The list fails: nothing comes back now, and the session stays for the next start.
+    expect(await restore(stored("Drafts"), { "perspective.list": failing("workspace.not-found") })).toEqual({
+      buffers: [],
+      complete: false,
+    });
+    // A repository with perspectives is missing: a name not listed is not known to be gone.
+    expect(
+      await restore(stored("Elsewhere"), {
+        "perspective.list": listed({ perspectives: [], incomplete: true }),
+        "element.list": failing("input.invalid"),
+      }),
+    ).toEqual({ buffers: [], complete: false });
+    // A check that fails for another reason: the perspective comes back, the session stays.
+    expect(
+      await restore(stored("Drafts"), {
+        "perspective.list": listed({ perspectives: [DRAFTS] }),
+        "element.list": failing("workspace.not-found"),
+      }),
+    ).toEqual({ buffers: [perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED })], complete: false });
+  });
+});

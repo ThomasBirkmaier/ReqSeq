@@ -29,7 +29,7 @@ import { useIdScope } from "./area-scope.js";
 import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import { useDrawnParts } from "./list-drawn.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, listHeading, listSort } from "./buffers.js";
+import { bufferName, listHeading, listSort, namedPerspective } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightRanges, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
@@ -137,6 +137,7 @@ const fetchPage = async (
   if (buffer.kind === "list") {
     const sort = listSort(buffer);
     const answer = await call("element.list", {
+      ...namedPerspective(buffer),
       ...(selection === undefined ? {} : { selection }),
       ...(sort === undefined ? {} : { sort }),
       ...(buffer.group === undefined ? {} : { group: buffer.group }),
@@ -221,6 +222,7 @@ const fetchVerification = async (
     const sort = listSort(buffer);
     const answer = await call("element.list", {
       ...common,
+      ...namedPerspective(buffer),
       ...(sort === undefined ? {} : { sort }),
       fields: ["identifier"],
     });
