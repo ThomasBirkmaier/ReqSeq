@@ -169,7 +169,7 @@ test.describe("the context menu of an element as an entry", () => {
 
     // A node of the graph, not the one the graph is of: "Show neighbourhood" shows the node's.
     // Pinned by its key: once right-clicked, it is the selected one.
-    const key = await window
+    const key = await shownLayer(window)
       .locator('.graph-node:not([aria-selected="true"])')
       .first()
       .getAttribute("data-node");

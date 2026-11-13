@@ -108,7 +108,7 @@ test.describe("the main view on a fixture workspace", () => {
     ).toHaveCount(1);
     await expect(shownLayer(window).locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
     // A list numbers its values from 1, as `element get` does (#615); a single value has no numbers.
-    const numbers = await window
+    const numbers = await shownLayer(window)
       .locator('article [data-field="acceptance-criteria"] .cm-lineNumbers .cm-gutterElement')
       .evaluateAll((all) =>
         all.filter((e) => getComputedStyle(e).visibility !== "hidden").map((e) => e.textContent),
@@ -184,7 +184,7 @@ test.describe("the main view on a fixture workspace", () => {
     ]);
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · tree");
     expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
-    const indents = await running.window
+    const indents = await shownLayer(running.window)
       .locator(".row .title")
       .evaluateAll((all) => all.map((e) => (e as HTMLElement).style.paddingLeft));
     expect(indents).toEqual((listed.tree ?? []).map((t) => `${String(t.depth * 1.25)}rem`));
@@ -268,7 +268,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(shownLayer(window).locator("article input, article textarea")).toHaveCount(0);
     await expect(shownLayer(window).locator("article [contenteditable]")).toHaveCount(1 + textKeys.length);
     expect(
-      await window
+      await shownLayer(window)
         .locator("article [contenteditable]")
         .evaluateAll((all) => all.every((node) => node.classList.contains("cm-content"))),
     ).toBe(true);

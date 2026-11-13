@@ -79,7 +79,7 @@ const openElement = async (window: Page, title: string): Promise<void> => {
 
 /** Puts the caret at the start of line `line` (from 1) of the text box of `key`. */
 const caretIn = async (window: Page, key: string, line = 1): Promise<void> => {
-  await window
+  await shownLayer(window)
     .locator(`[data-field="${key}"] .cm-line`)
     .nth(line - 1)
     .click();
@@ -150,13 +150,13 @@ test.describe.serial("the list of the elements with a value", () => {
   test("[SR-132/AK-y207] Ctrl/Cmd+click on the topic value and on a package target opens the list of the elements with that value", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
-    await window
+    await shownLayer(window)
       .locator('[data-field="topic"] .cm-line')
       .first()
       .click({ modifiers: [await modifier(window)] });
     await expectList(running, "topic: Timing", TIMING);
     await openElement(window, "Measure the rain");
-    await window
+    await shownLayer(window)
       .locator('[data-field="packages"] [role="link"]')
       .first()
       .click({ modifiers: [await modifier(window)] });
@@ -233,7 +233,7 @@ test.describe.serial("the list of the elements with a value", () => {
     await window.keyboard.press("Escape");
     // A Ctrl/Cmd+click on them offers no list either, and no prompt among the other values.
     for (const key of ["rationale", "acceptance-criteria"]) {
-      await window
+      await shownLayer(window)
         .locator(`[data-field="${key}"] .cm-line`)
         .first()
         .click({ modifiers: [await modifier(window)] });

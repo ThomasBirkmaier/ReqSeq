@@ -45,7 +45,7 @@ const memberTitles = (window: Page): Promise<string[]> =>
   shownLayer(window).locator(".members .row .title").allTextContents();
 
 const memberIndents = (window: Page): Promise<string[]> =>
-  window
+  shownLayer(window)
     .locator(".members .row .title")
     .evaluateAll((titles) => titles.map((e) => (e as HTMLElement).style.paddingLeft));
 

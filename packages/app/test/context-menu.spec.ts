@@ -390,7 +390,7 @@ test.describe("the context menu", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
-    await window
+    await shownLayer(window)
       .locator(".row")
       .nth(2)
       .click({ modifiers: ["Control"] });

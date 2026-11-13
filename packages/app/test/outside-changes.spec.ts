@@ -102,8 +102,11 @@ test.describe("changes from outside the app", () => {
         (node.matches(".outside-change") || node.querySelector(".outside-change") !== null);
       new MutationObserver((records) => {
         for (const record of records) {
-          // Only the shown buffer: one drawn in advance stands hidden beside it (SR-212 AK5).
-          if (!(record.target instanceof Element) || record.target.closest('[data-layer="main"]') === null) {
+          // Not in another layer than the shown one, such as a buffer drawn in advance (SR-212 AK5).
+          if (
+            record.target instanceof Element &&
+            record.target.closest('[data-layer]:not([data-layer="main"])')
+          ) {
             continue;
           }
           const at = performance.now();

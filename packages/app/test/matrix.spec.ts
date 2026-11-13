@@ -422,7 +422,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     const at = titles.indexOf(long);
     expect(at).toBeGreaterThanOrEqual(0);
     // The cursor on that row, which brings its element into view, then on its link to the need.
-    const from = await window
+    const from = await shownLayer(window)
       .locator("tbody tr")
       .evaluateAll((rows) => rows.findIndex((row) => row.getAttribute("aria-selected") === "true"));
     for (let step = 0; step < Math.abs(at - from); step += 1) {

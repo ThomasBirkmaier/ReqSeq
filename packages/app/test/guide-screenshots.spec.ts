@@ -149,7 +149,7 @@ test("screenshots of the traceability matrix and the standard model", async () =
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Show metamodel");
     await window.keyboard.press("Enter");
     await expect(shownLayer(window).locator(".metamodel")).toHaveAttribute("data-laid-out", "7");
-    const boxes = await window
+    const boxes = await shownLayer(window)
       .locator(".mm-type, [data-any]")
       .evaluateAll((elements) =>
         elements

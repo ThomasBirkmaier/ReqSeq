@@ -305,12 +305,12 @@ describe("keyboardHit", () => {
     document.body.innerHTML = `
       <div data-area="left" data-active="">
         <div data-layer="neighbour" aria-hidden="true"><div id="hidden" aria-selected="true">hidden</div></div>
-        <div data-layer="main"><div class="list" tabindex="0"><div id="row" aria-selected="true">row</div></div></div>
+        <div data-layer="main"><div id="list" tabindex="0"><div id="row" aria-selected="true">row</div></div></div>
       </div>`;
-    expect(keyboardHit(element("row")).target).toBe(element("row"));
+    expect(keyboardHit(element("list")).target).toBe(element("row"));
+    // With no row selected in the shown buffer, the menu opens at the focused list, not at the hidden row.
     element("row").setAttribute("aria-selected", "false");
-    expect(keyboardHit(element("row")).target).toBe(element("row"));
-    expect(keyboardHit(element("row")).target).not.toBe(element("hidden"));
+    expect(keyboardHit(element("list")).target).toBe(element("list"));
   });
 
   it("[SR-198/AK-qc75] opens on the place of a focused buffer's content, such as the column of a list", () => {

@@ -72,8 +72,8 @@ const arm = (window: Page, id: string | undefined, text: string): Promise<void> 
         }
       });
       const observer = new MutationObserver(() => {
-        // In a shown layer: a buffer drawn in advance is hidden (SR-212 AK5).
-        const titles = document.querySelectorAll('[data-layer="main"] article h1');
+        // In the shown layer of an area: a buffer drawn in advance is hidden (SR-212 AK5).
+        const titles = document.querySelectorAll('[data-area] > [data-layer="main"] article h1');
         if ([...titles].some((title) => title.textContent === text)) {
           observer.disconnect();
           requestAnimationFrame(() => {

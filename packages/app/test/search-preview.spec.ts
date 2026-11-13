@@ -92,7 +92,7 @@ test.describe("the hits of the search prompt", () => {
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: gust");
     await expect(shownLayer(window).locator(".row")).toHaveCount(8);
-    const rows = await window
+    const rows = await shownLayer(window)
       .locator(".row")
       .evaluateAll((all) =>
         all.map(

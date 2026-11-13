@@ -70,7 +70,7 @@ test("screenshots of the main view on the specification workspace", async () => 
     // row selected (SR-122): Down selects the first.
     await window.keyboard.press("ArrowDown");
     const selectedIndent = (): Promise<string> =>
-      window
+      shownLayer(window)
         .locator('.row[aria-selected="true"] .title')
         .evaluate((e) => (e as HTMLElement).style.paddingLeft);
     for (let pages = 0; pages < 30 && (await selectedIndent()) === "0rem"; pages += 1) {

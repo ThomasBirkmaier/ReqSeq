@@ -279,7 +279,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     );
     await open(window, "Coast");
     await expect(
-      window
+      shownLayer(window)
         .locator("article")
         .getByRole("group", { name: "Changed since the newest baseline", exact: true }),
     ).toHaveText(changed?.message ?? "-");
