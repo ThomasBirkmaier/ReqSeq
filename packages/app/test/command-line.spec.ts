@@ -866,9 +866,15 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await window.keyboard.press("Enter");
     await window.keyboard.type("SR - S: ID - G: Pgk");
     await window.keyboard.press("Enter");
-    // An empty `where`: core refuses it with a message longer than the window is wide.
+    // A condition in JSON that core refuses, with a message longer than the window is wide; the mark stands
+    // again (SR-215 AK6).
+    await window.keyboard.type('{"bogus":1}');
+    await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
     await expect(window.locator(".minibuffer")).toContainText("Invalid input for perspective.save");
+    await expect(window.getByRole("list", { name: "Marks" }).getByRole("listitem")).toHaveText([
+      '{"bogus":1}×',
+    ]);
     // The message is wider than the minibuffer line, so without the fix it would widen the sheet.
     const line = window.locator(".minibuffer");
     expect(await line.evaluate((minibuffer) => minibuffer.scrollWidth > minibuffer.clientWidth)).toBe(true);

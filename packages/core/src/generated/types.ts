@@ -3463,7 +3463,7 @@ export interface FilterSaveInput {
   readonly description?: string;
   /** The view saved with the filter: `core` or a variant ID. The filter then holds only the elements that apply in this view. */
   readonly view?: View;
-  /** Checked as in a selection; element references are written as UUIDs. */
+  /** Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
   readonly where: FilterCondition;
   /** Order of element.list with this filter when its input gives no sort. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -3517,7 +3517,7 @@ export interface PerspectiveSaveInput {
   readonly description?: string;
   /** Name of a saved filter that the selection also uses; written as the filter's name is saved. */
   readonly filter?: string;
-  /** The conditions of the selection, checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
+  /** Which elements the list shows; all conditions must hold. Checked as in a selection; element references are written as UUIDs. No condition: `{ all: [] }`. */
   readonly where: FilterCondition;
   /** The grouping of the list, checked as element.list checks `group`. */
   readonly group?: GroupKey;

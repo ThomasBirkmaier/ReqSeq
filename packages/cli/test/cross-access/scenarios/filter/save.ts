@@ -25,6 +25,22 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
+    name: "the condition the command prompt builds from marks: each in its order under all, the same file by every access (SR-215 AK10)",
+    tag: "[SR-215/AK-hnzf]",
+    fixture: SAVED,
+    input: {
+      name: "Drafts without child",
+      where: {
+        all: [
+          { status: ["draft"] },
+          { relation: { meaning: "derivation", direction: "down" }, exists: false },
+          { text: "coast" },
+        ],
+      },
+    },
+    expect: "output",
+  },
+  {
     name: "a condition that is wrong",
     fixture: SAVED,
     input: { name: "Wrong", where: { package: "SR-0000b1" } },

@@ -1115,11 +1115,9 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
   });
 
   it.each([
-    // The sources of #1645 to #1648 stay as they were: a grouping as text, the composed values as JSON.
+    // The sources of #1646 to #1648 stay as they were: a grouping as text, the composed values as JSON.
     ["element.list", "group", "status", "status"],
     ["perspective.save", "group", "{not json", "{not json"],
-    ["filter.save", "where", '{"status":["draft"]}', { status: ["draft"] }],
-    ["perspective.save", "where", "{a", "{a"],
     // A sort is a list: one key per Enter.
     ["perspective.save", "sort", '{"by":"title"}', [{ by: "title" }]],
     ["trace.matrix", "sort", '{"by":"id","order":"desc"}', [{ by: "id", order: "desc" }]],
@@ -1992,15 +1990,19 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { written: true } });
   });
 
-  it("saves a filter by its name, with its condition typed as JSON", async () => {
+  it("saves a filter by its name, with its condition built from hits (#1645)", async () => {
     const { context, asked, call } = setup([list], {
       "filter.save": () => ({ files: ["filters/open.yaml"] }),
     });
     start(context, "filter.save");
     (await last(asked)).text?.("open");
-    (await last(asked)).text?.('{"status":["draft"]}');
+    (await last(asked)).literal?.('{"status":["draft"]}')?.run();
+    item((await last(asked)).items, "Take 1 condition").run();
     await flush();
-    expect(call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { status: ["draft"] } });
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ status: ["draft"] }] },
+    });
   });
 
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
@@ -3131,5 +3133,262 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     start(confirm.context, "hint.confirm");
     (await last(confirm.asked)).items[0]?.run();
     expect((await last(confirm.asked)).explain).toMatchObject({ name: "hintIds", ends: false, skips: true });
+  });
+});
+
+describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, AK10, #1645)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const FACETS = {
+    total: 3,
+    types: [],
+    statuses: [{ key: "draft", count: 2 }],
+    properties: [
+      {
+        key: "component",
+        name: "Component",
+        kind: "choice",
+        count: 2,
+        missing: 1,
+        distinct: 1,
+        values: [{ value: "display", name: "Display", count: 2 }],
+      },
+      { key: "rationale", name: "Rationale", kind: "text", count: 3, missing: 0, distinct: 3 },
+    ],
+  };
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => FACETS,
+    "filter.save": () => ({ files: ["filters/open.yaml"] }),
+  };
+
+  /** "Save filter" asked up to its condition: the name given. */
+  const atWhere = async (
+    more = false,
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+  ) => {
+    const run = setup([shown], { ...answers, ...extra });
+    start(run.context, "filter.save", more);
+    (await last(run.asked)).text?.("open");
+    return run;
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map(
+      (choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`,
+    );
+
+  const marks = async (asked: readonly Prompt[]): Promise<(string | undefined)[]> =>
+    ((await last(asked)).marks ?? []).map((mark) => mark.label);
+
+  /** Chooses `kind`, then the value `value`, in the steps of the condition. */
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
+    }
+    await flush();
+  };
+
+  const KINDS = ["Type | type", "Status | status", "Property | property", "Text search | text"];
+
+  it("offers the kinds, then their values; each chosen condition is a mark with the label of its list filter step, and the hits keep their place", async () => {
+    const { asked, call } = await atWhere();
+    const first = await last(asked);
+    expect(first.label).toBe("Save filter open · where:");
+    expect(await names(asked)).toEqual(["No condition: all elements", ...KINDS]);
+    // Types by their name in the metamodel, the key beside; the mark is the list's "type: <key>".
+    await choose(asked, "Type");
+    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+    expect(await names(asked)).toContain("System Requirement | requirement");
+    await choose(asked, "System Requirement");
+    expect(await marks(asked)).toEqual(["type: requirement"]);
+    // The hits keep their place: only the finishing hit says what it takes.
+    expect(await names(asked)).toEqual(["Take 1 condition", ...KINDS]);
+    // Statuses of the elements the marks select, by their name in the metamodel.
+    await choose(asked, "Status");
+    expect(call).toHaveBeenCalledWith("element.facets", {
+      selection: { where: { all: [{ type: ["requirement"] }] } },
+    });
+    expect(await names(asked)).toEqual(["Draft | draft"]);
+    await choose(asked, "Draft");
+    // Properties whose values can be chosen (SR-124 AK2, AK3: free text is left out), then their values.
+    await choose(asked, "Property");
+    expect(await names(asked)).toEqual(["Component | component"]);
+    await choose(asked, "Component");
+    expect(await names(asked)).toEqual(["Display | display", "(no value)"]);
+    await choose(asked, "(no value)");
+    expect(await marks(asked)).toEqual(["type: requirement", "status: draft", "component: (no value)"]);
+    // A text search takes the typed words; an empty input asks again.
+    await choose(asked, "Text search");
+    (await last(asked)).text?.("  ");
+    expect((await last(asked)).label).toBe("Save filter open · where · Text search:");
+    (await last(asked)).text?.("brake");
+    expect(await marks(asked)).toEqual([
+      "type: requirement",
+      "status: draft",
+      "component: (no value)",
+      "text: brake",
+    ]);
+    expect(await names(asked)).toEqual(["Take 4 conditions", ...KINDS]);
+  });
+
+  it("[SR-215/AK-fm4s] the finishing hit is marked first: without a mark it takes no condition, with marks all of them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+    const none = await atWhere();
+    expect((await last(none.asked)).items[0]?.name).toBe("No condition: all elements");
+    (await last(none.asked)).items[0]?.run();
+    await flush();
+    expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
+
+    const some = await atWhere();
+    await choose(some.asked, "Type", "Decision");
+    await choose(some.asked, "Type", "Package");
+    expect((await last(some.asked)).items[0]?.name).toBe("Take 2 conditions");
+    // Ctrl/Cmd+Enter on any hit of this step takes the marks and offers the optional arguments.
+    item((await last(some.asked)).items, "Status").more?.();
+    const more = await last(some.asked);
+    expect(more.label).toBe("Save filter open type: decision · type: package · more arguments:");
+    item(more.items, "Run").run();
+    await flush();
+    expect(some.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ type: ["decision"] }, { type: ["package"] }] },
+    });
+  });
+
+  it("[SR-215/AK-z4bq] text that starts with { is one condition in JSON as a mark; a refused condition is asked again with core's message and the marks back", async () => {
+    const refusal = refusedWith("where.all[1]: must be an object", { errors: [{ field: "where.all[1]" }] });
+    const { asked, call } = await atWhere(false, { "filter.save": () => refusal });
+    await choose(asked, "Type", "Decision");
+    const prompt = await last(asked);
+    // No hit for other text: Enter does nothing.
+    expect(prompt.literal?.("type")).toBeUndefined();
+    expect(prompt.text).toBeUndefined();
+    const json = prompt.literal?.(' {"any":[{"status":["draft"]},{"not":{"type":["need"]}}]}');
+    expect(json?.name).toBe("Add the condition in JSON");
+    json?.run();
+    expect(await marks(asked)).toEqual([
+      "type: decision",
+      '{"any":[{"status":["draft"]},{"not":{"type":["need"]}}]}',
+    ]);
+    // Text that is no JSON goes in as it is: core says what is wrong with it.
+    (await last(asked)).literal?.("{a")?.run();
+    expect(await marks(asked)).toContain("{a");
+    item((await last(asked)).items, "Take 3 conditions").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: {
+        all: [{ type: ["decision"] }, { any: [{ status: ["draft"] }, { not: { type: ["need"] } }] }, "{a"],
+      },
+    });
+    const again = await last(asked);
+    expect(again.label).toBe("where.all[1]: must be an object · Save filter open · where:");
+    expect(await marks(asked)).toHaveLength(3);
+    // The message is said once: the next step has the plain label.
+    await choose(asked, "Type");
+    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+  });
+
+  it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the kind is chosen; Escape keeps the marks, which stand again when the prompt returns to the argument", async () => {
+    const { asked } = await atWhere(true);
+    await choose(asked, "Type", "Decision");
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Type", "Package");
+    const kinds = await last(asked);
+    expect(kinds.unmark).toBe(true);
+    // The × of the middle mark.
+    kinds.marks?.[1]?.remove();
+    expect(await marks(asked)).toEqual(["type: decision", "type: package"]);
+    // In a step of the values Backspace goes back to the kinds (`back`) and removes no mark; its × does.
+    await choose(asked, "Status");
+    const values = await last(asked);
+    expect(values.unmark).toBeUndefined();
+    values.back?.();
+    expect((await last(asked)).label).toBe("Save filter open · where:");
+    await choose(asked, "Property", "Component");
+    (await last(asked)).marks?.[0]?.remove();
+    // A property's values go back to the properties, read anew for the marks left.
+    expect((await last(asked)).label).toBe("Save filter open · where · Property:");
+    expect(await marks(asked)).toEqual(["type: package"]);
+    (await last(asked)).back?.();
+    // Ctrl/Cmd+Enter takes the marks; Escape (back) from the optional arguments returns to the condition, marks and all.
+    (await last(asked)).items[0]?.more?.();
+    expect((await last(asked)).label).toBe("Save filter open type: package · more arguments:");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter open · where:");
+    expect(await marks(asked)).toEqual(["type: package"]);
+    // Without a mark, back goes to the argument before.
+    (await last(asked)).marks?.[0]?.remove();
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+  });
+
+  it("[SR-215/AK-rx2z] Escape at the kinds keeps the marks: they stand again when the prompt returns to the condition, also after a refusal", async () => {
+    const { asked } = await atWhere();
+    await choose(asked, "Type", "Decision");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+    (await last(asked)).text?.("open");
+    expect(await marks(asked)).toEqual(["type: decision"]);
+
+    const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
+    const refused = await atWhere(false, { "filter.save": () => refusal });
+    (await last(refused.asked)).literal?.("{a")?.run();
+    await choose(refused.asked, "Take 1 condition");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+    (await last(refused.asked)).back?.();
+    (await last(refused.asked)).text?.("open");
+    expect((await last(refused.asked)).label).toBe("Save filter open · where:");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+  });
+
+  it("[SR-215/AK-hnzf] the input is the marks in their order under all, as the command line takes it", async () => {
+    const { asked, call } = await atWhere();
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Property", "Component", "Display");
+    await choose(asked, "Take 2 conditions");
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ status: ["draft"] }, { property: "component", op: "eq", value: "display" }] },
+    });
+  });
+
+  it("[SR-210/AK-t8sc] each step of a condition names the argument and the keys of the step: Enter, Backspace for the last mark where it removes one, and { for JSON", async () => {
+    const { asked } = await atWhere();
+    const first = (await last(asked)).explain;
+    expect(first).toMatchObject({
+      name: "where",
+      description: (command("filter.save").input as { properties: Record<string, { description?: unknown }> })
+        .properties["where"]?.description,
+      building: { enter: "takes the marked hit; all conditions must hold", unmark: false, json: true },
+    });
+    await choose(asked, "Type");
+    expect((await last(asked)).explain).toMatchObject({
+      name: "where",
+      more: false,
+      building: { enter: "adds the condition", unmark: false, json: false },
+    });
+    await choose(asked, "Decision");
+    expect((await last(asked)).explain?.building?.unmark).toBe(true);
+    await choose(asked, "Text search");
+    expect((await last(asked)).explain?.building?.enter).toBe("adds the text search");
+  });
+
+  it("says why the values of a kind cannot be read", async () => {
+    const failing = new Error("The metamodel is faulty");
+    const { asked } = await atWhere(false, {
+      "metamodel.get": () => failing,
+      "element.facets": () => failing,
+    });
+    for (const kind of ["Type", "Status", "Property"]) {
+      await choose(asked, kind);
+      expect((await last(asked)).label).toBe(`The metamodel is faulty · Save filter open · where · ${kind}:`);
+      (await last(asked)).back?.();
+    }
+    // Statuses need the names of the metamodel too.
+    const named = await atWhere(false, { "metamodel.get": () => failing });
+    await choose(named.asked, "Status");
+    expect((await last(named.asked)).label).toBe(
+      "The metamodel is faulty · Save filter open · where · Status:",
+    );
   });
 });
