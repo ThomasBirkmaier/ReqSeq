@@ -5,17 +5,17 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements by its name. Grouping and sorting change no file.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements by its name. Grouping and sorting change no file, unless you save the list as a perspective.
 
 ## App
 
 1. To open one element, press Ctrl+P (⌘P on macOS) for **Go to element or buffer**, type its short ID or words of its title, and press Enter.
-2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type: the first hits show at once. Choose one with Ctrl+N and Ctrl+P (⌃N, ⌃P) or the arrow keys and press Enter to open it, or press Enter without a choice to open all hits in a buffer.
-3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property” (a property, then one of its values), “Filter list by text search” and “Filter list by saved filter”; each step keeps the ones before. “Clear list filter” takes back the last step, “Clear all list filters” all.
+2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Open a hit with the arrow keys and Enter, or all hits in a buffer with Enter alone.
+3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property”, “Filter list by text search” and “Filter list by saved filter”; each step keeps the ones before. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
 4. “Sort list” (Ctrl+K S) orders the list, for example by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows of a list offers most of these.
-5. To list every element with a value of the open element, such as its topic or package, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click). The list filters further like any other.
+5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold, for you on this computer.
-7. Ctrl+K V (⌘K V) opens a perspective in a buffer of its own.
+7. Ctrl+K V (⌘K V) opens a perspective in a buffer of its own. “Save list as perspective” saves a list’s filter steps, grouping and sort under a name; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
 8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, the `where` of the API section below. **List saved filters** shows the filters of the workspace.
 
 ## CLI
@@ -59,7 +59,7 @@ SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
 
-The search finds the word despite a typo and shows where, with the line around it:
+The search finds the word despite a typo, with the line around it:
 
 ```sh
 reqseq element search temprature

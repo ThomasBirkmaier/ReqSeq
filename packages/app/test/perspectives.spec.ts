@@ -1,8 +1,9 @@
-// Perspectives in the app (SR-214 AK1–AK4, AK7, and the app side of SR-213 AK4, AK6–AK8) on the built
-// app, on fixtures/SR-043/example (the „Beispielbestand“: six system requirements, the variant Coast
-// VAR-0000c1) with a saved filter and perspective files added. Ctrl/Cmd+K V or "Open perspective" lists
-// them; Enter opens one as a buffer of its own, which shows the elements, groups and order the CLI gives
-// for `element.list` with the perspective, in the window's view.
+// Perspectives in the app (SR-214, and the app side of SR-213 AK4, AK6–AK8) on the built app, on
+// fixtures/SR-043/example (the „Beispielbestand“: six system requirements, the variant Coast VAR-0000c1)
+// with a saved filter and perspective files added. Ctrl/Cmd+K V or "Open perspective" lists them; Enter
+// opens one as a buffer of its own, which shows the elements, groups and order the CLI gives for
+// `element.list` with the perspective, in the window's view. "Save list as perspective" saves a list, and
+// the modeline says "modified" while a perspective buffer differs from what was saved.
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -121,6 +122,68 @@ const command = async (window: Page, title: string, answer?: string): Promise<vo
     await expect(candidates(window).first()).toHaveText(answer);
     await window.keyboard.press("Enter");
   }
+};
+
+/** Runs the command `title` and answers its prompt `label`, once it is open, with `value`. */
+const answered = async (window: Page, title: string, label: string, value: string): Promise<void> => {
+  await command(window, title);
+  await expect(window.locator("label.prompt-label")).toHaveText(label);
+  await window.keyboard.type(value);
+  await expect(candidates(window).first()).toHaveText(value);
+  await window.keyboard.press("Enter");
+};
+
+/** "Filter list by text search" with `text`. */
+const textFilter = async (window: Page, text: string): Promise<void> => {
+  await command(window, "Filter list by text search");
+  await expect(window.locator("label.prompt-label")).toHaveText("Text");
+  await window.keyboard.type(text);
+  await window.keyboard.press("Enter");
+  await expect(shownBuffer(window)).toHaveAttribute("aria-label", new RegExp(`text: ${text}`));
+};
+
+/** The prompt of "Save list as perspective". */
+const savePrompt = async (window: Page): Promise<void> => {
+  await command(window, "Save list as perspective");
+  await expect(window.locator("label.prompt-label")).toHaveText("Perspective name");
+};
+
+/** The input of the minibuffer. */
+const promptInput = (window: Page): Locator => window.locator("#prompt-input");
+
+/** Saves the shown list as the perspective `name`, typed over the name proposed. */
+const saveAs = async (window: Page, name: string): Promise<void> => {
+  await savePrompt(window);
+  await promptInput(window).fill(name);
+  await window.keyboard.press("Enter");
+  await expect(minibuffer(window)).toContainText(`Saved perspective ${name}`);
+};
+
+/** The parts of the modeline for the shown buffer. */
+const modeline = (window: Page): Locator => window.locator('[aria-label="Modeline"] .parts > .segment');
+
+/**
+ * The perspective `name` as `perspective list` gives it through the CLI; it ends with 1 for the faulty file
+ * of the fixture, and lists the others.
+ */
+const cliPerspective = async (running: RunningApp, name: string): Promise<Record<string, unknown>> => {
+  const result = await running.cli(["perspective", "list"]);
+  expect(result.code, result.stderr).toBe(1);
+  const output = JSON.parse(result.stdout) as { perspectives: { name: string }[] };
+  const found = output.perspectives.find((perspective) => perspective.name === name);
+  expect(found, name).toBeDefined();
+  return found as Record<string, unknown>;
+};
+
+/** Whether the command prompt offers `title` for the shown buffer; "Save perspective" (the catalog) shows it ran. */
+const offersSave = async (window: Page): Promise<boolean> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  // Both titles match the typed text; the catalog command is offered wherever a workspace is open.
+  await window.keyboard.type("save perspective");
+  await expect(candidates(window).filter({ hasText: /^Save perspective$/ })).toHaveCount(1);
+  const names = await candidates(window).allTextContents();
+  await window.keyboard.press("Escape");
+  return names.includes("Save list as perspective");
 };
 
 /** Runs "Choose view" and takes the view whose name starts with `name`. */
@@ -359,5 +422,154 @@ test.describe("perspectives in the app", () => {
     expect(await shownIds(window)).toHaveLength(6);
     await open(window, "plain");
     await expect.poll(() => shownIds(window)).toEqual(["SR-0000a3"]);
+  });
+
+  test("[SR-214/AK-bzs1] Save list as perspective asks only for the name, proposes the perspective's, lists the others while typing, and saves steps, grouping and the shown sort", async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    // A list with a text step and a saved filter step, grouped, with no sort chosen: the saved filter's
+    // sort is the one shown.
+    await command(window, "List all elements");
+    await textFilter(window, "Measure");
+    await answered(window, "Filter list by saved filter", "Filter", "Requirements");
+    await answered(window, "Group list", "Group by", "Status");
+    await savePrompt(window);
+    // Only the name: a plain list proposes none, and the perspectives there are show while typing.
+    await expect(promptInput(window)).toHaveValue("");
+    await window.keyboard.type("wrk");
+    await expect(candidates(window)).toHaveText(["Workspace order"]);
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sr-214-save-prompt-light.png") });
+    await promptInput(window).fill("Measured");
+    await window.keyboard.press("Enter");
+    await expect(minibuffer(window)).toContainText("Saved perspective Measured");
+    // The text step is a text condition, the saved filter is named, the grouping is saved, and no sort:
+    // the order shown is the filter's.
+    expect(await cliPerspective(running, "Measured")).toMatchObject({
+      where: { text: "Measure" },
+      filter: "Requirements",
+      group: "status",
+    });
+    expect(await cliPerspective(running, "Measured")).not.toHaveProperty("sort");
+    // The list is now the buffer of the perspective, headed by its name, and the CLI gives the same.
+    await expect(shownBuffer(window).locator("h1")).toHaveText(/^Measured /);
+    const measured = await cliList(running, "Measured");
+    await expect.poll(() => shownIds(window)).toEqual(measured.ids);
+    // The app heads a status group by the status's name in the metamodel ("Draft"), the CLI gives its key.
+    const lower = (groups: readonly string[]): string[] => groups.map((group) => group.toLowerCase());
+    expect(lower(await shownGroups(window))).toEqual(lower(measured.groups));
+    await window.screenshot({ path: path.join(OUT, "sr-214-save-perspective-light.png") });
+
+    // No sort chosen and no saved filter: the app's own default order is written, so the CLI gives it too.
+    await command(window, "List all elements");
+    await answered(window, "Filter list by type", "Type", "system-requirement");
+    await expect.poll(() => shownIds(window)).toHaveLength(6);
+    const shown = await shownIds(window);
+    await saveAs(window, "Typed");
+    expect(await cliPerspective(running, "Typed")).toMatchObject({
+      sort: [
+        { by: "type", order: "asc" },
+        { by: "identifier", order: "asc" },
+      ],
+    });
+    expect((await cliList(running, "Typed")).ids).toEqual(shown);
+    await expect.poll(() => shownIds(window)).toEqual(shown);
+
+    // From a perspective buffer the prompt proposes its name.
+    await open(window, "By title");
+    await savePrompt(window);
+    await expect(promptInput(window)).toHaveValue("By title");
+    await window.keyboard.press("Escape");
+
+    // Not offered in the matrix, in the hits of a search, on a package page, nor in the context menu.
+    expect(await offersSave(window)).toBe(true);
+    const menu = window.getByRole("menu", { name: "Context menu" });
+    await shownBuffer(window).locator("h1").click({ button: "right" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("menuitem").first()).toBeVisible();
+    expect(await menu.getByRole("menuitem").locator(".name").allTextContents()).not.toContain(
+      "Save list as perspective",
+    );
+    await window.keyboard.press("Escape");
+    await command(window, "Show traceability matrix");
+    await expect(window.locator(".matrix")).toBeVisible();
+    expect(await offersSave(window)).toBe(false);
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("rain");
+    await window.keyboard.press("Enter");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", /^Search: rain/);
+    expect(await offersSave(window)).toBe(false);
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Sensors");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+    expect(await offersSave(window)).toBe(false);
+  });
+
+  test("[SR-214/AK-fgs9] the modeline says modified after the name when a step, the sort or the grouping changes, until saved under this name or opened again; Clear all list filters keeps the perspective's selection", async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    const { window } = running;
+    const NAME = "perspective: By title · sorted by title · grouped by validity";
+    await open(window, "By title");
+    await expect(modeline(window).first()).toHaveText(NAME);
+    await expect(modeline(window).nth(1)).toHaveText(/elements?$/);
+    // A filter step: "modified" right after the name.
+    await textFilter(window, "rain");
+    await expect(modeline(window).nth(1)).toHaveText("modified");
+    await expect(window.locator("label.prompt-label")).toBeHidden();
+    // The card of the prompt has faded out.
+    await expect
+      .poll(() =>
+        window.evaluate(() => document.getAnimations().filter((one) => one.playState === "running").length),
+      )
+      .toBe(0);
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sr-214-modified-light.png") });
+    // Clear all list filters takes back only the steps after the perspective's selection.
+    await textFilter(window, "Measure");
+    await command(window, "Clear all list filters");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", NAME);
+    await expect(shownBuffer(window).locator("h1")).toHaveText(/^By title /);
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    // Another sort: modified; opened again: no more.
+    await answered(window, "Sort list", "Sort by", "ID ascending");
+    await expect(modeline(window).nth(1)).toHaveText("modified");
+    await open(window, "By title");
+    await expect(modeline(window).first()).toHaveText(NAME);
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    // The matrix and back keep the grouping, and set nothing.
+    await command(window, "Show traceability matrix");
+    await expect(window.locator(".matrix")).toBeVisible();
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    await command(window, "Show as list");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", NAME);
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    // Another grouping: modified; saved under this name: no more, and the file has the new grouping.
+    await answered(window, "Group list", "Group by", "Status");
+    await expect(modeline(window).nth(1)).toHaveText("modified");
+    await savePrompt(window);
+    await expect(promptInput(window)).toHaveValue("By title");
+    await window.keyboard.press("Enter");
+    await expect(minibuffer(window)).toContainText("Saved perspective By title");
+    await expect(modeline(window).first()).toHaveText(
+      "perspective: By title · sorted by title · grouped by status",
+    );
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    expect(await cliPerspective(running, "By title")).toMatchObject({
+      group: "status",
+      sort: [{ by: "title" }],
+    });
+    // Saved under another name, the buffer becomes that perspective's buffer, not modified.
+    await textFilter(window, "rain");
+    await saveAs(window, "Rain");
+    await expect(shownBuffer(window).locator("h1")).toHaveText(/^Rain /);
+    await expect(modeline(window)).not.toContainText(["modified"]);
+    await window.keyboard.press("ControlOrMeta+P");
+    await expect(candidates(window).first()).toBeVisible();
+    const offered = await candidates(window).allTextContents();
+    await window.keyboard.press("Escape");
+    expect(offered.filter((name) => name.startsWith("perspective:"))).toEqual([]);
   });
 });
