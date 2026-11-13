@@ -15,9 +15,9 @@ verification-method: test
 derives-from:
   - { id: f7e0d304-30ac-43c8-9683-1c432a0f119a, version: n2:2d5ec8cb0a706279, title: Mit der Maus bedienen }
 based-on:
-  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:fa15fb6d42e42413, title: Kontextmenü per Rechtsklick }
+  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:edf409dedc817a32, title: Kontextmenü per Rechtsklick }
 refines:
-  - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:a224e91ffab29b01, title: Befehle per Rechtsklick am Ort aufrufen }
+  - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:e6a91a2159f476e9, title: Befehle per Rechtsklick am Ort aufrufen }
 ---
 
 Die App muss in der Spalte der Liste aller Elemente, einer gefilterten Liste, der Liste der Suchtreffer oder der Elemente einer Paketseite außerhalb der Zeilen der Elemente per Rechtsklick ein Kontextmenü mit den Befehlen zum Filtern, Sortieren und Gruppieren der Liste öffnen.
