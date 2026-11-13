@@ -474,4 +474,33 @@ test.describe("the prompt of Sort list", () => {
       inShownOrder(listed.elements).map((e) => e.title),
     );
   });
+
+  // "Type" is also the first word of "Type and ID": the whole name typed takes the key, not the default.
+  for (const [key, order, shown] of [
+    ["type", "ascending", "sorted by type"],
+    ["status", "descending", "sorted by status descending"],
+  ] as const) {
+    test(`"${key}" typed in "Sort by" asks "Order", and ${order} sorts as the CLI does`, async () => {
+      const { window } = running;
+      const label = window.getByLabel("Minibuffer").locator("label");
+      await runCommand(window, "sort list");
+      await expect(label).toHaveText("Sort by");
+      await window.keyboard.type(key);
+      await window.keyboard.press("Enter");
+      await expect(label).toHaveText("Order");
+      await window.keyboard.type(order);
+      await window.keyboard.press("Enter");
+      await expect(window.getByLabel("Modeline")).toContainText(shown);
+      const listed = await cliJson<Listed>(running, [
+        "element",
+        "list",
+        "--input",
+        JSON.stringify({ sort: [{ by: key, order: order === "ascending" ? "asc" : "desc" }] }),
+      ]);
+      await showFolded(window, listed.elements);
+      await expect(shownLayer(window).locator(".row .title")).toHaveText(
+        inShownOrder(listed.elements).map((e) => e.title),
+      );
+    });
+  }
 });
