@@ -518,7 +518,7 @@
       "additionalProperties": false
     },
     "searchFieldKey": {
-      "description": "A field a search is restricted to (SR-216): `title`, `text`, `properties`, `id` or the key of a property; element.search checks the key against the metamodel.",
+      "description": "A field a search is restricted to (SR-216): `title`, `text`, `properties`, `id` or the key of a property; element.search checks the key against the metamodel, and element.searchFields lists the keys it takes.",
       "type": "string",
       "minLength": 1
     },

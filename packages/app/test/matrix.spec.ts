@@ -343,7 +343,8 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(shownLayer(window).locator("tbody tr")).toHaveCount(cli.rows.length);
     expect(await shown(window)).toEqual(expected(cli));
     await runCommand(window, "Sort list");
-    await answer(window, "Sort by", "Title descending");
+    await answer(window, "Sort by", "Title");
+    await answer(window, "Order", "descending");
     const sorted = await matrixBy(running, {
       selection: { where: { all: [{ type: ["system-requirement"] }, { text: "wind" }] } },
       sort: [{ by: "title", order: "desc" }],
