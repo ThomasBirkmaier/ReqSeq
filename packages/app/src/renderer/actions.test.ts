@@ -855,31 +855,48 @@ describe("list actions", () => {
     expect(names).toEqual([
       "Type and ID",
       "Workspace order",
-      "ID ascending",
-      "ID descending",
-      "Title ascending",
-      "Title descending",
-      "Type ascending",
-      "Type descending",
-      "Status ascending",
-      "Status descending",
+      "ID",
+      "Title",
+      "Type",
+      "Status",
       "Hierarchy (tree)",
     ]);
-    asked[0]?.items[0]?.run();
-    asked[0]?.items[1]?.run();
-    asked[0]?.items[2]?.run();
-    asked[0]?.items[3]?.run();
-    asked[0]?.items[10]?.run();
+    const first = asked[0];
+    first?.items[0]?.run();
+    first?.items[1]?.run();
+    // A key with a direction asks for it next ("Order"); the first list names each key once.
+    for (const key of [2, 3, 4, 5]) {
+      for (const order of [0, 1]) {
+        first?.items[key]?.run();
+        asked.at(-1)?.items[order]?.run();
+      }
+    }
+    first?.items[6]?.run();
     const selection = { where: { type: ["need"] } };
+    const by = (key: "identifier" | "title" | "type" | "status") =>
+      (["asc", "desc"] as const).map((order) => ({
+        type: "open",
+        buffer: listBuffer("type: need", selection, [{ by: key, order }]),
+      }));
     // "Type and ID" is the default sent explicitly, "Workspace order" is `[]`, "ID" sorts by `identifier`
     // (what the rows show), so each holds on a list with a saved filter too.
     expect(dispatched).toEqual([
       { type: "open", buffer: listBuffer("type: need", selection, DEFAULT_SORT) },
       { type: "open", buffer: listBuffer("type: need", selection, []) },
-      { type: "open", buffer: listBuffer("type: need", selection, [{ by: "identifier", order: "asc" }]) },
-      { type: "open", buffer: listBuffer("type: need", selection, [{ by: "identifier", order: "desc" }]) },
+      ...by("identifier"),
+      ...by("title"),
+      ...by("type"),
+      ...by("status"),
       { type: "open", buffer: listBuffer("type: need", selection, [{ by: "hierarchy", order: "asc" }]) },
     ]);
+  });
+
+  it("asks for ascending or descending after a key with a direction", () => {
+    const { context, asked } = setup([filtered]);
+    action("sort").run(context);
+    asked[0]?.items[3]?.run();
+    expect(asked[1]?.label).toBe("Order");
+    expect(asked[1]?.items.map((item) => item.name)).toEqual(["ascending", "descending"]);
   });
 
   it("sorting a list with a saved filter by type and ID asks for the default, by workspace order for none", () => {
@@ -1147,7 +1164,7 @@ describe("list actions", () => {
       const { context, asked, dispatched } = setup([element], {}, true, { element: page });
       action("sort").run(context);
       expect(asked[0]?.label).toBe("Sort by");
-      asked[0]?.items[10]?.run();
+      asked[0]?.items[6]?.run();
       asked[0]?.items[1]?.run();
       asked[0]?.items[0]?.run();
       expect(dispatched).toEqual([

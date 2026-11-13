@@ -219,9 +219,13 @@ describe("cascading list filters (SR-124)", () => {
 
   it("sorting keeps the steps", async () => {
     const steps = [typeStep("need"), statusStep("draft")];
-    const { run, shown } = start(filteredList(steps));
+    const { run, shown, asked } = start(filteredList(steps));
     const prompt = await run("sort");
-    prompt.items[4]?.run();
+    prompt.items.find((item) => item.name === "Title")?.run();
+    asked
+      .at(-1)
+      ?.items.find((item) => item.name === "ascending")
+      ?.run();
     expect(shown()).toEqual(filteredList(steps, [{ by: "title", order: "asc" }]));
   });
 });

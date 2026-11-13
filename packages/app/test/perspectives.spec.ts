@@ -133,6 +133,14 @@ const answered = async (window: Page, title: string, label: string, value: strin
   await window.keyboard.press("Enter");
 };
 
+/** Answers the prompt "Order" that a sort key with a direction asks after "Sort by". */
+const answerOrder = async (window: Page, order: string): Promise<void> => {
+  await expect(window.locator("label.prompt-label")).toHaveText("Order");
+  await window.keyboard.type(order);
+  await expect(candidates(window).first()).toHaveText(order);
+  await window.keyboard.press("Enter");
+};
+
 /** "Filter list by text search" with `text`. */
 const textFilter = async (window: Page, text: string): Promise<void> => {
   await command(window, "Filter list by text search");
@@ -305,7 +313,8 @@ test.describe("perspectives in the app", () => {
     await open(window, "By title");
     const saved = await shownIds(window);
     await command(window, "Ungroup list");
-    await command(window, "Sort list", "ID ascending");
+    await command(window, "Sort list", "ID");
+    await answerOrder(window, "ascending");
     await expect(shownBuffer(window)).not.toHaveAttribute("aria-label", /grouped by/);
     await command(window, "Show traceability matrix");
     await expect(window.locator(".matrix")).toBeVisible();
@@ -556,7 +565,8 @@ test.describe("perspectives in the app", () => {
     await expect(shownBuffer(window).locator("h1")).toHaveText(/^By title /);
     await expect(modeline(window)).not.toContainText(["modified"]);
     // Another sort: modified; opened again: no more.
-    await answered(window, "Sort list", "Sort by", "ID ascending");
+    await answered(window, "Sort list", "Sort by", "ID");
+    await answerOrder(window, "ascending");
     await expect(modeline(window).nth(1)).toHaveText("modified");
     await open(window, "By title");
     await expect(modeline(window).first()).toHaveText(NAME);
