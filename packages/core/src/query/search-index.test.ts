@@ -486,10 +486,6 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     ]);
     expect(ids(index, "warns", { propertyKeys: ["rationale"] })).toEqual([]);
     expect(ids(index, "barometer", { propertyKeys: ["acceptance-criteria", "rationale"] })).toEqual([S1]);
-    // `properties` holds every property, a single one beside it adds nothing.
-    expect(searchElements(index, "vane", { fields: ["properties"], propertyKeys: ["rationale"] })).toEqual(
-      searchElements(index, "vane", { fields: ["properties"] }),
-    );
     // An ID match first only with the IDs: else the short ID is words of the text.
     expect(ids(index, "N-545b7b379da2")).toEqual([N1, C]);
     expect(ids(index, "N-545b7b379da2", { fields: ["text"] })).toEqual([C]);

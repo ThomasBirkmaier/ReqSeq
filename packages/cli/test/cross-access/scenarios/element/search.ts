@@ -223,11 +223,28 @@ scenariosOf("element.search", [
     },
   },
   {
-    tag: "[SR-216/AK-dhq2]",
-    name: "a key that holds relations, refused",
+    tag: "[SR-216/AK-r9jg]",
+    name: "in a single property: only the hits of its words (SR-216 AK2)",
+    fixture: FIELDS,
+    input: { query: "storm", fields: ["rationale"] },
+    expect: "output",
+    check: (results) => {
+      expect(Object.keys(snippets(results))).toEqual(["SR-0000c2"]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-r9jg]",
+    name: "a key that holds relations, refused with a message naming it (SR-216 AK2, AK11)",
     fixture: FIELDS,
     input: { query: "gust", fields: ["derives-from"] },
     expect: "error",
+    check: (results) => {
+      for (const { outcome } of Object.values(results)) {
+        const error = "error" in outcome ? (outcome.error as { code?: string; message?: string }) : {};
+        expect(error.code).toBe("input.invalid");
+        expect(error.message).toContain('"derives-from"');
+      }
+    },
   },
   {
     name: "a key it cannot group by (SR-149 AK6)",

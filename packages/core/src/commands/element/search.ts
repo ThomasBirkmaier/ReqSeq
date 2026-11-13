@@ -150,12 +150,15 @@ export default defineCommand({
   name: "element.search",
   run: async (ctx, input): Promise<CommandOutput<"element.search">> => {
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.search");
-    searchFieldsOf("element.search", selected.metamodel, input.fields);
+    const checked = searchFieldsOf("element.search", selected.metamodel, input.fields);
     const index = await searchIndex(ctx.workspace);
-    const chosen = searchFieldsOf("element.search", index.metamodel, input.fields);
+    // A metamodel changed meanwhile resets the index (a new build): checked again against its own.
+    const chosen =
+      index.metamodel === selected.metamodel
+        ? checked
+        : searchFieldsOf("element.search", index.metamodel, input.fields);
     // The single properties the snippet may come from: undefined for every property.
-    const propertyKeys =
-      chosen.fields === undefined || chosen.fields.includes("properties") ? undefined : chosen.propertyKeys;
+    const { propertyKeys } = chosen;
     // Every element of the index's store selected: no restriction to pass (it costs a set of 50,000
     // keys). A store swapped meanwhile may hold elements the selection never saw: restricted then.
     const restricted =

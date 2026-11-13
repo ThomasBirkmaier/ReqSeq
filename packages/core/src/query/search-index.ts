@@ -99,13 +99,13 @@ export interface SearchDocument {
 const PROPERTY_FIELD = "property:";
 
 /** The MiniSearch field of the property `key` (see the file comment). */
-export const propertyField = (key: string): string => `${PROPERTY_FIELD}${key}`;
+const propertyField = (key: string): string => `${PROPERTY_FIELD}${key}`;
 
 /**
  * Keys that never get a field of their own: those of the fixed fields, which always mean the fixed
  * field, and type and status, which are found in `properties` by their names.
  */
-const FIXED_KEYS: ReadonlySet<string> = new Set(["title", "text", "properties", "id", "type", "status"]);
+const FIXED_KEYS: ReadonlySet<string> = new Set([...SEARCH_FIELDS, "type", "status"]);
 
 const propertyKeysCache = new WeakMap<Metamodel, readonly string[]>();
 
@@ -152,7 +152,7 @@ const partOf = (parts: readonly string[], key: string): string => {
 };
 
 /** The value of `field` of `document`, as MiniSearch reads it (`Options.extractField`). */
-export const extractField = (document: SearchDocument, field: string): string => {
+const extractField = (document: SearchDocument, field: string): string => {
   switch (field) {
     case "key":
       return document.key;
@@ -627,7 +627,8 @@ export interface SearchElementsOptions {
   readonly fields?: readonly SearchField[];
   /**
    * Also, or only, these single properties (SR-216 AK2): keys of `searchPropertyKeys` of the index's
-   * metamodel. Left out when `fields` holds `properties`, which holds them all.
+   * metamodel. Not beside `properties` in `fields`, which holds them all (their words would count
+   * twice); `searchFieldsOf` leaves them out then.
    */
   readonly propertyKeys?: readonly string[];
   /**
@@ -1207,7 +1208,7 @@ const fieldsOf = (
   options: SearchElementsOptions,
 ): { readonly fields: ReadonlySet<SearchField>; readonly searched: readonly string[] } => {
   const fields = new Set(options.fields ?? (options.propertyKeys === undefined ? SEARCH_FIELDS : []));
-  const keys = fields.has("properties") ? [] : (options.propertyKeys ?? []);
+  const keys = options.propertyKeys ?? [];
   return {
     fields,
     searched: [...WORD_FIELDS.filter((field) => fields.has(field)), ...keys.map(propertyField)],

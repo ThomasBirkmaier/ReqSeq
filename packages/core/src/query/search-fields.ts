@@ -1,7 +1,8 @@
 // The fields a search is restricted to (SR-216 AK2): `element.search` `fields` names fixed fields
 // (`title`, `text`, `properties`, `id`) and the keys of single properties of the metamodel
 // (`searchPropertyKeys`). Fixed names always mean the fixed field, also when a property has that
-// key. `properties` holds every property, so a single property chosen beside it adds nothing.
+// key. `properties` holds every property, so a single property chosen beside it adds nothing and
+// is left out of the options.
 // Refused as `input.invalid` at `fields`, naming the key: `type` and `status` (found in `properties`
 // by their names), the key of the title property (the field `title`), a key that holds relations
 // (a relation kind or a property of kind `relation`: a search does not look in relations) and a key
@@ -56,5 +57,6 @@ export const searchFieldsOf = (
     }
     keys.push(name);
   }
-  return { fields: fixed, propertyKeys: fixed.includes("properties") ? [] : keys };
+  // `properties` holds every single property: they are left out beside it.
+  return fixed.includes("properties") ? { fields: fixed } : { fields: fixed, propertyKeys: keys };
 };
