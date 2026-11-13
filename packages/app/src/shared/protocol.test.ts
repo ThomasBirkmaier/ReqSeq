@@ -19,6 +19,7 @@ import {
   recentWorkspaceEntries,
   saveAnswer,
   saveRequest,
+  swipeDirection,
 } from "./protocol.js";
 import { MAX_ROOT_LENGTH as CORE_MAX_ROOT_LENGTH } from "@reqseq/core/recent-workspaces";
 
@@ -513,11 +514,22 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
   });
 
   it("[SR-131/AK-nkm5] save-expired is an event of the window from the main process, never one of the port", () => {
-    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired"]);
+    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired", "swipe"]);
     expect(isBridgeEvent("save-expired")).toBe(true);
     expect(PORT_EVENTS).not.toContain("save-expired");
     for (const data of [{}, { closing: true }, { more: 1 }, "x"]) {
       expect(portMessage({ event: "save-expired", data })).toBeUndefined();
+    }
+  });
+
+  it("[SR-163/AK-fkcm] a swipe is an event of the window from the main process, never one of the port, and only left or right", () => {
+    expect(isBridgeEvent("swipe")).toBe(true);
+    expect(PORT_EVENTS).not.toContain("swipe");
+    expect(portMessage({ event: "swipe", data: { direction: "left" } })).toBeUndefined();
+    expect(swipeDirection("left")).toBe("left");
+    expect(swipeDirection("right")).toBe("right");
+    for (const value of ["up", "down", "Left", "", undefined, null, 1, { direction: "left" }]) {
+      expect(swipeDirection(value)).toBeUndefined();
     }
   });
 });

@@ -1,13 +1,25 @@
 // @vitest-environment happy-dom
 // Alt+N and Alt+P (Option+N and Option+P on macOS) in the app (SR-115 AK5): forward and back through the
 // buffers in the order they were shown, also while typing in the text editor, and not while a prompt is open.
-// The mouse buttons Back and Forward do the same (SR-163).
+// The mouse buttons Back and Forward do the same (SR-163), and so does a swipe that macOS reports to the window
+// (SR-163 AK4).
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
-import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
+import { completionStatus } from "@codemirror/autocomplete";
+import type {
+  BridgeEvent,
+  BridgeEvents,
+  CommandListing,
+  InvokeResult,
+  ReqSeqBridge,
+  SwipeDirection,
+} from "../shared/protocol.js";
+import type { AboutInfo } from "./about.js";
+import { PREFIX_DELAY_MS } from "./bindings.js";
+import { askDate, calendarOpen } from "./editor/calendar.js";
 import { App } from "./App.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
@@ -28,6 +40,9 @@ const row = (n: number, extra: object = {}) => ({
 
 type Handler = (input: Record<string, unknown>) => unknown;
 
+/** Whether the workspace can be written: read-only unless a test says so. */
+let writable = false;
+
 /** The texts written by the app (SR-105: leaving a buffer saves it), by UUID. */
 const written = new Map<string, string>();
 
@@ -35,7 +50,7 @@ const written = new Map<string, string>();
 const HANDLERS: Record<string, Handler> = {
   // The line of coverage over a list: no counted requirement.
   ...NO_SUMMARY,
-  "workspace.status": () => ({ name: "Weather station", readOnly: true }),
+  "workspace.status": () => ({ name: "Weather station", readOnly: !writable }),
   "element.list": () => ({ elements: [row(1), row(2), row(3)], total: 3 }),
   "element.get": (input) => ({
     element: row(Number(String(input["ref"]).replace("uuid-", "")), {
@@ -77,11 +92,48 @@ const HANDLERS: Record<string, Handler> = {
   }),
 };
 
+/** The window "About ReqSeq" (SR-161) shows the output of `tool.info`, the one catalog command of these tests. */
+const ABOUT: AboutInfo = {
+  versions: { app: "0.9.0", cli: "0.9.0", mcp: "0.9.0" },
+  build: { development: true, platform: "linux", arch: "x64" },
+  runtime: { node: "22.20.0" },
+  workspace: { path: "/work/spec", name: "Weather station", repositories: ["spec"], elements: 3 },
+  license: { notice: ["Copyright 2026"] },
+  documentation: { online: "https://example.invalid/docs", releases: "https://example.invalid/releases" },
+};
+HANDLERS["tool.info"] = () => ABOUT;
+const TOOL_INFO = [
+  {
+    name: "tool.info",
+    title: "About ReqSeq",
+    summary: "Version and build of ReqSeq.",
+    effect: "read",
+    stage: 6,
+    implements: ["SR-161"],
+    arguments: [],
+    input: { type: "object" },
+    output: { type: "object" },
+    implemented: true,
+  },
+] as unknown as readonly CommandListing[];
+
+/** The listeners of `swipe`, the one bridge event these tests send. */
+const swipeListeners = new Set<(data: BridgeEvents["swipe"]) => void>();
+
 const bridge: ReqSeqBridge = {
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) }),
-  commands: () => Promise.resolve([]),
-  on: () => () => undefined,
+  commands: () => Promise.resolve(TOOL_INFO),
+  on: <E extends BridgeEvent>(event: E, listener: (data: BridgeEvents[E]) => void) => {
+    if (event !== "swipe") {
+      return () => undefined;
+    }
+    const swiped = listener as (data: BridgeEvents["swipe"]) => void;
+    swipeListeners.add(swiped);
+    return () => {
+      swipeListeners.delete(swiped);
+    };
+  },
   copyText: () => Promise.resolve(true),
   pasteText: () => Promise.resolve(true),
   recentWorkspaces: () => Promise.resolve([]),
@@ -96,6 +148,7 @@ let container: HTMLElement;
 let root: Root;
 
 beforeEach(() => {
+  writable = false;
   written.clear();
   window.localStorage.clear();
   window.sessionStorage.clear();
@@ -149,6 +202,27 @@ const mouse = async (target: EventTarget, button: number): Promise<MouseEvent> =
   });
   await flush();
   return event;
+};
+
+/** A swipe to the left or right as macOS reports it to the window (SR-163 AK4), after the preload checked it. */
+const swipe = async (direction: SwipeDirection): Promise<void> => {
+  await act(async () => {
+    for (const listener of swipeListeners) {
+      listener({ direction });
+    }
+    await Promise.resolve();
+  });
+  await flush();
+};
+
+/** A turn of the mouse wheel over `target` that still coasts. */
+const wheel = async (target: EventTarget): Promise<void> => {
+  await act(async () => {
+    for (let n = 0; n < 3; n += 1) {
+      target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 40 }));
+    }
+    await Promise.resolve();
+  });
 };
 
 const type = async (value: string): Promise<void> => {
@@ -368,6 +442,139 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 
+  it("[SR-163/AK-fkcm] a swipe to the left does what the mouse button Back does, to the right what Forward does, also while a wheel coasts", async () => {
+    await openFour();
+    await press(window, { key: "p", ctrlKey: true });
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("SR-000001 Title 1");
+    await wheel(query("[data-buffer]"));
+    await swipe("left");
+    expect(shown()).toBe("Search: wind");
+    await swipe("left");
+    expect(shown()).toBe("All elements");
+    await wheel(query("[data-buffer]"));
+    await swipe("right");
+    expect(shown()).toBe("Search: wind");
+    expect(document.activeElement).toBe(query("[data-buffer]"));
+  });
+
+  it("[SR-163/AK-fkcm] a swipe in the text editor switches as the mouse button does; the editor loses the focus", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await act(async () => {
+      editorView().focus();
+      await Promise.resolve();
+    });
+    await swipe("left");
+    expect(shown()).toBe("All elements");
+    expect(document.activeElement).toBe(query("[data-buffer]"));
+  });
+
+  it("[SR-163/AK-fkcm] with one buffer a swipe switches nothing", async () => {
+    await render();
+    await swipe("left");
+    await swipe("right");
+    expect(shown()).toBe("Overview");
+  });
+
+  it("[SR-163/AK-fkcm] with the command line open, a context menu or About ReqSeq a swipe switches nothing and closes nothing", async () => {
+    await openFour();
+    await press(window, { key: "p", ctrlKey: true });
+    await swipe("left");
+    await swipe("right");
+    expect(container.querySelector("input")).not.toBeNull();
+    expect(shown()).toBe("Search: wind");
+    await press(query("input"), { key: "Escape" });
+    expect(container.querySelector("input")).toBeNull();
+    // The context menu, asked for by a key (the Menu key, Shift+F10: a `contextmenu` without a press).
+    const menu = (): Element | null => document.querySelector('[role="menu"]');
+    await act(async () => {
+      query("[data-buffer]").dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(menu()).not.toBeNull();
+    await swipe("left");
+    expect(menu()).not.toBeNull();
+    expect(shown()).toBe("Search: wind");
+    await press(window, { key: "Escape" });
+    expect(menu()).toBeNull();
+    // "About ReqSeq".
+    await runCommand("About ReqSeq");
+    const about = (): Element | null =>
+      document.querySelector('[role="dialog"][aria-labelledby="about-title"]');
+    expect(about()).not.toBeNull();
+    await swipe("left");
+    expect(about()).not.toBeNull();
+    expect(shown()).toBe("Search: wind");
+  });
+
+  it("[SR-163/AK-fkcm] while the card of the next keys is shown a swipe switches nothing; before it is shown it ends the prefix key and switches", async () => {
+    await openFour();
+    const echo = (): string => query(".minibuffer").textContent;
+    await press(window, { key: "k", ctrlKey: true });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, PREFIX_DELAY_MS + 50));
+    });
+    await flush();
+    expect(echo()).toContain("Ctrl+K");
+    const card = echo();
+    await swipe("left");
+    expect(shown()).toBe("Search: wind");
+    expect(echo()).toBe(card);
+    await press(window, { key: "Escape" });
+    // The prefix waits, the card is not shown yet: the swipe ends the prefix and switches.
+    await press(window, { key: "k", ctrlKey: true });
+    expect(echo()).toContain("Ctrl+K");
+    await swipe("left");
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(echo()).not.toContain("Ctrl+K");
+    // The prefix waits no longer: the next key is a shortcut again.
+    await alt(window, "n");
+    expect(shown()).toBe("Search: wind");
+  });
+
+  it("[SR-163/AK-fkcm] with the slash menu or the calendar open in the text editor a swipe switches nothing and closes neither", async () => {
+    // A workspace that can be written: the text editor has its slash menu.
+    writable = true;
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await act(async () => {
+      editorView().focus();
+      await Promise.resolve();
+    });
+    for (const char of ["\n", "/"]) {
+      await act(async () => {
+        const head = editorView().state.doc.length;
+        editorView().dispatch({
+          changes: { from: head, insert: char },
+          selection: { anchor: head + 1 },
+          userEvent: "input.type",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      });
+    }
+    await flush();
+    expect(completionStatus(editorView().state)).toBe("active");
+    await swipe("left");
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(completionStatus(editorView().state)).toBe("active");
+    await press(query(".cm-content"), { key: "Escape" });
+    expect(completionStatus(editorView().state)).toBeNull();
+    await act(async () => {
+      askDate(editorView(), "2026-11-13");
+      await Promise.resolve();
+    });
+    expect(calendarOpen(editorView().state)).toBe(true);
+    await swipe("right");
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(calendarOpen(editorView().state)).toBe(true);
+  });
+
   it('[SR-115/AK-m5pg] "Next buffer" and "Previous buffer" are commands of the prompt', async () => {
     await openFour();
     await runCommand("Next buffer");
@@ -415,6 +622,38 @@ describe("App, the switch to the previous or next buffer in motion (SR-212)", ()
     await press(query("[data-buffer]"), { key: "ArrowDown" });
     expect(picture()).toBeNull();
     expect(query('[data-layer="main"]').style.transform).toBe("");
+  });
+
+  it("[SR-212/AK-d25h] [SR-212/AK-kqvx] a swipe slides as the mouse button does, and the next swipe ends the slide and acts on the new buffer", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await swipe("left");
+    expect(shown()).toBe("All elements");
+    expect(picture()?.textContent).toContain("Title 1");
+    expect(document.activeElement).toBe(query("[data-buffer]"));
+    // The next swipe ends the first slide at once and goes one more step back.
+    await swipe("left");
+    expect(shown()).toBe("Overview");
+    expect(picture()?.textContent ?? "All elements").toMatch(/^All elements/);
+    // A swipe that switches nothing (a context menu is open) ends the slide too, in its end state.
+    await swipe("right");
+    expect(shown()).toBe("All elements");
+    expect(picture()).not.toBeNull();
+    await act(async () => {
+      query("[data-buffer]").dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    expect(picture()).not.toBeNull();
+    await swipe("left");
+    expect(shown()).toBe("All elements");
+    expect(picture()).toBeNull();
+    expect(query('[data-layer="main"]').style.transform).toBe("");
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
   });
 
   it("[SR-212/AK-hmwp] opening an element, Ctrl+P and closing a buffer show the other buffer without a picture", async () => {

@@ -3,14 +3,14 @@
 // Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): back and forward
 // through the buffers in the order they were shown, wrapping, also while typing in the text editor, and as
 // the commands "Next buffer" and "Previous buffer"; the mouse buttons Back and Forward do what Alt+P and
-// Alt+N do (SR-163). Alt is pressed by its physical key (`Alt+KeyN`); a
+// Alt+N do (SR-163), and so does a swipe macOS reports to the window (SR-163 AK4). Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
 // (SR-115 AK4). "Split window" shows two buffers side by side, an element and its graph (SR-115 AK3).
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll, slideSettled, snapshot, shownLayer } from "./support/app.js";
+import { launchApp, listAll, slideSettled, snapshot, shownLayer, swipe } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -145,6 +145,57 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
+  });
+
+  test("[SR-163/AK-fkcm] on macOS a swipe to the left or right switches buffers as the mouse buttons Back and Forward do, also while a wheel coasts and from the editor, not in the command line", async () => {
+    const { window } = running;
+    const mac = process.platform === "darwin";
+    const session = await window.context().newCDPSession(window);
+    // A wheel turned just before, as a swipe of the mouse software comes while the wheel still coasts.
+    const swipeAfterWheel = async (direction: "left" | "right"): Promise<void> => {
+      for (let n = 0; n < 3; n += 1) {
+        await session.send("Input.dispatchMouseEvent", {
+          type: "mouseWheel",
+          x: 200,
+          y: 200,
+          deltaX: 0,
+          deltaY: 40,
+        });
+      }
+      await swipe(running, direction);
+      await slideSettled(window);
+    };
+    const page = window.url();
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    const name = await shownBuffer(window).getAttribute("aria-label");
+    await swipeAfterWheel("left");
+    // Only macOS reports a swipe: elsewhere the window has no listener for it, and nothing switches.
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", mac ? "All elements" : (name ?? ""));
+    if (!mac) {
+      return;
+    }
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
+    await swipeAfterWheel("right");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await swipeAfterWheel("right");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
+    // From the text editor too: the editor loses the focus; the page stays the same.
+    await window.keyboard.press("Enter");
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await expect(shownBuffer(window)).toBeFocused();
+    expect(window.url()).toBe(page);
+    // With the command line open nothing switches, and it stays open.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    const candidates = window.locator('.candidates [role="option"]');
+    await expect(candidates.first()).toBeVisible();
+    await swipe(running, "left");
+    await expect(candidates.first()).toBeVisible();
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await window.keyboard.press("Escape");
   });
 
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {
