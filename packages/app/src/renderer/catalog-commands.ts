@@ -140,6 +140,11 @@ interface Entry {
   readonly again?: number;
   /** The marks of the condition asked again (SR-215 AK6, AK9). */
   readonly marks?: readonly ConditionMark[];
+  /**
+   * The marks of a condition left by going back before it was taken (Escape, SR-215 AK9): they stand again
+   * when the prompt returns to its field.
+   */
+  readonly held?: { readonly field: string; readonly marks: readonly ConditionMark[] };
 }
 
 /** The values given with one more: in the place of the value asked again, else after the others. */
@@ -823,8 +828,8 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   metamodelLocation: ({ of }) =>
     Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),
   // The sources the catalog names for SR-215 whose issues are still open (#1646 to #1648) are asked as
-  // before: a grouping as text; sorts and the properties and relations of a new element as JSON. Their `FITTING` entries make them readers: a value of one is dropped when the field it reads is
-  // refused.
+  // before: a grouping as text; sorts and the properties and relations of a new element as JSON. Their
+  // `FITTING` entries make them readers: a value of one is dropped when the field it reads is refused.
   group: asText,
   // Built step by step from hits (`askCondition`, #1645); never asked through its offer.
   condition: typed(jsonOr),
@@ -1436,12 +1441,15 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         line: `${lineOf(entry)} · ${field}`,
         ...(entry.error === undefined ? {} : { error: entry.error }),
         explain: shared.explain,
-        back: shared.back,
+        back: (marks) => {
+          back(context, { ...entry, held: { field, marks } });
+        },
         take: (marks, more) => {
-          give(context, entry, field, conditionOf(marks), conditionLabel(marks), more, { marks });
+          const { held: _held, ...rest } = entry;
+          give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
         },
       },
-      entry.marks ?? [],
+      entry.marks ?? (entry.held?.field === field ? entry.held.marks : []),
     );
     return;
   }

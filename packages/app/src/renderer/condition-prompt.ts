@@ -48,8 +48,11 @@ export interface ConditionAsk {
   readonly error?: string;
   /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
   readonly explain: ArgumentExplanation;
-  /** One argument back: Backspace on an empty input without a mark, and Escape, in the first step. */
-  readonly back: () => void;
+  /**
+   * One argument back, with the marks given, which stand again when the condition is asked again (AK9):
+   * Backspace on an empty input without a mark, and Escape, in the first step.
+   */
+  readonly back: (marks: readonly ConditionMark[]) => void;
   /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly take: (marks: readonly ConditionMark[], more: boolean) => void;
 }
@@ -354,7 +357,9 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
         json: true,
       },
     },
-    back: given.back,
+    back: () => {
+      given.back(marks);
+    },
   };
   given.context.ask(prompt);
 };

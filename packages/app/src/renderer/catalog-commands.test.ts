@@ -3322,6 +3322,25 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     expect((await last(asked)).label).toBe("Save filter · name:");
   });
 
+  it("[SR-215/AK-rx2z] Escape at the kinds keeps the marks: they stand again when the prompt returns to the condition, also after a refusal", async () => {
+    const { asked } = await atWhere();
+    await choose(asked, "Type", "Decision");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+    (await last(asked)).text?.("open");
+    expect(await marks(asked)).toEqual(["type: decision"]);
+
+    const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
+    const refused = await atWhere(false, { "filter.save": () => refusal });
+    (await last(refused.asked)).literal?.("{a")?.run();
+    await choose(refused.asked, "Take 1 condition");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+    (await last(refused.asked)).back?.();
+    (await last(refused.asked)).text?.("open");
+    expect((await last(refused.asked)).label).toBe("Save filter open · where:");
+    expect(await marks(refused.asked)).toEqual(["{a"]);
+  });
+
   it("[SR-215/AK-hnzf] the input is the marks in their order under all, as the command line takes it", async () => {
     const { asked, call } = await atWhere();
     await choose(asked, "Status", "Draft");
