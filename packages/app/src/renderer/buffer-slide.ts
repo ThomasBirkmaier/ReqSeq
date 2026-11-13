@@ -11,9 +11,10 @@
 //
 // The motion starts once the new view is drawn (`drawn`, or after `DRAW_DEADLINE_MS` when it never says so),
 // and then always runs: assumption (a) of the open question #1624, by which the 200 ms bound the motion and the
-// time to draw keeps its own limits (SR-082, SR-111 AK6). A key, a press of a
-// mouse button, or any other change of the area's buffer ends it at once in its end state (AK2, AK3). Without
-// motion in the system ("Bewegung reduzieren", AK4) nothing is taken and nothing moves.
+// time to draw keeps its own limits (SR-082, SR-111 AK6). A key, a press of a mouse button, a swipe macOS
+// reports to the window (`interrupt`, SR-163 AK4), or any other change of the area's buffer ends it at once in
+// its end state (AK2, AK3). Without motion in the system ("Bewegung reduzieren", AK4) nothing is taken and
+// nothing moves.
 
 /** The way of the switch: `back` (Previous buffer) moves out to the right, `forward` (Next buffer) to the left. */
 export type SlideDirection = "back" | "forward";
@@ -175,6 +176,17 @@ export const takePicture = (layer: Element, prefix = PICTURE_PREFIX): Picture =>
   };
 };
 
+/**
+ * The layer of an area that holds the shown buffer, as a selector from the area. Buffers drawn in advance stand
+ * hidden beside it (SR-212 AK5), so a lookup of the shown view through its area goes through this layer, never
+ * to the first match in the area.
+ */
+export const SHOWN_LAYER = ':scope > [data-layer="main"]';
+
+/** The shown layer of `area`, or null when there is none. */
+export const shownLayer = (area: ParentNode | null | undefined): HTMLElement | null =>
+  area?.querySelector<HTMLElement>(SHOWN_LAYER) ?? null;
+
 /** The two layers of an area's track (`BufferArea.tsx`). */
 export interface Track {
   readonly main: HTMLElement;
@@ -184,11 +196,9 @@ export interface Track {
 /** The layers of the area on `side` in `root`, or undefined when there is no such area. */
 export const trackOf = (root: ParentNode | null | undefined, side: string): Track | undefined => {
   const area = root?.querySelector(`[data-area="${side}"]`);
-  const main = area?.querySelector<HTMLElement>(':scope > [data-layer="main"]');
+  const main = shownLayer(area);
   const layer = area?.querySelector<HTMLElement>(':scope > [data-layer="side"]');
-  return main === null || main === undefined || layer === null || layer === undefined
-    ? undefined
-    : { main, side: layer };
+  return main === null || layer === null || layer === undefined ? undefined : { main, side: layer };
 };
 
 /** One switch: the area, the buffer left, the buffer shown, and the way. */
@@ -226,7 +236,10 @@ type Phase =
       readonly animations: readonly Animation[];
     };
 
-/** The input that ends a slide at once (AK2): a key, a press of any mouse button, the buttons Back and Forward. */
+/**
+ * The input that ends a slide at once (AK2): a key, a press of any mouse button, the buttons Back and Forward. A
+ * swipe macOS reports to the window has no DOM event and ends it through `interrupt`.
+ */
 const ENDING = ["keydown", "pointerdown", "mousedown", "mouseup"] as const;
 
 /**
@@ -252,6 +265,14 @@ export class SlideController {
 
   constructor(host: SlideHost) {
     this.host = host;
+  }
+
+  /**
+   * Ends a taken, waiting or running slide at once in its end state, as a key does (AK2): for input without a
+   * DOM event, a swipe macOS reports to the window (SR-163 AK4). A switch made after it calls `prepare`.
+   */
+  interrupt(): void {
+    this.end();
   }
 
   /** A slide is taken, waits for its draw or runs. */

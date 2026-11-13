@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const execFileAsync = promisify(execFile);
 const folder = (relative: string): string => fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
@@ -62,7 +62,7 @@ const TYPING = { ms: 60, letters: 4 };
 const label = (window: Page) => window.getByLabel("Minibuffer").locator("label");
 const modeline = (window: Page) => window.getByLabel("Modeline");
 const first = (window: Page) => window.locator('.candidates [role="option"] .name').first();
-const heading = (window: Page) => window.locator("article h1");
+const heading = (window: Page) => shownLayer(window).locator("article h1");
 
 test.skip(process.platform !== "linux", "the guide's images are made on Linux only (ADR-0017)");
 
@@ -194,7 +194,7 @@ test("[SR-203/AK-vj7k] the README animation: Get started in the app, ending in t
     await expect(first(window)).toHaveText(`N-7fe707 ${NEED.title}`);
     await frame(600);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".result")).toBeVisible();
+    await expect(shownLayer(window).locator(".result")).toBeVisible();
     await frame(1000);
 
     // The end: the need and what hangs on it, as a graph.
@@ -206,7 +206,7 @@ test("[SR-203/AK-vj7k] the README animation: Get started in the app, ending in t
     await expect(heading(window)).toHaveText(NEED.title);
     await frame(900);
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeVisible();
+    await expect(shownLayer(window).locator(".graph")).toBeVisible();
     await expect(window.getByText(REQUIREMENT.title)).toBeVisible();
     await frame(4000);
   } finally {

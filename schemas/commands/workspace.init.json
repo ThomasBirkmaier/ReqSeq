@@ -10,7 +10,7 @@
   "arguments": [
     { "field": "path", "complete": "folder" },
     { "field": "name", "complete": "text" },
-    { "field": "metamodel", "complete": "json" }
+    { "field": "metamodel", "complete": "metamodelLocation" }
   ],
   "input": {
     "type": "object",

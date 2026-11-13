@@ -8,8 +8,8 @@
   "arguments": [
     { "field": "kind", "complete": "choice" },
     { "field": "type", "complete": "type" },
-    { "field": "package", "complete": "element" },
-    { "field": "variant", "complete": "element" },
+    { "field": "package", "complete": "element", "meaning": "package" },
+    { "field": "variant", "complete": "element", "meaning": "variant" },
     { "field": "ref", "complete": "element" },
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" }

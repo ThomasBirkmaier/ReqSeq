@@ -3,14 +3,14 @@
 // Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): back and forward
 // through the buffers in the order they were shown, wrapping, also while typing in the text editor, and as
 // the commands "Next buffer" and "Previous buffer"; the mouse buttons Back and Forward do what Alt+P and
-// Alt+N do (SR-163). Alt is pressed by its physical key (`Alt+KeyN`); a
+// Alt+N do (SR-163), and so does a swipe macOS reports to the window (SR-163 AK4). Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
 // (SR-115 AK4). "Split window" shows two buffers side by side, an element and its graph (SR-115 AK3).
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll, slideSettled, snapshot } from "./support/app.js";
+import { launchApp, listAll, slideSettled, snapshot, shownLayer, swipe } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -21,7 +21,7 @@ const ELEMENT_ID = "N-0000a1";
 const LINE = "N1: parent of SR-0000b1 and SR-0000b2.";
 
 /** The shown buffer: its name is its label. */
-const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
+const shownBuffer = (window: Page): Locator => shownLayer(window).locator("[data-buffer]");
 
 const modeline = (window: Page): Locator => window.getByLabel("Modeline");
 
@@ -31,8 +31,8 @@ const goTo = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 /** Searches `text` with Ctrl/Cmd+Shift+F. */
@@ -54,7 +54,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
     await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   });
   test.afterEach(async () => {
     await running.close();
@@ -65,8 +65,8 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     // Opened in this order: the overview (at the start), the list, an element, a search.
     await listAll(window);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toBeVisible();
-    const element = await window.locator("article").getAttribute("aria-label");
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
+    const element = await shownLayer(window).locator("article").getAttribute("aria-label");
     await search(window, "wind");
     // Back to the element: shown last are the element, the search, the list, the overview.
     await window.keyboard.press("ControlOrMeta+P");
@@ -117,7 +117,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     // From the text editor too, as Alt+P: the editor loses the focus; the page stays the same.
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     await click("back");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
@@ -140,11 +140,66 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     await window.keyboard.press("Meta+BracketLeft");
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
+  });
+
+  test("[SR-163/AK-fkcm] on macOS a swipe to the left or right switches buffers as the mouse buttons Back and Forward do, also while a wheel coasts and from the editor, not in the command prompt", async () => {
+    const { window } = running;
+    const mac = process.platform === "darwin";
+    const session = await window.context().newCDPSession(window);
+    // A wheel turned just before, as a swipe of the mouse software comes while the wheel still coasts.
+    const swipeAfterWheel = async (direction: "left" | "right"): Promise<void> => {
+      for (let n = 0; n < 3; n += 1) {
+        await session.send("Input.dispatchMouseEvent", {
+          type: "mouseWheel",
+          x: 200,
+          y: 200,
+          deltaX: 0,
+          deltaY: 40,
+        });
+      }
+      await swipe(running, direction);
+      await slideSettled(window);
+    };
+    const page = window.url();
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    const name = await shownBuffer(window).getAttribute("aria-label");
+    await swipeAfterWheel("left");
+    // Only macOS reports a swipe: elsewhere the window has no listener for it, and nothing switches.
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", mac ? "All elements" : (name ?? ""));
+    if (!mac) {
+      return;
+    }
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
+    await swipeAfterWheel("right");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await swipeAfterWheel("right");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
+    // From the text editor too: the editor loses the focus; the page stays the same.
+    await window.keyboard.press("Enter");
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await expect(shownBuffer(window)).toBeFocused();
+    expect(window.url()).toBe(page);
+    // With the command prompt open nothing switches, and it stays open.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    const candidates = window.locator('.candidates [role="option"]');
+    await expect(candidates.first()).toBeVisible();
+    await swipe(running, "left");
+    await expect(candidates.first()).toBeVisible();
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await window.keyboard.press("Escape");
+    await expect(candidates.first()).toBeHidden();
+    // The window handles the swipes in order: this one switches, so the blocked one before it was handled.
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
   });
 
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {
@@ -157,7 +212,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await window.keyboard.press("Alt+KeyN");
     await slideSettled(window);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
   });
 
   test("[SR-115/AK-m5pg] Alt+N and Alt+P while typing in the editor switch buffers and insert no character", async () => {
@@ -166,7 +221,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await goTo(window, ELEMENT);
     const name = await shownBuffer(window).getAttribute("aria-label");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     await window.keyboard.insertText(" ENDE");
     await expect(modeline(window)).toContainText("modified");
     await window.keyboard.press("Alt+KeyN");
@@ -180,10 +235,10 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(modeline(window)).not.toContainText("modified");
     // The switch leaves the focus on the shown buffer; Enter finds the editor once the element is loaded.
     await expect(shownBuffer(window)).toBeFocused();
-    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
+    await expect(shownLayer(window).locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
     // Again from inside the editor, the other way.
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
@@ -192,7 +247,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     // The text is what was typed (Enter put the cursor after the last line break), without an "n", a "p"
     // or anything else, and so is the file.
-    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
+    await expect(shownLayer(window).locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
     expect((await savedText(running)).trimEnd()).toBe(`${LINE}\n ENDE`);
   });
 
@@ -201,39 +256,41 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await listAll(window);
     await goTo(window, ELEMENT);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     // macOS: Option+N is the dead key of "~", Option+P is "π". Playwright cannot type a dead key, so
     // the page gets the keydown that macOS gives it.
     const option = (key: string, code: string): Promise<boolean> =>
-      window.locator(".cm-content").evaluate(
-        (content, init) => {
-          const event = new KeyboardEvent("keydown", {
-            ...init,
-            altKey: true,
-            bubbles: true,
-            cancelable: true,
-          });
-          content.dispatchEvent(event);
-          return event.defaultPrevented;
-        },
-        { key, code },
-      );
+      shownLayer(window)
+        .locator(".cm-content")
+        .evaluate(
+          (content, init) => {
+            const event = new KeyboardEvent("keydown", {
+              ...init,
+              altKey: true,
+              bubbles: true,
+              cancelable: true,
+            });
+            content.dispatchEvent(event);
+            return event.defaultPrevented;
+          },
+          { key, code },
+        );
     expect(await option("Dead", "KeyN")).toBe(true);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
-    await expect(window.locator(".cm-editor")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".cm-editor")).toHaveCount(0);
     await expect(shownBuffer(window)).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
     // The switch leaves the focus on the shown buffer; Enter finds the editor once the element is loaded.
     await expect(shownBuffer(window)).toBeFocused();
-    await expect(window.locator(".cm-line")).toHaveText([LINE, ""]);
+    await expect(shownLayer(window).locator(".cm-line")).toHaveText([LINE, ""]);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(shownLayer(window).locator(".cm-content")).toBeFocused();
     expect(await option("π", "KeyP")).toBe(true);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Alt+KeyN");
     await slideSettled(window);
-    await expect(window.locator(".cm-line")).toHaveText([LINE, ""]);
+    await expect(shownLayer(window).locator(".cm-line")).toHaveText([LINE, ""]);
     await expect(modeline(window)).not.toContainText("modified");
   });
 
@@ -274,7 +331,7 @@ test.describe("Go to and no tab bar", () => {
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
     await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   });
   test.afterEach(async () => {
     await running.close();
@@ -287,8 +344,8 @@ test.describe("Go to and no tab bar", () => {
     // Opened: the overview (at the start), the list, its first element, a second element by Ctrl+P.
     await listAll(window);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toBeVisible();
-    const first = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
+    const first = (await shownLayer(window).locator("article").getAttribute("aria-label")) ?? "";
     await goTo(window, "Warn of storms");
     // The second element is closed: no longer open, but used.
     await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -311,13 +368,13 @@ test.describe("Go to and no tab bar", () => {
     await window.keyboard.type(typo);
     await expect(names(window)).toHaveText(["SR-0000b3 Survive icing"]);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Survive icing");
     // The element closed before is chosen like a buffer, by a fuzzy text (a slip).
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type("wran of storms");
     await expect(names(window).first()).toHaveText("N-0000a2 Warn of storms");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Warn of storms");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of storms");
   });
 
   test("[SR-115/AK-xn0m] with several buffers open the window has no tab bar", async () => {
@@ -325,10 +382,10 @@ test.describe("Go to and no tab bar", () => {
     // Open: the overview, the list, an element, its graph, a search.
     await listAll(window);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toBeVisible();
-    const element = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
+    const element = (await shownLayer(window).locator("article").getAttribute("aria-label")) ?? "";
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     await search(window, "wind");
     const noTabBar = async (hidden: readonly string[]): Promise<void> => {
       for (const role of ["tab", "tablist", "navigation"] as const) {
@@ -353,7 +410,7 @@ test.describe("Go to and no tab bar", () => {
     await expect(names(window)).toHaveText([`Graph: ${element}`, element, "All elements", "Overview"]);
     await window.keyboard.type("graph");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     await noTabBar(["All elements", "Overview", "Search: wind"]);
   });
 });
@@ -372,10 +429,10 @@ test.describe("the open buffers after a restart", () => {
     // Opened in this order: the overview (at the start), the list, an element, its graph, a search.
     await listAll(window);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toBeVisible();
-    const element = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
+    const element = (await shownLayer(window).locator("article").getAttribute("aria-label")) ?? "";
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     await search(window, "wind");
     // The list is used last.
     await window.keyboard.press("ControlOrMeta+P");
@@ -416,11 +473,11 @@ test.describe("the open buffers after a restart", () => {
     // Each shows its content again.
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
     await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyN");
     await slideSettled(window);
-    await expect(window.locator("article h1")).toBeVisible();
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
     // Nothing of it went into the workspace.
     expect(await snapshot(root)).toEqual(before);
   });
@@ -431,7 +488,7 @@ test.describe("Split window", () => {
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
     await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   });
   test.afterEach(async () => {
     await running.close();
@@ -458,7 +515,7 @@ test.describe("Split window", () => {
     await listAll(window);
     await goTo(window, ELEMENT);
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     await command(window, "Split window");
     // Two areas side by side: the graph where it was, the element beside it.
     const left = window.locator('[data-area="left"]');
@@ -476,7 +533,7 @@ test.describe("Split window", () => {
     expect(centre).toBeGreaterThan(leftBox.x + leftBox.width / 3);
     expect(centre).toBeLessThan(leftBox.x + (leftBox.width * 2) / 3);
     await expect(modeline(window)).toContainText("Graph:");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     // No tab bar while split (AK2).
     await expect(window.getByRole("tab")).toHaveCount(0);
     await expect(window.getByRole("tablist")).toHaveCount(0);

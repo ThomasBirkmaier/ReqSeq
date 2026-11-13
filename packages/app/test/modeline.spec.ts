@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll, shownLayer } from "./support/app.js";
 import { REFERENCE_FILES, REFERENCE_SOURCE_ID, REFERENCE_SOURCE_TITLE } from "./support/demo.js";
 
 const B5 = "requirements/SR-0000000000b5.md";
@@ -28,7 +28,7 @@ const FIXTURE = {
 };
 
 /** The buffer shown in the sheet. */
-const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
+const shownBuffer = (window: Page): Locator => shownLayer(window).locator("[data-buffer]");
 
 /** The parts of the modeline for the shown buffer, left of the workspace. */
 const parts = (window: Page) => window.locator('[aria-label="Modeline"] .parts > .segment');
@@ -47,7 +47,7 @@ const goTo = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 test.describe("the counts of the modeline", () => {
@@ -111,9 +111,9 @@ test.describe("the counts of the modeline", () => {
     await expect(parts(window)).toHaveText(["All elements", plural(listed.total, "element")]);
     // The graph of an element: its name, the depth and the nodes of `trace graph`.
     await goTo(window, "Measure wind speed");
-    const element = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    const element = (await shownLayer(window).locator("article").getAttribute("aria-label")) ?? "";
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(window).locator(".graph")).toBeFocused();
     const graph = await cliJson<{ nodes: unknown[] }>(running, [
       "trace",
       "graph",
@@ -128,7 +128,7 @@ test.describe("the counts of the modeline", () => {
     // The package page: its type by the metamodel's name is the kind, its elements as `element list`
     // with `where.package` counts them.
     await goTo(window, "Sensors");
-    await expect(window.locator(".members .row").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
     const members = await cliJson<{ total: number }>(running, [
       "element",
       "list",
@@ -167,8 +167,8 @@ test.describe("the counts of the modeline", () => {
       JSON.stringify({ selection: { where: { package: "PKG-0000d2" } } }),
     ]);
     expect(members.elements.map((member) => member.status).toSorted()).toEqual(["draft", "obsolete"]);
-    await expect(window.locator(".members .row.fold-row")).toContainText("(1)");
-    await expect(window.locator(".members .row:not(.fold-row)")).toHaveCount(1);
+    await expect(shownLayer(window).locator(".members .row.fold-row")).toContainText("(1)");
+    await expect(shownLayer(window).locator(".members .row:not(.fold-row)")).toHaveCount(1);
     await expect(parts(window).nth(1)).toHaveText(plural(members.total, "element"));
   });
 });

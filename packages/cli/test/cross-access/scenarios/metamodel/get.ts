@@ -52,6 +52,15 @@ scenariosOf("metamodel.get", [
         ]);
         expect(kind("based-on"), access).not.toHaveProperty("source-types");
         expect(kind("blocks")?.["source-types"], access).toEqual([]);
+        // The relation kinds of each type, as relation.options gives them an element of it (SR-215 AK8).
+        expect(
+          output.relationKinds["item"]?.map((option) => option.kind),
+          access,
+        ).toEqual(["based-on", "concerns", "refines"]);
+        expect(
+          output.relationKinds["package"]?.find((option) => option.kind === "concerns")?.targetTypes,
+          access,
+        ).toEqual(["requirement", "software-requirement", "decision"]);
       }
     },
   },

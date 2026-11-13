@@ -58,6 +58,22 @@ export const DOCS_CHANNEL = "reqseq:open-docs";
  */
 export const HELP_CHANNEL = "reqseq:help";
 
+/**
+ * Main to preload, macOS only: the window got a swipe to the left or right as its own event, as older mouse
+ * software sends the buttons Back and Forward and a three-finger swipe arrives (SR-163 AK4). Carries the
+ * direction (`SwipeDirection`); the preload emits it as the window event `swipe`.
+ */
+export const SWIPE_CHANNEL = "reqseq:swipe";
+
+/** The directions of a swipe the window acts on: left is Back, right is Forward (SR-163 AK4). */
+export type SwipeDirection = "left" | "right";
+
+const SWIPE_DIRECTIONS: readonly unknown[] = ["left", "right"] satisfies readonly SwipeDirection[];
+
+/** `value` as a direction of SWIPE_CHANNEL, or undefined (`up`, `down` and anything else). */
+export const swipeDirection = (value: unknown): SwipeDirection | undefined =>
+  SWIPE_DIRECTIONS.includes(value) ? (value as SwipeDirection) : undefined;
+
 /** Main's answer on DOCS_CHANNEL: opened, or why not (`file.folder-missing`'s message when the delivery has no site). */
 export type OpenDocsResult = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
@@ -217,7 +233,7 @@ export type AgentActivity = ActivityAccess;
  * The events the core process and the main process send a window, by name, with what the listeners of
  * `window.reqseq.on(name, ...)` get. One channel for every event: a new one is one entry here and either
  * one check in `EVENT_DATA` (from the port) or one name in `WINDOW_EVENTS` (from the main process only),
- * and the bridge keeps its seven functions (ADR-0010).
+ * and the bridge keeps its eleven functions (ADR-0010).
  */
 export interface BridgeEvents {
   /** The workspace of the window changed (`WorkspaceChangeReason`). */
@@ -229,6 +245,16 @@ export interface BridgeEvents {
    * workspace stays. From the main process (SAVE_CHANNEL `expired`), never the port (`WINDOW_EVENTS`).
    */
   readonly "save-expired": SaveExpired;
+  /**
+   * macOS reported a swipe to the left or right as its own event (SR-163 AK4): Back or Forward. From the
+   * main process (SWIPE_CHANNEL), never the port (`WINDOW_EVENTS`).
+   */
+  readonly swipe: Swipe;
+}
+
+/** The data of `swipe`: its direction. */
+export interface Swipe {
+  readonly direction: SwipeDirection;
 }
 
 /** The data of `save-expired`: that it happened, and whether main waited before closing the window. */
@@ -274,7 +300,8 @@ export interface ReqSeqBridge {
   /**
    * Calls `listener` with each `event` (`BridgeEvents`): `workspace-changed` whenever the workspace
    * changed, `agent-activity` whenever an agent read or changed an element through the API or MCP
-   * (SR-117). Returns the function that unsubscribes it; any other name subscribes nothing.
+   * (SR-117), `save-expired` when main gave up waiting for a save (SR-131 AK3), and `swipe` when macOS
+   * reported a swipe to the left or right (SR-163 AK4). Returns the function that unsubscribes it; any other name subscribes nothing.
    */
   on<E extends BridgeEvent>(event: E, listener: (data: BridgeEvents[E]) => void): () => void;
   /**
@@ -519,7 +546,7 @@ const agentActivity = (value: unknown): AgentActivity | undefined => {
  * The events that only the main process sends (the preload emits them itself): the port never carries
  * them, so a core process cannot fake one.
  */
-const WINDOW_EVENTS = ["save-expired"] as const satisfies readonly BridgeEvent[];
+const WINDOW_EVENTS = ["save-expired", "swipe"] as const satisfies readonly BridgeEvent[];
 
 /** An event the port carries. */
 type PortEventName = Exclude<BridgeEvent, (typeof WINDOW_EVENTS)[number]>;

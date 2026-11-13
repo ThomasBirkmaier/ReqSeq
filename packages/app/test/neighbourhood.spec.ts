@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const P = "5e107a7d-2b4f-4c61-9d08-";
 const ID = {
@@ -61,24 +61,24 @@ const openElement = async (window: Page, shortId: string, title: string): Promis
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
   // The next key goes to the element that is shown, not to the buffer behind the prompt.
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 /** Ctrl+J on the shown element; the next key goes to the neighbourhood once it has the focus and its tree. */
 const showNeighbourhood = async (window: Page): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+J");
-  await expect(window.locator(".neighbourhood")).toBeFocused();
-  await expect(window.locator('[role="tree"]')).toHaveCount(1);
+  await expect(shownLayer(window).locator(".neighbourhood")).toBeFocused();
+  await expect(shownLayer(window).locator('[role="tree"]')).toHaveCount(1);
 };
 
 /** The title and the words after it of the rows of the tree, without the arrow before the title. */
 const treeRows = async (window: Page): Promise<string[]> =>
-  (await window.locator('[role="tree"] [role="treeitem"] .title').allTextContents()).map((text) =>
+  (await shownLayer(window).locator('[role="tree"] [role="treeitem"] .title').allTextContents()).map((text) =>
     text.replace(/^[▸▾]/, ""),
   );
 
 const groupRows = (window: Page, heading: string): Promise<string[]> =>
-  window.locator(`[role="listbox"][aria-label="${heading}"] .row .title`).allTextContents();
+  shownLayer(window).locator(`[role="listbox"][aria-label="${heading}"] .row .title`).allTextContents();
 
 test.describe("the neighbourhood of an element on a fixture workspace", () => {
   let running: RunningApp;
@@ -105,14 +105,14 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
       [ID.N1, `${P}0a0000000002`].map((id) => titleOf(up, id)).join(" · "),
       [ID.S1, ID.S2].map((id) => titleOf(up, id)).join(" · "),
     ].join(" › ");
-    await expect(window.locator(".parents")).toHaveText(expected);
+    await expect(shownLayer(window).locator(".parents")).toHaveText(expected);
     expect(expected).toContain("See the wind");
-    const line = await window.locator(".parents").boundingBox();
-    const title = await window.locator("article h1").boundingBox();
+    const line = await shownLayer(window).locator(".parents").boundingBox();
+    const title = await shownLayer(window).locator("article h1").boundingBox();
     expect((line?.y ?? 0) + (line?.height ?? 0)).toBeLessThanOrEqual(title?.y ?? 0);
-    await window.locator('.parents [role="link"]', { hasText: "See the wind" }).click();
-    await expect(window.locator("article h1")).toHaveText("See the wind");
-    await expect(window.locator(".parents")).toHaveCount(0);
+    await shownLayer(window).locator('.parents [role="link"]', { hasText: "See the wind" }).click();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the wind");
+    await expect(shownLayer(window).locator(".parents")).toHaveCount(0);
   });
 
   test("[SR-107/AK-bhct] Ctrl+J shows the children of N1 as a tree that opens level by level, and S1's incoming links by kind", async () => {
@@ -123,7 +123,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
       traced(running, { ref: ID.N1, direction: "down", meanings: ["derivation"], maxDepth });
     const first = await asked(1);
     const level1 = first.edges.map((edge) => titleOf(first, edge.source));
-    await expect(window.locator(".neighbourhood h1")).toContainText("See the wind");
+    await expect(shownLayer(window).locator(".neighbourhood h1")).toContainText("See the wind");
     expect(await treeRows(window)).toEqual(level1);
     expect(level1).toEqual(["Show wind speed", "Show wind direction"]);
     // Right opens the first row: its child comes one level in.
@@ -132,20 +132,24 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     const underS1 = second.edges
       .filter((edge) => edge.target === ID.S1)
       .map((e) => titleOf(second, e.source));
-    await expect(window.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(underS1.length);
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-level="2"]')).toHaveCount(underS1.length);
     expect(await treeRows(window)).toEqual(["Show wind speed", ...underS1, "Show wind direction"]);
     // Left closes it again.
     await window.keyboard.press("ArrowLeft");
     expect(await treeRows(window)).toEqual(level1);
     // Back to the element with the same key, and S1's neighbourhood: its incoming links by kind.
     await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator("article h1")).toHaveText("See the wind");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the wind");
     await openElement(window, SHORT.S1, "Show wind speed");
     await window.keyboard.press("ControlOrMeta+J");
     const incoming = await traced(running, { ref: ID.S1, direction: "down" });
     const sources = (kind: string | undefined) =>
       incoming.edges.filter((edge) => edge.kind === kind).map((edge) => titleOf(incoming, edge.source));
-    await expect(window.locator("h2")).toHaveText(["Children", "← excludes", "← inline reference"]);
+    await expect(shownLayer(window).locator("h2")).toHaveText([
+      "Children",
+      "← excludes",
+      "← inline reference",
+    ]);
     expect(await groupRows(window, "← excludes")).toEqual(sources("excludes"));
     expect(await groupRows(window, "← inline reference")).toEqual(sources(undefined));
     expect(sources("excludes")).toEqual(["Indoor display"]);
@@ -156,7 +160,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");
     await showNeighbourhood(window);
-    const rows = window.locator('[role="treeitem"]');
+    const rows = shownLayer(window).locator('[role="treeitem"]');
     await expect(rows).toHaveCount(2);
     await window.keyboard.press("ArrowDown");
     await expect(rows.first()).toHaveAttribute("aria-selected", "true");
@@ -164,11 +168,11 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     // Tab on the selected row toggles it, and the focus stays on the neighbourhood.
     await window.keyboard.press("Tab");
     await expect(rows.first()).toHaveAttribute("aria-expanded", "true");
-    await expect(window.locator('[role="treeitem"][aria-level="2"]').first()).toBeVisible();
-    await expect(window.locator(".neighbourhood")).toBeFocused();
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-level="2"]').first()).toBeVisible();
+    await expect(shownLayer(window).locator(".neighbourhood")).toBeFocused();
     await window.keyboard.press("Tab");
     await expect(rows.first()).toHaveAttribute("aria-expanded", "false");
-    await expect(window.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(0);
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-level="2"]')).toHaveCount(0);
     // Right opens it, Left closes it.
     await window.keyboard.press("ArrowRight");
     await expect(rows.first()).toHaveAttribute("aria-expanded", "true");
@@ -180,14 +184,14 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");
     await showNeighbourhood(window);
-    await expect(window.locator('[role="treeitem"]')).toHaveCount(2);
+    await expect(shownLayer(window).locator('[role="treeitem"]')).toHaveCount(2);
     await window.keyboard.press("ArrowRight");
     // The next level comes with a second answer: wait for its row before moving on.
-    await expect(window.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(1);
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-level="2"]')).toHaveCount(1);
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("ArrowDown");
     await window.keyboard.press("ArrowRight");
-    await expect(window.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(2);
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-level="2"]')).toHaveCount(2);
     const two = await traced(running, {
       ref: ID.N1,
       direction: "down",
@@ -205,7 +209,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
       "Show wind direction",
       "Count anemometer turns repeated",
     ]);
-    await expect(window.locator("[role=treeitem] .repeated")).toHaveCount(1);
+    await expect(shownLayer(window).locator("[role=treeitem] .repeated")).toHaveCount(1);
   });
 
   test("[SR-107/AK-b9c5] S1's based-on to D1 and E's reference to D2 are marked outdated", async () => {
@@ -215,18 +219,22 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     expect(d1.edges.map((edge) => [edge.kind, edge.outdated])).toEqual([["based-on", true]]);
     await openElement(window, SHORT.D1, "Use a cup anemometer");
     await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator("h2")).toHaveText(["Children", "← based-on"]);
-    await expect(window.locator('[role="listbox"][aria-label="← based-on"] .row')).toContainText("outdated");
-    await expect(window.locator('[role="listbox"][aria-label="← based-on"] .outdated')).toHaveCount(1);
+    await expect(shownLayer(window).locator("h2")).toHaveText(["Children", "← based-on"]);
+    await expect(shownLayer(window).locator('[role="listbox"][aria-label="← based-on"] .row')).toContainText(
+      "outdated",
+    );
+    await expect(
+      shownLayer(window).locator('[role="listbox"][aria-label="← based-on"] .outdated'),
+    ).toHaveCount(1);
     // D2's neighbourhood shows E under "← inline reference", outdated.
     await window.keyboard.press("ControlOrMeta+J");
     await openElement(window, SHORT.D2, "Show values in SI units");
     await window.keyboard.press("ControlOrMeta+J");
     const d2 = await traced(running, { ref: ID.D2, direction: "down" });
     expect(d2.edges.map((edge) => [edge.kind, edge.outdated])).toEqual([[undefined, true]]);
-    await expect(window.locator("h2")).toHaveText(["Children", "← inline reference"]);
+    await expect(shownLayer(window).locator("h2")).toHaveText(["Children", "← inline reference"]);
     await expect(
-      window.locator('[role="listbox"][aria-label="← inline reference"] .row .outdated'),
+      shownLayer(window).locator('[role="listbox"][aria-label="← inline reference"] .row .outdated'),
     ).toHaveCount(1);
   });
 
@@ -237,7 +245,7 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("See the wind");
     await window.keyboard.press("Enter");
     // The AK counts key presses, not waiting: the shortcut goes to the need once it is shown.
-    await expect(window.locator("article h1")).toHaveText("See the wind");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the wind");
     await window.keyboard.press("ControlOrMeta+J");
     const children = await traced(running, {
       ref: ID.N1,
@@ -246,12 +254,14 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     });
     const requirements = children.edges.map((edge) => titleOf(children, edge.source));
     expect(requirements).toHaveLength(2);
-    await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(requirements.length);
+    await expect(shownLayer(window).locator('[role="tree"] [role="treeitem"]')).toHaveCount(
+      requirements.length,
+    );
     expect(await treeRows(window)).toEqual(requirements);
     // No row is selected yet (SR-122): the first Down selects the first requirement.
-    await expect(window.locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(0);
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(0);
     await window.keyboard.press("ArrowDown");
-    await expect(window.locator('[role="treeitem"][aria-selected="true"] .title')).toHaveText(
+    await expect(shownLayer(window).locator('[role="treeitem"][aria-selected="true"] .title')).toHaveText(
       `▸${requirements[0] ?? ""}`,
     );
   });

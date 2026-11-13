@@ -6,7 +6,7 @@ export { createCoreHost } from "./core/host.js";
 export type { Channel, CoreHost, CoreHostOptions } from "./core/host.js";
 export { createBridge } from "./preload/bridge.js";
 export type { IpcRendererLike } from "./preload/bridge.js";
-export { HELP_CHANNEL, SAVE_CHANNEL, WORKSPACE_CHANNEL } from "./shared/protocol.js";
+export { HELP_CHANNEL, SAVE_CHANNEL, SWIPE_CHANNEL, WORKSPACE_CHANNEL } from "./shared/protocol.js";
 export type * from "./shared/protocol.js";
 // How the app offers each catalog command, for the documentation generator (ADR-0017).
 export { appCommandEntry, commandPromptKey } from "./renderer/command-entry.js";

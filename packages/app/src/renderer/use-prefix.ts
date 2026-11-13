@@ -38,6 +38,10 @@ export interface Prefix {
   readonly start: () => void;
   /** The next keys, while they are shown. */
   readonly rows: readonly NextKeyRow[] | undefined;
+  /** Whether the card of the next keys is shown now; read from a ref, so a listener added once gets it. */
+  readonly cardShown: () => boolean;
+  /** Ends a waiting prefix quietly, as a press of a mouse button does. */
+  readonly cancel: () => void;
 }
 
 export const usePrefix = (options: PrefixOptions): Prefix => {
@@ -164,5 +168,10 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
     end();
   }, [shown, options.switching, end]);
 
-  return { start, rows };
+  const cardShown = useCallback((): boolean => shownKeys.current !== undefined, []);
+  const cancel = useCallback((): void => {
+    end();
+  }, [end]);
+
+  return { start, rows, cardShown, cancel };
 };

@@ -14,7 +14,7 @@ import { promisify } from "node:util";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { copyFixture, launchApp } from "./support/app.js";
+import { copyFixture, launchApp, shownLayer } from "./support/app.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -40,7 +40,7 @@ const open = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 /** Chooses the catalog command `title` in the command prompt. */
@@ -96,7 +96,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
         ),
       },
     });
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
   });
   test.afterEach(async () => {
     await running.close();
@@ -116,7 +116,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
       /(stored version from .+, current version from .+|neither version has a date \(.+\))$/,
     );
     await open(window, "Response time at most 20 ms");
-    const mark = window.locator("article .relation .outdated");
+    const mark = shownLayer(window).locator("article .relation .outdated");
     await expect(mark).toHaveCount(1);
     await expect(mark).toHaveAttribute("title", hint?.message ?? "");
     await expect(mark).toContainText("outdated");
@@ -138,9 +138,11 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(names(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
     // One hint row in the group of its kind, with the message on hover (SR-026 AK4).
-    const group = window.locator(`.hints .hint-group[data-code="${CORE_CHANGED}"]`);
+    const group = shownLayer(window).locator(`.hints .hint-group[data-code="${CORE_CHANGED}"]`);
     await expect(group).toContainText("(1)");
-    const row = window.locator(".hints").getByTitle(ofCoast[0]?.message ?? "-", { exact: true });
+    const row = shownLayer(window)
+      .locator(".hints")
+      .getByTitle(ofCoast[0]?.message ?? "-", { exact: true });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText("Response time at most 20 ms");
   });
@@ -148,7 +150,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
   test("[SR-045/AK-c59v] Confirm hints on SR-A writes the current version of K and the hint is gone", async () => {
     const { window } = running;
     await open(window, "Response time at most 20 ms");
-    await expect(window.locator("article .relation .outdated")).toHaveCount(1);
+    await expect(shownLayer(window).locator("article .relation .outdated")).toHaveCount(1);
     await command(window, "Confirm hints");
     await expect(label(window)).toHaveText("Confirm hints · ref:");
     await expect(names(window).first()).toHaveText("SR-0000b1 Response time at most 20 ms");
@@ -159,9 +161,9 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(names(window).first()).toHaveText(`${hint?.targetShortId ?? "-"} · ${hint?.message ?? "-"}`);
     await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".result")).toContainText("confirmed");
+    await expect(shownLayer(window).locator(".result")).toContainText("confirmed");
     await open(window, "Response time at most 20 ms");
-    await expect(window.locator("article .relation .outdated")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article .relation .outdated")).toHaveCount(0);
     expect(await elementHints(running, "SR-0000b1", [CORE_CHANGED, "relation.outdated"])).toEqual([]);
     const k = await cliJson<{ element: { version: string } }>(running, ["element", "get", "SR-0000a1"]);
     const file = await fs.readFile(
@@ -234,7 +236,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     running = await launchApp(undefined, {
       kept: { home, workspace: { root: ws.root, cleanup: ws.cleanup } },
     });
-    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(running.window).locator(".overview .line").first()).toBeVisible();
     // R1 of the view of Coast, then K1 changed and K5 added, committed.
     await cliJson(running, ["baseline", "create", "R1", "--input", '{"selection":{"view":"VAR-0000c1"}}']);
     const k1 = path.join(ws.root, "requirements", "SR-0000000000a1.md");
@@ -261,7 +263,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
   });
 
   /** The lines of the hints since the newest baseline on the page shown. */
-  const sinceBaseline = (window: Page): Locator => window.locator("article .since-baseline");
+  const sinceBaseline = (window: Page): Locator => shownLayer(window).locator("article .since-baseline");
 
   test("[SR-103/AK-grj7] the page of A names the adopted core requirement changed since its newest baseline with both versions", async () => {
     const { window } = running;
@@ -277,7 +279,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     );
     await open(window, "Coast");
     await expect(
-      window
+      shownLayer(window)
         .locator("article")
         .getByRole("group", { name: "Changed since the newest baseline", exact: true }),
     ).toHaveText(changed?.message ?? "-");
@@ -292,7 +294,9 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     expect(added?.message).toContain(`version ${added?.currentVersion ?? "-"} now`);
     await open(window, "Coast");
     await expect(
-      window.locator("article").getByRole("group", { name: "New since the newest baseline", exact: true }),
+      shownLayer(window)
+        .locator("article")
+        .getByRole("group", { name: "New since the newest baseline", exact: true }),
     ).toHaveText(added?.message ?? "-");
   });
 
@@ -302,7 +306,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await open(window, "Coast");
     await expect(sinceBaseline(window)).toHaveCount(2);
     await open(window, "Mountain");
-    await expect(window.locator("article")).toContainText("The station for the mountains.");
+    await expect(shownLayer(window).locator("article")).toContainText("The station for the mountains.");
     await expect(sinceBaseline(window)).toHaveCount(0);
   });
 
@@ -324,16 +328,16 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(names(window).first()).toHaveText("VAR-0000c1 Coast");
     await window.keyboard.press("Enter");
     await command(window, "List all elements");
-    await expect(window.locator(".list")).toBeVisible();
+    await expect(shownLayer(window).locator(".list")).toBeVisible();
     await command(window, "Split window");
-    const page = window.locator('[data-area="right"]');
+    const page = shownLayer(window, "right");
     await expect(page.locator("article h1")).toHaveText("Coast");
     await expect(page.locator(".since-baseline")).toHaveCount(3);
     await command(window, "Create baseline");
     await expect(label(window)).toContainText("Create baseline");
     await window.keyboard.type("R2");
     await window.keyboard.press("Enter");
-    await expect(window.locator(".result")).toContainText("R2");
+    await expect(shownLayer(window).locator(".result")).toContainText("R2");
     const r2 = await fs.readFile(path.join(ws.root, "baselines", "R2.yaml"), "utf8");
     expect(r2).toContain(COAST);
     expect(await elementHints(running, "VAR-0000c1", SINCE_BASELINE)).toEqual([]);
@@ -362,7 +366,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     // Neither hint has a hint ID to confirm: nothing is offered.
     await expect(names(window)).toHaveCount(0);
     await window.keyboard.press("Enter");
-    await expect(window.locator(".result")).toContainText(reason?.message ?? "-");
+    await expect(shownLayer(window).locator(".result")).toContainText(reason?.message ?? "-");
     expect(await fs.readFile(path.join(ws.root, "variants", "VAR-0000000000c1.md"), "utf8")).toBe(before);
     await open(window, "Coast");
     await expect(sinceBaseline(window)).toHaveCount(2);

@@ -3,7 +3,11 @@
 // - a `choice` argument whose field, or the items of a list field, names its values by a `$ref`
 //   (`hint.list kind`: `common.schema.json#/$defs/problemCode`) gets that enum inline;
 // - an argument without a description of its own gets the description of the type its field, or the
-//   items of a list field, names by a `$ref` (SR-210 AK6: `baseline.create name`).
+//   items of a list field, names by a `$ref` (SR-210 AK6: `baseline.create name`);
+// - an argument of a composed source (`condition`, `sort`, `group`, SR-215) gets its schema with every
+//   `$ref` resolved inline, so the enums of its parts (`sortKey`, `groupKey`, the verification and
+//   validation statuses, `relationCondition`) are there; a `$ref` back to a definition being resolved
+//   (the recursion of `condition`) stays, as an absolute one.
 // Everything else stays as the catalog has it; `catalog-checks.mjs` checks that such a `$ref` leads
 // straight to an enum, and that every argument ends up with a description.
 import type { CatalogEntry, JsonSchema } from "@reqseq/core";
@@ -66,6 +70,44 @@ const withDescription = (property: Schema, resolve: Resolve): Schema => {
   return typeof description === "string" ? { ...property, description } : property;
 };
 
+/** The sources whose field gets its whole schema inline (SR-215). */
+const COMPOSED: ReadonlySet<string> = new Set(["condition", "sort", "group"]);
+
+/**
+ * `node` with every `$ref` (relative to `base`) replaced by the schema it names, its own keys over those of
+ * that schema; a `$ref` to a definition in `active` (being resolved) stays, absolute, and one that names
+ * nothing stays as it is.
+ */
+const inlinedAll = (
+  node: unknown,
+  base: string,
+  byId: ReadonlyMap<string, JsonSchema>,
+  active: ReadonlySet<string> = new Set(),
+): unknown => {
+  if (Array.isArray(node)) {
+    return node.map((item) => inlinedAll(item, base, byId, active));
+  }
+  if (!isSchema(node)) {
+    return node;
+  }
+  const { $ref: ref, ...rest } = node;
+  const own = Object.fromEntries(
+    Object.entries(rest).map(([key, value]) => [key, inlinedAll(value, base, byId, active)]),
+  );
+  if (typeof ref !== "string") {
+    return own;
+  }
+  const url = new URL(ref, base);
+  const href = url.href;
+  const target = resolver(base, byId)(ref);
+  if (active.has(href) || !isSchema(target)) {
+    return { ...own, $ref: href };
+  }
+  url.hash = "";
+  const inner = inlinedAll(target, url.href, byId, new Set([...active, href]));
+  return { ...(inner as Schema), ...own };
+};
+
 /** The schema files by `$id`, built once for each list of them: the host lists every entry with it. */
 const byIdCache = new WeakMap<readonly JsonSchema[], ReadonlyMap<string, JsonSchema>>();
 const byIdOf = (schemas: readonly JsonSchema[]): ReadonlyMap<string, JsonSchema> => {
@@ -85,7 +127,8 @@ export const listedEntry = (entry: CatalogEntry, schemas: readonly JsonSchema[])
   const input = entry.input as { readonly properties?: Readonly<Record<string, unknown>> };
   const properties = input.properties ?? {};
   const byId = byIdOf(schemas);
-  const resolve = resolver(`${SCHEMA_BASE}commands/${entry.name}.json`, byId);
+  const base = `${SCHEMA_BASE}commands/${entry.name}.json`;
+  const resolve = resolver(base, byId);
   const fields = entry.arguments.flatMap(({ field, complete }) => {
     const property = properties[field];
     if (!isSchema(property)) {
@@ -93,7 +136,12 @@ export const listedEntry = (entry: CatalogEntry, schemas: readonly JsonSchema[])
     }
     // The description first, while the field still names its type by `$ref`.
     const described = withDescription(property, resolve);
-    const listed = complete === "choice" ? withChoice(described, resolve) : described;
+    const listed =
+      complete === "choice"
+        ? withChoice(described, resolve)
+        : COMPOSED.has(complete)
+          ? (inlinedAll(described, base, byId) as Schema)
+          : described;
     return listed === property ? [] : [[field, listed] as const];
   });
   if (fields.length === 0) {

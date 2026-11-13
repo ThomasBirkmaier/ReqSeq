@@ -8,7 +8,15 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, goTo, inShownOrder, launchApp, modifier, showFolded } from "./support/app.js";
+import {
+  DEFAULT_SORT,
+  goTo,
+  inShownOrder,
+  launchApp,
+  modifier,
+  showFolded,
+  shownLayer,
+} from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const PACKAGE_D1 = `  - { id: ${P}d1, version: n1:1111111111111111 }\n`;
@@ -42,7 +50,8 @@ interface Listed {
   readonly total: number;
 }
 
-const rowTitles = (window: Page): Promise<string[]> => window.locator(".row .title").allTextContents();
+const rowTitles = (window: Page): Promise<string[]> =>
+  shownLayer(window).locator(".row .title").allTextContents();
 const promptLabel = (window: Page): Locator => window.getByLabel("Minibuffer").locator("label");
 const optionNames = (window: Page): Promise<string[]> =>
   window.locator('.candidates [role="option"] .name').allTextContents();
@@ -64,17 +73,17 @@ const openElement = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 /** Puts the caret at the start of line `line` (from 1) of the text box of `key`. */
 const caretIn = async (window: Page, key: string, line = 1): Promise<void> => {
-  await window
+  await shownLayer(window)
     .locator(`[data-field="${key}"] .cm-line`)
     .nth(line - 1)
     .click();
-  await expect(window.locator(`[data-field="${key}"] .cm-content`)).toBeFocused();
+  await expect(shownLayer(window).locator(`[data-field="${key}"] .cm-content`)).toBeFocused();
 };
 
 /** The key of SR-132: Ctrl+Shift+Enter, Cmd+Shift+Enter on macOS. */
@@ -102,7 +111,7 @@ const expectList = async (running: RunningApp, label: string, where: unknown): P
   const modeline = running.window.getByLabel("Modeline");
   await expect(modeline).toContainText(label);
   await expect(modeline).toContainText(`${String(listed.total)} element`);
-  await expect(running.window.locator(".row").first()).toBeVisible();
+  await expect(shownLayer(running.window).locator(".row").first()).toBeVisible();
   await showFolded(running.window, listed.elements);
   expect(await rowTitles(running.window)).toEqual(inShownOrder(listed.elements).map((e) => e.title));
   return listed;
@@ -129,7 +138,7 @@ test.describe.serial("the list of the elements with a value", () => {
     expect(listed.elements.map((e) => e.title)).toContain("Measure the rain");
     // The command, with the focus on the box of a choice, which has no caret.
     await openElement(window, "Measure the rain");
-    await window.locator('[data-field="requirement-type"]').focus();
+    await shownLayer(window).locator('[data-field="requirement-type"]').focus();
     await runCommand(window, "list elements with this value");
     await expectList(running, "requirement-type: functional", {
       property: "requirement-type",
@@ -141,13 +150,13 @@ test.describe.serial("the list of the elements with a value", () => {
   test("[SR-132/AK-y207] Ctrl/Cmd+click on the topic value and on a package target opens the list of the elements with that value", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
-    await window
+    await shownLayer(window)
       .locator('[data-field="topic"] .cm-line')
       .first()
       .click({ modifiers: [await modifier(window)] });
     await expectList(running, "topic: Timing", TIMING);
     await openElement(window, "Measure the rain");
-    await window
+    await shownLayer(window)
       .locator('[data-field="packages"] [role="link"]')
       .first()
       .click({ modifiers: [await modifier(window)] });
@@ -161,8 +170,8 @@ test.describe.serial("the list of the elements with a value", () => {
     await window.screenshot({ path: path.join(OUT, "sr-132-click-package.png") });
     // A plain click on the target still opens the package itself.
     await openElement(window, "Measure the rain");
-    await window.locator('[data-field="packages"] [role="link"]').first().click();
-    await expect(window.locator("article h1")).toHaveText("Sensors");
+    await shownLayer(window).locator('[data-field="packages"] [role="link"]').first().click();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Sensors");
   });
 
   test("[SR-132/AK-ymp3] the lists of one value of a list property and of the status hold what the CLI lists for property eq value", async () => {
@@ -191,7 +200,7 @@ test.describe.serial("the list of the elements with a value", () => {
   test("[SR-132/AK-q3fb] the list of a package target holds the elements of the package, as the CLI lists them", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
-    await window.locator('[data-field="packages"] [role="link"]').first().focus();
+    await shownLayer(window).locator('[data-field="packages"] [role="link"]').first().focus();
     await listKey(window);
     const listed = await expectList(running, "packages: Sensors", {
       property: "packages",
@@ -215,7 +224,7 @@ test.describe.serial("the list of the elements with a value", () => {
         [],
       );
       await window.keyboard.press("Escape");
-      await expect(window.locator("article h1")).toHaveText("Measure the rain");
+      await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the rain");
     }
     await caretIn(window, "acceptance-criteria");
     await runCommand(window, "list elements with this value");
@@ -224,13 +233,13 @@ test.describe.serial("the list of the elements with a value", () => {
     await window.keyboard.press("Escape");
     // A Ctrl/Cmd+click on them offers no list either, and no prompt among the other values.
     for (const key of ["rationale", "acceptance-criteria"]) {
-      await window
+      await shownLayer(window)
         .locator(`[data-field="${key}"] .cm-line`)
         .first()
         .click({ modifiers: [await modifier(window)] });
       await expect(window.getByLabel("Minibuffer")).toContainText(`No value of ${key} lists elements`);
       await expect(window.locator(".candidates")).toHaveCount(0);
-      await expect(window.locator("article h1")).toHaveText("Measure the rain");
+      await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the rain");
     }
   });
 
@@ -265,7 +274,7 @@ test.describe("the key under macOS", () => {
       Object.defineProperty(Navigator.prototype, "platform", { get: () => "MacIntel" });
     });
     await window.reload();
-    await expect(window.locator(".overview .line").first()).toBeVisible();
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
     expect(await window.evaluate(() => navigator.platform)).toBe("MacIntel");
   });
   test.afterEach(async () => {
@@ -295,10 +304,10 @@ test.describe("the key under macOS", () => {
           });
         }),
     );
-    await expect(window.locator('[data-field="topic"] .cm-content')).toHaveText("Timing");
+    await expect(shownLayer(window).locator('[data-field="topic"] .cm-content')).toHaveText("Timing");
     await expect(window.locator(".candidates")).toHaveCount(0);
     await expect(window.getByLabel("Modeline")).not.toContainText("topic: Timing");
-    await expect(window.locator("article h1")).toHaveText("Measure the rain");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Measure the rain");
     await window.keyboard.press("Meta+Shift+Enter");
     await expectList(running, "topic: Timing", TIMING);
   });
@@ -323,7 +332,7 @@ test.describe("screenshots of the list of the elements with a value", () => {
         await window.keyboard.type("packages");
         await window.keyboard.press("Enter");
         await expect(window.getByLabel("Modeline")).toContainText("packages: Finden");
-        await expect(window.locator(".row").first()).toBeVisible();
+        await expect(shownLayer(window).locator(".row").first()).toBeVisible();
         await window.screenshot({ path: path.join(OUT, `sr-132-list-${scheme}.png`) });
       } finally {
         await running.close();

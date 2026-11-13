@@ -8,7 +8,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { fileSha256, goTo, launchApp, listAll } from "./support/app.js";
+import { fileSha256, goTo, launchApp, listAll, shownLayer } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -18,8 +18,8 @@ const TITLE = "Measure wind speed";
 const TEXT = "b1: derives from N1, in package P1.";
 const FILE = path.join("requirements", "SR-0000000000b1.md");
 
-const field = (window: Page, label: string): Locator => window.locator(`[data-field="${label}"]`);
-const heading = (window: Page): Locator => window.locator("article h1");
+const field = (window: Page, label: string): Locator => shownLayer(window).locator(`[data-field="${label}"]`);
+const heading = (window: Page): Locator => shownLayer(window).locator("article h1");
 const titleContent = (window: Page): Locator => field(window, "Title").locator(".cm-content");
 const textContent = (window: Page): Locator => field(window, "Text").locator(".cm-content");
 const modeline = (window: Page): Locator => window.getByLabel("Modeline");
@@ -33,7 +33,7 @@ const opened = async (window: Page): Promise<void> => {
   await window.keyboard.press("Enter");
   await expect(heading(window)).toHaveText(TITLE);
   await expect(textContent(window)).toBeVisible();
-  await expect(window.locator("article")).toBeFocused();
+  await expect(shownLayer(window).locator("article")).toBeFocused();
 };
 
 /** Enter on the field of the title: the caret at the end of the title, in its heading. */
@@ -131,7 +131,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     await window.keyboard.press("Escape");
     await expect(field(window, "Title")).toBeFocused();
     await window.keyboard.press("Escape");
-    await expect(window.locator("article")).toBeFocused();
+    await expect(shownLayer(window).locator("article")).toBeFocused();
     await expect.poll(onDisk).toContain(`title: ${TITLE}!\n`);
   });
 
@@ -159,7 +159,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
     // At once, before autosave writes the input a second after the last key.
     const now = await onDisk();
     await fs.writeFile(file, now.replace(TEXT, `${TEXT}\n\nTheirs.`));
-    const block = window.locator('[data-on-disk="Title"]');
+    const block = shownLayer(window).locator('[data-on-disk="Title"]');
     await expect(block).toContainText(TITLE);
     await expect(modeline(window)).toContainText("changed on disk");
     await expect(titleContent(window)).toHaveText(`${TITLE} now`);

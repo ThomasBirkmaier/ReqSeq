@@ -8,7 +8,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll } from "./support/app.js";
+import { goTo, launchApp, listAll, shownLayer } from "./support/app.js";
 
 /** 14 elements: 6 draft, 7 approved, 1 obsolete (fixtures/README.md); the package Sensors holds two. */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -20,7 +20,7 @@ const menu = (window: Page): Locator => window.getByRole("menu", { name: "Contex
 const entries = (window: Page): Locator => menu(window).getByRole("menuitem");
 const entryNames = (window: Page): Promise<string[]> => entries(window).locator(".name").allTextContents();
 const candidates = (window: Page): Locator => window.locator('.candidates [role="option"] .name');
-const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
+const shownBuffer = (window: Page): Locator => shownLayer(window).locator("[data-buffer]");
 
 /** Right-clicks `target` and waits for the menu. */
 const rightClick = async (target: Locator): Promise<void> => {
@@ -132,7 +132,7 @@ test.describe("the context menu of a list", () => {
     await window.keyboard.type("Sensors");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
     await window.keyboard.press("Enter");
-    const members = window.locator(".members h2");
+    const members = shownLayer(window).locator(".members h2");
     await expect(members).toBeVisible();
     expect(await menuOf(members)).toEqual([...FILTERS, "Sort list", ALL]);
   });
@@ -142,7 +142,7 @@ test.describe("the context menu of a list", () => {
     const { window } = running;
     /** The menu of the empty sheet below the shown buffer's content: the buffer's (SR-194 AK6). */
     const ofBuffer = async (): Promise<string[]> => {
-      const buffer = window.locator('[data-area="left"] .buffer');
+      const buffer = shownLayer(window, "left").locator(".buffer");
       const box = await buffer.boundingBox();
       await buffer.click({ button: "right", position: { x: 30, y: (box?.height ?? 100) - 30 } });
       await expect(menu(window)).toBeVisible();
@@ -166,9 +166,9 @@ test.describe("the context menu of a list", () => {
     await window.keyboard.type("See the wind");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("See the wind");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1").first()).toHaveText("See the wind");
+    await expect(shownLayer(window).locator("article h1").first()).toHaveText("See the wind");
     await window.keyboard.press("ControlOrMeta+J");
-    const neighbourhood = window.locator(".neighbourhood");
+    const neighbourhood = shownLayer(window).locator(".neighbourhood");
     await expect(neighbourhood.locator(".row").first()).toBeVisible();
     const aroundBuffer = await ofBuffer();
     expect(aroundBuffer).not.toContain(FILTERS[0]);
@@ -180,7 +180,7 @@ test.describe("the context menu of a list", () => {
     await window.keyboard.type("Show overview");
     await expect(candidates(window).first()).toHaveText("Show overview");
     await window.keyboard.press("Enter");
-    const overview = window.locator(".overview");
+    const overview = shownLayer(window).locator(".overview");
     await expect(overview.locator(".group")).toHaveText("Recent");
     const overviewBuffer = await ofBuffer();
     expect(overviewBuffer).not.toContain(FILTERS[0]);

@@ -12,6 +12,7 @@ import {
   RECENT_WORKSPACES_CHANNEL,
   SAVED_CHANNEL,
   SAVE_CHANNEL,
+  SWIPE_CHANNEL,
   WORKSPACE_CHANNEL,
 } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
@@ -216,6 +217,25 @@ describe("startShell", () => {
       expect(other.windows[0]?.options).not.toHaveProperty("titleBarStyle");
       expect(other.windows[0]?.options).not.toHaveProperty("titleBarOverlay");
       expect(other.windows[0]?.options).not.toHaveProperty("trafficLightPosition");
+    }
+  });
+
+  it("[SR-163/AK-fkcm] on macOS passes each swipe to the left or right to the page, and only those; elsewhere it listens to none", async () => {
+    const mac = fakeElectron(false);
+    await startShell(mac.electron as unknown as ShellElectron, { ...options(), platform: "darwin" });
+    const window = mac.windows[0] as unknown as EventEmitter & { webContents: FakeContents };
+    for (const direction of ["left", "up", "right", "down", undefined, 7]) {
+      window.emit("swipe", {}, direction);
+    }
+    expect(window.webContents.sent.filter((sent) => sent.channel === SWIPE_CHANNEL)).toEqual([
+      { channel: SWIPE_CHANNEL, message: "left" },
+      { channel: SWIPE_CHANNEL, message: "right" },
+    ]);
+    for (const platform of ["linux", "win32"] as const) {
+      const other = fakeElectron(false);
+      await startShell(other.electron as unknown as ShellElectron, { ...options(), platform });
+      const otherWindow = other.windows[0] as unknown as EventEmitter;
+      expect(otherWindow.listenerCount("swipe")).toBe(0);
     }
   });
 

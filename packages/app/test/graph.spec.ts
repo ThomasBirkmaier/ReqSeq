@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const P = "5e111a7d-2b4f-4c61-9d08-";
 const ID = {
@@ -78,14 +78,14 @@ const openElement = async (window: Page, shortId: string, title: string): Promis
   await window.keyboard.type(shortId);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
-  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(shownLayer(window).locator("article h1")).toHaveText(title);
 };
 
 /** Ctrl/Cmd+Shift+G on the shown element; waits until the graph has the focus and `nodes` placed boxes. */
 const showGraph = async (window: Page, nodes: number): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+Shift+G");
-  await expect(window.locator(".graph")).toBeFocused();
-  await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(nodes));
+  await expect(shownLayer(window).locator(".graph")).toBeFocused();
+  await expect(shownLayer(window).locator(".graph")).toHaveAttribute("data-laid-out", String(nodes));
 };
 
 interface Box {
@@ -183,7 +183,9 @@ const placedOnce = async (
 ): Promise<{ x: Placement; y: Placement; against: number }> => {
   const { nodes, drawing, view } = await boxes(window);
   expect([...nodes.keys()].sort()).toEqual(output.nodes.map((node) => key(node.repository, node.id)).sort());
-  await expect(window.locator(".graph-node.root")).toHaveAttribute("data-node", root, { timeout: 1000 });
+  await expect(shownLayer(window).locator(".graph-node.root")).toHaveAttribute("data-node", root, {
+    timeout: 1000,
+  });
   const element = nodes.get(root);
   if (element === undefined) {
     throw new Error(`no box for ${root}`);
@@ -266,7 +268,7 @@ const wholeChain = async (window: Page, nodes: number): Promise<void> => {
     await window.keyboard.press("+");
   }
   await expect(window.getByLabel("Modeline")).toContainText("whole chain");
-  await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(nodes));
+  await expect(shownLayer(window).locator(".graph")).toHaveAttribute("data-laid-out", String(nodes));
 };
 
 /** What cuts a box's lines: the ID and type line or the marks line wider than the box. */
@@ -280,7 +282,7 @@ const cutLines = (window: Page): Promise<string[]> =>
   );
 
 const selectedNode = (window: Page): Promise<string | null> =>
-  window.locator('.graph-node[aria-selected="true"]').getAttribute("data-node");
+  shownLayer(window).locator('.graph-node[aria-selected="true"]').getAttribute("data-node");
 
 test.describe("the graph of an element on a fixture workspace", () => {
   let running: RunningApp;
@@ -314,7 +316,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
         (edge) => `${key(edge.sourceRepository, edge.source)}>${key(edge.targetRepository, edge.target)}`,
       ),
     );
-    await expect(window.locator("path.graph-edge")).toHaveCount(pairs.size);
+    await expect(shownLayer(window).locator("path.graph-edge")).toHaveCount(pairs.size);
   });
 
   test("[SR-111/AK-g4rk] a root without parents stands on top of its children, the drawing's top a margin into the view", async () => {
@@ -439,7 +441,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     // Marked and unmarked nodes both occur, and the superseded one is struck through.
     expect(output.nodes.filter((node) => node.marks.length > 0).length).toBeGreaterThan(0);
     expect(output.nodes.filter((node) => node.marks.length === 0).length).toBeGreaterThan(0);
-    await expect(window.locator(".graph-node.superseded")).toHaveCount(
+    await expect(shownLayer(window).locator(".graph-node.superseded")).toHaveCount(
       output.nodes.filter((node) => node.marks.includes("superseded")).length,
     );
   });
@@ -477,13 +479,13 @@ test.describe("the graph of an element on a fixture workspace", () => {
     }
     expect(node.level).toBeLessThan(0);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(node.title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(node.title);
     await expect(window.getByLabel("Modeline")).toContainText(shownId(node));
     // Ctrl/Cmd+Shift+G shows its graph, and on the graph the element again.
     const its = await traced(running, { ref: node.id, maxDepth: 1 });
     await showGraph(window, its.nodes.length);
     await window.keyboard.press("ControlOrMeta+Shift+G");
-    await expect(window.locator("article h1")).toHaveText(node.title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(node.title);
   });
 
   test("[SR-111/AK-p2tx] + and - show the nodes the CLI gives for one level more or less", async () => {
@@ -494,10 +496,16 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(two.nodes.length).toBeGreaterThan(one.nodes.length);
     await showGraph(window, one.nodes.length);
     await window.keyboard.press("+");
-    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(two.nodes.length));
+    await expect(shownLayer(window).locator(".graph")).toHaveAttribute(
+      "data-laid-out",
+      String(two.nodes.length),
+    );
     await expect(window.getByLabel("Modeline")).toContainText("2 levels");
     await window.keyboard.press("-");
-    await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(one.nodes.length));
+    await expect(shownLayer(window).locator(".graph")).toHaveAttribute(
+      "data-laid-out",
+      String(one.nodes.length),
+    );
     await expect(window.getByLabel("Modeline")).toContainText("1 level");
   });
 });
@@ -511,7 +519,7 @@ test.describe("the graph on the specification workspace", () => {
     await window.keyboard.type(id);
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(id);
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText(title);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(title);
   };
 
   test("[SR-111/AK-kq3w] never cuts an ID, a type or a mark, on the long IDs and types of spec/", async () => {
@@ -525,16 +533,20 @@ test.describe("the graph on the specification workspace", () => {
       await showGraph(window, members.nodes.length);
       expect(await cutLines(window)).toEqual([]);
       // A box carries a mark word only when it is outdated or superseded; its verification stands apart.
-      const words = await window.locator(".graph-marks > span:not(.graph-verification)").allTextContents();
+      const words = await shownLayer(window)
+        .locator(".graph-marks > span:not(.graph-verification)")
+        .allTextContents();
       expect(words.filter((word) => word !== "outdated" && word !== "superseded")).toEqual([]);
-      const heads = await window.locator(".graph-id").allTextContents();
+      const heads = await shownLayer(window).locator(".graph-id").allTextContents();
       expect(heads.some((head) => head.endsWith(" · System Requirement"))).toBe(true);
       // SR-111 over the whole chain: needs, decisions, packages and requirements of every length.
       await openById(window, "SR-111", "Graph des aktuellen Elements zeigen");
       await showGraph(window, (await traced(running, { ref: "SR-111", maxDepth: 1 })).nodes.length);
       await wholeChain(window, (await traced(running, { ref: "SR-111", allLevels: true })).nodes.length);
       expect(await cutLines(window)).toEqual([]);
-      expect(await window.locator(".graph-id", { hasText: "(SR-111) · System Requirement" }).count()).toBe(1);
+      expect(
+        await shownLayer(window).locator(".graph-id", { hasText: "(SR-111) · System Requirement" }).count(),
+      ).toBe(1);
     } finally {
       await running.close();
     }
@@ -592,7 +604,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     const output = await traced(running, { ref: ID.S1, ...input });
     await expect.poll(() => drawn(running.window)).toEqual(expected(output));
     await expect(running.window.getByLabel("Modeline")).toContainText(says);
-    await expect(running.window.locator(".graph")).toBeFocused();
+    await expect(shownLayer(running.window).locator(".graph")).toBeFocused();
     return output;
   };
 
@@ -670,7 +682,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const everything = await traced(running, { ref: ID.S1, maxDepth: 1 });
     await showGraph(window, everything.nodes.length);
-    await expect(window.locator(".graph-evidence")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".graph-evidence")).toHaveCount(0);
     // Also show on every link adds the evidence: the links stay, a box comes below S1.
     await choose(window, "Also show relation kind", "Evidence");
     const one = await shows({ maxDepth: 1, withEvidence: true }, "with Evidence");
@@ -689,7 +701,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     // Each box stands below its node.
     const { nodes } = await boxes(window);
     for (const [node] of evidenceOf(two)) {
-      const box = await window.locator(`.graph-evidence[data-evidence="${node}"]`).boundingBox();
+      const box = await shownLayer(window).locator(`.graph-evidence[data-evidence="${node}"]`).boundingBox();
       expect(box?.y ?? 0).toBeGreaterThan((nodes.get(node)?.y ?? 0) + (nodes.get(node)?.height ?? 0));
     }
     // The keys move between elements only, through every layer and below the nodes with a box.
@@ -712,8 +724,10 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     expect(
       [...seen].every((node) => node !== null && two.nodes.some((n) => key(n.repository, n.id) === node)),
     ).toBe(true);
-    await expect(window.locator(".graph-evidence[role], .graph-evidence[aria-selected]")).toHaveCount(0);
-    await expect(window.locator('[role="option"]')).toHaveCount(two.nodes.length);
+    await expect(
+      shownLayer(window).locator(".graph-evidence[role], .graph-evidence[aria-selected]"),
+    ).toHaveCount(0);
+    await expect(shownLayer(window).locator('[role="option"]')).toHaveCount(two.nodes.length);
     // Show only Evidence: no link is followed, the element with its evidence.
     await choose(window, "Show only relation kind", "Evidence");
     const only = await shows({ maxDepth: 2, kinds: [], withEvidence: true }, "only Evidence");
@@ -723,7 +737,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     // Everything: every link, and the evidence is gone.
     await choose(window, "Show only relation kind", "Everything");
     await shows({ maxDepth: 2 }, "2 levels");
-    await expect(window.locator(".graph-evidence")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".graph-evidence")).toHaveCount(0);
   });
 
   test("[SR-154/AK-rhrj] the mouse on a link and the key l name its relation kinds as the CLI and the metamodel give them", async () => {
@@ -757,7 +771,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
             ...(edge.outdated === true ? ["· outdated"] : []),
           ].join(" "),
         );
-    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".graph-edge-tip")).toHaveCount(0);
     // The mouse on the middle of the first curve whose middle is in view and on top there (no box over
     // it): the window's size differs between runners, so the first curve's middle may be out of view.
     const middle = await window.evaluate(() => {
@@ -775,27 +789,27 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     });
     expect(middle.curve).not.toBe("");
     await window.mouse.move(middle.x, middle.y);
-    const hovered = window.locator(".graph-edge-tip");
+    const hovered = shownLayer(window).locator(".graph-edge-tip");
     await expect(hovered).toHaveCount(1);
     expect(await hovered.getAttribute("data-edge")).toBe(middle.curve);
     expect(await hovered.locator("div").allTextContents()).toEqual(expected(middle.curve));
     await window.mouse.move(1, 1);
-    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".graph-edge-tip")).toHaveCount(0);
     // The key l selects the element's first link; its text is the accessible name of the active option.
     await window.keyboard.press("l");
-    const chosen = window.locator("#gedge");
-    await expect(window.locator(".graph")).toHaveAttribute("aria-activedescendant", "gedge");
+    const chosen = shownLayer(window).locator('[id$="_gedge"]');
+    await expect(shownLayer(window).locator(".graph")).toHaveAttribute("aria-activedescendant", /_gedge$/);
     const curve = (await chosen.getAttribute("data-edge")) ?? "";
     expect(curve.split(">")).toContain(key(REPOSITORY, ID.S1));
     await expect(chosen).toHaveAttribute("aria-label", expected(curve).join("; "));
-    await expect(window.locator("path.graph-edge.chosen")).toHaveCount(1);
+    await expect(shownLayer(window).locator("path.graph-edge.chosen")).toHaveCount(1);
     await window.screenshot({
       path: fileURLToPath(
         new URL("../../../test-results/electron/screenshots/sr-154-light.png", import.meta.url),
       ),
     });
     await window.keyboard.press("Escape");
-    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    await expect(shownLayer(window).locator(".graph-edge-tip")).toHaveCount(0);
     expect(await selectedNode(window)).toBe(key(REPOSITORY, ID.S1));
   });
 });

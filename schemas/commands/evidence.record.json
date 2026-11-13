@@ -31,7 +31,8 @@
     },
     {
       "field": "variant",
-      "complete": "element"
+      "complete": "element",
+      "meaning": "variant"
     },
     {
       "field": "date",
@@ -47,7 +48,7 @@
     },
     {
       "field": "criteria",
-      "complete": "text"
+      "complete": "criterion"
     },
     {
       "field": "reason",
@@ -55,7 +56,7 @@
     },
     {
       "field": "folder",
-      "complete": "text"
+      "complete": "evidenceLocation"
     }
   ],
   "input": {

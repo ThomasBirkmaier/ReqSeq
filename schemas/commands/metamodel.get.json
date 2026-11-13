@@ -70,6 +70,27 @@
         },
         "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
       },
+      "relationKinds": {
+        "type": "object",
+        "propertyNames": { "$ref": "../common.schema.json#/$defs/key" },
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": { "$ref": "../common.schema.json#/$defs/key" },
+              "targetTypes": {
+                "type": "array",
+                "items": { "$ref": "../common.schema.json#/$defs/key" },
+                "description": "Every type of the metamodel a target may have, subtypes included, in metamodel order."
+              }
+            },
+            "additionalProperties": false,
+            "required": ["kind", "targetTypes"]
+          }
+        },
+        "description": "For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with (SR-215 AK8)."
+      },
       "files": {
         "type": "array",
         "items": {
@@ -85,6 +106,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["types", "properties", "relations", "statuses", "meanings", "files"]
+    "required": ["types", "properties", "relations", "statuses", "meanings", "relationKinds", "files"]
   }
 }

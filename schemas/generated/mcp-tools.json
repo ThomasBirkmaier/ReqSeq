@@ -3687,6 +3687,11 @@
                 "available": {
                   "type": "boolean",
                   "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not."
+                },
+                "folder": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location."
                 }
               },
               "additionalProperties": false,
@@ -4278,6 +4283,36 @@
             },
             "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned. In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
           },
+          "relationKinds": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/$defs/common/$defs/key"
+                  },
+                  "targetTypes": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/common/$defs/key"
+                    },
+                    "description": "Every type of the metamodel a target may have, subtypes included, in metamodel order."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "targetTypes"
+                ]
+              }
+            },
+            "description": "For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there. A new element has no reference to ask relation.options with."
+          },
           "files": {
             "type": "array",
             "items": {
@@ -4299,6 +4334,7 @@
           "relations",
           "statuses",
           "meanings",
+          "relationKinds",
           "files"
         ]
       }

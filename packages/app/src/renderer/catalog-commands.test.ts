@@ -26,6 +26,7 @@ import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
+import { contextOf } from "../../../../scripts/contracts/catalog-checks.mjs";
 
 const PLATFORM_SEP = isWindows(navigator.platform) ? "\\" : "/";
 
@@ -978,27 +979,6 @@ describe("catalog commands in the command prompt", () => {
     });
   });
 
-  it("Record evidence takes acceptance criteria by number or key one per Enter and passes them to core as given", async () => {
-    const { context, asked, call } = sources();
-    start(context, "evidence.record", true);
-    await pick(asked);
-    await pick(asked, "verification");
-    await pick(asked, "passed", true);
-    await pick(asked, "criteria");
-    expect((await last(asked)).label).toMatch(/ · criteria:$/);
-    await answer(asked, "3");
-    await answer(asked, "kone");
-    (await last(asked)).empty?.(true);
-    await pick(asked, "Run");
-    await flush();
-    expect(call).toHaveBeenLastCalledWith("evidence.record", {
-      ref: "uuid-1",
-      kind: "verification",
-      result: "passed",
-      criteria: ["3", "kone"],
-    });
-  });
-
   it("offers the inline enum of a choice, also of a list field", async () => {
     const { context, asked } = sources();
     catalogItems(context, [numbers], [])[0]?.more?.();
@@ -1027,6 +1007,471 @@ describe("catalog commands in the command prompt", () => {
     expect(contextField(args, 4)).toBeUndefined();
     expect(contextField(args, 0)).toBeUndefined();
     expect(contextField(args, 9)).toBeUndefined();
+  });
+});
+
+describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const ADDED = new Set([
+    "criterion",
+    "evidenceLocation",
+    "elementFile",
+    "metamodelLocation",
+    "group",
+    "condition",
+    "sort",
+    "properties",
+    "relations",
+  ]);
+
+  /** A copy of `name` that asks only `fields`, all required, in their catalog order, titled "Ask it". */
+  const only = (name: string, ...fields: readonly string[]): CommandListing => {
+    const listing = command(name);
+    return {
+      ...listing,
+      title: "Ask it",
+      arguments: listing.arguments.filter((arg) => fields.includes(arg.field)),
+      input: { ...listing.input, required: [...fields] },
+    };
+  };
+
+  /** The name and the key beside it of each hit of the last prompt. */
+  const hits = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map((choice) => `${choice.name} | ${choice.hint ?? ""}`);
+
+  const CRITERIA = {
+    property: "acceptance-criteria",
+    criteria: [
+      { criterion: 1, key: "kone", text: "Given a list,\n  when it opens" },
+      { criterion: 2, text: "Without a key" },
+      { criterion: 3, key: "k3x9", text: "Third" },
+    ],
+  };
+
+  /** Answers `text` to the prompt of `field` of `name`, asked first; resolves the input. */
+  const typedInput = async (name: string, field: string, text: string): Promise<unknown> => {
+    const { context, asked, call } = setup([shown], {
+      "element.search": () => ({ hits: [hit(1)], total: 1 }),
+      "metamodel.get": () => CREATE_METAMODEL,
+      "element.create": () => ({
+        element: { ...hit(9), properties: {}, relations: [] },
+        files: [],
+        problems: [],
+      }),
+    });
+    catalogItems(context, [only(name, field)], [])[0]?.run();
+    const prompt = await last(asked);
+    expect(prompt.label).toBe(`Ask it · ${field}:`);
+    prompt.text?.(text);
+    // A list takes one value per Enter; Enter on an empty input ends it.
+    if (
+      (command(name).input as { properties: Record<string, { type?: unknown }> }).properties[field]?.type ===
+      "array"
+    ) {
+      (await last(asked)).empty?.(false);
+    }
+    await flush();
+    return call.mock.calls.at(-1)?.[1][field];
+  };
+
+  it("lists the new sources on the arguments the plan names, and a meaning only on element arguments", () => {
+    const named = CATALOG.flatMap((entry) =>
+      entry.arguments
+        .filter((arg) => ADDED.has(arg.complete) || arg.meaning !== undefined)
+        .map(
+          (arg) =>
+            `${entry.name} ${arg.field} ${arg.complete}${arg.meaning === undefined ? "" : `/${arg.meaning}`}`,
+        ),
+    );
+    expect(named.sort()).toEqual(
+      [
+        "element.addAttachment file elementFile",
+        "element.create properties properties",
+        "element.create relations relations",
+        "element.get file elementFile",
+        "element.list group group",
+        "element.list sort sort",
+        "element.resolve file elementFile",
+        "element.search group group",
+        "evidence.list file elementFile",
+        "evidence.record criteria criterion",
+        "evidence.record folder evidenceLocation",
+        "evidence.record variant element/variant",
+        "filter.save sort sort",
+        "filter.save where condition",
+        "hint.list package element/package",
+        "hint.list variant element/variant",
+        "perspective.save group group",
+        "perspective.save sort sort",
+        "perspective.save where condition",
+        "trace.affected file elementFile",
+        "trace.chain file elementFile",
+        "trace.matrix sort sort",
+        "variant.diff variant element/variant",
+        "variant.exclude variant element/variant",
+        "workspace.init metamodel metamodelLocation",
+      ].sort(),
+    );
+  });
+
+  it.each([
+    // The sources of #1645 to #1648 stay as they were: a grouping as text, the composed values as JSON.
+    ["element.list", "group", "status", "status"],
+    ["perspective.save", "group", "{not json", "{not json"],
+    ["filter.save", "where", '{"status":["draft"]}', { status: ["draft"] }],
+    ["perspective.save", "where", "{a", "{a"],
+    // A sort is a list: one key per Enter.
+    ["perspective.save", "sort", '{"by":"title"}', [{ by: "title" }]],
+    ["trace.matrix", "sort", '{"by":"id","order":"desc"}', [{ by: "id", order: "desc" }]],
+    ["element.create", "properties", '{"severity":2}', { severity: 2 }],
+    ["element.create", "relations", '{"refines":"N-1"}', { refines: "N-1" }],
+  ])("asks %s %s as its old source did: %s", async (name, field, text, value) => {
+    expect(await typedInput(name, field, text)).toEqual(value);
+  });
+
+  it("[SR-215/AK-fj75] shows types, statuses, properties, relation kinds and choices by name with the key beside", async () => {
+    const { context, asked } = setup([shown], {
+      "element.get": () => ({
+        element: { ...hit(1), type: "software-requirement", properties: {}, relations: [] },
+      }),
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "relation.options": () => OPTIONS,
+    });
+    catalogItems(context, [only("element.create", "type")], [])[0]?.run();
+    expect(await hits(asked)).toEqual([
+      "System Requirement | requirement",
+      "Software Requirement | software-requirement",
+      "Decision | decision",
+      "Package | package",
+    ]);
+    catalogItems(context, [only("element.setStatus", "refs", "status")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).empty?.(false);
+    expect(await hits(asked)).toEqual(["Draft | draft", "Approved | approved", "Retired | retired"]);
+    catalogItems(context, [only("element.bulkUpdate", "property", "value")], [])[0]?.run();
+    expect(await hits(asked)).toContain("Component | component");
+    item((await last(asked)).items, "Component").run();
+    expect(await hits(asked)).toEqual(["Display | display", "Sensor | sensor"]);
+    catalogItems(context, [only("relation.options", "ref", "kind")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect(await hits(asked)).toEqual(["derives from | derives-from", "refines | "]);
+    // A value whose name is its key (a choice of the catalog, a repository) shows it once.
+    catalogItems(context, [only("element.get", "versionDate")], [])[0]?.run();
+    expect(await hits(asked)).toEqual(["yes | ", "no | "]);
+  });
+
+  it("[SR-215/AK-fj75] offers the saved filters, the variants and the packages as hits and puts in what the command expects", async () => {
+    const { context, asked, call } = setup([shown], {
+      "filter.list": () => ({ filters: [{ name: "open needs", file: "f.yaml", where: {} }], problems: [] }),
+      "metamodel.get": () => ({
+        ...FIXTURE_METAMODEL,
+        types: [...FIXTURE_METAMODEL.types, { key: "variant", name: "Variant", meaning: "variant" }],
+      }),
+      "element.list": (input) => ({
+        elements: JSON.stringify(input).includes('"variant"')
+          ? [{ ...hit(7), shortId: "VAR-1", identifier: "VAR-001", title: "Coast" }]
+          : [{ ...hit(8), shortId: "PKG-1", title: "App" }],
+      }),
+    });
+    catalogItems(context, [only("perspective.save", "filter")], [])[0]?.run();
+    expect(await hits(asked)).toEqual(["open needs | "]);
+    item((await last(asked)).items, "open needs").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("perspective.save", { filter: "open needs" });
+    catalogItems(context, [only("hint.list", "package", "variant")], [])[0]?.run();
+    expect(await hits(asked)).toEqual(["PKG-1 App | "]);
+    expect(call).toHaveBeenCalledWith("element.list", {
+      selection: { where: { type: ["package"] } },
+      limit: 5000,
+    });
+    (await last(asked)).items[0]?.run();
+    // The line names a hit by its ID, as an element found by search.
+    expect((await last(asked)).label).toBe("Ask it PKG-1 · variant:");
+    expect(await hits(asked)).toEqual(["VAR-1 (VAR-001) Coast | "]);
+    (await last(asked)).items[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("hint.list", { package: "uuid-8", variant: "uuid-7" });
+    // A metamodel without a type of the meaning offers none, and a failed read says why.
+    const none = setup([shown], { "metamodel.get": () => FIXTURE_METAMODEL });
+    catalogItems(none.context, [only("variant.diff", "variant")], [])[0]?.run();
+    expect(await hits(none.asked)).toEqual([]);
+    const broken = setup([shown], { "metamodel.get": () => new Error("No metamodel") });
+    catalogItems(broken.context, [only("variant.diff", "variant")], [])[0]?.run();
+    expect((await last(broken.asked)).label).toBe("No metamodel · Ask it · variant:");
+  });
+
+  it("[SR-215/AK-fj75] offers the acceptance criteria of the element that have a key, by number and text with the key beside, and puts in the key", async () => {
+    const { context, asked, call } = setup([shown], {
+      "element.get": () => ({ element: hit(1), criterionReferences: CRITERIA }),
+      "evidence.record": () => ({ files: ["e.md"] }),
+    });
+    catalogItems(context, [only("evidence.record", "ref", "criteria")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-1" });
+    expect(await hits(asked)).toEqual(["AK1 Given a list, when it opens | kone", "AK3 Third | k3x9"]);
+    item((await last(asked)).items, "AK3 Third").run();
+    // A list takes one per Enter, without those taken; the line names a criterion by number and key.
+    expect((await last(asked)).label).toBe("Ask it SR-000001 (SR-1) AK3 (k3x9) · criteria:");
+    expect(await hits(asked)).toEqual(["AK1 Given a list, when it opens | kone"]);
+    (await last(asked)).items[0]?.run();
+    expect(await hits(asked)).toEqual([]);
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", { ref: "uuid-1", criteria: ["k3x9", "kone"] });
+    // Without an element they are typed, and a failed read says why.
+    const alone = setup([shown], { "evidence.record": () => ({ files: [] }) });
+    catalogItems(alone.context, [only("evidence.record", "criteria")], [])[0]?.run();
+    expect((await last(alone.asked)).text).toBeDefined();
+    const broken = setup([shown], { "element.get": () => new Error("No such element") });
+    catalogItems(broken.context, [only("evidence.record", "ref", "criteria")], [])[0]?.run();
+    (await last(broken.asked)).items[0]?.run();
+    expect((await last(broken.asked)).label).toBe("No such element · Ask it SR-000001 (SR-1) · criteria:");
+  });
+
+  it("[SR-215/AK-fj75] offers the evidence locations evidence.record takes with the repository beside, and typed text for a folder below one", async () => {
+    const { context, asked, call } = setup([shown], {
+      "workspace.status": () => ({
+        repositories: [
+          { name: "spec", available: true },
+          { name: "tests", available: true },
+          { name: "far", available: false },
+        ],
+        evidence: [
+          { repository: "spec", path: "evidence", available: true, folder: "evidence" },
+          { repository: "tests", path: "out", available: false, folder: "../tests/out" },
+          { repository: "spec", path: "evidence", available: true, folder: "evidence" },
+          { repository: "far", path: "ev", available: false, folder: "../far/ev" },
+          { repository: "unlisted", path: "ev", available: false },
+        ],
+      }),
+      "evidence.record": () => ({ files: [] }),
+    });
+    catalogItems(context, [only("evidence.record", "folder")], [])[0]?.run();
+    expect(await hits(asked)).toEqual(["evidence | spec", "../tests/out | tests"]);
+    item((await last(asked)).items, "../tests/out").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", { folder: "../tests/out" });
+    catalogItems(context, [only("evidence.record", "folder")], [])[0]?.run();
+    const prompt = await last(asked);
+    // A folder below a location comes first as itself; a text below none has no such row.
+    expect(prompt.literal?.("evidence/manual")?.name).toBe("Use evidence/manual");
+    expect(prompt.literal?.("evidently")).toBeUndefined();
+    prompt.literal?.("evidence/manual")?.more?.();
+    expect((await last(asked)).label).toBe("Ask it evidence/manual · more arguments:");
+    catalogItems(context, [only("evidence.record", "folder")], [])[0]?.run();
+    (await last(asked)).text?.("elsewhere");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", { folder: "elsewhere" });
+  });
+
+  it("[SR-215/AK-fj75] offers the file of the element, or the files of an ambiguous reference with the repository beside", async () => {
+    const ambiguous = Object.assign(new Error("ref names 2 elements"), {
+      name: "ref.ambiguous",
+      details: {
+        ref: "uuid-1",
+        candidates: [
+          { id: "uuid-1", repository: "spec", file: "a/SR-1.md" },
+          { id: "uuid-1", repository: "copy", file: "b/SR-1.md" },
+          { id: "uuid-1" },
+        ],
+      },
+    });
+    let answer: unknown = { element: hit(1) };
+    const { context, asked, call } = setup([shown], {
+      "element.get": (input) => (input["file"] === undefined ? answer : { element: hit(1) }),
+    });
+    catalogItems(context, [only("element.get", "ref", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect(await hits(asked)).toEqual(["f1.md | spec"]);
+    answer = ambiguous;
+    catalogItems(context, [only("element.get", "ref", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect(await hits(asked)).toEqual(["a/SR-1.md | spec", "b/SR-1.md | copy"]);
+    item((await last(asked)).items, "b/SR-1.md").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.get", { ref: "uuid-1", file: "b/SR-1.md" });
+    // A reference element.get does not read, or a refusal without candidates: typed, core checks it.
+    answer = new Error("No such element");
+    catalogItems(context, [only("element.get", "ref", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect((await last(asked)).text).toBeDefined();
+    answer = Object.assign(new Error("ambiguous"), { name: "ref.ambiguous" });
+    catalogItems(context, [only("element.get", "ref", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect((await last(asked)).text).toBeDefined();
+  });
+
+  it("[SR-215/AK-fj75] gives the repository with a file two repositories hold, and offers only the files of a repository given before", async () => {
+    const ambiguous = Object.assign(new Error("ref names 3 elements"), {
+      name: "ref.ambiguous",
+      details: {
+        candidates: [
+          { id: "uuid-1", repository: "spec", file: "x/SR-1.md" },
+          { id: "uuid-1", repository: "copy", file: "x/SR-1.md" },
+          { id: "uuid-1", repository: "copy", file: "y/SR-1.md" },
+        ],
+      },
+    });
+    const { context, asked, call } = setup([shown], {
+      "element.get": (input) => (input["file"] === undefined ? ambiguous : { element: hit(1) }),
+      "workspace.status": () => ({ repositories: [{ name: "copy", available: true }] }),
+    });
+    // `repository` is an optional argument of the command, not asked here.
+    const get = only("element.get", "ref", "repository", "file");
+    const files = { ...get, input: { ...get.input, required: ["ref", "file"] } };
+    catalogItems(context, [files], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    const offered = (await last(asked)).items;
+    expect(new Set(offered.map((choice) => choice.id)).size).toBe(3);
+    expect(offered.map((choice) => `${choice.name} | ${choice.hint ?? ""}`)).toEqual([
+      "x/SR-1.md | spec",
+      "x/SR-1.md | copy",
+      "y/SR-1.md | copy",
+    ]);
+    offered[1]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.get", {
+      ref: "uuid-1",
+      repository: "copy",
+      file: "x/SR-1.md",
+    });
+    offered[2]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.get", { ref: "uuid-1", file: "y/SR-1.md" });
+    catalogItems(context, [only("element.get", "ref", "repository", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "copy").run();
+    expect(await hits(asked)).toEqual(["x/SR-1.md | copy", "y/SR-1.md | copy"]);
+  });
+
+  it("[SR-215/AK-fj75] asks the metamodel location in two steps: the main repository or a typed one, then the path, completed below the new workspace's folder", async () => {
+    const { context, asked, call } = setup([], {
+      "workspace.listFolder": () => ({ entries: [{ name: "model", kind: "folder" }] }),
+      "workspace.init": () => ({ files: [], problems: [] }),
+    });
+    const init = only("workspace.init", "path", "metamodel");
+    catalogItems(context, [init], [])[0]?.run();
+    (await last(asked)).text?.("work/new/");
+    const repository = await last(asked);
+    expect(repository.label).toBe("Ask it work/new/ · metamodel:");
+    expect(repository.items.map((choice) => `${choice.name} | ${choice.hint ?? ""}`)).toEqual([
+      "Main repository | default",
+    ]);
+    expect(repository.literal?.("")).toBeUndefined();
+    repository.items[0]?.run();
+    const path = await last(asked);
+    expect(path.label).toBe("Ask it work/new/ · metamodel · path in the main repository:");
+    const found = await path.seek?.("");
+    expect(call).toHaveBeenLastCalledWith("workspace.listFolder", { path: "work/new/", files: false });
+    expect(found?.choices.map((choice) => choice.complete)).toEqual([`model${PLATFORM_SEP}`]);
+    // Backspace goes back to the repository.
+    path.back?.();
+    expect((await last(asked)).label).toBe("Ask it work/new/ · metamodel:");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).text?.("model");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("workspace.init", {
+      path: "work/new/",
+      metamodel: { path: "model" },
+    });
+  });
+
+  it("[SR-215/AK-fj75] asks the path of a metamodel in another repository, typed by its name, as typed text", async () => {
+    const { context, asked, call } = setup([], { "workspace.init": () => ({ files: [], problems: [] }) });
+    const init = only("workspace.init", "path", "metamodel");
+    catalogItems(context, [init], [])[0]?.run();
+    (await last(asked)).text?.("work/new");
+    (await last(asked)).literal?.(" shared ")?.more?.();
+    const other = await last(asked);
+    expect(other.label).toBe("Ask it work/new · metamodel · path in shared:");
+    expect(other.seek).toBeUndefined();
+    other.text?.("mm");
+    expect((await last(asked)).label).toBe("Ask it work/new shared:mm · more arguments:");
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("workspace.init", {
+      path: "work/new",
+      metamodel: { repository: "shared", path: "mm" },
+    });
+  });
+
+  it("reads the field `CONTEXT` of catalog-checks.mjs names for every argument of the catalog, never one with a meaning", () => {
+    for (const entry of CATALOG) {
+      entry.arguments.forEach((arg, at) => {
+        expect(contextField(entry.arguments, at), `${entry.name} ${arg.field}`).toBe(
+          contextOf(entry.arguments, at),
+        );
+      });
+    }
+    const record = command("evidence.record").arguments;
+    const at = (field: string): number => record.findIndex((arg) => arg.field === field);
+    expect(at("variant")).toBeLessThan(at("criteria"));
+    expect(contextField(record, at("criteria"))).toBe("ref");
+    const create = command("element.create").arguments;
+    expect(
+      contextField(
+        create,
+        create.findIndex((arg) => arg.field === "relations"),
+      ),
+    ).toBe("type");
+    const init = command("workspace.init").arguments;
+    expect(
+      contextField(
+        init,
+        init.findIndex((arg) => arg.field === "metamodel"),
+      ),
+    ).toBe("path");
+  });
+
+  it("asks nothing new after the required arguments of Record evidence", async () => {
+    const { context, asked, call } = setup([shown], { "evidence.record": () => ({ files: ["e.md"] }) });
+    start(context, "evidence.record");
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "verification").run();
+    item((await last(asked)).items, "passed").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", {
+      ref: "uuid-1",
+      kind: "verification",
+      result: "passed",
+    });
+  });
+
+  it("drops the criteria of a refused reference with it, keeps the variant, and offers the criteria again", async () => {
+    let refuse = true;
+    const { context, asked, call } = setup([shown], {
+      "element.search": () => ({ hits: [hit(2)], total: 1 }),
+      "element.get": () => ({ element: hit(1), criterionReferences: CRITERIA }),
+      "metamodel.get": () => ({ types: [{ key: "variant", name: "Variant", meaning: "variant" }] }),
+      "element.list": () => ({ elements: [{ ...hit(7), shortId: "VAR-1", title: "Coast" }] }),
+      "evidence.record": () =>
+        refuse
+          ? refusedWith("ref: wrong", { errors: [{ field: "ref", message: "ref: wrong" }] })
+          : { files: ["e.md"] },
+    });
+    start(context, "evidence.record");
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "verification").run();
+    item((await last(asked)).items, "passed").more?.();
+    item((await last(asked)).items, "variant").run();
+    (await last(asked)).items[0]?.more?.();
+    item((await last(asked)).items, "criteria").run();
+    item((await last(asked)).items, "AK1 Given a list, when it opens").run();
+    (await last(asked)).empty?.(true);
+    item((await last(asked)).items, "Run").run();
+    const again = await last(asked);
+    expect(again.label).toMatch(/^ref: wrong · Record evidence .*· ref:$/);
+    refuse = false;
+    again.items[0]?.more?.();
+    expect((await last(asked)).items.map((i) => i.name)).toContain("criteria");
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", {
+      ref: "uuid-1",
+      kind: "verification",
+      result: "passed",
+      variant: "uuid-7",
+    });
   });
 });
 
@@ -2196,18 +2641,19 @@ describe("a view the window shows (SR-043 AK1)", () => {
 
   it("searches all elements for an element argument of a write, and runs the command in the shown call", async () => {
     const { context, asked, shownCall } = inCoast([list], {
+      "metamodel.get": () => ({ types: [{ key: "variant", name: "Variant", meaning: "variant" }] }),
+      "element.list": () => ({ elements: [{ ...hit(3), shortId: "VAR-1", title: "Coast" }] }),
       "element.search": () => ({ hits: [hit(2)], total: 1 }),
       "variant.exclude": () => ({ file: "variants/VAR-1.md" }),
     });
     start(context, "variant.exclude");
-    await (await last(asked)).find?.("coast");
-    // The offer goes through the call in no view: an excluded core requirement is still found (SR-042 AK6).
-    expect(shownCall).not.toHaveBeenCalled();
-    (await (await last(asked)).find?.("coast"))?.[0]?.run();
+    // The offers go through the call in no view: an excluded core requirement is still found (SR-042 AK6).
+    item((await last(asked)).items, "VAR-1 Coast").run();
     (await (await last(asked)).find?.("wind"))?.[0]?.run();
+    expect(shownCall).not.toHaveBeenCalled();
     (await last(asked)).empty?.(false);
     await flush();
-    expect(shownCall).toHaveBeenLastCalledWith("variant.exclude", { variant: "uuid-2", refs: ["uuid-2"] });
+    expect(shownCall).toHaveBeenLastCalledWith("variant.exclude", { variant: "uuid-3", refs: ["uuid-2"] });
   });
 
   it("gives the selection of the shown list the view, unless it names a view or ids (B2)", async () => {

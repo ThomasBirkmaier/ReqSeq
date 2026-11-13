@@ -673,7 +673,7 @@ describe("App", () => {
     ]);
     await keyDown(query("input"), "Enter");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
-    expect(query('[aria-selected="true"]').id).toBe("row-1");
+    expect(query('[aria-selected="true"]').id).toMatch(/_row-1$/);
   });
 
   it("[SR-114/AK-hqxs] the modeline of an open element names its ID, its type and its status", async () => {
@@ -1042,32 +1042,32 @@ describe("App", () => {
     expect(selectedRow()).toBeUndefined();
     expect(overview.getAttribute("aria-activedescendant")).toBeNull();
     await keyDown(overview, "n", ctrl);
-    expect(selectedRow()).toBe("overview-0");
-    expect(overview.getAttribute("aria-activedescendant")).toBe("overview-0");
+    expect(selectedRow()).toMatch(/_overview-0$/);
+    expect(overview.getAttribute("aria-activedescendant")).toMatch(/_overview-0$/);
     await keyDown(overview, "N", ctrl);
-    expect(selectedRow()).toBe("overview-1");
+    expect(selectedRow()).toMatch(/_overview-1$/);
     await keyDown(overview, "p", ctrl);
-    expect(selectedRow()).toBe("overview-0");
+    expect(selectedRow()).toMatch(/_overview-0$/);
     await listAll();
     const list = query('[role="listbox"]');
     expect(selectedRow()).toBeUndefined();
     await keyDown(list, "n", ctrl);
-    expect(selectedRow()).toBe("row-0");
+    expect(selectedRow()).toMatch(/_row-0$/);
     await keyDown(list, "n", ctrl);
     await keyDown(list, "n", ctrl);
-    expect(selectedRow()).toBe("row-2");
-    expect(list.getAttribute("aria-activedescendant")).toBe("row-2");
+    expect(selectedRow()).toMatch(/_row-2$/);
+    expect(list.getAttribute("aria-activedescendant")).toMatch(/_row-2$/);
     await keyDown(list, "p", ctrl);
-    expect(selectedRow()).toBe("row-1");
+    expect(selectedRow()).toMatch(/_row-1$/);
     await keyDown(list, "ArrowUp");
-    expect(selectedRow()).toBe("row-0");
+    expect(selectedRow()).toMatch(/_row-0$/);
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
     await type("title");
     await keyDown(query("input"), "Enter");
     expect(text("Modeline")).toContain("Search: title");
     expect(selectedRow()).toBeUndefined();
     await keyDown(query('[role="listbox"]'), "n", ctrl);
-    expect(selectedRow()).toBe("row-0");
+    expect(selectedRow()).toMatch(/_row-0$/);
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(query("article h1").textContent).toBe("Title 2");
   });
@@ -1083,15 +1083,15 @@ describe("App", () => {
       await keyDown(list, "n", ctrl);
       const up = await pressed(list, "p", ctrl);
       expect(up.defaultPrevented).toBe(true);
-      expect(selectedRow()).toBe("row-0");
+      expect(selectedRow()).toMatch(/_row-0$/);
       expect(prompt()).toBeUndefined();
       const top = await pressed(list, "p", ctrl);
       expect(top.defaultPrevented).toBe(true);
-      expect(selectedRow()).toBe("row-0");
+      expect(selectedRow()).toMatch(/_row-0$/);
       expect(prompt()).toBeUndefined();
       const cmdN = await pressed(list, "n", { metaKey: true });
       expect(cmdN.defaultPrevented).toBe(false);
-      expect(selectedRow()).toBe("row-0");
+      expect(selectedRow()).toMatch(/_row-0$/);
       await keyDown(list, "p", { metaKey: true });
       expect(prompt()).toBe("Go to");
       await keyDown(query("input"), "Escape");
@@ -1100,7 +1100,7 @@ describe("App", () => {
       const overview = query('[role="listbox"]');
       await keyDown(overview, "n", ctrl);
       await keyDown(overview, "p", ctrl);
-      expect(selectedRow()).toBe("overview-0");
+      expect(selectedRow()).toMatch(/_overview-0$/);
       expect(prompt()).toBeUndefined();
     },
   );
@@ -1161,7 +1161,7 @@ describe("App", () => {
     expect(calls(invoke, "element.get")).toEqual([{ ref: "uuid-1", repository: "spec" }]);
     await keyDown(window, "p", ctrl);
     await keyDown(query("input"), "Enter");
-    expect(selectedRow()).toBe("row-0");
+    expect(selectedRow()).toMatch(/_row-0$/);
   });
 
   it("[SR-122/AK-kjhn] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
@@ -3041,7 +3041,7 @@ describe("App, the package page (SR-112)", () => {
     for (let n = 0; n < 3; n += 1) {
       await keyDown(query(".members .list"), "ArrowDown");
     }
-    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-2$/);
     expect(memberCalls(invoke)).toHaveLength(1);
     expect(calls(invoke, "element.get")).toHaveLength(1);
   });
@@ -3059,7 +3059,7 @@ describe("App, the package page (SR-112)", () => {
     expect(query("article h1").textContent).toBe("Stufe-3");
     // The focus is on the row that was used, as it is on a list.
     expect(document.activeElement).toBe(query(".members .list"));
-    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-1$/);
     await keyDown(query(".members .list"), "ArrowDown");
     await keyDown(query(".members .list"), "Enter");
     expect(query("article h1").textContent).toBe("Title 4");
@@ -3080,7 +3080,7 @@ describe("App, the package page (SR-112)", () => {
     await keyDown(query("input"), "Enter");
     expect(query("article h1").textContent).toBe("Stufe-3");
     expect(document.activeElement).toBe(query(".members .list"));
-    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-0$/);
     await keyDown(query(".members .list"), "ArrowDown");
     await keyDown(query(".members .list"), "Enter");
     expect(query("article h1").textContent).toBe("Title 3");
@@ -3147,7 +3147,7 @@ describe("App, the package page (SR-112)", () => {
     await keyDown(query("input"), "Enter");
     expect(memberTitles()).toEqual(["Title 4", "Title 3", "Title 2"]);
     expect(query(".members h2").textContent).toBe("← packages 3 · sorted by title descending");
-    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-1$/);
   });
 
   it("asks for the elements again when the workspace changed, and keeps them until the answer", async () => {
@@ -3171,11 +3171,11 @@ describe("App, the package page (SR-112)", () => {
     const ctrlN = await pressed(query("article"), "n", { ctrlKey: true });
     expect(ctrlN.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(query(".members .list"));
-    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-0$/);
     await keyDown(query(".members .list"), "n", { ctrlKey: true });
-    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-1$/);
     await keyDown(query(".members .list"), "p", { ctrlKey: true });
-    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-0$/);
     const back = await pressed(query(".members .list"), "p", { ctrlKey: true });
     expect(back.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(query("article"));
@@ -3191,7 +3191,7 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query("article"));
     await keyDown(query("article"), "n", { ctrlKey: true });
     expect(document.activeElement).toBe(query(".members .list"));
-    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-0$/);
   });
 
   /** A package page with the text box "topic" below its text. */
@@ -3252,10 +3252,10 @@ describe("App, the package page (SR-112)", () => {
     await openPackage();
     await keyDown(query("article"), "n", { ctrlKey: true });
     await keyDown(query(".members .list"), "End");
-    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-2$/);
     const last = await pressed(query(".members .list"), "n", { ctrlKey: true });
     expect(last.defaultPrevented).toBe(true);
-    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(query('.members [aria-selected="true"]').id).toMatch(/_row-2$/);
     expect(document.activeElement).toBe(query(".members .list"));
   });
 

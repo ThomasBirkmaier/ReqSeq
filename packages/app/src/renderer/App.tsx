@@ -17,6 +17,7 @@ import {
   mouseButtonAction,
   referencePrompt,
   runAction,
+  swipeAction,
 } from "./actions.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
@@ -44,7 +45,8 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
-import { SlideController, directionOf } from "./buffer-slide.js";
+import { SlideController, directionOf, shownLayer } from "./buffer-slide.js";
+import { bufferSwitchBlocked } from "./buffer-switch.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
@@ -1095,6 +1097,39 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       window.removeEventListener("mouseup", onMouse);
     };
   }, [ask, commands, startPrefix, contextMenu.isOpen]);
+  // A swipe to the left or right that macOS reports to the window, as older mouse software sends the buttons
+  // Back and Forward (SR-163 AK4): what the mouse button does, read from refs as `onMouse` does. It ends a
+  // running slide first, as a key does (SR-212 AK2), also when it then switches nothing; it switches nothing
+  // in the states of `bufferSwitchBlocked` and closes none of them; a waiting prefix key ends, as a press of a
+  // mouse button ends it. Wheel events are not read, so a wheel that still coasts changes nothing.
+  const prefixCardShown = prefix.cardShown;
+  const cancelPrefix = prefix.cancel;
+  useEffect(
+    () =>
+      bridge.on("swipe", ({ direction }) => {
+        slides.interrupt();
+        const now = latest.current;
+        const blocked = bufferSwitchBlocked(
+          {
+            switching: switchingNow.current,
+            prompting: openPrompt.current !== undefined,
+            contextMenu: contextMenu.isOpen(),
+            about: aboutOpen.current,
+            nextKeys: prefixCardShown(),
+          },
+          document,
+        );
+        if (blocked || !now.workspace) {
+          return;
+        }
+        cancelPrefix();
+        const action = swipeAction(now, direction);
+        if (action !== undefined) {
+          runAction(action, now);
+        }
+      }),
+    [bridge, slides, contextMenu.isOpen, prefixCardShown, cancelPrefix],
+  );
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -1106,7 +1141,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
     // Not while "About ReqSeq" is open: it keeps the focus (SR-161), and gives it back when it closes.
     if (prompt === undefined && about === undefined && area?.contains(document.activeElement) !== true) {
-      area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
+      shownLayer(area)?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
   }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
