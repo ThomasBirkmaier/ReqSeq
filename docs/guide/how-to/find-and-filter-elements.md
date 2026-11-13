@@ -12,7 +12,7 @@ The search finds words in titles, texts, property values, type and status names 
 1. To open one element, press Ctrl+P (⌘P on macOS) for **Go to element or buffer**, type its short ID or title words, and press Enter.
 2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Open a hit with the arrow keys and Enter, or all hits in a buffer with Enter alone.
 3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property”, “Filter list by text search” and “Filter list by saved filter”. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
-4. “Sort list” (Ctrl+K S) orders the list by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows offers most of these.
+4. “Sort list” (Ctrl+K S) orders the list, for example by title, ascending or descending, or as the derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter to open it. “Fold status in lists” chooses the statuses that fold on this computer.
 7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
@@ -72,7 +72,7 @@ hits:
 total: 1
 ```
 
-`--fields` searches only the fields `element search-fields` lists:
+`--fields` searches only in fields `element search-fields` lists:
 
 ```sh
 reqseq element search-fields
