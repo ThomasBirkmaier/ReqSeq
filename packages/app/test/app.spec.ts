@@ -263,11 +263,12 @@ test.describe("without a workspace", () => {
       ok: false,
       error: { code: "workspace.not-found", message: NO_WORKSPACE_MESSAGE },
     });
-    // The key it names opens the command prompt with "Open workspace" (and "Open documentation", SR-141).
+    // The key it names opens the command prompt with "Open workspace" (and "Open documentation", SR-141), by
+    // name and without "All commands…" (SR-133 AK1).
     await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
     await expect(running.window.locator('[role="option"] .name')).toHaveText([
-      "Open workspace",
       "Open documentation",
+      "Open workspace",
     ]);
   });
 

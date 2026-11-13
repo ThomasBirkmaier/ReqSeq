@@ -95,13 +95,14 @@ const hasEntries = async (target: Locator, after: readonly string[] = []): Promi
 };
 
 /**
- * "All commands…" from the menu of `target` lists what Ctrl/Cmd+Shift+P lists on the buffer, each name once
- * (SR-194 AK3): the menu's entry does not add its actions to the prompt.
+ * "All commands…" from the menu of `target` lists what "All commands…" of Ctrl/Cmd+Shift+P lists on the buffer,
+ * each name once (SR-194 AK3, SR-133 AK3): the menu's entry does not add its actions to the prompt.
  */
 const allCommandsAsPrompt = async (target: Locator): Promise<void> => {
   const window = target.page();
   await rightClick(target);
   await choose(window, "All commands…");
+  await expect(window.locator("label.prompt-label")).toHaveText("All commands");
   await expect(window.locator(".prompt-input")).toHaveValue("");
   const fromMenu = await candidates(window).locator(".name").allTextContents();
   await window.keyboard.press("Escape");
@@ -111,6 +112,8 @@ const allCommandsAsPrompt = async (target: Locator): Promise<void> => {
   await expect(menu(window)).toBeHidden();
   await window.keyboard.press("ControlOrMeta+Shift+P");
   await expect(window.locator(".prompt-input")).toHaveValue("");
+  await candidates(window).filter({ hasText: "All commands…" }).click();
+  await expect(window.locator("label.prompt-label")).toHaveText("All commands");
   expect(await candidates(window).locator(".name").allTextContents()).toEqual(fromMenu);
   await window.keyboard.press("Escape");
   expect(fromMenu.length).toBeGreaterThan(3);

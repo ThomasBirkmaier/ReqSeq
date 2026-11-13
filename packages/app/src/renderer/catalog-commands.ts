@@ -406,17 +406,20 @@ const offered = (context: ActionContext, command: CommandListing): boolean =>
  * which the prompt offers first for it. A selection counts even when it is optional, because `inputOf`
  * fills it in from the list without asking, so the command runs on what the list shows. An optional
  * element argument does not count: it is asked only after Ctrl/Cmd+Enter and the command runs without
- * it, so the shown element plays no part in a plain run.
+ * it, so the shown element plays no part in a plain run. In the overview every command fits.
  */
 export const fits = (context: ActionContext, command: CommandListing): boolean => {
   const shown = context.buffers[0]?.kind;
   const required = askedOf(command);
-  return command.arguments.some((arg) =>
-    arg.complete === "selection"
-      ? givesSelection(context)
-      : arg.complete === "element" &&
-        required.includes(arg.field) &&
-        (shown === "element" || shown === "neighbourhood"),
+  return (
+    shown === "overview" ||
+    command.arguments.some((arg) =>
+      arg.complete === "selection"
+        ? givesSelection(context)
+        : arg.complete === "element" &&
+          required.includes(arg.field) &&
+          (shown === "element" || shown === "neighbourhood"),
+    )
   );
 };
 

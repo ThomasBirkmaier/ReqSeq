@@ -233,7 +233,7 @@ test.describe("the context menu", () => {
     await expect.poll(() => shown(window)).toEqual(byLine);
   });
 
-  test("[SR-194/AK-h8zf] All commands… opens the command prompt empty, with the commands of the place first", async () => {
+  test("[SR-194/AK-h8zf] All commands… opens the command prompt with every command of the place by name", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await listAll(window);
@@ -241,13 +241,18 @@ test.describe("the context menu", () => {
     await rightClick(row);
     await expect(row).toHaveAttribute("aria-selected", "true");
     await choose(window, ALL);
+    await expect(window.locator("label.prompt-label")).toHaveText("All commands");
     await expect(window.locator(".prompt-input")).toHaveValue("");
     const fromMenu = await candidates(window).locator(".name").allTextContents();
+    expect(fromMenu).toEqual([...fromMenu].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
     await window.keyboard.press("Escape");
+    // The same list as "All commands…" of the command prompt on this place (SR-133 AK3).
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator(".prompt-input")).toHaveValue("");
+    await candidates(window).filter({ hasText: ALL }).click();
+    await expect(window.locator("label.prompt-label")).toHaveText("All commands");
     expect(await candidates(window).locator(".name").allTextContents()).toEqual(fromMenu);
-    expect(fromMenu.length).toBeGreaterThan(3);
+    expect(fromMenu.length).toBeGreaterThan(10);
   });
 
   test("[SR-194/AK-kvdd] Escape and a left click outside close the menu; a right-click elsewhere opens the menu there", async () => {

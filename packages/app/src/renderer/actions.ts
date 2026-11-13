@@ -34,7 +34,8 @@ import {
 } from "./buffers.js";
 import { SEARCH_COMMAND, searchFieldsPrompt, summaryOf } from "./search-fields.js";
 import type { Call } from "./call.js";
-import { bindingLabel } from "./bindings.js";
+import { PREFIX_BINDINGS, bindingLabel } from "./bindings.js";
+import { ALL_COMMANDS, ALL_COMMANDS_DESCRIPTION } from "./prompt-keys.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
@@ -99,7 +100,7 @@ export interface Choice {
   readonly inert?: boolean;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
-  /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
+  /** It fits the shown view (SR-133): only such entries are among the first nine of an empty input, and they come first among equal matches. */
   readonly fits?: boolean;
   /**
    * The explanation line while it is marked: the catalog command it runs, or the action's description (SR-210 AK1,
@@ -108,6 +109,11 @@ export interface Choice {
   readonly explain?: CommandExplanation;
   /** The command help of the catalog command it runs, or the action's description, shown on Ctrl+H (SR-210 AK3). */
   readonly help?: CommandHelp;
+  /**
+   * It opens another list of the same prompt ("All commands…", SR-133 AK3): only Enter or a click takes it, so
+   * Ctrl/Cmd+Enter does nothing, and F1 opens the start page of the documentation (SR-210 AK5).
+   */
+  readonly opens?: true;
 }
 
 /**
@@ -150,6 +156,8 @@ export interface CommandExplanation {
    * the command asks none of them (SR-210 AK5).
    */
   readonly optional?: number;
+  /** At the right the key Enter alone, which takes the entry: the row "All commands…" (SR-210 AK5). */
+  readonly enter?: true;
 }
 
 /** What the explanation line of an asked argument says (SR-210 AK2): its catalog text and the keys of the step. */
@@ -263,6 +271,13 @@ export interface Prompt {
   readonly empty?: (more: boolean) => void;
   /** What was chosen before, to order equal matches and to put the command chosen for this text first (the command prompt). */
   readonly use?: PromptUse;
+  /**
+   * What an empty input shows of the items (the command prompt, SR-133 AK1, AK3). `first`: the first that many
+   * items that fit, in the order of `rankByUse`, then `last`; a prompt with at most one item more than `first`
+   * shows them all without `last`. `"as-given"`: every item in the order given (alphabetically by name). A typed
+   * text finds among all items as without it, never `last`.
+   */
+  readonly opening?: { readonly first: number; readonly last: Choice } | "as-given";
   /**
    * The parts that come later (a catalog argument's values): the prompt is open and takes keys while they
    * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them.
@@ -1707,19 +1722,67 @@ const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
   return hint === undefined ? {} : { hint };
 };
 
+/** How many fitting commands the command prompt shows with an empty input, before "All commands…" (SR-133 AK1). */
+export const OPENING_COMMANDS = 9;
+
+/**
+ * The order of the entries without use (SR-133 AK1): first those with a letter after the prefix key, in the order of
+ * the next keys (`PREFIX_BINDINGS`, SR-109 AK3); then the actions with a shortcut of their own, in the order of
+ * `ACTIONS` (the order among them is not set by the requirement); then the others by name. `rankByUse` keeps this
+ * order among entries in equal use.
+ */
+export const unusedOrder = (items: readonly Choice[], actions: readonly Action[] = ACTIONS): Choice[] => {
+  const place = (item: Choice): readonly [number, number] => {
+    const letter = PREFIX_BINDINGS.findIndex((binding) => binding.id === item.id);
+    if (letter !== -1) {
+      return [0, letter];
+    }
+    const keyed = actions.findIndex((action) => action.id === item.id && action.shortcut !== undefined);
+    return keyed === -1 ? [2, 0] : [1, keyed];
+  };
+  return items
+    .map((item) => ({ item, place: place(item) }))
+    .sort(
+      (a, b) =>
+        a.place[0] - b.place[0] || a.place[1] - b.place[1] || (a.place[0] === 2 ? byName(a.item, b.item) : 0),
+    )
+    .map(({ item }) => item);
+};
+
+/** Two entries alphabetically by their name, ignoring case. */
+const byName = (a: Choice, b: Choice): number =>
+  a.name.localeCompare(b.name, "en", { sensitivity: "base" }) || a.name.localeCompare(b.name, "en");
+
+/**
+ * The last row of the command prompt with an empty input (SR-133 AK3): `open` shows every command. It records no
+ * use, has no key and no command help; its explanation line names Enter, which takes it (SR-210 AK5).
+ */
+const allCommandsRow = (open: () => void): Choice => ({
+  id: "all-commands",
+  name: ALL_COMMANDS,
+  opens: true,
+  explain: { summary: ALL_COMMANDS_DESCRIPTION, enter: true },
+  run: open,
+});
+
 /**
  * The command prompt: the actions that apply now, with their shortcuts, then `commands` (the catalog's,
- * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2). An action is shown only where it
- * applies, so each one fits the view (SR-133 AK1).
+ * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2); the window puts them in `unusedOrder` first.
+ * An action is shown only where it applies, so each one fits the view (SR-133 AK1). With `everything`, an
+ * empty input shows the first nine that fit and "All commands…", which calls it (SR-133 AK1, AK3).
  */
 export const commandPrompt = (
   context: ActionContext,
   use?: PromptUse,
   commands: readonly Choice[] = [],
   reopen?: () => void,
+  everything?: () => void,
 ): Prompt => ({
   label: "Command",
   ...(use === undefined ? {} : { use }),
+  ...(everything === undefined
+    ? {}
+    : { opening: { first: OPENING_COMMANDS, last: allCommandsRow(everything) } }),
   items: [
     ...ACTIONS.filter((action) => action.available(context)).map((action) => ({
       id: action.id,
@@ -1732,6 +1795,18 @@ export const commandPrompt = (
     })),
     ...commands,
   ],
+});
+
+/**
+ * The list of every command of the command prompt `prompt` (SR-133 AK3): an empty input shows all its entries
+ * alphabetically by name, the first one marked, under the label "All commands"; a typed text finds as in the
+ * command prompt (AK2).
+ */
+export const allCommandsPrompt = (prompt: Prompt): Prompt => ({
+  ...prompt,
+  label: "All commands",
+  opening: "as-given",
+  items: [...prompt.items].sort(byName),
 });
 
 /**

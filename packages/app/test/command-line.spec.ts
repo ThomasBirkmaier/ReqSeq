@@ -33,8 +33,10 @@ test.describe("the command prompt", () => {
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("fl");
-    // By match "Filter list by type" is first for "fl".
+    // By match "Filter list by type" is first for "fl", then the other filters by name.
     await expect(names(window).first()).toHaveText("Filter list by type");
+    await window.keyboard.press("ArrowDown");
+    await window.keyboard.press("ArrowDown");
     await window.keyboard.press("ArrowDown");
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
       "Filter list by status",
@@ -295,7 +297,7 @@ test.describe("the command prompt", () => {
     ]);
   });
 
-  test("[SR-133/AK-w23t] in an element, the commands with an element argument come before the others when nothing is typed", async () => {
+  test("[SR-133/AK-w23t] in an element and in a list, the empty prompt shows the first nine fitting commands, then All commands…", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -304,14 +306,60 @@ test.describe("the command prompt", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
     await window.keyboard.press("Enter");
     await expect(window.locator("article h1")).toContainText("Measure wind speed");
+    // Without use: the letters after the prefix key in the order of the next keys, then the own shortcuts.
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await expect(names(window).filter({ hasText: "Show workspace status" })).toHaveCount(1);
-    const wanted = ["Show trace chain", "Show affected elements", "Show workspace status"];
-    const shown = (await names(window).allTextContents()).filter((name) => wanted.includes(name));
-    // In the catalog "Show workspace status" comes first; it needs no element, so it is below them now. A
-    // missing name fails the check too.
-    expect(shown).toEqual(wanted);
+    await expect(names(window)).toHaveText([
+      "Create relation",
+      "Set status",
+      "Confirm hints",
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "All commands…",
+    ]);
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-133-prompt-element-light.png") });
+    // A command that does not fit is found by typing.
+    await window.keyboard.type("workspace status");
+    await expect(names(window).first()).toHaveText("Show workspace status");
     await window.keyboard.press("Escape");
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(names(window)).toHaveText([
+      "List all elements",
+      "Open perspective",
+      "Show overview",
+      "Filter list by type",
+      "Sort list",
+      "Close buffer",
+      "Go to element or buffer",
+      "Search elements",
+      "Show traceability matrix",
+      "All commands…",
+    ]);
+    await window.keyboard.press("Escape");
+  });
+
+  test("[SR-133/AK-w7wd] [SR-134/AK-trng] Escape in the first argument of a command chosen from All commands… goes back to that list", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const label = window.locator("label.prompt-label");
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.locator('.candidates [role="option"]').filter({ hasText: "All commands…" }).click();
+    await expect(label).toHaveText("All commands");
+    await window.keyboard.type("Filter list by status");
+    await expect(names(window).first()).toHaveText("Filter list by status");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Status");
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveText("All commands");
+    await expect(window.locator(".prompt-input")).toHaveValue("");
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveCount(0);
   });
 
   test("Confirm hints: Enter, Enter, Enter on an element with one outdated relation confirms it", async () => {
