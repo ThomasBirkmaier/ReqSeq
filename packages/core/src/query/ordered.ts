@@ -45,7 +45,7 @@ type SortKeys = Parameters<typeof sortElements>[2];
 /**
  * Runs `run` with `sort`. Without it (undefined), with the first stored sort (see the file comment),
  * also an empty one, whose errors then name its file; with none, the workspace order. The sort of the
- * selection's filter ranks as the input's, above the perspective's (assumption, question #1627).
+ * selection's filter counts as the input's sort, above the perspective's (SR-213 AK5).
  */
 const withSort = <T>(selected: Selected, sort: SortKeys | undefined, run: (keys: SortKeys) => T): T => {
   if (sort !== undefined) {

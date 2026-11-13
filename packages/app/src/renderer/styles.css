@@ -431,7 +431,7 @@ body,
   color: var(--muted);
 }
 
-/* The overview: a line per type with its count, and the recent elements below. Greys only. */
+/* The overview: a line per type with its count, the perspectives, and the recent elements below. Greys only. */
 .overview .line {
   padding: 0.1rem 0.75rem;
   cursor: default;
@@ -453,6 +453,7 @@ body,
 
 .overview .recent .id,
 .overview .count,
+.overview .reason,
 .overview .group {
   color: var(--muted);
 }
