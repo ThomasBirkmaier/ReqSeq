@@ -4,9 +4,9 @@
 // this spec asserts the limits of other criteria while buffers are drawn hidden beside the shown one, and records
 // how soon a switch to one of them starts to slide:
 //
-// - SR-082 AK3, the hostile case: an element opened with Ctrl+P, the Enter sent just after the slowest read of a
-//   neighbour started (the neighbourhood of a package with many elements, read again after a change from
-//   outside), watched in the preload's world (`recordRequests`);
+// - SR-082 AK3, the hostile case: an element opened with Ctrl+P at once after the slowest read of a neighbour
+//   started (the neighbourhood of a package with many elements, read again after a change from outside),
+//   watched in the preload's world (`recordRequests`); no such read starts while the prompt is open;
 // - SR-082 AK4: the list of all elements, its first page, asked for while neighbours are drawn;
 // - SR-116 AK1: the shown element changed outside, while its neighbours read again;
 // - SR-212 AK2: a switch just after typing loses no input;
@@ -271,16 +271,15 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       ),
     );
 
-    // SR-082 AK3, hostile: Ctrl+P typed, a change from outside makes the neighbours read again (A named, so
-    // mounted again; the neighbourhood of the package on every change), and the Enter goes just after the
-    // neighbourhood's read started.
+    // SR-082 AK3, hostile: a change from outside makes the neighbours read again (A named, so mounted again; the
+    // neighbourhood of the package on every change), and Ctrl+P, the title and Enter follow at once after the
+    // neighbourhood's read started. A read drawn in advance starts no later: none starts while a prompt is open.
     const opens: number[] = [];
     for (let round = 0; round < ROUNDS; round += 1) {
       const target = others[round];
       if (target === undefined) {
         throw new Error("no element to open");
       }
-      await goToTyped(window, target.title);
       await requests.clear();
       await retitle(a, `${a.title} ${String(round)}`);
       await expect
@@ -294,15 +293,18 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
           { intervals: [5], timeout: 10_000 },
         )
         .toBe(true);
+      await goToTyped(window, target.title);
       opens.push(await timeOpen(window, target.title));
       await window.waitForTimeout(SETTLE_SWITCH_MS);
-      // Back to B, so its neighbours are the neighbourhood and A again.
-      await open(window, b.title);
+      // Back to B with the target closed, so its neighbours are the neighbourhood and A again.
+      await command(window, "Close buffer");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
       await window.waitForTimeout(SETTLE_SWITCH_MS);
     }
     recorded.push(
       await recordValue(
-        `app: Ctrl+P Enter until an element shows, sent just after the read of a neighbourhood drawn in advance started (slowest of ${String(ROUNDS)})`,
+        `app: Ctrl+P Enter until an element shows, the prompt opened just after the read of a neighbourhood drawn in advance started (slowest of ${String(ROUNDS)})`,
         Math.max(...opens),
         { basis: "SR-082 AK3 (with buffers drawn in advance, SR-212 AK5; the app)", thresholdMs: OPEN_MS },
       ),
@@ -344,7 +346,9 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       ),
     );
     await window.waitForTimeout(SETTLE_SWITCH_MS);
-    await open(window, b.title);
+    await command(window, "Close buffer");
+    await expect.poll(() => shownTitle(window)).toBe(b.title);
+    await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
     await window.waitForTimeout(SETTLE_SWITCH_MS);
 
     // SR-116 AK1: B changed outside while shown, its neighbours read again meanwhile.

@@ -53,6 +53,18 @@ describe("the gate of the reads drawn in advance", () => {
     gate.dispose();
   });
 
+  it("[SR-212/AK-tfck] stays closed while a prompt is open, where the reader may choose the next buffer", async () => {
+    const gate = new ReadGate(1000);
+    gate.show("a", true);
+    gate.prompt(true);
+    expect(gate.open).toBe(false);
+    const waiting = gate.pass();
+    expect(await settled(waiting)).toBe(false);
+    gate.prompt(false);
+    expect(await settled(waiting)).toBe(true);
+    gate.dispose();
+  });
+
   it("[SR-212/AK-tfck] opens after the deadline when the shown buffer never reports", async () => {
     vi.useFakeTimers();
     const gate = new ReadGate(1000);

@@ -660,6 +660,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // When the reads of the buffers drawn in advance may go (SR-212 AK5): after the shown one is drawn.
   const gate = useMemo(() => new ReadGate(), []);
   const slides = useSlides(sheet, layout.active, current, gate);
+  // While a prompt is open the reader may be choosing the next buffer: no read drawn in advance starts then.
+  const prompting = prompt !== undefined;
+  useLayoutEffect(() => {
+    gate.prompt(prompting);
+  }, [gate, prompting]);
   // The previous and the next buffer of the active area, drawn hidden beside the shown one (SR-212 AK5).
   const neighbours = neighbourBuffers(buffers, walk.current.order, layout.other, {
     known: typeNames.size > 0,

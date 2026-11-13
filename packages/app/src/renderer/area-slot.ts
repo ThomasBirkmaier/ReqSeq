@@ -50,13 +50,15 @@ export const drawnBy = (data: BufferData | undefined): boolean => data !== undef
 
 /**
  * When the reads of the hidden views may go: once the buffer the active area shows has reported that it is
- * drawn (at least once since it was shown, or after `DRAW_DEADLINE_MS`), and not while a slide runs. So a read
- * drawn in advance never delays the buffer the reader waits for (SR-082 AK3).
+ * drawn (at least once since it was shown, or after `DRAW_DEADLINE_MS`), and not while a slide runs or a prompt
+ * is open (the reader may be choosing the next buffer). So a read drawn in advance never delays the buffer the
+ * reader waits for (SR-082 AK3).
  */
 export class ReadGate {
   private shown: string | undefined;
   private drawnShown = false;
   private sliding = false;
+  private prompting = false;
   private deadline: ReturnType<typeof setTimeout> | undefined;
   private readonly waiting = new Set<() => void>();
   private readonly wait: number;
@@ -67,7 +69,7 @@ export class ReadGate {
 
   /** The reads may go now. */
   get open(): boolean {
-    return this.drawnShown && !this.sliding;
+    return this.drawnShown && !this.sliding && !this.prompting;
   }
 
   /** The active area shows `key`; `drawn` when its view reported its drawing already (it was drawn in advance). */
@@ -99,6 +101,12 @@ export class ReadGate {
   /** A slide is taken, waits or runs (`true`), or ended (`false`). */
   slide(busy: boolean): void {
     this.sliding = busy;
+    this.release();
+  }
+
+  /** A prompt is open in the minibuffer (`true`), or none is (`false`). */
+  prompt(open: boolean): void {
+    this.prompting = open;
     this.release();
   }
 
