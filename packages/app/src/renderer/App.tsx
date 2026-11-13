@@ -31,6 +31,7 @@ import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
+import { trackCalls } from "./call-turn.js";
 import type { ShownView } from "./views.js";
 import { inView, variantTypesOf, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
@@ -320,13 +321,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const macRef = useRef(mac);
   macRef.current = mac;
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
+  // The calls to the core, counted, so that the overview's counts give way to them (`call-turn.ts`).
+  const calls = useMemo(() => trackCalls(), []);
+  const tracked = useMemo<ReqSeqBridge>(
+    () => ({ ...bridge, invoke: calls.wrap((name, input) => bridge.invoke(name, input)) }),
+    [bridge, calls],
+  );
   const call = useMemo<Call>(() => {
-    const run = callOn(bridge);
+    const run = callOn(tracked);
     return (name, input) =>
       stoppedRef.current
         ? Promise.resolve({ ok: false, code: "workspace.not-found", message: stoppedMessage(macRef.current) })
         : run(name, input);
-  }, [bridge]);
+  }, [tracked]);
   // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
   // after another workspace opens. The views of the buffers read in it; saves and single elements do not.
   const [shownView, setShownView] = useState<ShownView | undefined>(undefined);
@@ -346,7 +353,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     let mounted = true;
     // If the metamodel cannot be read, the modeline shows the keys of the types.
     const loadTypeNames = async (): Promise<void> => {
-      const metamodel = await callOn(bridge)("metamodel.get", {});
+      const metamodel = await callOn(tracked)("metamodel.get", {});
       if (mounted) {
         setTypeNames(
           metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
@@ -382,7 +389,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (key === undefined) {
         return;
       }
-      void restoreSession(loadSession(appStorage, key), callOn(bridge), () => bridge.commands()).then(
+      void restoreSession(loadSession(appStorage, key), callOn(tracked), () => bridge.commands()).then(
         (restored) => {
           if (!mounted || asked !== opened) {
             return;
@@ -435,7 +442,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
-      const result = await bridge.invoke("workspace.status", {});
+      const result = await tracked.invoke("workspace.status", {});
       if (!mounted || asked !== opened) {
         return;
       }
@@ -1177,6 +1184,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     recent,
     shownAreas.some((area) => area.buffer.kind === "overview"),
     setEcho,
+    calls.turn,
   );
   // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {

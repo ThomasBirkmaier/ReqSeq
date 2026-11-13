@@ -23,7 +23,7 @@ import {
 } from "./overview.js";
 import { isGone } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { checkPerspective } from "./perspective-actions.js";
+import { countPerspective } from "./perspective-actions.js";
 import type { RecentEntry } from "./recent.js";
 import { activeRow } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -40,6 +40,9 @@ export interface OverviewData {
   readonly perspectives: readonly string[];
 }
 
+/** A turn at once, for a caller without other calls to give way to. */
+const AT_ONCE = (): Promise<void> => Promise.resolve();
+
 const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.id}`;
 
 /**
@@ -47,9 +50,9 @@ const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.i
  * of the workspace (a return to the overview does not count again, which would take hundreds of
  * milliseconds at 50,000 elements), and the recent elements again when the list or the workspace changed.
  * The type lines and the names of the perspectives come together; the count of each perspective follows
- * after them, one perspective after the other (SR-118 AK8), so the overview does not wait for them, and
- * each call the app makes meanwhile waits for at most the one count in flight (a command of several calls
- * may wait once per call). The counts are asked only while the overview is shown and its revision is the
+ * after them, one perspective after the other (SR-118 AK8), each only once the window is idle and no other
+ * call is pending (`turn`), so the overview does not wait for them and a call of the user waits at most for
+ * the one count in flight. The counts are asked only while the overview is shown and its revision is the
  * workspace's; shown again, it asks only for those not counted yet. An element that cannot
  * be read any more (deleted outside, repository missing) is left out silently; `gone` gives the buffer keys
  * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (ThomasBirkmaier/ReqSeq-archive#681). `read` is the
@@ -61,6 +64,8 @@ export const useOverview = (
   recent: readonly RecentEntry[],
   active: boolean,
   onEcho: (message: string) => void,
+  /** Resolves when a count may be asked: the window is idle and no other call is pending (`call-turn.ts`). */
+  turn: () => Promise<void> = AT_ONCE,
 ): {
   readonly data: OverviewData | undefined;
   /** The perspectives shown, each with its count once computed. */
@@ -120,15 +125,20 @@ export const useOverview = (
     if (have === undefined) {
       setCounts({ revision: of, counts: new Map() });
     }
-    // An object, so the check after each answer reads what the cleanup set meanwhile.
+    // Read through a function, so the check after each answer reads what the cleanup set meanwhile.
     const run = { live: true };
+    const stopped = (): boolean => !run.live;
     void (async () => {
       for (const name of data.perspectives.filter((known) => have?.has(known) !== true)) {
-        const count = perspectiveCount(await checkPerspective(call, name));
+        await turn();
+        if (stopped()) {
+          return;
+        }
+        const count = perspectiveCount(await countPerspective(call, name));
         setCounts((last) =>
           last?.revision === of ? { revision: of, counts: new Map(last.counts).set(name, count) } : last,
         );
-        if (!run.live) {
+        if (stopped()) {
           return;
         }
       }
@@ -136,7 +146,7 @@ export const useOverview = (
     return () => {
       run.live = false;
     };
-  }, [call, active, revision, counted]);
+  }, [call, active, revision, counted, turn]);
 
   useEffect(() => {
     if (!active) {

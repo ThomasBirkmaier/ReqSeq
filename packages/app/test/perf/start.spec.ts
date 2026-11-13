@@ -424,6 +424,22 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
       await appeared(modelCache, 120_000);
       await first.close({ keep: true });
     }
+    // The same start without perspectives first: after the test above the window also reads its recent elements
+    // and buffers at the start, so this is what the start with perspectives is compared with.
+    const { running: before, start: without } = await timeStart(kept());
+    running = before;
+    await recordValue(
+      "app: start until usable, the overview plus Ctrl+K L, before ten perspectives are added (with cache)",
+      without.usable,
+      { basis: "SR-082 AK1 (the reference of the start with ten perspectives; recorded)" },
+    );
+    await recordValue(
+      "app: Ctrl+K L until the list of all elements shows its first page, before ten perspectives are added (with cache)",
+      without.answer,
+      { basis: "SR-082 AK1 (the reference of the start with ten perspectives; recorded)" },
+    );
+    await running.close({ keep: true });
+    running = undefined;
     await writePerspectives(fixture?.workspaceRoot ?? "");
     const { running: started, start } = await timeStart(kept());
     running = started;
@@ -461,6 +477,6 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
       },
     );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
-    console.log(`PERF app start with ten perspectives ${JSON.stringify({ start, counted })}`);
+    console.log(`PERF app start with ten perspectives ${JSON.stringify({ without, start, counted })}`);
   });
 });

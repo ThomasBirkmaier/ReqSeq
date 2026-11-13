@@ -2148,7 +2148,10 @@ describe("OverviewView", () => {
   });
 
   /** The overview as the app uses it: the loading hook, the view, and what it reported. */
-  const mount = async (call: Call, initial: { recent?: RecentEntry[]; active?: boolean } = {}) => {
+  const mount = async (
+    call: Call,
+    initial: { recent?: RecentEntry[]; active?: boolean; turn?: () => Promise<void> } = {},
+  ) => {
     const opened: Buffer[] = [];
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
@@ -2171,7 +2174,7 @@ describe("OverviewView", () => {
       setRecent = changeRecent;
       setActive = changeActive;
       const [buffers, dispatch] = useReducer(reduceBuffers, [overviewBuffer()]);
-      const overview = useOverview(call, revision, recent, active, echo);
+      const overview = useOverview(call, revision, recent, active, echo, initial.turn);
       const [shown] = buffers;
       if (shown?.kind !== "overview") {
         return createElement("p", { id: "elsewhere" }, shown === undefined ? "none" : bufferName(shown));
@@ -2444,7 +2447,7 @@ describe("OverviewView", () => {
     // the eleventh is not counted.
     const listCalls = call.mock.calls.filter(([name]) => name === "element.list").map(([, input]) => input);
     expect(listCalls).toHaveLength(10);
-    expect(listCalls[0]).toEqual({ perspective: "alpha", limit: 1, fields: ["identifier"] });
+    expect(listCalls[0]).toEqual({ perspective: "alpha", limit: 1, fields: ["identifier"], sort: [] });
   });
 
   it("[SR-118/AK-hvth] shows the types and the names of the perspectives first, and each count once it is computed", async () => {
@@ -2484,6 +2487,32 @@ describe("OverviewView", () => {
     await click(nth([...container.querySelectorAll('[role="option"]')], 2));
     expect(view.perspectives).toEqual(["Open", "Drafts"]);
     expect(view.opened).toEqual([]);
+  });
+
+  it("[SR-118/AK-hvth] asks for each count only when it is its turn: the window idle and no other call pending", async () => {
+    const turns: (() => void)[] = [];
+    const turn = (): Promise<void> =>
+      new Promise((resolve) => {
+        turns.push(resolve);
+      });
+    const call = fakeCall(withPerspectives(["A", "B"]));
+    await mount(asCall(call), { turn });
+    const counts = (): number => call.mock.calls.filter(([name]) => name === "element.list").length;
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A", "B"]);
+    expect(counts()).toBe(0);
+    await act(async () => {
+      turns[0]?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(counts()).toBe(1);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B"]);
+    await act(async () => {
+      turns[1]?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B 1"]);
   });
 
   it("counts only while it is shown, and shown again asks only for the perspectives not counted yet", async () => {
