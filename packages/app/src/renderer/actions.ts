@@ -72,7 +72,10 @@ import { workspacePrompt } from "./workspaces.js";
 export interface Choice {
   readonly id: string;
   readonly name: string;
-  /** Shown right-aligned in muted text: the shortcut, or a count (the values of a property). */
+  /**
+   * Shown right-aligned in muted text: the shortcut, a count (the values of a property), or the key of a value
+   * beside its name (SR-215 AK1).
+   */
   readonly hint?: string;
   /** The title of an element hit, without its ID: the one whose title is the typed text comes first (#195). */
   readonly title?: string;
