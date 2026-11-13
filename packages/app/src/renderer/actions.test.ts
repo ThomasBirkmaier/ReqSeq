@@ -962,8 +962,8 @@ describe("list actions", () => {
         ["Type", undefined],
         ["Status", undefined],
         ["Package", undefined],
-        ["topic", "2"],
-        ["verification-method", "1"],
+        ["Topic", "2"],
+        ["Method", "1"],
       ]);
     });
 
@@ -975,15 +975,15 @@ describe("list actions", () => {
       expect(failing.asked[0]?.items.map((item) => item.name)).toEqual([
         "Type",
         "Status",
-        "topic",
-        "packages",
-        "verification-method",
+        "Topic",
+        "Packages",
+        "Method",
       ]);
       const unassigned = setup([list], { "element.facets": facets, "metamodel.get": { meanings: {} } });
       action("group").run(unassigned.context);
       await flush();
       expect(unassigned.asked[0]?.items.map((item) => item.name)).not.toContain("Package");
-      expect(unassigned.asked[0]?.items.map((item) => item.name)).toContain("packages");
+      expect(unassigned.asked[0]?.items.map((item) => item.name)).toContain("Packages");
       const broken = setup([list], {
         "element.facets": new Error("facets failed"),
         "metamodel.get": metamodel,

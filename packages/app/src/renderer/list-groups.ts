@@ -77,7 +77,7 @@ export const groupChoices = (
       : [
           {
             id: `property:${facet.key}`,
-            name: facet.key,
+            name: facet.name,
             hint: String(values.length),
             run: () => {
               apply(facet.key);

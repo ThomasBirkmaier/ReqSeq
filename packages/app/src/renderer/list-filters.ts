@@ -72,17 +72,20 @@ export const valueName = (facet: Facet, value: FacetValue): string =>
 export const facetValueStep = (facet: Facet, value: FacetValue): FilterStep =>
   propertyStep(facet.key, value.title ?? String(value.value), value.value);
 
-/** The prompt for the value of one property: its values with their counts, and no value when some lack it. */
+/**
+ * The prompt for the value of one property, under its display name: its values with their counts, a choice
+ * by its display name, and no value when some lack it.
+ */
 const valuePrompt = (
   facet: Facet,
   values: readonly FacetValue[],
   run: (step: FilterStep) => void,
 ): Prompt => ({
-  label: facet.key,
+  label: facet.name,
   items: [
     ...values.map((value) => ({
       id: JSON.stringify(value.value),
-      name: valueName(facet, value),
+      name: value.name ?? valueName(facet, value),
       hint: String(value.count),
       run: () => {
         run(facetValueStep(facet, value));
@@ -124,7 +127,7 @@ const statusPrompt = (
   statuses: ElementFacetsOutput["statuses"],
   run: (step: FilterStep) => void,
 ): Prompt => ({
-  label: "status",
+  label: "Status",
   items: statuses.map(({ key, count }) => ({
     id: key,
     name: key,
@@ -151,7 +154,7 @@ export const propertyChoices = (
     : [
         {
           id: "status",
-          name: "status",
+          name: "Status",
           hint: String(facets.statuses.length),
           run: () => {
             ask(statusPrompt(facets.statuses, run));
@@ -160,7 +163,7 @@ export const propertyChoices = (
       ]),
   ...choosableProperties(facets).map(({ facet, values }) => ({
     id: facet.key,
-    name: facet.key,
+    name: facet.name,
     hint: String(values.length),
     run: () => {
       ask(valuePrompt(facet, values, run));

@@ -623,7 +623,7 @@ describe("App", () => {
     await runCommand("filter list by property");
     expect(query("label").textContent).toBe("Property");
     await keyDown(query("input"), "Enter");
-    expect(query("label").textContent).toBe("status");
+    expect(query("label").textContent).toBe("Status");
     // The value: back to the property, then to the command; nothing filtered the list.
     await keyDown(query("input"), "Escape");
     expect(query("label").textContent).toBe("Property");

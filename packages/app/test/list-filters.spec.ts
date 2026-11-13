@@ -67,15 +67,15 @@ test.describe("cascading list filters on a fixture workspace", () => {
   const cascade = async (): Promise<void> => {
     const { window } = running;
     await runCommand(window, "flp");
-    await answer(window, "Property", "packages");
-    await answer(window, "packages", "Sensors");
+    await answer(window, "Property", "Package");
+    await answer(window, "Package", "Sensors");
     await runCommand(window, "filter list by type");
     await answer(window, "Type", "system-requirement");
     await runCommand(window, "filter list by status");
     await answer(window, "Status", "draft");
     await runCommand(window, "flp");
-    await answer(window, "Property", "topic");
-    await answer(window, "topic", "Timing");
+    await answer(window, "Property", "Topic");
+    await answer(window, "Topic", "Timing");
   };
 
   test("[SR-124/AK-jz48] package, type, status and property by keyboard give the list of the CLI for all four conditions", async () => {
@@ -108,11 +108,12 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await runCommand(window, "flp");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
     const names = await window.locator('.candidates [role="option"] .name').allTextContents();
-    expect(names).toContain("topic");
-    expect(names).toContain("status");
-    expect(names).toContain("requirement-type");
-    expect(names).not.toContain("acceptance-criteria");
-    expect(names).not.toContain("title");
+    // By display name, as the metamodel names them.
+    expect(names).toContain("Topic");
+    expect(names).toContain("Status");
+    expect(names).toContain("Requirement Type");
+    expect(names).not.toContain("Acceptance Criteria");
+    expect(names).not.toContain("Title");
     await window.keyboard.press("Escape");
   });
 

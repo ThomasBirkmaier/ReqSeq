@@ -232,7 +232,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
       await choose("filter-status", "draft");
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(4);
-      await choose("filter-property", "topic");
+      await choose("filter-property", "Topic");
       asked.at(-1)?.items[0]?.run();
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(5);

@@ -45,10 +45,10 @@ test.describe("a grouped list", () => {
       "Type",
       "Status",
       "Package",
-      "requirement-type",
-      "validity",
-      "emergent",
-      "verification-method",
+      "Requirement Type",
+      "Validity",
+      "Emergent",
+      "Verification Method",
     ]);
   });
 
