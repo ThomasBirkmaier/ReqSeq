@@ -108,11 +108,12 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await runCommand(window, "flp");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
     const names = await window.locator('.candidates [role="option"] .name').allTextContents();
-    expect(names).toContain("topic");
-    expect(names).toContain("status");
-    expect(names).toContain("requirement-type");
-    expect(names).not.toContain("acceptance-criteria");
-    expect(names).not.toContain("title");
+    // By display name, as the metamodel names them.
+    expect(names).toContain("Topic");
+    expect(names).toContain("Status");
+    expect(names).toContain("Requirement Type");
+    expect(names).not.toContain("Acceptance Criteria");
+    expect(names).not.toContain("Title");
     await window.keyboard.press("Escape");
   });
 
