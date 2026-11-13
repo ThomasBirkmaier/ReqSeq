@@ -70,6 +70,11 @@ export interface ListViewProps {
    */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /**
+   * The view drew its buffer: its first rows with their verification, or why it cannot (its read failed). A switch
+   * in motion to it starts then (SR-212). Default: nothing.
+   */
+  readonly onDrawn?: (key: string) => void;
   /** The changes from outside (SR-116): a row of an element that changed is highlighted when it is shown. */
   readonly outside?: OutsideChanges;
   /**
@@ -452,6 +457,7 @@ const ListTop = ({
   revision,
   onEcho,
   dispatch,
+  onAnswered,
 }: {
   readonly buffer: ListBuffer | SearchBuffer;
   readonly view: View;
@@ -459,6 +465,8 @@ const ListTop = ({
   readonly revision: number;
   readonly onEcho: (message: string) => void;
   readonly dispatch: (action: BufferAction) => void;
+  /** The line of coverage got its answer. */
+  readonly onAnswered: () => void;
 }): React.JSX.Element => {
   const selection = buffer.kind === "list" ? (buffer.selection ?? {}) : undefined;
   const key = JSON.stringify(selection);
@@ -485,10 +493,31 @@ const ListTop = ({
           onOpenResult={(result) => {
             dispatch({ type: "open", buffer: result });
           }}
+          onAnswered={onAnswered}
         />
       ) : null}
     </>
   );
+};
+
+/**
+ * A list is drawn once its first rows show their verification and its line of coverage stands (a list of its own;
+ * a search result and the elements of a package page have no line): a switch in motion to it starts then
+ * (SR-212). Gives what notes a part as drawn.
+ */
+const useDrawnParts = (
+  key: string,
+  kind: "list" | "search",
+  part: boolean,
+  onDrawn: ((key: string) => void) | undefined,
+): ((which: "rows" | "line") => void) => {
+  const drawn = useRef({ rows: false, line: part || kind !== "list" });
+  return (which) => {
+    drawn.current[which] = true;
+    if (drawn.current.rows && drawn.current.line) {
+      onDrawn?.(key);
+    }
+  };
 };
 
 export const ListView = ({
@@ -498,6 +527,7 @@ export const ListView = ({
   dispatch,
   onData,
   onEcho,
+  onDrawn,
   outside,
   part = false,
   onLeave,
@@ -554,12 +584,13 @@ export const ListView = ({
    * Asks what the rows from `offset` show of their verification and puts it in place, while the load is
    * `mine`; of the folded rows when `folded`.
    */
-  const verify = (mine: number, offset: number, limit: number, folded = false): void => {
+  const drawnPart = useDrawnParts(buffer.key, kind, part, onDrawn);
+  const verify = (mine: number, offset: number, limit: number, folded = false): Promise<void> => {
     if (limit === 0) {
-      return;
+      return Promise.resolve();
     }
     const from = folded ? selections.folded : selections.shown;
-    void fetchVerification(call, buffer, offset, limit, from).then((rows) => {
+    return fetchVerification(call, buffer, offset, limit, from).then((rows) => {
       if (mine === generation.current && rows !== undefined) {
         (folded ? setVerifiedFolded : setVerified)((before) => {
           const next = [...before];
@@ -616,9 +647,12 @@ export const ListView = ({
         const { ok: _ok, ...shown } = loaded;
         const section = folded === undefined ? undefined : (({ ok: _done, ...rest }) => rest)(folded);
         setView({ status: "ok", ...shown, ...(section === undefined ? {} : { folded: section }) });
-        verify(mine, 0, loaded.rows.length);
+        // Drawn once its first rows show their verification too: a switch in motion to it starts then (SR-212).
+        void verify(mine, 0, loaded.rows.length).then(() => {
+          drawnPart("rows");
+        });
         if (section !== undefined) {
-          verify(mine, 0, section.rows.length, true);
+          void verify(mine, 0, section.rows.length, true);
         }
         if (outside !== undefined) {
           mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
@@ -628,6 +662,7 @@ export const ListView = ({
         const message = failure(loaded, folded);
         setView({ status: "error", message });
         onEcho(message);
+        onDrawn?.(buffer.key);
       }
     });
     return () => {
@@ -668,7 +703,7 @@ export const ListView = ({
       }
       if (loaded.ok) {
         const foldedNow = [...folded.rows, ...loaded.rows];
-        verify(mine, folded.rows.length, loaded.rows.length, true);
+        void verify(mine, folded.rows.length, loaded.rows.length, true);
         setView({
           ...view,
           folded: {
@@ -703,7 +738,7 @@ export const ListView = ({
       }
       if (loaded.ok) {
         const rows = [...view.rows, ...loaded.rows];
-        verify(mine, view.rows.length, loaded.rows.length);
+        void verify(mine, view.rows.length, loaded.rows.length);
         setView({
           ...view,
           rows,
@@ -931,6 +966,9 @@ export const ListView = ({
             revision={revision}
             onEcho={onEcho}
             dispatch={dispatch}
+            onAnswered={() => {
+              drawnPart("line");
+            }}
           />
           {rowsAndNotes}
         </div>

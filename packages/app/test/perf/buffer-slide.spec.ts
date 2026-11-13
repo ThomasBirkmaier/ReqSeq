@@ -1,0 +1,311 @@
+// SR-212 AK1 in the app's part of the performance suite (ADR-0011), on the generated workspace of N-036 with 50,000
+// elements and 200,000 relations (testkit, D-055): „… dann gleitet der gezeigte Buffer … und die Bewegung dauert
+// höchstens 200 ms.“ Read as it stands: the motion lasts at most 200 ms, and starts once the new buffer is fully
+// drawn; the time to draw keeps its own limits (SR-082 AK3 for an element, AK4 for a list, search, neighbourhood,
+// graph and matrix; none for the overview, the metamodel and the output of a command, which are recorded only).
+//
+// Each kind of buffer is the target of Alt+P and Alt+N several times, and so also the buffer that is left. For each
+// switch, in the window: the keydown's `event.timeStamp`, the moment the slide animations are made (the new buffer
+// was reported drawn two frames before; the motion's first frame), and the moment they finished. Recorded per kind:
+// the slowest input-to-motion (drawn) against the kind's limit, and the slowest motion against 200 ms.
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type { Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import type { LargeFixtureWorkspace, PerfMeasurement } from "@reqseq/testkit";
+import { generateLargeWorkspace, recordValue, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import type { RunningApp } from "../support/app.js";
+import { launchApp } from "../support/app.js";
+import { coreVersion } from "./core-version.js";
+
+const ELEMENTS = 50_000;
+const RELATIONS = 200_000;
+/** SR-212 AK1: the motion. */
+const MOTION_MS = 200;
+/** SR-082 AK3: an element is visible after an open. */
+const ELEMENT_MS = 200;
+/** SR-082 AK4: the first page of a list, a search, a neighbourhood, a graph or a matrix. */
+const PAGE_MS = 500;
+/** How often each buffer is the target of a switch, half with Alt+P and half with Alt+N. */
+const ROUNDS = 2;
+/** The model cache trusts an entry only when its file is older than 2 s before the load (ADR-0008). */
+const SETTLE_MS = 2_100;
+
+type Kind =
+  "overview" | "list" | "search" | "element" | "neighbourhood" | "graph" | "metamodel" | "result" | "matrix";
+
+/** The limit of the time to draw each kind, from the input; undefined: none, recorded only. */
+const DRAW_LIMIT: Record<Kind, number | undefined> = {
+  overview: undefined,
+  list: PAGE_MS,
+  search: PAGE_MS,
+  element: ELEMENT_MS,
+  neighbourhood: PAGE_MS,
+  graph: PAGE_MS,
+  metamodel: undefined,
+  result: undefined,
+  matrix: PAGE_MS,
+};
+
+const BASIS: Record<Kind, string> = {
+  overview: "SR-212 AK1 (recorded; no limit of its own)",
+  list: "SR-212 AK1 with SR-082 AK4 (first page)",
+  search: "SR-212 AK1 with SR-082 AK4 (first page)",
+  element: "SR-212 AK1 with SR-082 AK3",
+  neighbourhood: "SR-212 AK1 with SR-082 AK4 (first page)",
+  graph: "SR-212 AK1 with SR-082 AK4 (first page; SR-111 AK6 lays out 500 nodes in 1 s)",
+  metamodel: "SR-212 AK1 (recorded; no limit of its own)",
+  result: "SR-212 AK1 (recorded; no limit of its own)",
+  matrix: "SR-212 AK1 with SR-082 AK4 (first page)",
+};
+
+/** One switch as the window saw it, in ms of the window's clock. */
+interface Switch {
+  readonly shown: string;
+  readonly key: number;
+  readonly motion: number;
+  readonly end?: number;
+  /** The longest time between two frames while it slid. */
+  readonly gap: number;
+}
+
+/** Records every switch from now on, in `window.switches`. */
+const record = (window: Page): Promise<void> =>
+  window.evaluate(() => {
+    const own = window as unknown as { switches: Switch[] };
+    own.switches = [];
+    let key: number | undefined;
+    addEventListener(
+      "keydown",
+      (event) => {
+        if (event.altKey && (event.code === "KeyP" || event.code === "KeyN")) {
+          key = event.timeStamp;
+        }
+      },
+      { capture: true },
+    );
+    const seen = new WeakSet<Animation>();
+    new MutationObserver(() => {
+      const made = document
+        .getAnimations()
+        .filter((one) => one.id === "buffer-slide" && !seen.has(one) && one.playState !== "idle");
+      const main = made.find(
+        (one) =>
+          (one.effect as KeyframeEffect | null)?.target instanceof HTMLElement &&
+          ((one.effect as KeyframeEffect).target as HTMLElement).dataset["layer"] === "main",
+      );
+      for (const one of made) {
+        seen.add(one);
+      }
+      if (main === undefined || key === undefined) {
+        return;
+      }
+      const target = (main.effect as KeyframeEffect).target as HTMLElement;
+      const entry: { shown: string; key: number; motion: number; end?: number; gap: number } = {
+        shown: target.querySelector("[data-buffer]")?.getAttribute("aria-label") ?? "",
+        key,
+        motion: performance.now(),
+        gap: 0,
+      };
+      own.switches.push(entry);
+      // The longest time between two frames of the window while it slides: work of the page during the motion.
+      let last = entry.motion;
+      const frame = (at: number): void => {
+        entry.gap = Math.max(entry.gap, at - last);
+        last = at;
+        if (entry.end === undefined) {
+          requestAnimationFrame(frame);
+        }
+      };
+      requestAnimationFrame(frame);
+      main.finished.then(
+        () => {
+          entry.end = performance.now();
+        },
+        () => {
+          entry.end = Number.NaN;
+        },
+      );
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style"] });
+  });
+
+const switches = (window: Page): Promise<Switch[]> =>
+  window.evaluate(() => (window as unknown as { switches: Switch[] }).switches);
+
+const shownName = (window: Page): Promise<string> =>
+  window
+    .locator('[aria-label="Sheet"] [data-area][data-active] [data-layer="main"] [data-buffer]')
+    .getAttribute("aria-label")
+    .then((name) => name ?? "");
+
+const command = async (window: Page, title: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type(title);
+  await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText(title, {
+    timeout: 60_000,
+  });
+  await window.keyboard.press("Enter");
+};
+
+/** Waits until the shown buffer is no longer `before` and has drawn; gives its name. */
+const opened = async (window: Page, before: string): Promise<string> => {
+  await expect.poll(() => shownName(window), { timeout: 60_000 }).not.toBe(before);
+  return shownName(window);
+};
+
+/** Presses `key` and waits until its switch ended; gives it. */
+const switchOnce = async (window: Page, key: "Alt+KeyP" | "Alt+KeyN"): Promise<Switch> => {
+  const count = (await switches(window)).length;
+  await window.keyboard.press(key);
+  await expect
+    .poll(async () => (await switches(window))[count]?.end !== undefined, {
+      timeout: 60_000,
+      message: `no motion after ${key}`,
+    })
+    .toBe(true);
+  const made = (await switches(window))[count];
+  if (made === undefined) {
+    throw new Error("no switch recorded");
+  }
+  // Let the next frame pass, so the next key does not end this slide.
+  await window.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  return made;
+};
+
+test.describe("the switch to the previous or next buffer with 50,000 elements and 200,000 relations (SR-212, N-036)", () => {
+  let fixture: LargeFixtureWorkspace | undefined;
+  let running: RunningApp | undefined;
+  let home = "";
+
+  test.beforeAll(async () => {
+    test.setTimeout(600_000);
+    const generated = generateLargeWorkspace({
+      version: await coreVersion(),
+      elements: ELEMENTS,
+      relations: RELATIONS,
+    });
+    fixture = await writeLargeWorkspace(generated, { git: true });
+    home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-212-app-")));
+    await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+  });
+
+  test.afterAll(async () => {
+    await running?.close({ discard: true });
+    await fixture?.cleanup();
+    if (home !== "") {
+      await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
+  test("[SR-212/AK-d25h] every kind of buffer slides in at most 200 ms once drawn, and is drawn within its own limit", async () => {
+    test.setTimeout(600_000);
+    running = await launchApp(undefined, {
+      kept: { home, workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() } },
+      validateOutput: false,
+    });
+    const { window } = running;
+    await window.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(window.getByLabel("Modeline")).toContainText(`${String(ELEMENTS)} elements`, {
+      timeout: 120_000,
+    });
+    // Open one buffer of each kind; the name of each tells its kind.
+    const kinds = new Map<string, Kind>();
+    kinds.set(await shownName(window), "overview");
+    let name = await shownName(window);
+    await command(window, "List all elements");
+    name = await opened(window, name);
+    kinds.set(name, "list");
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("station");
+    await window.keyboard.press("Enter");
+    name = await opened(window, name);
+    kinds.set(name, "search");
+    await window.locator('[aria-label="Sheet"] .row').first().click({ timeout: 60_000 });
+    name = await opened(window, name);
+    kinds.set(name, "element");
+    const element = name;
+    await window.keyboard.press("ControlOrMeta+J");
+    name = await opened(window, name);
+    kinds.set(name, "neighbourhood");
+    await window.keyboard.press("ControlOrMeta+J");
+    name = await opened(window, name);
+    expect(name).toBe(element);
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    name = await opened(window, name);
+    kinds.set(name, "graph");
+    await command(window, "Show metamodel");
+    name = await opened(window, name);
+    kinds.set(name, "metamodel");
+    await command(window, "Show workspace status");
+    name = await opened(window, name);
+    kinds.set(name, "result");
+    const count = kinds.size;
+    expect(count).toBe(8);
+    // Each drew once, so a switch measures the switch and not the first drawing of the app.
+    await window.waitForTimeout(1_000);
+    await record(window);
+    // Back through all of them and forward again, `ROUNDS` times: each is the target and the left buffer.
+    const made: Switch[] = [];
+    for (let round = 0; round < ROUNDS; round += 1) {
+      for (const key of ["Alt+KeyP", "Alt+KeyN"] as const) {
+        for (let step = 0; step < count; step += 1) {
+          made.push(await switchOnce(window, key));
+        }
+      }
+    }
+    // The matrix is a mode of the list: Ctrl+T on the list, then around it.
+    while ((await shownName(window)) !== [...kinds].find(([, kind]) => kind === "list")?.[0]) {
+      await switchOnce(window, "Alt+KeyP");
+    }
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator('[role="gridcell"]').first()).toBeVisible({ timeout: 60_000 });
+    const matrix = await shownName(window);
+    for (let round = 0; round < ROUNDS; round += 1) {
+      for (const [away, back] of [
+        ["Alt+KeyP", "Alt+KeyN"],
+        ["Alt+KeyN", "Alt+KeyP"],
+      ] as const) {
+        await switchOnce(window, away);
+        const again = await switchOnce(window, back);
+        expect(again.shown).toBe(matrix);
+        made.push({ ...again, shown: `matrix:${again.shown}` });
+      }
+    }
+    const kindOf = (one: Switch): Kind =>
+      one.shown.startsWith("matrix:") ? "matrix" : (kinds.get(one.shown) ?? "result");
+    const recorded: PerfMeasurement[] = [];
+    const summary: Record<string, { drawn: number[]; motion: number[]; gap: number[] }> = {};
+    for (const kind of Object.keys(DRAW_LIMIT) as Kind[]) {
+      const of = made.filter((one) => kindOf(one) === kind);
+      expect(of.length, `no switch to the ${kind}`).toBeGreaterThan(0);
+      const drawn = of.map((one) => one.motion - one.key);
+      const motion = of.map((one) => (one.end ?? Number.NaN) - one.motion);
+      summary[kind] = { drawn, motion, gap: of.map((one) => one.gap) };
+      const limit = DRAW_LIMIT[kind];
+      recorded.push(
+        await recordValue(
+          `app: Alt+P or Alt+N until the ${kind} is drawn and starts to slide (slowest of ${String(of.length)})`,
+          Math.max(...drawn),
+          limit === undefined ? { basis: BASIS[kind] } : { basis: BASIS[kind], thresholdMs: limit },
+        ),
+      );
+      recorded.push(
+        await recordValue(
+          `app: the slide of the switch to the ${kind}, first frame to end (slowest of ${String(of.length)})`,
+          Math.max(...motion),
+          { basis: "SR-212 AK1 (the motion; the app)", thresholdMs: MOTION_MS },
+        ),
+      );
+    }
+    // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
+    console.log(`PERF buffer slide ${JSON.stringify(summary)}`);
+    for (const measurement of recorded) {
+      if (measurement.thresholdMs !== undefined) {
+        expect
+          .soft(measurement.ms, thresholdMessage(measurement))
+          .toBeLessThanOrEqual(measurement.thresholdMs);
+      }
+    }
+  });
+});

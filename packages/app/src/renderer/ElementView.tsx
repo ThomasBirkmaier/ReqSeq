@@ -250,6 +250,8 @@ export interface ElementViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The view cannot draw its buffer (its read failed): a switch in motion to it starts (SR-212). Default: nothing. */
+  readonly onDrawn?: (key: string) => void;
   /**
    * A read found the element gone (`ref.unknown`): when the buffer is shown and nothing was shown yet, or
    * when its file is deleted (SR-106 AK3). The app forgets its name for "Go to" (ThomasBirkmaier/ReqSeq-archive#681). Default: nothing.
@@ -432,6 +434,7 @@ export const ElementView = ({
   outside = NO_CHANGES,
   onData,
   onEcho,
+  onDrawn,
   onGone,
   onCopy,
   onOpenTarget,
@@ -632,6 +635,7 @@ export const ElementView = ({
     onData,
     onDraft,
     onEcho,
+    onDrawn,
     onGone,
     onCopy,
     onOpenTarget,
@@ -655,6 +659,7 @@ export const ElementView = ({
     onData,
     onDraft,
     onEcho,
+    onDrawn,
     onGone,
     onCopy,
     onOpenTarget,
@@ -1076,6 +1081,7 @@ export const ElementView = ({
     if (then === "error") {
       setView({ status: "error", message: answer.message });
       now.current.onEcho(answer.message);
+      now.current.onDrawn?.(now.current.buffer.key);
       // A buffer with a draft shows it above and is not here; it forgets the name through `gone()`.
       if (isGone(answer.code)) {
         now.current.onGone?.(now.current.buffer.key);

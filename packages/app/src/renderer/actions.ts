@@ -332,8 +332,11 @@ export interface ActionContext {
   readonly buffers: Buffers;
   /** The keys of the open buffers, the most recently shown first (`buffer-cycle.ts`): "Next buffer" walks it. */
   readonly cycleOrder: readonly string[];
-  /** Notes that Next or Previous buffer switches to `key`, so that the order stays while the keys walk it. */
-  readonly cycled: (key: string) => void;
+  /**
+   * Notes that Next or Previous buffer (`step` as in `cycleKey`) switches to `key`, so that the order stays
+   * while the keys walk it, and so that the switch slides (SR-212). Called after `leaveEditor`, before the switch.
+   */
+  readonly cycled: (key: string, step: 1 | -1) => void;
   /** Takes the focus out of a text editor that has it, so that the editor gets no more of the key. */
   readonly leaveEditor: () => void;
   readonly mac: boolean;
@@ -928,13 +931,14 @@ const askCloseAll = (context: ActionContext, open: Buffers, unsaved: Buffers): v
  * unmounts the editor: React shows the other buffer in a microtask after the listener, the App's focus
  * effect moves the focus to the new buffer, which cannot be edited, and a composition aimed at a focus
  * that is no text input inserts nothing. Leaving the editor first also covers a later case where the
- * editor stays shown (a split window, SR-115 AK3).
+ * editor stays shown (a split window, SR-115 AK3). The picture of the buffer that is left, for the motion of the
+ * switch (SR-212), is taken in `cycled`, after the editor is left, so it shows no caret.
  */
 const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
   const key = cycleKey(context.cycleOrder, context.buffers[0]?.key, step);
   if (key !== undefined) {
     context.leaveEditor();
-    context.cycled(key);
+    context.cycled(key, step);
     context.dispatch({ type: "switch", key });
   }
 };

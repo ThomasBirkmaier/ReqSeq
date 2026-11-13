@@ -376,3 +376,67 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Search: wind");
   });
 });
+
+describe("App, the switch to the previous or next buffer in motion (SR-212)", () => {
+  const device = (): { prefersReducedMotion: string } =>
+    (window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }).happyDOM
+      .settings.device;
+  beforeEach(() => {
+    device().prefersReducedMotion = "no-preference";
+  });
+  afterEach(() => {
+    device().prefersReducedMotion = "reduce";
+  });
+
+  const picture = (): Element | null => container.querySelector('[data-layer="side"] .slide-picture');
+
+  it("[SR-212/AK-kqvx] Alt+P shows the new buffer live with the focus at once, beside a picture of the left one that takes nothing; the next key ends it", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await act(async () => {
+      editorView().focus();
+      await Promise.resolve();
+    });
+    await press(query(".cm-content"), { key: "p", code: "KeyP", altKey: true });
+    expect(shown()).toBe("All elements");
+    // The left element stands as a picture after the live list, which has the focus and every query.
+    expect(picture()?.textContent).toContain("Title 1");
+    expect(picture()?.querySelector("[data-buffer], [contenteditable], [tabindex], [id^='row-']")).toBeNull();
+    expect(container.querySelectorAll("[data-buffer]")).toHaveLength(1);
+    expect(document.activeElement).toBe(query("[data-buffer]"));
+    expect(query('[data-layer="main"]').querySelector(".cm-editor")).toBeNull();
+    // The next key acts on the new buffer and ends the first slide at once: one more step back.
+    await alt(query("[data-buffer]"), "p");
+    expect(shown()).toBe("Overview");
+    // The second slide, if one runs, leaves the list: the element's picture is gone.
+    expect(picture()?.textContent ?? "All elements").toMatch(/^All elements/);
+    // A key that is no switch ends it too, in the end state.
+    await press(query("[data-buffer]"), { key: "ArrowDown" });
+    expect(picture()).toBeNull();
+    expect(query('[data-layer="main"]').style.transform).toBe("");
+  });
+
+  it("[SR-212/AK-hmwp] opening an element, Ctrl+P and closing a buffer show the other buffer without a picture", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    expect(picture()).toBeNull();
+    await runCommand("Close buffer");
+    expect(shown()).toBe("All elements");
+    expect(picture()).toBeNull();
+    await press(window, { key: "p", ctrlKey: true });
+    await type("Overview");
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("Overview");
+    expect(picture()).toBeNull();
+  });
+
+  it("[SR-212/AK-kzb2] with reduced motion Alt+P shows the new buffer at once, without a picture", async () => {
+    device().prefersReducedMotion = "reduce";
+    await openFour();
+    await alt(query("[data-buffer]"), "p");
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(picture()).toBeNull();
+  });
+});
