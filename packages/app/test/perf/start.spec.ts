@@ -74,11 +74,11 @@ const PERSPECTIVES: Readonly<Record<string, readonly string[]>> = {
   "all-requirements": ["name: All requirements", "where: { type: [system-requirement] }"],
   "draft-requirements": [
     "name: Draft requirements",
-    "where: { type: [system-requirement], status: [draft] }",
+    "where: { all: [{ type: [system-requirement] }, { status: [draft] }] }",
   ],
   "approved-requirements": [
     "name: Approved requirements",
-    "where: { type: [system-requirement], status: [approved] }",
+    "where: { all: [{ type: [system-requirement] }, { status: [approved] }] }",
   ],
   "requirements-by-status": [
     "name: Requirements by status",
@@ -91,7 +91,7 @@ const PERSPECTIVES: Readonly<Record<string, readonly string[]>> = {
     "sort: [{ by: title }]",
   ],
   needs: ["name: Needs", "where: { type: [need] }"],
-  "draft-needs": ["name: Draft needs", "where: { type: [need], status: [draft] }"],
+  "draft-needs": ["name: Draft needs", "where: { all: [{ type: [need] }, { status: [draft] }] }"],
   decisions: ["name: Decisions", "where: { type: [decision] }"],
   everything: ["name: Everything", "where: { all: [] }"],
   "everything-by-type": ["name: Everything by type", "where: { all: [] }", "group: type"],
@@ -404,6 +404,16 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
     await writePerspectives(root);
     const { running: withPerspectives, start: perspectiveStart } = await timeStart(kept());
     running = withPerspectives;
+    await recordValue(
+      "app: start until the overview shows all elements, with ten perspectives on the overview (with cache)",
+      perspectiveStart.overview,
+      { basis: "SR-082 AK1 with SR-118 AK6 (comparison; recorded)" },
+    );
+    await recordValue(
+      "app: Ctrl+K L until the list of all elements shows its first page, while the overview counts ten perspectives (with cache)",
+      perspectiveStart.answer,
+      { basis: "SR-082 AK1 with SR-118 AK8 (comparison; recorded)" },
+    );
     await recordValue(
       "app: start until usable, the overview plus Ctrl+K L, with ten perspectives on the overview (with cache)",
       perspectiveStart.usable,
