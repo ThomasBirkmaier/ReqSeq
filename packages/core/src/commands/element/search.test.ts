@@ -231,6 +231,87 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "derives", { fields: ["title"] })).toEqual([]);
   });
 
+  it("[SR-216/AK-r9jg] searches the title, the text, the IDs, all properties or single properties, a choice by the names of its values", async () => {
+    const ws = await open();
+    expect(await hits(ws, "measure", { fields: ["title"] })).toEqual([B1, B2]);
+    expect(await hits(ws, "derives", { fields: ["text"] })).toEqual([F1, F2, B5, B1, B3, B2]);
+    expect(await hits(ws, "SR-0000b5", { fields: ["id"] })).toEqual([B5]);
+    // All properties: also the status name and a key the metamodel does not know (SR-016).
+    expect(await hits(ws, "dana", { fields: ["properties"] })).toEqual([B4]);
+    expect(await hits(ws, "obsolete", { fields: ["properties"] })).toEqual([B4]);
+    // A single property, a choice by the name and the key of its value, and two of them.
+    expect(await hits(ws, "dial", { fields: ["acceptance-criteria"] })).toEqual([B4]);
+    expect(await hits(ws, "dial", { fields: ["topic"] })).toEqual([]);
+    expect(await hits(ws, "Interface", { fields: ["requirement-type"] })).toEqual([B5]);
+    expect(await hits(ws, "supplier", { fields: ["source", "topic"] })).toEqual([B5]);
+    expect(await hits(ws, "supplier", { fields: ["topic"] })).toEqual([]);
+    // All properties and a single one: as all properties.
+    expect(await search(ws, { query: "dana", fields: ["properties", "topic"] })).toEqual(
+      await search(ws, { query: "dana", fields: ["properties"] }),
+    );
+  });
+
+  it("[SR-216/AK-hpd4] searches every field without fields, as with the four fixed fields", async () => {
+    const ws = await open();
+    for (const query of ["wind", "supplier", "SR-0000b5 cloud", "dial obsolete", "derives"]) {
+      const all = await search(ws, { query, limit: 500 });
+      expect(all.total).toBeGreaterThan(0);
+      expect(all).toEqual(
+        await search(ws, { query, limit: 500, fields: ["title", "text", "properties", "id"] }),
+      );
+    }
+  });
+
+  it("[SR-216/AK-r9jg] refuses a key that holds relations, type, status, the title's key and a key the metamodel does not know, naming it", async () => {
+    const refused = async (workspace: Workspace, fields: readonly string[]): Promise<CommandError> => {
+      const error = await search(workspace, { query: "wind", fields }).catch((failure: unknown) => failure);
+      expect(error).toBeInstanceOf(CommandError);
+      expect((error as CommandError).code).toBe("input.invalid");
+      expect((error as CommandError).details?.["fields"]).toEqual(["fields"]);
+      return error as CommandError;
+    };
+    const ws = await open();
+    // A property of kind relation, a relation kind, an unknown key (also beside `properties`).
+    expect((await refused(ws, ["validity"])).message).toContain('"validity" holds relations');
+    expect((await refused(ws, ["title", "derives-from"])).message).toContain(
+      '"derives-from" holds relations',
+    );
+    expect((await refused(ws, ["owner"])).message).toContain('"owner" is not a property of the metamodel');
+    expect((await refused(ws, ["properties", "topik"])).message).toContain('"topik"');
+    expect((await refused(ws, ["type"])).message).toContain('"type" is searched with "properties"');
+    expect((await refused(ws, ["status"])).message).toContain('"status"');
+    // The title's key when it is not `title` (question #1676); a property named like a fixed field
+    // is found through `properties` only, the fixed name means the fixed field.
+    const named = await open({
+      fixture: "SR-174/snippets",
+      files: {
+        "metamodel/model.yaml": [
+          "reqseq-metamodel: 1",
+          "types:",
+          "  - { key: system-requirement, name: System Requirement, prefix: SR, properties: [name, text] }",
+          "properties:",
+          "  - { key: name, name: Name, kind: text, meaning: title }",
+          "  - { key: text, name: Text note, kind: text }",
+          "relations: []",
+          "statuses:",
+          "  - { key: draft, name: Draft, initial: true }",
+          "  - { key: approved, name: Approved }",
+          "",
+        ].join("\n"),
+        "requirements/SR-0000000000b9.md":
+          "---\nid: 17400000-0000-4000-8000-0000000000b9\ntype: system-requirement\nstatus: draft\nname: Named\ntext: hidden note\n---\n\nBody.\n",
+      },
+    });
+    expect((await refused(named, ["name"])).message).toContain('"name" is the title; choose "title"');
+    expect(await hits(named, "hidden", { fields: ["text"] })).toEqual([]);
+    expect(await hits(named, "hidden", { fields: ["properties"] })).toEqual([
+      "17400000-0000-4000-8000-0000000000b9",
+    ]);
+    expect(await hits(named, "named", { fields: ["title"] })).toEqual([
+      "17400000-0000-4000-8000-0000000000b9",
+    ]);
+  });
+
   it("gives one page of the hits, the best first, with the total of all", async () => {
     const ws = await open();
     const all = await search(ws, { query: "approved" });

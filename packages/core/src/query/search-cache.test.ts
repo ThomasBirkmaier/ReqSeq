@@ -25,7 +25,7 @@ import {
 } from "./search-cache.js";
 import type { SearchDocument, SearchIndex } from "./search-index.js";
 import {
-  ENGINE_OPTIONS,
+  engineOptions,
   buildSearchIndex,
   documentOf,
   searchElements,
@@ -194,7 +194,7 @@ describe("search.json (ADR-0008)", () => {
 describe("search index state with a cache folder (ADR-0008)", () => {
   /** An index of the store of `index` whose documents all hold the word `marker`: tells a loaded cache from a build. */
   const marked = (index: SearchIndex): SearchIndex => {
-    const mini = new MiniSearch<SearchDocument>(ENGINE_OPTIONS);
+    const mini = new MiniSearch<SearchDocument>(engineOptions(index.metamodel));
     mini.addAll(index.store.elements.map((r) => ({ ...documentOf(r, "", index.metamodel), text: "marker" })));
     return searchIndexOf(index.store, index.layout, index.metamodel, mini);
   };

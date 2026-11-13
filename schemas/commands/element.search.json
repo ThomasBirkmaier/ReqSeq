@@ -1,14 +1,14 @@
 {
   "name": "element.search",
   "title": "Search elements",
-  "summary": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
+  "summary": "Full-text search of the elements of a selection in all fields or only in chosen ones (title, text, IDs, all properties or single properties), typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-066", "SR-068", "SR-098", "SR-137", "SR-149", "SR-174"],
+  "implements": ["SR-066", "SR-068", "SR-098", "SR-137", "SR-149", "SR-174", "SR-216"],
   "arguments": [
     { "field": "query", "complete": "text" },
     { "field": "selection", "complete": "selection" },
-    { "field": "fields", "complete": "choice" },
+    { "field": "fields", "complete": "json" },
     { "field": "group", "complete": "group" },
     { "field": "withVerification", "complete": "boolean" },
     { "field": "limit", "complete": "number" },
@@ -19,7 +19,7 @@
     "properties": {
       "query": {
         "type": "string",
-        "description": "Words split at spaces; every word must match (in the title, the text, a property value, the type or status name, or an ID). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing."
+        "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing."
       },
       "selection": {
         "$ref": "../common.schema.json#/$defs/selection",
@@ -29,11 +29,8 @@
         "type": "array",
         "minItems": 1,
         "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "enum": ["title", "text", "properties", "id"]
-        },
-        "description": "Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all."
+        "items": { "$ref": "../common.schema.json#/$defs/searchFieldKey" },
+        "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values). Every word must occur in a chosen field, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
       },
       "group": {
         "$ref": "../common.schema.json#/$defs/groupKey",
@@ -102,7 +99,7 @@
             },
             "fields": {
               "type": "array",
-              "description": "What a word of the query was found in.",
+              "description": "What a word of the query was found in, among the fields searched; a single property is `properties`.",
               "items": {
                 "type": "string",
                 "enum": ["title", "text", "properties", "id"]
@@ -120,7 +117,7 @@
               "description": "The matched words in `title` (SR-174 AK4); only when a word was found in the title."
             },
             "snippet": {
-              "description": "Where a word was found and one line around the first match in reading order (SR-174): in the text when a visible word of it matched, else in the first property value with a match, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+              "description": "Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
               "oneOf": [
                 {
                   "type": "object",

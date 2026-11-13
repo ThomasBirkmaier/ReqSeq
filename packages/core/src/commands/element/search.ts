@@ -13,7 +13,10 @@
 //   repository and file (a changed file counts with its new content, a new file not, since the
 //   selection never saw it), and the short IDs of the selection's store name them (`ShortIds.of`
 //   names any record). Scores are rounded to 6 significant digits (`searchElements`).
-// - `fields` restricts what is searched: the `[[` search of SR-066 asks for the title and the IDs.
+// - `fields` restricts what is searched (SR-216): fixed fields and single properties
+//   (`query/search-fields.ts`), checked against the selection's metamodel before the index is
+//   awaited and against the index's after; the `[[` search of SR-066 asks for the title and the IDs.
+//   The snippet comes only from the chosen fields (SR-216 AK5): a chosen property, not an earlier one.
 // - Each hit of the page has its snippet (SR-174, `query/search-snippet.ts`): its file is read again,
 //   in the same turn, only when a word was found in its text; the title marks come from the title.
 //   So a page costs the search and the files of its hits (SR-098: measured for 50 and 500 hits in
@@ -44,6 +47,7 @@ import {
   searchElements,
   searchIndex,
 } from "../../query/index.js";
+import { searchFieldsOf } from "../../query/search-fields.js";
 import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
 import type { Workspace } from "../../runtime/workspace.js";
 
@@ -52,7 +56,11 @@ type Hit = ElementSearchOutput["hits"][number];
 type Group = NonNullable<ElementSearchOutput["groups"]>[number];
 
 /** How the hits of a search are described: the output of one hit. */
-const describerOf = (selected: Selected, index: SearchIndex): ((hit: SearchHit) => Hit) => {
+const describerOf = (
+  selected: Selected,
+  index: SearchIndex,
+  propertyKeys: readonly string[] | undefined,
+): ((hit: SearchHit) => Hit) => {
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
   const titleKey = titleKeyOf(selected.metamodel);
   return (hit) => {
@@ -61,7 +69,7 @@ const describerOf = (selected: Selected, index: SearchIndex): ((hit: SearchHit) 
     const status = element.data["status"];
     const shown = typeof title === "string" ? title : "";
     const marks = fields.includes("title") ? titleMarks(shown, terms) : [];
-    const snippet = searchSnippet(index, hit);
+    const snippet = searchSnippet(index, hit, propertyKeys);
     return {
       id: element.id,
       repository: element.repository,
@@ -85,6 +93,7 @@ const grouped = (
   index: SearchIndex,
   ranked: readonly RankedHit[],
   input: { readonly group: string; readonly offset: number; readonly limit: number },
+  propertyKeys: readonly string[] | undefined,
 ): {
   readonly output: Pick<ElementSearchOutput, "hits" | "groups" | "offset" | "rows">;
   readonly records: readonly ElementRecord[];
@@ -111,7 +120,7 @@ const grouped = (
       }
     }
   });
-  const describe = describerOf(selected, index);
+  const describe = describerOf(selected, index, propertyKeys);
   // A hit in several groups of the page is described once.
   const described = new Map<RankedHit, Hit>();
   const page = rows.slice(input.offset, input.offset + input.limit);
@@ -141,18 +150,32 @@ export default defineCommand({
   name: "element.search",
   run: async (ctx, input): Promise<CommandOutput<"element.search">> => {
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.search");
+    const checked = searchFieldsOf("element.search", selected.metamodel, input.fields);
     const index = await searchIndex(ctx.workspace);
+    // A metamodel changed meanwhile resets the index (a new build): checked again against its own.
+    const chosen =
+      index.metamodel === selected.metamodel
+        ? checked
+        : searchFieldsOf("element.search", index.metamodel, input.fields);
+    // The single properties the snippet may come from: undefined for every property.
+    const { propertyKeys } = chosen;
     // Every element of the index's store selected: no restriction to pass (it costs a set of 50,000
     // keys). A store swapped meanwhile may hold elements the selection never saw: restricted then.
     const restricted =
       index.store !== selected.store || selected.elements.length < selected.store.elements.length;
     const options = {
-      ...(input.fields === undefined ? {} : { fields: input.fields }),
+      ...chosen,
       ...(restricted ? { within: selected.elements } : {}),
     };
     if (input.group !== undefined) {
       const ranked = rankedHits(index, input.query, options);
-      const { output, records } = grouped(selected, index, ranked, { ...input, group: input.group });
+      const { output, records } = grouped(
+        selected,
+        index,
+        ranked,
+        { ...input, group: input.group },
+        propertyKeys,
+      );
       return {
         ...output,
         ...(await verificationOf(selected, input, records, ctx.workspace)),
@@ -165,7 +188,7 @@ export default defineCommand({
       offset: input.offset,
       limit: input.limit,
     });
-    const describe = describerOf(selected, index);
+    const describe = describerOf(selected, index, propertyKeys);
     return {
       hits: results.hits.map(describe),
       ...(await verificationOf(

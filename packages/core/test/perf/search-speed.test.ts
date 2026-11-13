@@ -308,6 +308,48 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
+  it("[SR-098/AK-pqx4] shows the first hits of a search restricted to fields within 300 ms (SR-216, median of 7 runs)", async () => {
+    // The costliest terms in single properties, in a property and the text, in the title, in all
+    // properties and in the IDs: each finds at most what the search in every field finds.
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const open = workspace;
+    const { record } = perfTerms();
+    const shortId = `${String(findType(metamodel, record.type)?.prefix)}-${record.id.slice(-6)}`;
+    const identifier = String(record.data["spec-id"]);
+    const measurements = [];
+    for (const [fields, term] of [
+      [["acceptance-criteria"], "th"],
+      [["acceptance-criteria"], "the station"],
+      [["acceptance-criteria"], "runs"],
+      [["rationale", "text"], "th"],
+      [["rationale", "text"], "the"],
+      [["title"], "st"],
+      [["title"], "wind"],
+      [["properties"], "th"],
+      [["id"], shortId],
+      [["id"], identifier],
+    ] as const) {
+      const { result, measurement } = await measureMedian(
+        `element.search in ${fields.join(", ")}: ${JSON.stringify(term)}, the first 50 hits`,
+        async () => (await invoke("element.search", { query: term, fields }, { workspace: open })) as Search,
+        {
+          basis:
+            "SR-098 AK1, SR-216 (element.search restricted to fields, page of 50, warm server; median of 7 runs)",
+          thresholdMs: SEARCH_MS,
+          runs: RUNS,
+        },
+      );
+      expect(result.total, `${fields.join(",")} ${term}`).toBeGreaterThan(0);
+      expect(result.total, `${fields.join(",")} ${term}`).toBeLessThanOrEqual((await search(term)).total);
+      measurements.push(measurement);
+    }
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
   it("scores every term of the suite to the bit as MiniSearch's search does (search-scoring.ts)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");

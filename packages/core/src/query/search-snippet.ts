@@ -5,7 +5,8 @@
 //
 // - What counts: the words of `SearchHit.terms`, compared as the index compares them (split at
 //   `WORD_SEPARATOR`, `normalizeWord`). Only the fields the hit was found in are read (`fields`, which
-//   holds only searched ones): the `[[` search (title and IDs) reads no file.
+//   holds only searched ones): the `[[` search (title and IDs) reads no file. A search restricted to
+//   single properties (SR-216 AK5) reads only those, in the order below.
 // - Where (AK3): the text first, then the property values one by one in reading order: the properties
 //   of the type in metamodel order (its effective `properties`), then the other keys in file order;
 //   file order alone when the metamodel is not valid. Each item of a list and each value of a
@@ -605,13 +606,35 @@ const valueLine = (value: Value, markdown: boolean, terms: ReadonlySet<string>):
   return windowOf(visible, whole, [whole]);
 };
 
+/** The snippet of the first value of `element` that matches `terms`, of the properties `propertyKeys` (all when undefined). */
+const propertySnippet = (
+  metamodel: Metamodel,
+  element: ElementRecord,
+  terms: ReadonlySet<string>,
+  propertyKeys: readonly string[] | undefined,
+): SearchSnippet | undefined => {
+  const markdown = markdownKeysOf(metamodel);
+  const chosen = propertyKeys === undefined ? undefined : new Set(propertyKeys);
+  for (const { key, values } of propertyValues(element, metamodel)) {
+    for (const value of chosen === undefined || chosen.has(key) ? values : []) {
+      const line = valueLine(value, markdown.has(key), terms);
+      if (line !== undefined) {
+        return { field: "properties", property: key, propertyName: propertyName(metamodel, key), ...line };
+      }
+    }
+  }
+  return undefined;
+};
+
 /**
  * The snippet of `hit`, a hit of `index` (see the file comment); undefined when none is shown.
- * `fields` are the fields the hit was found in (`SearchHit.fields`).
+ * `fields` are the fields the hit was found in (`SearchHit.fields`); `propertyKeys` the single
+ * properties searched (`SearchElementsOptions.propertyKeys`), undefined for every property.
  */
 export const searchSnippet = (
   index: SearchIndex,
   hit: Pick<SearchHit, "element" | "fields" | "terms">,
+  propertyKeys?: readonly string[],
 ): SearchSnippet | undefined => {
   const fields = new Set<SearchField>(hit.fields);
   const terms = new Set(hit.terms);
@@ -632,16 +655,7 @@ export const searchSnippet = (
   if (!fields.has("properties")) {
     return undefined;
   }
-  const markdown = markdownKeysOf(metamodel);
-  for (const { key, values } of propertyValues(element, metamodel)) {
-    for (const value of values) {
-      const line = valueLine(value, markdown.has(key), terms);
-      if (line !== undefined) {
-        return { field: "properties", property: key, propertyName: propertyName(metamodel, key), ...line };
-      }
-    }
-  }
-  return undefined;
+  return propertySnippet(metamodel, element, terms, propertyKeys);
 };
 
 /** The words of `title` that match `terms` (`SearchHit.terms`), for highlighting the title (SR-174 AK4). */

@@ -517,6 +517,11 @@
       },
       "additionalProperties": false
     },
+    "searchFieldKey": {
+      "description": "A field a search is restricted to (SR-216): `title`, `text`, `properties`, `id` or the key of a property; element.search checks the key against the metamodel.",
+      "type": "string",
+      "minLength": 1
+    },
     "groupKey": {
       "description": "A key to group a list by (SR-149): `type`, `status`, `package` or a property key.",
       "anyOf": [{ "enum": ["type", "status", "package"] }, { "$ref": "#/$defs/key" }]

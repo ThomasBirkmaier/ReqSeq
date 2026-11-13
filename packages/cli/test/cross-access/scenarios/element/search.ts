@@ -8,6 +8,9 @@ import { FILTER, IDENTIFIERS, SAVED } from "../../fixtures.js";
 /** A Markdown text, a list property, a choice and spec IDs (SR-174). */
 const SNIPPETS: FixtureOptions = { fixture: "SR-174/snippets" };
 
+/** A text property, acceptance criteria and a relation kind (SR-216). */
+const FIELDS: FixtureOptions = { fixture: "SR-216/fields" };
+
 /** The snippets of the hits of the first access, by short ID; every access gave the same (compared before). */
 const snippets = (results: Readonly<Record<string, Result>>): Record<string, unknown> => {
   const [first] = Object.values(results);
@@ -167,6 +170,80 @@ scenariosOf("element.search", [
         "PKG-0000d1: SR-0000b2 SR-0000b1",
         "-: PKG-0000d1 N-0000a1 SR-0000b3",
       ]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-dhq2]",
+    name: "in the acceptance criteria only: the hit, its snippet from them, no title marks",
+    fixture: FIELDS,
+    input: { query: "gust", fields: ["acceptance-criteria"] },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000c1": [
+          {
+            field: "properties",
+            property: "acceptance-criteria",
+            propertyName: "Acceptance Criteria",
+            text: "Given a gust, then the alarm sounds.",
+            marks: [{ start: 8, end: 12 }],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-216/AK-dhq2]",
+    name: "in the text and a property: the snippet from the text, else from the property",
+    fixture: FIELDS,
+    input: { query: "mast", fields: ["text", "rationale"] },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000c1": [
+          {
+            field: "properties",
+            property: "rationale",
+            propertyName: "Rationale",
+            text: "Gusts shake the mast.",
+            marks: [{ start: 16, end: 20 }],
+          },
+          undefined,
+        ],
+        "SR-0000c2": [
+          {
+            field: "text",
+            text: "The mast holds every gust and stands in the wind.",
+            marks: [{ start: 4, end: 8 }],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-216/AK-r9jg]",
+    name: "in a single property: only the hits of its words (SR-216 AK2)",
+    fixture: FIELDS,
+    input: { query: "storm", fields: ["rationale"] },
+    expect: "output",
+    check: (results) => {
+      expect(Object.keys(snippets(results))).toEqual(["SR-0000c2"]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-r9jg]",
+    name: "a key that holds relations, refused with a message naming it (SR-216 AK2, AK11)",
+    fixture: FIELDS,
+    input: { query: "gust", fields: ["derives-from"] },
+    expect: "error",
+    check: (results) => {
+      for (const { outcome } of Object.values(results)) {
+        const error = "error" in outcome ? (outcome.error as { code?: string; message?: string }) : {};
+        expect(error.code).toBe("input.invalid");
+        expect(error.message).toContain('"derives-from"');
+      }
     },
   },
   {

@@ -212,6 +212,42 @@ describe("search hit snippet (SR-174)", () => {
     expect(wind.titleMarks).toEqual([{ start: 12, end: 16 }]);
   });
 
+  it("[SR-216/AK-zq8s] takes the snippet from the chosen fields only: the text when chosen, else the first chosen property; the title marked only when chosen", async () => {
+    const ws = await open();
+    const only = async (query: string, fields: readonly string[]): Promise<Hit | undefined> => {
+      const { hits } = await search(ws, { query, fields });
+      expect(hits[0]?.id).toBe(A2);
+      return hits[0];
+    };
+    // "hail" is in notes (earlier in the type) and in checks: chosen checks give the snippet.
+    expect((await hitOf(ws, "hail", A2)).snippet).toMatchObject({ property: "notes" });
+    expect((await only("hail", ["checks"]))?.snippet).toEqual({
+      field: "properties",
+      property: "checks",
+      propertyName: "Checks",
+      text: "The dial turns in hail.",
+      marks: [{ start: 18, end: 22 }],
+    });
+    // "dial" is in the title, the text, notes and checks: without `text` and `title` no text snippet
+    // and no title marks; the first chosen property in metamodel order (notes before checks).
+    const dial = await only("dial", ["checks", "notes"]);
+    expect(dial?.fields).toEqual(["properties"]);
+    expect(dial?.titleMarks).toBeUndefined();
+    expect(dial?.snippet).toMatchObject({ property: "notes", text: "A hail sensor beside the dial." });
+    expect((await only("dial", ["title", "checks"]))?.titleMarks).toEqual([{ start: 7, end: 11 }]);
+    expect((await only("dial", ["text", "checks"]))?.snippet).toMatchObject({ field: "text" });
+    // The text chosen but without the word: the chosen property.
+    expect((await only("hurricane", ["text", "checks"]))?.snippet).toMatchObject({ property: "checks" });
+    // The identifier, chosen alone, and a choice found by its name: the identifier has no snippet.
+    const identifier = await only("202", ["spec-id"]);
+    expect(identifier?.fields).toEqual(["properties"]);
+    expect(identifier?.snippet).toBeUndefined();
+    expect((await only("gale", ["level"]))?.snippet).toMatchObject({
+      property: "level",
+      text: "Gale warning",
+    });
+  });
+
   it("reads no file for a search of the title and the IDs only (the [[ search, SR-066)", async () => {
     const ws = await open();
     const out = await search(ws, { query: "dial", fields: ["title", "id"] });

@@ -13,18 +13,19 @@ import { relationKey, titleKeyOf } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { readCacheFile, writeCacheFile } from "../workspace/index.js";
 import type { SearchDocument, SearchIndex } from "./search-index.js";
-import { ENGINE_OPTIONS, recordKey, searchIndexOf } from "./search-index.js";
+import { engineOptions, recordKey, searchIndexOf, searchPropertyKeys } from "./search-index.js";
 
 /** The name of the search index in the cache folder of a copy (`cacheFolder(root)`). */
 export const SEARCH_CACHE_FILE = "search.json";
 
 /** The format of `search.json`; a file of another format is not used. */
-export const SEARCH_CACHE_FORMAT = 1;
+export const SEARCH_CACHE_FORMAT = 2;
 
 /**
- * What of the metamodel decides the documents (`documentOf`): the title key, the keys that hold
- * relations (left out), the names of the choices and the names of the types and statuses (indexed
- * in `properties`, ThomasBirkmaier/ReqSeq-archive#80).
+ * What of the metamodel decides the documents (`documentOf`) and the fields: the title key, the keys
+ * that hold relations (left out), the names of the choices, the names of the types and statuses
+ * (indexed in `properties`, ThomasBirkmaier/ReqSeq-archive#80) and the properties with a field of their own
+ * (`searchPropertyKeys`, SR-216).
  */
 const metamodelPart = (metamodel: Metamodel): unknown => ({
   types: metamodel.effectiveTypes.map((t) => [t.key, t.name]),
@@ -34,6 +35,7 @@ const metamodelPart = (metamodel: Metamodel): unknown => ({
     .filter((key) => relationKey(metamodel, key) !== undefined)
     .sort(),
   choices: metamodel.properties.map((p) => [p.key, (p.choices ?? []).map((c) => [c.key, c.name])]),
+  fields: searchPropertyKeys(metamodel),
 });
 
 /**
@@ -100,7 +102,7 @@ export const parseSearchIndex = (
     if (!fits(JSON.parse(text.slice(0, end)), expected)) {
       return undefined;
     }
-    mini = MiniSearch.loadJSON<SearchDocument>(text.slice(end + 1), ENGINE_OPTIONS);
+    mini = MiniSearch.loadJSON<SearchDocument>(text.slice(end + 1), engineOptions(metamodel));
   } catch {
     return undefined;
   }

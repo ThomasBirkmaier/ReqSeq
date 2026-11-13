@@ -5,7 +5,7 @@ import MiniSearch from "minisearch";
 import type { Query, SearchResult } from "minisearch";
 import { describe, expect, it, vi } from "vitest";
 import type { SearchDocument } from "./search-index.js";
-import { ENGINE_OPTIONS } from "./search-index.js";
+import { WORD_FIELDS, engineOptionsFor, normalizeWord, WORD_SEPARATOR } from "./search-index.js";
 import type { ScoringOptions } from "./search-scoring.js";
 import { documentKeys, nextShortId, scoreWords, searchOptionsOf } from "./search-scoring.js";
 
@@ -22,11 +22,16 @@ const TEXTS = [
   ["constructor toString", "valueOf hasOwnProperty", "prototype"],
 ];
 
+/** The keys of the single properties: each line of the properties of a text is one (SR-216). */
+const KEYS = ["p0", "p1", "p2"];
+
 const documents: SearchDocument[] = TEXTS.map(([title, text, properties], i) => ({
   key: `r\0doc-${String(i)}.md`,
   title: String(title),
   text: String(text),
-  properties: String(properties),
+  parts: String(properties)
+    .split("\n")
+    .flatMap((line, at) => [`p${String(at)}`, line]),
 }));
 
 /** The first document (`r\0doc-0.md`). */
@@ -39,8 +44,22 @@ const firstDocument = (): SearchDocument => {
 };
 
 const engine = (): MiniSearch<SearchDocument> => {
-  const mini = new MiniSearch<SearchDocument>(ENGINE_OPTIONS);
+  const mini = new MiniSearch<SearchDocument>(engineOptionsFor(KEYS));
   mini.addAll(documents);
+  return mini;
+};
+
+/** The documents in an engine of the three fields of words only, `properties` as one text: the index before single properties (SR-216). */
+const plainEngine = (): MiniSearch => {
+  const mini = new MiniSearch({
+    idField: "key",
+    fields: [...WORD_FIELDS],
+    tokenize: (text: string) => text.split(WORD_SEPARATOR),
+    processTerm: normalizeWord,
+  });
+  mini.addAll(
+    TEXTS.map(([title, text, properties], i) => ({ key: `r\0doc-${String(i)}.md`, title, text, properties })),
+  );
   return mini;
 };
 
@@ -166,12 +185,47 @@ describe("scoreWords", () => {
     expect(same(mini, ["humidities"], options({ fuzzy: () => 0.9 }))).toBeGreaterThan(0);
   });
 
+  it("does so in fields of single properties, alone and with fixed fields (SR-216)", () => {
+    const mini = engine();
+    let found = 0;
+    for (const words of QUERIES) {
+      found += same(mini, words, options({ fields: ["property:p0"], boost: { "property:p0": 1 } }));
+      same(
+        mini,
+        words,
+        options({
+          fields: ["title", "property:p1", "property:p2"],
+          boost: { title: 2, "property:p1": 1, "property:p2": 1 },
+        }),
+      );
+    }
+    expect(found).toBeGreaterThan(5);
+  });
+
+  it("[SR-216/AK-hpd4] scores a search in every field as an index without fields of single properties, to the bit", () => {
+    const mini = engine();
+    const plain = plainEngine();
+    let found = 0;
+    for (const words of QUERIES) {
+      const want = actual(plain, words, options());
+      const got = actual(mini, words, options());
+      expect(got, JSON.stringify(words)).toBeDefined();
+      expect(
+        [...(got?.entries() ?? [])].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]),
+      ).toEqual(
+        [...(want?.entries() ?? [])].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]),
+      );
+      found += got?.size ?? 0;
+    }
+    expect(found).toBeGreaterThan(50);
+  });
+
   it("scores a carried MiniSearch object as it is after the change (`generation`)", () => {
     const mini = engine();
     const scoring = options();
     expect(actual(mini, ["zanzibar"], scoring, 0)?.size).toBe(0);
     mini.remove(firstDocument());
-    mini.add({ key: "r\0new.md", title: "Zanzibar wind", text: "wind wind", properties: "" });
+    mini.add({ key: "r\0new.md", title: "Zanzibar wind", text: "wind wind", parts: [] });
     expect(nextShortId(mini)).toBe(documents.length + 1);
     // Another generation: field lengths and documents are read again.
     expect([...(actual(mini, ["zanzibar"], scoring, 1)?.keys() ?? [])]).toEqual(["r\0new.md"]);
@@ -189,7 +243,7 @@ describe("scoreWords", () => {
     // (MiniSearch warns); MiniSearch drops them as a search meets them, so it searches itself.
     const stale = engine();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    stale.remove({ ...firstDocument(), text: "", properties: "" });
+    stale.remove({ ...firstDocument(), text: "", parts: [] });
     warn.mockRestore();
     expect(stale.dirtCount).toBe(0);
     expect(scoreWords(stale, 1, ["wind"], options())).toBeUndefined();
