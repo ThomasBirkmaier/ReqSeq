@@ -39,10 +39,13 @@ afterEach(() => {
 const SHOWN = elementBuffer("uuid-2", "spec", "SR-000002 Shown");
 const HIDDEN = elementBuffer("uuid-1", "spec", "SR-000001 Hidden");
 
-/** An area showing `SHOWN`, whose reads never answer, beside the views of `hidden`; the rest answer a failure. */
-const area = (gate: ReadGate) => {
+/**
+ * An area showing `SHOWN` beside the views of `hidden`. The reads of `SHOWN` never answer unless `answered`;
+ * the rest answer a failure.
+ */
+const area = (gate: ReadGate, answered = false) => {
   const call = vi.fn((_name: string, input: Record<string, unknown>) =>
-    input["ref"] === "uuid-2"
+    input["ref"] === "uuid-2" && !answered
       ? new Promise(() => undefined)
       : Promise.resolve({ ok: false, code: "test", message: "not in this test" }),
   );
@@ -122,7 +125,7 @@ it("[SR-212/AK-tfck] a layer drawn in advance that goes while its reads wait at 
 
 it("[SR-212/AK-tfck] a layer drawn in advance is not read again after a change of the workspace, and asks to be dropped", async () => {
   const gate = new ReadGate(60_000);
-  const { render, reads, drop } = area(gate);
+  const { render, reads, drop } = area(gate, true);
   await render([HIDDEN]);
   await act(async () => {
     gate.show(SHOWN.key, true);
@@ -144,7 +147,7 @@ it("[SR-212/AK-tfck] a layer drawn in advance is not read again after a change o
 
 it("[SR-212/AK-tfck] a layer drawn in advance reads once more after the save of leaving an element, which belongs to the switch", async () => {
   const gate = new ReadGate(60_000);
-  const { render, reads, drop } = area(gate);
+  const { render, reads, drop } = area(gate, true);
   await render([HIDDEN]);
   await act(async () => {
     gate.show(SHOWN.key, true);

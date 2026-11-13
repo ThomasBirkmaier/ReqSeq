@@ -321,9 +321,19 @@ const useLayerViews = (
     const inner = views.call;
     return async (name, input) => {
       pending.current += 1;
+      // Ends this read's turn in the queue of the reads drawn in advance, or its count as a shown request.
+      let end = (): void => undefined;
       try {
         if (!shownNow.current) {
-          await Promise.race([latest.current.gate.pass(), revealed.promise]);
+          // One hidden read at a time, and none while a shown buffer's request is in flight (`ReadGate.turn`);
+          // shown meanwhile, it leaves the queue.
+          const queued = latest.current.gate.turn();
+          const given = await Promise.race([queued.turn, revealed.promise.then(() => undefined)]);
+          if (given === undefined) {
+            queued.cancel();
+          } else {
+            end = given;
+          }
           if (!alive.current) {
             return { ok: false, code: "LAYER_GONE", message: "The view drawn in advance is gone." };
           }
@@ -335,8 +345,13 @@ const useLayerViews = (
             readAt.current = { seen: latest.current.seen, saves: latest.current.switchSaves };
           }
         }
+        if (!hiddenNow()) {
+          end();
+          end = latest.current.gate.request();
+        }
         return await inner(name, input);
       } finally {
+        end();
         pending.current -= 1;
         if (pending.current === 0) {
           settled.current();

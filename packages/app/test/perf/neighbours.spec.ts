@@ -5,7 +5,7 @@
 // how soon a switch to one of them starts to slide:
 //
 // - SR-082 AK3, the hostile case: an element opened without a prompt (Enter on a relation of the shown element)
-//   in the microtask after the slowest read of a neighbour was sent, set off in the preload's world
+//   right after the slowest read of a neighbour was sent, in the same task, set off in the preload's world
 //   (`recordRequests`). A change drops the buffers drawn in advance, which read nothing in the background; the
 //   next switch draws them again, so the slowest read is the first after a change (found first, its time
 //   recorded, also warm), sent when the reader is back on the shown element;
@@ -443,8 +443,8 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await command(window, "Close buffer");
     };
 
-    // SR-082 AK3, hostile: back on B after a change from outside, Enter on a relation of B goes in the
-    // microtask after the slowest read drawn in advance was sent.
+    // SR-082 AK3, hostile: back on B after a change from outside, Enter on a relation of B goes right
+    // after the slowest read drawn in advance was sent.
     const hostileOpens = async () => {
       const hostile: number[] = [];
       const lags: number[] = [];
@@ -616,8 +616,9 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     await window.waitForTimeout(SETTLE_SWITCH_MS);
 
     // SR-082 AK3 with the save of leaving (SR-105 AK1): typed in B, then Alt+P to another element C at once. B
-    // is saved, then drawn hidden beside C, its first read after its own save; Enter on a relation of C goes in
-    // the microtask after that read was sent.
+    // is saved, then drawn hidden beside C, its first read after its own save; Enter on a relation of C goes right
+    // after that read was sent.
+    const focusing: number[] = [];
     const leavingOpens = async () => {
       const c = others[ROUNDS + 5];
       if (c === undefined) {
@@ -643,6 +644,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         const fired = await requests.fired();
         expect(fired?.target).toBe("SPAN");
         expect((fired?.firedAt ?? Infinity) - (fired?.sentAt ?? 0)).toBeLessThanOrEqual(ARMED_LAG_MS);
+        focusing.push(fired?.focusMs ?? 0);
         await expect.poll(() => fs.readFile(fileOf(b), "utf8")).toContain(`left ${String(round)}`);
         // Back to C with the opened element closed, so B, opened next, has C as its previous buffer.
         await window.waitForTimeout(SETTLE_SWITCH_MS);
@@ -752,7 +754,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(
-      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, leaving, afterOther: afterOther.map(({ label, ms }) => ({ label, ms })), opens, list, outside, gap, held, started, firstOpen })}`,
+      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, leaving, focusing, afterOther: afterOther.map(({ label, ms }) => ({ label, ms })), opens, list, outside, gap, held, started, firstOpen })}`,
     );
     for (const measurement of recorded) {
       if (measurement.thresholdMs !== undefined) {

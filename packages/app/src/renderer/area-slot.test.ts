@@ -160,6 +160,63 @@ describe("a view shown after it was drawn in advance", () => {
   });
 });
 
+describe("the queue of the reads drawn in advance", () => {
+  /** Whether the turn has been given by now. */
+  const given = async (turn: Promise<() => void>): Promise<boolean> => {
+    let done = false;
+    void turn.then(() => {
+      done = true;
+    });
+    for (let tick = 0; tick < 4; tick += 1) {
+      await Promise.resolve();
+    }
+    return done;
+  };
+
+  it("[SR-212/AK-tfck] sends one hidden read at a time, in order, and only once the gate is open", async () => {
+    const gate = new ReadGate(1000);
+    const first = gate.turn();
+    expect(await given(first.turn)).toBe(false);
+    gate.show("a", true);
+    expect(await given(first.turn)).toBe(true);
+    const second = gate.turn();
+    const third = gate.turn();
+    expect(await given(second.turn)).toBe(false);
+    (await first.turn)();
+    expect(await given(second.turn)).toBe(true);
+    expect(await given(third.turn)).toBe(false);
+    // A queued read that leaves the queue (its view was shown) takes no turn; one given ends it.
+    third.cancel();
+    (await second.turn)();
+    const fourth = gate.turn();
+    expect(await given(fourth.turn)).toBe(true);
+    fourth.cancel();
+    expect(await given(gate.turn().turn)).toBe(true);
+    gate.dispose();
+  });
+
+  it("[SR-212/AK-tfck] holds a hidden read not yet sent while a request of a shown buffer is in flight", async () => {
+    const gate = new ReadGate(1000);
+    gate.show("a", true);
+    const answered = gate.request();
+    const queued = gate.turn();
+    expect(await given(queued.turn)).toBe(false);
+    answered();
+    answered();
+    expect(await given(queued.turn)).toBe(true);
+    // A request of a shown buffer never waits: the read already sent goes on, the next is held.
+    const end = await queued.turn;
+    const shownAgain = gate.request();
+    end();
+    end();
+    const next = gate.turn();
+    expect(await given(next.turn)).toBe(false);
+    shownAgain();
+    expect(await given(next.turn)).toBe(true);
+    gate.dispose();
+  });
+});
+
 describe("the writes of the save of leaving", () => {
   it("[SR-212/AK-tfck] counts a write that goes and succeeds, not a save with nothing to write or a failed write", async () => {
     const pending = { current: 0 };

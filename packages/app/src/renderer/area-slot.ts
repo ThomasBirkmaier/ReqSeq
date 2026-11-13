@@ -62,6 +62,11 @@ export class ReadGate {
   private sliding = false;
   private prompting = false;
   private releasing = false;
+  /** A hidden read is sent and not yet answered: the next one waits for it. */
+  private reading = false;
+  /** Requests of the shown buffers sent and not yet answered: no hidden read is sent meanwhile. */
+  private showing = 0;
+  private readonly turns: (() => void)[] = [];
   private deadline: ReturnType<typeof setTimeout> | undefined;
   private readonly waiting = new Set<() => void>();
   private readonly wait: number;
@@ -123,10 +128,63 @@ export class ReadGate {
     });
   }
 
+  /**
+   * Waits for the turn of one hidden read: the gate is open, no other hidden read is in flight and no request
+   * of a shown buffer is, so at most one read drawn in advance is ahead of what the reader asks for. `turn`
+   * resolves to the function that ends it (call it once the read answered); `cancel` leaves the queue, or ends
+   * the turn when it was given already.
+   */
+  turn(): { readonly turn: Promise<() => void>; readonly cancel: () => void } {
+    let given = false;
+    let ended = false;
+    const end = (): void => {
+      if (!ended) {
+        ended = true;
+        this.reading = false;
+        this.release();
+      }
+    };
+    let take = (): void => undefined;
+    const turn = new Promise<() => void>((resolve) => {
+      take = () => {
+        given = true;
+        this.reading = true;
+        resolve(end);
+      };
+      this.turns.push(take);
+    });
+    this.release();
+    return {
+      turn,
+      cancel: () => {
+        const at = this.turns.indexOf(take);
+        if (at >= 0) {
+          this.turns.splice(at, 1);
+        } else if (given) {
+          end();
+        }
+      },
+    };
+  }
+
+  /** A request of a shown buffer is sent: no hidden read is sent until the returned function says it answered. */
+  request(): () => void {
+    this.showing += 1;
+    let done = false;
+    return () => {
+      if (!done) {
+        done = true;
+        this.showing -= 1;
+        this.release();
+      }
+    };
+  }
+
   /** Lets nothing wait any longer: the window goes. */
   dispose(): void {
     clearTimeout(this.deadline);
     this.waiting.clear();
+    this.turns.length = 0;
   }
 
   /**
@@ -147,6 +205,9 @@ export class ReadGate {
       this.waiting.clear();
       for (const resolve of go) {
         resolve();
+      }
+      if (!this.reading && this.showing === 0) {
+        this.turns.shift()?.();
       }
     });
   }

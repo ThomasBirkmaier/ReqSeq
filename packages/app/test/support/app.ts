@@ -679,6 +679,8 @@ export interface CoreRequest {
 export interface ArmedEnter {
   readonly sentAt: number;
   readonly firedAt: number;
+  /** The ms the focus of the element took before the Enter was dispatched. */
+  readonly focusMs: number;
   /** The tag name of the element the Enter went to. */
   readonly target: string;
 }
@@ -691,8 +693,8 @@ export interface CoreRequests {
   readonly sent: () => Promise<readonly CoreRequest[]>;
   /**
    * The next request named `name` whose input is `input` (compared as JSON) dispatches a keydown and keyup of
-   * Enter on the focused element (first on the element `focus` selects, when given) in the microtask after it
-   * was sent: as a person who presses Enter at that moment. These events are not trusted. `fired()` tells when.
+   * Enter on the focused element (first on the element `focus` selects, when given) right after it was sent, in
+   * the same task: as a person who presses Enter at that moment. These events are not trusted. `fired()` tells when.
    */
   readonly enterOn: (name: string, input: unknown, focus?: string) => Promise<void>;
   /** The Enter set off by `enterOn`, once it went. */
@@ -746,19 +748,22 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
           const armed = own.__armed;
           if (armed !== undefined && armed.name === message.name && armed.input === JSON.stringify(message.input)) {
             own.__armed = undefined;
-            queueMicrotask(() => {
-              if (armed.focus !== undefined) {
-                document.querySelector(armed.focus)?.focus();
-              }
-              const target = document.activeElement ?? document.body;
-              const firedAt = now();
-              for (const type of ["keydown", "keyup"]) {
-                target.dispatchEvent(
-                  new KeyboardEvent(type, { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
-                );
-              }
-              own.__fired = { sentAt: at, firedAt, target: target.tagName };
-            });
+            // The request goes first, then the Enter at once, in the same task.
+            const result = post.call(this, message, ...rest);
+            // When the Enter goes: before the focus, whose layout a fresh view may make take some ms.
+            const firedAt = now();
+            if (armed.focus !== undefined) {
+              document.querySelector(armed.focus)?.focus();
+            }
+            const target = document.activeElement ?? document.body;
+            const focusMs = now() - firedAt;
+            for (const type of ["keydown", "keyup"]) {
+              target.dispatchEvent(
+                new KeyboardEvent(type, { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+              );
+            }
+            own.__fired = { sentAt: at, firedAt, focusMs, target: target.tagName };
+            return result;
           }
         }
         return post.call(this, message, ...rest);
