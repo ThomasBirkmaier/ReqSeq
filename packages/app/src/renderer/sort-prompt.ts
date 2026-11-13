@@ -41,6 +41,8 @@ export interface SortAsk {
   readonly skip: (more: boolean) => void;
   /** The sort of the shown list, the first hit without a mark (AK5); worked out only when no mark is set. */
   readonly shown?: () => ShownSort | undefined;
+  /** The sort keys, read once for the argument: its later steps take them from here (`keysOf`). */
+  readonly keys?: Promise<Keys>;
 }
 
 /** The value the marks give (AK10): their keys in their order; none is the workspace order. */
@@ -75,6 +77,12 @@ interface Key {
   readonly name: string;
 }
 
+/** The sort keys there are, and why the properties among them could not be read. */
+interface Keys {
+  readonly keys: readonly Key[];
+  readonly failed?: string;
+}
+
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
 /** The word of each order, as "Order" offers it: "descending". */
@@ -101,9 +109,7 @@ const withMark = (marks: readonly SortMark[], mark: SortMark): readonly SortMark
  * The sort keys that ask an order: the fixed ones, then the properties of the metamodel that hold no relations
  * and are not named by a fixed key (AK7, SR-075 AK1). Without the metamodel, the fixed ones and why.
  */
-const keysOf = async (
-  context: ActionContext,
-): Promise<{ readonly keys: readonly Key[]; readonly failed?: string }> => {
+const keysOf = async (context: ActionContext): Promise<Keys> => {
   const fixed = FIXED.map(([by, name]) => ({ by, name }));
   const answer = await context.call("metamodel.get", {});
   if (!answer.ok) {
@@ -177,14 +183,15 @@ const askOrder = (ask: SortAsk, marks: readonly SortMark[], key: Key): void => {
  * empty input removes the last mark, without one it goes back an argument, as Escape does (AK9, SR-134 AK4).
  */
 export const askSort = (given: SortAsk, marks: readonly SortMark[]): void => {
-  const ask = plain(given);
+  const keys = given.keys ?? keysOf(given.context);
+  const ask = { ...plain(given), keys };
   const take = (taken: readonly SortMark[], more: boolean) => (): void => {
     given.take(taken, more);
   };
   const shown = marks.length === 0 ? given.shown?.() : undefined;
   const label = `${given.error === undefined ? "" : `${given.error} · `}${given.line}:`;
-  const hits = (keys: readonly Key[]): Choice[] => {
-    const own = shown !== undefined && "sort" in shown ? marksOf(shown.sort, keys) : undefined;
+  const hits = (known: readonly Key[]): Choice[] => {
+    const own = shown !== undefined && "sort" in shown ? marksOf(shown.sort, known) : undefined;
     const hierarchy = markOf({ by: "hierarchy", name: HIERARCHY }, "asc");
     return [
       ...(own === undefined
@@ -233,14 +240,20 @@ export const askSort = (given: SortAsk, marks: readonly SortMark[]): void => {
             },
           ]
         : []),
-      ...keys.map((key): Choice => ({
+      ...known.map((key): Choice => ({
         id: `key:${key.by}`,
         name: key.name,
         hint: key.by,
         run: () => {
           askOrder(ask, marks, key);
         },
-        more: take(marks, true),
+        // Without a mark there is no sort to take: Ctrl/Cmd+Enter skips it, as the finishing hit does.
+        more:
+          marks.length === 0
+            ? () => {
+                given.skip(true);
+              }
+            : take(marks, true),
       })),
       { id: "workspace", name: WORKSPACE_ORDER, run: take([], false), more: take([], true) },
     ];
@@ -248,9 +261,9 @@ export const askSort = (given: SortAsk, marks: readonly SortMark[]): void => {
   given.context.ask({
     label,
     items: [],
-    fill: keysOf(given.context).then(({ keys, failed }): PromptFill => ({
+    fill: keys.then(({ keys: found, failed }): PromptFill => ({
       ...(failed === undefined ? {} : { label: `${failed} · ${label}` }),
-      items: hits(keys),
+      items: hits(found),
     })),
     marks: promptMarks(marks, (next) => {
       askSort(ask, next);

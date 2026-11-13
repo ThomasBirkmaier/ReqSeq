@@ -3784,6 +3784,13 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     item((await last(skipped.asked)).items, "No sort").more?.();
     expect((await last(skipped.asked)).label).toBe("Save filter open all elements · more arguments:");
 
+    // Ctrl/Cmd+Enter on a key without a mark skips the sort as well; it takes no empty sort.
+    const key = await atSort();
+    item((await last(key.asked)).items, "Title").more?.();
+    expect((await last(key.asked)).label).toBe("Save filter open all elements · more arguments:");
+    await choose(key.asked, "Run");
+    expect(key.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
+
     const some = await atSort();
     await choose(some.asked, "Type", "ascending");
     expect((await last(some.asked)).items[0]?.name).toBe("Take 1 sort key");
@@ -3914,6 +3921,15 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
       expect((await last(elsewhere.asked)).items[0]?.name).toBe("No sort");
       expect((await last(elsewhere.asked)).explain?.building?.note).toBeUndefined();
     }
+  });
+
+  it("reads the keys once for the argument, not again in each step", async () => {
+    const { asked, call } = await atSort();
+    const before = call.mock.calls.filter(([name]) => name === "metamodel.get").length;
+    await choose(asked, "Title", "ascending");
+    (await last(asked)).marks?.[0]?.remove();
+    expect(await names(asked)).toContain("Title | title");
+    expect(call.mock.calls.filter(([name]) => name === "metamodel.get")).toHaveLength(before);
   });
 
   it("offers the fixed keys and says why when the metamodel cannot be read", async () => {

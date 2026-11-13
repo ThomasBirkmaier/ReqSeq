@@ -1571,7 +1571,8 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         ...(entry.error === undefined ? {} : { error: entry.error }),
         explain: shared.explain,
         back: (marks) => {
-          back(context, { ...entry, held: { field, marks } });
+          const { marks: _again, ...left } = entry;
+          back(context, { ...left, held: { field, marks } });
         },
         take: (marks, more) => {
           give(context, rest, field, sortOf(marks), sortMarksLabel(marks), more, { marks });
