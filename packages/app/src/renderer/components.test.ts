@@ -7281,3 +7281,95 @@ describe("ElementView", () => {
     });
   });
 });
+
+describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #1645)", () => {
+  const prompt = (unmark: boolean) => {
+    const removed: string[] = [];
+    const back = vi.fn();
+    const marked: Prompt = {
+      label: "Save filter open · where:",
+      items: [{ id: "take", name: "Take 2 conditions", run: vi.fn() }],
+      marks: ["type: need", "status: draft"].map((label) => ({
+        label,
+        remove: () => {
+          removed.push(label);
+        },
+      })),
+      ...(unmark ? { unmark: true } : {}),
+      back,
+      explain: {
+        name: "where",
+        description: "Which elements",
+        list: false,
+        ends: false,
+        skips: false,
+        more: true,
+        building: { enter: "takes the marked hit; all conditions must hold", unmark, json: unmark },
+      },
+    };
+    return { marked, removed, back };
+  };
+  // A new question each time, so the input starts empty.
+  let serial = 0;
+  const mount = async (shown: Prompt, closed = vi.fn()) => {
+    await render(
+      createElement(Minibuffer, {
+        echo: "",
+        prompt: { serial: (serial += 1), prompt: shown },
+        onCommand: vi.fn(),
+        onClose: closed,
+      }),
+    );
+    return closed;
+  };
+
+  it("shows each mark before the input, a box with its label and an ×", async () => {
+    await mount(prompt(true).marked);
+    expect(texts('[aria-label="Marks"] [role="listitem"]')).toEqual(["type: need×", "status: draft×"]);
+    expect(query(".prompt-marks").nextElementSibling).toBe(queryInput());
+    expect(query('[aria-label="Remove status: draft"]').tagName).toBe("BUTTON");
+  });
+
+  it("a click on the × of a mark removes that mark; the input keeps the focus", async () => {
+    const { marked, removed } = prompt(true);
+    const closed = await mount(marked);
+    const unmark = query('[aria-label="Remove type: need"]');
+    const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    unmark.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    await click(unmark);
+    expect(removed).toEqual(["type: need"]);
+    expect(closed).toHaveBeenCalledWith(false);
+  });
+
+  it("Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
+    const removing = prompt(true);
+    await mount(removing.marked);
+    await press(queryInput(), "Backspace");
+    expect(removing.removed).toEqual(["status: draft"]);
+    expect(removing.back).not.toHaveBeenCalled();
+    // Typed text: Backspace deletes a character.
+    const typing = prompt(true);
+    await mount(typing.marked);
+    await type(queryInput(), "ty");
+    await press(queryInput(), "Backspace");
+    expect(typing.removed).toEqual([]);
+    // A step of the values: one step back, the marks stay.
+    const values = prompt(false);
+    await mount(values.marked);
+    await press(queryInput(), "Backspace");
+    expect(values.removed).toEqual([]);
+    expect(values.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
+    await mount(prompt(true).marked);
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "Enter takes the marked hit; all conditions must hold · Backspace on an empty input removes the last mark · { a condition in JSON · Ctrl+Enter more arguments · Escape back",
+    );
+    await mount({ ...prompt(false).marked });
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
+    );
+  });
+});

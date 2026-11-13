@@ -162,6 +162,18 @@ export interface ArgumentExplanation {
   readonly skips: boolean;
   /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
   readonly more: boolean;
+  /**
+   * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
+   * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
+   * place of the keys of `list`, `ends` and `skips`.
+   */
+  readonly building?: { readonly enter: string; readonly unmark: boolean; readonly json: boolean };
+}
+
+/** A part of a value built from hits, shown as a mark in the input with an × that removes it (SR-215 AK3, AK9). */
+export interface PromptMark {
+  readonly label: string;
+  readonly remove: () => void;
 }
 
 /** What the minibuffer asks for. */
@@ -207,6 +219,10 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /** The marks in the input before the typed text (SR-215 AK3). */
+  readonly marks?: readonly PromptMark[];
+  /** Backspace in an empty input removes the last mark, while there is one, before it goes back (SR-215 AK9). */
+  readonly unmark?: boolean;
   /**
    * The card keeps the place of the explanation line under the hits, also while the marked entry has none or there
    * is no hit, so the hits do not move (the command prompt, SR-210 AK1).
