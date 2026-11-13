@@ -281,7 +281,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("binds condition, sort and group to their schemas both ways, the others one way (SR-215)", () => {
+  it("binds condition, sort, group and searchField to their schemas both ways, the others one way (SR-215)", () => {
     const at = (field, complete, of) => (of === undefined ? { field, complete } : { field, complete, of });
     const fields = {
       ref: { type: "string" },
@@ -289,6 +289,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       where: { $ref: "../filter.schema.json#/$defs/condition" },
       sort: { type: "array", items: { $ref: "../filter.schema.json#/$defs/sortKey" } },
       group: { $ref: "../common.schema.json#/$defs/groupKey" },
+      fields: { type: "array", items: { $ref: "../common.schema.json#/$defs/searchFieldKey" } },
       properties: {
         type: "object",
         additionalProperties: { $ref: "../element.schema.json#/$defs/inputValue" },
@@ -306,6 +307,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       at("where", "condition"),
       at("sort", "sort"),
       at("group", "group"),
+      at("fields", "searchField"),
       at("properties", "properties"),
       at("relations", "relations"),
       at("path", "folder"),
@@ -330,6 +332,12 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     expect(with_(swap("file", "condition"))).toEqual([error('"file": condition needs a condition field')]);
     expect(with_(swap("file", "sort"))).toEqual([error('"file": sort needs a list of sortKey field')]);
     expect(with_(swap("file", "group"))).toEqual([error('"file": group needs a groupKey field')]);
+    expect(with_(swap("fields", "json"))).toEqual([
+      error('"fields": a list of searchFieldKey field is completed as searchField'),
+    ]);
+    expect(with_(swap("file", "searchField"))).toEqual([
+      error('"file": searchField needs a list of searchFieldKey field'),
+    ]);
     // One way: such a field may stay json (element.update), the source needs it.
     expect(with_(swap("properties", "json"))).toEqual([]);
     expect(with_(swap("relations", "json"))).toEqual([]);

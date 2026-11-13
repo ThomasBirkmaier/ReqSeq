@@ -22,6 +22,7 @@ import elementFacets from "./element/facets.js";
 import elementGet from "./element/get.js";
 import elementList from "./element/list.js";
 import elementResolve from "./element/resolve.js";
+import elementSearchFields from "./element/searchFields.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
@@ -76,6 +77,7 @@ export const commands: readonly AnyCommand[] = [
   elementList,
   elementResolve,
   lazyCommand("element.search", () => import("./element/search.js")),
+  elementSearchFields,
   elementSetStatus,
   elementSupersede,
   elementUpdate,
