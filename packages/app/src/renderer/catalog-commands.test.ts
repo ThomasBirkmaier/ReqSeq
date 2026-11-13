@@ -25,6 +25,7 @@ import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
 import {
   NO_SHOWN_FILTER,
+  NO_SHOWN_SORT,
   catalogItems,
   contextField,
   fits,
@@ -1141,12 +1142,9 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
   });
 
   it.each([
-    // The sources of #1646 to #1648 stay as they were: a grouping as text, the composed values as JSON.
+    // The sources of #1647 and #1648 stay as they were: a grouping as text, the composed values as JSON.
     ["element.list", "group", "status", "status"],
     ["perspective.save", "group", "{not json", "{not json"],
-    // A sort is a list: one key per Enter.
-    ["perspective.save", "sort", '{"by":"title"}', [{ by: "title" }]],
-    ["trace.matrix", "sort", '{"by":"id","order":"desc"}', [{ by: "id", order: "desc" }]],
     ["element.create", "properties", '{"severity":2}', { severity: 2 }],
     ["element.create", "relations", '{"refines":"N-1"}', { refines: "N-1" }],
   ])("asks %s %s as its old source did: %s", async (name, field, text, value) => {
@@ -3660,5 +3658,272 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     expect((await last(named.asked)).label).toBe(
       "The metamodel is faulty · Save filter open · where · Status:",
     );
+  });
+});
+
+describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, #1646)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => ({ total: 0, types: [], statuses: [], properties: [] }),
+    "filter.save": () => ({ files: ["filters/open.yaml"] }),
+    "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+  };
+
+  /** "Save filter open" with no condition, asked up to its sort through Ctrl/Cmd+Enter, over `buffers`. */
+  const atSort = async (
+    buffers: Buffers = [shown],
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+    name = "filter.save",
+  ) => {
+    const run = setup(buffers, { ...answers, ...extra });
+    start(run.context, name, true);
+    (await last(run.asked)).text?.("open");
+    item((await last(run.asked)).items, "No condition: all elements").more?.();
+    item((await last(run.asked)).items, "sort").run();
+    return run;
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map(
+      (choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`,
+    );
+
+  const marks = async (asked: readonly Prompt[]): Promise<string[]> =>
+    ((await last(asked)).marks ?? []).map((mark) => mark.label);
+
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
+    }
+    await flush();
+  };
+
+  /** The keys: the `by` enum by name, then the properties that hold no relations and no fixed key names. */
+  const KEYS = [
+    "ID | identifier",
+    "Short ID | id",
+    "Title | title",
+    "Type | type",
+    "Status | status",
+    "Rationale | rationale",
+    "Component | component",
+    "Severity | severity",
+  ];
+
+  const LINE = "Save filter open all elements · sort";
+
+  it("[SR-215/AK-q4fs] [SR-215/AK-hnzf] a key asks Order and is a mark with its direction; the keys sort in their order, a key chosen again replaces its mark", async () => {
+    const { asked, call } = await atSort();
+    expect((await last(asked)).label).toBe(`${LINE}:`);
+    expect(await names(asked)).toEqual([
+      "No sort",
+      "Hierarchy (tree) | hierarchy",
+      ...KEYS,
+      "Workspace order",
+    ]);
+    await choose(asked, "Title");
+    const order = await last(asked);
+    expect(order.label).toBe(`${LINE} · Title · Order:`);
+    expect(await names(asked)).toEqual(["ascending | asc", "descending | desc"]);
+    await choose(asked, "descending");
+    expect(await marks(asked)).toEqual(["Title descending"]);
+    // With a mark the hierarchy is gone; the other hits keep their place.
+    expect(await names(asked)).toEqual(["Take 1 sort key", ...KEYS, "Workspace order"]);
+    await choose(asked, "Component", "ascending");
+    await choose(asked, "ID", "descending");
+    // The same key again replaces its mark in its place.
+    await choose(asked, "Title", "ascending");
+    expect(await marks(asked)).toEqual(["Title ascending", "Component ascending", "ID descending"]);
+    await choose(asked, "Take 3 sort keys");
+    expect((await last(asked)).label).toBe(
+      "Save filter open all elements sort: Title ascending · Component ascending · ID descending · more arguments:",
+    );
+    await choose(asked, "Run");
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [] },
+      sort: [
+        { by: "title", order: "asc" },
+        { by: "component", order: "asc" },
+        { by: "identifier", order: "desc" },
+      ],
+    });
+  });
+
+  it("[SR-215/AK-q4fs] [SR-215/AK-hnzf] the hierarchy only comes first and sorts ascending; Workspace order takes the empty sort", async () => {
+    const tree = await atSort();
+    await choose(tree.asked, "Hierarchy (tree)");
+    expect(await marks(tree.asked)).toEqual(["Hierarchy (tree)"]);
+    expect(await names(tree.asked)).not.toContain("Hierarchy (tree) | hierarchy");
+    await choose(tree.asked, "Short ID", "descending", "Take 2 sort keys", "Run");
+    expect(tree.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [] },
+      sort: [
+        { by: "hierarchy", order: "asc" },
+        { by: "id", order: "desc" },
+      ],
+    });
+    const none = await atSort();
+    await choose(none.asked, "Workspace order");
+    expect((await last(none.asked)).label).toBe(
+      "Save filter open all elements sort: workspace order · more arguments:",
+    );
+    await choose(none.asked, "Run");
+    expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] }, sort: [] });
+  });
+
+  it("[SR-215/AK-fm4s] [SR-215/AK-hnzf] the finishing hit is marked first: without a mark it skips the sort, with marks it takes them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+    const none = await atSort();
+    expect((await last(none.asked)).items[0]?.name).toBe("No sort");
+    await choose(none.asked, "No sort", "Run");
+    expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
+
+    const skipped = await atSort();
+    item((await last(skipped.asked)).items, "No sort").more?.();
+    expect((await last(skipped.asked)).label).toBe("Save filter open all elements · more arguments:");
+
+    const some = await atSort();
+    await choose(some.asked, "Type", "ascending");
+    expect((await last(some.asked)).items[0]?.name).toBe("Take 1 sort key");
+    // Ctrl/Cmd+Enter on any hit of this step takes the marks.
+    item((await last(some.asked)).items, "Status").more?.();
+    expect((await last(some.asked)).label).toBe(
+      "Save filter open all elements sort: Type ascending · more arguments:",
+    );
+  });
+
+  it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the key is chosen; Escape keeps the marks, which stand again when the prompt returns to the sort", async () => {
+    const { asked } = await atSort();
+    await choose(asked, "Title", "ascending");
+    await choose(asked, "Status", "descending");
+    await choose(asked, "ID", "ascending");
+    const keys = await last(asked);
+    expect(keys.unmark).toBe(true);
+    keys.marks?.[1]?.remove();
+    expect(await marks(asked)).toEqual(["Title ascending", "ID ascending"]);
+    // In "Order" Backspace and Escape go back to the keys with the marks; its × removes one and asks it again.
+    await choose(asked, "Type");
+    const order = await last(asked);
+    expect(order.unmark).toBeUndefined();
+    order.marks?.[0]?.remove();
+    expect((await last(asked)).label).toBe(`${LINE} · Type · Order:`);
+    expect(await marks(asked)).toEqual(["ID ascending"]);
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe(`${LINE}:`);
+    expect(await marks(asked)).toEqual(["ID ascending"]);
+    // Escape at the keys goes back an argument and keeps the marks: they stand again at the sort.
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Save filter open · where:");
+    item((await last(asked)).items, "No condition: all elements").more?.();
+    await choose(asked, "sort");
+    expect(await marks(asked)).toEqual(["ID ascending"]);
+    // Taken, then asked again by going back from the optional arguments: the marks stand again.
+    await choose(asked, "Take 1 sort key");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe(`${LINE}:`);
+    expect(await marks(asked)).toEqual(["ID ascending"]);
+  });
+
+  it("[SR-215/AK-rx2z] a sort core refuses is asked again with its message and the marks back", async () => {
+    const refusal = refusedWith("sort[0].by: no such property", { errors: [{ field: "sort[0].by" }] });
+    const { asked } = await atSort([shown], { "filter.save": () => refusal });
+    await choose(asked, "Rationale", "ascending", "Take 1 sort key", "Run");
+    expect((await last(asked)).label).toBe(`sort[0].by: no such property · ${LINE}:`);
+    expect(await marks(asked)).toEqual(["Rationale ascending"]);
+    // The message is said once.
+    await choose(asked, "Title");
+    expect((await last(asked)).label).toBe(`${LINE} · Title · Order:`);
+  });
+
+  it("[SR-210/AK-t8sc] each step of a sort names the argument and the keys of the step: Enter, and Backspace for the last mark where it removes one", async () => {
+    const { asked } = await atSort();
+    expect((await last(asked)).explain).toMatchObject({
+      name: "sort",
+      description: (command("filter.save").input as { properties: Record<string, { description?: unknown }> })
+        .properties["sort"]?.description,
+      building: { enter: "takes the marked hit; the keys sort in their order", unmark: false, json: false },
+    });
+    await choose(asked, "Title");
+    expect((await last(asked)).explain).toMatchObject({
+      name: "sort",
+      more: false,
+      building: { enter: "adds the sort key", unmark: false, json: false },
+    });
+    await choose(asked, "ascending");
+    expect((await last(asked)).explain?.building?.unmark).toBe(true);
+  });
+
+  it("[SR-215/AK-w8q6] without a mark the sort of the shown list is the first hit: Enter takes its keys as marks, the default as two", async () => {
+    const sorted = await atSort([
+      filteredList(
+        [typeStep("need")],
+        [
+          { by: "component", order: "desc" },
+          { by: "hierarchy", order: "asc" },
+        ],
+      ),
+    ]);
+    expect((await names(sorted.asked)).slice(0, 2)).toEqual([
+      "Sort of the shown list | Component descending · Hierarchy (tree)",
+      "No sort",
+    ]);
+    await choose(sorted.asked, "Sort of the shown list");
+    expect(await marks(sorted.asked)).toEqual(["Component descending", "Hierarchy (tree)"]);
+    expect((await last(sorted.asked)).items[0]?.name).toBe("Take 2 sort keys");
+    // A list with no sort chosen is shown in the default, type then ID.
+    const plain = await atSort([listBuffer("All elements")]);
+    expect((await last(plain.asked)).items[0]?.hint).toBe("Type ascending · ID ascending");
+    // The workspace order is taken at once; Ctrl/Cmd+Enter takes the keys and offers the optional arguments.
+    const workspace = await atSort([filteredList([], [])]);
+    await choose(workspace.asked, "Sort of the shown list", "Run");
+    expect(workspace.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [] },
+      sort: [],
+    });
+    const more = await atSort([listBuffer("All elements")]);
+    item((await last(more.asked)).items, "Sort of the shown list").more?.();
+    expect((await last(more.asked)).label).toBe(
+      "Save filter open all elements sort: Type ascending · ID ascending · more arguments:",
+    );
+  });
+
+  it("[SR-215/AK-w8q6] Save perspective takes the sort Save list as perspective saves; Save filter has none for a list with a saved filter and says why; the matrix and a search have none", async () => {
+    const list = filteredList([textStep("x")], [{ by: "title", order: "desc" }]);
+    const run = await atSort([list], {}, "perspective.save");
+    await choose(run.asked, "Sort of the shown list", "Take 1 sort key", "Run");
+    expect(run.call).toHaveBeenLastCalledWith("perspective.save", {
+      name: "open",
+      where: { all: [] },
+      sort: perspectiveInput(list, "open").sort,
+    });
+    // A saved filter's own sort holds where none is chosen: no hit, to Save perspective too.
+    const filtered = await atSort([filteredList([savedStep("Sensors")])], {}, "perspective.save");
+    expect((await last(filtered.asked)).items[0]?.name).toBe("No sort");
+    const saved = await atSort([filteredList([savedStep("Sensors")], [{ by: "title", order: "asc" }])]);
+    const prompt = await last(saved.asked);
+    expect(prompt.items[0]?.name).toBe("No sort");
+    expect(prompt.explain?.building?.note).toBe(NO_SHOWN_SORT);
+    await choose(saved.asked, "Title", "ascending");
+    expect((await last(saved.asked)).explain?.building?.note).toBeUndefined();
+    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
+    for (const other of [filteredList([typeStep("need")], undefined, true), search]) {
+      const elsewhere = await atSort([other]);
+      expect((await last(elsewhere.asked)).items[0]?.name).toBe("No sort");
+      expect((await last(elsewhere.asked)).explain?.building?.note).toBeUndefined();
+    }
+  });
+
+  it("offers the fixed keys and says why when the metamodel cannot be read", async () => {
+    const { asked } = await atSort([shown], { "metamodel.get": () => new Error("The metamodel is faulty") });
+    expect((await last(asked)).label).toBe(`The metamodel is faulty · ${LINE}:`);
+    expect(await names(asked)).toEqual([
+      "No sort",
+      "Hierarchy (tree) | hierarchy",
+      ...KEYS.slice(0, 5),
+      "Workspace order",
+    ]);
   });
 });

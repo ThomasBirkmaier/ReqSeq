@@ -71,7 +71,7 @@ import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, listing, resultBuffer, selectionOf } from "./buffers.js";
+import { bufferName, elementBufferOf, listSort, listing, resultBuffer, selectionOf } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
@@ -81,6 +81,8 @@ import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
 import type { ConditionAsk, ConditionMark, ShownConditions } from "./condition-prompt.js";
 import { askCondition, conditionLabel, conditionOf, shownMarks } from "./condition-prompt.js";
+import type { ShownSort, SortMark } from "./sort-prompt.js";
+import { askSort, sortMarksLabel, sortOf } from "./sort-prompt.js";
 import { rowName } from "./rows.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
@@ -99,6 +101,9 @@ interface FieldSchema {
   readonly items?: { readonly enum?: readonly unknown[] };
 }
 
+/** A part of a value built from hits: a condition (`condition-prompt.ts`) or a sort key (`sort-prompt.ts`). */
+type BuiltMark = ConditionMark | SortMark;
+
 /** One value given to an argument, and how the prompt shows it. */
 interface Given {
   readonly field: string;
@@ -112,8 +117,8 @@ interface Given {
   readonly skipped?: true;
   /** Given before the prompt asked (`startCommand`, SR-199): not offered first to another argument. */
   readonly prefilled?: true;
-  /** A condition built from hits (SR-215 AK3): its marks, which stand again when it is asked again (AK9). */
-  readonly marks?: readonly ConditionMark[];
+  /** A condition or sort built from hits (SR-215 AK3, AK7): its marks, which stand again when it is asked again (AK9). */
+  readonly marks?: readonly BuiltMark[];
   /**
    * Where the value stands among the values given (`ordered`): the next number when it is given, the
    * number of the value it replaces when it is asked again, so it keeps that value's place.
@@ -138,13 +143,13 @@ interface Entry {
   readonly error?: string;
   /** The rank of the value asked again: the answer takes its place (`Given.rank`). */
   readonly again?: number;
-  /** The marks of the condition asked again (SR-215 AK6, AK9). */
-  readonly marks?: readonly ConditionMark[];
+  /** The marks of the condition or sort asked again (SR-215 AK6, AK9). */
+  readonly marks?: readonly BuiltMark[];
   /**
-   * The marks of a condition left by going back before it was taken (Escape, SR-215 AK9): they stand again
-   * when the prompt returns to its field.
+   * The marks of a condition or sort left by going back before it was taken (Escape, SR-215 AK9): they stand
+   * again when the prompt returns to its field.
    */
-  readonly held?: { readonly field: string; readonly marks: readonly ConditionMark[] };
+  readonly held?: { readonly field: string; readonly marks: readonly BuiltMark[] };
 }
 
 /** The values given with one more: in the place of the value asked again, else after the others. */
@@ -827,11 +832,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>
     Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),
-  // The sources the catalog names for SR-215 whose issues are still open (#1646 to #1648) are asked as
-  // before: a grouping as text; sorts and the properties and relations of a new element as JSON. Their
+  // The sources the catalog names for SR-215 whose issues are still open (#1647, #1648) are asked as
+  // before: a grouping as text; the properties and relations of a new element as JSON. Their
   // `FITTING` entries make them readers: a value of one is dropped when the field it reads is refused.
   group: asText,
-  // Built step by step from hits (`askCondition`, #1645); never asked through its offer.
+  // Built step by step from hits (`askCondition`, `askSort`); never asked through their offer.
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -895,6 +900,12 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
 const everyElement = (context: ActionContext, command: CommandListing, field: string): object | undefined =>
   listing(context.buffers[0]) && requiredOf(command).includes(field) ? {} : undefined;
 
+/** The value of a field given `givens`: a list field all of them, but a list built from hits (a sort) is one. */
+const fieldValue = (command: CommandListing, field: string, givens: readonly Given[]): unknown =>
+  isListField(command, field) && givens[0]?.marks === undefined
+    ? givens.map((given) => given.value)
+    : givens[0]?.value;
+
 /**
  * The input the given values make, with the shown list's selection for a `selection` argument, in the view
  * the window shows (`selectionInView`): a write on the list acts on the set the list shows.
@@ -910,9 +921,9 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       ? listed
       : selectionInView(listed, shown.view);
   for (const arg of entry.command.arguments) {
-    const values = ordered(entry.given)
-      .filter((given) => given.field === arg.field && given.skipped !== true)
-      .map((given) => given.value);
+    const givens = ordered(entry.given).filter(
+      (given) => given.field === arg.field && given.skipped !== true,
+    );
     if (arg.complete === "selection") {
       const taken = selection ?? everyElement(context, entry.command, arg.field);
       if (taken !== undefined) {
@@ -923,8 +934,8 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       if (Object.keys(properties).length > 0) {
         input[arg.field] = properties;
       }
-    } else if (values.length > 0) {
-      input[arg.field] = isListField(entry.command, arg.field) ? values : values[0];
+    } else if (givens.length > 0) {
+      input[arg.field] = fieldValue(entry.command, arg.field, givens);
     }
   }
   // A field given a value takes the place of the fields it `replaces` (`hint.confirm`: the chosen `hintIds`,
@@ -1272,7 +1283,8 @@ const give = (
     ...rest,
     given: appended(entry, { field, value, label, ...extra }),
     more: entry.more || more,
-    ...(isListField(entry.command, field) && !more ? { collecting: field } : {}),
+    // A sort built from hits is given whole: its list takes no more values.
+    ...(isListField(entry.command, field) && !more && extra.marks === undefined ? { collecting: field } : {}),
   });
 };
 
@@ -1480,12 +1492,43 @@ const conditionAsk = (
       back(context, { ...entry, held: { field, marks } });
     },
     take: (marks, more) => {
-      const { held: _held, ...rest } = entry;
-      give(context, rest, field, conditionOf(marks), conditionLabel(marks), more, { marks });
+      give(context, unheld(entry, field), field, conditionOf(marks), conditionLabel(marks), more, { marks });
     },
     shown: () => shownConditions(context, entry, field, explain),
   };
 };
+
+/** Why "Save filter" offers no sort of a shown list with a saved filter (SR-215 AK5). */
+export const NO_SHOWN_SORT = "No sort of the shown list: a filter cannot hold its saved filter";
+
+/**
+ * The sort of the shown list for the sort of "Save filter" and "Save perspective" (SR-215 AK5): of a list, not
+ * the matrix, the search hits or a package page, the sort it is shown in (`listSort`), as "Save list as
+ * perspective" saves it; none when the sort of its saved filter holds. "Save filter" has none for a list with
+ * a saved filter, and says why.
+ */
+const shownSort = (context: CatalogContext, entry: Entry): ShownSort | undefined => {
+  const list = context.buffers[0];
+  const perspective = entry.command.name === "perspective.save";
+  if ((!perspective && entry.command.name !== "filter.save") || !listing(list) || list.matrix === true) {
+    return undefined;
+  }
+  if (!perspective && selectionOf(list.steps)?.filter !== undefined) {
+    return { note: NO_SHOWN_SORT };
+  }
+  const sort = listSort(list);
+  return sort === undefined ? undefined : { sort };
+};
+
+/** `entry` without the marks held for `field`, which its value takes; those of another field stay held. */
+const unheld = (entry: Entry, field: string): Entry => {
+  const { held, ...rest } = entry;
+  return held === undefined || held.field === field ? rest : entry;
+};
+
+/** The marks a condition or sort asked at `field` starts with: those asked again, else those held (AK9). */
+const heldMarks = (entry: Entry, field: string): readonly BuiltMark[] =>
+  entry.marks ?? (entry.held?.field === field ? entry.held.marks : []);
 
 /** Asks the argument at `at`: its candidates from its source, or its text. */
 const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): void => {
@@ -1515,7 +1558,30 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
   if (arg.complete === "condition") {
     askCondition(
       conditionAsk(context, entry, field, shared.explain),
-      entry.marks ?? (entry.held?.field === field ? entry.held.marks : []),
+      heldMarks(entry, field).filter((mark): mark is ConditionMark => "condition" in mark),
+    );
+    return;
+  }
+  if (arg.complete === "sort") {
+    const rest = unheld(entry, field);
+    askSort(
+      {
+        context,
+        line: `${lineOf(entry)} · ${field}`,
+        ...(entry.error === undefined ? {} : { error: entry.error }),
+        explain: shared.explain,
+        back: (marks) => {
+          back(context, { ...entry, held: { field, marks } });
+        },
+        take: (marks, more) => {
+          give(context, rest, field, sortOf(marks), sortMarksLabel(marks), more, { marks });
+        },
+        skip: (more) => {
+          skip(context, rest, field, more);
+        },
+        shown: () => shownSort(context, entry),
+      },
+      heldMarks(entry, field).filter((mark): mark is SortMark => "key" in mark),
     );
     return;
   }
