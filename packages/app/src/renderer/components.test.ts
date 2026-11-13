@@ -2486,6 +2486,33 @@ describe("OverviewView", () => {
     expect(view.opened).toEqual([]);
   });
 
+  it("counts only while it is shown, and shown again asks only for the perspectives not counted yet", async () => {
+    const pending: { name: string; resolve: (value: unknown) => void }[] = [];
+    const call = fakeCall(handlers());
+    const held = vi.fn((name: string, input: Record<string, unknown>) =>
+      name === "perspective.list"
+        ? Promise.resolve({ ok: true, output: { perspectives: ["A", "B", "C"].map(listed) } })
+        : name === "element.list"
+          ? new Promise((resolve) => {
+              pending.push({ name: String(input["perspective"]), resolve });
+            })
+          : call(name, input),
+    );
+    const view = await mount(unrecorded(held) as unknown as Call);
+    expect(pending.map((asked) => asked.name)).toEqual(["A"]);
+    await view.active(false);
+    // The count that answers after the overview was left is kept; no further one is asked for.
+    await act(async () => {
+      pending[0]?.resolve({ ok: true, output: { total: 1, partial: [] } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(pending.map((asked) => asked.name)).toEqual(["A"]);
+    await view.active(true);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B", "C"]);
+    expect(pending.map((asked) => asked.name)).toEqual(["A", "B"]);
+  });
+
   it("shows a short reason instead of the count of a perspective that cannot be listed, the message on hover", async () => {
     const counts = (name: string): unknown =>
       name === "Broken"

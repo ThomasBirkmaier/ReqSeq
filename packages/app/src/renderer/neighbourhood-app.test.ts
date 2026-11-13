@@ -143,6 +143,7 @@ const bridge = (
       meanings: {},
     }),
     "element.facets": () => ({ total: 3, types: [], statuses: [], properties: [], incomplete: false }),
+    "perspective.list": () => ({ perspectives: [] }),
     "element.list": () => ({ elements: ELEMENTS, total: 3 }),
     "element.search": () => ({
       hits: [{ ...ELEMENTS[0], score: 1, fields: ["title"], terms: ["wind"] }],

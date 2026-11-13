@@ -1665,6 +1665,44 @@ describe("App, the overview (SR-118)", () => {
     ).toEqual(["Zulu", "Alpha"]);
   });
 
+  it("[SR-118/AK-h5f7] counts each perspective in the view of the window, and again when another view is chosen", async () => {
+    const handlers = twoTypes();
+    handlers["metamodel.get"] = () => ({
+      relations: [],
+      types: [{ key: "variant", name: "Variant", meaning: "variant", properties: [] }],
+      properties: [],
+      statuses: [{ key: "draft" }],
+      meanings: {},
+    });
+    handlers["perspective.list"] = () => ({
+      perspectives: [{ name: "Drafts", file: "perspectives/drafts.yaml", where: { status: ["draft"] } }],
+    });
+    handlers["element.list"] = (input) => {
+      const selection = input["selection"] as { view?: string; where?: unknown } | undefined;
+      if (input["perspective"] === undefined) {
+        return { elements: [{ ...row(9), id: "u-coast", shortId: "VAR-0000c1", title: "Coast" }], total: 1 };
+      }
+      return { partial: [], total: selection?.view === "u-coast" ? 2 : 5 };
+    };
+    const { bridge, invoke } = fakeBridge(handlers);
+    await render(bridge);
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Drafts 5"]);
+    await runCommand("Choose view");
+    await type("Coast");
+    await keyDown(query("input"), "Enter");
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Drafts 2"]);
+    expect(
+      calls(invoke, "element.list").filter(
+        (input) => (input as { perspective?: string }).perspective !== undefined,
+      ),
+    ).toEqual([
+      { perspective: "Drafts", limit: 1, fields: ["identifier"] },
+      { perspective: "Drafts", limit: 1, fields: ["identifier"], selection: { view: "u-coast" } },
+    ]);
+    expect(calls(invoke, "element.facets")).toHaveLength(2);
+  });
+
   it("[SR-118/AK-dr7c] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);

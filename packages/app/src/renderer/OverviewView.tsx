@@ -5,7 +5,7 @@
 // perspectives from `perspective.list` and their counts from `element.list` with the perspective, the
 // recent elements from `element.get`; the app only shows them (ADR-0002). A recent element that changed
 // outside the app is highlighted briefly (SR-116).
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
 import { elementBuffer, elementBufferOf } from "./buffers.js";
@@ -47,8 +47,10 @@ const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.i
  * of the workspace (a return to the overview does not count again, which would take hundreds of
  * milliseconds at 50,000 elements), and the recent elements again when the list or the workspace changed.
  * The type lines and the names of the perspectives come together; the count of each perspective follows
- * after them, one perspective after the other (SR-118 AK8), so the overview does not wait for them and a
- * command the user gives meanwhile waits for one count at most. An element that cannot
+ * after them, one perspective after the other (SR-118 AK8), so the overview does not wait for them, and
+ * each call the app makes meanwhile waits for at most the one count in flight (a command of several calls
+ * may wait once per call). The counts are asked only while the overview is shown and its revision is the
+ * workspace's; shown again, it asks only for those not counted yet. An element that cannot
  * be read any more (deleted outside, repository missing) is left out silently; `gone` gives the buffer keys
  * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (ThomasBirkmaier/ReqSeq-archive#681). `read` is the
  * last answer itself, so a name is taken from it once, not again after it was forgotten.
@@ -86,14 +88,15 @@ export const useOverview = (
       if (!live) {
         return;
       }
-      if (answer.ok) {
-        const { types, total, incomplete } = answer.output;
-        // Without the perspectives the overview still shows the types; the minibuffer says why.
-        const perspectives = listed.ok ? shownPerspectives(listed.output.perspectives) : [];
-        setCounted({ revision, data: { types, total, incomplete, perspectives } });
-      } else {
+      if (!answer.ok) {
+        // The error of the counts, not that of the perspectives, which would overwrite it.
         onEcho(answer.message);
+        return;
       }
+      const { types, total, incomplete } = answer.output;
+      // Without the perspectives the overview still shows the types; the minibuffer says why.
+      const perspectives = listed.ok ? shownPerspectives(listed.output.perspectives) : [];
+      setCounted({ revision, data: { types, total, incomplete, perspectives } });
       if (!listed.ok) {
         onEcho(listed.message);
       }
@@ -104,30 +107,36 @@ export const useOverview = (
   }, [call, active, revision, counted?.revision, onEcho]);
 
   // The counts of the perspectives, after the overview stands: one call at a time, each shown when it
-  // answers. A new revision counts again.
+  // answers, only while the overview is shown and its revision is the workspace's. A count that answers
+  // after it was left is kept for its revision; shown again, it asks only for those not counted yet.
+  const countsNow = useRef(counts);
+  countsNow.current = counts;
   useEffect(() => {
-    if (counted === undefined) {
+    if (!active || counted?.revision !== revision) {
       return;
     }
     const { revision: of, data } = counted;
+    const have = countsNow.current?.revision === of ? countsNow.current.counts : undefined;
+    if (have === undefined) {
+      setCounts({ revision: of, counts: new Map() });
+    }
     // An object, so the check after each answer reads what the cleanup set meanwhile.
     const run = { live: true };
-    setCounts({ revision: of, counts: new Map() });
     void (async () => {
-      for (const name of data.perspectives) {
+      for (const name of data.perspectives.filter((known) => have?.has(known) !== true)) {
         const count = perspectiveCount(await checkPerspective(call, name));
-        if (!run.live) {
-          return;
-        }
         setCounts((last) =>
           last?.revision === of ? { revision: of, counts: new Map(last.counts).set(name, count) } : last,
         );
+        if (!run.live) {
+          return;
+        }
       }
     })();
     return () => {
       run.live = false;
     };
-  }, [call, counted]);
+  }, [call, active, revision, counted]);
 
   useEffect(() => {
     if (!active) {

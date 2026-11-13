@@ -15,9 +15,9 @@ On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key
 
 Ctrl+Shift+P, or a click on the bottom line, opens the command prompt. It lists actions and commands, those for the shown buffer and those you use most first. The search is fuzzy (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape steps back, then closes.
 
-An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait to see the letters that may follow.
+An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that may follow.
 
-The prompt's ReqSeq commands are those of the CLI, the API and MCP, with the same result ([command reference](/reference/commands/)); F1 on one opens its reference page.
+The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)); F1 on one opens its reference page.
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
@@ -31,7 +31,7 @@ Above it, the modeline describes the buffer (a list by filter, sort and count, a
 
 Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer, and opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, like the mouse buttons Back and Forward, go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
-A workspace opens on the overview, with the number of elements per type, below it under “Perspectives” up to ten perspectives by name, each with the number of elements it lists in the window’s view, and below them the elements you opened last. Enter or a click opens a line; a perspective opens as with Ctrl+K V (⌘K V). The count of a perspective appears once it is computed; one that cannot be listed, for example because its saved filter is missing, shows a short reason instead, and opening it says why. Your buffers come back behind it.
+A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
