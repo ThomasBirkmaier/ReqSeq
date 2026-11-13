@@ -52,8 +52,9 @@ const withSort = <T>(selected: Selected, sort: SortKeys | undefined, run: (keys:
     return run(sort);
   }
   const { filter, stored } = selected;
-  if (filter?.data.sort !== undefined) {
-    return inSavedFilter(filter, () => run(savedSort(filter)));
+  const selectionSort = filter?.data.sort;
+  if (filter !== undefined && selectionSort !== undefined) {
+    return inSavedFilter(filter, () => run(savedSort(selectionSort)));
   }
   if (stored === undefined) {
     return run([]);
@@ -61,9 +62,10 @@ const withSort = <T>(selected: Selected, sort: SortKeys | undefined, run: (keys:
   const { perspective, filter: its } = stored;
   const own = perspective.data.sort;
   if (own !== undefined) {
-    return inPerspective(perspective, () => run(own.map((key) => ({ ...key, order: key.order ?? "asc" }))));
+    return inPerspective(perspective, () => run(savedSort(own)));
   }
-  return its?.data.sort === undefined
+  const itsSort = its?.data.sort;
+  return its === undefined || itsSort === undefined
     ? run([])
-    : inPerspective(perspective, () => inSavedFilter(its, () => run(savedSort(its))));
+    : inPerspective(perspective, () => inSavedFilter(its, () => run(savedSort(itsSort))));
 };

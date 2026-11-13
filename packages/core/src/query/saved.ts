@@ -3,7 +3,7 @@
 // `filter.save` and `selection.filter` (`file.faulty`) rather than guessed.
 import type { CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
-import type { FilterFile, FilterSortKeyWithDefaults } from "../generated/types.js";
+import type { FilterFile, FilterSortKey, FilterSortKeyWithDefaults } from "../generated/types.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { SavedFile, SavedFolder, SavedKind } from "./saved-files.js";
 import {
@@ -95,9 +95,9 @@ export const inSavedFilter = <T>(filter: SavedFilter, fn: () => T): T => inSaved
 export const inSavedFilterAsync = async <T>(filter: SavedFilter, fn: () => Promise<T>): Promise<T> =>
   inSavedFileAsync(FILTERS, filter, fn);
 
-/** The sort of a saved filter with the default order, as `element.list` takes it. */
-export const savedSort = (filter: SavedFilter): readonly FilterSortKeyWithDefaults[] =>
-  (filter.data.sort ?? []).map((key) => ({ ...key, order: key.order ?? "asc" }));
+/** A stored sort (of a saved filter or a perspective) with the default order, as `element.list` takes it. */
+export const savedSort = (sort: readonly FilterSortKey[]): readonly FilterSortKeyWithDefaults[] =>
+  sort.map((key) => ({ ...key, order: key.order ?? "asc" }));
 
 /** The file name part of a filter name (saved-files.ts). */
 export const filterSlug = (name: string): string => savedSlug(FILTERS, name);
