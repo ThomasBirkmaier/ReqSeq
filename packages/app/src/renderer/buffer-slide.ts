@@ -10,7 +10,8 @@
 // from any offset (`slideKeyframes`, `from`).
 //
 // The motion starts once the new view is drawn (`drawn`, or after `DRAW_DEADLINE_MS` when it never says so),
-// and then always runs: the time to draw is bounded by its own limits (SR-082, SR-111 AK6). A key, a press of a
+// and then always runs: assumption (a) of the open question #1624, by which the 200 ms bound the motion and the
+// time to draw keeps its own limits (SR-082, SR-111 AK6). A key, a press of a
 // mouse button, or any other change of the area's buffer ends it at once in its end state (AK2, AK3). Without
 // motion in the system ("Bewegung reduzieren", AK4) nothing is taken and nothing moves.
 
@@ -237,12 +238,14 @@ export class SlideController {
   private phase: Phase = { kind: "idle" };
   private readonly host: SlideHost;
   // The picture of a switch that an input ended before it moved, while the view it switched to has not
-  // drawn: what the reader still sees of that area, so a switch on from there takes it again.
+  // drawn: what the reader still sees of that area, so a switch on from there takes it again. It goes once
+  // that view drew, at the next commit, or after `DRAW_DEADLINE_MS`.
   private spare: { readonly key: string; readonly picture: Picture } | undefined;
+  private spareExpiry: ReturnType<typeof setTimeout> | undefined;
   private readonly end = (): void => {
     const { phase } = this;
     if ((phase.kind === "armed" || phase.kind === "waiting") && !phase.drawn) {
-      this.spare = { key: phase.spec.to, picture: phase.picture };
+      this.keepSpare({ key: phase.spec.to, picture: phase.picture });
     }
     this.finish();
   };
@@ -265,7 +268,7 @@ export class SlideController {
     }
     // A second switch before the first one moved: its picture is still what the reader saw last.
     const spare = this.spare?.key === spec.from ? this.spare.picture : undefined;
-    this.spare = undefined;
+    this.dropSpare();
     const kept = phase.kind === "armed" || phase.kind === "waiting" ? phase.picture : spare;
     this.finish();
     const track = trackOf(this.host.root(), spec.side);
@@ -279,6 +282,7 @@ export class SlideController {
 
   /** After a commit: the active area and its buffer. Starts the switch it was taken for, or ends the slide. */
   settle(side: string, key: string | undefined): void {
+    this.dropSpare();
     const { phase } = this;
     if (phase.kind === "idle") {
       return;
@@ -314,7 +318,7 @@ export class SlideController {
   drawn(key: string): void {
     const { phase } = this;
     if (this.spare?.key === key) {
-      this.spare = undefined;
+      this.dropSpare();
     }
     if (phase.kind === "armed" && phase.spec.to === key) {
       this.phase = { ...phase, drawn: true };
@@ -332,6 +336,20 @@ export class SlideController {
       }
     }
     this.clear();
+  }
+
+  private keepSpare(spare: { readonly key: string; readonly picture: Picture }): void {
+    this.dropSpare();
+    this.spare = spare;
+    this.spareExpiry = setTimeout(() => {
+      this.dropSpare();
+    }, DRAW_DEADLINE_MS);
+  }
+
+  private dropSpare(): void {
+    clearTimeout(this.spareExpiry);
+    this.spare = undefined;
+    this.spareExpiry = undefined;
   }
 
   // Two frames: the first runs before the paint of the drawn view, the second after it.

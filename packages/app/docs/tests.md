@@ -2,7 +2,7 @@
 
 Part of the [`@reqseq/app` README](../README.md).
 
-- Unit tests (`src/**/*.test.ts`, Vitest) use fake Electron objects, a Node `MessageChannel` and happy-dom for React. The `.ts` modules have an 80 % threshold for the package (ADR-0016, ThomasBirkmaier/ReqSeq-archive#752); React components (`.tsx`) have no coverage threshold, Playwright covers them (ADR-0016, ThomasBirkmaier/ReqSeq-archive#537). happy-dom animates (`Element.animate`), so the DOM tests start with "reduce motion" set (`scripts/test-support/reduced-motion.mjs`): a switch of buffers stands at once there. The tests of the motion turn it on (`buffer-slide.test.ts`, the SR-212 block of `buffer-cycle-app.test.ts`).
+- Unit tests (`src/**/*.test.ts`, Vitest) use fake Electron objects, a Node `MessageChannel` and happy-dom for React. The `.ts` modules have an 80 % threshold for the package (ADR-0016, ThomasBirkmaier/ReqSeq-archive#752); React components (`.tsx`) have no coverage threshold, Playwright covers them (ADR-0016, ThomasBirkmaier/ReqSeq-archive#537). happy-dom animates (`Element.animate`), so the DOM tests start with "reduce motion" set (`scripts/test-support/reduced-motion.mjs`): a switch of buffers stands at once there. The tests of the motion turn it on (`buffer-slide.test.ts`, the SR-212 blocks of `buffer-cycle-app.test.ts` and `follow-app.test.ts`; `list-drawn.test.ts` checks when a list counts as drawn).
 - `test/app.spec.ts` (Playwright, `_electron.launch`) runs the built app on fixture workspaces:
   - it starts and shows the status;
   - `invoke` gives what the CLI gives (`[SR-080/AK-bb1t]`);

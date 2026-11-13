@@ -340,6 +340,33 @@ describe("a slide in a window", () => {
     expect(side().textContent).toBe("Two");
   });
 
+  it("[SR-212/AK-kqvx] a spare picture goes after the deadline or at the next commit", () => {
+    vi.useFakeTimers();
+    const ended = (): void => {
+      slides.prepare(BACK);
+      commit("<article data-buffer>Two</article>");
+      slides.settle("left", "two");
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
+    };
+    const next = (): void => {
+      slides.prepare({ side: "left", from: "two", to: "three", direction: "back" });
+      commit("<article data-buffer>Three</article>");
+      slides.settle("left", "three");
+    };
+    // After the deadline the next switch takes what the area shows now.
+    ended();
+    vi.advanceTimersByTime(DRAW_DEADLINE_MS);
+    next();
+    expect(side().textContent).toBe("Two");
+    slides.finish();
+    // A commit in between (any other change of the area) drops it too.
+    main().innerHTML = "<article data-buffer>One</article>";
+    ended();
+    slides.settle("left", "two");
+    next();
+    expect(side().textContent).toBe("Two");
+  });
+
   it("[SR-212/AK-hmwp] [SR-212/AK-d25h] ends at once when the area shows another buffer or the other area becomes active, and a commit that does not show its buffer drops it", () => {
     // Another buffer while it waits (Follow agent, an open).
     slides.prepare(BACK);

@@ -37,7 +37,7 @@ interface Made {
   readonly easing: string;
   /** The name of the live buffer when the motion started. */
   readonly shown: string;
-  /** The live buffer had its content when the motion started (no "loading", AK1 rationale). */
+  /** The live buffer was drawn when the motion started: its title, rows or cells (AK1 rationale). */
   readonly drawn: boolean;
 }
 
@@ -67,7 +67,12 @@ const record = (window: Page, hold = false): Promise<void> =>
         duration: Number(effect.getComputedTiming().duration),
         easing: String(effect.getTiming().easing),
         shown: live?.getAttribute("aria-label") ?? "",
-        drawn: live !== null && live.textContent.trim() !== "",
+        // Drawn: an element with its title, a list with its rows, a matrix with its cells.
+        drawn:
+          live !== null &&
+          (live.matches("article")
+            ? (live.querySelector("h1")?.textContent ?? "") !== ""
+            : live.querySelector('.row, [role="gridcell"]') !== null),
       };
     };
     const countPictures = (records: MutationRecord[]): void => {
@@ -237,7 +242,8 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await slideOf(window, "All elements");
     await window.evaluate(() => {
       for (const animation of (window as unknown as { held: Animation[] }).held) {
-        animation.currentTime = 60;
+        // Half of the way: the easing has covered it after a fifth of the time.
+        animation.currentTime = 32;
       }
     });
     await fs.mkdir(OUT, { recursive: true });

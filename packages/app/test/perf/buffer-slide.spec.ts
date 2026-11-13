@@ -1,6 +1,6 @@
 // SR-212 AK1 in the app's part of the performance suite (ADR-0011), on the generated workspace of N-036 with 50,000
 // elements and 200,000 relations (testkit, D-055): „… dann gleitet der gezeigte Buffer … und die Bewegung dauert
-// höchstens 200 ms.“ Read as it stands: the motion lasts at most 200 ms, and starts once the new buffer is fully
+// höchstens 200 ms.“ Read as assumption (a) of the open question #1624: the motion lasts at most 200 ms, and starts once the new buffer is fully
 // drawn; the time to draw keeps its own limits (SR-082 AK3 for an element, AK4 for a list, search, neighbourhood,
 // graph and matrix; none for the overview, the metamodel and the output of a command, which are recorded only).
 //
@@ -27,6 +27,8 @@ const MOTION_MS = 200;
 const ELEMENT_MS = 200;
 /** SR-082 AK4: the first page of a list, a search, a neighbourhood, a graph or a matrix. */
 const PAGE_MS = 500;
+/** The pause after each switch, longer than the reads a buffer asks after it is drawn. */
+const SETTLE_SWITCH_MS = 500;
 /** How often each buffer is the target of a switch, half with Alt+P and half with Alt+N. */
 const ROUNDS = 2;
 /** The model cache trusts an entry only when its file is older than 2 s before the load (ADR-0008). */
@@ -38,7 +40,7 @@ type Kind =
 /** The limit of the time to draw each kind, from the input; undefined: none, recorded only. */
 const DRAW_LIMIT: Record<Kind, number | undefined> = {
   overview: undefined,
-  list: PAGE_MS,
+  list: undefined,
   search: PAGE_MS,
   element: ELEMENT_MS,
   neighbourhood: PAGE_MS,
@@ -50,7 +52,7 @@ const DRAW_LIMIT: Record<Kind, number | undefined> = {
 
 const BASIS: Record<Kind, string> = {
   overview: "SR-212 AK1 (recorded; no limit of its own)",
-  list: "SR-212 AK1 with SR-082 AK4 (first page)",
+  list: "SR-212 AK1 (recorded: a list slides once its line of coverage stands too, which no limit bounds; its first page is SR-082 AK4, measured in packages/core/test/perf)",
   search: "SR-212 AK1 with SR-082 AK4 (first page)",
   element: "SR-212 AK1 with SR-082 AK3",
   neighbourhood: "SR-212 AK1 with SR-082 AK4 (first page)",
@@ -168,9 +170,71 @@ const switchOnce = async (window: Page, key: "Alt+KeyP" | "Alt+KeyN"): Promise<S
   if (made === undefined) {
     throw new Error("no switch recorded");
   }
-  // Let the next frame pass, so the next key does not end this slide.
-  await window.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  // The reads the buffer asks after it is drawn (the line of coverage of a list, the verification of later rows)
+  // end before the next key, so each switch is measured on its own and not behind the reads of the one before.
+  await window.waitForTimeout(SETTLE_SWITCH_MS);
   return made;
+};
+
+/** The ms from a keydown until the first frame with a cell, and until two frames later, after its paint. */
+interface Drawn {
+  readonly cell: number;
+  readonly painted: number;
+}
+
+/**
+ * Presses `key` and times from its keydown until the first frame in which the active area's live layer shows
+ * `name` with a cell of the matrix, and until two frames later: the point at which a slide starts.
+ */
+const timeDrawn = async (window: Page, key: "Alt+KeyP" | "Alt+KeyN", name: string): Promise<Drawn> => {
+  await window.evaluate((shown) => {
+    const own = window as unknown as { drawnIn?: Promise<Drawn> };
+    own.drawnIn = new Promise((resolve) => {
+      addEventListener(
+        "keydown",
+        (event) => {
+          const from = event.timeStamp;
+          const frame = (at: number): void => {
+            const live = document.querySelector('[data-area][data-active] [data-layer="main"] [data-buffer]');
+            if (
+              live?.getAttribute("aria-label") === shown &&
+              live.querySelector('[role="gridcell"]') !== null
+            ) {
+              requestAnimationFrame(() => {
+                requestAnimationFrame((later) => {
+                  resolve({ cell: at - from, painted: later - from });
+                });
+              });
+            } else {
+              requestAnimationFrame(frame);
+            }
+          };
+          requestAnimationFrame(frame);
+        },
+        { capture: true, once: true },
+      );
+    });
+  }, name);
+  await window.keyboard.press(key);
+  return window.evaluate(() => (window as unknown as { drawnIn: Promise<Drawn> }).drawnIn);
+};
+
+/** The switches to the matrix `name` and back without the slide (reduced motion): each until the first cell. */
+const withoutSlide = async (window: Page, name: string): Promise<Drawn[]> => {
+  await window.emulateMedia({ reducedMotion: "reduce" });
+  const still: Drawn[] = [];
+  for (let round = 0; round < ROUNDS; round += 1) {
+    for (const [away, back] of [
+      ["Alt+KeyP", "Alt+KeyN"],
+      ["Alt+KeyN", "Alt+KeyP"],
+    ] as const) {
+      await window.keyboard.press(away);
+      await expect.poll(() => shownName(window), { timeout: 60_000 }).not.toBe(name);
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      still.push(await timeDrawn(window, back, name));
+    }
+  }
+  return still;
 };
 
 test.describe("the switch to the previous or next buffer with 50,000 elements and 200,000 relations (SR-212, N-036)", () => {
@@ -272,6 +336,9 @@ test.describe("the switch to the previous or next buffer with 50,000 elements an
         made.push({ ...again, shown: `matrix:${again.shown}` });
       }
     }
+    // The same switches to the matrix without the slide (reduced motion), for comparison: the time the matrix
+    // takes to draw in the app at all, from the keydown to the first frame with a cell in the active area.
+    const still = await withoutSlide(window, matrix);
     const kindOf = (one: Switch): Kind =>
       one.shown.startsWith("matrix:") ? "matrix" : (kinds.get(one.shown) ?? "result");
     const recorded: PerfMeasurement[] = [];
@@ -298,8 +365,25 @@ test.describe("the switch to the previous or next buffer with 50,000 elements an
         ),
       );
     }
+    recorded.push(
+      await recordValue(
+        `app: Alt+P or Alt+N until the matrix shows its first cell, without the slide (slowest of ${String(still.length)})`,
+        Math.max(...still.map((one) => one.cell)),
+        { basis: "SR-082 AK4 (the matrix in the app without motion; for comparison)" },
+      ),
+    );
+    recorded.push(
+      await recordValue(
+        `app: Alt+P or Alt+N until two frames after the matrix shows its first cell, without the slide (slowest of ${String(still.length)})`,
+        Math.max(...still.map((one) => one.painted)),
+        {
+          basis:
+            "SR-082 AK4 (the matrix in the app without motion, to where a slide would start; for comparison)",
+        },
+      ),
+    );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
-    console.log(`PERF buffer slide ${JSON.stringify(summary)}`);
+    console.log(`PERF buffer slide ${JSON.stringify({ ...summary, matrixWithoutSlide: still })}`);
     for (const measurement of recorded) {
       if (measurement.thresholdMs !== undefined) {
         expect

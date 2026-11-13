@@ -27,6 +27,7 @@ import type {
 } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
+import { useDrawnParts } from "./list-drawn.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -500,26 +501,6 @@ const ListTop = ({
   );
 };
 
-/**
- * A list is drawn once its first rows show their verification and its line of coverage stands (a list of its own;
- * a search result and the elements of a package page have no line): a switch in motion to it starts then
- * (SR-212). Gives what notes a part as drawn.
- */
-const useDrawnParts = (
-  key: string,
-  kind: "list" | "search",
-  part: boolean,
-  onDrawn: ((key: string) => void) | undefined,
-): ((which: "rows" | "line") => void) => {
-  const drawn = useRef({ rows: false, line: part || kind !== "list" });
-  return (which) => {
-    drawn.current[which] = true;
-    if (drawn.current.rows && drawn.current.line) {
-      onDrawn?.(key);
-    }
-  };
-};
-
 export const ListView = ({
   call,
   buffer,
@@ -635,6 +616,7 @@ export const ListView = ({
     }
     const limit = firstLimit(buffer.cursor, page, kind === "list" ? LIST_MAX : SEARCH_MAX);
     const folding = selections.folded;
+    const { key } = buffer;
     void Promise.all([
       fetchPage(call, buffer, 0, limit, selections.shown),
       folding === undefined ? undefined : fetchPage(call, buffer, 0, page, folding),
@@ -649,7 +631,9 @@ export const ListView = ({
         setView({ status: "ok", ...shown, ...(section === undefined ? {} : { folded: section }) });
         // Drawn once its first rows show their verification too: a switch in motion to it starts then (SR-212).
         void verify(mine, 0, loaded.rows.length).then(() => {
-          drawnPart("rows");
+          if (mine === generation.current) {
+            drawnPart("rows", key);
+          }
         });
         if (section !== undefined) {
           void verify(mine, 0, section.rows.length, true);
@@ -967,7 +951,7 @@ export const ListView = ({
             onEcho={onEcho}
             dispatch={dispatch}
             onAnswered={() => {
-              drawnPart("line");
+              drawnPart("line", buffer.key);
             }}
           />
           {rowsAndNotes}
