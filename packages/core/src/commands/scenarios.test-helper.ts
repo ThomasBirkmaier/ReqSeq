@@ -158,6 +158,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { query: "obsolete", selection: { ids: [RETIRED] } },
     { query: "wind", selection: { ids: ["SR-ffffff"] } },
   ],
+  "element.searchFields": [{}, { extra: true }],
   "element.update": [
     { ref: WIND, title: "Renamed", text: "" },
     { ref: GUSTS, text: "New text\n", set: { rationale: "Why", "requirement-type": "quality" } },

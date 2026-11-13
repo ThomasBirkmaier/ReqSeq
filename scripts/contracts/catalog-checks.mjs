@@ -120,6 +120,11 @@ const BOUND = {
     is: "a list of sortKey",
   },
   group: { holds: (property) => names(property.$ref, "common.schema.json", "groupKey"), is: "a groupKey" },
+  searchField: {
+    holds: (property) =>
+      property.type === "array" && names(property.items?.$ref, "common.schema.json", "searchFieldKey"),
+    is: "a list of searchFieldKey",
+  },
 };
 
 /** The sources bound one way: each needs its kind of field, which may also be asked otherwise (`json`). */

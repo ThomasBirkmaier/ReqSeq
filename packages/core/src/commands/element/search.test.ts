@@ -280,7 +280,7 @@ describe("element.search (SR-068)", () => {
     expect((await refused(ws, ["properties", "topik"])).message).toContain('"topik"');
     expect((await refused(ws, ["type"])).message).toContain('"type" is searched with "properties"');
     expect((await refused(ws, ["status"])).message).toContain('"status"');
-    // The title's key when it is not `title` (question #1676); a property named like a fixed field
+    // The title's key when it is not `title` (SR-216 AK2); a property named like a fixed field
     // is found through `properties` only, the fixed name means the fixed field.
     const named = await open({
       fixture: "SR-174/snippets",
