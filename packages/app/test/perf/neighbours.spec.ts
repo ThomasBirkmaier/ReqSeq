@@ -4,9 +4,14 @@
 // this spec asserts the limits of other criteria while buffers are drawn hidden beside the shown one, and records
 // how soon a switch to one of them starts to slide:
 //
-// - SR-082 AK3, the hostile case: an element opened with Ctrl+P at once after the slowest read of a neighbour
-//   started (the neighbourhood of a package with many elements, read again after a change from outside),
-//   watched in the preload's world (`recordRequests`); no such read starts while the prompt is open;
+// - SR-082 AK3, the hostile case: an element opened without a prompt (Enter on a relation of the shown element)
+//   in the microtask after the slowest read of a neighbour was sent (that read found first, after a change from
+//   outside, among the reads drawn in advance; their times recorded, also warm), set off in the preload's world
+//   (`recordRequests`);
+// - SR-082 AK3 with Ctrl+P: the prompt opened at once after that read was sent; the read may be done by the
+//   Enter, and no read drawn in advance starts while the prompt is open;
+// - SR-082 AK3 after a held Alt+P over more buffers than the walk draws in advance, lists among them: the open
+//   at once after the release;
 // - SR-082 AK4: the list of all elements, its first page, asked for while neighbours are drawn;
 // - SR-116 AK1: the shown element changed outside, while its neighbours read again;
 // - SR-212 AK2: a switch just after typing loses no input;
@@ -22,7 +27,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { GeneratedElement, LargeFixtureWorkspace, PerfMeasurement } from "@reqseq/testkit";
 import { generateLargeWorkspace, recordValue, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
-import type { CoreRequests, RunningApp } from "../support/app.js";
+import type { CoreRequest, CoreRequests, RunningApp } from "../support/app.js";
 import { launchApp, recordRequests } from "../support/app.js";
 import { coreVersion } from "./core-version.js";
 
@@ -38,6 +43,11 @@ const FIRST_OPEN_MS = 1_000;
 const OUTSIDE_MS = 2_000;
 /** The pause after a switch, longer than the reads of the views drawn in advance. */
 const SETTLE_SWITCH_MS = 1_000;
+/** The most ms from sending the slowest read until the Enter it sets off (SR-082 AK3, the hostile case). */
+const ARMED_LAG_MS = 5;
+/** Alt+P presses while Alt is held, and the ms between two: the key repeat of a held key. */
+const HELD_PRESSES = 6;
+const REPEAT_MS = 33;
 /** How often each measurement is taken; the slowest is recorded. */
 const ROUNDS = 3;
 /** The model cache trusts an entry only when its file is older than 2 s before the load (ADR-0008). */
@@ -87,10 +97,10 @@ const open = async (window: Page, title: string): Promise<void> => {
 };
 
 /**
- * Presses Enter and gives the ms from its keydown until the shown element has `title` and a
- * text, in the frame after the paint (as `start.spec.ts` times an open).
+ * Watches for the next Enter: gives the ms from its keydown until the shown element has `title` and a text, in
+ * the frame after the paint (as `start.spec.ts` times an open), once the returned function is awaited.
  */
-const timeOpen = async (window: Page, title: string): Promise<number> => {
+const watchOpen = async (window: Page, title: string): Promise<() => Promise<number>> => {
   await window.evaluate(
     ({ title, shown }) => {
       const w = globalThis as unknown as { __open?: Promise<number> };
@@ -127,8 +137,50 @@ const timeOpen = async (window: Page, title: string): Promise<number> => {
     },
     { title, shown: SHOWN },
   );
+  return () => window.evaluate(() => (globalThis as unknown as { __open: Promise<number> }).__open);
+};
+
+/** Presses Enter and gives the ms until the shown element has `title` (`watchOpen`). */
+const timeOpen = async (window: Page, title: string): Promise<number> => {
+  const opened = await watchOpen(window, title);
   await window.keyboard.press("Enter");
-  return window.evaluate(() => (globalThis as unknown as { __open: Promise<number> }).__open);
+  return opened();
+};
+
+/** The ms each answered request took, slowest first, labelled by command, element and depth. */
+const readTimes = (
+  sent: readonly CoreRequest[],
+  ids: ReadonlyMap<string, string>,
+): { readonly label: string; readonly ms: number; readonly request: CoreRequest }[] =>
+  sent
+    .flatMap((request) => {
+      const input = request.input as { ref?: string; direction?: string; maxDepth?: number };
+      const of = ids.get(input.ref ?? "");
+      if (of === undefined || request.answeredAt === undefined) {
+        return [];
+      }
+      const depth =
+        input.direction === undefined ? "" : ` ${input.direction} ${String(input.maxDepth ?? "all")}`;
+      return [
+        { label: `${request.name} ${of}${depth}`, ms: Math.round(request.answeredAt - request.at), request },
+      ];
+    })
+    .sort((one, other) => other.ms - one.ms);
+
+/** Waits until every recorded request was answered and none was sent for 500 ms. */
+const quiet = async (requests: CoreRequests): Promise<readonly CoreRequest[]> => {
+  let last = "";
+  let stable = 0;
+  for (;;) {
+    const sent = await requests.sent();
+    const now = `${String(sent.length)} ${String(sent.filter((one) => one.answeredAt !== undefined).length)}`;
+    stable = now === last && sent.every((one) => one.answeredAt !== undefined) ? stable + 1 : 0;
+    last = now;
+    if (stable >= 5) {
+      return sent;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 };
 
 /** Presses `key` and gives the ms from its keydown until the slide it starts makes its animations. */
@@ -172,6 +224,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
   let home = "";
   let requirements: GeneratedElement[] = [];
   let pkg: GeneratedElement | undefined;
+  let byId = new Map<string, GeneratedElement>();
 
   test.beforeAll(async () => {
     test.setTimeout(600_000);
@@ -189,6 +242,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     }
     const unique = generated.elements.filter((element) => count.get(element.title) === 1);
     requirements = unique.filter((element) => element.type === "system-requirement");
+    byId = new Map(generated.elements.map((element) => [element.id, element]));
     pkg = unique.find((element) => element.type === "package");
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
   });
@@ -218,10 +272,11 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
   test("[SR-082/AK-tndr] [SR-082/AK-h27y] [SR-116/AK-w091] [SR-212/AK-kqvx] [SR-082/AK-csnf] the limits hold while the previous and next buffer are drawn in advance; the switch to one is recorded", async () => {
     test.setTimeout(900_000);
     const [a, second, ...others] = requirements;
-    if (a === undefined || second === undefined || pkg === undefined || others.length < 2 * ROUNDS + 2) {
+    if (a === undefined || second === undefined || pkg === undefined || others.length < ROUNDS + 4) {
       throw new Error("the generated workspace has too few elements with a title of their own");
     }
     let b: GeneratedElement = second;
+    const thePackage: GeneratedElement = pkg;
     const kept = {
       home,
       workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() },
@@ -271,44 +326,129 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       ),
     );
 
-    // SR-082 AK3, hostile: a change from outside makes the neighbours read again (A named, so mounted again; the
-    // neighbourhood of the package on every change), and Ctrl+P, the title and Enter follow at once after the
-    // neighbourhood's read started. A read drawn in advance starts no later: none starts while a prompt is open.
-    const opens: number[] = [];
-    for (let round = 0; round < ROUNDS; round += 1) {
-      const target = others[round];
-      if (target === undefined) {
-        throw new Error("no element to open");
-      }
+    // The reads drawn in advance and how long each takes: first after a change from outside (A named, so mounted
+    // again; the neighbourhood of the package reads again on every change), and warm (a switch away and back
+    // mounts both again with nothing changed).
+    const measureReads = async () => {
+      const ids = new Map([
+        [a.id, "A"],
+        [thePackage.id, "package"],
+      ]);
+      await quiet(requests);
       await requests.clear();
-      await retitle(a, `${a.title} ${String(round)}`);
-      await expect
-        .poll(
-          async () =>
-            (await requests.sent()).some(
-              (request) =>
-                request.name === "trace.neighbourhood" &&
-                JSON.stringify(request.input).includes(pkg?.id ?? ""),
-            ),
-          { intervals: [5], timeout: 10_000 },
-        )
-        .toBe(true);
-      await goToTyped(window, target.title);
-      opens.push(await timeOpen(window, target.title));
+      await retitle(a, `${a.title} read`);
+      const afterWrite = readTimes(await quiet(requests), ids);
+      await requests.clear();
+      await window.keyboard.press("Alt+KeyP");
       await window.waitForTimeout(SETTLE_SWITCH_MS);
-      // Back to B with the target closed, so its neighbours are the neighbourhood and A again.
+      await window.keyboard.press("Alt+KeyN");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      const warm = readTimes(await quiet(requests), ids);
+      const slowest = afterWrite[0];
+      if (slowest === undefined || warm[0] === undefined) {
+        throw new Error("no read drawn in advance was answered");
+      }
+      recorded.push(
+        await recordValue(
+          `app: the slowest read drawn in advance, first after a change from outside (${slowest.label})`,
+          slowest.ms,
+          { basis: "SR-212 AK5 (recorded; finds the read the hostile case of SR-082 AK3 sets off on)" },
+        ),
+        await recordValue(`app: the slowest read drawn in advance, warm (${warm[0].label})`, warm[0].ms, {
+          basis: "SR-212 AK5 (recorded)",
+        }),
+      );
+      return { afterWrite, warm, slowest };
+    };
+    const { afterWrite, warm, slowest } = await measureReads();
+
+    /** A relation of the shown element B to an element neither drawn in advance nor A: focused, and its title. */
+    const focusRelation = async (): Promise<string> => {
+      const links = window.locator(`${SHOWN} [role="link"][data-target-id]`);
+      await expect(links.first()).toBeVisible({ timeout: 60_000 });
+      for (const link of await links.all()) {
+        const target = byId.get((await link.getAttribute("data-target-id")) ?? "");
+        if (target !== undefined && target.id !== a.id && target.id !== thePackage.id && target.id !== b.id) {
+          await link.focus();
+          return target.title;
+        }
+      }
+      throw new Error("the shown element has no relation to open");
+    };
+    /** Back to B with the opened element closed, so its neighbours are the neighbourhood and A again. */
+    const backToB = async (): Promise<void> => {
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
       await command(window, "Close buffer");
       await expect.poll(() => shownTitle(window)).toBe(b.title);
       await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
       await window.waitForTimeout(SETTLE_SWITCH_MS);
-    }
-    recorded.push(
-      await recordValue(
-        `app: Ctrl+P Enter until an element shows, the prompt opened just after the read of a neighbourhood drawn in advance started (slowest of ${String(ROUNDS)})`,
-        Math.max(...opens),
-        { basis: "SR-082 AK3 (with buffers drawn in advance, SR-212 AK5; the app)", thresholdMs: OPEN_MS },
-      ),
-    );
+    };
+
+    // SR-082 AK3, hostile: a change from outside makes the neighbours read again, and Enter on a relation of B
+    // goes in the microtask after the slowest of these reads was sent.
+    const hostileOpens = async () => {
+      const hostile: number[] = [];
+      const lags: number[] = [];
+      for (let round = 0; round < ROUNDS; round += 1) {
+        const title = await focusRelation();
+        await requests.clear();
+        await requests.enterOn(slowest.request.name, slowest.request.input);
+        const opened = await watchOpen(window, title);
+        await retitle(a, `${a.title} ${String(round)}`);
+        hostile.push(await opened());
+        const fired = await requests.fired();
+        expect(fired?.target).toBe("SPAN");
+        lags.push((fired?.firedAt ?? Infinity) - (fired?.sentAt ?? 0));
+        await backToB();
+      }
+      expect(Math.max(...lags)).toBeLessThanOrEqual(ARMED_LAG_MS);
+      recorded.push(
+        await recordValue(
+          `app: Enter on a relation until the element shows, sent with the slowest read drawn in advance (slowest of ${String(ROUNDS)})`,
+          Math.max(...hostile),
+          { basis: "SR-082 AK3 (with buffers drawn in advance, SR-212 AK5; the app)", thresholdMs: OPEN_MS },
+        ),
+      );
+      return { hostile, lags };
+    };
+    const { hostile, lags } = await hostileOpens();
+
+    // SR-082 AK3 with Ctrl+P: the prompt opens at once after the slowest read was sent; no read drawn in advance
+    // starts while it is open, and the one sent may be done by the Enter.
+    const promptOpens = async () => {
+      const opens: number[] = [];
+      for (let round = 0; round < ROUNDS; round += 1) {
+        const target = others[round];
+        if (target === undefined) {
+          throw new Error("no element to open");
+        }
+        await requests.clear();
+        await retitle(a, `${a.title} prompt ${String(round)}`);
+        await expect
+          .poll(
+            async () =>
+              (await requests.sent()).some(
+                (request) =>
+                  request.name === slowest.request.name &&
+                  JSON.stringify(request.input) === JSON.stringify(slowest.request.input),
+              ),
+            { intervals: [5], timeout: 10_000 },
+          )
+          .toBe(true);
+        await goToTyped(window, target.title);
+        opens.push(await timeOpen(window, target.title));
+        await backToB();
+      }
+      recorded.push(
+        await recordValue(
+          `app: Ctrl+P Enter until an element shows, the prompt opened at once after the slowest read drawn in advance was sent (slowest of ${String(ROUNDS)})`,
+          Math.max(...opens),
+          { basis: "SR-082 AK3 (with buffers drawn in advance, SR-212 AK5; the app)", thresholdMs: OPEN_MS },
+        ),
+      );
+      return opens;
+    };
+    const opens = await promptOpens();
 
     // SR-082 AK4: the first page of the list of all elements, asked for (Ctrl+K L) while neighbours are drawn.
     await window.evaluate(() => {
@@ -335,10 +475,11 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     });
     await window.keyboard.press("ControlOrMeta+K");
     await window.keyboard.press("L");
+    const list = await window.evaluate(() => (globalThis as unknown as { __list: Promise<number> }).__list);
     recorded.push(
       await recordValue(
         "app: Ctrl+K L until the list of all elements shows its first row, with buffers drawn in advance",
-        await window.evaluate(() => (globalThis as unknown as { __list: Promise<number> }).__list),
+        list,
         {
           basis: "SR-082 AK4 (with buffers drawn in advance, SR-212 AK5; the app, from the key)",
           thresholdMs: LIST_MS,
@@ -409,6 +550,55 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     );
     await window.keyboard.press("Alt+KeyP");
     await expect.poll(() => fs.readFile(fileOf(b), "utf8"), { timeout: 10_000 }).toContain(typed.trim());
+    await window.waitForTimeout(SETTLE_SWITCH_MS);
+
+    // SR-082 AK3 after a held Alt+P: B, then two lists and the overview between three elements; Alt held over
+    // the key repeat back to B, through buffers drawn in advance and not, then Enter on a relation of B at once.
+    const heldOpen = async () => {
+      const [x1, x2, x3] = others.slice(ROUNDS + 1);
+      if (x1 === undefined || x2 === undefined || x3 === undefined) {
+        throw new Error("no elements for the held Alt+P");
+      }
+      const listShown = async (): Promise<void> => {
+        await expect(window.locator(`${SHOWN} .row`).first()).toBeVisible({ timeout: 60_000 });
+      };
+      await open(window, b.title);
+      await command(window, "List all elements");
+      await listShown();
+      await open(window, x1.title);
+      await window.keyboard.press("ControlOrMeta+Shift+F");
+      await window.keyboard.type("station");
+      await window.keyboard.press("Enter");
+      await listShown();
+      await open(window, x2.title);
+      await command(window, "Show overview");
+      await expect(window.locator(`${SHOWN} [role="listbox"][aria-label="Overview"]`)).toBeVisible({
+        timeout: 60_000,
+      });
+      await open(window, x3.title);
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await window.keyboard.down("Alt");
+      for (let press = 0; press < HELD_PRESSES; press += 1) {
+        await window.keyboard.press("KeyP");
+        await window.waitForTimeout(REPEAT_MS);
+      }
+      await window.keyboard.up("Alt");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      const held = await timeOpen(window, await focusRelation());
+      recorded.push(
+        await recordValue(
+          `app: Enter on a relation until the element shows, at once after a held Alt+P over ${String(HELD_PRESSES)} buffers`,
+          held,
+          { basis: "SR-082 AK3 (with buffers drawn in advance, SR-212 AK5; the app)", thresholdMs: OPEN_MS },
+        ),
+      );
+      // Back to B; its neighbours are other buffers now.
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await command(window, "Close buffer");
+      await expect.poll(() => shownTitle(window)).toBe(b.title);
+      return held;
+    };
+    const held = await heldOpen();
 
     // A start with these buffers restored: the overview, then B's neighbours drawn while the first element opens.
     await running.close({ keep: true });
@@ -449,7 +639,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(
-      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, opens, outside, gap, started, firstOpen })}`,
+      `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, opens, list, outside, gap, held, started, firstOpen })}`,
     );
     for (const measurement of recorded) {
       if (measurement.thresholdMs !== undefined) {

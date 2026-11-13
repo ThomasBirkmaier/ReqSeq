@@ -782,7 +782,6 @@ const restored = (buffers: Buffers, more: Buffers): Buffers => {
 const namedAfter = (buffer: Buffer): buffer is ElementBuffer | NeighbourhoodBuffer | GraphBuffer =>
   buffer.kind === "element" || buffer.kind === "neighbourhood" || buffer.kind === "graph";
 
-/** The buffers of the element `id` in `repository` named `name`; the same buffers when all are already. */
 /** The element buffers of the element `id` in `repository` with its type; the same buffers when all have it. */
 const typed = (buffers: Buffers, action: TypedAction): Buffers => {
   const stale = (buffer: Buffer): boolean =>
@@ -795,6 +794,7 @@ const typed = (buffers: Buffers, action: TypedAction): Buffers => {
     : buffers;
 };
 
+/** The buffers of the element `id` in `repository` named `name`; the same buffers when all are already. */
 const renamed = (buffers: Buffers, id: string, repository: string, name: string): Buffers => {
   const stale = (buffer: Buffer): boolean =>
     namedAfter(buffer) && buffer.id === id && buffer.repository === repository && buffer.name !== name;

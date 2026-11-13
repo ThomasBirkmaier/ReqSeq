@@ -665,10 +665,22 @@ export const shownLayer = (window: Page, side?: string): Locator =>
     `${side === undefined ? "[data-area][data-active]" : `[data-area="${side}"]`} > [data-layer="main"]`,
   );
 
-/** A request of the window to core: the command and its input. */
+/** A request of the window to core: the command and its input, and when it was sent and answered. */
 export interface CoreRequest {
   readonly name: string;
   readonly input: unknown;
+  /** Wall-clock ms (`performance.timeOrigin + performance.now()`) when it was sent. */
+  readonly at: number;
+  /** Wall-clock ms when its answer arrived; none while it waits. */
+  readonly answeredAt?: number;
+}
+
+/** When a request armed with `enterOn` was sent, and when the Enter it set off was dispatched (wall-clock ms). */
+export interface ArmedEnter {
+  readonly sentAt: number;
+  readonly firedAt: number;
+  /** The tag name of the element the Enter went to. */
+  readonly target: string;
 }
 
 /** The requests of the window to core from `start()` on (`CoreRequests`). */
@@ -677,12 +689,21 @@ export interface CoreRequests {
   readonly clear: () => Promise<void>;
   /** The requests since `start()` or the last `clear()`, in the order they were sent. */
   readonly sent: () => Promise<readonly CoreRequest[]>;
+  /**
+   * The next request named `name` whose input is `input` (compared as JSON) dispatches a keydown and keyup of
+   * Enter on the focused element in the microtask after it was sent: as a person who presses Enter at that
+   * moment. `fired()` tells when.
+   */
+  readonly enterOn: (name: string, input: unknown) => Promise<void>;
+  /** The Enter set off by `enterOn`, once it went. */
+  readonly fired: () => Promise<ArmedEnter | undefined>;
 }
 
 /**
- * Records every request the window sends to core from now on. The bridge's port lives in the world of the
- * preload script, which a page script cannot reach (the bridge is frozen), so this goes through the DevTools
- * protocol into that world and watches `postMessage` of its ports. Only for tests that count what a view reads.
+ * Records every request the window sends to core from now on, and when its answer arrives. The bridge's port
+ * lives in the world of the preload script, which a page script cannot reach (the bridge is frozen), so this
+ * goes through the DevTools protocol into that world and watches `postMessage` of its ports and their
+ * messages. Only for tests that count or time what a view reads.
  */
 export const recordRequests = async (window: Page): Promise<CoreRequests> => {
   const session = await window.context().newCDPSession(window);
@@ -705,10 +726,37 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
     const own = globalThis;
     if (own.__requests === undefined) {
       own.__requests = [];
+      const now = () => performance.timeOrigin + performance.now();
+      const watched = new WeakSet();
       const post = MessagePort.prototype.postMessage;
       MessagePort.prototype.postMessage = function (message, ...rest) {
         if (message !== null && typeof message === "object" && message.kind === "invoke") {
-          own.__requests.push({ name: message.name, input: message.input });
+          if (!watched.has(this)) {
+            watched.add(this);
+            this.addEventListener("message", (event) => {
+              const id = event.data !== null && typeof event.data === "object" ? event.data.id : undefined;
+              const request = own.__requests.find((one) => one.id === id && one.answeredAt === undefined);
+              if (request !== undefined) {
+                request.answeredAt = now();
+              }
+            });
+          }
+          const at = now();
+          own.__requests.push({ name: message.name, input: message.input, id: message.id, at });
+          const armed = own.__armed;
+          if (armed !== undefined && armed.name === message.name && armed.input === JSON.stringify(message.input)) {
+            own.__armed = undefined;
+            queueMicrotask(() => {
+              const target = document.activeElement ?? document.body;
+              const firedAt = now();
+              for (const type of ["keydown", "keyup"]) {
+                target.dispatchEvent(
+                  new KeyboardEvent(type, { key: "Enter", code: "Enter", bubbles: true, cancelable: true }),
+                );
+              }
+              own.__fired = { sentAt: at, firedAt, target: target.tagName };
+            });
+          }
         }
         return post.call(this, message, ...rest);
       };
@@ -718,7 +766,20 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
     clear: async () => {
       await run("globalThis.__requests.length = 0");
     },
-    sent: async () => JSON.parse(String(await run("JSON.stringify(globalThis.__requests)"))) as CoreRequest[],
+    sent: async () =>
+      (
+        JSON.parse(String(await run("JSON.stringify(globalThis.__requests)"))) as (CoreRequest & {
+          id?: number;
+        })[]
+      ).map(({ id: _id, ...request }) => request),
+    enterOn: async (name, input) => {
+      await run(
+        `globalThis.__fired = undefined; globalThis.__armed = ${JSON.stringify({ name, input: JSON.stringify(input) })};`,
+      );
+    },
+    fired: async () =>
+      (JSON.parse(String(await run("JSON.stringify(globalThis.__fired ?? null)"))) as
+        ArmedEnter | undefined) ?? undefined,
   };
 };
 

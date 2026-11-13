@@ -292,6 +292,14 @@ const useLayerViews = (
   const latest = useRef(views);
   latest.current = views;
   const pending = useRef(0);
+  // The layer is mounted: a read that waited at the gate for a layer gone meanwhile is not sent.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const held = useMemo(() => new HeldCalls(), []);
   // Resolved when the layer is shown: the reads of the view waiting at the gate go then.
   const revealed = useMemo(() => {
@@ -310,6 +318,9 @@ const useLayerViews = (
       try {
         if (!shownNow.current) {
           await Promise.race([latest.current.gate.pass(), revealed.promise]);
+          if (!alive.current) {
+            return { ok: false, code: "LAYER_GONE", message: "The view drawn in advance is gone." };
+          }
         }
         return await inner(name, input);
       } finally {

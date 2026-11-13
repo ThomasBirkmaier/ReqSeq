@@ -176,7 +176,7 @@ describe("an element view drawn in advance", () => {
       root.render(createElement("div"));
       await vi.advanceTimersByTimeAsync(0);
     });
-    // Remounted shown, the first load marks the title (SR-116): the same highlight.
+    // Mounted again hidden and then shown, it marks the title as the first load of a fresh view does (SR-116).
     const fresh = await mount({ outside });
     await fresh.show();
     expect(

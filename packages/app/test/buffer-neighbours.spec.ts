@@ -165,19 +165,27 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await open(window, NEED.title);
     await command(window, "Show neighbourhood");
     await expect(shownLayer(window).locator(".neighbourhood .row").first()).toBeVisible();
+    await quiet(requests);
+    await requests.clear();
     await open(window, SPEED.title);
     await expect.poll(() => hiddenViews(window)).toContain(`Neighbourhood: N-0000a1 ${NEED.title}`);
     await quiet(requests);
+    // The neighbourhood's two reads, its tree (two levels down) and its incoming relations (one level down):
+    // made by the view drawn hidden after the switch away, and none at the switch back.
+    const reads = async (): Promise<string[]> =>
+      naming(await requests.sent(), NEED.id)
+        .filter(
+          (request) =>
+            request.name === "trace.neighbourhood" && JSON.stringify(request.input).includes('"down"'),
+        )
+        .map((request) => `maxDepth ${String((request.input as { maxDepth?: number }).maxDepth)}`)
+        .sort();
+    expect(await reads()).toEqual(["maxDepth 1", "maxDepth 2"]);
     await requests.clear();
     expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
     await expect(shownLayer(window).locator(".neighbourhood .row").first()).toBeVisible();
-    // The need's element, now its previous buffer, is drawn in advance; the neighbourhood reads nothing.
-    expect(
-      naming(await requests.sent(), NEED.id).filter(
-        (request) =>
-          request.name === "trace.neighbourhood" && JSON.stringify(request.input).includes('"down"'),
-      ),
-    ).toEqual([]);
+    // The need's element, now its previous buffer, is drawn in advance (its parents line reads upwards).
+    expect(await reads()).toEqual([]);
   });
 
   test("[SR-212/AK-tfck] an element left with a change is read again after its save, then slides in without waiting with the change", async () => {

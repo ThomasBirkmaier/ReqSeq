@@ -53,6 +53,19 @@ describe("the gate of the reads drawn in advance", () => {
     gate.dispose();
   });
 
+  it("[SR-212/AK-tfck] lets nothing through when a slide ends and the next starts in the same task, as a held Alt+P does", async () => {
+    const gate = new ReadGate(1000);
+    gate.show("a", true);
+    gate.slide(true);
+    const waiting = gate.pass();
+    gate.slide(false);
+    gate.slide(true);
+    expect(await settled(waiting)).toBe(false);
+    gate.slide(false);
+    expect(await settled(waiting)).toBe(true);
+    gate.dispose();
+  });
+
   it("[SR-212/AK-tfck] stays closed while a prompt is open, where the reader may choose the next buffer", async () => {
     const gate = new ReadGate(1000);
     gate.show("a", true);

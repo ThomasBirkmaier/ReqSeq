@@ -59,6 +59,7 @@ export class ReadGate {
   private drawnShown = false;
   private sliding = false;
   private prompting = false;
+  private releasing = false;
   private deadline: ReturnType<typeof setTimeout> | undefined;
   private readonly waiting = new Set<() => void>();
   private readonly wait: number;
@@ -126,15 +127,26 @@ export class ReadGate {
     this.waiting.clear();
   }
 
+  /**
+   * Lets the waiting reads go, in a microtask and only if the gate is still open then: a slide that ends and
+   * the next that starts in the same task (a held Alt+P) lets nothing through.
+   */
   private release(): void {
-    if (!this.open) {
+    if (!this.open || this.releasing) {
       return;
     }
-    const go = [...this.waiting];
-    this.waiting.clear();
-    for (const resolve of go) {
-      resolve();
-    }
+    this.releasing = true;
+    queueMicrotask(() => {
+      this.releasing = false;
+      if (!this.open) {
+        return;
+      }
+      const go = [...this.waiting];
+      this.waiting.clear();
+      for (const resolve of go) {
+        resolve();
+      }
+    });
   }
 }
 
