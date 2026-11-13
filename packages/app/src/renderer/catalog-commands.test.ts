@@ -1301,6 +1301,49 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     expect((await last(asked)).text).toBeDefined();
   });
 
+  it("[SR-215/AK-fj75] gives the repository with a file two repositories hold, and offers only the files of a repository given before", async () => {
+    const ambiguous = Object.assign(new Error("ref names 3 elements"), {
+      name: "ref.ambiguous",
+      details: {
+        candidates: [
+          { id: "uuid-1", repository: "spec", file: "x/SR-1.md" },
+          { id: "uuid-1", repository: "copy", file: "x/SR-1.md" },
+          { id: "uuid-1", repository: "copy", file: "y/SR-1.md" },
+        ],
+      },
+    });
+    const { context, asked, call } = setup([shown], {
+      "element.get": (input) => (input["file"] === undefined ? ambiguous : { element: hit(1) }),
+      "workspace.status": () => ({ repositories: [{ name: "copy", available: true }] }),
+    });
+    // `repository` is an optional argument of the command, not asked here.
+    const get = only("element.get", "ref", "repository", "file");
+    const files = { ...get, input: { ...get.input, required: ["ref", "file"] } };
+    catalogItems(context, [files], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    const offered = (await last(asked)).items;
+    expect(new Set(offered.map((choice) => choice.id)).size).toBe(3);
+    expect(offered.map((choice) => `${choice.name} | ${choice.hint ?? ""}`)).toEqual([
+      "x/SR-1.md | spec",
+      "x/SR-1.md | copy",
+      "y/SR-1.md | copy",
+    ]);
+    offered[1]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.get", {
+      ref: "uuid-1",
+      repository: "copy",
+      file: "x/SR-1.md",
+    });
+    offered[2]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.get", { ref: "uuid-1", file: "y/SR-1.md" });
+    catalogItems(context, [only("element.get", "ref", "repository", "file")], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "copy").run();
+    expect(await hits(asked)).toEqual(["x/SR-1.md | copy", "y/SR-1.md | copy"]);
+  });
+
   it("[SR-215/AK-fj75] asks the metamodel location in two steps: the main repository or a typed one, then the path, completed below the new workspace's folder", async () => {
     const { context, asked, call } = setup([], {
       "workspace.listFolder": () => ({ entries: [{ name: "model", kind: "folder" }] }),

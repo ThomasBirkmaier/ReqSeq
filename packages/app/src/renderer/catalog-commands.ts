@@ -164,6 +164,10 @@ interface Value {
   readonly key?: string;
   /** How the prompt's line names it once given, when not by `name`: an element by its ID, as a search hit. */
   readonly label?: string;
+  /** The hit's id, when the value is not unique among the hits (one file in two repositories). */
+  readonly id?: string;
+  /** Another argument given with it: the repository of a file that two repositories hold (`elementFile`). */
+  readonly also?: { readonly field: string; readonly value: string };
   readonly asks?: readonly RequiredProperty[];
 }
 
@@ -440,6 +444,8 @@ interface Asked {
   readonly taken: readonly unknown[];
   /** The meaning of the type of the elements an element argument takes (`variant`, `package`). */
   readonly meaning?: string;
+  /** The value given to `repository` in this run, if any: the files of an ambiguous reference are its. */
+  readonly repository?: unknown;
 }
 
 const listOf = <T>(
@@ -532,6 +538,19 @@ const candidatesOf = (details: Readonly<Record<string, unknown>> | undefined): r
       })
     : [];
 };
+
+/**
+ * The hits of the files of an ambiguous reference, each by its repository and file. A file two of them hold
+ * goes in with its repository, which tells them apart (`element.get` `file`: "Give repository too").
+ */
+const fileValues = (candidates: readonly ElementFile[]): Value[] =>
+  candidates.map((candidate) => ({
+    ...fileValue(candidate),
+    id: JSON.stringify([candidate.repository, candidate.file]),
+    ...(candidates.filter(({ file }) => file === candidate.file).length > 1
+      ? { also: { field: "repository", value: candidate.repository } }
+      : {}),
+  }));
 
 const fileValue = ({ repository, file }: ElementFile): Value => ({
   value: file,
@@ -782,13 +801,16 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   // names (`details.candidates` of `ref.ambiguous`, the answer of the same read), the repository beside.
   // A reference element.get does not read (a criterion reference of element.resolve): typed text, which
   // core checks.
-  elementFile: async ({ context, of }) => {
+  elementFile: async ({ context, of, repository }) => {
     const answer = typeof of === "string" ? await context.call("element.get", { ref: of }) : undefined;
     if (answer?.ok === true) {
       return { kind: "list", values: [fileValue(answer.output.element)] };
     }
-    const candidates = answer?.code === "ref.ambiguous" ? candidatesOf(answer.details) : [];
-    return candidates.length > 0 ? { kind: "list", values: candidates.map(fileValue) } : asText();
+    // Only those of a repository given in this run: core refuses the others (`ref.unknown`).
+    const candidates = (answer?.code === "ref.ambiguous" ? candidatesOf(answer.details) : []).filter(
+      (candidate) => typeof repository !== "string" || candidate.repository === repository,
+    );
+    return candidates.length > 0 ? { kind: "list", values: fileValues(candidates) } : asText();
   },
   // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
   metamodelLocation: ({ of }) =>
@@ -829,6 +851,7 @@ const offerFor = (
       .filter((given) => given.field === arg.field && given.skipped !== true)
       .map((given) => given.value),
     ...(arg.meaning === undefined ? {} : { meaning: arg.meaning }),
+    repository: valueOf("repository"),
   });
 };
 
@@ -1206,6 +1229,18 @@ const back = (context: CatalogContext, entry: Entry): void => {
   askAgain(context, entry, entry.given.length - 1);
 };
 
+/**
+ * `entry` with `also` given (the repository of a file two repositories hold), in place of a value given to
+ * that field before.
+ */
+const withAlso = (entry: Entry, also: NonNullable<Value["also"]>): Entry => ({
+  ...entry,
+  given: appended(
+    { ...entry, given: entry.given.filter((given) => given.field !== also.field) },
+    { field: also.field, value: also.value, label: also.value },
+  ),
+});
+
 /** Takes a value for `field`; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
 const give = (
   context: CatalogContext,
@@ -1387,14 +1422,19 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     value: unknown,
     name: string,
     asks?: readonly RequiredProperty[],
-  ): Pick<Choice, "run" | "more"> => ({
-    run: () => {
-      give(context, entry, field, value, name, false, asks);
-    },
-    more: () => {
-      give(context, entry, field, value, name, true, asks);
-    },
-  });
+    also?: Value["also"],
+  ): Pick<Choice, "run" | "more"> => {
+    // The other argument goes in first, as if given just before, so Backspace asks this one again.
+    const at = also === undefined ? entry : withAlso(entry, also);
+    return {
+      run: () => {
+        give(context, at, field, value, name, false, asks);
+      },
+      more: () => {
+        give(context, at, field, value, name, true, asks);
+      },
+    };
+  };
   // The prompt opens at once with its label, so no key goes to the buffer and Escape ends it while the
   // values load; the candidates fill in when they arrive.
   context.ask({
@@ -1406,11 +1446,11 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
       }
       if (offer.kind === "list") {
         return {
-          items: offer.values.map(({ value, name, key, label: given, asks }) => ({
-            id: JSON.stringify(value),
+          items: offer.values.map(({ value, name, key, label: given, id, also, asks }) => ({
+            id: id ?? JSON.stringify(value),
             name,
             ...(key === undefined || key === name ? {} : { hint: key }),
-            ...take(value, given ?? name, asks),
+            ...take(value, given ?? name, asks, also),
           })),
           ...(offer.typed === true
             ? typedFill(offer.values, (text, more) => {
