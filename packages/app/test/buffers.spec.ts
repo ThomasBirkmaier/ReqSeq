@@ -147,7 +147,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toBeFocused();
   });
 
-  test("[SR-163/AK-fkcm] on macOS a swipe to the left or right switches buffers as the mouse buttons Back and Forward do, also while a wheel coasts and from the editor, not in the command line", async () => {
+  test("[SR-163/AK-fkcm] on macOS a swipe to the left or right switches buffers as the mouse buttons Back and Forward do, also while a wheel coasts and from the editor, not in the command prompt", async () => {
     const { window } = running;
     const mac = process.platform === "darwin";
     const session = await window.context().newCDPSession(window);
@@ -188,7 +188,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
     expect(window.url()).toBe(page);
-    // With the command line open nothing switches, and it stays open.
+    // With the command prompt open nothing switches, and it stays open.
     await window.keyboard.press("ControlOrMeta+Shift+P");
     const candidates = window.locator('.candidates [role="option"]');
     await expect(candidates.first()).toBeVisible();
@@ -196,6 +196,10 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(candidates.first()).toBeVisible();
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Escape");
+    await expect(candidates.first()).toBeHidden();
+    // The window handles the swipes in order: this one switches, so the blocked one before it was handled.
+    await swipeAfterWheel("left");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
   });
 
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {

@@ -1,5 +1,5 @@
 // The states of the window in which a swipe switches no buffer (SR-163 AK4; SR-211 AK11 names the same list):
-// the command line open, a context menu, the slash menu, the calendar, the card of the next keys or the window
+// the command prompt open, a context menu, the slash menu, the calendar, the card of the next keys or the window
 // "About ReqSeq" shown, and also while another workspace opens (SR-131 AK3). One list for every swipe, so the
 // swipe of SR-211 takes it as well. Nothing is closed by it.
 import { completionStatus } from "@codemirror/autocomplete";
@@ -10,7 +10,7 @@ import { calendarOpen } from "./editor/calendar.js";
 export interface SwitchState {
   /** Another workspace is being opened (SR-131 AK3). */
   readonly switching: boolean;
-  /** A prompt of the command line is open. */
+  /** The command prompt is open. */
   readonly prompting: boolean;
   readonly contextMenu: boolean;
   /** The window "About ReqSeq" (SR-161). */

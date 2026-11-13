@@ -478,7 +478,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(shown()).toBe("Overview");
   });
 
-  it("[SR-163/AK-fkcm] with the command line open, a context menu or About ReqSeq a swipe switches nothing and closes nothing", async () => {
+  it("[SR-163/AK-fkcm] with the command prompt open, a context menu or About ReqSeq a swipe switches nothing and closes nothing", async () => {
     await openFour();
     await press(window, { key: "p", ctrlKey: true });
     await swipe("left");
