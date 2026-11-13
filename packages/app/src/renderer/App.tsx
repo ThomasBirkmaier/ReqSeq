@@ -27,7 +27,7 @@ import type { Draft } from "./drafts.js";
 import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
 import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
-import { elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
+import { OVERVIEW_KEY, elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
 import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
@@ -1205,12 +1205,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     );
   };
 
+  // A failed read of the counts says why and counts as drawn, so a switch to the overview does not wait for
+  // the guard of the slide (SR-212).
+  const overviewFailed = useCallback(
+    (message: string): void => {
+      setEcho(message);
+      slides.drawn(OVERVIEW_KEY);
+    },
+    [slides],
+  );
   const overview = useOverview(
     viewCall,
     seen,
     recent,
     shownAreas.some((area) => area.buffer.kind === "overview"),
-    setEcho,
+    overviewFailed,
   );
   // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {
