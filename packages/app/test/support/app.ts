@@ -681,6 +681,36 @@ export const cardSettled = (window: Page): Promise<void> =>
     )
     .toBe(0);
 
+/** The transitions of the window, such as the command help sliding in or out (SR-210 AK3), have ended. */
+export const transitionsSettled = (window: Page): Promise<void> =>
+  expect
+    .poll(() =>
+      window.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((one) => one instanceof CSSTransition)
+            .filter((one) => one.playState === "running").length,
+      ),
+    )
+    .toBe(0);
+
+/**
+ * A switch to the previous or next buffer stands in its end state (SR-212): no picture of the buffer that was
+ * left, and no slide running. While it slides, the picture holds a copy of the left buffer's text and markup
+ * (without its `data-buffer`, labels and ids), which a CSS or text locator would find as well.
+ */
+export const slideSettled = (window: Page): Promise<void> =>
+  expect
+    .poll(() =>
+      window.evaluate(
+        () =>
+          document.querySelector(".slide-picture") === null &&
+          document.getAnimations().every((one) => one.id !== "buffer-slide" || one.playState !== "running"),
+      ),
+    )
+    .toBe(true);
+
 /**
  * The sort the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418), as the CLI takes it: a test that compares a list with
  * `element list` gives the CLI this input. A unit test pins the real `DEFAULT_SORT` of the renderer.

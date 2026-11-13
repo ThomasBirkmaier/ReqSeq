@@ -32,6 +32,9 @@ export type QueryChange = { readonly [Part in Exclude<QueryPart, "steps">]?: Lis
  */
 export type QueryView = "list" | "matrix" | "members" | "search";
 
+/** Every display a query target can have. */
+export const QUERY_VIEWS: readonly QueryView[] = ["list", "matrix", "members", "search"];
+
 const VIEW_PARTS: Readonly<Record<QueryView, ReadonlySet<QueryPart>>> = {
   list: new Set(["steps", "sort", "group"]),
   matrix: new Set(["steps", "sort"]),

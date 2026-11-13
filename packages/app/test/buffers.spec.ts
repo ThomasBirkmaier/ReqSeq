@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll, snapshot } from "./support/app.js";
+import { launchApp, listAll, slideSettled, snapshot } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -73,15 +73,20 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", element ?? "");
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Search: wind");
     // Switching with the keys keeps the order: Alt+P goes further back.
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Search: wind");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", element ?? "");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     // The shown buffer has the focus: its keys work at once.
     await expect(shownBuffer(window)).toBeFocused();
@@ -96,6 +101,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
       for (const type of ["mousePressed", "mouseReleased"] as const) {
         await session.send("Input.dispatchMouseEvent", { type, button, x: 200, y: 200, clickCount: 1 });
       }
+      await slideSettled(window);
     };
     const page = window.url();
     await listAll(window);
@@ -125,15 +131,18 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await goTo(window, ELEMENT);
     const name = await shownBuffer(window).getAttribute("aria-label");
     await window.keyboard.press("Meta+BracketLeft");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", mac ? "All elements" : (name ?? ""));
     if (!mac) {
       return;
     }
     await window.keyboard.press("Meta+BracketRight");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
     await window.keyboard.press("Meta+BracketLeft");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
   });
@@ -143,8 +152,10 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await listAll(window);
     await goTo(window, ELEMENT);
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
   });
@@ -159,9 +170,11 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await window.keyboard.insertText(" ENDE");
     await expect(modeline(window)).toContainText("modified");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     await expect(shownBuffer(window)).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     // Leaving the element saved the input (SR-105 AK1); the file ends with a line break (ADR-0004).
     await expect(modeline(window)).not.toContainText("modified");
@@ -172,8 +185,10 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     // The text is what was typed (Enter put the cursor after the last line break), without an "n", a "p"
     // or anything else, and so is the file.
@@ -208,6 +223,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(window.locator(".cm-editor")).toHaveCount(0);
     await expect(shownBuffer(window)).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     // The switch leaves the focus on the shown buffer; Enter finds the editor once the element is loaded.
     await expect(shownBuffer(window)).toBeFocused();
     await expect(window.locator(".cm-line")).toHaveText([LINE, ""]);
@@ -216,6 +232,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     expect(await option("π", "KeyP")).toBe(true);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(window.locator(".cm-line")).toHaveText([LINE, ""]);
     await expect(modeline(window)).not.toContainText("modified");
   });
@@ -245,6 +262,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
     await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
     await window.keyboard.press("Escape");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
@@ -392,13 +410,16 @@ test.describe("the open buffers after a restart", () => {
     // Alt+P walks them in the same order.
     for (const name of ["All elements", "Search: wind", `Graph: ${element}`, element, "Overview"]) {
       await window.keyboard.press("Alt+KeyP");
+      await slideSettled(window);
       await expect(shownBuffer(window)).toHaveAttribute("aria-label", name);
     }
     // Each shows its content again.
     await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
     await expect(window.locator(".row").first()).toBeVisible();
     await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyN");
+    await slideSettled(window);
     await expect(window.locator("article h1")).toBeVisible();
     // Nothing of it went into the workspace.
     expect(await snapshot(root)).toEqual(before);

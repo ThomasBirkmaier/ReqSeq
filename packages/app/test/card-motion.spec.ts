@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { cardSettled, launchApp, listAll, modifier } from "./support/app.js";
+import { cardSettled, launchApp, listAll, modifier, transitionsSettled } from "./support/app.js";
 import { DEMO_FILES } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -274,15 +274,24 @@ test.describe("the card of the command line in motion", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator("label.prompt-label")).not.toHaveText("Go to");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
-    // The command help comes in place of the hits and goes again (SR-210 AK3, AK4): the card stands.
+    // The command help slides in over the hits and out again (SR-210 AK3, AK4): the card stands and only changes
+    // its height, upwards from the command line.
     await window.keyboard.type("List hints");
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
+    await cardSettled(window);
+    const low = await box(window, ".card");
     await window.keyboard.press("Control+H");
     await expect(window.getByRole("region", { name: "Command help" })).toBeVisible();
-    await cardSettled(window);
+    await transitionsSettled(window);
+    const high = await box(window, ".card");
+    expect(high.height).toBeGreaterThan(low.height + 20);
+    expect(Math.abs(high.bottom - low.bottom)).toBeLessThan(1);
+    expect([high.left, high.width]).toEqual([low.left, low.width]);
     await window.keyboard.press("Control+H");
+    await expect(window.getByRole("region", { name: "Command help" })).toHaveCount(0);
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("List hints");
-    await cardSettled(window);
+    await transitionsSettled(window);
+    expect((await box(window, ".card")).height).toBeCloseTo(low.height, 0);
     expect(await rises(window)).toHaveLength(shown);
     await window.locator("#prompt-input").fill("");
     await window.keyboard.type("filter");

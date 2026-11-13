@@ -520,3 +520,42 @@ describe("Follow agent in the window (SR-117)", () => {
     root = createRoot(container);
   });
 });
+
+describe("Follow agent during a switch in motion (SR-212)", () => {
+  const device = (): { prefersReducedMotion: string } =>
+    (window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }).happyDOM
+      .settings.device;
+  beforeEach(() => {
+    device().prefersReducedMotion = "no-preference";
+  });
+  afterEach(() => {
+    device().prefersReducedMotion = "reduce";
+  });
+
+  it("[SR-212/AK-hmwp] an access while a switch slides shows its element at once and ends the slide", async () => {
+    // The frames wait, so the switch is still under way when the access comes.
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0);
+    const fake = await started();
+    await toggle();
+    await runCommand("List all elements");
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "p",
+          code: "KeyP",
+          altKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query('[data-layer="side"] .slide-picture').textContent).toContain("All elements");
+    await fake.activity(access(1));
+    expect(title()).toBe("Title 1");
+    expect(container.querySelector(".slide-picture")).toBeNull();
+    expect(query('[data-layer="main"]').style.transform).toBe("");
+    expect(query('[data-layer="side"]').hidden).toBe(true);
+  });
+});

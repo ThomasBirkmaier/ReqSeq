@@ -4,7 +4,7 @@
 // the target's view does not show is not offered (a search is not sorted). Only the input of
 // `element.list` and `element.search` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { Action, ActionContext, Choice } from "./actions.js";
+import type { Action, ActionContext, Choice, CommandIn } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -31,7 +31,7 @@ import {
 } from "./list-filters.js";
 import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
-import { supports } from "./list-query.js";
+import { QUERY_VIEWS, supports } from "./list-query.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
@@ -103,6 +103,18 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
     },
   };
 };
+
+/** The catalog command each display of a query target runs (SR-210 AK5). */
+const DISPLAY_COMMANDS: Readonly<Record<QueryView, CommandIn>> = {
+  list: { where: "in the list", command: "element.list" },
+  matrix: { where: "in the traceability matrix", command: "trace.matrix" },
+  members: { where: "on the package page", command: "element.list" },
+  search: { where: "in the list of search hits", command: "element.search" },
+};
+
+/** The catalog commands an action that sets `part` of the query runs, by the displays that show that part. */
+const runsWhere = (part: QueryPart): readonly CommandIn[] =>
+  QUERY_VIEWS.filter((view) => supports(view, part)).map((view) => DISPLAY_COMMANDS[view]);
 
 /** The shown target sets `part` of its query: the action for it is offered. */
 const sets =
@@ -187,6 +199,7 @@ const filterBy = (by: FilterBy): Action => ({
   id: by.id,
   title: by.title,
   description: by.description,
+  runs: runsWhere("steps"),
   available: by.available ?? canFilter,
   run: onTarget((context, target) => {
     void by.names(context.shownCall ?? context.call, target).then((found) => {
@@ -312,6 +325,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "clear-filter",
     title: "Clear list filter",
     description: "Take back the last filter of the shown list.",
+    runs: runsWhere("steps"),
     available: isFiltered,
     run: onTarget((_context, target) => {
       target.apply({ steps: target.query.steps.slice(0, -1) });
@@ -321,6 +335,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "clear-filters",
     title: "Clear all list filters",
     description: "Take back every filter of the shown list.",
+    runs: runsWhere("steps"),
     // Offered on every filtered list, as the context menu of a list has it (SR-198 AK1).
     available: isFiltered,
     run: onTarget((_context, target) => {
@@ -331,6 +346,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "sort",
     title: "Sort list",
     description: "Sort the shown list by a chosen key.",
+    runs: runsWhere("sort"),
     available: sets("sort"),
     run: onTarget((context, target) => {
       context.ask({
@@ -345,6 +361,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "group",
     title: "Group list",
     description: "Group the elements of the shown list by type, status, package or a property.",
+    runs: runsWhere("group"),
     available: sets("group"),
     run: onTarget((context, target) => {
       const call = context.shownCall ?? context.call;
@@ -367,6 +384,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "ungroup",
     title: "Ungroup list",
     description: "Remove the groups of the shown list.",
+    runs: runsWhere("group"),
     available: (context: ActionContext): boolean => queryTarget(context)?.query.group !== undefined,
     run: onTarget((_context, target) => {
       target.apply({ group: undefined });
@@ -398,6 +416,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     id: "matrix-list",
     title: "Show as list",
     description: "Show the traceability matrix as a list again.",
+    runs: [DISPLAY_COMMANDS.list],
     shortcut: MATRIX_SHORTCUT,
     available: isMatrix,
     run: onList((context, list) => {

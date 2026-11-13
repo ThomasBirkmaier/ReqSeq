@@ -372,38 +372,27 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await matrixOpen(window, 6);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
-    // The card rises into its place (SR-182): measure where it stays, not where it passes.
-    await window.evaluate(() =>
-      Promise.all(
-        document
-          .getAnimations()
-          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-          .map((animation) => animation.finished),
-      ),
-    );
-    // A point of a candidate, in the part of the card that shows, with a cell of the fixed column under it.
-    // Which candidate that is follows the fonts and the order of the candidates, so it is looked for: the
-    // test only proves something if such a point exists (the first candidate can lie over the header row).
+    // A point on a candidate with a cell of the fixed column under it: the test only proves something there. Which
+    // candidate that is depends on the font metrics of the platform, so look for one, not at a fixed position.
     const point = await window.evaluate(() => {
-      const list = document.querySelector(".candidates")?.getBoundingClientRect();
       const cells = [...document.querySelectorAll("td.element")].map((cell) => cell.getBoundingClientRect());
       for (const option of document.querySelectorAll('.candidates [role="option"]')) {
-        const rect = option.getBoundingClientRect();
-        const at = { x: rect.left + 8, y: rect.top + rect.height / 2 };
-        const shown = list !== undefined && list.top <= at.y && at.y <= list.bottom && at.y >= 0;
-        const over = cells.some(
-          (cell) => cell.left <= at.x && at.x <= cell.right && cell.top <= at.y && at.y <= cell.bottom,
-        );
-        if (shown && over) {
+        const box = option.getBoundingClientRect();
+        const at = { x: box.left + 8, y: box.top + box.height / 2 };
+        if (
+          cells.some(
+            (rect) => rect.left <= at.x && at.x <= rect.right && rect.top <= at.y && at.y <= rect.bottom,
+          )
+        ) {
           return at;
         }
       }
-      return undefined;
+      return null;
     });
-    expect(point).toBeDefined();
+    expect(point).not.toBeNull();
     const onTop = await window.evaluate(
-      (at) => at !== undefined && document.elementFromPoint(at.x, at.y)?.closest(".candidates") !== null,
-      point,
+      (at) => document.elementFromPoint(at.x, at.y)?.closest(".candidates") !== null,
+      point as { x: number; y: number },
     );
     expect(onTop).toBe(true);
   });

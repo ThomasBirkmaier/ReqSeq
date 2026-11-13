@@ -23,6 +23,8 @@ describe("docsTopic", () => {
     expect(docsTopic("go-to", CATALOG, ACTIONS)).toBe("element.get");
     expect(docsTopic("list-all", CATALOG, ACTIONS)).toBe("element.list");
     expect(docsTopic("close-all", CATALOG, ACTIONS)).toBe("close-all");
+    // An action that runs one of several commands by the shown display has its own row (SR-210 AK5).
+    expect(docsTopic("copy-mermaid", CATALOG, ACTIONS)).toBe("copy-mermaid");
     // An entry that is no action (a buffer of "Go to") is sent as it is; main refuses what it does not know.
     expect(docsTopic("buffer:1", CATALOG, ACTIONS)).toBe("buffer:1");
   });

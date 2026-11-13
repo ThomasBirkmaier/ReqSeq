@@ -31,6 +31,8 @@ export const PackageSummaryLine = ({ id, ...props }: PackageSummaryProps): React
 export type SummaryLineProps = Omit<PackageSummaryProps, "id"> & {
   /** What the line counts: a package, or the selection of a list. */
   readonly selection: SummarySelection;
+  /** Core answered, and the line shows it (or why it could not count). Default: nothing. */
+  readonly onAnswered?: () => void;
 };
 
 export const SummaryLine = ({
@@ -40,6 +42,7 @@ export const SummaryLine = ({
   revision,
   onEcho,
   onOpenResult,
+  onAnswered,
 }: SummaryLineProps): React.JSX.Element | null => {
   // The selection by value: a new object of the same selection does not ask again.
   const key = JSON.stringify(selection);
@@ -64,6 +67,7 @@ export const SummaryLine = ({
       } else {
         onEcho(summary.message);
       }
+      onAnswered?.();
     });
     return () => {
       current = false;

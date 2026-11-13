@@ -14,8 +14,16 @@ import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT }
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { isMac, listStep, matches, pressLabel, shortcutLabel } from "./keys.js";
-import { COMMAND_HELP_KEY, HELP_KEY, MORE_SHORTCUT, isCommandHelpKey } from "./prompt-keys.js";
+import { isMac, listStep, matches, pressLabel, rowStep, shortcutLabel } from "./keys.js";
+import {
+  COMMAND_HELP_KEY,
+  COPY_SHORTCUT,
+  HELP_KEY,
+  MORE_SHORTCUT,
+  NEXT_KEY,
+  PREVIOUS_KEY,
+  isCommandHelpKey,
+} from "./prompt-keys.js";
 import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
@@ -321,109 +329,220 @@ const explanationOf = (
       };
 };
 
-/** The arguments of a catalog command in its command help (SR-210 AK3): each with its description and need. */
-const HelpArguments = ({
-  arguments: args,
+/** The rows of a part of the command help: a term and what it means. */
+const HelpRows = ({
+  className,
+  rows,
 }: {
-  readonly arguments: NonNullable<CommandHelp["arguments"]>;
+  readonly className: string;
+  readonly rows: readonly {
+    readonly term: React.ReactNode;
+    readonly text?: React.ReactNode;
+    readonly key: string;
+  }[];
 }): React.JSX.Element => (
-  <>
-    <h3>Arguments</h3>
-    {args.length === 0 ? (
-      <p>No arguments.</p>
-    ) : (
-      <dl className="help-arguments">
-        {args.map((arg) => (
-          <Fragment key={arg.name}>
-            <dt>
-              <code>{arg.name}</code>{" "}
-              <span className="help-need">{arg.required ? "required" : "optional"}</span>
-            </dt>
-            {arg.description === undefined ? null : <dd>{arg.description}</dd>}
-          </Fragment>
-        ))}
-      </dl>
-    )}
-  </>
+  <dl className={className}>
+    {rows.map(({ term, text, key }) => (
+      <Fragment key={key}>
+        <dt>{term}</dt>
+        {text === undefined ? null : <dd>{text}</dd>}
+      </Fragment>
+    ))}
+  </dl>
 );
 
 /**
- * The command help of the marked entry (SR-210 AK3) in place of the hits: the summary and details of its
- * reference page, each argument with its description and whether it is required, and the call on the command
- * line; for an action of the app its description (AK5). At the end the keys back. It scrolls with the wheel and Page
- * Up and Page Down when it is higher than the card (AK4). An entry without a command help (marked after the help
- * opened) says so.
+ * The content of the command help (SR-210 AK3, AK5), as plain text from the catalog: the title, the summary and
+ * details of the reference page, each argument with its description and whether it is required, and the call on
+ * the command line; for an action of the app its key and the catalog commands it runs by display. At the end the
+ * keys of the help and the link that opens the documentation, as F1 does (`onDocs`, absent without documentation).
  */
-const HelpView = ({
-  marked,
+const HelpContent = ({
+  help,
   mac,
-  scroller,
+  onDocs,
 }: {
-  readonly marked: Choice | undefined;
+  readonly help: CommandHelp;
   readonly mac: boolean;
-  readonly scroller: React.RefObject<HTMLDivElement | null>;
-}): React.JSX.Element => {
-  const help: CommandHelp | undefined = marked?.inert === true ? undefined : marked?.help;
-  return (
-    <div
-      ref={scroller}
-      className="card-help"
-      id="command-help"
-      role="region"
-      aria-label="Command help"
-      // A new command starts at its top.
-      key={help?.title ?? marked?.id}
-    >
-      {help === undefined ? (
-        <p className="help-none">{`${marked?.name ?? "This entry"} has no command help.`}</p>
-      ) : (
+  readonly onDocs: (() => void) | undefined;
+}): React.JSX.Element => (
+  <>
+    <h2 className="help-title">{help.title}</h2>
+    <p className="help-summary">{help.summary}</p>
+    {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
+    {help.key === undefined ? null : (
+      <>
+        <h3>Key</h3>
+        <p className="help-key">
+          <kbd>{help.key}</kbd>
+        </p>
+      </>
+    )}
+    {help.runs === undefined ? null : (
+      <>
+        <h3>Catalog commands it runs</h3>
+        <HelpRows
+          className="help-runs"
+          rows={help.runs.map(({ where, command }) => ({
+            key: `${where} ${command}`,
+            term: <code>{command}</code>,
+            text: where,
+          }))}
+        />
+      </>
+    )}
+    {help.arguments === undefined ? null : (
+      <>
+        <h3>Arguments</h3>
+        {help.arguments.length === 0 ? (
+          <p>No arguments.</p>
+        ) : (
+          <HelpRows
+            className="help-arguments"
+            rows={help.arguments.map((arg) => ({
+              key: arg.name,
+              term: (
+                <>
+                  <code>{arg.name}</code>{" "}
+                  <span className="help-need">{arg.required ? "required" : "optional"}</span>
+                </>
+              ),
+              ...(arg.description === undefined ? {} : { text: arg.description }),
+            }))}
+          />
+        )}
+      </>
+    )}
+    {help.cli === undefined ? null : (
+      <>
+        <h3>Command line</h3>
+        <pre className="help-cli">{help.cli}</pre>
+      </>
+    )}
+    <p className="help-keys">
+      <kbd>↑</kbd> <kbd>↓</kbd> <kbd>{pressLabel(NEXT_KEY, mac)}</kbd>{" "}
+      <kbd>{pressLabel(PREVIOUS_KEY, mac)}</kbd> scroll · <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> or{" "}
+      <kbd>Escape</kbd> back to the hits
+      {onDocs === undefined ? null : (
         <>
-          <h2 className="help-title">{help.title}</h2>
-          <p className="help-summary">{help.summary}</p>
-          {help.details === undefined ? null : <p className="help-details">{help.details}</p>}
-          {help.arguments === undefined ? null : <HelpArguments arguments={help.arguments} />}
-          {help.cli === undefined ? null : (
-            <>
-              <h3>Command line</h3>
-              <p>
-                <code className="help-cli">{help.cli}</code>
-              </p>
-            </>
-          )}
+          {" · "}
+          <kbd>{HELP_KEY}</kbd>{" "}
+          <a
+            href="#"
+            className="help-docs"
+            // The input keeps the focus, as on a click on a hit.
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              onDocs();
+            }}
+          >
+            {help.keyReference === true ? "Entry in the keyboard reference" : "Reference page"}
+          </a>
         </>
       )}
-      <p className="help-keys">
-        <kbd>{pressLabel(COMMAND_HELP_KEY, mac)}</kbd> or <kbd>Escape</kbd> back to the hits ·{" "}
-        <kbd>{HELP_KEY}</kbd> reference page
-      </p>
-    </div>
-  );
-};
+    </p>
+  </>
+);
+
+/** The keys that only modify another one. */
+const MODIFIERS: ReadonlySet<string> = new Set(["Control", "Meta", "Shift", "Alt", "AltGraph"]);
 
 /**
- * The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one; or the
- * command help in their place (SR-210 AK3). It is the same card throughout, so it does not slide in again when the
- * help comes or goes (SR-182 AK4).
+ * The command help (SR-210 AK3), a panel that slides in from the right over the hits while it is `open`, and back
+ * out, shorter, when it closes (AK4); the motion and its times are in styles.css (`.help-drawer`), and without
+ * motion it stands at once (AK7). It shows the help it showed last, also while it slides out. It scrolls
+ * with the wheel and, from the input, with the keys of the list (AK4). Its text can be selected and copied: a
+ * press that selects nothing gives the focus back to the input, and a key pressed while it has the focus acts in
+ * the input (`onKey`), except the key that copies and a modifier alone.
+ */
+const HelpDrawer = ({
+  help: { open, shown, marked, scroller },
+  mac,
+  docs,
+  onKey,
+  onRest,
+}: {
+  readonly help: CommandHelpState;
+  readonly mac: boolean;
+  /** F1 of the prompt (`Prompt.help`), which the link does too; absent without documentation. */
+  readonly docs: ((choice: Choice | undefined) => void) | undefined;
+  readonly onKey: (event: React.KeyboardEvent) => void;
+  readonly onRest: () => void;
+}): React.JSX.Element => (
+  <div className="help-frame">
+    <div
+      ref={scroller}
+      className="help-drawer"
+      id="command-help"
+      data-open={String(open)}
+      tabIndex={-1}
+      {...(open ? { role: "region", "aria-label": "Command help" } : { "aria-hidden": true, inert: true })}
+      onMouseUp={() => {
+        if (document.getSelection()?.isCollapsed !== false) {
+          onRest();
+        }
+      }}
+      onKeyDown={(event) => {
+        // A modifier alone, as the first key of Ctrl/Cmd+C, keeps the selection too.
+        if (MODIFIERS.has(event.key) || matches(event, COPY_SHORTCUT, mac)) {
+          event.stopPropagation();
+          return;
+        }
+        onRest();
+        onKey(event);
+      }}
+    >
+      {shown === undefined ? null : (
+        <HelpContent
+          help={shown}
+          mac={mac}
+          onDocs={
+            docs === undefined
+              ? undefined
+              : () => {
+                  docs(marked);
+                }
+          }
+        />
+      )}
+    </div>
+  </div>
+);
+
+/**
+ * The card of a prompt: its hits, if it has any, and the explanation line under them, if there is one. The
+ * command help (`drawer`) lies over the hits; while it is `helpOpen` the hits are dimmed and blurred, and the
+ * card is at its full height (SR-210 AK3). It is the same card throughout, so it does not slide in again when the
+ * help comes or goes; it only changes its height (SR-182 AK4). The wheel over the dimmed hits scrolls the help
+ * (`onWheel`).
  */
 const PromptCard = ({
   hits,
   list,
   explanation,
-  help,
+  drawer,
+  helpOpen,
+  onWheel,
 }: {
   readonly hits: boolean;
   readonly list: React.JSX.Element;
   readonly explanation: React.JSX.Element | null;
-  readonly help: React.JSX.Element | null;
+  readonly drawer: React.JSX.Element | null;
+  readonly helpOpen: boolean;
+  readonly onWheel: (event: React.WheelEvent) => void;
 }): React.JSX.Element | null =>
-  !hits && explanation === null && help === null ? null : (
+  !hits && explanation === null ? null : (
     <Card>
-      {help ?? (
-        <>
-          {hits ? list : null}
-          {explanation}
-        </>
-      )}
+      {hits ? (
+        <div className="card-hits" data-help={helpOpen ? "open" : "closed"} onWheel={onWheel}>
+          {list}
+          {drawer}
+        </div>
+      ) : null}
+      {explanation}
     </Card>
   );
 
@@ -451,6 +570,119 @@ const describedBy = (helpOpen: boolean, explained: boolean): string | undefined 
     return "command-help";
   }
   return explained ? "prompt-explain" : undefined;
+};
+
+/** The command help of the marked entry (SR-210 AK3, AK4), as `useCommandHelp` keeps it. */
+interface CommandHelpState {
+  /** Whether it is open: its entry is the marked one. */
+  readonly open: boolean;
+  /** The marked entry, unless it only informs. */
+  readonly marked: Choice | undefined;
+  /** The help shown last, which the panel keeps while it slides out. */
+  readonly shown: CommandHelp | undefined;
+  /** The panel, which scrolls. */
+  readonly scroller: React.RefObject<HTMLDivElement | null>;
+  readonly close: () => void;
+  /** Opens the help of the marked entry, if it has one, at its top, or closes the help. */
+  readonly toggle: () => void;
+  /** Scrolls the open help by `by` lines, or pages (`page`). */
+  readonly scroll: (by: number, page: boolean) => void;
+  /** The wheel over the dimmed hits scrolls the open help; over the help it scrolls by itself (AK4). */
+  readonly wheel: (event: React.WheelEvent) => void;
+}
+
+/**
+ * The command help of `marked`: it is open while the entry it opened for is marked, and closes for good when that
+ * entry leaves the hits (SR-210 AK4).
+ */
+const useCommandHelp = (entry: Choice | undefined): CommandHelpState => {
+  const marked = entry?.inert === true ? undefined : entry;
+  // The entry whose help is open, by its ID.
+  const [helpFor, setHelpFor] = useState<string | undefined>(undefined);
+  const scroller = useRef<HTMLDivElement>(null);
+  const last = useRef<CommandHelp | undefined>(undefined);
+  const open = helpFor !== undefined && marked?.id === helpFor && marked.help !== undefined;
+  if (open) {
+    last.current = marked.help;
+  }
+  useEffect(() => {
+    if (helpFor !== undefined && !open) {
+      setHelpFor(undefined);
+    }
+  }, [helpFor, open]);
+  const close = (): void => {
+    setHelpFor(undefined);
+  };
+  return {
+    open,
+    marked,
+    shown: last.current,
+    scroller,
+    close,
+    toggle: () => {
+      if (open) {
+        close();
+      } else if (marked?.help !== undefined) {
+        setHelpFor(marked.id);
+        scroller.current?.scrollTo({ top: 0 });
+      }
+    },
+    scroll: (by, page) => {
+      const view = scroller.current;
+      if (view !== null) {
+        const step = page
+          ? Math.max(view.clientHeight - 24, 24)
+          : Number.parseFloat(getComputedStyle(view).lineHeight);
+        view.scrollBy({ top: by * step });
+      }
+    },
+    wheel: (event) => {
+      const view = scroller.current;
+      if (open && view !== null && !(event.target instanceof Node && view.contains(event.target))) {
+        view.scrollBy({ top: event.deltaY });
+      }
+    },
+  };
+};
+
+/**
+ * The keys of the command help in the input; whether `event` was taken. Ctrl+H, the physical Ctrl key also on
+ * macOS (SR-145 AK1, AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes
+ * it; in the command line it is never the text's key (on macOS Ctrl+H deletes a character). While it is open (AK4)
+ * Escape and Backspace on an empty input (`query`) close it (SR-134 AK2, AK4), the keys of the list scroll it and
+ * the mark stays (SR-122 AK1 to AK3, SR-145 AK3), and Enter, Ctrl/Cmd+Enter and Tab do nothing. A key that changes
+ * the input closes it where the input changes.
+ */
+const helpKey = (event: React.KeyboardEvent, help: CommandHelpState, query: string): boolean => {
+  const take = (): true => {
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  };
+  if (isCommandHelpKey(event)) {
+    help.toggle();
+    return take();
+  }
+  if (!help.open) {
+    return false;
+  }
+  if (event.key === "Escape" || (event.key === "Backspace" && query === "")) {
+    help.close();
+    return take();
+  }
+  if (event.key === "Enter" || event.key === "Tab") {
+    return take();
+  }
+  if (event.key === "PageDown" || event.key === "PageUp") {
+    help.scroll(event.key === "PageDown" ? 1 : -1, true);
+    return take();
+  }
+  const step = rowStep(event);
+  if (step === undefined) {
+    return false;
+  }
+  help.scroll(step * 3, false);
+  return take();
 };
 
 const PromptLine = ({
@@ -503,10 +735,6 @@ const PromptLine = ({
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
-  // Whether the card shows the command help of the marked entry in place of the hits (SR-210 AK3).
-  const [helpOpen, setHelpOpen] = useState(false);
-  // The command help, scrolled by Page Up and Page Down (AK4).
-  const helpView = useRef<HTMLDivElement>(null);
 
   useEffect(
     () => () => {
@@ -546,6 +774,8 @@ const PromptLine = ({
   ];
   const rows = rowsFor(query, found);
   const current = rows[selected];
+  const help = useCommandHelp(current?.item);
+  const helpOpen = help.open;
   // The row picked with the keys, read when an answer arrives: an exact title put first then must not
   // move the selection to another row (#195).
   const picked = useRef<{ readonly at: number; readonly id: string | undefined }>({ at: 0, id: undefined });
@@ -631,6 +861,8 @@ const PromptLine = ({
   };
 
   const change = (value: string): void => {
+    // A key that changes the input closes the command help and then acts as without it (SR-210 AK4).
+    help.close();
     setQuery(value);
     prompt.typing?.(value);
     setSelected(none);
@@ -741,49 +973,6 @@ const PromptLine = ({
     return true;
   };
 
-  /** Opens the command help of the marked entry, if it has one, or closes the help (SR-210 AK3, AK4). */
-  const toggleHelp = (): void => {
-    if (helpOpen) {
-      setHelpOpen(false);
-    } else if (current !== undefined && current.item.inert !== true && current.item.help !== undefined) {
-      setHelpOpen(true);
-    }
-  };
-
-  /**
-   * The keys of the command help; whether the key was taken. Ctrl+H, the physical Ctrl key also on macOS (SR-145
-   * AK1, AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes it, as
-   * Escape does (SR-134 AK2); in the command line it is never the text's key (on macOS Ctrl+H deletes a character).
-   * Page Up and Page Down scroll the open help (AK4). Every other key acts as without the help: Up and Down mark
-   * another entry, whose help it shows, Enter and Ctrl/Cmd+Enter take the marked entry.
-   */
-  const helpKey = (event: React.KeyboardEvent): boolean => {
-    if (isCommandHelpKey(event)) {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleHelp();
-      return true;
-    }
-    if (!helpOpen) {
-      return false;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setHelpOpen(false);
-      return true;
-    }
-    const view = helpView.current;
-    if ((event.key === "PageDown" || event.key === "PageUp") && view !== null) {
-      event.preventDefault();
-      event.stopPropagation();
-      const page = Math.max(view.clientHeight - 24, 24);
-      view.scrollBy({ top: event.key === "PageDown" ? page : -page });
-      return true;
-    }
-    return false;
-  };
-
   /** Escape in the first step, or a press outside the minibuffer (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
@@ -825,6 +1014,10 @@ const PromptLine = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
+    // The open command help takes the keys of the list first (SR-210 AK4).
+    if (helpKey(event, help, query)) {
+      return;
+    }
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
     const step = listStep(event);
@@ -846,7 +1039,7 @@ const PromptLine = ({
       event.stopPropagation();
       return;
     }
-    if (helpKey(event) || argumentKey(event) || docsKey(event)) {
+    if (argumentKey(event) || docsKey(event)) {
       return;
     }
     switch (event.key) {
@@ -878,7 +1071,7 @@ const PromptLine = ({
     }
   };
 
-  const explained = explanationOf(prompt, current?.item, mac, toggleHelp);
+  const explained = explanationOf(prompt, current?.item, mac, help.toggle);
   const explanation = explained.line;
 
   return (
@@ -910,7 +1103,21 @@ const PromptLine = ({
       <PromptCard
         hits={rows.length > 0}
         explanation={explanation}
-        help={helpOpen ? <HelpView marked={current?.item} mac={mac} scroller={helpView} /> : null}
+        helpOpen={helpOpen}
+        onWheel={help.wheel}
+        drawer={
+          prompt.explains === true ? (
+            <HelpDrawer
+              help={help}
+              mac={mac}
+              docs={prompt.help}
+              onKey={keyDown}
+              onRest={() => {
+                input.current?.focus();
+              }}
+            />
+          ) : null
+        }
         list={
           <ul
             className="candidates card-list"
@@ -939,7 +1146,12 @@ const PromptLine = ({
                 }}
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  choose(row.item, query);
+                  // A click on a dimmed hit only closes the command help (SR-210 AK4, SR-202 AK3).
+                  if (helpOpen) {
+                    help.close();
+                  } else {
+                    choose(row.item, query);
+                  }
                 }}
               >
                 <span className="name">

@@ -1312,8 +1312,9 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
   };
   const marked = (): string | undefined =>
     container.querySelector('.candidates [aria-selected="true"] .name')?.textContent ?? undefined;
+  // The open command help: closed, it stays in the card, out of sight and hidden from a screen reader.
   const helpText = (): string | undefined =>
-    container.querySelector("#command-help")?.textContent ?? undefined;
+    container.querySelector('#command-help[data-open="true"]')?.textContent ?? undefined;
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
     "[SR-210/AK-wz9v] [SR-145/AK-bfb2] [SR-145/AK-tbrz] on %s, Ctrl+H shows the command help of the marked command; Cmd+H does not",
@@ -1329,31 +1330,37 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
       expect(cmd.defaultPrevented).toBe(false);
       expect(helpText()).toBeUndefined();
       // The physical Ctrl key with H, on every system.
-      const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
-      expect(ctrl.defaultPrevented).toBe(true);
+      const pressedCtrl = await pressed(query("input"), "h", { ctrlKey: true });
+      expect(pressedCtrl.defaultPrevented).toBe(true);
       expect(query("#command-help h2").textContent).toBe("Show affected elements");
       expect(query("#command-help .help-summary").textContent).toBe("A command of the catalog.");
       expect(texts("#command-help dt")).toEqual(["ref required"]);
       expect(texts("#command-help dd")).toEqual(["The element whose change is checked."]);
       expect(query("#command-help .help-cli").textContent).toBe("reqseq trace affected <ref> [options]");
-      // The hits and the explanation line give way to it.
-      expect(container.querySelector(".candidates")).toBeNull();
-      expect(container.querySelector("#prompt-explain")).toBeNull();
+      // It lies over the hits, which stay, dimmed, with the explanation line; it is a region of its own.
+      expect(query(".card-hits").getAttribute("data-help")).toBe("open");
+      expect(marked()).toBe("Show affected elements");
+      expect(query("#prompt-explain")).toBeDefined();
+      expect(query("#command-help").getAttribute("role")).toBe("region");
       expect(query("input").getAttribute("aria-describedby")).toBe("command-help");
       expect(query("input").getAttribute("aria-expanded")).toBe("false");
       expect(query("input").getAttribute("aria-activedescendant")).toBeNull();
-      const key = platform === "MacIntel" ? "⌃H" : "Ctrl+H";
+      const ctrl = (letter: string): string => (platform === "MacIntel" ? `⌃${letter}` : `Ctrl+${letter}`);
       expect(query("#command-help .help-keys").textContent).toBe(
-        `${key} or Escape back to the hits · F1 reference page`,
+        `↑ ↓ ${ctrl("N")} ${ctrl("P")} scroll · ${ctrl("H")} or Escape back to the hits · F1 Reference page`,
       );
-      // F1 still opens the reference page of the command, and the help stays (SR-141 AK3).
+      // F1 still opens the reference page of the command, and the help stays (SR-141 AK3); so does its link.
       await keyDown(query("input"), "F1");
+      expect(fake.openDocs).toHaveBeenLastCalledWith("trace.affected");
+      expect(helpText()).toBeDefined();
+      fake.openDocs.mockClear();
+      await click(query("#command-help .help-docs"));
       expect(fake.openDocs).toHaveBeenLastCalledWith("trace.affected");
       expect(helpText()).toBeDefined();
     },
   );
 
-  it("[SR-210/AK-pxr7] [SR-134/AK-ykbf] Ctrl+H and Escape close only the help; the mark changes its command; Enter acts as without it; a click on help opens it", async () => {
+  it("[SR-210/AK-pxr7] [SR-134/AK-ykbf] [SR-134/AK-fmf6] [SR-122/AK-kjhn] [SR-122/AK-n8p6] with the help open the list keys scroll it and keep the mark; Escape, Ctrl+H, Backspace and a click on a hit close it; Enter, Ctrl/Cmd+Enter and Tab do nothing; typing closes it and acts", async () => {
     const { fake, bridge } = helpBridge();
     await render(bridge);
     await keyDown(window, "P", { ...mod(), shiftKey: true });
@@ -1365,9 +1372,10 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("#command-help h2").textContent).toBe("List saved filters");
     expect(query("#command-help .help-details").textContent).toBe("Saved filters live in the workspace.");
     expect(query("#command-help").textContent).toContain("No arguments.");
-    // Ctrl+H again: the hits, and the prompt stays open.
+    // Ctrl+H again closes it, and the prompt stays open with its mark.
     await keyDown(query("input"), "h", { ctrlKey: true });
     expect(helpText()).toBeUndefined();
+    expect(query("#command-help").getAttribute("aria-hidden")).toBe("true");
     expect(marked()).toBe("List saved filters");
     // Escape closes only the help.
     await keyDown(query("input"), "h", { ctrlKey: true });
@@ -1375,24 +1383,59 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     await keyDown(query("input"), "Escape");
     expect(helpText()).toBeUndefined();
     expect(query("label").textContent).toBe("Command");
-    // With the help open, a new mark shows the help of the newly marked command.
+    expect(marked()).toBe("List saved filters");
+    // The keys of the list scroll the help; the mark stays.
     await keyDown(query("input"), "h", { ctrlKey: true });
-    expect(query("#command-help h2").textContent).toBe("List saved filters");
+    const scrolled = vi.spyOn(query("#command-help"), "scrollBy").mockImplementation(() => undefined);
+    for (const [key, init] of [
+      ["ArrowDown", {}],
+      ["ArrowUp", {}],
+      ["n", { ctrlKey: true }],
+      ["p", { ctrlKey: true }],
+      ["PageDown", {}],
+      ["PageUp", {}],
+    ] as const) {
+      expect((await pressed(query("input"), key, init)).defaultPrevented, key).toBe(true);
+    }
+    expect(scrolled).toHaveBeenCalledTimes(6);
+    expect(marked()).toBe("List saved filters");
+    // Enter, Ctrl/Cmd+Enter and Tab do nothing.
+    await keyDown(query("input"), "Enter");
+    await keyDown(query("input"), "Enter", mod());
+    await keyDown(query("input"), "Tab");
+    expect(calls(fake.invoke, "filter.list")).toEqual([]);
+    expect(helpText()).toBeDefined();
+    expect(marked()).toBe("List saved filters");
+    // A click on a dimmed hit closes only the help.
+    const hit = query('.candidates [aria-selected="true"]');
+    await act(async () => {
+      hit.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(helpText()).toBeUndefined();
+    expect(calls(fake.invoke, "filter.list")).toEqual([]);
+    // A key that changes the input closes the help and acts as without it.
+    await keyDown(query("input"), "h", { ctrlKey: true });
     await type("Show affected elements");
-    expect(query("#command-help h2").textContent).toBe("Show affected elements");
-    // An action of the app, marked with the help open, shows its own.
-    await type("Open documentation");
-    expect(query("#command-help h2").textContent).toBe("Open documentation");
-    // Page Down and Page Up are the help's.
-    const page = await pressed(query("input"), "PageDown", {});
-    expect(page.defaultPrevented).toBe(true);
-    await pressed(query("input"), "PageUp", {});
-    // Enter takes the marked command, as without the help.
+    expect(helpText()).toBeUndefined();
+    expect(marked()).toBe("Show affected elements");
+    // Backspace on an empty input closes only the help; the prompt stays open.
+    await type("");
+    // The first entry with a command help (an element or a buffer has none, AK5).
+    for (let tries = 0; helpText() === undefined && tries < 10; tries += 1) {
+      await keyDown(query("input"), "ArrowDown");
+      await keyDown(query("input"), "h", { ctrlKey: true });
+    }
+    expect(helpText()).toBeDefined();
+    const before = marked();
+    await keyDown(query("input"), "Backspace");
+    expect(helpText()).toBeUndefined();
+    expect(query("label").textContent).toBe("Command");
+    expect(marked()).toBe(before);
+    // Without the help, Enter takes the marked command.
     await type("List saved filters");
-    expect(query("#command-help h2").textContent).toBe("List saved filters");
     await keyDown(query("input"), "Enter");
     expect(calls(fake.invoke, "filter.list")).toEqual([{}]);
-    expect(container.querySelector("#command-help")).toBeNull();
   });
 
   it("[SR-210/AK-r2d2] [SR-145/AK-bfb2] an action of the app explains itself by its description; in Go to an element has no explanation and Ctrl+H does nothing", async () => {
@@ -1407,8 +1450,8 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     await keyDown(query("input"), "h", { ctrlKey: true });
     expect(query("#command-help h2").textContent).toBe("Open documentation");
     expect(query("#command-help .help-summary").textContent).toBe(description);
-    // No arguments and no call on the command line: the app alone has it.
-    expect(container.querySelector("#command-help h3")).toBeNull();
+    // No arguments and no call on the command line: the app alone has it. Its key, if it has one.
+    expect(texts("#command-help h3").filter((heading) => heading !== "Key")).toEqual([]);
     expect(container.querySelector("#command-help .help-cli")).toBeNull();
     await keyDown(query("input"), "Escape");
     await keyDown(query("input"), "Escape");

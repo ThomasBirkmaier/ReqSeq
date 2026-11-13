@@ -119,6 +119,19 @@ export interface CommandHelp {
   }[];
   /** `reqseq element get <ref> [options]`: a catalog command only. */
   readonly cli?: string;
+  /** The key of an action with its own description, as the command prompt shows it (SR-210 AK5). */
+  readonly key?: string;
+  /** The catalog commands an action with its own description runs, each with the display it runs it in (AK5). */
+  readonly runs?: readonly CommandIn[];
+  /** F1 and the link open the action's entry in the keyboard reference, not a reference page (AK5). */
+  readonly keyReference?: true;
+}
+
+/** A catalog command an action runs, with the display it runs it in ("in the list", SR-210 AK5). */
+export interface CommandIn {
+  /** The display, as the command help names it: "in the list", "on the package page". */
+  readonly where: string;
+  readonly command: string;
 }
 
 /** What the explanation line of a marked entry says (SR-210 AK1, AK5). */
@@ -332,8 +345,11 @@ export interface ActionContext {
   readonly buffers: Buffers;
   /** The keys of the open buffers, the most recently shown first (`buffer-cycle.ts`): "Next buffer" walks it. */
   readonly cycleOrder: readonly string[];
-  /** Notes that Next or Previous buffer switches to `key`, so that the order stays while the keys walk it. */
-  readonly cycled: (key: string) => void;
+  /**
+   * Notes that Next or Previous buffer (`step` as in `cycleKey`) switches to `key`, so that the order stays
+   * while the keys walk it, and so that the switch slides (SR-212). Called after `leaveEditor`, before the switch.
+   */
+  readonly cycled: (key: string, step: 1 | -1) => void;
   /** Takes the focus out of a text editor that has it, so that the editor gets no more of the key. */
   readonly leaveEditor: () => void;
   readonly mac: boolean;
@@ -457,6 +473,11 @@ export interface Action {
    * buffer, has one; one that runs exactly one shows that command's summary (`coveredCommand`).
    */
   readonly description?: string;
+  /**
+   * The catalog commands an action with a `description` runs, each with the display it runs it in: the command
+   * help names them (SR-210 AK5). Absent for an action that runs none.
+   */
+  readonly runs?: readonly CommandIn[];
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
@@ -476,6 +497,9 @@ export interface Action {
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
+
+/** What the actions that set what the shown graph follows run (SR-210 AK5). */
+const GRAPH_RUNS: readonly CommandIn[] = [{ where: "in the graph", command: "trace.graph" }];
 
 /** Ctrl/Cmd+S saves the text of the shown element. */
 const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
@@ -928,13 +952,14 @@ const askCloseAll = (context: ActionContext, open: Buffers, unsaved: Buffers): v
  * unmounts the editor: React shows the other buffer in a microtask after the listener, the App's focus
  * effect moves the focus to the new buffer, which cannot be edited, and a composition aimed at a focus
  * that is no text input inserts nothing. Leaving the editor first also covers a later case where the
- * editor stays shown (a split window, SR-115 AK3).
+ * editor stays shown (a split window, SR-115 AK3). The picture of the buffer that is left, for the motion of the
+ * switch (SR-212), is taken in `cycled`, after the editor is left, so it shows no caret.
  */
 const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
   const key = cycleKey(context.cycleOrder, context.buffers[0]?.key, step);
   if (key !== undefined) {
     context.leaveEditor();
-    context.cycled(key);
+    context.cycled(key, step);
     context.dispatch({ type: "switch", key });
   }
 };
@@ -1173,6 +1198,7 @@ export const ACTIONS: readonly Action[] = [
     id: "list-value",
     title: "List elements with this value",
     description: "Open the list of all elements that have the value at the cursor.",
+    runs: [{ where: "in the list", command: "element.list" }],
     shortcut: LIST_VALUE_SHORTCUT,
     available: hasElementText,
     run: (context: ActionContext): void => {
@@ -1332,6 +1358,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-depth",
     title: "Graph depth",
     description: "Set how many levels the shown graph follows.",
+    runs: GRAPH_RUNS,
     hint: DEPTH_KEYS,
     available: isGraph,
     run: graphPrompt("Graph depth", (graph) => depthChoices(graph)),
@@ -1341,6 +1368,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-only",
     title: "Show only relation kind",
     description: "Let the shown graph follow only one relation kind.",
+    runs: GRAPH_RUNS,
     available: isGraph,
     run: graphPrompt("Show only", onlyChoices),
   },
@@ -1350,6 +1378,7 @@ export const ACTIONS: readonly Action[] = [
     id: "graph-also",
     title: "Also show relation kind",
     description: "Let the shown graph follow one more relation kind.",
+    runs: GRAPH_RUNS,
     available: (context: ActionContext): boolean => {
       const shown = context.buffers[0];
       return (
@@ -1386,6 +1415,10 @@ export const ACTIONS: readonly Action[] = [
     id: "copy-mermaid",
     title: "Copy graph as Mermaid",
     description: "Copy the shown graph of an element or of the metamodel as a Mermaid flowchart.",
+    runs: [
+      { where: "in the graph of an element", command: "trace.mermaid" },
+      { where: "in the graph of the metamodel", command: "metamodel.mermaid" },
+    ],
     covers: ["trace.mermaid", "metamodel.mermaid"],
     available: (context: ActionContext): boolean =>
       isGraph(context) || metamodelIn(context, "graph") !== undefined,
