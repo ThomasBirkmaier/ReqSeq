@@ -13,9 +13,19 @@
 // lists its command as an implemented read command, so a restore never writes.
 import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing, InvokeResult } from "../shared/protocol.js";
+import { fold } from "@reqseq/core/fold";
 import { keptQuery } from "./list-query.js";
+import { checkPerspective, checkedBuffer, perspectiveNamed } from "./perspective-actions.js";
 import { memberQuery } from "./package-page.js";
-import type { Buffer, Buffers, ElementBuffer, FilterStep, GraphDepth, SearchBuffer } from "./buffers.js";
+import type {
+  Buffer,
+  Buffers,
+  ElementBuffer,
+  FilterStep,
+  GraphDepth,
+  ListBuffer,
+  SearchBuffer,
+} from "./buffers.js";
 import {
   MAX_BUFFERS,
   elementBuffer,
@@ -25,10 +35,12 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  perspectiveBuffer,
   queryOf,
   readOnlyBuffer,
   resultBuffer,
   searchBuffer,
+  savedOf,
   searchQueryOf,
 } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -52,6 +64,8 @@ export type StoredBuffer =
       readonly sort?: readonly FilterSortKeyWithDefaults[];
       readonly matrix?: true;
     }
+  /** The buffer of a perspective (SR-214 AK7): only its name, since it comes back as saved. */
+  | { readonly kind: "perspective"; readonly name: string }
   | { readonly kind: "search"; readonly query: string; readonly steps?: readonly FilterStep[] }
   | (Named & {
       readonly kind: "element";
@@ -143,21 +157,31 @@ const storedSearch = (buffer: SearchBuffer): StoredBuffer => {
   };
 };
 
+/**
+ * What is stored of a list: of a perspective buffer only the name, since it comes back as saved (SR-214
+ * AK7); of any other what a restart keeps of the query (`keptQuery`): the steps and the sort, not the
+ * grouping, and the mode.
+ */
+const storedList = (buffer: ListBuffer): StoredBuffer => {
+  if (buffer.perspective !== undefined) {
+    return { kind: "perspective", name: buffer.perspective.name };
+  }
+  const kept = keptQuery(queryOf(buffer));
+  return {
+    kind: "list",
+    steps: storedSteps(kept.steps),
+    ...(kept.sort === undefined ? {} : { sort: kept.sort }),
+    ...(buffer.matrix === true ? { matrix: true as const } : {}),
+  };
+};
+
 /** What is stored of `buffer`. */
 const storedOf = (buffer: Buffer): StoredBuffer => {
   switch (buffer.kind) {
     case "overview":
       return { kind: "overview" };
-    case "list": {
-      // What a restart keeps of the query (`keptQuery`): the steps and the sort, not the grouping.
-      const kept = keptQuery(queryOf(buffer));
-      return {
-        kind: "list",
-        steps: storedSteps(kept.steps),
-        ...(kept.sort === undefined ? {} : { sort: kept.sort }),
-        ...(buffer.matrix === true ? { matrix: true as const } : {}),
-      };
-    }
+    case "list":
+      return storedList(buffer);
     case "search":
       return storedSearch(buffer);
     case "element":
@@ -321,6 +345,7 @@ const parseGraph = (value: Fields): StoredBuffer | undefined => {
 const PARSERS: Readonly<Record<StoredBuffer["kind"], (value: Fields) => StoredBuffer | undefined>> = {
   overview: () => ({ kind: "overview" }),
   list: parseList,
+  perspective: (value) => (isText(value["name"]) ? { kind: "perspective", name: value["name"] } : undefined),
   search: parseSearch,
   element: parseElement,
   neighbourhood: parseNeighbourhood,
@@ -422,6 +447,65 @@ const readNames = async (call: Call, elements: readonly Named[]): Promise<Names>
   };
 };
 
+/** The perspective buffers to show again, by folded name, and whether every name could be decided. */
+interface Perspectives {
+  readonly buffers: ReadonlyMap<string, Buffer>;
+  /** False when a perspective could not be read for another reason than its own errors. */
+  readonly complete: boolean;
+}
+
+/** The answers of `element.list` that are about the perspective itself (SR-213 AK6, AK8, an unknown name). */
+const OWN = new Set(["input.invalid", "file.faulty"]);
+
+/**
+ * The perspective buffers of `names` as saved (SR-214 AK7): with one `perspective.list` and the check of
+ * opening for each (`checkPerspective`). A listed perspective comes back from what is saved, without its
+ * grouping when that can no longer be chosen (SR-213 AK7, its warning shown when the buffer is), and also
+ * when core refuses it (a saved filter missing or faulty, SR-213 AK6): the buffer shows the error, as a
+ * reload does. A name that only a faulty file holds comes back too, shows `file.faulty` and lists nothing. Only a name no
+ * file holds is left out. A list that is incomplete or fails, or a check that fails for another reason,
+ * leaves the restore incomplete, so the stored buffers stay for the next start.
+ */
+const readPerspectives = async (call: Call, names: readonly string[]): Promise<Perspectives> => {
+  if (names.length === 0) {
+    return { buffers: new Map(), complete: true };
+  }
+  const listed = await call("perspective.list", {});
+  if (!listed.ok) {
+    return { buffers: new Map(), complete: false };
+  }
+  const known = listed.output.incomplete !== true;
+  // Each name once, as it was stored first.
+  const byFold = new Map<string, string>();
+  for (const name of names) {
+    if (!byFold.has(fold(name))) {
+      byFold.set(fold(name), name);
+    }
+  }
+  const read = await Promise.all(
+    [...byFold].map(async ([folded, name]) => {
+      const found = perspectiveNamed(listed.output.perspectives, name);
+      const check = await checkPerspective(call, found?.name ?? name);
+      if (found !== undefined) {
+        const own = check.ok || OWN.has(check.code);
+        const buffer = check.ok
+          ? checkedBuffer(found, check.output, true).buffer
+          : perspectiveBuffer({ name: found.name, saved: savedOf(found, true) });
+        return { folded, buffer, complete: own };
+      }
+      if (!check.ok && check.code === "file.faulty") {
+        return { folded, buffer: perspectiveBuffer({ name, error: check.message }), complete: true };
+      }
+      // Gone: no file holds the name; undecided while the list or the check is not complete.
+      return { folded, buffer: undefined, complete: known && !check.ok && check.code === "input.invalid" };
+    }),
+  );
+  return {
+    buffers: new Map(read.flatMap(({ folded, buffer }) => (buffer === undefined ? [] : [[folded, buffer]]))),
+    complete: read.every((entry) => entry.complete),
+  };
+};
+
 /** The commands a restored result may run: the implemented read commands of the catalog. */
 const readCommands = (catalog: readonly CommandListing[]): ReadonlySet<string> =>
   new Set(catalog.filter((entry) => entry.implemented && entry.effect === "read").map((entry) => entry.name));
@@ -441,12 +525,15 @@ const rebuild = (
   stored: StoredBuffer,
   names: ReadonlyMap<string, string>,
   runs: ReadonlySet<string>,
+  perspectives: ReadonlyMap<string, Buffer>,
 ): Buffer | undefined => {
   switch (stored.kind) {
     case "overview":
       return overviewBuffer();
     case "list":
       return filteredList(stored.steps, stored.sort, stored.matrix === true);
+    case "perspective":
+      return perspectives.get(fold(stored.name));
     case "search":
       return searchBuffer(stored.query, stored.steps);
     case "metamodel":
@@ -494,11 +581,15 @@ export const restoreSession = async (
     return { buffers: [], complete: true };
   }
   const hasResult = session.buffers.some((buffer) => buffer.kind === "result");
-  const [{ names, complete }, runs] = await Promise.all([
+  const [{ names, complete }, runs, perspectives] = await Promise.all([
     readNames(call, namedIn(session)),
     hasResult ? catalog().then(readCommands, () => new Set<string>()) : Promise.resolve(new Set<string>()),
+    readPerspectives(
+      call,
+      session.buffers.flatMap((buffer) => (buffer.kind === "perspective" ? [buffer.name] : [])),
+    ),
   ]);
-  const rebuilt = session.buffers.map((stored) => rebuild(stored, names, runs));
+  const rebuilt = session.buffers.map((stored) => rebuild(stored, names, runs, perspectives.buffers));
   const seen = new Set<string>();
   const buffers = rebuilt.flatMap((buffer) => {
     if (buffer === undefined || seen.has(buffer.key)) {
@@ -507,5 +598,5 @@ export const restoreSession = async (
     seen.add(buffer.key);
     return [buffer];
   });
-  return { buffers, complete };
+  return { buffers, complete: complete && perspectives.complete };
 };

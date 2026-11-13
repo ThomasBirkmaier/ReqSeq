@@ -75,6 +75,7 @@ import {
 import { savedLine } from "./save-flow.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
+import { usePerspectiveUse, useRestoredWarning } from "./use-perspectives.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
@@ -300,6 +301,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // Go to asks core nothing when it opens, so its search is not queued behind reads of these elements.
   const recentNames = useRef(new Map<string, ElementBuffer>());
   const scope = useRef<string | undefined>(undefined);
+  // The perspectives opened last in this workspace (SR-214 AK1).
+  const perspectiveUse = usePerspectiveUse(appStorage);
   // The order Next and Previous buffer walk (SR-115 AK5), and the buffer they switched to last.
   const walk = useRef<Walk>(NO_WALK);
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
@@ -451,6 +454,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (reason === "restarted") {
         leaveSwitching();
       }
+      perspectiveUse.follow(result);
       const key = recentKey(result);
       if (key !== scope.current) {
         scope.current = key;
@@ -746,6 +750,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         setRevision((count) => count + 1);
       },
     },
+    // The perspectives opened last (SR-214 AK1): the prompt of "Open perspective" lists them first.
+    perspectives: perspectiveUse.controls,
     // "Fold status in lists" (SR-201): the lists read again with the new choice.
     folds: {
       choice: foldChoice,
@@ -1095,6 +1101,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
   }, [prompt, about, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
+
+  // A perspective buffer that came back at a restart without its grouping says why when first shown (SR-213 AK7).
+  useRestoredWarning(current, setEcho, dispatch);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.

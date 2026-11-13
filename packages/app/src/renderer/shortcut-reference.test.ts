@@ -252,6 +252,7 @@ describe("shortcutReference", () => {
       "Set status",
       "Confirm hints",
       "List all elements",
+      "Open perspective",
       "Show overview",
       "Filter list by type",
       "Sort list",

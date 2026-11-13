@@ -58,6 +58,10 @@
     "./docs-site": {
       "types": "./dist/docs-site/site.d.ts",
       "default": "./dist/docs-site/site.js"
+    },
+    "./fold": {
+      "types": "./dist/query/fold.d.ts",
+      "default": "./dist/query/fold.js"
     }
   },
   "scripts": {

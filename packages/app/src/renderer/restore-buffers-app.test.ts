@@ -38,7 +38,21 @@ const HANDLERS: Record<string, Handler> = {
   // The line of coverage over a list: no counted requirement.
   ...NO_SUMMARY,
   "workspace.status": () => ({ name: workspace, readOnly: true }),
+  "perspective.list": () => ({
+    perspectives: faultyOnly
+      ? []
+      : [{ name: "Drafts", file: "perspectives/drafts.yaml", where: { status: ["draft"] }, group: "status" }],
+  }),
   "element.list": (input) => {
+    if (input["perspective"] !== undefined && faultyOnly) {
+      return new Error("The perspective is in a faulty file");
+    }
+    if (input["perspective"] !== undefined) {
+      const problems = groupGone
+        ? [{ code: "perspective.group-unavailable", severity: "warning", message: "Cannot group by status" }]
+        : [];
+      return { elements: [row(1)], total: 1, problems };
+    }
     const ids = (input["selection"] as { ids?: string[] } | undefined)?.ids;
     const all = [row(1), row(2), row(3)];
     const elements = ids === undefined ? all : all.filter((e) => ids.includes(e.id));
@@ -79,12 +93,26 @@ const HANDLERS: Record<string, Handler> = {
 /** `workspace.status` finds no workspace (core restarting) while this is set. */
 let statusFails = false;
 
-const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
+/** The grouping of the perspective can no longer be chosen (SR-213 AK7) while this is set. */
+let groupGone = false;
+
+/** Only a faulty file holds the perspective while this is set. */
+let faultyOnly = false;
+
+const answer = (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
   if (name === "workspace.status" && statusFails) {
     return Promise.resolve({ ok: false, error: { code: "workspace.not-found", message: "restarting" } });
   }
-  return Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) });
-});
+  const output = HANDLERS[name]?.(input);
+  // An error stands for core's refusal.
+  return Promise.resolve(
+    output instanceof Error
+      ? { ok: false, error: { code: "file.faulty", message: output.message } }
+      : { ok: true, output },
+  );
+};
+
+const invoke = vi.fn(answer);
 
 /** The listeners of `workspace-changed`, to open another workspace. */
 const changed = new Set<(change: BridgeEvents["workspace-changed"]) => void>();
@@ -118,7 +146,10 @@ let root: Root;
 beforeEach(() => {
   workspace = "Weather station";
   statusFails = false;
+  groupGone = false;
+  faultyOnly = false;
   invoke.mockClear();
+  invoke.mockImplementation(answer);
   changed.clear();
   window.localStorage.clear();
   window.sessionStorage.clear();
@@ -176,6 +207,9 @@ const runCommand = async (name: string): Promise<void> => {
 
 /** The name of the shown buffer. */
 const shown = (): string | null => query("[data-buffer]").getAttribute("aria-label");
+
+/** What the minibuffer says. */
+const echo = (): string | null | undefined => container.querySelector(".minibuffer .echo")?.textContent;
 
 /** The names of the candidates of the open prompt, in the order shown. */
 const candidates = (): (string | null)[] =>
@@ -397,5 +431,49 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     const kept = window.sessionStorage.getItem(DRAFTS_KEY) ?? "";
     expect(kept).toContain("element:spec:uuid-1");
     expect(kept).not.toContain("element:spec:uuid-9");
+  });
+});
+
+describe("App, a perspective buffer after the app opens again (SR-214 AK7)", () => {
+  it("[SR-214/AK-sf7b] [SR-213/AK-zz87] comes back as saved, and without its grouping says why when it is shown", async () => {
+    await render();
+    await press(window, { key: "k", code: "KeyK", ctrlKey: true });
+    await press(window, { key: "v", code: "KeyV" });
+    expect(candidates()).toEqual(["Drafts"]);
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("perspective: Drafts · grouped by status");
+    // Changed, and not saved: the change goes at the restart.
+    await runCommand("Ungroup list");
+    expect(shown()).toBe("perspective: Drafts");
+
+    await restart();
+    expect(shown()).toBe("Overview");
+    await press(window, { key: "p", code: "KeyP", altKey: true });
+    expect(shown()).toBe("perspective: Drafts · grouped by status");
+
+    groupGone = true;
+    await restart();
+    expect(echo()).not.toBe("Cannot group by status");
+    await press(window, { key: "p", code: "KeyP", altKey: true });
+    expect(shown()).toBe("perspective: Drafts");
+    expect(echo()).toBe("Cannot group by status");
+  });
+
+  it("[SR-214/AK-sf7b] one that only a faulty file holds comes back, shows why and lists nothing", async () => {
+    await render();
+    await press(window, { key: "k", code: "KeyK", ctrlKey: true });
+    await press(window, { key: "v", code: "KeyV" });
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("perspective: Drafts · grouped by status");
+
+    faultyOnly = true;
+    await restart();
+    await press(window, { key: "p", code: "KeyP", altKey: true });
+    expect(shown()).toBe("perspective: Drafts");
+    expect(query("[data-buffer]").textContent).toContain("The perspective is in a faulty file");
+    expect(container.querySelectorAll("[data-buffer] .row")).toHaveLength(0);
+    // Asked by the check only, never for its elements by the name or for every element.
+    const lists = invoke.mock.calls.filter(([name]) => name === "element.list").map(([, input]) => input);
+    expect(lists).toEqual([{ perspective: "Drafts", limit: 1, fields: ["identifier"] }]);
   });
 });
