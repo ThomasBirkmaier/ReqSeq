@@ -297,7 +297,7 @@ test.describe("the card of the command line in motion", () => {
     await window.keyboard.type("filter");
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter");
     await window.keyboard.press("Backspace");
-    await window.keyboard.type("r list by s");
+    await window.keyboard.type("r list by st");
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("status");
     await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);

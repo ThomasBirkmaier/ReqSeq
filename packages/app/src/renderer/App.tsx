@@ -11,12 +11,14 @@ import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import {
   ACTIONS,
   actionFor,
+  allCommandsPrompt,
   commandPrompt,
   historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
   referencePrompt,
   runAction,
+  unusedOrder,
   swipeAction,
 } from "./actions.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
@@ -931,27 +933,40 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them, also on an
   // action (the read is short: core answers at once, or the bridge gives none without a connection).
   const commands = useCallback(
-    (shown = true): Prompt => {
+    (shown = true, all = false, from?: ActionContext): Prompt => {
       // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
-      // chosen here (SR-134 AK1), open the command prompt again.
+      // chosen here (SR-134 AK1), open the command prompt again, or the list of every command it was chosen in.
       const reopen = (): void => {
-        ask(commands());
+        ask(commands(true, all));
       };
+      // "All commands…" (SR-133 AK3): the shown prompt with an empty input offers it after the first nine. It lists
+      // the commands of the context the prompt opened in, as its other rows run in it: a click on the row must not
+      // drop what the shown buffer had selected.
+      const opened = from ?? latest.current;
+      const everything =
+        shown && !all
+          ? (): void => {
+              ask(commands(true, true, opened));
+            }
+          : undefined;
       const build = (): Prompt => {
-        const now = latest.current;
+        const now = from ?? latest.current;
         const items = catalogItems(
           { ...now, revision: () => revisionNow.current, reopen },
           catalog.current,
           ACTIONS,
         );
-        return withHelp(
+        const prompt = withHelp(
           withExplanations(
-            commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined),
+            commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined, everything),
             catalog.current,
           ),
           now,
           catalog.current,
         );
+        // Without use in the order of SR-133 AK1, which `rankByUse` keeps among commands in equal use.
+        const ordered = { ...prompt, items: unusedOrder(prompt.items) };
+        return all ? allCommandsPrompt(ordered) : ordered;
       };
       const prompt = build();
       const reading = catalogRead.current;
@@ -994,10 +1009,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const id = menuEntriesNow.current[index];
     contextMenu.close();
     if (id === undefined) {
-      // "All commands…" (AK3): the command prompt with an empty input, as Ctrl/Cmd+Shift+P gives it on this
-      // buffer: from the context without the menu's entry (SR-197), so no name is listed twice.
-      latest.current = context;
-      ask(commands());
+      // "All commands…" (AK3): every command of the command prompt alphabetically, as its row "All commands…"
+      // gives it on this buffer (SR-133 AK3): from the context without the menu's entry (SR-197).
+      ask(commands(true, true, context));
       return;
     }
     beforeCommand();

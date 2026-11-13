@@ -5,6 +5,7 @@
 // command prompt, counts and times are stored; nothing is recorded for "Go to", argument steps or elements.
 import { rank } from "./fuzzy.js";
 import type { Ranked } from "./fuzzy.js";
+import type { Choice, Prompt } from "./actions.js";
 
 /** The storage key; the version lets a later format start empty instead of misreading this one. */
 export const USAGE_KEY = "reqseq.usage.v1";
@@ -146,7 +147,7 @@ const sameWords = (a: string, b: string): boolean =>
 
 /**
  * The items that match `query`, the best match first (`rank`). Two equally good matches, and the items
- * when nothing is typed, go first by fit: the ones that fit the shown view first (SR-133); then by use:
+ * when nothing is typed (of which `openingRows` keeps the fitting ones), go first by fit: the ones that fit the shown view first (SR-133); then by use:
  * the one in use more and more recently first (SR-108 AK3); a better match is never overtaken. The item
  * chosen the last time for exactly this text comes first when it matches now (SR-121 AK2); otherwise an item
  * whose whole name is the typed text does ("Type" before "Type and ID").
@@ -206,4 +207,30 @@ export const promptRows = <
     ...rows.filter(({ item }) => exact.has(item.id)),
     ...rows.filter(({ item }) => !exact.has(item.id)),
   ];
+};
+
+/**
+ * The prompt's own rows for `text` and the choices found for it (`promptRows`). An empty input shows what
+ * `Prompt.opening` says: the first fitting items and the last row, or every item in the given order (SR-133 AK1,
+ * AK3).
+ */
+export const openingRows = (
+  prompt: Pick<Prompt, "items" | "opening" | "use">,
+  text: string,
+  found: readonly Choice[],
+): PromptRow<Choice>[] => {
+  const { opening } = prompt;
+  if (opening === undefined || text.trim() !== "") {
+    return promptRows(prompt.items, found, (choice) => choice.name, text, prompt.use);
+  }
+  if (opening === "as-given") {
+    return prompt.items.map((item) => ({ item, ranges: [], own: true }));
+  }
+  const rows = promptRows(prompt.items, found, (choice) => choice.name, text, prompt.use);
+  return prompt.items.length <= opening.first + 1
+    ? rows
+    : [
+        ...rows.filter(({ item }) => item.fits === true).slice(0, opening.first),
+        { item: opening.last, ranges: [], own: true },
+      ];
 };

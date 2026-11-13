@@ -13,7 +13,7 @@ On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key
 
 ## The command prompt
 
-Ctrl+Shift+P, or a click on the bottom line, opens the command prompt. It lists actions and commands, those for the shown buffer and those you use most first. The search is fuzzy (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape steps back, then closes.
+Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape steps back, then closes.
 
 An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that may follow.
 
@@ -39,7 +39,7 @@ A workspace opens on the overview: counts per type and for up to ten **Perspecti
 
 ## Context menus
 
-A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, opens the prompt.
+A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, lists every command there by name.
 
 ## Help
 
