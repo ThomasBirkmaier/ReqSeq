@@ -510,7 +510,11 @@ export const searchBuffer = (
   fields: readonly SearchField[] = [],
 ): SearchBuffer => {
   const selection = selectionOf(steps);
-  const keys = fields.map((field) => field.key).join(",");
+  // In any order the same fields are the same search.
+  const keys = fields
+    .map((field) => field.key)
+    .sort()
+    .join(",");
   return {
     kind: "search",
     key: fields.length === 0 ? `search:${query}` : `search[${keys}]:${query}`,

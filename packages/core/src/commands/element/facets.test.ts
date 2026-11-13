@@ -486,3 +486,40 @@ describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
     expect((await facets(ws)).incomplete).toBe(true);
   });
 });
+
+describe("element.facets of a search in chosen fields (SR-216)", () => {
+  const fields = async (): Promise<Workspace> => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-216/fields" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    return workspace;
+  };
+
+  it("[SR-124/AK-mtm9] counts only the hits of the search in its fields, as the list of search hits shows them", async () => {
+    const workspace = await fields();
+    const facets = async (input: Record<string, unknown>): Promise<Output> =>
+      (await invoke("element.facets", input, { workspace })) as Output;
+    // "gust" is in the text of both elements, in the acceptance criteria of one.
+    expect((await facets({ search: { query: "gust" } })).total).toBe(2);
+    const restricted = await facets({ search: { query: "gust", fields: ["acceptance-criteria"] } });
+    expect(restricted.total).toBe(1);
+    expect(restricted.statuses).toEqual([expect.objectContaining({ key: "draft", count: 1 })]);
+    const searched = (await invoke(
+      "element.search",
+      { query: "gust", fields: ["acceptance-criteria"] },
+      { workspace },
+    )) as CommandOutput<"element.search">;
+    expect(searched.total).toBe(restricted.total);
+    // With a selection, both must hold.
+    const both = await facets({
+      selection: { where: { status: ["approved"] } },
+      search: { query: "gust", fields: ["acceptance-criteria"] },
+    });
+    expect(both.total).toBe(0);
+    // A field element.search refuses is refused here too, naming the key.
+    await expect(
+      invoke("element.facets", { search: { query: "gust", fields: ["derives-from"] } }, { workspace }),
+    ).rejects.toThrow(/derives-from/u);
+  });
+});

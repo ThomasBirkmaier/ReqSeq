@@ -92,6 +92,9 @@ describe("the list of search hits in fields", () => {
     const restricted = searchBuffer("gust", [], undefined, fields);
     const other = searchBuffer("gust", [], undefined, [field("rationale")]);
     expect(new Set([plain.key, restricted.key, other.key]).size).toBe(3);
+    expect(searchBuffer("gust", [], undefined, [field("text"), field("acceptance-criteria")]).key).toBe(
+      restricted.key,
+    );
     expect(plain.fields).toBeUndefined();
     expect(bufferName(restricted)).toBe("Search: gust · in Acceptance Criteria, Text");
     expect(bufferName(plain)).toBe("Search: gust");

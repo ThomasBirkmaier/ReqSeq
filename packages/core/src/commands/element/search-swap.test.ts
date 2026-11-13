@@ -108,4 +108,24 @@ describe("element.search over a store swapped while it runs", () => {
     expect(error).toBeInstanceOf(CommandError);
     expect((error as CommandError).message).toContain('"topic" is not a property of the metamodel');
   });
+
+  it("element.facets with search checks the fields again against the metamodel of the index too (SR-216 AK2)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    hook.afterSelection = async () => {
+      const file = fixture.path("metamodel/standard-model.yaml");
+      const text = await fs.readFile(file, "utf8");
+      await fs.writeFile(file, text.replace(/^ {2}- \{ key: topic, .*\n/mu, ""));
+      await ws.reset(metamodelState);
+    };
+    const error = await invoke(
+      "element.facets",
+      { search: { query: "wind", fields: ["topic"] } },
+      { workspace: ws },
+    ).catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(CommandError);
+    expect((error as CommandError).message).toContain('"topic" is not a property of the metamodel');
+  });
 });

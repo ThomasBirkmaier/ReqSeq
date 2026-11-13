@@ -4,9 +4,10 @@
   "summary": "Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-069", "SR-124", "SR-118"],
+  "implements": ["SR-069", "SR-124", "SR-118", "SR-216"],
   "arguments": [
     { "field": "selection", "complete": "selection" },
+    { "field": "search", "complete": "json" },
     { "field": "maxValues", "complete": "number" }
   ],
   "input": {
@@ -15,6 +16,22 @@
       "selection": {
         "$ref": "../common.schema.json#/$defs/selection",
         "description": "Every part given must hold (SR-101 AK2). Without it, every element."
+      },
+      "search": {
+        "type": "object",
+        "description": "Only the elements of the selection that element.search finds for `query` in `fields` (SR-216): the facets of a list of search hits restricted to fields. `fields` as in element.search, refused the same way.",
+        "properties": {
+          "query": { "type": "string", "description": "As element.search `query`." },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "../common.schema.json#/$defs/searchFieldKey" },
+            "description": "As element.search `fields`; default all."
+          }
+        },
+        "required": ["query"],
+        "additionalProperties": false
       },
       "maxValues": {
         "type": "integer",
