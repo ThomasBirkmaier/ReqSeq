@@ -211,6 +211,42 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
   });
 
+  test("[SR-212/AK-tfck] the save of leaving an element belongs to the switch: the other neighbour stays drawn in advance, read once more", async () => {
+    const { window } = running;
+    // In the order of use SPEED, NEED, SECOND: from SPEED, Alt+P goes to NEED, whose other neighbour is SECOND,
+    // drawn in advance already beside SPEED.
+    await open(window, SECOND.title);
+    // Without the overview of the start, so the walk is these three.
+    await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
+    await command(window, "Close buffer");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SECOND.title);
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`SR-0000b2 ${SECOND.title}`);
+    await quiet(requests);
+    await shownLayer(window).locator(".cm-content").first().click();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.type(" In knots.");
+    await requests.clear();
+    await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(NEED.title);
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED.id])).stdout)
+      .toContain("In knots.");
+    await quiet(requests);
+    // The save of leaving SPEED is a change, but of the switch: SECOND is read once more and stays drawn.
+    expect(await hiddenViews(window)).toEqual(
+      expect.arrayContaining([`SR-0000b1 ${SPEED.title}`, `SR-0000b2 ${SECOND.title}`]),
+    );
+    expect(naming(await requests.sent(), SECOND.id).map((request) => request.name)).toContain("element.get");
+    await requests.clear();
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SECOND.title);
+    expect(naming(await requests.sent(), SECOND.id)).toEqual([]);
+  });
+
   test("[SR-212/AK-tfck] an element drawn in advance and changed outside is no longer drawn in advance, not read in the background, and read at the switch with the highlight of a fresh open", async () => {
     const { window } = running;
     await open(window, NEED.title);

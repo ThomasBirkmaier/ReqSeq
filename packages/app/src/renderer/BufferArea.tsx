@@ -107,6 +107,11 @@ export interface AreaViews {
    * background but dropped from the buffers drawn in advance until the next switch (SR-212 AK5).
    */
   readonly drop: (key: string) => void;
+  /**
+   * Counts the changes that were a save of leaving an element (SR-105 AK1): they belong to the switch, so a
+   * hidden view that read before one reads once more, and is not dropped (SR-212 AK5).
+   */
+  readonly switchSaves: number;
 }
 
 const BufferView = ({
@@ -285,8 +290,13 @@ const useLayerViews = (
   const latest = useRef(views);
   latest.current = views;
   const pending = useRef(0);
-  // The generation of the workspace (`seen`) its first read went in, while hidden: a later read is not sent.
-  const readAt = useRef<number | undefined>(undefined);
+  // The generation of the workspace (`seen`) and the count of switch saves its last read went in, while hidden:
+  // after another change a read is not sent, after a save of leaving it reads once more.
+  const readAt = useRef<{ readonly seen: number; readonly saves: number } | undefined>(undefined);
+  const stale = (): boolean =>
+    readAt.current !== undefined &&
+    readAt.current.seen !== latest.current.seen &&
+    readAt.current.saves === latest.current.switchSaves;
   // The layer is mounted: a read that waited at the gate for a layer gone meanwhile is not sent.
   const alive = useRef(true);
   useEffect(() => {
@@ -319,10 +329,10 @@ const useLayerViews = (
           }
           // Shown meanwhile, it reads as a shown view does.
           if (hiddenNow()) {
-            readAt.current ??= latest.current.seen;
-            if (readAt.current !== latest.current.seen) {
+            if (stale()) {
               return { ok: false, code: "LAYER_STALE", message: "The view drawn in advance is out of date." };
             }
+            readAt.current = { seen: latest.current.seen, saves: latest.current.switchSaves };
           }
         }
         return await inner(name, input);
@@ -401,7 +411,7 @@ const useLayerViews = (
   return {
     views: { ...views, call, ...callbacks, element },
     pending: () => pending.current,
-    stale: () => readAt.current !== undefined && readAt.current !== latest.current.seen,
+    stale,
     reveal: () => {
       ever.current = true;
       revealed.open();

@@ -61,7 +61,7 @@ const area = (gate: ReadGate) => {
       packages: { types: new Set(["package"]), key: "packages" },
       properties: new Map(),
     }) as unknown as ElementProps;
-  const views = (seen: number) =>
+  const views = (seen: number, switchSaves: number) =>
     ({
       call: call as unknown as Call,
       revision: seen,
@@ -78,15 +78,16 @@ const area = (gate: ReadGate) => {
       gate,
       ready: () => undefined,
       drop,
+      switchSaves,
     }) as unknown as AreaViews;
-  const render = async (hidden: readonly Buffer[], seen = 0): Promise<void> => {
+  const render = async (hidden: readonly Buffer[], seen = 0, switchSaves = 0): Promise<void> => {
     await act(async () => {
       root.render(
         createElement(BufferArea, {
           area: { side: "left", buffer: SHOWN, active: true },
           split: false,
           onActivate: () => undefined,
-          views: views(seen),
+          views: views(seen, switchSaves),
           hidden,
         }),
       );
@@ -137,6 +138,35 @@ it("[SR-212/AK-tfck] a layer drawn in advance is not read again after a change o
     await Promise.resolve();
   });
   expect(reads("uuid-1")).toBe(1);
+  expect(drop).toHaveBeenCalledWith(HIDDEN.key);
+  gate.dispose();
+});
+
+it("[SR-212/AK-tfck] a layer drawn in advance reads once more after the save of leaving an element, which belongs to the switch", async () => {
+  const gate = new ReadGate(60_000);
+  const { render, reads, drop } = area(gate);
+  await render([HIDDEN]);
+  await act(async () => {
+    gate.show(SHOWN.key, true);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(1);
+  // The change of the save of leaving: read once more, not dropped.
+  await render([HIDDEN], 1, 1);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(2);
+  expect(drop).not.toHaveBeenCalled();
+  // A change after that one drops it.
+  await render([HIDDEN], 2, 1);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(2);
   expect(drop).toHaveBeenCalledWith(HIDDEN.key);
   gate.dispose();
 });

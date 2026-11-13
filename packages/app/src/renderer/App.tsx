@@ -297,6 +297,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const openPrompt = useRef<Prompt | undefined>(undefined);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
+  // The writes of the save of leaving an element (SR-105 AK1) not yet answered by their change, and the changes
+  // that were such a write: they count to the switch, so the buffers drawn in advance read once more after them
+  // (SR-212 AK5).
+  const leavingWrites = useRef(0);
+  const [switchSaves, setSwitchSaves] = useState(0);
   // The changes from outside that named elements (SR-116, SR-106): every view but an element buffer
   // reads again on each, an element buffer only on its own; what changed is highlighted where it is shown.
   const fresh = useMemo(() => arrivals(), []);
@@ -474,6 +479,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       started ||= currentKey !== undefined;
       restoreBuffers(currentKey, asked, back);
     };
+    // A write of the save of leaving, answered by its change: the change counts to the switch (SR-212 AK5).
+    const countSwitchSave = (reason: WorkspaceChangeReason): void => {
+      if (reason === "written" && leavingWrites.current > 0) {
+        leavingWrites.current -= 1;
+        setSwitchSaves((count) => count + 1);
+      }
+    };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
       const result = await tracked.invoke("workspace.status", {});
@@ -507,6 +519,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // The shown buffer asks again, also a list that is the same list of another workspace.
       if (reason !== undefined) {
         setRevision((count) => count + 1);
+        countSwitchSave(reason);
       }
       // The type names come with the workspace; the modeline shows keys until they are there. A write of
       // the app changes no metamodel (no command writes it), so autosave does not read it every second.
@@ -630,6 +643,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (draft === undefined) {
         return true;
       }
+      leavingWrites.current += 1;
       const result = await saveOne(
         {
           call,
@@ -645,6 +659,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         draft,
       );
       if (!result.ok) {
+        // Nothing written: no change answers it.
+        leavingWrites.current = Math.max(0, leavingWrites.current - 1);
         setEcho(leftUnsaved(result));
       } else if (result.affected !== undefined) {
         // The minibuffer names the element that was left with its directly affected elements (SR-024 AK2).
@@ -1331,6 +1347,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     gate,
     ready,
     drop,
+    switchSaves,
     typeNames,
     kindNames,
     // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
