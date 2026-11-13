@@ -1832,10 +1832,10 @@ export const startCommand = (
 const WITHOUT_WORKSPACE = "workspace.init";
 
 /**
- * Whether the prompt offers the command (SR-073 AK2: every function of the app by its name): every
- * implemented read and write command, except `element.update`, which the element buffer does ("Save
- * element" covers it, with "Edit title", "Add property" and "Clear property"), and only
- * `workspace.init` while no workspace is open.
+ * Whether the prompt may offer the command (SR-073 AK2: every function of the app by its name): every
+ * implemented read and write command, and only `workspace.init` while no workspace is open. `catalogItems`
+ * then leaves out the covered ones (`element.update`: "Save element", with "Edit title", "Add property" and
+ * "Clear property") and those whose output other commands show (`shownIn`, SR-133 AK4).
  */
 const listed = (context: CatalogContext, command: CommandListing): boolean =>
   command.implemented && (context.workspace || command.name === WITHOUT_WORKSPACE);

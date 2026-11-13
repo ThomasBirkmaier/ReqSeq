@@ -3052,27 +3052,35 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   });
 
   it("[SR-210/AK-r2d2] an action that runs a catalog command only to show its output as hits (SR-133 AK4) has its own description", () => {
+    // No action covers one of them, so none takes over a summary of theirs.
+    for (const action of ACTIONS) {
+      expect(
+        (action.covers ?? []).filter((name) => Object.hasOwn(SHOWN_IN, name)),
+        action.id,
+      ).toEqual([]);
+    }
+    const carrying = [
+      ["Open workspace", "workspace.recent"],
+      ["Follow agent", "workspace.activity"],
+      ["Filter list by saved filter", "filter.list"],
+      ["Open perspective", "perspective.list"],
+      ["Save list as perspective", "perspective.list"],
+    ] as const;
+    const actions = carrying.map(([title]) => ACTIONS.find((candidate) => candidate.title === title));
     const feeding = withExplanations(
       {
         label: "Command",
-        items: [
-          { id: "open-workspace", name: "Open workspace", run: vi.fn() },
-          { id: "follow-agent", name: "Follow agent", run: vi.fn() },
-        ],
+        items: actions.map((action) => ({ id: action?.id ?? "", name: action?.title ?? "", run: vi.fn() })),
       },
       CATALOG,
     );
-    for (const [at, id, shows] of [
-      [0, "open-workspace", "workspace.recent"],
-      [1, "follow-agent", "workspace.activity"],
-    ] as const) {
-      const action = ACTIONS.find((candidate) => candidate.id === id);
-      expect(action?.description).toMatch(/^[A-Z][^.]*\.$/);
-      expect(action?.covers).toBeUndefined();
-      expect(shownIn(command(shows))).toBe(`"${action?.title ?? ""}"`);
+    carrying.forEach(([title, shows], at) => {
+      const action = actions[at];
+      expect(action?.description, title).toMatch(/^[A-Z][^.]*\.$/);
+      expect(shownIn(command(shows))).toContain(`"${title}"`);
       expect(feeding.items[at]?.explain).toEqual({ summary: action?.description });
       expect(feeding.items[at]?.explain?.summary).not.toBe(command(shows).summary);
-    }
+    });
   });
 
   it("[SR-210/AK-r2d2] the actions that set what a shown list or graph shows name the catalog commands of each display", () => {

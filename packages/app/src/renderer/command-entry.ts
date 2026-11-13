@@ -32,10 +32,10 @@ export const SHOWN_IN: Readonly<Record<string, string>> = {
   "workspace.listFolder": "every path input, as the folders it offers",
   "workspace.recent": '"Open workspace"',
   "workspace.activity": '"Follow agent"',
-  "element.facets": "the filters of a list and the overview",
-  "relation.options": '"Create relation" and the traceability matrix',
+  "element.facets": "the filters of a list, the overview and the values of an element that open a list",
+  "relation.options": '"Create relation", the traceability matrix and the relation kinds an argument offers',
   "filter.list": '"Filter list by saved filter"',
-  "perspective.list": '"Open perspective"',
+  "perspective.list": '"Open perspective", "Save list as perspective" and the overview',
 };
 
 /** Where the app shows the output of `command` instead of an entry of its own (`SHOWN_IN`), if it does. */
