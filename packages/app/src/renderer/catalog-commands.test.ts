@@ -15,6 +15,7 @@ import {
   perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
+  withGroup,
   withQuery,
 } from "./buffers.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
@@ -26,6 +27,7 @@ import { isWindows } from "./keys.js";
 import {
   NO_SHOWN_FILTER,
   NO_SHOWN_SORT,
+  SHOWN_GROUP,
   catalogItems,
   contextField,
   fits,
@@ -1145,9 +1147,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
   });
 
   it.each([
-    // The sources of #1647 and #1648 stay as they were: a grouping as text, the composed values as JSON.
-    ["element.list", "group", "status", "status"],
-    ["perspective.save", "group", "{not json", "{not json"],
+    // The sources of #1648 stay as they were: the composed values as JSON.
     ["element.create", "properties", '{"severity":2}', { severity: 2 }],
     ["element.create", "relations", '{"refines":"N-1"}', { refines: "N-1" }],
   ])("asks %s %s as its old source did: %s", async (name, field, text, value) => {
@@ -4079,5 +4079,195 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
       ...KEYS.slice(0, 5),
       "Workspace order",
     ]);
+  });
+});
+
+describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const FACETS = {
+    total: 3,
+    types: [],
+    statuses: [{ key: "draft", count: 2 }],
+    properties: [
+      {
+        key: "component",
+        name: "Component",
+        kind: "choice",
+        count: 2,
+        missing: 1,
+        distinct: 1,
+        values: [{ value: "display", name: "Display", count: 2 }],
+      },
+      {
+        key: "packages",
+        name: "Packages",
+        kind: "relation",
+        count: 1,
+        missing: 2,
+        distinct: 1,
+        values: [{ value: "PKG-1", count: 1 }],
+      },
+      { key: "rationale", name: "Rationale", kind: "text", count: 3, missing: 0, distinct: 3 },
+    ],
+  };
+  const PERSPECTIVE = { name: "Mine", file: "perspectives/mine.yaml", where: { status: ["draft"] } };
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => FACETS,
+    "filter.list": () => ({ filters: [{ name: "open needs", file: "f.yaml", where: {} }], problems: [] }),
+    "perspective.list": () => ({
+      perspectives: [PERSPECTIVE, { ...PERSPECTIVE, name: "Other", filter: "x" }],
+    }),
+    "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+  };
+
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
+    }
+    await flush();
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map(
+      (choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`,
+    );
+
+  const facetCalls = (call: ReturnType<typeof setup>["call"]): unknown[] =>
+    call.mock.calls.filter(([name]) => name === "element.facets").map(([, input]) => input);
+
+  /** "Save perspective rain" with the condition type Decision, asked up to its grouping, `filter` given first. */
+  const atGroup = async (
+    buffers: Buffers = [shown],
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+    filter = false,
+    beforeGroup = (): void => undefined,
+  ) => {
+    const run = setup(buffers, { ...answers, ...extra });
+    start(run.context, "perspective.save", true);
+    (await last(run.asked)).text?.("rain");
+    await choose(run.asked, "Type", "Decision");
+    item((await last(run.asked)).items, "Take 1 condition").more?.();
+    if (filter) {
+      await choose(run.asked, "filter");
+      item((await last(run.asked)).items, "open needs").more?.();
+    }
+    const before = facetCalls(run.call).length;
+    beforeGroup();
+    await choose(run.asked, "group");
+    return { ...run, before };
+  };
+
+  it("[SR-215/AK-fj75] offers type, status, package and the properties with values of the elements where and filter select, by name with the key beside, from one element.facets", async () => {
+    const { asked, call, before } = await atGroup([shown], {}, true);
+    expect((await last(asked)).label).toBe("Save perspective rain type: decision open needs · group:");
+    // Not the property of the packages, which "Package" groups by, nor free text.
+    expect(await names(asked)).toEqual([
+      "Type | type",
+      "Status | status",
+      "Package | package",
+      "Component | component",
+    ]);
+    const facets = facetCalls(call).slice(before);
+    expect(facets).toHaveLength(1);
+    await choose(asked, "Component", "Run");
+    const [name, saved] = call.mock.calls.at(-1) ?? [];
+    expect(name).toBe("perspective.save");
+    expect(saved).toMatchObject({ name: "rain", filter: "open needs", group: "component" });
+    expect(facets[0]).toEqual({ selection: { where: saved?.["where"], filter: "open needs" } });
+  });
+
+  it("[SR-215/AK-fj75] a refused where drops the grouping read from it; a filter, which reads nothing, stays", async () => {
+    const refusal = refusedWith("where: unknown type", { errors: [{ field: "where" }] });
+    const { asked, call } = await atGroup([shown], { "perspective.save": () => refusal }, true);
+    await choose(asked, "Status", "Run");
+    expect(call).toHaveBeenLastCalledWith("perspective.save", expect.objectContaining({ group: "status" }));
+    expect((await last(asked)).label).toBe("where: unknown type · Save perspective rain open needs · where:");
+    item((await last(asked)).items, "Take 1 condition").run();
+    await flush();
+    const more = (await last(asked)).items.map((choice) => choice.name);
+    expect(more).toContain("group");
+    expect(more).not.toContain("filter");
+  });
+
+  it("[SR-215/AK-fj75] of a list command, the groupings of the shown selection and the perspective's, whose saved filter counts where the list has none", async () => {
+    const list = filteredList([savedStep("Sensors"), typeStep("need")]);
+    const listed: CommandListing = { ...command("element.list"), title: "Ask it" };
+    const ofList = async (buffers: Buffers, perspective: string) => {
+      const run = setup(buffers, answers);
+      catalogItems(run.context, [listed], [])[0]?.more?.();
+      await choose(run.asked, "perspective");
+      item((await last(run.asked)).items, perspective).more?.();
+      await choose(run.asked, "group");
+      return facetCalls(run.call).at(-1);
+    };
+    expect(await ofList([list], "Other")).toEqual({
+      selection: { filter: "Sensors", where: { all: [list.selection?.where, PERSPECTIVE.where] } },
+    });
+    expect(await ofList([shown], "Other")).toEqual({ selection: { where: PERSPECTIVE.where, filter: "x" } });
+    // Without a selection: every element.
+    const bare = setup([shown], answers);
+    catalogItems(bare.context, [listed], [])[0]?.more?.();
+    await choose(bare.asked, "group");
+    expect(facetCalls(bare.call).at(-1)).toEqual({});
+  });
+
+  it("says why when the perspective or the facets cannot be read, and offers no Package without a property of the packages", async () => {
+    const listed: CommandListing = { ...command("element.list"), title: "Ask it" };
+    let faultyFiles = false;
+    const run = setup([shown], {
+      ...answers,
+      "perspective.list": () =>
+        faultyFiles ? new Error("The perspectives are faulty") : answers["perspective.list"](),
+    });
+    catalogItems(run.context, [listed], [])[0]?.more?.();
+    await choose(run.asked, "perspective");
+    item((await last(run.asked)).items, "Mine").more?.();
+    faultyFiles = true;
+    await choose(run.asked, "group");
+    expect((await last(run.asked)).label).toBe("The perspectives are faulty · Ask it Mine · group:");
+
+    const faulty = await atGroup([shown], { "element.facets": () => new Error("The facets failed") });
+    expect((await last(faulty.asked)).label).toBe(
+      "The facets failed · Save perspective rain type: decision · group:",
+    );
+    let broken = false;
+    const bare = await atGroup(
+      [shown],
+      { "metamodel.get": () => (broken ? new Error("faulty") : FIXTURE_METAMODEL) },
+      false,
+      () => {
+        broken = true;
+      },
+    );
+    expect(await names(bare.asked)).toEqual([
+      "Type | type",
+      "Status | status",
+      "Component | component",
+      "Packages | packages",
+    ]);
+  });
+
+  it("[SR-215/AK-w8q6] on a grouped list the grouping of the shown list is the first hit, and Enter takes the grouping Save list as perspective saves; the matrix, a search and a list without groups have none", async () => {
+    const list = withGroup(filteredList([typeStep("need")]), "component");
+    const grouped = await atGroup([list]);
+    expect((await names(grouped.asked))[0]).toBe(`${SHOWN_GROUP} | Component`);
+    await choose(grouped.asked, SHOWN_GROUP);
+    expect((await last(grouped.asked)).label).toBe(
+      "Save perspective rain type: decision Component · more arguments:",
+    );
+    await choose(grouped.asked, "Run");
+    expect(grouped.call).toHaveBeenLastCalledWith(
+      "perspective.save",
+      expect.objectContaining({ group: perspectiveInput(list, "rain").group }),
+    );
+    // A grouping no hit names is shown by its key.
+    const free = await atGroup([withGroup(filteredList([]), "rationale")]);
+    expect((await names(free.asked))[0]).toBe(`${SHOWN_GROUP} | rationale`);
+    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
+    const matrix = { ...filteredList([typeStep("need")], undefined, true), group: "status" };
+    for (const other of [filteredList([typeStep("need")]), matrix, search]) {
+      expect((await names((await atGroup([other])).asked))[0]).toBe("Type | type");
+    }
   });
 });
