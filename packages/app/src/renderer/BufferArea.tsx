@@ -19,7 +19,7 @@ import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import type { OverviewData } from "./OverviewView.js";
 import { OverviewView } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import type { RecentRow } from "./overview.js";
+import type { PerspectiveRow, RecentRow } from "./overview.js";
 import { ResultView } from "./ResultView.js";
 import type { Area, WindowAction } from "./window-layout.js";
 
@@ -84,7 +84,13 @@ export interface AreaViews {
   /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
   readonly kindNames: ReadonlyMap<string, string>;
   /** What the overview shows (`useOverview`), read while an area shows it. */
-  readonly overview: { readonly data: OverviewData | undefined; readonly recents: readonly RecentRow[] };
+  readonly overview: {
+    readonly data: OverviewData | undefined;
+    readonly perspectives: readonly PerspectiveRow[];
+    readonly recents: readonly RecentRow[];
+    /** Opens a perspective of the overview (SR-118 AK7). */
+    readonly openPerspective: (name: string) => void;
+  };
   /** The props of the view of an element buffer. */
   readonly element: (buffer: ElementBuffer) => ElementProps;
 }
@@ -123,7 +129,9 @@ const BufferView = ({
       <OverviewView
         buffer={buffer}
         data={views.overview.data}
+        perspectives={views.overview.perspectives}
         recents={views.overview.recents}
+        onPerspective={views.overview.openPerspective}
         outside={outside}
         dispatch={dispatch}
         onData={onData}

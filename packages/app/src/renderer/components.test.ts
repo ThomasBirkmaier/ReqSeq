@@ -2148,11 +2148,15 @@ describe("OverviewView", () => {
   });
 
   /** The overview as the app uses it: the loading hook, the view, and what it reported. */
-  const mount = async (call: Call, initial: { recent?: RecentEntry[]; active?: boolean } = {}) => {
+  const mount = async (
+    call: Call,
+    initial: { recent?: RecentEntry[]; active?: boolean; turn?: () => Promise<void> } = {},
+  ) => {
     const opened: Buffer[] = [];
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
     const actions: BufferAction[] = [];
+    const perspectives: string[] = [];
     const echo = (message: string): void => {
       echoed.push(message);
     };
@@ -2170,7 +2174,7 @@ describe("OverviewView", () => {
       setRecent = changeRecent;
       setActive = changeActive;
       const [buffers, dispatch] = useReducer(reduceBuffers, [overviewBuffer()]);
-      const overview = useOverview(call, revision, recent, active, echo);
+      const overview = useOverview(call, revision, recent, active, echo, initial.turn);
       const [shown] = buffers;
       if (shown?.kind !== "overview") {
         return createElement("p", { id: "elsewhere" }, shown === undefined ? "none" : bufferName(shown));
@@ -2178,7 +2182,9 @@ describe("OverviewView", () => {
       return createElement(OverviewView, {
         buffer: shown,
         data: overview.data,
+        perspectives: overview.perspectives,
         recents: overview.recents,
+        onPerspective: (name) => perspectives.push(name),
         dispatch: (action) => {
           actions.push(action);
           if (action.type === "open") {
@@ -2202,6 +2208,7 @@ describe("OverviewView", () => {
       data,
       echoed,
       actions,
+      perspectives,
       revision: (next: number) =>
         change(() => {
           setRevision(next);
@@ -2242,6 +2249,7 @@ describe("OverviewView", () => {
     expect(view.data.at(-1)).toEqual(["overview", undefined]);
     await act(async () => {
       answers[0]?.({ ok: true, output: FACETS });
+      answers[1]?.({ ok: true, output: { perspectives: [] } });
       await Promise.resolve();
     });
     await flush();
@@ -2278,7 +2286,11 @@ describe("OverviewView", () => {
     const view = await mount(unrecorded(call) as unknown as Call, { active: false, recent: [entry(1)] });
     expect(call).not.toHaveBeenCalled();
     await view.active(true);
-    expect(call).toHaveBeenCalledTimes(2);
+    expect(call.mock.calls.map(([called]) => called)).toEqual([
+      "element.facets",
+      "perspective.list",
+      "element.get",
+    ]);
     await view.active(false);
     await view.active(true);
     // The counts of this revision are there; only the recent elements are read again.
@@ -2300,14 +2312,20 @@ describe("OverviewView", () => {
       for (const { name, resolve } of pending) {
         resolve({
           ok: true,
-          output: name === "element.facets" ? FACETS : { element: element(1) },
+          output:
+            name === "element.facets"
+              ? FACETS
+              : name === "perspective.list"
+                ? { perspectives: [] }
+                : { element: element(1) },
         });
       }
       await Promise.resolve();
     });
     await view.active(true);
     expect(options()).toEqual([]);
-    expect(call).toHaveBeenCalledTimes(4);
+    // Each read twice: before it was left, and when it was shown again.
+    expect(call).toHaveBeenCalledTimes(6);
   });
 
   it("echoes why the counts could not be read", async () => {
@@ -2379,6 +2397,194 @@ describe("OverviewView", () => {
     expect(query('[aria-selected="true"]').id).toBe("overview-2");
     await view.recent([]);
     expect(query('[aria-selected="true"]').id).toBe("overview-1");
+  });
+
+  const listed = (name: string) => ({ name, file: `perspectives/${name}.yaml`, where: { all: [] } });
+  /** The overview's handlers with the perspectives `names`; `counts` answers `element.list` with one. */
+  const withPerspectives = (
+    names: readonly string[],
+    counts: (name: string) => unknown = (name) => ({ total: name.length, partial: [] }),
+  ) => ({
+    ...handlers(),
+    "perspective.list": () => ({ perspectives: names.map(listed) }),
+    "element.list": (input: Record<string, unknown>) => counts(String(input["perspective"])),
+  });
+
+  it("[SR-118/AK-h5f7] shows at most ten perspectives under Perspectives, by name ignoring case, each with the count of its selection", async () => {
+    const names = [
+      "kilo",
+      "Bravo",
+      "alpha",
+      "Juliet",
+      "echo",
+      "Delta",
+      "india",
+      "golf",
+      "Hotel",
+      "foxtrot",
+      "charlie",
+    ];
+    const call = fakeCall(withPerspectives(names));
+    await mount(asCall(call), { recent: [entry(1)] });
+    expect(texts(".group")).toEqual(["Perspectives", "Recent"]);
+    expect(options()).toEqual([
+      "Need 1",
+      "System Requirement 3",
+      "alpha 5",
+      "Bravo 5",
+      "charlie 7",
+      "Delta 5",
+      "echo 4",
+      "foxtrot 7",
+      "golf 4",
+      "Hotel 5",
+      "india 5",
+      "Juliet 6",
+      "SR-1Title 1",
+    ]);
+    expect(query('.perspective[role="option"]').getAttribute("aria-label")).toBe("alpha 5");
+    // The count is the total of `element.list` with the perspective, in the call given (the window's view);
+    // the eleventh is not counted.
+    const listCalls = call.mock.calls.filter(([name]) => name === "element.list").map(([, input]) => input);
+    expect(listCalls).toHaveLength(10);
+    expect(listCalls[0]).toEqual({ perspective: "alpha", limit: 1, fields: ["identifier"], sort: [] });
+  });
+
+  it("[SR-118/AK-hvth] shows the types and the names of the perspectives first, and each count once it is computed", async () => {
+    const pending = new Map<string, (value: unknown) => void>();
+    const call = fakeCall(handlers());
+    const waiting = vi.fn((name: string, input: Record<string, unknown>) =>
+      name === "perspective.list"
+        ? Promise.resolve({ ok: true, output: { perspectives: [listed("Open"), listed("Drafts")] } })
+        : name === "element.list"
+          ? new Promise((resolve) => {
+              pending.set(String(input["perspective"]), resolve);
+            })
+          : call(name, input),
+    );
+    await mount(unrecorded(waiting) as unknown as Call);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Drafts", "Open"]);
+    // One count at a time: the second is asked for once the first answered.
+    expect([...pending.keys()]).toEqual(["Drafts"]);
+    await act(async () => {
+      pending.get("Drafts")?.({ ok: true, output: { total: 7, partial: [] } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Drafts 7", "Open"]);
+    await act(async () => {
+      pending.get("Open")?.({ ok: true, output: { total: 2, partial: [] } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Drafts 7", "Open 2"]);
+  });
+
+  it("[SR-118/AK-jtg3] a perspective line opens its perspective, on Enter and on a click", async () => {
+    const view = await mount(asCall(fakeCall(withPerspectives(["Drafts", "Open"]))));
+    await press(listbox(), "End");
+    await press(listbox(), "Enter");
+    await click(nth([...container.querySelectorAll('[role="option"]')], 2));
+    expect(view.perspectives).toEqual(["Open", "Drafts"]);
+    expect(view.opened).toEqual([]);
+  });
+
+  it("[SR-118/AK-hvth] asks for each count only when it is its turn: the window idle and no other call pending", async () => {
+    const turns: (() => void)[] = [];
+    const turn = (): Promise<void> =>
+      new Promise((resolve) => {
+        turns.push(resolve);
+      });
+    const call = fakeCall(withPerspectives(["A", "B"]));
+    await mount(asCall(call), { turn });
+    const counts = (): number => call.mock.calls.filter(([name]) => name === "element.list").length;
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A", "B"]);
+    expect(counts()).toBe(0);
+    await act(async () => {
+      turns[0]?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(counts()).toBe(1);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B"]);
+    await act(async () => {
+      turns[1]?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B 1"]);
+  });
+
+  it("counts only while it is shown, and shown again asks only for the perspectives not counted yet", async () => {
+    const pending: { name: string; resolve: (value: unknown) => void }[] = [];
+    const call = fakeCall(handlers());
+    const held = vi.fn((name: string, input: Record<string, unknown>) =>
+      name === "perspective.list"
+        ? Promise.resolve({ ok: true, output: { perspectives: ["A", "B", "C"].map(listed) } })
+        : name === "element.list"
+          ? new Promise((resolve) => {
+              pending.push({ name: String(input["perspective"]), resolve });
+            })
+          : call(name, input),
+    );
+    const view = await mount(unrecorded(held) as unknown as Call);
+    expect(pending.map((asked) => asked.name)).toEqual(["A"]);
+    await view.active(false);
+    // The count that answers after the overview was left is kept; no further one is asked for.
+    await act(async () => {
+      pending[0]?.resolve({ ok: true, output: { total: 1, partial: [] } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(pending.map((asked) => asked.name)).toEqual(["A"]);
+    await view.active(true);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "A 1", "B", "C"]);
+    expect(pending.map((asked) => asked.name)).toEqual(["A", "B"]);
+  });
+
+  it("shows a short reason instead of the count of a perspective that cannot be listed, the message on hover", async () => {
+    const counts = (name: string): unknown =>
+      name === "Broken"
+        ? Object.assign(new Error('Perspective "Broken": its saved filter "Gone" does not exist'), {
+            code: "input.invalid",
+          })
+        : { total: 3, partial: [] };
+    await mount(asCall(fakeCall(withPerspectives(["Broken", "Fine"], counts))));
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Broken cannot be listed", "Fine 3"]);
+    expect(query(".perspective .reason").getAttribute("title")).toBe(
+      'Perspective "Broken": its saved filter "Gone" does not exist',
+    );
+  });
+
+  it("shows the types without perspectives and echoes why they could not be listed", async () => {
+    const view = await mount(
+      asCall(fakeCall({ ...handlers(), "perspective.list": () => new Error("The folder cannot be read") })),
+    );
+    expect(options()).toEqual(["Need 1", "System Requirement 3"]);
+    expect(view.echoed).toEqual(["The folder cannot be read"]);
+  });
+
+  it("counts the perspectives again when the workspace changed, and drops a count of the revision before", async () => {
+    let total = 1;
+    const pending: ((value: unknown) => void)[] = [];
+    const call = fakeCall(withPerspectives(["Drafts"]));
+    const slow = vi.fn((name: string, input: Record<string, unknown>) =>
+      name === "element.list" && total === 1
+        ? new Promise((resolve) => {
+            pending.push(resolve);
+          })
+        : call(name, { ...input }),
+    );
+    const view = await mount(unrecorded(slow) as unknown as Call);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Drafts"]);
+    total = 2;
+    await view.revision(1);
+    await act(async () => {
+      pending[0]?.({ ok: true, output: { total: 99, partial: [] } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "Drafts 6"]);
   });
 });
 
@@ -7073,5 +7279,97 @@ describe("ElementView", () => {
       expect(texts(".members .row .title")).toEqual(["Title 1"]);
       expect(query(".members h2").textContent).toBe("← packages 1");
     });
+  });
+});
+
+describe("the marks of a value built from hits (SR-215 AK3, AK9; first part of #1645)", () => {
+  const prompt = (unmark: boolean) => {
+    const removed: string[] = [];
+    const back = vi.fn();
+    const marked: Prompt = {
+      label: "Save filter open · where:",
+      items: [{ id: "take", name: "Take 2 conditions", run: vi.fn() }],
+      marks: ["type: need", "status: draft"].map((label) => ({
+        label,
+        remove: () => {
+          removed.push(label);
+        },
+      })),
+      ...(unmark ? { unmark: true } : {}),
+      back,
+      explain: {
+        name: "where",
+        description: "Which elements",
+        list: false,
+        ends: false,
+        skips: false,
+        more: true,
+        building: { enter: "takes the marked hit; all conditions must hold", unmark, json: unmark },
+      },
+    };
+    return { marked, removed, back };
+  };
+  // A new question each time, so the input starts empty.
+  let serial = 0;
+  const mount = async (shown: Prompt, closed = vi.fn()) => {
+    await render(
+      createElement(Minibuffer, {
+        echo: "",
+        prompt: { serial: (serial += 1), prompt: shown },
+        onCommand: vi.fn(),
+        onClose: closed,
+      }),
+    );
+    return closed;
+  };
+
+  it("shows each mark before the input, a box with its label and an ×", async () => {
+    await mount(prompt(true).marked);
+    expect(texts('[aria-label="Marks"] [role="listitem"]')).toEqual(["type: need×", "status: draft×"]);
+    expect(query(".prompt-marks").nextElementSibling).toBe(queryInput());
+    expect(query('[aria-label="Remove status: draft"]').tagName).toBe("BUTTON");
+  });
+
+  it("a click on the × of a mark removes that mark; the input keeps the focus", async () => {
+    const { marked, removed } = prompt(true);
+    const closed = await mount(marked);
+    const unmark = query('[aria-label="Remove type: need"]');
+    const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    unmark.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    await click(unmark);
+    expect(removed).toEqual(["type: need"]);
+    expect(closed).toHaveBeenCalledWith(false);
+  });
+
+  it("Backspace on an empty input removes the last mark where the step removes one, else it goes back", async () => {
+    const removing = prompt(true);
+    await mount(removing.marked);
+    await press(queryInput(), "Backspace");
+    expect(removing.removed).toEqual(["status: draft"]);
+    expect(removing.back).not.toHaveBeenCalled();
+    // Typed text: Backspace deletes a character.
+    const typing = prompt(true);
+    await mount(typing.marked);
+    await type(queryInput(), "ty");
+    await press(queryInput(), "Backspace");
+    expect(typing.removed).toEqual([]);
+    // A step of the values: one step back, the marks stay.
+    const values = prompt(false);
+    await mount(values.marked);
+    await press(queryInput(), "Backspace");
+    expect(values.removed).toEqual([]);
+    expect(values.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("the explanation line names the keys of the step: what Enter does, Backspace for the last mark and { for JSON", async () => {
+    await mount(prompt(true).marked);
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "Enter takes the marked hit; all conditions must hold · Backspace on an empty input removes the last mark · { a condition in JSON · Ctrl+Enter more arguments · Escape back",
+    );
+    await mount({ ...prompt(false).marked });
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(
+      "Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
+    );
   });
 });

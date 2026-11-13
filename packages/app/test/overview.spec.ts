@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -11,6 +12,35 @@ import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded, shownLayer 
 
 /** 14 elements: 6 types, 5 of them system requirements (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
+
+const OUT =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
+
+/** A perspective file. */
+const perspectiveFile = (lines: readonly string[]): string =>
+  ["reqseq-perspective: 1", ...lines, ""].join("\n");
+
+/**
+ * Eleven perspectives (SR-118 AK6): `Everything` holds the element of the folded status `obsolete` too; `Broken`
+ * names a saved filter that does not exist (SR-213 AK6); `zz-last` is the eleventh by name and not shown.
+ */
+const PERSPECTIVES: Record<string, string> = {
+  "perspectives/everything.yaml": perspectiveFile(["name: Everything", "where: { all: [] }"]),
+  "perspectives/requirements.yaml": perspectiveFile([
+    "name: requirements",
+    "where: { type: [system-requirement] }",
+    "group: status",
+  ]),
+  "perspectives/broken.yaml": perspectiveFile(["name: Broken", "filter: Gone", "where: { all: [] }"]),
+  "perspectives/drafts.yaml": perspectiveFile(["name: drafts", "where: { status: [draft] }"]),
+  ...Object.fromEntries(
+    ["Needs 1", "needs 2", "Needs 3", "needs 4", "Needs 5", "needs 6", "zz-last"].map((name, at) => [
+      `perspectives/extra-${String(at)}.yaml`,
+      perspectiveFile([`name: ${name}`, "where: { type: [need] }"]),
+    ]),
+  ),
+};
 
 interface Facets {
   readonly total: number;
@@ -231,5 +261,81 @@ test.describe("the overview of a fixture workspace", () => {
     await runCommand(window, "close buffer");
     await jump(window, "icing");
     await expect(shownLayer(window).locator("article h1")).toHaveText(got.element.title);
+  });
+});
+
+test.describe("the perspectives on the overview", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp({ ...FIXTURE, files: PERSPECTIVES });
+    await expect(overview(running.window)).toBeVisible();
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-118/AK-yggg] [SR-118/AK-h5f7] shows at most ten perspectives below the types and above the recent elements, by name, each with the count `element list` gives", async () => {
+    const { window } = running;
+    await jumpToHit(window, "icing", "Survive icing");
+    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    await runCommand(window, "show overview");
+    await expect(overview(window)).toBeVisible();
+    const facets = await cliJson<Facets>(running, ["element", "facets"]);
+    const names = [
+      "Broken",
+      "drafts",
+      "Everything",
+      "Needs 1",
+      "needs 2",
+      "Needs 3",
+      "needs 4",
+      "Needs 5",
+      "needs 6",
+      "requirements",
+    ];
+    const expected: string[] = [];
+    for (const name of names) {
+      const result = await running.cli(["element", "list", "--input", JSON.stringify({ perspective: name })]);
+      expected.push(
+        result.code === 0
+          ? `${name} ${String((JSON.parse(result.stdout) as Listed).total)}`
+          : `${name} cannot be listed`,
+      );
+    }
+    // Everything counts the element of the folded status too, as the list holds it.
+    expect(expected).toContain("Everything 14");
+    expect(expected[0]).toBe("Broken cannot be listed");
+    await expect(window.locator(".overview .group")).toHaveText(["Perspectives", "Recent"]);
+    await expect(window.getByRole("option")).toHaveText([
+      ...facets.types.map((type) => `${type.name} ${String(type.count)}`),
+      ...expected,
+      /Survive icing/,
+    ]);
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sr-118-perspectives-light.png") });
+  });
+
+  test("[SR-118/AK-jtg3] a perspective line opens the perspective as Open perspective does; one that cannot be listed says why", async () => {
+    const { window } = running;
+    const shown = window.locator('[aria-label="Sheet"] [data-buffer]');
+    await window.getByRole("option", { name: /^requirements \d+$/ }).click();
+    await expect(shown.locator("h1")).toContainText("requirements");
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ perspective: "requirements" }),
+    ]);
+    await expect(modeline(window)).toContainText(`${String(listed.total)} elements`);
+    // Opened through the overview, it comes first in the prompt of "Open perspective" (SR-214 AK1).
+    await runCommand(window, "open perspective");
+    await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText("requirements");
+    await window.keyboard.press("Escape");
+    // Broken names a saved filter that does not exist: the minibuffer says why, and the overview stays.
+    await runCommand(window, "show overview");
+    await expect(overview(window)).toBeVisible();
+    await window.getByRole("option", { name: "Broken cannot be listed" }).click();
+    await expect(window.getByLabel("Minibuffer")).toContainText("Gone");
+    await expect(overview(window)).toBeVisible();
   });
 });

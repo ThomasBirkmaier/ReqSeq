@@ -1,6 +1,6 @@
 // The switch to the previous or next buffer in motion (SR-212) on the built app: the left buffer slides out and
 // the new one in, Previous buffer to the right, Next buffer to the left, by Alt+P and Alt+N, the mouse buttons
-// Back and Forward and the commands (AK1); a new input ends a running slide at once and acts on the new buffer
+// Back and Forward, a swipe macOS reports to the window (SR-163 AK4) and the commands (AK1); a new input ends a running slide at once and acts on the new buffer
 // (AK2); any other way of showing a buffer has no motion (AK3); with reduced motion nothing moves (AK4).
 //
 // Each slide animation is recorded when it is made, as `card-motion.spec.ts` does for the card (#1349): its layer,
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll, slideSettled, shownLayer } from "./support/app.js";
+import { goTo, launchApp, listAll, slideSettled, shownLayer, swipe } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -208,7 +208,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await running.close();
   });
 
-  test("[SR-212/AK-d25h] Previous buffer slides the left buffer out to the right and the new one in from the left, Next buffer the other way, in at most 200 ms, by key, mouse button and command", async () => {
+  test("[SR-212/AK-d25h] Previous buffer slides the left buffer out to the right and the new one in from the left, Next buffer the other way, in at most 200 ms, by key, mouse button, swipe and command", async () => {
     const { window } = running;
     await record(window);
     // Alt+P and Alt+N.
@@ -230,6 +230,18 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await expectSlide(window, "All elements", BACK);
     await click("forward");
     await expectSlide(window, element, FORWARD);
+    // A swipe macOS reports to the window (SR-163 AK4); elsewhere there is none, and nothing moves.
+    await clear(window);
+    await swipe(running, "left");
+    if (process.platform === "darwin") {
+      await expectSlide(window, "All elements", BACK);
+      await swipe(running, "right");
+      await expectSlide(window, element, FORWARD);
+    } else {
+      await slideSettled(window);
+      await expect(shownBuffer(window)).toHaveAttribute("aria-label", element);
+      expect(await slides(window)).toEqual([]);
+    }
     // The commands of the prompt.
     await clear(window);
     await command(window, "Previous buffer");
@@ -270,7 +282,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     expect(await pictures(window)).toBe(0);
   });
 
-  test("[SR-212/AK-kqvx] a key or a mouse button during a slide ends it at once and acts on the new buffer; nothing is typed into the left buffer", async () => {
+  test("[SR-212/AK-kqvx] a key, a mouse button or a swipe during a slide ends it at once and acts on the new buffer; nothing is typed into the left buffer", async () => {
     const { window } = running;
     // The slides stand still halfway, so each input below surely comes while one runs.
     await record(window, true);
@@ -321,6 +333,16 @@ test.describe("the switch to the previous or next buffer in motion", () => {
       await session.send("Input.dispatchMouseEvent", { type, button: "back", x: 200, y: 200, clickCount: 1 });
     }
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
+    await window.keyboard.press("Escape");
+    await slideSettled(window);
+    // A swipe macOS reports (SR-163 AK4) during a slide does the same; elsewhere there is none.
+    await window.keyboard.press("Alt+KeyN");
+    await slideOf(window, "All elements");
+    await swipe(running, "left");
+    await expect(shownBuffer(window)).toHaveAttribute(
+      "aria-label",
+      process.platform === "darwin" ? "Overview" : "All elements",
+    );
     await window.keyboard.press("Escape");
     await slideSettled(window);
     // Nothing was typed into the element: its text in the app and on disk is as before.

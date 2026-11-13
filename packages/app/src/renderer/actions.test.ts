@@ -5,6 +5,7 @@ import {
   historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
+  swipeAction,
   PREVIOUS_BUFFER_SHORTCUT,
   actionFor,
   commandPrompt,
@@ -2088,6 +2089,13 @@ describe("Mouse buttons Back and Forward (SR-163)", () => {
       expect(mouseButtonAction(context, button)).toBeUndefined();
     }
     expect(isBufferMouseButton(3) && isBufferMouseButton(4)).toBe(true);
+  });
+
+  it("[SR-163/AK-fkcm] a swipe to the left runs Previous buffer, to the right Next buffer, where they apply", () => {
+    const { context } = setup([list, overviewBuffer()]);
+    expect(swipeAction(context, "left")?.id).toBe("previous-buffer");
+    expect(swipeAction(context, "right")?.id).toBe("next-buffer");
+    expect(swipeAction(setup([list]).context, "left")).toBeUndefined();
   });
 });
 

@@ -9,6 +9,7 @@ import { docs as documentation, handleDocs } from "./docs.js";
 import { handleEdit } from "./edit.js";
 import { guardClose } from "./close.js";
 import { reloadWhenGone } from "./renderer-gone.js";
+import { forwardSwipes } from "./swipe.js";
 import { handleListFolder } from "./list-folder.js";
 import { handleWorkspaces } from "./workspaces.js";
 import { CoreProcess } from "./core-process.js";
@@ -113,6 +114,8 @@ const ready = async (
   guardClose(window, () => workspaces.saveBeforeClose(), options.log);
   // A page whose renderer crashed is loaded again, with its workspace, buffers and drafts (#270).
   reloadWhenGone(window, options.log);
+  // macOS: a swipe to the left or right, as older mouse software sends Back and Forward (SR-163 AK4).
+  forwardSwipes(window, options.platform);
   const openWorkspace = async (): Promise<void> => {
     const chosen = await electron.dialog.showOpenDialog(window, {
       title: "Open Workspace",

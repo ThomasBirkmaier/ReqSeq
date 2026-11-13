@@ -7,6 +7,7 @@ describe("@reqseq/app", () => {
       "HELP_CHANNEL",
       "SAVE_CHANNEL",
       "SHORTCUT_TABLES",
+      "SWIPE_CHANNEL",
       "WORKSPACE_CHANNEL",
       "appCommandEntry",
       "cliUsage",

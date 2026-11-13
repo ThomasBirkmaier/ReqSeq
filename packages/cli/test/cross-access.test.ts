@@ -15,7 +15,14 @@ import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
-import { HELP_CHANNEL, SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
+import {
+  HELP_CHANNEL,
+  SAVE_CHANNEL,
+  SWIPE_CHANNEL,
+  WORKSPACE_CHANNEL,
+  createBridge,
+  createCoreHost,
+} from "@reqseq/app";
 import type { CatalogEntry, CommandName } from "@reqseq/core";
 import { CommandError, Workspace, createCommandRuntime, jsonChunks, jsonLines } from "@reqseq/core";
 import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
@@ -200,10 +207,10 @@ const connectApp = (
   host.connect(nodeChannel(port1));
   let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
   const bridge = createBridge({
-    // The workspace of the window, main's requests to save before a switch (SR-131) and Help in the menu
-    // (SR-141), which no command sends.
+    // The workspace of the window, main's requests to save before a switch (SR-131), Help in the menu
+    // (SR-141) and a macOS swipe (SR-163), which no command sends.
     on: (channel, listener) => {
-      expect([WORKSPACE_CHANNEL, HELP_CHANNEL, SAVE_CHANNEL]).toContain(channel);
+      expect([WORKSPACE_CHANNEL, HELP_CHANNEL, SAVE_CHANNEL, SWIPE_CHANNEL]).toContain(channel);
       if (channel === WORKSPACE_CHANNEL) {
         deliver = listener;
       }

@@ -18,7 +18,9 @@ describe("renderer entry", () => {
                 ? { types: [], properties: [], relations: [], statuses: [], meanings: {} }
                 : name === "element.facets"
                   ? { total: 0, types: [], statuses: [], properties: [], incomplete: false }
-                  : { elements: [], total: 0 },
+                  : name === "perspective.list"
+                    ? { perspectives: [] }
+                    : { elements: [], total: 0 },
         }),
       commands: () => Promise.resolve([]),
       on: () => () => undefined,

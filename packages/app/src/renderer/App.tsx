@@ -17,6 +17,7 @@ import {
   mouseButtonAction,
   referencePrompt,
   runAction,
+  swipeAction,
 } from "./actions.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
@@ -31,6 +32,7 @@ import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
+import { trackCalls } from "./call-turn.js";
 import type { ShownView } from "./views.js";
 import { inView, variantTypesOf, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
@@ -44,6 +46,7 @@ import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
 import { SlideController, directionOf, shownLayer } from "./buffer-slide.js";
+import { bufferSwitchBlocked } from "./buffer-switch.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
@@ -60,6 +63,7 @@ import {
   workspaceView,
 } from "./modeline.js";
 import { useOverview } from "./OverviewView.js";
+import { openPerspective } from "./perspective-actions.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import {
@@ -319,13 +323,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const macRef = useRef(mac);
   macRef.current = mac;
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
+  // The calls to the core, counted, so that the overview's counts give way to them (`call-turn.ts`).
+  const [calls] = useState(() => trackCalls());
+  const tracked = useMemo<ReqSeqBridge>(
+    () => ({ ...bridge, invoke: calls.wrap((name, input) => bridge.invoke(name, input)) }),
+    [bridge, calls],
+  );
   const call = useMemo<Call>(() => {
-    const run = callOn(bridge);
+    const run = callOn(tracked);
     return (name, input) =>
       stoppedRef.current
         ? Promise.resolve({ ok: false, code: "workspace.not-found", message: stoppedMessage(macRef.current) })
         : run(name, input);
-  }, [bridge]);
+  }, [tracked]);
   // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
   // after another workspace opens. The views of the buffers read in it; saves and single elements do not.
   const [shownView, setShownView] = useState<ShownView | undefined>(undefined);
@@ -345,7 +355,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     let mounted = true;
     // If the metamodel cannot be read, the modeline shows the keys of the types.
     const loadTypeNames = async (): Promise<void> => {
-      const metamodel = await callOn(bridge)("metamodel.get", {});
+      const metamodel = await callOn(tracked)("metamodel.get", {});
       if (mounted) {
         setTypeNames(
           metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
@@ -381,7 +391,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (key === undefined) {
         return;
       }
-      void restoreSession(loadSession(appStorage, key), callOn(bridge), () => bridge.commands()).then(
+      void restoreSession(loadSession(appStorage, key), callOn(tracked), () => bridge.commands()).then(
         (restored) => {
           if (!mounted || asked !== opened) {
             return;
@@ -434,7 +444,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
-      const result = await bridge.invoke("workspace.status", {});
+      const result = await tracked.invoke("workspace.status", {});
       if (!mounted || asked !== opened) {
         return;
       }
@@ -1087,6 +1097,39 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       window.removeEventListener("mouseup", onMouse);
     };
   }, [ask, commands, startPrefix, contextMenu.isOpen]);
+  // A swipe to the left or right that macOS reports to the window, as older mouse software sends the buttons
+  // Back and Forward (SR-163 AK4): what the mouse button does, read from refs as `onMouse` does. It ends a
+  // running slide first, as a key does (SR-212 AK2), also when it then switches nothing; it switches nothing
+  // in the states of `bufferSwitchBlocked` and closes none of them; a waiting prefix key ends, as a press of a
+  // mouse button ends it. Wheel events are not read, so a wheel that still coasts changes nothing.
+  const prefixCardShown = prefix.cardShown;
+  const cancelPrefix = prefix.cancel;
+  useEffect(
+    () =>
+      bridge.on("swipe", ({ direction }) => {
+        slides.interrupt();
+        const now = latest.current;
+        const blocked = bufferSwitchBlocked(
+          {
+            switching: switchingNow.current,
+            prompting: openPrompt.current !== undefined,
+            contextMenu: contextMenu.isOpen(),
+            about: aboutOpen.current,
+            nextKeys: prefixCardShown(),
+          },
+          document,
+        );
+        if (blocked || !now.workspace) {
+          return;
+        }
+        cancelPrefix();
+        const action = swipeAction(now, direction);
+        if (action !== undefined) {
+          runAction(action, now);
+        }
+      }),
+    [bridge, slides, contextMenu.isOpen, prefixCardShown, cancelPrefix],
+  );
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -1176,6 +1219,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     recent,
     shownAreas.some((area) => area.buffer.kind === "overview"),
     setEcho,
+    calls.turn,
   );
   // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {
@@ -1217,7 +1261,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     onDrawn,
     typeNames,
     kindNames,
-    overview,
+    // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
+    overview: {
+      ...overview,
+      openPerspective: (name) => {
+        void openPerspective(latest.current, name);
+      },
+    },
     element: (buffer) => ({
       onGone: forgetName,
       searchCall: call,

@@ -16,6 +16,10 @@
 // hold the app back: `launchApp` gives Electron's `executablePath`, so Playwright adds no loader that delays
 // `ready`, and the times are taken in the window, not when Playwright has connected. Its attach (until
 // `launchApp` gives the window) is recorded on its own.
+// Perspectives (SR-118 AK6, AK8): the overview counts up to ten after it stands. A workspace with perspectives is
+// inside the Given of AK1, so a test of its own, untagged and not asserted, records the start until usable with ten
+// of them against the threshold of AK1 (a time over it opens the perf issue), and the time until the overview shows
+// all ten counts.
 // "sichtbar": the element's title and text are rendered, from the keydown of Enter to the frame after the paint.
 // Times are taken in the window (`requestAnimationFrame` polling and the keydown's `event.timeStamp`), so
 // Playwright's own polling adds nothing. Core runs without the output check of tests (`validateOutput: false`),
@@ -63,6 +67,47 @@ const appeared = async (file: string, withinMs: number): Promise<void> => {
       throw new Error(`${file} did not appear within ${String(withinMs)} ms`);
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+};
+
+/** Ten perspectives over the generated workspace (SR-118 AK6: the most the overview shows). */
+const PERSPECTIVES: Readonly<Record<string, readonly string[]>> = {
+  "all-requirements": ["name: All requirements", "where: { type: [system-requirement] }"],
+  "draft-requirements": [
+    "name: Draft requirements",
+    "where: { all: [{ type: [system-requirement] }, { status: [draft] }] }",
+  ],
+  "approved-requirements": [
+    "name: Approved requirements",
+    "where: { all: [{ type: [system-requirement] }, { status: [approved] }] }",
+  ],
+  "requirements-by-status": [
+    "name: Requirements by status",
+    "where: { type: [system-requirement] }",
+    "group: status",
+  ],
+  "requirements-by-title": [
+    "name: Requirements by title",
+    "where: { type: [system-requirement] }",
+    "sort: [{ by: title }]",
+  ],
+  needs: ["name: Needs", "where: { type: [need] }"],
+  "draft-needs": ["name: Draft needs", "where: { all: [{ type: [need] }, { status: [draft] }] }"],
+  decisions: ["name: Decisions", "where: { type: [decision] }"],
+  everything: ["name: Everything", "where: { all: [] }"],
+  "everything-by-type": ["name: Everything by type", "where: { all: [] }", "group: type"],
+};
+
+/** Writes `PERSPECTIVES` into the `perspectives` folder of the main repository `root`. */
+const writePerspectives = async (root: string): Promise<void> => {
+  const folder = path.join(root, "perspectives");
+  await fs.mkdir(folder, { recursive: true });
+  for (const [file, lines] of Object.entries(PERSPECTIVES)) {
+    await fs.writeFile(
+      path.join(folder, `${file}.yaml`),
+      ["reqseq-perspective: 1", ...lines, ""].join("\n"),
+      "utf8",
+    );
   }
 };
 
@@ -141,6 +186,30 @@ const timeStart = async (kept: Kept): Promise<{ readonly running: RunningApp; re
   const answer = await timeOf(answeredIn);
   const overview = shown - launched;
   return { running, start: { attach, overview, answer, usable: overview + answer } };
+};
+
+/**
+ * Starts the app on `kept` and gives the ms from the launch until the overview shows a count (or a reason) on each
+ * of its `count` perspective lines (SR-118 AK8); fails after `withinMs`.
+ */
+const timeCounts = async (
+  kept: Kept,
+  count: number,
+  withinMs: number,
+): Promise<{ readonly running: RunningApp; readonly counted: number }> => {
+  const launched = now();
+  const running = await launchApp(undefined, { kept, validateOutput: false });
+  const countedAt = await running.window.waitForFunction(
+    (count) => {
+      const lines = [...document.querySelectorAll('[aria-label="Overview"] .line.perspective')];
+      return lines.length === count && lines.every((line) => line.querySelector(".count, .reason") !== null)
+        ? performance.timeOrigin + performance.now()
+        : false;
+    },
+    count,
+    { polling: "raf", timeout: withinMs },
+  );
+  return { running, counted: (await timeOf(countedAt)) - launched };
 };
 
 /**
@@ -234,6 +303,17 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
     }
   });
 
+  /** The model cache file of the generated workspace, in the cache folder below `home`. */
+  const modelCacheFile = (): string =>
+    path.join(
+      cacheFolder(fixture?.workspaceRoot ?? "", {
+        platform: process.platform,
+        env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home },
+        home,
+      }),
+      MODEL_CACHE_FILE,
+    );
+
   const kept = (): Kept => ({
     home,
     workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() },
@@ -272,15 +352,7 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
   // before the thresholds are asserted, softly.
   test("[SR-082/AK-r2jc] [SR-082/AK-m65x] [SR-082/AK-csnf] [SR-082/AK-tndr] the app is usable within 30 s without the cache and 3 s with it, shows the first element within 1 s and later ones within 200 ms", async () => {
     test.setTimeout(600_000);
-    const root = fixture?.workspaceRoot ?? "";
-    const modelCache = path.join(
-      cacheFolder(root, {
-        platform: process.platform,
-        env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home },
-        home,
-      }),
-      MODEL_CACHE_FILE,
-    );
+    const modelCache = modelCacheFile();
     expect(existsSync(modelCache), `a model cache before the first start: ${modelCache}`).toBe(false);
     const { running: cold, start: coldStart } = await timeStart(kept());
     running = cold;
@@ -329,11 +401,82 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
     );
     // Every model cache entry was reused: the second start did not write the cache again.
     expect((await fs.stat(modelCache)).mtimeMs).toBe(written);
+
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF app start and open ${JSON.stringify({ cold: coldStart, warm: start, opens: times })}`);
     assertWithin(coldUsable);
     assertWithin(warm);
     assertWithin(first);
     assertWithin(later);
+  });
+
+  // A workspace with perspectives is inside the Given of SR-082 AK1, so the start with ten of them (the most the
+  // overview shows, SR-118 AK6) is recorded against its threshold; untagged, so that a failure here leaves the
+  // evidence of the test above alone; a time over the threshold opens the perf issue through the record. Runs
+  // after the test above, on its model cache; in a new worker (after a failure above) it writes the cache first.
+  test("the app is usable within 3 s with the cache and ten perspectives on the overview, and shows their counts", async () => {
+    test.setTimeout(300_000);
+    const modelCache = modelCacheFile();
+    await running?.close({ keep: true });
+    running = undefined;
+    if (!existsSync(modelCache)) {
+      const first = await launchApp(undefined, { kept: kept(), validateOutput: false });
+      await appeared(modelCache, 120_000);
+      await first.close({ keep: true });
+    }
+    // The same start without perspectives first: after the test above the window also reads its recent elements
+    // and buffers at the start, so this is what the start with perspectives is compared with.
+    const { running: before, start: without } = await timeStart(kept());
+    running = before;
+    await recordValue(
+      "app: start until usable, the overview plus Ctrl+K L, before ten perspectives are added (with cache)",
+      without.usable,
+      { basis: "SR-082 AK1 (the reference of the start with ten perspectives; recorded)" },
+    );
+    await recordValue(
+      "app: Ctrl+K L until the list of all elements shows its first page, before ten perspectives are added (with cache)",
+      without.answer,
+      { basis: "SR-082 AK1 (the reference of the start with ten perspectives; recorded)" },
+    );
+    await running.close({ keep: true });
+    running = undefined;
+    await writePerspectives(fixture?.workspaceRoot ?? "");
+    const { running: started, start } = await timeStart(kept());
+    running = started;
+    await recordValue(
+      "app: start until the overview shows all elements, with ten perspectives on the overview (with cache)",
+      start.overview,
+      { basis: "SR-082 AK1 with SR-118 AK6 (part of the start; recorded)" },
+    );
+    await recordValue(
+      "app: Ctrl+K L until the list of all elements shows its first page, while the overview counts ten perspectives (with cache)",
+      start.answer,
+      { basis: "SR-082 AK1 with SR-118 AK8 (part of the start; recorded)" },
+    );
+    await recordValue(
+      "app: start until usable, the overview plus Ctrl+K L, with ten perspectives on the overview (with cache)",
+      start.usable,
+      {
+        basis: "SR-082 AK1 (start with cache, ten perspectives on the overview, SR-118 AK6; untagged)",
+        thresholdMs: WARM_MS,
+      },
+    );
+    await running.close({ keep: true });
+    running = undefined;
+    const { running: counting, counted } = await timeCounts(
+      kept(),
+      Object.keys(PERSPECTIVES).length,
+      120_000,
+    );
+    running = counting;
+    await recordValue(
+      "app: start until the overview shows the counts of ten perspectives (with cache)",
+      counted,
+      {
+        basis: "SR-118 AK8 (recorded)",
+      },
+    );
+    // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
+    console.log(`PERF app start with ten perspectives ${JSON.stringify({ without, start, counted })}`);
   });
 });

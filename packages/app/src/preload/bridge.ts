@@ -1,15 +1,16 @@
 // `window.reqseq` (ADR-0010): the only thing the sandboxed renderer can reach. The main process sends
 // the window's workspace on WORKSPACE_CHANNEL, with a port to the core process when one is open; every
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
-// command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
-// facilities of the window ask the main process: `copyText` writes the clipboard (SR-128), `pasteText`
-// has main paste it into the focused field (SR-195 AK3), `openDocs` opens the bundled documentation in the
-// browser and `onHelp` hears Help > ReqSeq Documentation (SR-141),
-// `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
-// workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders of a path typed
-// there (SR-143 AK1), and `onSave` sets what saves the window's unsaved
-// input when main asks before such a switch (AK3) or before the window closes (SR-105 AK1). Nothing rejects across the context bridge, which would keep only an error's message:
-// a failure is the error object of every access, an empty list or a refusal.
+// command, the catalog for the command palette, and `on` for the events of `BridgeEvents`, among them
+// `swipe`, a swipe macOS reported to the window (SR-163 AK4). The facilities of the window ask the main
+// process: `copyText` writes the clipboard (SR-128), `pasteText` has main paste it into the focused field
+// (SR-195 AK3), `openDocs` opens the bundled documentation in the browser and `onHelp` hears Help > ReqSeq
+// Documentation (SR-141), `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open
+// one of them, or the workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders
+// of a path typed there (SR-143 AK1), and `onSave` sets what saves the window's unsaved input when main
+// asks before such a switch (AK3) or before the window closes (SR-105 AK1). Nothing rejects across the
+// context bridge, which would keep only an error's message: a failure is the error object of every
+// access, an empty list or a refusal.
 import type {
   CommandListing,
   EditRequest,
@@ -32,6 +33,7 @@ import {
   REFUSED_LISTING,
   SAVED_CHANNEL,
   SAVE_CHANNEL,
+  SWIPE_CHANNEL,
   WORKSPACE_CHANNEL,
   folderListing,
   isBridgeEvent,
@@ -40,6 +42,7 @@ import {
   portMessage,
   recentWorkspaceEntries,
   saveRequest,
+  swipeDirection,
 } from "../shared/protocol.js";
 import { noWorkspaceMessage } from "../shared/open-hint.js";
 import { isMac } from "../renderer/keys.js";
@@ -155,6 +158,15 @@ export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platfor
   ipc.on(HELP_CHANNEL, () => {
     for (const listener of helpListeners) {
       listener();
+    }
+  });
+
+  // A swipe to the left or right that macOS reported to the window (SR-163 AK4): only one of the two
+  // directions reaches the listeners of `swipe`, as an event of the main process the port never carries.
+  ipc.on(SWIPE_CHANNEL, (_event, value) => {
+    const direction = swipeDirection(value);
+    if (direction !== undefined) {
+      emit({ event: "swipe", data: { direction } });
     }
   });
 
