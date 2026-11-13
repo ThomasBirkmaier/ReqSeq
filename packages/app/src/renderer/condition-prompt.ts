@@ -1,15 +1,16 @@
 // A condition (`where` of "Save filter" and "Save perspective") built step by step from hits (SR-215 AK3,
-// AK4, AK6, AK9). The first step offers the finishing hit and the kinds; choosing a kind asks its values, and
-// each value chosen is a mark in the input with the label of the same list filter step (`list-filters.ts`)
+// AK4, AK5, AK6, AK9). The first step offers the finishing hit and the kinds; choosing a kind asks its values,
+// and each value chosen is a mark in the input with the label of the same list filter step (`list-filters.ts`)
 // where a list has one. All marks hold together: the value is `{ all: [<marks in their order>] }`, without a
 // mark `{ all: [] }` (AK10). Text that starts with "{" is one condition in JSON, as the command line takes
 // it; core checks it (ADR-0002: the app builds the input and decides nothing about what is allowed).
 //
-// The values come from read commands: types from `metamodel.get`; statuses and properties with their values
-// from `element.facets` over the marks so far (without a mark the workspace), the statuses by their name in
-// `metamodel.get`, the properties by SR-124 AK2 and AK3 (`choosableProperties`). The other kinds of AK3
-// (verification and validation status, validity, relation) follow in the next part of #1645; until then they
-// go in as JSON.
+// The values come from read commands: types and relation kinds from `metamodel.get`; statuses and properties
+// with their values from `element.facets` over the marks so far (without a mark the workspace), the statuses
+// by their name in `metamodel.get`, the properties by SR-124 AK2 and AK3 (`choosableProperties`); verification
+// and validation statuses from the condition's schema in the catalog; the views of validity from `viewsOf`.
+// Without a mark, the conditions of the shown list come first (AK5, `shownMarks`): the same parts that "Save
+// list as perspective" writes (`perspectiveWhere`), so both ways save the same file (SR-214 AK5).
 import type { ElementFacetsOutput, ElementSelection } from "@reqseq/core";
 import type {
   ActionContext,
@@ -21,6 +22,7 @@ import type {
 } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 import type { Facet } from "./list-filters.js";
+import { viewName, viewsOf } from "./views.js";
 import {
   choosableProperties,
   facetValueStep,
@@ -42,6 +44,8 @@ export interface ConditionMark {
 /** What the steps of a condition need from the argument entry (`catalog-commands.ts`). */
 export interface ConditionAsk {
   readonly context: ActionContext;
+  /** The condition's schema in the catalog: the verification and validation statuses are its enums. */
+  readonly schema: unknown;
   /** The command's line and the field, "Save filter open · where": the prompts' labels start with it. */
   readonly line: string;
   /** Why core refused the condition, said in the first step when it is asked again (AK6). */
@@ -55,7 +59,18 @@ export interface ConditionAsk {
   readonly back: (marks: readonly ConditionMark[]) => void;
   /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly take: (marks: readonly ConditionMark[], more: boolean) => void;
+  /** The conditions of the shown list, the first hit without a mark (AK5); or why there is none. */
+  readonly shown?: ShownConditions;
 }
+
+/**
+ * The first hit without a mark (AK5): the marks of the shown list's conditions, `key` what it shows of them
+ * (its step labels), and `ask` the argument entry that goes on with them (a saved filter given as `filter`).
+ * Or `note`, which the explanation line says in place of the hit.
+ */
+export type ShownConditions =
+  | { readonly marks: readonly ConditionMark[]; readonly key: string; readonly ask: () => ConditionAsk }
+  | { readonly note: string };
 
 /** The value the marks give (AK10): all of them, in their order. */
 export const conditionOf = (marks: readonly ConditionMark[]): { readonly all: readonly unknown[] } => ({
@@ -66,6 +81,9 @@ export const conditionOf = (marks: readonly ConditionMark[]): { readonly all: re
 export const conditionLabel = (marks: readonly ConditionMark[]): string =>
   marks.length === 0 ? "all elements" : marks.map((mark) => mark.label).join(" · ");
 
+/** The first hit without a mark on a shown list (AK5): Enter takes its conditions as marks. */
+export const SHOWN_CONDITIONS = "Conditions of the shown list";
+
 /** The finishing hit without a mark (AK4). */
 export const NO_CONDITION = "No condition: all elements";
 
@@ -75,6 +93,26 @@ const stepMark = (step: FilterStep): ConditionMark => ({
   label: step.label,
   condition: step.selection.where,
 });
+
+/** The parts of `condition` under one `all`: those of an `all`, else the condition itself. */
+const allParts = (condition: Condition): readonly Condition[] =>
+  "all" in condition && Object.keys(condition).length === 1 ? condition.all : [condition];
+
+/**
+ * The marks of the conditions of a list's steps (AK5): each filter step with its label, the selection of a
+ * perspective (its first step) as one mark in JSON per condition of it; a saved filter gives none (it is the
+ * argument `filter`).
+ */
+export const shownMarks = (steps: readonly FilterStep[]): readonly ConditionMark[] =>
+  steps.flatMap((step) => {
+    const { where } = step.selection;
+    if (where === undefined) {
+      return [];
+    }
+    return step.perspective === true
+      ? allParts(where).map((part) => ({ label: JSON.stringify(part), condition: part }))
+      : [stepMark(step)];
+  });
 
 /** A mark of the typed JSON: the parsed condition, else the text, which core then refuses (AK6). */
 const jsonMark = (text: string): ConditionMark => {
@@ -130,6 +168,59 @@ const valueHits = (facet: Facet): Hit[] => [
     };
   }),
   ...(facet.missing > 0 ? [{ name: "(no value)", mark: stepMark(missingStep(facet.key)) }] : []),
+];
+
+/** The values of `field` in a branch of the condition's schema: its enum, or its items' enum. */
+const enumOf = (schema: unknown, field: string): readonly string[] => {
+  const branches = (schema as { readonly oneOf?: readonly unknown[] } | undefined)?.oneOf ?? [];
+  for (const branch of branches) {
+    const part = (
+      branch as {
+        readonly properties?: Readonly<
+          Record<
+            string,
+            { readonly enum?: readonly unknown[]; readonly items?: { readonly enum?: readonly unknown[] } }
+          >
+        >;
+      }
+    ).properties?.[field];
+    const values = part?.items?.enum ?? part?.enum;
+    if (values !== undefined) {
+      return values.map(String);
+    }
+  }
+  return [];
+};
+
+/** A kind whose values are the enum of its field in the schema: "verification: failed". */
+const enumKind = (key: string, name: string, label: string): Kind => ({
+  key,
+  name,
+  hits: (ask) =>
+    Promise.resolve(
+      enumOf(ask.schema, key).map((value) => ({
+        name: value,
+        mark: { label: `${label}: ${value}`, condition: { [key]: [value] } },
+      })),
+    ),
+});
+
+const relationHit = (
+  name: string,
+  relation: Readonly<Record<string, string>>,
+  exists: boolean,
+  key?: string,
+): Hit => ({
+  name,
+  ...(key === undefined ? {} : { key }),
+  mark: { label: `relation: ${name}`, condition: { relation, exists } },
+});
+
+/** Parent and child are the ends of a derivation (glossary); evidence is a direction of its own. */
+const RELATION_ENDS: readonly (readonly [string, Readonly<Record<string, string>>])[] = [
+  ["child", { meaning: "derivation", direction: "down" }],
+  ["parent", { meaning: "derivation", direction: "up" }],
+  ["evidence", { direction: "evidence" }],
 ];
 
 const KINDS: readonly Kind[] = [
@@ -189,6 +280,46 @@ const KINDS: readonly Kind[] = [
             },
           }))
         : { failed: facets.message };
+    },
+  },
+  enumKind("verification", "Verification status", "verification"),
+  enumKind("validation", "Validation status", "validation"),
+  {
+    key: "validFor",
+    name: "Validity",
+    hits: async (ask) => {
+      const views = await viewsOf(ask.context.call);
+      return views.ok
+        ? views.views.map((shown) => ({
+            name: viewName(shown),
+            key: shown.view,
+            mark: { label: `validity: ${viewName(shown)}`, condition: { validFor: shown.view } },
+          }))
+        : { failed: views.message };
+    },
+  },
+  {
+    key: "relation",
+    name: "Relation",
+    hits: async (ask) => {
+      const answer = await ask.context.call("metamodel.get", {});
+      if (!answer.ok) {
+        return { failed: answer.message };
+      }
+      const kinds = [
+        ...answer.output.relations.map((kind) => ({ key: kind.key, name: kind.name })),
+        ...answer.output.properties.filter((property) => property.kind === "relation"),
+      ];
+      return [
+        ...RELATION_ENDS.flatMap(([end, relation]) => [
+          relationHit(`without ${end}`, relation, false),
+          relationHit(`with ${end}`, relation, true),
+        ]),
+        ...kinds.flatMap(({ key, name }) => [
+          relationHit(`without ${name}`, { kind: key }, false, key),
+          relationHit(`with ${name}`, { kind: key }, true, key),
+        ]),
+      ];
     },
   },
   { key: "text", name: "Text search" },
@@ -302,19 +433,38 @@ const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: Kind)
 };
 
 /**
- * Asks the condition with `marks` given (AK3, AK4): the finishing hit first, "Take <n> conditions" with
- * marks, else "No condition: all elements", then the kinds; text starting with "{" is taken as one condition
- * in JSON (AK6). Ctrl/Cmd+Enter takes the marks and offers the optional arguments. Backspace on an empty
- * input removes the last mark, without one it goes back an argument, as Escape does (AK9, SR-134 AK4).
+ * Asks the condition with `marks` given (AK3, AK4): without a mark the shown list's conditions first (AK5,
+ * `shown`), then the finishing hit, "Take <n> conditions" with marks, else "No condition: all elements", then
+ * the kinds; text starting with "{" is taken as one condition in JSON (AK6). Ctrl/Cmd+Enter takes the marks
+ * and offers the optional arguments. Backspace on an empty input removes the last mark, without one it goes
+ * back an argument, as Escape does (AK9, SR-134 AK4).
  */
 export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[]): void => {
   const ask = plain(given);
   const take = (taken: readonly ConditionMark[], more: boolean) => (): void => {
     given.take(taken, more);
   };
+  const { shown } = given;
+  const first: readonly Choice[] =
+    marks.length === 0 && shown !== undefined && "marks" in shown
+      ? [
+          {
+            id: "shown",
+            name: SHOWN_CONDITIONS,
+            hint: shown.key,
+            run: () => {
+              askCondition(shown.ask(), shown.marks);
+            },
+            more: () => {
+              shown.ask().take(shown.marks, true);
+            },
+          },
+        ]
+      : [];
   const prompt: Prompt = {
     label: `${given.error === undefined ? "" : `${given.error} · `}${given.line}:`,
     items: [
+      ...first,
       {
         id: "take",
         name: marks.length === 0 ? NO_CONDITION : `Take ${plural(marks.length, "condition")}`,
@@ -355,6 +505,7 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
         enter: "takes the marked hit; all conditions must hold",
         unmark: marks.length > 0,
         json: true,
+        ...(marks.length === 0 && shown !== undefined && "note" in shown ? { note: shown.note } : {}),
       },
     },
     back: () => {

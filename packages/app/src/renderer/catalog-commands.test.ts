@@ -8,18 +8,29 @@ import { ACTIONS, commandPrompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {
   elementBuffer,
+  filteredList,
   listBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
   perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
+  withQuery,
 } from "./buffers.js";
+import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
+import { perspectiveInput } from "./perspective-actions.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
+import {
+  NO_SHOWN_FILTER,
+  catalogItems,
+  contextField,
+  fits,
+  refusedOf,
+  withExplanations,
+} from "./catalog-commands.js";
 import { coveredCommand } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
@@ -3136,7 +3147,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   });
 });
 
-describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, AK10, #1645)", () => {
+describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, AK9, AK10, #1645)", () => {
   const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const FACETS = {
     total: 3,
@@ -3188,9 +3199,18 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     await flush();
   };
 
-  const KINDS = ["Type | type", "Status | status", "Property | property", "Text search | text"];
+  const KINDS = [
+    "Type | type",
+    "Status | status",
+    "Property | property",
+    "Verification status | verification",
+    "Validation status | validation",
+    "Validity | validFor",
+    "Relation | relation",
+    "Text search | text",
+  ];
 
-  it("offers the kinds, then their values; each chosen condition is a mark with the label of its list filter step, and the hits keep their place", async () => {
+  it("[SR-215/AK-dt5s] offers the kinds, then their values; each chosen condition is a mark with the label of its list filter step, and the hits keep their place", async () => {
     const { asked, call } = await atWhere();
     const first = await last(asked);
     expect(first.label).toBe("Save filter open · where:");
@@ -3217,6 +3237,28 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     expect(await names(asked)).toEqual(["Display | display", "(no value)"]);
     await choose(asked, "(no value)");
     expect(await marks(asked)).toEqual(["type: requirement", "status: draft", "component: (no value)"]);
+    // Verification and validation statuses from the condition's schema in the catalog.
+    await choose(asked, "Verification status");
+    expect(await names(asked)).toEqual(["open", "verified", "indirect", "failed", "outdated"]);
+    await choose(asked, "failed");
+    await choose(asked, "Validation status");
+    expect(await names(asked)).toContain("open");
+    await choose(asked, "open");
+    // Validity: the views, the core first.
+    await choose(asked, "Validity", "Core");
+    // Relations: the ends of a derivation and evidence, then each relation kind and relation property.
+    await choose(asked, "Relation");
+    expect((await names(asked)).slice(0, 7)).toEqual([
+      "without child",
+      "with child",
+      "without parent",
+      "with parent",
+      "without evidence",
+      "with evidence",
+      "without Derives from | derives-from",
+    ]);
+    expect(await names(asked)).toContain("with Package | packages");
+    await choose(asked, "without child");
     // A text search takes the typed words; an empty input asks again.
     await choose(asked, "Text search");
     (await last(asked)).text?.("  ");
@@ -3226,9 +3268,30 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
       "type: requirement",
       "status: draft",
       "component: (no value)",
+      "verification: failed",
+      "validation: open",
+      "validity: Core",
+      "relation: without child",
       "text: brake",
     ]);
-    expect(await names(asked)).toEqual(["Take 4 conditions", ...KINDS]);
+    expect(await names(asked)).toEqual(["Take 8 conditions", ...KINDS]);
+    item((await last(asked)).items, "Take 8 conditions").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: {
+        all: [
+          { type: ["requirement"] },
+          { status: ["draft"] },
+          { property: "component", op: "missing" },
+          { verification: ["failed"] },
+          { validation: ["open"] },
+          { validFor: "core" },
+          { relation: { meaning: "derivation", direction: "down" }, exists: false },
+          { text: "brake" },
+        ],
+      },
+    });
   });
 
   it("[SR-215/AK-fm4s] the finishing hit is marked first: without a mark it takes no condition, with marks all of them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
@@ -3373,13 +3436,90 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     expect((await last(asked)).explain?.building?.enter).toBe("adds the text search");
   });
 
+  it("[SR-215/AK-w8q6] without a mark the conditions of the shown list are the first hit: Enter takes each filter step as a mark with its label", async () => {
+    const list = filteredList([typeStep("need"), statusStep("draft")]);
+    const run = setup([list], answers);
+    start(run.context, "filter.save");
+    (await last(run.asked)).text?.("open");
+    expect(await names(run.asked)).toEqual([
+      "Conditions of the shown list | type: need · status: draft",
+      "No condition: all elements",
+      ...KINDS,
+    ]);
+    await choose(run.asked, "Conditions of the shown list");
+    expect(await marks(run.asked)).toEqual(["type: need", "status: draft"]);
+    // With marks the hit is gone and the finishing hit is first: Enter, Enter.
+    expect(await names(run.asked)).toEqual(["Take 2 conditions", ...KINDS]);
+    await choose(run.asked, "Take 2 conditions");
+    expect(run.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
+    });
+    // Without a mark again (its ×), the hit is back.
+    const again = setup([list], answers);
+    start(again.context, "filter.save");
+    (await last(again.asked)).text?.("open");
+    await choose(again.asked, "Conditions of the shown list");
+    (await last(again.asked)).marks?.[1]?.remove();
+    (await last(again.asked)).marks?.[0]?.remove();
+    expect((await last(again.asked)).items[0]?.name).toBe("Conditions of the shown list");
+    // Ctrl/Cmd+Enter on it takes them and offers the optional arguments.
+    (await last(again.asked)).items[0]?.more?.();
+    expect((await last(again.asked)).label).toBe(
+      "Save filter open type: need · status: draft · more arguments:",
+    );
+  });
+
+  it("[SR-215/AK-w8q6] Save filter has no such hit for a list with a saved filter and says why; the matrix, a search and a list without steps have none", async () => {
+    const saved = setup([filteredList([savedStep("Sensors"), typeStep("need")])], answers);
+    start(saved.context, "filter.save");
+    (await last(saved.asked)).text?.("open");
+    const prompt = await last(saved.asked);
+    expect(prompt.items[0]?.name).toBe("No condition: all elements");
+    expect(prompt.explain?.building?.note).toBe(NO_SHOWN_FILTER);
+    // With a mark the note is gone.
+    await choose(saved.asked, "Type", "Decision");
+    expect((await last(saved.asked)).explain?.building?.note).toBeUndefined();
+    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
+    for (const shown of [filteredList([typeStep("need")], undefined, true), filteredList([]), search]) {
+      const run = setup([shown], answers);
+      start(run.context, "filter.save");
+      (await last(run.asked)).text?.("open");
+      expect((await last(run.asked)).items[0]?.name).toBe("No condition: all elements");
+      expect((await last(run.asked)).explain?.building?.note).toBeUndefined();
+    }
+  });
+
+  it("[SR-215/AK-w8q6] Save perspective takes a perspective's selection as the marks of its conditions and its saved filter as filter: the selection Save list as perspective saves", async () => {
+    const origin = {
+      name: "Drafts",
+      saved: { where: { all: [{ type: ["need"] }, { not: { status: ["draft"] } }] }, filter: "Sensors" },
+    };
+    const perspective = perspectiveBuffer(origin);
+    const list = withQuery(perspective, { steps: [...perspective.steps, textStep("x")] });
+    const run = setup([list], {
+      ...answers,
+      "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+    });
+    start(run.context, "perspective.save");
+    (await last(run.asked)).text?.("Rain");
+    expect(await names(run.asked)).toContain("Conditions of the shown list | perspective: Drafts · text: x");
+    await choose(run.asked, "Conditions of the shown list");
+    expect(await marks(run.asked)).toEqual(['{"type":["need"]}', '{"not":{"status":["draft"]}}', "text: x"]);
+    // The saved filter is given to `filter`, before the condition.
+    expect((await last(run.asked)).label).toBe("Save perspective Rain Sensors · where:");
+    await choose(run.asked, "Take 3 conditions");
+    const { where, filter } = perspectiveInput(list, "Rain");
+    expect(run.call).toHaveBeenLastCalledWith("perspective.save", { name: "Rain", where, filter });
+  });
+
   it("says why the values of a kind cannot be read", async () => {
     const failing = new Error("The metamodel is faulty");
     const { asked } = await atWhere(false, {
       "metamodel.get": () => failing,
       "element.facets": () => failing,
     });
-    for (const kind of ["Type", "Status", "Property"]) {
+    for (const kind of ["Type", "Status", "Property", "Validity", "Relation"]) {
       await choose(asked, kind);
       expect((await last(asked)).label).toBe(`The metamodel is faulty · Save filter open · where · ${kind}:`);
       (await last(asked)).back?.();

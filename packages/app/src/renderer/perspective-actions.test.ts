@@ -455,13 +455,14 @@ describe("Save list as perspective (SR-214 AK5)", () => {
       where: { all: [{ type: ["need"] }, { text: "x" }] },
       sort: [{ by: "title", order: "desc" }],
     });
-    expect(perspectiveWhere([typeStep("need")])).toEqual({ type: ["need"] });
-    // The selection of a perspective stays as stored: alone without further steps (SR-213 AK3), and its
-    // parts first, unchanged, with them.
+    // Always under one `all` (SR-215 AK5: the marks "Save perspective" takes from the shown list), the parts of
+    // a perspective's stored `all` first, a stored condition of another kind as one part.
+    expect(perspectiveWhere([typeStep("need")])).toEqual({ all: [{ type: ["need"] }] });
     const stored = perspectiveBuffer({ name: "One", saved: { where: { all: [{ type: ["need"] }] } } });
     expect(perspectiveWhere(stored.steps)).toEqual({ all: [{ type: ["need"] }] });
     expect(perspectiveInput(stored, "One").where).toEqual({ all: [{ type: ["need"] }] });
     const single = perspectiveBuffer({ name: "Two", saved: { where: { not: { status: ["draft"] } } } });
+    expect(perspectiveWhere(single.steps)).toEqual({ all: [{ not: { status: ["draft"] } }] });
     expect(perspectiveWhere([...single.steps, textStep("x")])).toEqual({
       all: [{ not: { status: ["draft"] } }, { text: "x" }],
     });
@@ -470,11 +471,15 @@ describe("Save list as perspective (SR-214 AK5)", () => {
         ...perspectiveBuffer({ name: "All", saved: { where: { all: [] } } }).steps,
         typeStep("need"),
       ]),
-    ).toEqual({
-      type: ["need"],
-    });
+    ).toEqual({ all: [{ type: ["need"] }] });
     expect(perspectiveWhere([])).toEqual({ all: [] });
-    expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({ any: [] });
+    expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({
+      all: [{ any: [] }],
+    });
+    // A perspective that came back with nothing saved gives no part.
+    expect(perspectiveWhere(perspectiveBuffer({ name: "Gone", error: "faulty file" }).steps)).toEqual({
+      all: [],
+    });
   });
 
   it("writes through perspective.save; the list is then the buffer of the perspective as saved, at the same row", async () => {
@@ -490,7 +495,7 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     await flush();
     expect(call).toHaveBeenCalledWith("perspective.save", {
       name: "drafts",
-      where: { status: ["draft"] },
+      where: { all: [{ status: ["draft"] }] },
       sort: DEFAULT_SORT,
     });
     // The plain list became the buffer of "Drafts", which replaces the one open before.

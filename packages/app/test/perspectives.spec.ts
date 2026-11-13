@@ -447,7 +447,7 @@ test.describe("perspectives in the app", () => {
     // The text step is a text condition, the saved filter is named, the grouping is saved, and no sort:
     // the order shown is the filter's.
     expect(await cliPerspective(running, "Measured")).toMatchObject({
-      where: { text: "Measure" },
+      where: { all: [{ text: "Measure" }] },
       filter: "Requirements",
       group: "status",
     });
