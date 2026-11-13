@@ -165,9 +165,15 @@ export interface ArgumentExplanation {
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
    * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
-   * place of the keys of `list`, `ends` and `skips`.
+   * place of the keys of `list`, `ends` and `skips`. `note` says, before the keys, why a hit is missing
+   * (SR-215 AK5: "Save filter" on a list with a saved filter).
    */
-  readonly building?: { readonly enter: string; readonly unmark: boolean; readonly json: boolean };
+  readonly building?: {
+    readonly enter: string;
+    readonly unmark: boolean;
+    readonly json: boolean;
+    readonly note?: string;
+  };
 }
 
 /** A part of a value built from hits, shown as a mark in the input with an × that removes it (SR-215 AK3, AK9). */
