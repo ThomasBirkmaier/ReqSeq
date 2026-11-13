@@ -42,9 +42,14 @@
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
 // that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285);
 // `baseline` the baselines by name (`baseline.list`), by file name where two share a name; `perspective`
-// the perspectives by name (`perspective.list`). `filter` stays
-// typed text. A `selection` is never asked: it is the shown list's, or on a package page its package
-// (`selection.package`), for every command with a selection, reads and writes alike.
+// the perspectives by name (`perspective.list`); `filter` the saved filters by name (`filter.list`); an
+// `element` with a `meaning` the variants or packages (`metamodel.get`, `element.list`); `criterion` the
+// acceptance criteria of the element that have a key (`element.get`); `evidenceLocation` the evidence
+// locations evidence.record takes (`workspace.status`), typed text too; `elementFile` the file of the
+// element, or those of an ambiguous reference (`ref.ambiguous`); `metamodelLocation` the repository, then
+// the path. A hit the metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
+// asked: it is the shown list's, or on a package page its package (`selection.package`), for every command
+// with a selection, reads and writes alike.
 import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
@@ -60,7 +65,7 @@ import type {
   PromptFill,
 } from "./actions.js";
 import { ACTIONS, findElements } from "./actions.js";
-import { criterionReferenceOf } from "@reqseq/core/criterion-items";
+import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction } from "./command-entry.js";
@@ -68,7 +73,7 @@ import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, listing, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
-import { idOfName, refIdTitle, shownId } from "./id-title.js";
+import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
 import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
@@ -155,12 +160,25 @@ const ordered = (given: readonly Given[]): Given[] => {
 interface Value {
   readonly value: unknown;
   readonly name: string;
+  /** Shown beside the name (SR-215 AK1): the key of a value the metamodel names, or where the value lies. */
+  readonly key?: string;
+  /** How the prompt's line names it once given, when not by `name`: an element by its ID, as a search hit. */
+  readonly label?: string;
+  /** The hit's id, when the value is not unique among the hits (one file in two repositories). */
+  readonly id?: string;
+  /** Another argument given with it: the repository of a file that two repositories hold (`elementFile`). */
+  readonly also?: { readonly field: string; readonly value: string };
   readonly asks?: readonly RequiredProperty[];
 }
 
 /** What one argument offers: a closed list, elements found by search, or typed text. */
 type Offer =
-  | { readonly kind: "list"; readonly values: readonly Value[] }
+  | {
+      readonly kind: "list";
+      readonly values: readonly Value[];
+      /** Typed text is taken too: Enter with no hit, or "Use <text>" for a folder below a value (`typedFill`). */
+      readonly typed?: true;
+    }
   /** Elements found by `element.search`, among `types` when given (the target types of a kind or property). */
   | {
       readonly kind: "element";
@@ -170,7 +188,12 @@ type Offer =
     }
   | { readonly kind: "text"; readonly parse: (text: string) => unknown }
   /** A path typed and completed from the file system (SR-143 AK2): folders, and files too with `files`. */
-  | { readonly kind: "path"; readonly files: boolean };
+  | { readonly kind: "path"; readonly files: boolean }
+  /**
+   * Where the metamodel of a new workspace lies (`workspace.init metamodel`), asked in two steps: the
+   * repository, then the path, completed below `base` (the folder of the new workspace) in the main one.
+   */
+  | { readonly kind: "location"; readonly base?: string };
 
 /** What the loop needs besides the actions' context. */
 export interface CatalogContext extends ActionContext {
@@ -419,6 +442,10 @@ interface Asked {
   readonly before: unknown;
   /** The values already given to this field (a list such as `hintIds`): not offered again. */
   readonly taken: readonly unknown[];
+  /** The meaning of the type of the elements an element argument takes (`variant`, `package`). */
+  readonly meaning?: string;
+  /** The value given to `repository` in this run, if any: the files of an ambiguous reference are its. */
+  readonly repository?: unknown;
 }
 
 const listOf = <T>(
@@ -457,7 +484,7 @@ const statuses =
       const allowed = output.types.find((type) => type.key === element?.type)?.statuses;
       return output.statuses
         .filter((status) => (allowed?.includes(status.key) ?? true) && (!invalid || status.invalid === true))
-        .map((status) => ({ value: status.key, name: status.name }));
+        .map((status) => ({ value: status.key, name: status.name, key: status.key }));
     });
   };
 
@@ -472,25 +499,92 @@ const typed = (parse: (text: string) => unknown) => (): Promise<Offer> =>
 const asText = typed((text) => text);
 
 /**
+ * The elements of the types with the meaning `meaning` (`metamodel.get`, then `element.list`), as `viewsOf`
+ * reads the variants, without `core`; none when no type has it.
+ */
+const elementsWithMeaning = async (context: ActionContext, meaning: string): Promise<Offer | Failed> => {
+  const metamodel = await context.call("metamodel.get", {});
+  if (!metamodel.ok) {
+    return { kind: "failed", message: metamodel.message };
+  }
+  const types = metamodel.output.types.filter((type) => type.meaning === meaning).map((type) => type.key);
+  if (types.length === 0) {
+    return { kind: "list", values: [] };
+  }
+  return listOf(
+    await context.call("element.list", { selection: { where: { type: types } }, limit: 5000 }),
+    (output) =>
+      (output.elements ?? []).map((element) => ({
+        value: element.id,
+        name: shownIdTitle(element.shortId, element.identifier, element.title),
+        label: shownId(element.shortId, element.identifier),
+      })),
+  );
+};
+
+/** A file of an element, with its repository beside it. */
+interface ElementFile {
+  readonly repository: string;
+  readonly file: string;
+}
+
+/** The elements `details.candidates` of `ref.ambiguous` names by repository and file; none in other details. */
+const candidatesOf = (details: Readonly<Record<string, unknown>> | undefined): readonly ElementFile[] => {
+  const candidates = details?.["candidates"];
+  return Array.isArray(candidates)
+    ? candidates.flatMap((candidate: unknown) => {
+        const { repository, file } = (candidate ?? {}) as Partial<Record<string, unknown>>;
+        return typeof repository === "string" && typeof file === "string" ? [{ repository, file }] : [];
+      })
+    : [];
+};
+
+/**
+ * The hits of the files of an ambiguous reference, each by its repository and file. A file two of them hold
+ * goes in with its repository, which tells them apart (`element.get` `file`: "Give repository too").
+ */
+const fileValues = (candidates: readonly ElementFile[]): Value[] =>
+  candidates.map((candidate) => ({
+    ...fileValue(candidate),
+    id: JSON.stringify([candidate.repository, candidate.file]),
+    ...(candidates.filter(({ file }) => file === candidate.file).length > 1
+      ? { also: { field: "repository", value: candidate.repository } }
+      : {}),
+  }));
+
+const fileValue = ({ repository, file }: ElementFile): Value => ({
+  value: file,
+  name: file,
+  key: repository,
+});
+
+/**
  * Each source and the read command that gives its values (ADR-0002 rule 1). `relationKind`: the kinds
  * `relation.options` allows from the element it reads, without one every kind of the metamodel.
  */
 const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>> = {
-  element: () => Promise.resolve({ kind: "element" }),
+  // With a meaning, the elements of the types with that meaning (the variants, the packages) as hits.
+  element: ({ context, meaning }) =>
+    meaning === undefined ? Promise.resolve({ kind: "element" }) : elementsWithMeaning(context, meaning),
   // A new element: only the types that are not abstract, each with the required properties asked next.
   type: async ({ context, command }) =>
     listOf(await context.call("metamodel.get", {}), (output) =>
       command.name === CREATE_COMMAND
-        ? creatableTypes(output).map((type) => ({ value: type.key, name: type.name, asks: type.required }))
-        : output.types.map((type) => ({ value: type.key, name: type.name })),
+        ? creatableTypes(output).map((type) => ({
+            value: type.key,
+            name: type.name,
+            key: type.key,
+            asks: type.required,
+          }))
+        : output.types.map((type) => ({ value: type.key, name: type.name, key: type.key })),
     ),
   relationKind: async ({ context, of }) =>
     typeof of === "string"
       ? listOf(await context.call("relation.options", { ref: of }), (output) =>
-          output.kinds.map((kind) => ({ value: kind.kind, name: kind.name })),
+          output.kinds.map((kind) => ({ value: kind.kind, name: kind.name, key: kind.kind })),
         )
       : listOf(await context.call("metamodel.get", {}), (output) =>
-          output.relations.map((kind) => ({ value: kind.key, name: kind.name })),
+          output.relations.map((kind) => ({ value: kind.key, name: kind.name, key: kind.key })),
         ),
   repository: async ({ context }) =>
     listOf(await context.call("workspace.status", {}), (output) =>
@@ -532,7 +626,7 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       const typed = output.types.find((type) => type.key === element?.type)?.properties;
       return output.properties
         .filter((property) => (typed?.includes(property.key) ?? true) && property.meaning !== "title")
-        .map((property) => ({ value: property.key, name: property.name }));
+        .map((property) => ({ value: property.key, name: property.name, key: property.key }));
     });
   },
   // The values of the property it reads: its choices, elements of its target types, else typed text.
@@ -545,7 +639,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
     return property?.kind === "choice"
       ? {
           kind: "list",
-          values: (property.choices ?? []).map((choice) => ({ value: choice.key, name: choice.name })),
+          values: (property.choices ?? []).map((choice) => ({
+            value: choice.key,
+            name: choice.name,
+            key: choice.key,
+          })),
         }
       : property?.kind === "relation"
         ? elementsOf(property["target-types"], true)
@@ -597,7 +695,7 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
     return listOf(await context.call("metamodel.get", {}), (output) =>
       output.relations
         .filter((kind) => out.some((relation) => relation.kind === kind.key))
-        .map((kind) => ({ value: kind.key, name: kind.name })),
+        .map((kind) => ({ value: kind.key, name: kind.name, key: kind.key })),
     );
   },
   // The hints of the element that can be confirmed (those with a `hintId`), by their target and then
@@ -628,8 +726,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
             ),
         )
       : await asText(),
-  // No command asks a saved filter by name yet; typed text.
-  filter: asText,
+  // The saved filters of the workspace by name (`filter.list`): "Save perspective" `filter`.
+  filter: async ({ context }) =>
+    listOf(await context.call("filter.list", {}), (output) =>
+      output.filters.map((saved) => ({ value: saved.name, name: saved.name })),
+    ),
   // The baselines of the workspace by name (`baseline.list`).
   // A name two files share (ignoring case and Unicode normal form, as core finds it) is ambiguous: such a
   // baseline is given by its file name and shows it.
@@ -657,16 +758,68 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       ? { kind: "list", values: views.views.map((shown) => ({ value: shown.view, name: viewName(shown) })) }
       : { kind: "failed", message: views.message };
   },
-  // The sources the catalog names for SR-215 are asked as before until their issues (#1644 to #1648) offer
-  // their values: the acceptance criteria one per Enter, a grouping, an evidence location and the file of
-  // an ambiguous reference as text; conditions, sorts, the properties and relations of a new element and
-  // the metamodel location as JSON. An element field with a `meaning` stays an element search. Their
-  // `FITTING` entries make them readers: a value of one is dropped when the field it reads is refused.
-  criterion: asText,
-  evidenceLocation: asText,
-  elementFile: asText,
+  // The acceptance criteria of the element (`element.get` `criterionReferences`) that are not taken yet,
+  // by number and text with the key beside; the key goes in, since evidence.record refuses a criterion
+  // without one, so such a criterion is not offered (catalog `criterion`). Without an element, typed text.
+  criterion: async ({ context, of, taken }) => {
+    if (typeof of !== "string") {
+      return asText();
+    }
+    return listOf(await context.call("element.get", { ref: of }), (output) =>
+      (output.criterionReferences?.criteria ?? []).flatMap(({ criterion, key, text }) =>
+        key === undefined || taken.includes(key)
+          ? []
+          : [
+              {
+                value: key,
+                name: `AK${String(criterion)} ${text.replace(/\s+/gu, " ")}`,
+                key,
+                label: criterionLabel({ criterion, key }),
+              },
+            ],
+      ),
+    );
+  },
+  // The evidence locations of the workspace file that evidence.record takes (`workspace.status`
+  // `evidence[].folder`, in a repository on this machine), with the repository beside; typed text too,
+  // for a folder below one.
+  evidenceLocation: async ({ context }) => {
+    const offer = listOf(await context.call("workspace.status", {}), (output) => {
+      const here = new Set(output.repositories.filter((repo) => repo.available).map((repo) => repo.name));
+      const seen = new Set<string>();
+      return output.evidence.flatMap(({ folder, repository }) => {
+        if (folder === undefined || !here.has(repository) || seen.has(folder)) {
+          return [];
+        }
+        seen.add(folder);
+        return [{ value: folder, name: folder, key: repository }];
+      });
+    });
+    return offer.kind === "list" ? { ...offer, typed: true } : offer;
+  },
+  // The file of the element `of` names (`element.get`), or the files of the elements an ambiguous reference
+  // names (`details.candidates` of `ref.ambiguous`, the answer of the same read), the repository beside.
+  // A reference element.get does not read (a criterion reference of element.resolve): typed text, which
+  // core checks.
+  elementFile: async ({ context, of, repository }) => {
+    const answer = typeof of === "string" ? await context.call("element.get", { ref: of }) : undefined;
+    if (answer?.ok === true) {
+      return { kind: "list", values: [fileValue(answer.output.element)] };
+    }
+    // Only those of a repository given in this run: core refuses the others (`ref.unknown`).
+    const candidates = (answer?.code === "ref.ambiguous" ? candidatesOf(answer.details) : []).filter(
+      (candidate) => typeof repository !== "string" || candidate.repository === repository,
+    );
+    return candidates.length > 0 ? { kind: "list", values: fileValues(candidates) } : asText();
+  },
+  // The repository, then the path below the folder of the new workspace (`ask`, `askLocationPath`).
+  metamodelLocation: ({ of }) =>
+    Promise.resolve({ kind: "location", ...(typeof of === "string" ? { base: of } : {}) }),
+  // The sources the catalog names for SR-215 whose issues are still open (#1645 to #1648) are asked as
+  // before: a grouping as text; conditions, sorts and the properties and relations of a new element as
+  // JSON. Their `FITTING` entries make them readers: a value of one is dropped when the field it reads is
+  // refused.
   group: asText,
-  metamodelLocation: typed(jsonOr),
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -697,6 +850,8 @@ const offerFor = (
     taken: entry.given
       .filter((given) => given.field === arg.field && given.skipped !== true)
       .map((given) => given.value),
+    ...(arg.meaning === undefined ? {} : { meaning: arg.meaning }),
+    repository: valueOf("repository"),
   });
 };
 
@@ -1074,6 +1229,18 @@ const back = (context: CatalogContext, entry: Entry): void => {
   askAgain(context, entry, entry.given.length - 1);
 };
 
+/**
+ * `entry` with `also` given (the repository of a file two repositories hold), in place of a value given to
+ * that field before.
+ */
+const withAlso = (entry: Entry, also: NonNullable<Value["also"]>): Entry => ({
+  ...entry,
+  given: appended(
+    { ...entry, given: entry.given.filter((given) => given.field !== also.field) },
+    { field: also.field, value: also.value, label: also.value },
+  ),
+});
+
 /** Takes a value for `field`; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
 const give = (
   context: CatalogContext,
@@ -1255,14 +1422,19 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     value: unknown,
     name: string,
     asks?: readonly RequiredProperty[],
-  ): Pick<Choice, "run" | "more"> => ({
-    run: () => {
-      give(context, entry, field, value, name, false, asks);
-    },
-    more: () => {
-      give(context, entry, field, value, name, true, asks);
-    },
-  });
+    also?: Value["also"],
+  ): Pick<Choice, "run" | "more"> => {
+    // The other argument goes in first, as if given just before, so Backspace asks this one again.
+    const at = also === undefined ? entry : withAlso(entry, also);
+    return {
+      run: () => {
+        give(context, at, field, value, name, false, asks);
+      },
+      more: () => {
+        give(context, at, field, value, name, true, asks);
+      },
+    };
+  };
   // The prompt opens at once with its label, so no key goes to the buffer and Escape ends it while the
   // values load; the candidates fill in when they arrive.
   context.ask({
@@ -1274,12 +1446,21 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
       }
       if (offer.kind === "list") {
         return {
-          items: offer.values.map(({ value, name, asks }) => ({
-            id: JSON.stringify(value),
+          items: offer.values.map(({ value, name, key, label: given, id, also, asks }) => ({
+            id: id ?? JSON.stringify(value),
             name,
-            ...take(value, name, asks),
+            ...(key === undefined || key === name ? {} : { hint: key }),
+            ...take(value, given ?? name, asks, also),
           })),
+          ...(offer.typed === true
+            ? typedFill(offer.values, (text, more) => {
+                give(context, entry, field, text, text, more);
+              })
+            : {}),
         };
+      }
+      if (offer.kind === "location") {
+        return locationFill(context, entry, arg, at, offer.base);
       }
       if (offer.kind === "element") {
         // A relation property's value is a relation target (`inputValue`); an element argument a reference.
@@ -1377,15 +1558,122 @@ const withTypedReference =
   };
 
 /**
+ * Typed text besides the hits of a list (an evidence location): Enter with no hit takes it, and a text that
+ * names a folder below one of the values ("evidence/manual/2026") is first as "Use <text>", so Enter takes it
+ * and not the value it starts with.
+ */
+const typedFill = (values: readonly Value[], take: (text: string, more: boolean) => void): PromptFill => ({
+  literal: (text) =>
+    values.some(({ value }) => typeof value === "string" && value !== "." && text.startsWith(`${value}/`))
+      ? {
+          id: `use:${text}`,
+          name: `Use ${text}`,
+          run: () => {
+            take(text, false);
+          },
+          more: () => {
+            take(text, true);
+          },
+        }
+      : undefined,
+  text: (text) => {
+    take(text, false);
+  },
+  more: (text) => {
+    take(text, true);
+  },
+});
+
+/**
+ * The first step of a metamodel location (`workspace.init metamodel`): the main repository, the default,
+ * or another one typed by its workspace name ("Repository <name>" first while a name is typed); then its
+ * path (`askLocationPath`).
+ */
+const locationFill = (
+  context: CatalogContext,
+  entry: Entry,
+  arg: Argument,
+  at: number,
+  base: string | undefined,
+): PromptFill => {
+  const choose = (repository: string | undefined): Pick<Choice, "run" | "more"> => ({
+    run: () => {
+      askLocationPath(context, entry, arg, at, repository, base, false);
+    },
+    more: () => {
+      askLocationPath(context, entry, arg, at, repository, base, true);
+    },
+  });
+  return {
+    items: [{ id: "main", name: "Main repository", hint: "default", ...choose(undefined) }],
+    literal: (text) =>
+      text.trim() === ""
+        ? undefined
+        : { id: `repository:${text}`, name: `Repository ${text.trim()}`, ...choose(text.trim()) },
+  };
+};
+
+/**
+ * The second step of a metamodel location: its path, relative to the repository. In the main repository
+ * the folders below `base` (the new workspace's folder) complete it and typed text is taken (SR-143 AK4);
+ * in another repository, which may not be on this machine yet, it is typed. The value is `{ path }`, or
+ * `{ repository, path }`. Backspace in an empty input and Escape go back to the repository.
+ */
+const askLocationPath = (
+  context: CatalogContext,
+  entry: Entry,
+  arg: Argument,
+  at: number,
+  repository: string | undefined,
+  base: string | undefined,
+  more: boolean,
+): void => {
+  const take = (path: string, also: boolean): void => {
+    give(
+      context,
+      entry,
+      arg.field,
+      repository === undefined ? { path } : { repository, path },
+      repository === undefined ? path : `${repository}:${path}`,
+      more || also,
+    );
+  };
+  context.ask({
+    label: `${lineOf(entry)} · ${arg.field} · path in ${repository ?? "the main repository"}:`,
+    explain: argumentExplanation(entry, arg),
+    back: () => {
+      ask(context, entry, arg, at);
+    },
+    items: [],
+    ...(repository === undefined && base !== undefined
+      ? pathFill(context, false, take, base)
+      : {
+          text: (text: string) => {
+            take(text, false);
+          },
+          more: (text: string) => {
+            take(text, true);
+          },
+        }),
+  });
+};
+
+/** `text` below the folder `base`: joined with `/`, which core takes on every platform. */
+const below = (base: string, text: string): string =>
+  base === "" ? text : `${base.replace(/[\\/]+$/u, "")}/${text}`;
+
+/**
  * The parts of a path argument (SR-143 AK2): the typed text itself first, "Use <path>", so Enter takes a
  * path that names nothing yet (a new export file, AK4), then the entries of its folder, which complete
  * it; relative from the workspace root, `~` for the home folder (core's rule of the app, as the command
- * then resolves it).
+ * then resolves it). With `base`, the text is relative to that folder (a metamodel path below a new
+ * workspace's folder) and listed there.
  */
 const pathFill = (
   context: ActionContext,
   files: boolean,
   take: (text: string, more: boolean) => void,
+  base?: string,
 ): PromptFill => ({
   literal: (text) =>
     text.trim() === ""
@@ -1404,7 +1692,10 @@ const pathFill = (
   seek: pathSeeker({
     windows: isWindows(navigator.platform),
     list: async (path) => {
-      const answer = await context.call("workspace.listFolder", { path, files });
+      const answer = await context.call("workspace.listFolder", {
+        path: base === undefined ? path : below(base, path),
+        files,
+      });
       return answer.ok ? answer.output : { failed: answer.message };
     },
   }),
