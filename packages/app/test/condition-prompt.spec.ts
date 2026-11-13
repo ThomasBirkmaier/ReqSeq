@@ -1,8 +1,9 @@
-// A condition built step by step from hits in the command prompt, on the built app (SR-215 AK3, AK4, AK5, AK6,
-// AK9, AK10, SR-134 AK4, SR-210 AK2): "Save filter" asks its `where` as kinds and their values, each chosen
-// condition a mark in the input; Backspace and the × of a mark remove it; text that starts with "{" is one
-// condition in JSON; the finishing hit saves the file the command line writes for the same input. On a filtered
-// list, "Save perspective" takes the list's conditions with Enter, Enter, as "Save list as perspective" does. The
+// A condition and a sort built step by step from hits in the command prompt, on the built app (SR-215 AK3, AK4,
+// AK5, AK6, AK7, AK9, AK10, SR-134 AK4, SR-210 AK2): "Save filter" asks its `where` as kinds and their values,
+// each chosen condition a mark in the input; Backspace and the × of a mark remove it; text that starts with "{"
+// is one condition in JSON; the finishing hit saves the file the command line writes for the same input. On a
+// filtered list, "Save perspective" takes the list's conditions with Enter, Enter, and on a sorted list its sort,
+// each key then "Order", as "Save list as perspective" does. The
 // light screenshots go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS). Keys use
 // ControlOrMeta, so the same test runs on Linux, macOS and Windows.
 import fsp from "node:fs/promises";
@@ -178,5 +179,71 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
       where: { all: [{ type: ["system-requirement"] }, { text: "measure" }] },
     });
     expect(await selection("Theirs")).toEqual(await selection("Mine"));
+  });
+
+  test("[SR-215/AK-q4fs] [SR-215/AK-w8q6] [SR-215/AK-fm4s] [SR-215/AK-rx2z] [SR-134/AK-fmf6] [SR-210/AK-t8sc] [SR-215/AK-hnzf] on a sorted list Save perspective takes the list's sort as marks, a key asks Order, and the file is the one the command line writes", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "List all elements", "List all elements");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "Sort list", "Sort list");
+    await pick(window, "Title", "Title");
+    await pick(window, "descending", "descending");
+    await expect(window.getByLabel("Modeline")).toContainText("sorted by title descending");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "Save perspective", "Save perspective");
+    await window.keyboard.type("Sorted");
+    await window.keyboard.press("Enter");
+    await expect(marked(window)).toHaveText("No condition: all elements");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await pick(window, "sort", "sort");
+    await expect(label(window)).toHaveText("Save perspective Sorted all elements · sort:");
+    // Without a mark the sort of the shown list is the first hit (AK5).
+    await expect(marked(window)).toHaveText("Sort of the shown list");
+    await window.keyboard.press("Enter");
+    await expect(marks(window)).toHaveText(["Title descending×"]);
+    await expect(marked(window)).toHaveText("Take 1 sort key");
+    await expect(window.getByRole("note", { name: "Explanation" }).locator(".explain-keys")).toHaveText(
+      `${ENTER} takes the marked hit; the keys sort in their order · Backspace on an empty input removes the last mark · ${MORE} more arguments · Escape back`,
+    );
+    // A key asks "Order", then is a mark with its direction (AK7).
+    await pick(window, "Status", "Status");
+    await expect(label(window)).toHaveText("Save perspective Sorted all elements · sort · Status · Order:");
+    await pick(window, "descending", "descending");
+    await expect(marks(window)).toHaveText(["Title descending×", "Status descending×"]);
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-sort-light.png") });
+    // Backspace on the empty input removes the last mark.
+    await window.keyboard.press("Backspace");
+    await expect(marks(window)).toHaveText(["Title descending×"]);
+    await pick(window, "ID", "ID");
+    await pick(window, "ascending", "ascending");
+    await expect(marks(window)).toHaveText(["Title descending×", "ID ascending×"]);
+    await window.keyboard.press("Enter");
+    await expect(marked(window)).toHaveText("Run");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveCount(0);
+    const saved = async (name: string): Promise<string> => {
+      const listed = await running.cli(["perspective", "list"]);
+      const file = (
+        JSON.parse(listed.stdout) as { perspectives: { name: string; file: string }[] }
+      ).perspectives.find((perspective) => perspective.name === name)?.file;
+      return file === undefined ? "" : fsp.readFile(path.join(running.workspace?.root ?? "", file), "utf8");
+    };
+    await expect.poll(() => saved("Sorted")).toContain("identifier");
+    const fromApp = await saved("Sorted");
+    // The command line with the same input writes the same file (AK10).
+    const cli = await running.cli([
+      "perspective",
+      "save",
+      "Sorted",
+      "--where",
+      JSON.stringify({ all: [] }),
+      "--sort",
+      "title:desc",
+      "--sort",
+      "identifier:asc",
+    ]);
+    expect(cli.code).toBe(0);
+    expect(await saved("Sorted")).toBe(fromApp);
   });
 });

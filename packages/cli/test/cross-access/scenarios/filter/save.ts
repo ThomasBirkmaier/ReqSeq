@@ -41,6 +41,27 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
+    name: "the sort the command prompt builds from marks: its keys in their order, the same file by every access (SR-215 AK10)",
+    tag: "[SR-215/AK-hnzf]",
+    fixture: SAVED,
+    input: {
+      name: "By tree then title",
+      where: { all: [] },
+      sort: [
+        { by: "hierarchy", order: "asc" },
+        { by: "title", order: "desc" },
+      ],
+    },
+    expect: "output",
+  },
+  {
+    name: "the empty sort of Workspace order (SR-215 AK10)",
+    tag: "[SR-215/AK-hnzf]",
+    fixture: SAVED,
+    input: { name: "In workspace order", where: { all: [] }, sort: [] },
+    expect: "output",
+  },
+  {
     name: "a condition that is wrong",
     fixture: SAVED,
     input: { name: "Wrong", where: { package: "SR-0000b1" } },
