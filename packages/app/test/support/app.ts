@@ -699,6 +699,8 @@ export interface CoreRequests {
   readonly enterOn: (name: string, input: unknown, focus?: string) => Promise<void>;
   /** The Enter set off by `enterOn`, once it went. */
   readonly fired: () => Promise<ArmedEnter | undefined>;
+  /** Takes back an `enterOn` whose request was not sent. */
+  readonly disarm: () => Promise<void>;
 }
 
 /**
@@ -788,6 +790,9 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
     fired: async () =>
       (JSON.parse(String(await run("JSON.stringify(globalThis.__fired ?? null)"))) as
         ArmedEnter | undefined) ?? undefined,
+    disarm: async () => {
+      await run("globalThis.__armed = undefined;");
+    },
   };
 };
 

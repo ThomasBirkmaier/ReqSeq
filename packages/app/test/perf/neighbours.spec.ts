@@ -28,7 +28,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { GeneratedElement, LargeFixtureWorkspace, PerfMeasurement } from "@reqseq/testkit";
 import { generateLargeWorkspace, recordValue, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
-import type { CoreRequest, CoreRequests, RunningApp } from "../support/app.js";
+import type { ArmedEnter, CoreRequest, CoreRequests, RunningApp } from "../support/app.js";
 import { launchApp, recordRequests } from "../support/app.js";
 import { coreVersion } from "./core-version.js";
 
@@ -51,6 +51,10 @@ const HELD_PRESSES = 6;
 const REPEAT_MS = 33;
 /** How often each measurement is taken; the slowest is recorded. */
 const ROUNDS = 3;
+/** The most ms an open waits before the spec fails with what it saw, far below the test's bound. */
+const OPEN_WAIT_MS = 30_000;
+/** The most ms an armed Enter waits for its read; a round whose read was not sent is taken again. */
+const ARMED_WAIT_MS = 15_000;
 /** The model cache trusts an entry only when its file is older than 2 s before the load (ADR-0008). */
 const SETTLE_MS = 2_100;
 
@@ -58,6 +62,28 @@ const SHOWN = '[data-area][data-active] > [data-layer="main"]';
 
 /** Wall-clock milliseconds since the epoch, comparable between this process and the window. */
 const now = (): number => performance.timeOrigin + performance.now();
+
+/** `promise`, or a failure naming `what` when it has not settled within `ms`. */
+const within = async <T>(promise: Promise<T>, ms: number, what: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${what}: not within ${String(ms)} ms`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/** Logs the step the spec reached, so a slow or stuck run shows where its time went. */
+const specStarted = Date.now();
+const step = (what: string): void => {
+  // eslint-disable-next-line no-console -- a run on a slow runner shows where its time went, without a debugger.
+  console.log(`NEIGHBOURS ${String(Math.round((Date.now() - specStarted) / 1000))} s: ${what}`);
+};
 
 const shownTitle = (window: Page): Promise<string> =>
   window
@@ -139,7 +165,12 @@ const watchOpen = async (window: Page, title: string, synthetic = false): Promis
     },
     { title, shown: SHOWN, synthetic },
   );
-  return () => window.evaluate(() => (globalThis as unknown as { __open: Promise<number> }).__open);
+  return () =>
+    within(
+      window.evaluate(() => (globalThis as unknown as { __open: Promise<number> }).__open),
+      OPEN_WAIT_MS,
+      `the open of "${title}"`,
+    );
 };
 
 /** Presses Enter and gives the ms until the shown element has `title` (`watchOpen`). */
@@ -283,6 +314,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       home,
       workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() },
     };
+    step("start");
     running = await launchApp(undefined, { kept, validateOutput: false });
     let { window } = running;
     await window.emulateMedia({ reducedMotion: "no-preference" });
@@ -394,6 +426,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       );
       return { afterWrite, warm, afterOther, slowest };
     };
+    step("reads drawn in advance");
     const { afterWrite, warm, afterOther, slowest } = await measureReads();
 
     /** A relation of the shown element B to an element neither drawn in advance nor A: its title and selector. */
@@ -443,25 +476,60 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await command(window, "Close buffer");
     };
 
+    /**
+     * The Enter armed with `enterOn`, once it went, within `ARMED_WAIT_MS`. Undefined when its read was not sent
+     * (a change dropped the view drawn in advance, SR-212 AK5, as an autosave still running at a switch does):
+     * then it is disarmed, and the caller takes the round again.
+     */
+    const armedFired = async (what: string): Promise<ArmedEnter | undefined> => {
+      const deadline = Date.now() + ARMED_WAIT_MS;
+      let fired = await requests.fired();
+      while (fired === undefined && Date.now() < deadline) {
+        await window.waitForTimeout(50);
+        fired = await requests.fired();
+      }
+      if (fired === undefined) {
+        await requests.disarm();
+        fired = await requests.fired();
+      }
+      if (fired === undefined) {
+        const drawn = (await hiddenViews(window)).join(", ");
+        step(
+          `${what}: the armed read was not sent (drawn in advance: ${drawn === "" ? "none" : drawn}), taken again`,
+        );
+      }
+      return fired;
+    };
+    /** The rounds a row may take again before it fails. */
+    const RETAKES = ROUNDS;
+
     // SR-082 AK3, hostile: back on B after a change from outside, Enter on a relation of B goes right
     // after the slowest read drawn in advance was sent.
     const hostileOpens = async () => {
       const hostile: number[] = [];
       const lags: number[] = [];
-      for (let round = 0; round < ROUNDS; round += 1) {
-        const away = others[round];
+      for (let attempt = 0; hostile.length < ROUNDS; attempt += 1) {
+        if (attempt >= ROUNDS + RETAKES) {
+          throw new Error("hostile: the armed read was not sent in too many rounds");
+        }
+        const away = others[hostile.length];
         if (away === undefined) {
           throw new Error("no element to open");
         }
         const target = await relation();
         const opened = await watchOpen(window, target.title, true);
-        await changedAndBack(away, `${a.title} ${String(round)}`, () =>
+        await changedAndBack(away, `${a.title} ${String(attempt)}`, () =>
           requests.enterOn(slowest.request.name, slowest.request.input, target.selector),
         );
+        const fired = await armedFired(`hostile, attempt ${String(attempt)}`);
+        if (fired === undefined) {
+          await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
+          await window.waitForTimeout(SETTLE_SWITCH_MS);
+          continue;
+        }
         hostile.push(await opened());
-        const fired = await requests.fired();
-        expect(fired?.target).toBe("SPAN");
-        lags.push((fired?.firedAt ?? Infinity) - (fired?.sentAt ?? 0));
+        expect(fired.target).toBe("SPAN");
+        lags.push(fired.firedAt - fired.sentAt);
         await backToB();
       }
       expect(Math.max(...lags)).toBeLessThanOrEqual(ARMED_LAG_MS);
@@ -474,6 +542,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       );
       return { hostile, lags };
     };
+    step("hostile");
     const { hostile, lags } = await hostileOpens();
 
     // SR-082 AK3 with Ctrl+P: back on B after a change from outside, the prompt opens at once after the slowest
@@ -511,8 +580,10 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       );
       return opens;
     };
+    step("Ctrl+P");
     const opens = await promptOpens();
 
+    step("list");
     // SR-082 AK4: the first page of the list of all elements, asked for (Ctrl+K L) while neighbours are drawn.
     await window.evaluate(() => {
       const w = globalThis as unknown as { __list?: Promise<number> };
@@ -555,6 +626,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     await expect.poll(() => hiddenViews(window), { timeout: 60_000 }).toHaveLength(2);
     await window.waitForTimeout(SETTLE_SWITCH_MS);
 
+    step("change from outside");
     // SR-116 AK1: B changed outside while shown; the change drops its neighbours, which read nothing meanwhile.
     const outside: number[] = [];
     for (let round = 0; round < ROUNDS; round += 1) {
@@ -627,7 +699,10 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await open(window, c.title);
       const target = await relation();
       const timed: number[] = [];
-      for (let round = 0; round < ROUNDS; round += 1) {
+      for (let attempt = 0; timed.length < ROUNDS; attempt += 1) {
+        if (attempt >= ROUNDS + RETAKES) {
+          throw new Error("save of leaving: the armed read was not sent in too many rounds");
+        }
         await open(window, b.title);
         await window.waitForTimeout(SETTLE_SWITCH_MS);
         const opened = await watchOpen(window, target.title, true);
@@ -635,17 +710,23 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         await requests.clear();
         await requests.enterOn("element.get", { ref: b.id, repository: b.repository }, target.selector);
         // Typed and left at once, before the autosave: the save of leaving writes it. B was opened after C, so
-        // Alt+P goes back to C.
+        // Alt+P goes back to C. An autosave still running at the switch drops B instead (SR-212 AK5): then B is
+        // not read, and the round is taken again.
+        const left = ` left ${String(attempt)}`;
         await window.locator(`${SHOWN} .cm-content`).first().click();
         await window.keyboard.press("ControlOrMeta+End");
-        await window.keyboard.type(` left ${String(round)}`);
+        await window.keyboard.type(left);
         await window.keyboard.press("Alt+KeyP");
+        const fired = await armedFired(`save of leaving, attempt ${String(attempt)}`);
+        await expect.poll(() => fs.readFile(fileOf(b), "utf8")).toContain(left.trim());
+        if (fired === undefined) {
+          await expect.poll(() => shownTitle(window)).toBe(c.title);
+          continue;
+        }
         timed.push(await opened());
-        const fired = await requests.fired();
-        expect(fired?.target).toBe("SPAN");
-        expect((fired?.firedAt ?? Infinity) - (fired?.sentAt ?? 0)).toBeLessThanOrEqual(ARMED_LAG_MS);
-        focusing.push(fired?.focusMs ?? 0);
-        await expect.poll(() => fs.readFile(fileOf(b), "utf8")).toContain(`left ${String(round)}`);
+        expect(fired.target).toBe("SPAN");
+        expect(fired.firedAt - fired.sentAt).toBeLessThanOrEqual(ARMED_LAG_MS);
+        focusing.push(fired.focusMs);
         // Back to C with the opened element closed, so B, opened next, has C as its previous buffer.
         await window.waitForTimeout(SETTLE_SWITCH_MS);
         await command(window, "Close buffer");
@@ -664,6 +745,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       );
       return timed;
     };
+    step("save of leaving");
     const leaving = await leavingOpens();
 
     // SR-082 AK3 after a held Alt+P: B, then two lists and the overview between three elements; Alt held over
@@ -712,12 +794,14 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await expect.poll(() => shownTitle(window)).toBe(b.title);
       return held;
     };
+    step("held Alt+P");
     const held = await heldOpen();
 
     // A start with these buffers restored: the overview, then the first open with Ctrl+P; B's neighbours are
     // drawn once B is.
     await running.close({ keep: true });
     const launched = now();
+    step("restart");
     running = await launchApp(undefined, { kept, validateOutput: false });
     ({ window } = running);
     const overviewAt = await window.waitForFunction(
