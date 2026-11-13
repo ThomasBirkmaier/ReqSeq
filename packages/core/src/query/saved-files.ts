@@ -100,7 +100,8 @@ export interface SavedFolder<T> {
 /** `label` with a capital first letter, to start a message. */
 const capital = (label: string): string => `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
 
-const savedProblem = (
+/** A problem of a saved file, with its repository, file and, when known, line. */
+export const savedProblem = (
   code: Problem["code"],
   severity: Problem["severity"],
   repository: string,

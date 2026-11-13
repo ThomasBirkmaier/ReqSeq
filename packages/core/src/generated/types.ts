@@ -421,6 +421,7 @@ export type ProblemCode =
   | "filter.duplicate-name"
   | "perspective.invalid"
   | "perspective.duplicate-name"
+  | "perspective.group-unavailable"
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
@@ -1818,7 +1819,7 @@ export interface CommandCatalog {
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1832,6 +1833,7 @@ export interface CommandCatalog {
         | "hint"
         | "filter"
         | "baseline"
+        | "perspective"
         | "view"
         | "repository"
         | "selection"
@@ -2278,11 +2280,13 @@ export interface ElementResolveOutput {
  * Schema: `schemas/commands/element.list.json input`.
  */
 export interface ElementListInput {
-  /** Every part given must hold (SR-101 AK2). */
+  /** Every part given must hold (SR-101 AK2); with `perspective`, in addition to the perspective's selection (SR-213 AK5). */
   readonly selection?: ElementSelection;
-  /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`. */
+  /** List as the perspective of this name shows it (SR-213 AK4), read from its file on every call, as its saved filter is (AK6). Its `where`, its saved filter and every part of `selection` must hold (AK5); the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a text, number or date property whose values can no longer be chosen (SR-124 AK2: more than 30 different values in the workspace, or none that two elements share) gives the list without groups and the warning `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter (AK6); errors of its stored `where`, `sort` and `group` name the perspective and its file. */
+  readonly perspective?: PerspectiveName;
+  /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
-  /** Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored. */
+  /** Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec question #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the stored sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored. */
   readonly group?: GroupKey;
   /** Give only these fields of each element (#982), in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`. */
   readonly fields?: readonly (
@@ -2311,13 +2315,13 @@ export interface ElementListInput {
  * Schema: `schemas/commands/element.list.json output`.
  */
 export type ElementListOutput = {
-  /** Without `fields`: one page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
+  /** Without `fields`: one page of the list. With `group`, or a perspective that stores one, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
   readonly elements?: readonly DataExportElement[];
   /** Only with `fields`, instead of `elements`: the same page, each element with the fields asked for. */
   readonly partial?: readonly DataExportElementPart[];
   /** Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3). */
   readonly rowVerification?: readonly DataExportRowVerification[];
-  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
+  /** Only when `sort`, or the sort that applies without it (of the saved filter or the perspective), starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, or a perspective that stores one, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec question ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
   readonly tree?: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element. */
@@ -2331,15 +2335,17 @@ export type ElementListOutput = {
       readonly repository: string;
     };
   }[];
-  /** Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience. */
+  /** Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience. */
   readonly groups?: readonly ListGroup[];
-  /** Only with `group`: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input. */
+  /** Only with `group`, or a perspective that stores one: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input. */
   readonly offset?: number;
-  /** Only with `group`: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups. */
+  /** Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups. */
   readonly rows?: number;
   /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
+  /** Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7); else empty. */
+  readonly problems?: readonly Problem[];
 } & (
   | {
     readonly elements: unknown;

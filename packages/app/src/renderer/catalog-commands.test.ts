@@ -915,6 +915,17 @@ describe("catalog commands in the command prompt", () => {
     expect((await last(broken.asked)).label).toBe("No baselines folder · Show baseline · baseline:");
   });
 
+  it("offers the perspectives of the workspace by name (perspective.list, SR-213)", async () => {
+    const { context, asked } = setup([shown], {
+      "perspective.list": () => ({
+        perspectives: [{ name: "Drafts by package", file: "perspectives/d.yaml", where: { all: [] } }],
+      }),
+    });
+    catalogItems(context, [{ ...command("element.list"), title: "List" }], [])[0]?.more?.();
+    await pick(asked, "perspective");
+    expect(await names(asked)).toEqual(["Drafts by package"]);
+  });
+
   const numbers = {
     ...command("element.facets"),
     title: "Numbers",

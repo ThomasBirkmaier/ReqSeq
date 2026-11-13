@@ -16,6 +16,11 @@
 //     view of the selection, else the filter's. `sort` gives its sort for `element.list` (SR-070
 //     AK3: the same elements, in the same order, on every access). An error in a hand-written filter
 //     file names the filter and its file.
+// - A perspective (SR-213 AK5, perspectives.ts), given by `element.list` beside the selection: its
+//   `where` and its saved filter hold in addition to every part of the selection. Its filter is read
+//   as `filter` is: its `where` and its `view` hold, its `where` in its own view, else the selection's.
+//   The perspective stores no view; its `where` uses the view of the selection (its own, else that
+//   of its saved filter, as for the selection's `where`), else its filter's, else the core. Its errors name the perspective and its file (and the filter, for the filter's).
 // - `baseline`: the elements the baseline file lists, as they are now (`Baseline.selects`,
 //   baselines/read.ts), for every command that takes a selection (SR-101, #1353). "As they are now"
 //   is SR-061 AK2 for the export and, for every other command, the answer to
@@ -48,11 +53,20 @@ import type { View } from "../variants/index.js";
 import { resolveView, viewRuleOf } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import type { CompiledCondition } from "./condition.js";
 import { compileWhere } from "./condition.js";
 import type { Predicate, QueryContext, QueryNotes } from "./context.js";
 import { invalidAt } from "./context.js";
+import type { SavedPerspective } from "./perspectives.js";
+import { inPerspective, inPerspectiveAsync } from "./perspectives.js";
 import type { SavedFilter } from "./saved.js";
 import { inSavedFilter, inSavedFilterAsync, savedFilterFor } from "./saved.js";
+
+/** A perspective given beside a selection, with the saved filter it names, read for this call. */
+export interface StoredSelection {
+  readonly perspective: SavedPerspective;
+  readonly filter?: SavedFilter;
+}
 
 /** The elements of a selection, and the states they were selected from (for building the output). */
 export interface Selected {
@@ -66,6 +80,8 @@ export interface Selected {
   readonly shortIds: ShortIds;
   /** The saved filter of `filter`, for its `sort`. */
   readonly filter?: SavedFilter;
+  /** The perspective given beside the selection and its saved filter, for their `sort`. */
+  readonly stored?: StoredSelection;
   /** The views the elements were selected through: the selection's own and the saved filter's, each if given. */
   readonly views: readonly View[];
 }
@@ -121,14 +137,72 @@ const savedViewOf = (
     : inSavedFilter(saved, () => resolveView(context, view, command, "view", true));
 };
 
+/** The `where` of a saved filter compiled in `view` (its own, else the selection's), errors naming the filter. */
+const compileSaved = (
+  context: QueryContext,
+  saved: SavedFilter,
+  view: View | undefined,
+): Promise<CompiledCondition> =>
+  inSavedFilterAsync(saved, () => compileWhere({ ...context, view }, saved.data.where, "where"));
+
 /**
- * The elements `selection` selects in `workspace` for `command` (see the file comment). Errors name
- * the fields of the input under `selection`.
+ * The view of the saved filter of `stored` and the compiled `where` of that filter and of the
+ * perspective, each in its view (see the file comment); errors name the perspective.
+ */
+const storedParts = async (
+  context: QueryContext,
+  stored: StoredSelection,
+): Promise<{ readonly view: View | undefined; readonly compiled: readonly CompiledCondition[] }> => {
+  const { perspective, filter } = stored;
+  const filterView =
+    filter === undefined
+      ? undefined
+      : inPerspective(perspective, () => savedViewOf(context, filter, context.command));
+  // The view of the selection: its own, else that of its saved filter (`context.view`).
+  const { view } = context;
+  const compiled = await inPerspectiveAsync(perspective, async () => [
+    ...(filter === undefined ? [] : [await compileSaved(context, filter, filterView ?? view)]),
+    await compileWhere({ ...context, view: view ?? filterView }, perspective.data.where, "where"),
+  ]);
+  return { view: filterView, compiled };
+};
+
+/**
+ * The compiled `where` of the selection's saved filter (in its view, else the selection's) and of
+ * `stored`, in this order, the view of the filter of `stored`, and the fields of `Selected` for their sort.
+ */
+const savedParts = async (
+  context: QueryContext,
+  view: View | undefined,
+  saved: SavedFilter | undefined,
+  savedView: View | undefined,
+  stored: StoredSelection | undefined,
+): Promise<{
+  readonly compiled: readonly CompiledCondition[];
+  readonly storedView: View | undefined;
+  readonly fields: Pick<Selected, "filter" | "stored">;
+}> => {
+  const own = saved === undefined ? [] : [await compileSaved(context, saved, savedView ?? view)];
+  const fromStored = stored === undefined ? undefined : await storedParts(context, stored);
+  return {
+    compiled: [...own, ...(fromStored?.compiled ?? [])],
+    storedView: fromStored?.view,
+    fields: {
+      ...(saved === undefined ? {} : { filter: saved }),
+      ...(stored === undefined ? {} : { stored }),
+    },
+  };
+};
+
+/**
+ * The elements `selection` selects in `workspace` for `command`, with the perspective `stored` when
+ * given (see the file comment). Errors name the fields of the input under `selection`.
  */
 export const resolveSelection = async (
   workspace: Workspace,
   selection: ElementSelection,
   command: CommandName,
+  stored?: StoredSelection,
 ): Promise<Selected> => {
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
@@ -146,10 +220,8 @@ export const resolveSelection = async (
   const context: QueryContext = { ...base, view: view ?? savedView };
   const tests: Predicate[] = [];
   const notes: QueryNotes[] = [];
-  if (saved !== undefined) {
-    const compiled = await inSavedFilterAsync(saved, () =>
-      compileWhere({ ...context, view: savedView ?? view }, saved.data.where, "where"),
-    );
+  const fromSaved = await savedParts(context, view, saved, savedView, stored);
+  for (const compiled of fromSaved.compiled) {
     tests.push(compiled.predicate);
     notes.push(compiled.notes);
   }
@@ -165,7 +237,7 @@ export const resolveSelection = async (
     tests.push(compiled.predicate);
     notes.push(compiled.notes);
   }
-  const views = [view, savedView].filter((shown): shown is View => shown !== undefined);
+  const views = [view, savedView, fromSaved.storedView].filter((shown): shown is View => shown !== undefined);
   for (const shown of views) {
     tests.push(viewRuleOf({ workspace, store, metamodel }, shown).includes);
   }
@@ -182,7 +254,7 @@ export const resolveSelection = async (
     metamodel,
     store,
     shortIds,
-    ...(saved === undefined ? {} : { filter: saved }),
+    ...fromSaved.fields,
     views,
   };
 };

@@ -12,20 +12,41 @@
 // fields asked for and those always given (`partOf`); its relations are looked up only when asked for.
 // With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph shows
 // of its verification (`rowsVerification`).
-import type { CommandOutput } from "../../catalog.js";
+// With `perspective` (SR-213 AK4 to AK7, query/perspectives.ts) the perspective is read by name on each
+// call, with the saved filter it names: its `where` and its filter hold beside the input's selection
+// (`resolveSelection`), the input `sort` comes first, then the stored sorts (`orderedSelection`), and
+// the input `group` replaces the stored one. A stored group of a property whose values can no
+// longer be chosen (`groupUnavailable`) gives the list without groups and the warning
+// `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped
+// is the error of `groupingOf`, naming the perspective and its file.
+import type { CommandName, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
+import { yamlPointerLine } from "../../files/index.js";
 import type {
   DataExportElement,
   DataExportElementPart,
   ElementListInput,
   ElementListOutput,
+  Problem,
 } from "../../generated/types.js";
 import { rowsVerification } from "../../evidence/index.js";
 import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
-import type { Selected, TreePlace } from "../../query/index.js";
-import { groupingOf, orderedGroups, orderedSelection, resolveSelection } from "../../query/index.js";
+import type { Grouping, Selected, StoredSelection, TreePlace } from "../../query/index.js";
+import {
+  FACET_MAX_VALUES,
+  groupUnavailable,
+  groupingOf,
+  inPerspective,
+  orderedGroups,
+  orderedSelection,
+  perspectiveFilterFor,
+  perspectiveFor,
+  resolveSelection,
+  savedProblem,
+} from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
@@ -95,10 +116,12 @@ type Group = NonNullable<ElementListOutput["groups"]>[number];
 const grouped = async (
   workspace: Workspace,
   selected: Selected,
-  input: ElementListInput & { readonly group: string; readonly offset: number; readonly limit: number },
+  input: ElementListInput & { readonly offset: number; readonly limit: number },
+  grouping: Grouping,
+  extra: Pick<ElementListOutput, "problems">,
 ): Promise<CommandOutput<"element.list">> => {
   const command = "element.list";
-  const { heads, groupsOf } = groupingOf(selected, command, input.group);
+  const { heads, groupsOf } = grouping;
   const sorted = orderedGroups(selected, command, input.sort, groupsOf, heads.length);
   const rows: ElementRecord[] = [];
   // Under `hierarchy` every group has its tree, so `places` runs parallel to `rows`.
@@ -142,16 +165,64 @@ const grouped = async (
     rows: rows.length,
     total: selected.elements.length,
     incomplete: selected.incomplete,
+    ...extra,
   };
+};
+
+/** The perspective of `name` and its saved filter, read now (AK6). */
+const storedOf = async (
+  workspace: Workspace,
+  name: string,
+  command: CommandName,
+): Promise<StoredSelection> => {
+  const layout = await workspace.get(workspaceLayoutState);
+  const perspective = await perspectiveFor(layout, name, command);
+  const filter = await perspectiveFilterFor(layout, perspective, command);
+  return { perspective, ...(filter === undefined ? {} : { filter }) };
+};
+
+/** How the list is grouped: the input `group`, else the perspective's (see the file comment). */
+const groupOf = (
+  selected: Selected,
+  command: CommandName,
+  input: ElementListInput,
+): { readonly grouping?: Grouping; readonly problems: Problem[] } => {
+  if (input.group !== undefined) {
+    return { grouping: groupingOf(selected, command, input.group), problems: [] };
+  }
+  const perspective = selected.stored?.perspective;
+  const by = perspective?.data.group;
+  if (perspective === undefined || by === undefined) {
+    return { problems: [] };
+  }
+  if (groupUnavailable(selected, by)) {
+    return {
+      problems: [
+        savedProblem(
+          "perspective.group-unavailable",
+          "warning",
+          perspective.repository.name,
+          perspective.path,
+          `Perspective ${JSON.stringify(perspective.name)} (${perspective.file}) groups by ${by}, whose values can no longer be chosen (more than ${String(FACET_MAX_VALUES)} different values, or none that two elements share); the list is not grouped`,
+          yamlPointerLine(perspective.yaml, "/group"),
+        ),
+      ],
+    };
+  }
+  return { grouping: inPerspective(perspective, () => groupingOf(selected, command, by)), problems: [] };
 };
 
 export default defineCommand({
   name: "element.list",
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
-    if (input.group !== undefined) {
-      return grouped(ctx.workspace, selected, { ...input, group: input.group });
+    const stored =
+      input.perspective === undefined ? undefined : await storedOf(ctx.workspace, input.perspective, command);
+    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command, stored);
+    const { grouping, problems } = groupOf(selected, command, input);
+    const withProblems = stored === undefined ? {} : { problems };
+    if (grouping !== undefined) {
+      return grouped(ctx.workspace, selected, input, grouping, withProblems);
     }
     const sorted = orderedSelection(selected, command, input.sort);
     const end = input.offset + input.limit;
@@ -163,6 +234,7 @@ export default defineCommand({
       ...(sorted.tree === undefined ? {} : { tree: sorted.tree.slice(input.offset, end).map(entryOf) }),
       total: selected.elements.length,
       incomplete: selected.incomplete,
+      ...withProblems,
     };
   },
 });

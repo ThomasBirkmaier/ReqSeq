@@ -783,6 +783,7 @@
             "filter.duplicate-name",
             "perspective.invalid",
             "perspective.duplicate-name",
+            "perspective.group-unavailable",
             "metamodel.invalid",
             "metamodel.optional-status",
             "metamodel.meaning-unassigned",
@@ -4613,17 +4614,21 @@
         "properties": {
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
-            "description": "Every part given must hold."
+            "description": "Every part given must hold; with `perspective`, in addition to the perspective's selection."
+          },
+          "perspective": {
+            "$ref": "#/$defs/perspective/$defs/name",
+            "description": "List as the perspective of this name shows it, read from its file on every call, as its saved filter is. Its `where`, its saved filter and every part of `selection` must hold; the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a text, number or date property whose values can no longer be chosen (more than 30 different values in the workspace, or none that two elements share) gives the list without groups and the warning `perspective.group-unavailable` in `problems`; any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter; errors of its stored `where`, `sort` and `group` name the perspective and its file."
           },
           "sort": {
             "type": "array",
-            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`.",
+            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
             "items": {
               "$ref": "#/$defs/filter/$defs/sortKey"
             }
           },
           "group": {
-            "description": "Group the list: `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID. Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
+            "description": "Group the list: `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID. Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the stored sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
             "$ref": "#/$defs/common/$defs/groupKey"
           },
           "fields": {
@@ -4675,7 +4680,7 @@
         "properties": {
           "elements": {
             "type": "array",
-            "description": "Without `fields`: one page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
+            "description": "Without `fields`: one page of the list. With `group`, or a perspective that stores one, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
             "items": {
               "$ref": "#/$defs/data-export/$defs/element"
             }
@@ -4696,7 +4701,7 @@
           },
           "tree": {
             "type": "array",
-            "description": "Only when `sort` starts with `hierarchy`: the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
+            "description": "Only when `sort`, or the sort that applies without it (of the saved filter or the perspective), starts with `hierarchy`: the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, or a perspective that stores one, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
             "items": {
               "type": "object",
               "properties": {
@@ -4741,7 +4746,7 @@
           },
           "groups": {
             "type": "array",
-            "description": "Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
+            "description": "Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
             "items": {
               "$ref": "#/$defs/common/$defs/listGroup"
             }
@@ -4749,12 +4754,12 @@
           "offset": {
             "type": "integer",
             "minimum": 0,
-            "description": "Only with `group`: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input."
+            "description": "Only with `group`, or a perspective that stores one: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input."
           },
           "rows": {
             "type": "integer",
             "minimum": 0,
-            "description": "Only with `group`: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
+            "description": "Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
           },
           "total": {
             "type": "integer",
@@ -4763,6 +4768,13 @@
           },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "description": "Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups; else empty."
           }
         },
         "additionalProperties": false,
