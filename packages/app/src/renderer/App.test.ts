@@ -1636,6 +1636,35 @@ describe("App, the overview (SR-118)", () => {
     expect(query("article h1").textContent).toBe("Title 3");
   });
 
+  it("[SR-118/AK-jtg3] a perspective line opens the perspective as Open perspective does, and counts as its use", async () => {
+    const perspective = (name: string) => ({ name, file: `perspectives/${name}.yaml`, where: { all: [] } });
+    const handlers = twoTypes();
+    handlers["perspective.list"] = () => ({ perspectives: [perspective("Alpha"), perspective("Zulu")] });
+    handlers["element.list"] = (input) =>
+      input["perspective"] === "Alpha"
+        ? new Error('Perspective "Alpha": its saved filter "Gone" does not exist')
+        : { elements: [row(1)], total: 1 };
+    const { bridge, invoke } = fakeBridge(handlers);
+    await render(bridge);
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "Alpha cannot be listed", "Zulu 1"]);
+    // Opening one that cannot be listed says why, and opens nothing.
+    await click(container.querySelectorAll('[role="option"]')[2] ?? container);
+    expect(text("Minibuffer")).toBe('Perspective "Alpha": its saved filter "Gone" does not exist');
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    await click(container.querySelectorAll('[role="option"]')[3] ?? container);
+    expect(query("[data-buffer] h1").textContent).toContain("Zulu");
+    expect(calls(invoke, "element.list")).toContainEqual({
+      perspective: "Zulu",
+      limit: 1,
+      fields: ["identifier"],
+    });
+    // The prompt of "Open perspective" lists it first now (SR-214 AK1).
+    await runCommand("Open perspective");
+    expect(
+      [...container.querySelectorAll('.candidates [role="option"] .name')].map((name) => name.textContent),
+    ).toEqual(["Zulu", "Alpha"]);
+  });
+
   it("[SR-118/AK-dr7c] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);

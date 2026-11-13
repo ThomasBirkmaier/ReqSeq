@@ -16,6 +16,9 @@
 // hold the app back: `launchApp` gives Electron's `executablePath`, so Playwright adds no loader that delays
 // `ready`, and the times are taken in the window, not when Playwright has connected. Its attach (until
 // `launchApp` gives the window) is recorded on its own.
+// Perspectives (SR-118 AK6, AK8): the overview counts up to ten after it stands, so the start is measured once more
+// with ten perspectives in the workspace, as a comparison value: the start until usable while they are counted, and
+// the time until the overview shows all ten counts. Neither is tagged nor asserted.
 // "sichtbar": the element's title and text are rendered, from the keydown of Enter to the frame after the paint.
 // Times are taken in the window (`requestAnimationFrame` polling and the keydown's `event.timeStamp`), so
 // Playwright's own polling adds nothing. Core runs without the output check of tests (`validateOutput: false`),
@@ -63,6 +66,47 @@ const appeared = async (file: string, withinMs: number): Promise<void> => {
       throw new Error(`${file} did not appear within ${String(withinMs)} ms`);
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+};
+
+/** Ten perspectives over the generated workspace (SR-118 AK6: the most the overview shows). */
+const PERSPECTIVES: Readonly<Record<string, readonly string[]>> = {
+  "all-requirements": ["name: All requirements", "where: { type: [system-requirement] }"],
+  "draft-requirements": [
+    "name: Draft requirements",
+    "where: { type: [system-requirement], status: [draft] }",
+  ],
+  "approved-requirements": [
+    "name: Approved requirements",
+    "where: { type: [system-requirement], status: [approved] }",
+  ],
+  "requirements-by-status": [
+    "name: Requirements by status",
+    "where: { type: [system-requirement] }",
+    "group: status",
+  ],
+  "requirements-by-title": [
+    "name: Requirements by title",
+    "where: { type: [system-requirement] }",
+    "sort: [{ by: title }]",
+  ],
+  needs: ["name: Needs", "where: { type: [need] }"],
+  "draft-needs": ["name: Draft needs", "where: { type: [need], status: [draft] }"],
+  decisions: ["name: Decisions", "where: { type: [decision] }"],
+  everything: ["name: Everything", "where: { all: [] }"],
+  "everything-by-type": ["name: Everything by type", "where: { all: [] }", "group: type"],
+};
+
+/** Writes `PERSPECTIVES` into the `perspectives` folder of the main repository `root`. */
+const writePerspectives = async (root: string): Promise<void> => {
+  const folder = path.join(root, "perspectives");
+  await fs.mkdir(folder, { recursive: true });
+  for (const [file, lines] of Object.entries(PERSPECTIVES)) {
+    await fs.writeFile(
+      path.join(folder, `${file}.yaml`),
+      ["reqseq-perspective: 1", ...lines, ""].join("\n"),
+      "utf8",
+    );
   }
 };
 
@@ -141,6 +185,29 @@ const timeStart = async (kept: Kept): Promise<{ readonly running: RunningApp; re
   const answer = await timeOf(answeredIn);
   const overview = shown - launched;
   return { running, start: { attach, overview, answer, usable: overview + answer } };
+};
+
+/**
+ * Starts the app on `kept` and gives the ms from the launch until the overview shows a count (or a reason) on each
+ * of its `count` perspective lines (SR-118 AK8).
+ */
+const timeCounts = async (
+  kept: Kept,
+  count: number,
+): Promise<{ readonly running: RunningApp; readonly counted: number }> => {
+  const launched = now();
+  const running = await launchApp(undefined, { kept, validateOutput: false });
+  const countedAt = await running.window.waitForFunction(
+    (count) => {
+      const lines = [...document.querySelectorAll('[aria-label="Overview"] .line.perspective')];
+      return lines.length === count && lines.every((line) => line.querySelector(".count, .reason") !== null)
+        ? performance.timeOrigin + performance.now()
+        : false;
+    },
+    count,
+    { polling: "raf", timeout: 0 },
+  );
+  return { running, counted: (await timeOf(countedAt)) - launched };
 };
 
 /**
@@ -329,8 +396,37 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
     );
     // Every model cache entry was reused: the second start did not write the cache again.
     expect((await fs.stat(modelCache)).mtimeMs).toBe(written);
+
+    // The comparison with ten perspectives on the overview (SR-118 AK6, AK8): the start until usable while the
+    // overview counts them, and the start until it shows all ten counts.
+    await running.close({ keep: true });
+    running = undefined;
+    await writePerspectives(root);
+    const { running: withPerspectives, start: perspectiveStart } = await timeStart(kept());
+    running = withPerspectives;
+    await recordValue(
+      "app: start until usable, the overview plus Ctrl+K L, with ten perspectives on the overview (with cache)",
+      perspectiveStart.usable,
+      {
+        basis: "SR-082 AK1 with SR-118 AK6 (comparison; untagged, threshold for comparison only)",
+        thresholdMs: WARM_MS,
+      },
+    );
+    await running.close({ keep: true });
+    running = undefined;
+    const { running: counting, counted } = await timeCounts(kept(), Object.keys(PERSPECTIVES).length);
+    running = counting;
+    await recordValue(
+      "app: start until the overview shows the counts of ten perspectives (with cache)",
+      counted,
+      {
+        basis: "SR-118 AK8 (comparison; recorded)",
+      },
+    );
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
-    console.log(`PERF app start and open ${JSON.stringify({ cold: coldStart, warm: start, opens: times })}`);
+    console.log(
+      `PERF app start and open ${JSON.stringify({ cold: coldStart, warm: start, opens: times, perspectives: { start: perspectiveStart, counted } })}`,
+    );
     assertWithin(coldUsable);
     assertWithin(warm);
     assertWithin(first);

@@ -60,6 +60,7 @@ import {
   workspaceView,
 } from "./modeline.js";
 import { useOverview } from "./OverviewView.js";
+import { openPerspective } from "./perspective-actions.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import {
@@ -1217,7 +1218,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     onDrawn,
     typeNames,
     kindNames,
-    overview,
+    // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
+    overview: {
+      ...overview,
+      openPerspective: (name) => {
+        void openPerspective(latest.current, name);
+      },
+    },
     element: (buffer) => ({
       onGone: forgetName,
       searchCall: call,

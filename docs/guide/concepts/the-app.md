@@ -31,7 +31,7 @@ Above it, the modeline describes the buffer (a list by filter, sort and count, a
 
 Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer, and opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, like the mouse buttons Back and Forward, go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
-A workspace opens on the overview, with the number of elements per type and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
+A workspace opens on the overview, with the number of elements per type, below it under “Perspectives” up to ten perspectives by name, each with the number of elements it lists in the window’s view, and below them the elements you opened last. Enter or a click opens a line; a perspective opens as with Ctrl+K V (⌘K V). The count of a perspective appears once it is computed; one that cannot be listed, for example because its saved filter is missing, shows a short reason instead, and opening it says why. Your buffers come back behind it.
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 

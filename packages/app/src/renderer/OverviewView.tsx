@@ -1,8 +1,10 @@
 // The overview buffer (SR-118): the first buffer of a workspace. One line per element type with the number
-// of its elements, and below it the elements opened last, at most five. It lists no element of the
-// workspace (AK4): the full list opens on request only ("List all elements"). The counts come from
-// `element.facets`, the recent elements from `element.get`; the app only shows them (ADR-0002). A recent
-// element that changed outside the app is highlighted briefly (SR-116).
+// of its elements, below it at most ten perspectives with the number of elements each lists (AK6), and
+// below them the elements opened last, at most five. It lists no element of the workspace (AK4): the full
+// list opens on request only ("List all elements"). The counts come from `element.facets`, the
+// perspectives from `perspective.list` and their counts from `element.list` with the perspective, the
+// recent elements from `element.get`; the app only shows them (ADR-0002). A recent element that changed
+// outside the app is highlighted briefly (SR-116).
 import { Fragment, useEffect, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
@@ -10,10 +12,18 @@ import { elementBuffer, elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import type { RecentRow, TypeCount } from "./overview.js";
-import { openRow, overviewRows, typeLine } from "./overview.js";
+import type { OverviewRow, PerspectiveCount, PerspectiveRow, RecentRow, TypeCount } from "./overview.js";
+import {
+  openRow,
+  overviewRows,
+  perspectiveCount,
+  perspectiveLine,
+  shownPerspectives,
+  typeLine,
+} from "./overview.js";
 import { isGone } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
+import { checkPerspective } from "./perspective-actions.js";
 import type { RecentEntry } from "./recent.js";
 import { activeRow } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -26,14 +36,19 @@ export interface OverviewData {
   readonly total: number;
   /** A repository of the workspace is missing, so the counts are partial (SR-006 AK2). */
   readonly incomplete: boolean;
+  /** The names of the perspectives shown (`shownPerspectives`). */
+  readonly perspectives: readonly string[];
 }
 
 const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.id}`;
 
 /**
- * Loads what the overview shows while it is `active`: the counts once per `revision` of the workspace (a
- * return to the overview does not count again, which would take hundreds of milliseconds at 50,000
- * elements), and the recent elements again when the list or the workspace changed. An element that cannot
+ * Loads what the overview shows while it is `active`: the counts and the perspectives once per `revision`
+ * of the workspace (a return to the overview does not count again, which would take hundreds of
+ * milliseconds at 50,000 elements), and the recent elements again when the list or the workspace changed.
+ * The type lines and the names of the perspectives come together; the count of each perspective follows
+ * after them, one perspective after the other (SR-118 AK8), so the overview does not wait for them and a
+ * command the user gives meanwhile waits for one count at most. An element that cannot
  * be read any more (deleted outside, repository missing) is left out silently; `gone` gives the buffer keys
  * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (ThomasBirkmaier/ReqSeq-archive#681). `read` is the
  * last answer itself, so a name is taken from it once, not again after it was forgotten.
@@ -46,6 +61,8 @@ export const useOverview = (
   onEcho: (message: string) => void,
 ): {
   readonly data: OverviewData | undefined;
+  /** The perspectives shown, each with its count once computed. */
+  readonly perspectives: readonly PerspectiveRow[];
   readonly recents: readonly RecentRow[];
   /** The rows of the last read of the recent elements; a new map only when a read answered. */
   readonly read: ReadonlyMap<string, RecentRow>;
@@ -53,6 +70,9 @@ export const useOverview = (
 } => {
   const [counted, setCounted] = useState<
     { readonly revision: number; readonly data: OverviewData } | undefined
+  >(undefined);
+  const [counts, setCounts] = useState<
+    { readonly revision: number; readonly counts: ReadonlyMap<string, PerspectiveCount> } | undefined
   >(undefined);
   const [resolved, setResolved] = useState<ReadonlyMap<string, RecentRow>>(new Map());
   const [gone, setGone] = useState<readonly string[]>([]);
@@ -62,21 +82,52 @@ export const useOverview = (
       return;
     }
     let live = true;
-    void call("element.facets", {}).then((answer) => {
+    void Promise.all([call("element.facets", {}), call("perspective.list", {})]).then(([answer, listed]) => {
       if (!live) {
         return;
       }
       if (answer.ok) {
         const { types, total, incomplete } = answer.output;
-        setCounted({ revision, data: { types, total, incomplete } });
+        // Without the perspectives the overview still shows the types; the minibuffer says why.
+        const perspectives = listed.ok ? shownPerspectives(listed.output.perspectives) : [];
+        setCounted({ revision, data: { types, total, incomplete, perspectives } });
       } else {
         onEcho(answer.message);
+      }
+      if (!listed.ok) {
+        onEcho(listed.message);
       }
     });
     return () => {
       live = false;
     };
   }, [call, active, revision, counted?.revision, onEcho]);
+
+  // The counts of the perspectives, after the overview stands: one call at a time, each shown when it
+  // answers. A new revision counts again.
+  useEffect(() => {
+    if (counted === undefined) {
+      return;
+    }
+    const { revision: of, data } = counted;
+    // An object, so the check after each answer reads what the cleanup set meanwhile.
+    const run = { live: true };
+    setCounts({ revision: of, counts: new Map() });
+    void (async () => {
+      for (const name of data.perspectives) {
+        const count = perspectiveCount(await checkPerspective(call, name));
+        if (!run.live) {
+          return;
+        }
+        setCounts((last) =>
+          last?.revision === of ? { revision: of, counts: new Map(last.counts).set(name, count) } : last,
+        );
+      }
+    })();
+    return () => {
+      run.live = false;
+    };
+  }, [call, counted]);
 
   useEffect(() => {
     if (!active) {
@@ -119,8 +170,14 @@ export const useOverview = (
     };
   }, [call, active, revision, recent]);
 
+  const data = counted?.revision === revision ? counted.data : undefined;
+  const known = counts?.revision === revision ? counts.counts : undefined;
   return {
-    data: counted?.revision === revision ? counted.data : undefined,
+    data,
+    perspectives: (data?.perspectives ?? []).map((name) => {
+      const found = known?.get(name);
+      return found === undefined ? { name } : { name, counted: found };
+    }),
     recents: recent.flatMap((entry) => {
       const row = resolved.get(entryKey(entry));
       return row === undefined ? [] : [row];
@@ -134,7 +191,11 @@ export interface OverviewViewProps {
   readonly buffer: OverviewBuffer;
   /** Undefined until the counts are there: the sheet stays empty meanwhile. */
   readonly data: OverviewData | undefined;
+  /** The perspectives with their counts, as far as computed. */
+  readonly perspectives: readonly PerspectiveRow[];
   readonly recents: readonly RecentRow[];
+  /** Opens the perspective of a row as "Open perspective" does (SR-118 AK7, `openPerspective`). */
+  readonly onPerspective: (name: string) => void;
   /** The changes from outside (SR-116): the line of a recent element that changed is highlighted. */
   readonly outside?: OutsideChanges;
   readonly dispatch: (action: BufferAction) => void;
@@ -145,7 +206,9 @@ export interface OverviewViewProps {
 export const OverviewView = ({
   buffer,
   data,
+  perspectives,
   recents,
+  onPerspective,
   outside,
   dispatch,
   onData,
@@ -157,8 +220,9 @@ export const OverviewView = ({
       mark(recents.map((row) => row.buffer.id).filter(outside.fresh));
     }
   }, [recents]);
-  const rows = data === undefined ? [] : overviewRows(data.types, recents);
+  const rows = data === undefined ? [] : overviewRows(data.types, perspectives, recents);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
+  const firstPerspective = rows.findIndex((row) => row.kind === "perspective");
   const firstRecent = rows.findIndex((row) => row.kind === "recent");
 
   const selectedRow = cursor < 0 ? undefined : rows[cursor];
@@ -179,7 +243,9 @@ export const OverviewView = ({
 
   const open = (at: number): void => {
     const row = rows[at];
-    if (row !== undefined) {
+    if (row?.kind === "perspective") {
+      onPerspective(row.name);
+    } else if (row !== undefined) {
       dispatch({ type: "open", buffer: openRow(row) });
     }
   };
@@ -213,14 +279,19 @@ export const OverviewView = ({
     >
       <div className="column">
         {rows.map((row, at) => (
-          <Fragment key={row.kind === "type" ? `type:${row.key}` : row.buffer.key}>
+          <Fragment key={rowKey(row)}>
+            {at === firstPerspective ? <div className="group">Perspectives</div> : null}
             {at === firstRecent ? <div className="group">Recent</div> : null}
             <div
               id={`${scope}overview-${String(at)}`}
-              className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
+              className={
+                row.kind === "recent" ? rowClass("line recent", marked, row.buffer.id) : `line ${row.kind}`
+              }
               role="option"
               aria-selected={at === cursor}
-              {...(row.kind === "type" ? { "aria-label": typeLine(row) } : { "data-menu": "element-entry" })}
+              {...(row.kind === "recent"
+                ? { "data-menu": "element-entry" }
+                : { "aria-label": rowLabel(row) })}
               onClick={() => {
                 dispatch({ type: "cursor", key: buffer.key, cursor: at });
                 open(at);
@@ -230,22 +301,56 @@ export const OverviewView = ({
                 dispatch({ type: "cursor", key: buffer.key, cursor: at });
               }}
             >
-              {row.kind === "type" ? (
-                <>
-                  <span className="name">{row.name}</span> <span className="count">{String(row.count)}</span>
-                </>
-              ) : (
-                <>
-                  <span className="id" title={row.label}>
-                    {row.label}
-                  </span>
-                  <span className="title">{row.title}</span>
-                </>
-              )}
+              <RowContent row={row} />
             </div>
           </Fragment>
         ))}
       </div>
     </div>
+  );
+};
+
+const rowKey = (row: OverviewRow): string =>
+  row.kind === "type"
+    ? `type:${row.key}`
+    : row.kind === "perspective"
+      ? `perspective:${row.name}`
+      : row.buffer.key;
+
+const rowLabel = (row: Exclude<OverviewRow, { readonly kind: "recent" }>): string =>
+  row.kind === "type" ? typeLine(row) : perspectiveLine(row);
+
+const RowContent = ({ row }: { readonly row: OverviewRow }): React.JSX.Element => {
+  if (row.kind === "type") {
+    return (
+      <>
+        <span className="name">{row.name}</span> <span className="count">{String(row.count)}</span>
+      </>
+    );
+  }
+  if (row.kind === "perspective") {
+    const { counted } = row;
+    return (
+      <>
+        <span className="name">{row.name}</span>
+        {counted === undefined ? null : " "}
+        {counted === undefined ? null : "count" in counted ? (
+          <span className="count">{String(counted.count)}</span>
+        ) : (
+          // The reason in short; the minibuffer says it in full when the row is opened.
+          <span className="reason" title={counted.message}>
+            {counted.reason}
+          </span>
+        )}
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="id" title={row.label}>
+        {row.label}
+      </span>
+      <span className="title">{row.title}</span>
+    </>
   );
 };
