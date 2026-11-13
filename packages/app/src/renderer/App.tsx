@@ -322,7 +322,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   macRef.current = mac;
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
   // The calls to the core, counted, so that the overview's counts give way to them (`call-turn.ts`).
-  const calls = useMemo(() => trackCalls(), []);
+  const [calls] = useState(() => trackCalls());
   const tracked = useMemo<ReqSeqBridge>(
     () => ({ ...bridge, invoke: calls.wrap((name, input) => bridge.invoke(name, input)) }),
     [bridge, calls],

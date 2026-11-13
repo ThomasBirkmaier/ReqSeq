@@ -40,6 +40,46 @@ describe("calls that give way (SR-118 AK8)", () => {
     await expect(tracker.turn()).resolves.toBeUndefined();
   });
 
+  it("waits for the window to be idle again when a call answered, so a follow-up call goes first", async () => {
+    const answers: ((result: InvokeResult) => void)[] = [];
+    const idles: (() => void)[] = [];
+    const tracker = trackCalls(
+      () =>
+        new Promise((resolve) => {
+          idles.push(resolve);
+        }),
+    );
+    const invoke = tracker.wrap(
+      () =>
+        new Promise<InvokeResult>((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    void invoke("element.list", {});
+    let turned = false;
+    void tracker.turn().then(() => {
+      turned = true;
+    });
+    idles[0]?.();
+    await tick();
+    answers[0]?.({ ok: true, output: {} });
+    await tick();
+    await tick();
+    // Nothing pending, but the turn waits for the next idle period, in which the command's next call comes.
+    expect(turned).toBe(false);
+    expect(idles).toHaveLength(2);
+    void invoke("element.list", { offset: 200 });
+    idles[1]?.();
+    await tick();
+    expect(turned).toBe(false);
+    answers[1]?.({ ok: true, output: {} });
+    await tick();
+    await tick();
+    idles[2]?.();
+    await tick();
+    expect(turned).toBe(true);
+  });
+
   it("counts a failed call as answered too", async () => {
     const tracker = trackCalls(() => Promise.resolve());
     const invoke = tracker.wrap(() => Promise.reject(new Error("gone")));

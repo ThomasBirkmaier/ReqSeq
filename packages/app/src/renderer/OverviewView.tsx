@@ -75,8 +75,9 @@ export const useOverview = (
   readonly read: ReadonlyMap<string, RecentRow>;
   readonly gone: readonly string[];
 } => {
+  // With the call it was read with: another call (another workspace, before its revision) counts nothing.
   const [counted, setCounted] = useState<
-    { readonly revision: number; readonly data: OverviewData } | undefined
+    { readonly revision: number; readonly call: Call; readonly data: OverviewData } | undefined
   >(undefined);
   const [counts, setCounts] = useState<
     { readonly revision: number; readonly counts: ReadonlyMap<string, PerspectiveCount> } | undefined
@@ -101,7 +102,7 @@ export const useOverview = (
       const { types, total, incomplete } = answer.output;
       // Without the perspectives the overview still shows the types; the minibuffer says why.
       const perspectives = listed.ok ? shownPerspectives(listed.output.perspectives) : [];
-      setCounted({ revision, data: { types, total, incomplete, perspectives } });
+      setCounted({ revision, call, data: { types, total, incomplete, perspectives } });
       if (!listed.ok) {
         onEcho(listed.message);
       }
@@ -117,7 +118,9 @@ export const useOverview = (
   const countsNow = useRef(counts);
   countsNow.current = counts;
   useEffect(() => {
-    if (!active || counted?.revision !== revision) {
+    // A changed call before its revision (`setShownView` on a workspace switch, before the new workspace's
+    // revision) counts nothing: the names are those of the workspace before.
+    if (!active || counted?.revision !== revision || counted.call !== call) {
       return;
     }
     const { revision: of, data } = counted;
