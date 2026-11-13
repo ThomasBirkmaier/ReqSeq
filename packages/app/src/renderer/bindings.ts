@@ -6,7 +6,7 @@ import type { Choice } from "./actions.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { matches, press, pressLabel, rowStep, shortcutLabel } from "./keys.js";
 
-/** The prefix key: Ctrl+K, or Cmd+K on macOS (SR-214 AK1: "Ctrl+K V, unter macOS Cmd+K V"; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
+/** The prefix key: Ctrl+K, or Cmd+K on macOS (SR-214 AK1 names Ctrl+K V and Cmd+K V; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
 
 /** How long the prefix waits for the next key before it shows the possible next keys (SR-109 AK3). */

@@ -29,7 +29,7 @@ import { useIdScope } from "./area-scope.js";
 import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import { useDrawnParts } from "./list-drawn.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, listHeading, listSort, namedPerspective } from "./buffers.js";
+import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightRanges, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
@@ -127,6 +127,41 @@ const SCREEN = 10;
 /** The next page is asked for when the selection is this close to the last loaded row. */
 const NEAR_END = 5;
 
+/** A page of a list: `element.list` with its selection, sort and grouping. */
+const fetchListPage = async (
+  call: Call,
+  buffer: ListBuffer,
+  offset: number,
+  limit: number,
+  selection: ElementSelection | undefined,
+): Promise<Page> => {
+  // A perspective that came back with nothing saved lists nothing: it shows why (`PerspectiveOrigin`).
+  const refused = buffer.perspective?.error;
+  if (refused !== undefined) {
+    return { ok: false, message: refused };
+  }
+  const sort = listSort(buffer);
+  const answer = await call("element.list", {
+    ...(selection === undefined ? {} : { selection }),
+    ...(sort === undefined ? {} : { sort }),
+    ...(buffer.group === undefined ? {} : { group: buffer.group }),
+    limit,
+    offset,
+  });
+  if (!answer.ok) {
+    return answer;
+  }
+  const { groups, rows, total } = answer.output;
+  return {
+    ok: true,
+    rows: listRows(answer.output),
+    total,
+    size: rows ?? total,
+    incomplete: answer.output.incomplete === true,
+    ...(groups === undefined ? {} : { groups }),
+  };
+};
+
 const fetchPage = async (
   call: Call,
   buffer: ListBuffer | SearchBuffer,
@@ -135,27 +170,7 @@ const fetchPage = async (
   selection: ElementSelection | undefined = buffer.selection,
 ): Promise<Page> => {
   if (buffer.kind === "list") {
-    const sort = listSort(buffer);
-    const answer = await call("element.list", {
-      ...namedPerspective(buffer),
-      ...(selection === undefined ? {} : { selection }),
-      ...(sort === undefined ? {} : { sort }),
-      ...(buffer.group === undefined ? {} : { group: buffer.group }),
-      limit,
-      offset,
-    });
-    if (!answer.ok) {
-      return answer;
-    }
-    const { groups, rows, total } = answer.output;
-    return {
-      ok: true,
-      rows: listRows(answer.output),
-      total,
-      size: rows ?? total,
-      incomplete: answer.output.incomplete === true,
-      ...(groups === undefined ? {} : { groups }),
-    };
+    return fetchListPage(call, buffer, offset, limit, selection);
   }
   // The hits within the steps, grouped as a list (SR-124 AK4, SR-149 AK6), in the order of the search.
   const answer = await call("element.search", {
@@ -222,7 +237,6 @@ const fetchVerification = async (
     const sort = listSort(buffer);
     const answer = await call("element.list", {
       ...common,
-      ...namedPerspective(buffer),
       ...(sort === undefined ? {} : { sort }),
       fields: ["identifier"],
     });
@@ -485,7 +499,10 @@ const ListTop = ({
   return (
     <>
       <ListHeading buffer={buffer} view={view} />
-      {buffer.kind === "list" && selection !== undefined && (loaded || ready === key) ? (
+      {buffer.kind === "list" &&
+      buffer.perspective?.error === undefined &&
+      selection !== undefined &&
+      (loaded || ready === key) ? (
         <SummaryLine
           key={key}
           call={call}

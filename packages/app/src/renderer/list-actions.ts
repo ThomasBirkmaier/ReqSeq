@@ -12,6 +12,7 @@ import {
   listBuffer,
   listOf,
   listView,
+  listing,
   ownSteps,
   queryOf,
   searchQueryOf,
@@ -41,7 +42,7 @@ export const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
 
 export const currentList = (context: ActionContext): ListBuffer | undefined => {
   const current = context.buffers[0];
-  return current?.kind === "list" ? current : undefined;
+  return listing(current) ? current : undefined;
 };
 
 const isMatrix = (context: ActionContext): boolean => inMatrix(context.buffers[0]);

@@ -495,12 +495,15 @@ describe("perspective buffers across a restart (SR-214 AK7)", () => {
       buffers: [perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED })],
       complete: true,
     });
-    // Only a faulty file holds the name: the buffer asks with the name, and shows `file.faulty`.
+    // Only a faulty file holds the name: the buffer shows core's refusal (`file.faulty`) and lists nothing.
     const faulty = await restore(stored("Broken"), {
       "perspective.list": listed({ perspectives: [] }),
       "element.list": failing("file.faulty"),
     });
-    expect(faulty).toEqual({ buffers: [perspectiveBuffer({ name: "Broken" })], complete: true });
+    expect(faulty).toEqual({
+      buffers: [perspectiveBuffer({ name: "Broken", error: "file.faulty" })],
+      complete: true,
+    });
   });
 
   it("[SR-214/AK-sf7b] keeps the stored buffers when the perspectives could not all be read", async () => {

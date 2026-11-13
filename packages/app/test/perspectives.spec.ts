@@ -63,7 +63,10 @@ const minibuffer = (window: Page): Locator => window.getByLabel("Minibuffer");
 const shownIds = async (window: Page): Promise<string[]> =>
   (await shownBuffer(window).locator(".row .id").allTextContents()).map((text) => text.trim());
 
-/** The short IDs and the groups `element.list` with the perspective gives through the CLI. */
+/**
+ * The short IDs and the groups `element.list` with the perspective gives through the CLI, each group as the
+ * app heads it: the short ID and title of its target, "(no value)" without one, then its count.
+ */
 const cliList = async (
   running: RunningApp,
   name: string,
@@ -74,18 +77,21 @@ const cliList = async (
   expect(result.code, result.stderr).toBe(0);
   const output = JSON.parse(result.stdout) as {
     elements: { shortId: string }[];
-    groups?: { label?: string; count: number }[];
+    groups?: { value?: string; title?: string; count: number }[];
   };
   return {
     ids: output.elements.map((element) => element.shortId),
-    groups: (output.groups ?? []).map((group) => String(group.count)),
+    groups: (output.groups ?? []).map(
+      (group) =>
+        `${group.value === undefined ? "(no value)" : [group.value, group.title].filter(Boolean).join(" ")} ${String(group.count)}`,
+    ),
   };
 };
 
-/** The counts in the group headings of the shown list. */
-const shownGroupCounts = async (window: Page): Promise<string[]> =>
-  (await shownBuffer(window).locator(".group h2").allTextContents()).map(
-    (heading) => /(\d+)$/.exec(heading.trim())?.[1] ?? heading,
+/** The group headings of the shown list, in order: label and count. */
+const shownGroups = async (window: Page): Promise<string[]> =>
+  (await shownBuffer(window).locator(".group h2").allTextContents()).map((heading) =>
+    heading.replace(/\s+/g, " ").trim(),
   );
 
 /** Ctrl/Cmd+K V: the prompt of the perspectives. */
@@ -204,7 +210,7 @@ test.describe("perspectives in the app", () => {
       }
       const cli = await cliList(running, name);
       await expect.poll(() => shownIds(window)).toEqual(cli.ids);
-      expect(await shownGroupCounts(window)).toEqual(cli.groups);
+      expect(await shownGroups(window)).toEqual(cli.groups);
     }
     // In the view of the window: the view of Coast.
     await open(window, "By title");
@@ -212,7 +218,7 @@ test.describe("perspectives in the app", () => {
     await expect(window.getByLabel("Modeline")).toContainText("view: Coast");
     const coast = await cliList(running, "By title", COAST);
     await expect.poll(() => shownIds(window)).toEqual(coast.ids);
-    expect(await shownGroupCounts(window)).toEqual(coast.groups);
+    expect(await shownGroups(window)).toEqual(coast.groups);
     expect(await snapshot(root)).toEqual(before);
   });
 
@@ -312,8 +318,10 @@ test.describe("perspectives in the app", () => {
     await window.keyboard.type("filtered");
     await expect(candidates(window).first()).toHaveText("filtered");
     await window.keyboard.press("Enter");
-    await expect(minibuffer(window)).toContainText("filtered");
-    await expect(minibuffer(window)).toContainText("Requirements");
+    // Core's message names the perspective and its saved filter (SR-213 AK6).
+    await expect(minibuffer(window)).toContainText(
+      /Perspective "filtered" \(perspectives\/filtered\.yaml\).*saved filter "Requirements" does not exist/,
+    );
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
   });
 
@@ -321,7 +329,9 @@ test.describe("perspectives in the app", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await open(window, "Titles");
-    await expect(minibuffer(window)).toContainText("title");
+    await expect(minibuffer(window)).toContainText(
+      'Perspective "Titles" (perspectives/titles.yaml) groups by title, whose values can no longer be chosen',
+    );
     await expect(shownBuffer(window).locator(".group h2")).toHaveCount(0);
     await expect.poll(() => shownIds(window)).toEqual((await cliList(running, "Titles")).ids);
   });

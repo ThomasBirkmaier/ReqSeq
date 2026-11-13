@@ -462,7 +462,7 @@ const OWN = new Set(["input.invalid", "file.faulty"]);
  * opening for each (`checkPerspective`). A listed perspective comes back from what is saved, without its
  * grouping when that can no longer be chosen (SR-213 AK7, its warning shown when the buffer is), and also
  * when core refuses it (a saved filter missing or faulty, SR-213 AK6): the buffer shows the error, as a
- * reload does. A name that only a faulty file holds comes back too and shows `file.faulty`. Only a name no
+ * reload does. A name that only a faulty file holds comes back too, shows `file.faulty` and lists nothing. Only a name no
  * file holds is left out. A list that is incomplete or fails, or a check that fails for another reason,
  * leaves the restore incomplete, so the stored buffers stay for the next start.
  */
@@ -494,7 +494,7 @@ const readPerspectives = async (call: Call, names: readonly string[]): Promise<P
         return { folded, buffer, complete: own };
       }
       if (!check.ok && check.code === "file.faulty") {
-        return { folded, buffer: perspectiveBuffer({ name }), complete: true };
+        return { folded, buffer: perspectiveBuffer({ name, error: check.message }), complete: true };
       }
       // Gone: no file holds the name; undecided while the list or the check is not complete.
       return { folded, buffer: undefined, complete: known && !check.ok && check.code === "input.invalid" };

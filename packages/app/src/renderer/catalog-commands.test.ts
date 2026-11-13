@@ -11,6 +11,7 @@ import {
   listBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
 } from "./buffers.js";
@@ -321,6 +322,10 @@ describe("catalog commands in the command prompt", () => {
       input: { ...command("element.facets").input, required: ["selection"] },
     };
     expect(catalogItems(setup([shown]).context, [needs], [])).toEqual([]);
+    // A perspective buffer that came back with nothing saved lists nothing, so it gives no selection
+    // (it would read as every element).
+    const faulty = perspectiveBuffer({ name: "Broken", error: "faulty file" });
+    expect(catalogItems(setup([faulty]).context, [needs], [])).toEqual([]);
     const { context, dispatched, call } = setup([list], { "element.facets": () => ({ total: 1 }) });
     const [only] = catalogItems(context, [needs], []);
     only?.run();

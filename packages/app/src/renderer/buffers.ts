@@ -32,23 +32,29 @@ export type ListedPerspective = CommandTypes["perspective.list"]["output"]["pers
 
 /**
  * What a perspective buffer shows (SR-214 AK2): the perspective by its name, and what was saved when the
- * buffer was opened. The buffer asks `element.list` with that, not with the name, so a change of the file
- * outside the app leaves the list as it is until the perspective is opened again (SR-214, rationale).
+ * buffer was opened (`saved`: the selection, grouping and sort; the grouping left out when it could no
+ * longer be chosen at opening, SR-213 AK7). The buffer asks `element.list` with that, not with the name, so
+ * a change of the file outside the app leaves the list as it is until the perspective is opened again
+ * (SR-214, rationale). `warning` is core's warning that the grouping was left out, for a buffer that came
+ * back at a restart: the minibuffer says it when the buffer is first shown, and it is then dropped.
+ *
+ * A buffer that came back at a restart for a name only a faulty file holds has nothing saved: it shows
+ * core's refusal (`error`, `file.faulty`) and lists nothing, so it offers no list action and gives no
+ * selection, until the perspective is opened again (`listing`).
  */
-export interface PerspectiveOrigin {
-  readonly name: string;
-  /**
-   * The selection, grouping and sort as saved; the grouping left out when it could no longer be chosen at
-   * opening (SR-213 AK7). Absent when no valid file held the name at a restart (only a faulty one): the
-   * buffer then asks `element.list` with the name, and shows core's error (`file.faulty`).
-   */
-  readonly saved?: SavedPerspective;
-  /**
-   * Core's warning that the grouping was left out (SR-213 AK7), for a buffer that came back at a restart:
-   * the minibuffer says it when the buffer is first shown, and it is then dropped.
-   */
-  readonly warning?: string;
-}
+export type PerspectiveOrigin =
+  | {
+      readonly name: string;
+      readonly saved: SavedPerspective;
+      readonly warning?: string;
+      readonly error?: undefined;
+    }
+  | {
+      readonly name: string;
+      readonly error: string;
+      readonly saved?: undefined;
+      readonly warning?: undefined;
+    };
 
 export interface SavedPerspective {
   readonly where: NonNullable<ElementSelection["where"]>;
@@ -457,13 +463,12 @@ export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
 };
 
 /**
- * The perspective a list names in its call of `element.list`: only one that has nothing saved, whose
- * file core reads and refuses (`file.faulty`); every other perspective buffer asks with what was saved.
+ * The buffer is a list that lists elements: not the buffer of a perspective that came back with nothing
+ * saved (`PerspectiveOrigin`), which only shows why it cannot. The list actions and every command that takes
+ * the shown list's selection act only on such a list.
  */
-export const namedPerspective = (list: ListBuffer): { readonly perspective?: string } =>
-  list.perspective !== undefined && list.perspective.saved === undefined
-    ? { perspective: list.perspective.name }
-    : {};
+export const listing = (buffer: Buffer | undefined): buffer is ListBuffer =>
+  buffer?.kind === "list" && buffer.perspective?.error === undefined;
 
 /** The grouping a list asks for: none in the matrix, which shows no groups (SR-149). */
 export const listGroup = (list: ListBuffer): string | undefined =>

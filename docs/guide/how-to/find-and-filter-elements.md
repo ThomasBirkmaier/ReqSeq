@@ -15,7 +15,7 @@ The search finds words in titles, texts, property values, type and status names 
 4. “Sort list” (Ctrl+K S) orders the list, for example by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows of a list offers most of these.
 5. To list every element with a value of the open element, such as its topic or package, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click). The list filters further like any other.
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold, for you on this computer.
-7. Ctrl+K V (⌘K V) opens a saved perspective as a list of its own.
+7. Ctrl+K V (⌘K V) opens a perspective in a buffer of its own.
 8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, the `where` of the API section below. **List saved filters** shows the filters of the workspace.
 
 ## CLI

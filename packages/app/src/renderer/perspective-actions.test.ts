@@ -12,7 +12,7 @@ import {
   listGroup,
   listHeading,
   listSort,
-  namedPerspective,
+  listing,
   perspectiveBuffer,
   perspectiveKey,
   reduceBuffers,
@@ -100,7 +100,7 @@ const action = (id: string) => {
   return found;
 };
 
-const listing =
+const listed =
   (perspectives: unknown[], more: Record<string, unknown> = {}) =>
   () =>
     ok({ perspectives, ...more });
@@ -118,7 +118,7 @@ describe("Open perspective: the prompt (SR-214 AK1)", () => {
   it("[SR-214/AK-sd9r] lists only the perspectives, those opened last first, then by name ignoring case", async () => {
     const perspective = (name: string) => ({ name, file: `perspectives/${name}.yaml`, where: { all: [] } });
     const { context, asked } = start(
-      { "perspective.list": listing(["beta", "Alpha", "gamma", "Delta"].map(perspective)) },
+      { "perspective.list": listed(["beta", "Alpha", "gamma", "Delta"].map(perspective)) },
       undefined,
       ["GAMMA", "gone", "Delta"],
     );
@@ -131,12 +131,12 @@ describe("Open perspective: the prompt (SR-214 AK1)", () => {
   });
 
   it("[SR-214/AK-sd9r] says that there is none, unless a file is faulty or a repository missing", async () => {
-    const none = start({ "perspective.list": listing([]) });
+    const none = start({ "perspective.list": listed([]) });
     action(OPEN_PERSPECTIVE).run(none.context);
     await flush();
     expect(none.echoed).toEqual([NONE]);
     expect(none.asked).toHaveLength(0);
-    const missing = start({ "perspective.list": listing([], { incomplete: true }) });
+    const missing = start({ "perspective.list": listed([], { incomplete: true }) });
     action(OPEN_PERSPECTIVE).run(missing.context);
     await flush();
     expect(rows(missing.asked)).toEqual([`(${NONE})`, "(incomplete: a repository is missing)"]);
@@ -150,7 +150,7 @@ describe("Open perspective: the prompt (SR-214 AK1)", () => {
 
   it("[SR-213/AK-qp6d] names each faulty file with its reason after the perspectives, which cannot be chosen", async () => {
     const { context, asked } = start({
-      "perspective.list": listing([DRAFTS], {
+      "perspective.list": listed([DRAFTS], {
         problems: [
           {
             code: "perspective.invalid",
@@ -183,7 +183,7 @@ describe("Open perspective: the prompt (SR-214 AK1)", () => {
 
 describe("Open perspective: opening (SR-214 AK2–AK4, SR-213 AK6, AK7)", () => {
   const answers: Answers = {
-    "perspective.list": listing([DRAFTS]),
+    "perspective.list": listed([DRAFTS]),
     "element.list": checked(),
   };
 
@@ -224,15 +224,11 @@ describe("Open perspective: opening (SR-214 AK2–AK4, SR-213 AK6, AK7)", () => 
     expect(listSort(list)).toBeUndefined();
     expect(bufferName(list)).toBe("perspective: Drafts · grouped by type");
     expect(listSort(perspectiveBuffer({ name: "Drafts", saved: { ...unsorted, sort: [] } }))).toEqual([]);
-    // A perspective whose file was faulty at a restart asks by its name; one with what was saved does not.
-    expect(namedPerspective(perspectiveBuffer({ name: "Broken" }))).toEqual({ perspective: "Broken" });
-    expect(namedPerspective(list)).toEqual({});
-    expect(namedPerspective(listBuffer("All elements"))).toEqual({});
   });
 
   it("[SR-214/AK-wngq] two perspectives are two buffers, and the same one in another case is one", async () => {
     const other = { name: "Approved", file: "perspectives/approved.yaml", where: { status: ["approved"] } };
-    const { context, buffers } = start({ ...answers, "perspective.list": listing([DRAFTS, other]) });
+    const { context, buffers } = start({ ...answers, "perspective.list": listed([DRAFTS, other]) });
     await openPerspective(context, "Drafts");
     await openPerspective(context, "Approved");
     await openPerspective(context, "approved");
@@ -282,7 +278,7 @@ describe("Open perspective: opening (SR-214 AK2–AK4, SR-213 AK6, AK7)", () => 
     const failed = start({ "element.list": checked() });
     await openPerspective(failed.context, "Drafts");
     expect(failed.echoed).toEqual(["perspective.list failed"]);
-    const gone = start({ ...answers, "perspective.list": listing([]) });
+    const gone = start({ ...answers, "perspective.list": listed([]) });
     await openPerspective(gone.context, "Drafts");
     expect(gone.echoed).toEqual(["No perspective is named Drafts"]);
   });
@@ -334,5 +330,30 @@ describe("the list actions on a perspective buffer", () => {
     // In the matrix the grouping it keeps is not offered to ungroup.
     const matrix = start({}, [withMatrix(opened(), true)]);
     expect(action("ungroup").available(matrix.context)).toBe(false);
+  });
+
+  it("a perspective buffer that came back with nothing saved lists nothing and offers no list action until opened again", async () => {
+    const faulty = perspectiveBuffer({ name: "Broken", error: "The perspective is in a faulty file" });
+    expect(listing(faulty)).toBe(false);
+    expect(listing(opened())).toBe(true);
+    expect(listHeading(faulty)).toBe("Broken");
+    const { context, shownList } = start(
+      {
+        "perspective.list": listed([
+          { name: "Broken", file: "perspectives/broken.yaml", where: { all: [] } },
+        ]),
+        "element.list": checked(),
+      },
+      [faulty],
+    );
+    // Neither the matrix, a filter, a sort nor a grouping: they would act on every element.
+    for (const id of ["matrix", "filter-type", "filter-text", "sort", "group", "clear-filters"]) {
+      expect(action(id).available(context)).toBe(false);
+    }
+    // Opening it again replaces it with the perspective as saved.
+    await openPerspective(context, "Broken");
+    expect(shownList().perspective?.error).toBeUndefined();
+    expect(shownList().key).toBe(faulty.key);
+    expect(action("matrix").available(context)).toBe(true);
   });
 });

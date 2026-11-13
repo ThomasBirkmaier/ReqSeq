@@ -130,7 +130,7 @@ export const PERSPECTIVE_ACTIONS: readonly Action[] = [
   {
     id: OPEN_PERSPECTIVE,
     title: "Open perspective",
-    description: "Open a saved perspective as a list of its own, as it is saved.",
+    description: "Open a perspective in a buffer of its own.",
     runs: [
       { where: "in the prompt", command: "perspective.list" },
       { where: "in the list", command: "element.list" },

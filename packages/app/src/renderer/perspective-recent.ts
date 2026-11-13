@@ -1,7 +1,7 @@
-// The perspectives opened last, for the prompt of "Open perspective" (SR-214 AK1: "die zuletzt geöffneten
-// zuerst, dann nach Namen"). Display state of the app like the elements opened last (`recent.ts`): kept in
-// the app's own local storage, per workspace, never in the files of the workspace (as SR-118 AK5) and not
-// through a catalog command (SR-080 AK1: "außer reiner Darstellung der App"). Only names are stored.
+// The perspectives opened last, for the prompt of "Open perspective" (SR-214 AK1: the ones opened last
+// first, then by name). Display state of the app like the elements opened last (`recent.ts`): kept in the
+// app's own local storage, per workspace, never in the files of the workspace (as SR-118 AK5) and not
+// through a catalog command (SR-080 AK1 leaves pure display state of the app out). Only names are stored.
 import { fold } from "@reqseq/core/fold";
 import type { ListedPerspective } from "./buffers.js";
 import type { InvokeResult } from "../shared/protocol.js";
