@@ -11,7 +11,11 @@
 // - A *gesture* ends after a pause of `GESTURE_GAP_MS`; a *segment* of it after `SEGMENT_GAP_MS`. A segment
 //   ended by its timer is joined again when its next event came less than `SEGMENT_GAP_MS` after the last one
 //   (the timer fired late, the main thread was busy), or, below the third, when it goes on in its direction
-//   with a step of a wheel notch.
+//   with a step of a wheel notch. A pause ends only once its time has passed and a frame has begun after the
+//   last event with no event in it: the window gets wheel events once per frame, before the frame's callbacks,
+//   so a slow frame (a matrix being painted at the edge) or a busy main thread never ends a swipe that goes on.
+//   A window that is not visible draws no frames: there the time alone ends the pause, and a frame not come
+//   `FRAME_WAIT_MS` after the time ends it too.
 // - An event with Shift, Ctrl, Meta or Alt held is not read at all (AK10: Shift+wheel only scrolls).
 // - The first event of a gesture asks the window whether it switches nothing (`ignored`): then nothing of the
 //   gesture is prevented or counted. The window asks again with the direction once dX is not 0 (AK5).
@@ -29,6 +33,11 @@
 export const GESTURE_GAP_MS = 150;
 /** A segment of a gesture ends after this pause: no gap inside a swipe is as long, but in its momentum. */
 export const SEGMENT_GAP_MS = 35;
+/**
+ * A pause whose time has passed waits no longer than this for a frame: the longest gap between the events of a
+ * swipe on CI was 230 ms.
+ */
+export const FRAME_WAIT_MS = 2 * GESTURE_GAP_MS;
 /** The distance after which a segment is vertical or the swipe. */
 export const DECIDE_PX = 8;
 /** The distance after which a segment of a spent gesture is a new swipe, vertical, or more of the old one. */
@@ -67,8 +76,15 @@ export interface SwipeHost {
   readonly reduced: () => boolean;
   /** A segment is the swipe in `way`: a running slide ends (SR-212 AK2), the target is drawn (SR-211 AK3). */
   readonly begin: (way: SwipeWay) => void;
-  /** The swipe switches. */
+  /** The swipe has gone `distance` px in `way` (SR-211 AK3: the shown buffer follows it). */
+  readonly move: (way: SwipeWay, distance: number) => void;
+  /** The swipe switches at once, without motion (AK13). */
   readonly switch: (way: SwipeWay) => void;
+  /**
+   * The swipe ended after `distance` px in `way`: the window switches past a third (AK1, AK2) or the buffer
+   * springs back (AK4). True when it switched.
+   */
+  readonly release: (way: SwipeWay, distance: number) => boolean;
   /** The swipe's segment ended, with or after its switch. */
   readonly end: () => void;
   /** Scrolls what a vertical segment held back. */
@@ -79,9 +95,22 @@ export interface SwipeHost {
 export interface SwipeTimers {
   readonly set: (run: () => void, ms: number) => unknown;
   readonly clear: (handle: unknown) => void;
+  /** Runs `run` before the next frame is drawn, after that frame's input events. */
+  readonly frame: (run: () => void) => unknown;
+  readonly cancelFrame: (handle: unknown) => void;
+  /** Whether the window is visible: a hidden one draws no frames. */
+  readonly visible: () => boolean;
 }
 
 export const windowTimers = (view: Window): SwipeTimers => ({
+  frame: (run) =>
+    view.requestAnimationFrame(() => {
+      run();
+    }),
+  cancelFrame: (handle) => {
+    view.cancelAnimationFrame(handle as number);
+  },
+  visible: () => view.document.visibilityState === "visible",
   set: (run, ms) => view.setTimeout(run, ms),
   clear: (handle) => {
     view.clearTimeout(handle as number);
@@ -145,8 +174,9 @@ export class SwipeGesture {
   // A segment of an ignored or vertical gesture after a pause, which may start a new swipe.
   private probe:
     (Segment & { asked: boolean; readonly ignores: Readonly<Record<-1 | 1, boolean>> }) | undefined;
-  private segmentTimer: unknown;
-  private gestureTimer: unknown;
+  // Cancel the pauses that end the segment and the gesture.
+  private segmentPause: () => void = () => undefined;
+  private gesturePause: () => void = () => undefined;
 
   constructor(host: SwipeHost, timers: SwipeTimers) {
     this.host = host;
@@ -191,7 +221,7 @@ export class SwipeGesture {
       case "after":
         return this.decide(segment, gesture, step, SPENT_DECIDE_PX);
       case "swipe":
-        this.reducedSwitch(segment, gesture);
+        this.follow(segment, gesture);
         return true;
       case "spent":
         gesture.tail = size;
@@ -201,8 +231,8 @@ export class SwipeGesture {
 
   /** Stops the timers: the window goes. */
   dispose(): void {
-    this.timers.clear(this.segmentTimer);
-    this.timers.clear(this.gestureTimer);
+    this.segmentPause();
+    this.gesturePause();
     if (this.segment?.mode === "swipe") {
       this.host.end();
     }
@@ -251,7 +281,7 @@ export class SwipeGesture {
     const segment: Segment = { ...probe, mode: "swipe", way: wayOf(probe.sx) };
     this.segment = segment;
     this.host.begin(wayOf(probe.sx));
-    this.reducedSwitch(segment, gesture);
+    this.follow(segment, gesture);
     return true;
   }
 
@@ -270,22 +300,67 @@ export class SwipeGesture {
   }
 
   private restart(): void {
-    this.timers.clear(this.segmentTimer);
-    this.timers.clear(this.gestureTimer);
-    this.segmentTimer = this.timers.set(() => {
-      this.endSegment();
-      const gesture = this.gesture;
-      if (gesture !== undefined && (gesture.ignored || gesture.vertical)) {
-        gesture.probing = true;
-        this.probe = undefined;
-      }
-    }, SEGMENT_GAP_MS);
-    this.gestureTimer = this.timers.set(() => {
+    this.segmentPause();
+    this.gesturePause();
+    this.segmentPause = this.pause(SEGMENT_GAP_MS, () => {
+      this.endSegmentByTimer();
+    });
+    this.gesturePause = this.pause(GESTURE_GAP_MS, () => {
       this.endSegment();
       this.gesture = undefined;
       this.ended = undefined;
       this.probe = undefined;
-    }, GESTURE_GAP_MS);
+    });
+  }
+
+  /**
+   * Runs `run` once `ms` have passed and a frame has begun after the last event with no event in it (an event
+   * restarts the pauses first, as the window gets it before the frame's callbacks): the second frame callback
+   * after the event, since the first may be the event's own frame. At its time when that frame has come already;
+   * else at the next frame, or after `FRAME_WAIT_MS` when none comes; at its time in a hidden window, which draws
+   * no frames. Returns what cancels it.
+   */
+  private pause(ms: number, run: () => void): () => void {
+    let framed = false;
+    let frame: unknown;
+    let wait: unknown;
+    let done = false;
+    const end = (): void => {
+      if (!done) {
+        done = true;
+        this.timers.cancelFrame(frame);
+        this.timers.clear(wait);
+        run();
+      }
+    };
+    frame = this.timers.frame(() => {
+      frame = this.timers.frame(() => {
+        framed = true;
+      });
+    });
+    const timer = this.timers.set(() => {
+      if (framed || !this.timers.visible()) {
+        end();
+        return;
+      }
+      this.timers.cancelFrame(frame);
+      wait = this.timers.set(end, FRAME_WAIT_MS);
+      frame = this.timers.frame(end);
+    }, ms);
+    return () => {
+      this.timers.clear(timer);
+      this.timers.cancelFrame(frame);
+      this.timers.clear(wait);
+    };
+  }
+
+  private endSegmentByTimer(): void {
+    this.endSegment();
+    const gesture = this.gesture;
+    if (gesture !== undefined && (gesture.ignored || gesture.vertical)) {
+      gesture.probing = true;
+      this.probe = undefined;
+    }
   }
 
   private segmentFor(step: WheelStep, gesture: Gesture): Segment {
@@ -333,7 +408,7 @@ export class SwipeGesture {
     segment.mode = "swipe";
     segment.way = wayOf(segment.sx);
     this.host.begin(segment.way);
-    this.reducedSwitch(segment, gesture);
+    this.follow(segment, gesture);
     return true;
   }
 
@@ -350,11 +425,19 @@ export class SwipeGesture {
     );
   }
 
-  private reducedSwitch(segment: Segment, gesture: Gesture): void {
-    const way = this.passed(segment);
-    if (way !== undefined && this.host.reduced()) {
-      this.switchNow(segment, gesture, way);
+  /** The swipe went on: the window follows it, and without motion it switches past a third at once. */
+  private follow(segment: Segment, gesture: Gesture): void {
+    if (segment.way === undefined) {
+      return;
     }
+    if (this.host.reduced()) {
+      const way = this.passed(segment);
+      if (way !== undefined) {
+        this.switchNow(segment, gesture, way);
+      }
+      return;
+    }
+    this.host.move(segment.way, swipeDistance(segment.sx, segment.way));
   }
 
   /** The way of `segment` once its distance passed a third of the width. */
@@ -366,11 +449,27 @@ export class SwipeGesture {
   }
 
   private switchNow(segment: Segment, gesture: Gesture, way: SwipeWay): void {
+    this.spend(segment, gesture);
+    this.host.switch(way);
+    this.host.end();
+  }
+
+  private spend(segment: Segment, gesture: Gesture): void {
     segment.mode = "spent";
     gesture.spent = true;
     gesture.tail = segment.last;
-    this.host.switch(way);
-    this.host.end();
+  }
+
+  /**
+   * Ends the swipe now, without a switch by it: input came, or the window showed another buffer (SR-211 AK12).
+   * The rest of the gesture does nothing, as after a switch.
+   */
+  abort(): void {
+    const segment = this.segment;
+    this.ended = undefined;
+    if (segment?.mode === "swipe" && this.gesture !== undefined) {
+      this.spend(segment, this.gesture);
+    }
   }
 
   private endSegment(): void {
@@ -387,12 +486,13 @@ export class SwipeGesture {
       return;
     }
     const gesture = this.gesture;
-    const way = this.passed(segment);
-    if (gesture !== undefined && way !== undefined) {
-      this.switchNow(segment, gesture, way);
+    const way = segment.way;
+    if (gesture !== undefined && this.host.release(way, swipeDistance(segment.sx, way))) {
+      this.spend(segment, gesture);
+      this.host.end();
       return;
     }
     this.host.end();
-    this.ended = { segment, way: segment.way };
+    this.ended = { segment, way };
   }
 }

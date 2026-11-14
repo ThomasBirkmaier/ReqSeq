@@ -114,6 +114,7 @@ export class ReadGate {
   private shown: string | undefined;
   private drawnShown = false;
   private sliding = false;
+  private dragging = false;
   private prompting = false;
   private releasing = false;
   /** A hidden read is sent and not yet answered: the next one waits for it. */
@@ -130,7 +131,7 @@ export class ReadGate {
 
   /** The reads may go now. */
   get open(): boolean {
-    return this.drawnShown && !this.sliding && !this.prompting;
+    return this.drawnShown && !this.sliding && !this.dragging && !this.prompting;
   }
 
   /** The active area shows `key`; `drawn` when its view reported its drawing already (it was drawn in advance). */
@@ -162,6 +163,12 @@ export class ReadGate {
   /** A slide is taken, waits or runs (`true`), or ended (`false`). */
   slide(busy: boolean): void {
     this.sliding = busy;
+    this.release();
+  }
+
+  /** A swipe moves the shown buffer or springs back (`true`, SR-211 AK3, AK4), or ended (`false`). */
+  drag(busy: boolean): void {
+    this.dragging = busy;
     this.release();
   }
 

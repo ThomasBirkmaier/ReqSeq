@@ -13,14 +13,20 @@ export interface MeasureOptions {
   readonly basis: string;
   /** The target time; a measurement above it is reported as exceeded. */
   readonly thresholdMs?: number;
+  /** The value is a count, not a time: the record writes it, and its threshold, without a unit. */
+  readonly unit?: "count";
+  /** Why the measurement has no value (every run of it failed): the record reports it as exceeded. */
+  readonly failed?: string;
 }
 
 export interface PerfMeasurement {
   readonly name: string;
   readonly basis: string;
-  /** Wall-clock time, rounded to 0.1 ms. */
+  /** Wall-clock time, rounded to 0.1 ms; with `unit: "count"` a count; 0 when `failed`. */
   readonly ms: number;
   readonly thresholdMs?: number;
+  readonly unit?: "count";
+  readonly failed?: string;
 }
 
 /** Runs `run` once, measures its wall-clock time and records it (see `PERF_RESULTS_ENV`). */
@@ -89,6 +95,8 @@ const record = async (name: string, ms: number, options: MeasureOptions): Promis
     basis: options.basis,
     ms,
     ...(options.thresholdMs === undefined ? {} : { thresholdMs: options.thresholdMs }),
+    ...(options.unit === undefined ? {} : { unit: options.unit }),
+    ...(options.failed === undefined ? {} : { failed: options.failed }),
   };
   const file = process.env[PERF_RESULTS_ENV];
   if (file !== undefined && file !== "") {

@@ -6,6 +6,7 @@ import type { SwipeHost, SwipeTimers, SwipeWay } from "./buffer-swipe.js";
 import {
   DECIDE_PX,
   GESTURE_GAP_MS,
+  FRAME_WAIT_MS,
   SEGMENT_GAP_MS,
   SwipeGesture,
   pastThird,
@@ -23,9 +24,30 @@ export interface Recorded {
   readonly cancelable?: boolean;
 }
 
+// Whether the window is visible.
+let shown = true;
+// The window draws a frame every `frameMs` ms, counted from `origin`, 1 ms after that frame's input (0: a frame
+// comes at once, in the call); `undefined`: it draws none.
+let frameMs: number | undefined = 0;
+let origin = 0;
+
 const timers: SwipeTimers = {
+  visible: () => shown,
   set: (run, ms) => setTimeout(run, ms),
   clear: (handle) => {
+    clearTimeout(handle as ReturnType<typeof setTimeout>);
+  },
+  frame: (run) => {
+    if (frameMs === undefined) {
+      return undefined;
+    }
+    if (frameMs === 0) {
+      run();
+      return undefined;
+    }
+    return setTimeout(run, frameMs - ((Date.now() - origin) % frameMs) + 1);
+  },
+  cancelFrame: (handle) => {
     clearTimeout(handle as ReturnType<typeof setTimeout>);
   },
 };
@@ -38,12 +60,24 @@ interface Options {
 
 const setup = (options: Options = {}) => {
   const log: string[] = [];
+  const moves: string[] = [];
   const host: SwipeHost = {
     ignored: vi.fn(options.ignored ?? (() => false)),
     width: () => options.width ?? 600,
     reduced: () => options.reduced ?? false,
     begin: (way: SwipeWay) => log.push(`begin ${way}`),
+    move: (way: SwipeWay, distance: number) => {
+      moves.push(`${way} ${String(distance)}`);
+    },
     switch: (way: SwipeWay) => log.push(`switch ${way}`),
+    // The window of the app switches past a third at the end, as `App.tsx` does without a drag.
+    release: (way: SwipeWay, distance: number) => {
+      if (!pastThird(distance, options.width ?? 600)) {
+        return false;
+      }
+      log.push(`switch ${way}`);
+      return true;
+    },
     end: () => log.push("end"),
     scroll: (dy: number) => log.push(`scroll ${String(dy)}`),
   };
@@ -68,7 +102,7 @@ const setup = (options: Options = {}) => {
     vi.advanceTimersByTime(after);
     clock += after;
   };
-  return { host, gesture, log, prevented, replay, at: () => clock };
+  return { host, gesture, log, moves, prevented, replay, at: () => clock };
 };
 
 /** A swipe of `steps` events `gap` ms apart from `start`, each `dx` (and `dy`) px. */
@@ -88,6 +122,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  shown = true;
+  frameMs = 0;
 });
 
 describe("SwipeGesture", () => {
@@ -368,6 +404,37 @@ describe("SwipeGesture", () => {
     expect(run.log).toEqual(["begin forward", "end", "begin forward", "switch forward", "end"]);
   });
 
+  it("tells the window each distance of the swipe, back to 0 on a reversal, and none without motion", () => {
+    const run = setup();
+    run.replay([...swipe(0, 3, 10), ...swipe(24, 4, -10)]);
+    expect(run.moves).toEqual([
+      "forward 10",
+      "forward 20",
+      "forward 30",
+      "forward 20",
+      "forward 10",
+      "forward 0",
+      "forward 0",
+    ]);
+    const still = setup({ reduced: true });
+    still.replay(swipe(0, 3, 10));
+    expect(still.moves).toEqual([]);
+  });
+
+  it("abort ends the swipe without a switch: the rest of the gesture does nothing (SR-211 AK12)", () => {
+    const run = setup();
+    run.replay(swipe(0, 30, 10), 0);
+    run.gesture.abort();
+    run.replay(swipe(240, 30, 10));
+    expect(run.log).toEqual(["begin forward"]);
+    expect(run.prevented.every(Boolean)).toBe(true);
+    // Without a swipe it changes nothing.
+    const idle = setup();
+    idle.gesture.abort();
+    idle.replay(swipe(0, 30, 10));
+    expect(idle.log).toEqual(["begin forward", "switch forward", "end"]);
+  });
+
   it("dispose ends a swipe in progress and stops its timers", () => {
     const run = setup();
     run.replay(swipe(0, 5, 10), 0);
@@ -379,9 +446,83 @@ describe("SwipeGesture", () => {
     expect(idle.log).toEqual([]);
   });
 
+  it("a slow frame does not end the segment: a swipe of one event per 45 ms frame stays one, and switches", () => {
+    const run = setup();
+    origin = Date.now();
+    frameMs = 45;
+    // One event per frame, as the window gets them: 12 x 25 px, past the third of 600 px only at the end.
+    run.replay(swipe(0, 12, 25, 0, 45), 0);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(GESTURE_GAP_MS + 2 * 45);
+    expect(run.log).toEqual(["begin forward", "switch forward", "end"]);
+  });
+
+  it("a real pause ends the segment at its time when a frame came after the last event, else at the next frame", () => {
+    const run = setup();
+    origin = Date.now();
+    frameMs = 16;
+    run.replay(swipe(0, 6, 10, 0, 16), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS - 1);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    expect(run.log).toEqual(["begin forward", "end"]);
+    // Frames of 45 ms: at the time no frame has come after the last event; the next one ends the segment.
+    const slow = setup();
+    origin = Date.now();
+    frameMs = 45;
+    slow.replay(swipe(0, 6, 10, 0, 45), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    expect(slow.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(45 + 1 - SEGMENT_GAP_MS);
+    expect(slow.log).toEqual(["begin forward", "end"]);
+  });
+
+  it("in a hidden window, which draws no frames, the segment ends on its time", () => {
+    const run = setup();
+    shown = false;
+    frameMs = undefined;
+    run.replay(swipe(0, 6, 10), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS - 1);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    expect(run.log).toEqual(["begin forward", "end"]);
+  });
+
+  it("a visible window that draws no frame ends the segment after FRAME_WAIT_MS, and the gesture after it", () => {
+    const run = setup();
+    frameMs = undefined;
+    run.replay(swipe(0, 6, 10), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_WAIT_MS - 1);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    expect(run.log).toEqual(["begin forward", "end"]);
+    // The gesture ends at GESTURE_GAP_MS + FRAME_WAIT_MS: the next event starts a new one.
+    vi.advanceTimersByTime(GESTURE_GAP_MS - SEGMENT_GAP_MS);
+    frameMs = 0;
+    run.replay(swipe(run.at() + GESTURE_GAP_MS + FRAME_WAIT_MS, 6, 10), 0);
+    expect(run.log).toEqual(["begin forward", "end", "begin forward"]);
+  });
+
   it("the window's timers are looked up at each call", () => {
-    const view = { setTimeout: vi.fn(() => 7), clearTimeout: vi.fn() };
+    const view = {
+      setTimeout: vi.fn(() => 7),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((run: () => void) => {
+        run();
+        return 9;
+      }),
+      cancelAnimationFrame: vi.fn(),
+      document: { visibilityState: "hidden" },
+    };
     const own = windowTimers(view as unknown as Window);
+    const drawn = vi.fn();
+    expect(own.frame(drawn)).toBe(9);
+    expect(drawn).toHaveBeenCalled();
+    own.cancelFrame(9);
+    expect(view.cancelAnimationFrame).toHaveBeenCalledWith(9);
+    expect(own.visible()).toBe(false);
+    view.document.visibilityState = "visible";
+    expect(own.visible()).toBe(true);
     const run = vi.fn();
     expect(own.set(run, 5)).toBe(7);
     own.clear(7);

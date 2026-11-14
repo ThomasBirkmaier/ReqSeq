@@ -408,6 +408,39 @@ const useLayerViews = (
     });
     return { promise, open };
   }, []);
+  // Resolves the reads waiting at the gate when a swipe begins toward this layer: it then reads as a shown view
+  // does, and the gate, closed while the swipe drags, holds it no longer (SR-211 AK3).
+  const swiping = useMemo(() => {
+    const waiting = new Set<() => void>();
+    return {
+      wait: (): { readonly promise: Promise<undefined>; readonly done: () => void } => {
+        let resolve = (): void => undefined;
+        const promise = new Promise<undefined>((done) => {
+          resolve = () => {
+            done(undefined);
+          };
+        });
+        waiting.add(resolve);
+        return {
+          promise,
+          done: () => {
+            waiting.delete(resolve);
+          },
+        };
+      },
+      open: () => {
+        for (const resolve of waiting) {
+          resolve();
+        }
+        waiting.clear();
+      },
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (by === "swipe") {
+      swiping.open();
+    }
+  }, [by, swiping]);
   const settled = useRef(drawn);
   settled.current = drawn;
   // The view reads as a shown one: shown, or drawn for a swipe that waits for it (SR-211 AK3).
@@ -430,9 +463,15 @@ const useLayerViews = (
       try {
         if (!asShown()) {
           // One hidden read (or answer from a record) at a time, and none while a shown buffer's request is in
-          // flight (`ReadGate.turn`); shown meanwhile, it leaves the queue.
+          // flight (`ReadGate.turn`); shown meanwhile, or swiped to, it leaves the queue.
           const queued = latest.current.gate.turn();
-          const given = await Promise.race([queued.turn, revealed.promise.then(() => undefined)]);
+          const swiped = swiping.wait();
+          const given = await Promise.race([
+            queued.turn,
+            revealed.promise.then(() => undefined),
+            swiped.promise,
+          ]);
+          swiped.done();
           if (given === undefined) {
             queued.cancel();
           } else {
@@ -660,6 +699,8 @@ const Slot = ({
     <div
       className="slide-layer"
       data-layer={shown ? "main" : "neighbour"}
+      // By which a swipe finds the layer of its target, to move it beside the shown one (`swipe-drag.ts`).
+      data-key={buffer.key}
       inert={hidden}
       aria-hidden={hidden ? "true" : undefined}
     >

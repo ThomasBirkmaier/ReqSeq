@@ -60,6 +60,8 @@ import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleKey, cycleOrder } from "./buffer-cycle.js";
 import { SlideController, directionOf, motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeWay } from "./buffer-swipe.js";
+import { pastThird } from "./buffer-swipe.js";
+import { SwipeDrag } from "./swipe-drag.js";
 import { useWheelSwipe } from "./use-wheel-swipe.js";
 import { SwipeDraw } from "./swipe-draw.js";
 import { bufferSwitchBlocked } from "./buffer-switch.js";
@@ -305,6 +307,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const current = buffers[0];
   // The drafts are kept outside the page too (#270, `draft-store.ts`): a page loaded again after a crash
   // takes them back.
+  // The key of the buffer the active area shows.
+  const shownKey = current?.key;
   const {
     drafts,
     armed,
@@ -313,7 +317,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     reset: resetDrafts,
     seed: seedDrafts,
     rescope: rescopeDrafts,
-  } = useWindowDrafts(current?.key, windowStorage);
+  } = useWindowDrafts(shownKey, windowStorage);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
   const saves = useRef(new Map<string, Promise<unknown>>());
@@ -746,6 +750,24 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The buffer a swipe draws (SR-211 AK3, `swipe-draw.ts`): beside the shown one, read as a shown buffer.
   const [swipe] = useState(() => new SwipeDraw());
   const swiped = useSyncExternalStore(swipe.subscribe, () => swipe.key);
+  // The shown buffer follows the swipe, the target at its edge (SR-211 AK3, AK4, `swipe-drag.ts`). Input during
+  // the drag ends it at once without a switch, and the swipe with it (`endSwipe`, AK12).
+  const endSwipe = useRef<() => void>(() => undefined);
+  const [drag] = useState(
+    () =>
+      new SwipeDrag({
+        view: window,
+        root: () => sheet.current,
+        busy: (busy) => {
+          gate.drag(busy);
+        },
+        input: () => {
+          endSwipe.current();
+        },
+      }),
+  );
+  // The part of the width a released swipe went, for the switch it makes (`cycled`, SR-211 AK1, AK2).
+  const releasedAt = useRef<number | undefined>(undefined);
   const neighbours = withSwipe(
     neighbourBuffers(buffers, walk.current.order, layout.other, {
       known: typeNames.size > 0,
@@ -781,8 +803,15 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       walk.current = { order: walk.current.order, cycled: key };
       const from = buffers[0]?.key;
       if (from !== undefined) {
+        const progress = releasedAt.current;
         slides.prepare(
-          { side: layout.active, from, to: key, direction: directionOf(step) },
+          {
+            side: layout.active,
+            from,
+            to: key,
+            direction: directionOf(step),
+            ...(progress === undefined ? {} : { progress, peeked: true }),
+          },
           revisionNow.current,
           leavesClean(from),
         );
@@ -1234,6 +1263,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     () =>
       bridge.on("swipe", ({ direction }) => {
         slides.interrupt();
+        endSwipe.current();
         const now = latest.current;
         const blocked = bufferSwitchBlocked(
           {
@@ -1263,7 +1293,25 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // of the draw go into one commit, so the drawn layer becomes the shown one without being drawn again.
   const otherNow = useRef(layout.other);
   otherNow.current = layout.other;
-  useWheelSwipe(sheet, {
+  // The switch of a swipe, with the part of the width it went (a slide on from there), or none (AK13).
+  const swipeSwitch = (way: SwipeWay, progress: number | undefined): void => {
+    const now = latest.current;
+    const action = mouseButtonAction(now, way === "back" ? 3 : 4);
+    cancelPrefix();
+    releasedAt.current = progress;
+    try {
+      flushSync(() => {
+        drag.handOff();
+        if (action !== undefined) {
+          runAction(action, now);
+        }
+        swipe.end();
+      });
+    } finally {
+      releasedAt.current = undefined;
+    }
+  };
+  const wheelSwipe = useWheelSwipe(sheet, {
     blocked: () => {
       const now = latest.current;
       return (
@@ -1286,25 +1334,64 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       slides.interrupt();
       const now = latest.current;
       const target = cycleKey(now.cycleOrder, now.buffers[0]?.key, way === "back" ? 1 : -1);
-      if (target !== undefined && target !== otherNow.current && motionAllowed(window)) {
-        void swipe.draw(target);
+      if (target === undefined || target === otherNow.current || !motionAllowed(window)) {
+        return;
       }
+      // A swipe that joins its segment again after a pause takes up its drag where it stands.
+      if (drag.of?.target !== target || drag.of.side !== layout.active) {
+        drag.start(
+          layout.active,
+          now.buffers[0]?.key,
+          target,
+          way,
+          slides.drawnAt(target, revisionNow.current),
+        );
+      }
+      void swipe.draw(target).then((drawn) => {
+        if (drawn) {
+          drag.drawn(target);
+        }
+      });
+    },
+    move: (_way: SwipeWay, distance: number) => {
+      drag.move(distance);
     },
     switch: (way: SwipeWay) => {
-      const now = latest.current;
-      const action = mouseButtonAction(now, way === "back" ? 3 : 4);
-      cancelPrefix();
-      flushSync(() => {
-        if (action !== undefined) {
-          runAction(action, now);
-        }
+      swipeSwitch(way, undefined);
+    },
+    // Past a third the window switches from where the drag stands; a swipe that moved nothing (its target not
+    // drawn yet) switches nothing. Without a drag (the other area shows the target) it switches past a third.
+    release: (way: SwipeWay, distance: number, width: number) => {
+      const progress = drag.active ? drag.progress : undefined;
+      if (progress === undefined ? !pastThird(distance, width) : progress * 3 <= 1) {
+        return false;
+      }
+      swipeSwitch(way, progress);
+      return true;
+    },
+    // Not switched: the shown buffer springs back, and the draw ends after it (AK4).
+    end: () => {
+      drag.springBack(() => {
         swipe.end();
       });
     },
-    end: () => {
-      swipe.end();
-    },
   });
+  endSwipe.current = () => {
+    wheelSwipe.abort();
+    if (drag.active) {
+      drag.cancel();
+      swipe.end();
+    }
+  };
+  // Another buffer shown in the area, another area active, or the target's draw ended (closed, or no longer
+  // beside the shown one): the drag ends at once, without a switch, and the rest of the swipe does nothing
+  // (SR-211 AK12). Before the paint, so no frame shows the old buffer moved.
+  useLayoutEffect(() => {
+    const of = drag.of;
+    if (of !== undefined && (of.side !== layout.active || of.from !== shownKey || swiped !== of.target)) {
+      endSwipe.current();
+    }
+  }, [drag, layout.active, shownKey, swiped]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the

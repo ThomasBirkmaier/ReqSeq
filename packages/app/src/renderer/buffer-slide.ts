@@ -213,12 +213,18 @@ export const trackOf = (root: ParentNode | null | undefined, side: string): Trac
   return main === null || layer === null || layer === undefined ? undefined : { main, side: layer };
 };
 
-/** One switch: the area, the buffer left, the buffer shown, and the way. */
+/**
+ * One switch: the area, the buffer left, the buffer shown, and the way. A swipe released part of the way
+ * (SR-211 AK1, AK2) gives the part of the width it went (`progress`, 0 by default), and whether its target stood
+ * at the edge (`peeked`): drawn and seen, it slides on as it is (SR-212 AK5).
+ */
 export interface SlideSpec {
   readonly side: string;
   readonly from: string;
   readonly to: string;
   readonly direction: SlideDirection;
+  readonly progress?: number;
+  readonly peeked?: boolean;
 }
 
 /** What a controller needs of the page: the window, and the root that holds the areas. */
@@ -330,7 +336,8 @@ export class SlideController {
    * Takes the picture of the area `spec.side` for a switch; nothing without motion (AK4). When `to` is drawn in
    * advance in `generation`, the commit that shows it starts the motion at once (SR-212 AK5); one drawn from
    * its record only when leaving `from` changes nothing (`clean`: no input to save, no save in flight), as
-   * else it would slide in with what it showed before that change.
+   * else it would slide in with what it showed before that change; one a swipe showed at the edge (`peeked`)
+   * slides on as the reader saw it, and reads again once shown.
    */
   prepare(spec: SlideSpec, generation?: number, clean = true): void {
     const { phase } = this;
@@ -349,7 +356,10 @@ export class SlideController {
       return;
     }
     const entry = this.ahead.get(spec.to);
-    const ahead = generation !== undefined && entry?.generation === generation && (clean || !entry.recorded);
+    const ahead =
+      generation !== undefined &&
+      entry?.generation === generation &&
+      (clean || !entry.recorded || spec.peeked === true);
     this.phase = { kind: "armed", spec, picture, drawn: ahead, ahead };
     this.listen(true);
   }
@@ -373,7 +383,7 @@ export class SlideController {
       this.finish();
       return;
     }
-    const { leaving, coming } = offsets(phase.spec.direction, 0);
+    const { leaving, coming } = offsets(phase.spec.direction, phase.spec.progress ?? 0);
     track.side.replaceChildren(phase.picture.node);
     track.side.hidden = false;
     track.side.style.transform = translate(leaving);
@@ -455,10 +465,10 @@ export class SlideController {
       return;
     }
     clearTimeout(phase.deadline);
-    const frames = slideKeyframes(phase.spec.direction);
+    const frames = slideKeyframes(phase.spec.direction, phase.spec.progress);
     const timing: KeyframeAnimationOptions = {
       id: SLIDE_ID,
-      duration: slideDuration(),
+      duration: slideDuration(phase.spec.progress),
       easing: slideEase(this.host.view),
       fill: "forwards",
     };

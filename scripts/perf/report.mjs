@@ -26,7 +26,9 @@ export function parseResults(text) {
       if (
         typeof value?.name !== "string" ||
         typeof value.basis !== "string" ||
-        typeof value.ms !== "number"
+        typeof value.ms !== "number" ||
+        (value.unit !== undefined && value.unit !== "count") ||
+        (value.failed !== undefined && typeof value.failed !== "string")
       ) {
         throw new Error(`line ${i + 1}: not a measurement: ${line}`);
       }
@@ -34,9 +36,12 @@ export function parseResults(text) {
     });
 }
 
-/** Measurements whose time is over their threshold. */
+/** Measurements whose time (or count) is over their threshold, or that have none (`failed`). */
 export const exceeded = (measurements) =>
-  measurements.filter((m) => m.thresholdMs !== undefined && m.ms > m.thresholdMs);
+  measurements.filter((m) => m.failed !== undefined || (m.thresholdMs !== undefined && m.ms > m.thresholdMs));
+
+/** The value of a measurement in the record: a time, a count without a unit, or why it has none. */
+const valueOf = (m, value) => (m.unit === "count" ? String(value) : duration(value));
 
 /** Start of the message of a threshold assertion: THRESHOLD_FAILURE of packages/testkit/src/perf.ts. */
 export const THRESHOLD_FAILURE = "perf threshold exceeded:";
@@ -89,9 +94,14 @@ export function renderReport({ measurements, machine, commit, runUrl, date }) {
   const over = exceeded(measurements);
   const rows = measurements.map((m) => {
     const result =
-      m.thresholdMs === undefined ? "no threshold" : m.ms > m.thresholdMs ? "**exceeded**" : "within";
-    const threshold = m.thresholdMs === undefined ? "" : duration(m.thresholdMs);
-    return `| ${m.name} | ${m.basis} | ${duration(m.ms)} | ${threshold} | ${result} |`;
+      m.failed !== undefined || (m.thresholdMs !== undefined && m.ms > m.thresholdMs)
+        ? "**exceeded**"
+        : m.thresholdMs === undefined
+          ? "no threshold"
+          : "within";
+    const threshold = m.thresholdMs === undefined ? "" : valueOf(m, m.thresholdMs);
+    const value = m.failed === undefined ? valueOf(m, m.ms) : `none: ${m.failed}`;
+    return `| ${m.name} | ${m.basis} | ${value} | ${threshold} | ${result} |`;
   });
   return [
     "# Performance with 50,000 elements and 200,000 relations (N-036)",

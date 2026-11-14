@@ -104,6 +104,19 @@ describe("recordValue", () => {
       ms: 321.5,
       thresholdMs: 300,
     });
+    expect(await recordValue("splits", 2, { basis: "SR-211 AK1", thresholdMs: 0, unit: "count" })).toEqual({
+      name: "splits",
+      basis: "SR-211 AK1",
+      ms: 2,
+      thresholdMs: 0,
+      unit: "count",
+    });
+    expect(await recordValue("none ended", 0, { basis: "SR-211 AK1", failed: "every run split" })).toEqual({
+      name: "none ended",
+      basis: "SR-211 AK1",
+      ms: 0,
+      failed: "every run split",
+    });
     fs.rmSync(folder, { recursive: true, force: true });
   });
 });
