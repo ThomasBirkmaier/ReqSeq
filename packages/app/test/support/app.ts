@@ -321,8 +321,12 @@ const within = async <T, F>(
 /** How many lines of the renderer's errors and warnings, and of the main process's log, a diagnosis keeps. */
 const RENDERER_LOG_LINES = 50;
 const MAIN_LOG_LINES = 40;
-/** How much of the window's text a diagnosis keeps. */
+/** How much of the window's text, and of each log line, a diagnosis keeps. */
 const WINDOW_TEXT_CHARS = 2000;
+const LINE_CHARS = 500;
+
+/** `line`, cut to LINE_CHARS characters. */
+const cut = (line: string): string => (line.length > LINE_CHARS ? `${line.slice(0, LINE_CHARS)}…` : line);
 
 /** Whether the current test failed or timed out (false outside a test). */
 const failedTest = (): boolean => {
@@ -338,16 +342,24 @@ const failedTest = (): boolean => {
  * What the app showed and logged when its test failed: the window's text, the renderer's errors and warnings,
  * and the last lines of the main process's log (#1671). A window that does not answer says so.
  */
-const diagnosis = async (window: Page, mainLog: string, rendererLog: readonly string[]): Promise<string> => {
-  const shown = await within(
-    window.evaluate((chars) => document.body.innerText.slice(0, chars), WINDOW_TEXT_CHARS),
-    CALL_WAIT_MS,
-    (error) => `(no answer: ${error instanceof Error ? error.message : String(error)})`,
-  );
+const diagnosis = async (
+  window: Page | undefined,
+  mainLog: string,
+  rendererLog: readonly string[],
+): Promise<string> => {
+  const shown =
+    window === undefined
+      ? "(the app has ended)"
+      : await within(
+          window.evaluate((chars) => document.body.innerText.slice(0, chars), WINDOW_TEXT_CHARS),
+          CALL_WAIT_MS,
+          (error) => `(no answer: ${error instanceof Error ? error.message : String(error)})`,
+        );
   const main = mainLog
     .split("\n")
     .filter((line) => line !== "")
-    .slice(-MAIN_LOG_LINES);
+    .slice(-MAIN_LOG_LINES)
+    .map(cut);
   const section = (title: string, lines: readonly string[]): string =>
     `${title}:\n${lines.length === 0 ? "  (none)" : lines.map((line) => `  ${line}`).join("\n")}\n`;
   return [
@@ -359,15 +371,15 @@ const diagnosis = async (window: Page, mainLog: string, rendererLog: readonly st
   ].join("");
 };
 
-/** Writes the diagnosis to standard error when the current test failed and the app still runs. */
+/** Writes the diagnosis to standard error when the current test failed; the window's text only while the app runs. */
 const reportFailure = async (
   ended: boolean,
   window: Page,
   mainLog: string,
   rendererLog: readonly string[],
 ): Promise<void> => {
-  if (!ended && failedTest()) {
-    process.stderr.write(await diagnosis(window, mainLog, rendererLog));
+  if (failedTest()) {
+    process.stderr.write(await diagnosis(ended ? undefined : window, mainLog, rendererLog));
   }
 };
 
@@ -553,11 +565,11 @@ export const launchApp = async (
   };
   window.on("console", (message) => {
     if (message.type() === "error" || message.type() === "warning") {
-      note(`${message.type()}: ${message.text()}`);
+      note(cut(`${message.type()}: ${message.text()}`));
     }
   });
   window.on("pageerror", (error) => {
-    note(`uncaught: ${error.message}`);
+    note(cut(`uncaught: ${error.message}`));
   });
   await throttle(window);
   // A test never runs on the user data of a real installation, and a restart finds what the start before kept.
