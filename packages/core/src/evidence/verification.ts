@@ -13,7 +13,8 @@
 // store's would double the first open after the start, #1662; only after a metamodel change it is
 // built, to learn the versions again, #755). A page or a leaf reads only what it needs; a repeated
 // element.get of the same parent reads nothing (plan review B1, SR-082 AK3). A new state (a reset)
-// reads its batch again unless another command built the versions of the whole store. Below an element marked emergent nothing is walked (SR-035). The walk
+// reads its batch again unless another command built the versions of the whole store. Below an
+// element marked emergent nothing is walked (SR-035). The walk
 // is iterative, so a deep chain cannot overflow the stack.
 // With `own`, `prepare` also reads the versions of the elements themselves that have validation
 // records; the walk below them stays on verification. The element shown is measured against the

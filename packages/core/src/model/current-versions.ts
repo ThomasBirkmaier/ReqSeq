@@ -550,23 +550,29 @@ export interface VersionsOfOptions {
   /**
    * Whether a large share of the store builds and keeps the versions of the whole store (default true).
    * False for a reader that keeps what it reads itself (the verification status): it reads only its
-   * records, unless one of them has a loaded version of another fingerprint (a metamodel change), which
-   * only the build of the whole store learns again for the model cache (#755).
+   * records, unless the store was read without a valid metamodel or one of them has a loaded version of
+   * another fingerprint (a metamodel change), which only the build of the whole store learns again for
+   * the model cache (#755).
    */
   readonly build?: boolean;
 }
 
-/** Whether a record of `records` has a loaded version whose type counts other properties now (#755). */
-const relearnable = (run: Run, records: readonly ElementRecord[]): boolean => {
+/**
+ * Whether the build of the whole store would learn versions again for the model cache (#755): the store
+ * was read without a valid metamodel and so has no loaded version, or a record of `records` has a loaded
+ * version whose type counts other properties now.
+ */
+const relearnable = (run: Run, store: ElementStore, records: readonly ElementRecord[]): boolean => {
   const { versioning } = run;
   return (
     versioning !== undefined &&
-    records.some((record) => {
-      const loaded = run.loaded(record);
-      return (
-        loaded !== undefined && loaded.fingerprint !== typeVersioningOf(versioning, record.type).fingerprint
-      );
-    })
+    (store.versioning === undefined ||
+      records.some((record) => {
+        const loaded = run.loaded(record);
+        return (
+          loaded !== undefined && loaded.fingerprint !== typeVersioningOf(versioning, record.type).fingerprint
+        );
+      }))
   );
 };
 
@@ -594,7 +600,7 @@ export const currentVersionsOf = async (
   const run = runOf({ store, layout, metamodel });
   const whole =
     records.length * WHOLE_STORE_SHARE >= store.elements.length &&
-    (options.build !== false || relearnable(run, records));
+    (options.build !== false || relearnable(run, store, records));
   const versions =
     (await currentVersionsIfBuilt(workspace)) ?? (whole ? await currentVersions(workspace) : undefined);
   const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));

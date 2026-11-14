@@ -475,6 +475,19 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
     await currentVersionsOf(workspace, store.elements, { build: false });
     expect(workspace.peek(currentVersionsState)).toBeDefined();
   });
+
+  it("with build false still builds the whole store when the store was read without a valid metamodel (#755)", async () => {
+    const { fixture, workspace } = await open();
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write("metamodel/model.yaml", "types: [");
+    const store = await workspace.get(elementStoreState);
+    expect(store.versioning).toBeUndefined();
+    await fixture.write("metamodel/model.yaml", model);
+    await workspace.reset(metamodelState);
+    expect(await workspace.get(elementStoreState)).toBe(store);
+    await currentVersionsOf(workspace, store.elements, { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeDefined();
+  });
 });
 
 describe("the versions of the model cache after a metamodel change (#755)", () => {
