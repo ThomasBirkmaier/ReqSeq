@@ -131,7 +131,16 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
     );
     expect(all.total).toBe(check.problems.length);
-    expect(all.hints).toEqual(check.problems.slice(0, 5000));
+    // hint.list adds the titles of the element and of the target (elementTitle, targetTitle, #1592); the
+    // rest is as workspace.check gives it.
+    expect(all.hints.map(({ elementTitle: _element, targetTitle: _target, ...hint }) => hint)).toEqual(
+      check.problems.slice(0, 5000),
+    );
+    const titles = new Map(tree.elements.map((e) => [e.id, e.title]));
+    expect(all.hints.every((h) => h.elementTitle === titles.get(h.elementId ?? ""))).toBe(true);
+    expect(all.hints.every((h) => h.targetId === undefined || h.targetTitle === titles.get(h.targetId))).toBe(
+      true,
+    );
     // An element with outdated relations, not one that is only a hint without a parent.
     const source = check.problems.find((h) => h.code === "relation.outdated");
     expect(source).toBeDefined();

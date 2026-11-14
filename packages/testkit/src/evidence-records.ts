@@ -409,8 +409,9 @@ export function withEvidenceRecords(
 /**
  * One JUnit file as pytest writes it (one line, no properties), not enriched, of at least `bytes`
  * bytes, for `evidence.enrichJunit` (SR-029): each test case names one system requirement by its
- * short ID in brackets (`test_check_7[SR-a1b2c3]`), cycling through the system requirements whose
- * last 6 UUID digits no other element shares, so every reference names exactly one element.
+ * short ID in brackets (`test_check_7[SR-a1b2c3]`), cycling through the system requirements that apply
+ * in the core (`core`) and whose last 6 UUID digits no other element shares, so every reference names
+ * exactly one element.
  */
 export function pytestJunit(
   generated: GeneratedWorkspace,
@@ -421,8 +422,9 @@ export function pytestJunit(
     const tail = element.id.slice(-6);
     tails.set(tail, (tails.get(tail) ?? 0) + 1);
   }
+  // Only requirements that apply in the core: a test case of another counts nowhere (SR-040, #1565).
   const named = generated.elements.filter(
-    (e) => e.type === "system-requirement" && tails.get(e.id.slice(-6)) === 1,
+    (e) => e.type === "system-requirement" && e.core && tails.get(e.id.slice(-6)) === 1,
   );
   if (named.length === 0) {
     throw new Error("the generated workspace has no system requirement with a unique short ID");

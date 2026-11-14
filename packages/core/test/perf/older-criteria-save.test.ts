@@ -49,26 +49,6 @@ const BASIS = "SR-031 AK11, SR-204, N-036 (#1418; recorded, untagged)";
 /** Requirements whose `evidence.outdated` names an outdated criterion (#1420). */
 const NAMED = 500;
 
-/**
- * `content` with every acceptance criterion of the frontmatter keyed (`k` and its position), the
- * form the tool writes (ADR-0004). A key does not count to the version (SR-091 AK6).
- */
-const keyed = (content: string): string => {
-  const lines = content.split("\n");
-  const start = lines.indexOf("acceptance-criteria:");
-  if (start < 0) {
-    return content;
-  }
-  let end = start + 1;
-  while (lines[end]?.startsWith("  - ") === true) {
-    end += 1;
-  }
-  const items = lines
-    .slice(start + 1, end)
-    .flatMap((line, n) => [`  - key: k${String(n + 1).padStart(3, "0")}`, `    text: ${line.slice(4)}`]);
-  return [...lines.slice(0, start + 1), ...items, ...lines.slice(end)].join("\n");
-};
-
 /** A passed Markdown verification record of `element` at `version` that names criterion 1. */
 const numberedRecord = (element: GeneratedElement): string =>
   "---\nreqseq-record: 1\nkind: verification\n" +
@@ -106,10 +86,8 @@ describe("a save that makes records by number older, with 50,000 elements (#1418
       .filter((e) => e.type === "system-requirement" && !parents.has(e.id))
       .filter((_, n) => n % NUMBERED_EVERY === 0);
     tops = evidence.parents.slice(0, TOPS);
-    const files = new Map<string, string>();
-    for (const [file, content] of generated.files) {
-      files.set(file, file.endsWith(".md") ? keyed(content) : content);
-    }
+    // The generator keys every acceptance criterion (`k001` and on), the form the tool writes (ADR-0004).
+    const files = new Map(generated.files);
     numbered.forEach((element, n) => {
       files.set(
         `${generated.main}/evidence/numbered/${String(Math.floor(n / 1000)).padStart(3, "0")}/${element.id}.md`,
