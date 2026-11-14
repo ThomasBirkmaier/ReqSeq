@@ -8,9 +8,13 @@
 // Current versions are read lazily and kept for the life of the state: `prepare` walks down from the
 // elements shown through their counted children, down to the children with an own record in every
 // view they apply in, and reads the versions of those with records that are not known yet, in one
-// batch (`currentVersionsOf`: their files, or the whole store when they are a large share of it). A
-// page or a leaf reads only what it needs; a repeated element.get of the same parent reads nothing
-// (plan review B1, SR-082 AK3). Below an element marked emergent nothing is walked (SR-035). The walk
+// batch (`currentVersionsOf` with `build: false`: the kept versions of the whole store when they are
+// built, else their files only, also when they are a large share of the store: building the whole
+// store's would double the first open after the start, #1662; only after a metamodel change it is
+// built, to learn the versions again, #755). A page or a leaf reads only what it needs; a repeated
+// element.get of the same parent reads nothing (plan review B1, SR-082 AK3). A new state (a reset)
+// reads its batch again unless another command built the versions of the whole store. Below an
+// element marked emergent nothing is walked (SR-035). The walk
 // is iterative, so a deep chain cannot overflow the stack.
 // With `own`, `prepare` also reads the versions of the elements themselves that have validation
 // records; the walk below them stays on verification. The element shown is measured against the
@@ -581,11 +585,14 @@ const recordedStatus = (
   );
 };
 
-/** Reads current versions from the workspace's files (`currentVersionsOf`). */
+/**
+ * Reads current versions from the workspace's files (`currentVersionsOf`), never building the versions of
+ * the whole store for a large batch: the status keeps what it reads (#1662).
+ */
 const readerOf =
   (workspace: Workspace): VersionReader =>
   (records) =>
-    currentVersionsOf(workspace, records);
+    currentVersionsOf(workspace, records, { build: false });
 
 /** The carry of `verificationState` over a change of the element store (`carriedStatus`). */
 const carryStore = carryStoreUpdate((value: Promise<StateStatus>, update, workspace) => {
