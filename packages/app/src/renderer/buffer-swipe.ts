@@ -11,7 +11,9 @@
 // - A *gesture* ends after a pause of `GESTURE_GAP_MS`; a *segment* of it after `SEGMENT_GAP_MS`. A segment
 //   ended by its timer is joined again when its next event came less than `SEGMENT_GAP_MS` after the last one
 //   (the timer fired late, the main thread was busy), or, below the third, when it goes on in its direction
-//   with a step of a wheel notch.
+//   with a step of a wheel notch. A timer of these pauses that fires more than `LATE_MS` late (a long frame,
+//   such as the first paint of a large target at the edge) waits `LATE_WAIT_MS` more, as often as it is late
+//   again, since the next event of a swipe that goes on comes with the next frame.
 // - An event with Shift, Ctrl, Meta or Alt held is not read at all (AK10: Shift+wheel only scrolls).
 // - The first event of a gesture asks the window whether it switches nothing (`ignored`): then nothing of the
 //   gesture is prevented or counted. The window asks again with the direction once dX is not 0 (AK5).
@@ -29,6 +31,10 @@
 export const GESTURE_GAP_MS = 150;
 /** A segment of a gesture ends after this pause: no gap inside a swipe is as long, but in its momentum. */
 export const SEGMENT_GAP_MS = 35;
+/** A segment timer this late fired after a long frame, not after a pause of the swipe. */
+export const LATE_MS = 10;
+/** The wait after a late segment timer: about one frame, in which a swipe that goes on sends its next event. */
+export const LATE_WAIT_MS = 20;
 /** The distance after which a segment is vertical or the swipe. */
 export const DECIDE_PX = 8;
 /** The distance after which a segment of a spent gesture is a new swipe, vertical, or more of the old one. */
@@ -86,9 +92,12 @@ export interface SwipeHost {
 export interface SwipeTimers {
   readonly set: (run: () => void, ms: number) => unknown;
   readonly clear: (handle: unknown) => void;
+  /** The time in ms, by which a timer that fired late is seen. */
+  readonly now: () => number;
 }
 
 export const windowTimers = (view: Window): SwipeTimers => ({
+  now: () => view.performance.now(),
   set: (run, ms) => view.setTimeout(run, ms),
   clear: (handle) => {
     view.clearTimeout(handle as number);
@@ -279,20 +288,53 @@ export class SwipeGesture {
   private restart(): void {
     this.timers.clear(this.segmentTimer);
     this.timers.clear(this.gestureTimer);
-    this.segmentTimer = this.timers.set(() => {
-      this.endSegment();
-      const gesture = this.gesture;
-      if (gesture !== undefined && (gesture.ignored || gesture.vertical)) {
-        gesture.probing = true;
+    this.patient(
+      (handle) => {
+        this.segmentTimer = handle;
+      },
+      () => {
+        this.endSegmentByTimer();
+      },
+      SEGMENT_GAP_MS,
+    );
+    this.patient(
+      (handle) => {
+        this.gestureTimer = handle;
+      },
+      () => {
+        this.endSegment();
+        this.gesture = undefined;
+        this.ended = undefined;
         this.probe = undefined;
-      }
-    }, SEGMENT_GAP_MS);
-    this.gestureTimer = this.timers.set(() => {
-      this.endSegment();
-      this.gesture = undefined;
-      this.ended = undefined;
+      },
+      GESTURE_GAP_MS,
+    );
+  }
+
+  /**
+   * Runs `run` after `ms`, unless its timer fires more than `LATE_MS` late: the main thread was busy (a long
+   * frame), so it waits `LATE_WAIT_MS` more, as often as that timer is late too. `keep` takes each handle.
+   */
+  private patient(keep: (handle: unknown) => void, run: () => void, ms: number): void {
+    const armed = this.timers.now();
+    keep(
+      this.timers.set(() => {
+        if (this.timers.now() - armed > ms + LATE_MS) {
+          this.patient(keep, run, LATE_WAIT_MS);
+        } else {
+          run();
+        }
+      }, ms),
+    );
+  }
+
+  private endSegmentByTimer(): void {
+    this.endSegment();
+    const gesture = this.gesture;
+    if (gesture !== undefined && (gesture.ignored || gesture.vertical)) {
+      gesture.probing = true;
       this.probe = undefined;
-    }, GESTURE_GAP_MS);
+    }
   }
 
   private segmentFor(step: WheelStep, gesture: Gesture): Segment {

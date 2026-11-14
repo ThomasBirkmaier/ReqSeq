@@ -6,6 +6,7 @@ import type { SwipeHost, SwipeTimers, SwipeWay } from "./buffer-swipe.js";
 import {
   DECIDE_PX,
   GESTURE_GAP_MS,
+  LATE_WAIT_MS,
   SEGMENT_GAP_MS,
   SwipeGesture,
   pastThird,
@@ -23,7 +24,11 @@ export interface Recorded {
   readonly cancelable?: boolean;
 }
 
+// Behind the clock by `lag` ms: a timer that fires late.
+let lag = 0;
+
 const timers: SwipeTimers = {
+  now: () => Date.now() + lag,
   set: (run, ms) => setTimeout(run, ms),
   clear: (handle) => {
     clearTimeout(handle as ReturnType<typeof setTimeout>);
@@ -422,9 +427,35 @@ describe("SwipeGesture", () => {
     expect(idle.log).toEqual([]);
   });
 
+  it("a segment timer that fires late after a long frame waits a frame more: the swipe that goes on stays one", () => {
+    const run = setup();
+    run.replay(swipe(0, 6, 10), 0);
+    // The main thread was busy: the timer fires 30 ms late.
+    lag = 30;
+    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    lag = 0;
+    expect(run.log).toEqual(["begin forward"]);
+    // The next event comes within the frame after: one segment, which ends past a third.
+    run.gesture.wheel({ dx: 300, dy: 0, modified: false, cancelable: true, time: 200 });
+    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    expect(run.log).toEqual(["begin forward", "switch forward", "end"]);
+    // Late again: it waits again. Then on time with nothing after it: the segment ends.
+    const idle = setup();
+    idle.replay(swipe(0, 6, 10), 0);
+    lag = 30;
+    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    lag = 60;
+    vi.advanceTimersByTime(LATE_WAIT_MS);
+    expect(idle.log).toEqual(["begin forward"]);
+    lag = 0;
+    vi.advanceTimersByTime(LATE_WAIT_MS);
+    expect(idle.log).toEqual(["begin forward", "end"]);
+  });
+
   it("the window's timers are looked up at each call", () => {
-    const view = { setTimeout: vi.fn(() => 7), clearTimeout: vi.fn() };
+    const view = { setTimeout: vi.fn(() => 7), clearTimeout: vi.fn(), performance: { now: () => 12 } };
     const own = windowTimers(view as unknown as Window);
+    expect(own.now()).toBe(12);
     const run = vi.fn();
     expect(own.set(run, 5)).toBe(7);
     own.clear(7);
