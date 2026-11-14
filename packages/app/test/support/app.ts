@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ElectronApplication, Locator, Page } from "@playwright/test";
-import { _electron as electron, expect } from "@playwright/test";
+import { _electron as electron, expect, test } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 import { TEST_COMPILE_CACHE } from "./compile-cache.js";
 
@@ -318,6 +318,71 @@ const within = async <T, F>(
   }
 };
 
+/** How many lines of the renderer's errors and warnings, and of the main process's log, a diagnosis keeps. */
+const RENDERER_LOG_LINES = 50;
+const MAIN_LOG_LINES = 40;
+/** How much of the window's text, and of each log line, a diagnosis keeps. */
+const WINDOW_TEXT_CHARS = 2000;
+const LINE_CHARS = 500;
+
+/** `line`, cut to LINE_CHARS characters. */
+const cut = (line: string): string => (line.length > LINE_CHARS ? `${line.slice(0, LINE_CHARS)}…` : line);
+
+/** Whether the current test failed or timed out (false outside a test). */
+const failedTest = (): boolean => {
+  try {
+    const info = test.info();
+    return info.status !== undefined && info.status !== info.expectedStatus;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * What the app showed and logged when its test failed: the window's text, the renderer's errors and warnings,
+ * and the last lines of the main process's log (#1671). A window that does not answer says so.
+ */
+const diagnosis = async (
+  window: Page | undefined,
+  mainLog: string,
+  rendererLog: readonly string[],
+): Promise<string> => {
+  const shown =
+    window === undefined
+      ? "(the app has ended)"
+      : await within(
+          window.evaluate((chars) => document.body.innerText.slice(0, chars), WINDOW_TEXT_CHARS),
+          CALL_WAIT_MS,
+          (error) => `(no answer: ${error instanceof Error ? error.message : String(error)})`,
+        );
+  const main = mainLog
+    .split("\n")
+    .filter((line) => line !== "")
+    .slice(-MAIN_LOG_LINES)
+    .map(cut);
+  const section = (title: string, lines: readonly string[]): string =>
+    `${title}:\n${lines.length === 0 ? "  (none)" : lines.map((line) => `  ${line}`).join("\n")}\n`;
+  return [
+    `--- The app at the end of the failed test "${test.info().title}" ---\n`,
+    section("Window text", shown.split("\n")),
+    section("Renderer errors and warnings", rendererLog),
+    section("Main process log, last lines", main),
+    "---\n",
+  ].join("");
+};
+
+/** Writes the diagnosis to standard error when the current test failed; the window's text only while the app runs. */
+const reportFailure = async (
+  ended: boolean,
+  window: Page,
+  mainLog: string,
+  rendererLog: readonly string[],
+): Promise<void> => {
+  if (failedTest()) {
+    process.stderr.write(await diagnosis(ended ? undefined : window, mainLog, rendererLog));
+  }
+};
+
 /** The state of an app that did not end after its window was closed, for the error of the test. */
 const hangState = async (app: ElectronApplication, window: Page, stderr: string): Promise<string> => {
   const windows = await within(
@@ -491,6 +556,21 @@ export const launchApp = async (
     }
   });
   const window = await app.firstWindow();
+  // The renderer's errors and warnings, for the report of a failed test (`diagnosis`).
+  const rendererLog: string[] = [];
+  const note = (line: string): void => {
+    if (rendererLog.length < RENDERER_LOG_LINES) {
+      rendererLog.push(line);
+    }
+  };
+  window.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") {
+      note(cut(`${message.type()}: ${message.text()}`));
+    }
+  });
+  window.on("pageerror", (error) => {
+    note(cut(`uncaught: ${error.message}`));
+  });
   await throttle(window);
   // A test never runs on the user data of a real installation, and a restart finds what the start before kept.
   const used = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
@@ -541,6 +621,9 @@ export const launchApp = async (
       discard = true;
     },
     close: async (options) => {
+      // A failed test ends here (afterEach): what the app showed and logged goes into the job log, where an
+      // agent can read it without the run's artifacts (#1671).
+      await reportFailure(ended, window, stderr, rendererLog);
       // A test that timed out while a CLI call ran ends here (afterEach): name the call, which the
       // timeout does not (#1339, #1399).
       for (const describe of pendingCli) {
