@@ -675,7 +675,8 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
 
     // Typing in B with its neighbours drawn: the longest gap between two frames (recorded), then Alt+P at once
     // after the last key: the input is saved (SR-212 AK2, SR-105 AK1).
-    await window.locator(`${SHOWN} .cm-content`).first().click();
+    // Focused, not clicked: a click can land on a reference in B's text, which opens its element.
+    await window.locator(`${SHOWN} .cm-content`).first().focus();
     await window.keyboard.press("ControlOrMeta+End");
     await window.evaluate(() => {
       const w = globalThis as unknown as { __gap?: number; __gapOn?: boolean };
@@ -734,12 +735,17 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         // not read, and the round is taken again.
         const left = ` left ${String(attempt)}`;
         // Each step checked before the next, so a lost key fails here with what the window showed.
+        // Focused, not clicked: a click can land on a reference in B's text, which opens its element.
         const editor = window.locator(`${SHOWN} .cm-content`).first();
-        await editor.click();
+        await editor.focus();
         await seen(expect(editor).toBeFocused(), `B's editor focused, attempt ${String(attempt)}`);
         await window.keyboard.press("ControlOrMeta+End");
         await window.keyboard.type(left);
         await seen(expect(editor).toContainText(left.trim()), `"${left.trim()}" typed in B`);
+        await seen(
+          expect.poll(() => shownTitle(window)).toBe(b.title),
+          `B still shown, attempt ${String(attempt)}`,
+        );
         await window.keyboard.press("Alt+KeyP");
         // Alt+P left B: C shows, or already the element the armed Enter opened.
         await seen(
