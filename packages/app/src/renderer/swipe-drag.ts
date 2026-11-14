@@ -7,6 +7,7 @@
 // `data-peek`.
 import { shownLayer, slideEase } from "./buffer-slide.js";
 import type { SwipeWay } from "./buffer-swipe.js";
+import { MODIFIERS } from "./modifier-keys.js";
 
 /** The id of the animations of a spring-back, by which tests find them. */
 export const SPRING_ID = "buffer-spring";
@@ -65,8 +66,9 @@ interface Drag {
 export class SwipeDrag {
   private drag: Drag | undefined;
   private readonly host: DragHost;
-  private readonly onInput = (): void => {
-    if (this.drag !== undefined) {
+  private readonly onInput = (input: Event): void => {
+    // A modifier pressed alone is no input that ends the drag (as for the gesture, `use-wheel-swipe.ts`).
+    if (this.drag !== undefined && !(input instanceof KeyboardEvent && MODIFIERS.has(input.key))) {
       this.host.input?.();
     }
   };

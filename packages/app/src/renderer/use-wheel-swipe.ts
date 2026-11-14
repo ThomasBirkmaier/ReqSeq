@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeHost, SwipeWay } from "./buffer-swipe.js";
 import { SwipeGesture, windowTimers } from "./buffer-swipe.js";
+import { MODIFIERS } from "./modifier-keys.js";
 import { ENDING } from "./swipe-drag.js";
 import { scrollsFirst, verticalScroller, wheelPixels } from "./swipe-target.js";
 
@@ -29,9 +30,6 @@ export interface WheelSwipe {
   /** Ends the swipe now without a switch by it: the rest of the gesture does nothing (SR-211 AK12). */
   readonly abort: () => void;
 }
-
-/** A key that only modifies others, held during a swipe: it does not end it (as in `use-context-menu.ts`). */
-const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
 
 const activeArea = (sheet: HTMLElement | null): HTMLElement | null =>
   sheet?.querySelector<HTMLElement>("[data-area][data-active]") ?? null;

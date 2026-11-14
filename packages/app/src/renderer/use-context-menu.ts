@@ -10,6 +10,7 @@ import { shownBuffer, shownLayer } from "./buffer-slide.js";
 import type { MenuHit } from "./context-menu.js";
 import { isMacCtrlPress, menuKey, menuSelection, opensMenu, placeAt } from "./context-menu.js";
 import { pressedPosition } from "./text-menu.js";
+import { MODIFIERS } from "./modifier-keys.js";
 
 /** The open menu: where it was asked for, the selected entry (-1: none) and the buffer shown then. */
 export interface MenuState {
@@ -44,8 +45,6 @@ export interface ContextMenu {
   /** Selects the entry at `index` (the pointer is on it). */
   readonly select: (index: number) => void;
 }
-
-const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
 
 /** The menu itself: a press, a wheel or a right-click in it is its own. */
 const inMenu = (target: EventTarget | null): boolean =>

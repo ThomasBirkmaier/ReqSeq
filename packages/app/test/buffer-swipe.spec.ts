@@ -28,8 +28,6 @@ const LIST = "All elements";
 /** The pauses of `buffer-swipe.ts`. */
 const SEGMENT_GAP_MS = 35;
 const GESTURE_GAP_MS = 150;
-// A frame of the window's clock: a pause ends at its time once a frame has come after the last event.
-const FRAME_MS = 17;
 
 const shownBuffer = (window: Page, side?: string): Locator =>
   shownLayer(window, side).locator("[data-buffer]");
@@ -282,7 +280,7 @@ test.describe("the swipe that switches the buffer", () => {
     await holdClock(window);
     await startSwipe(window, 1);
     await window.mouse.wheel(0.6 * width, 0);
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     await window.clock.resume();
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     await slideSettled(window);
@@ -401,7 +399,7 @@ test.describe("the swipe that switches the buffer", () => {
       }
       await window.mouse.wheel(-0.6 * width, 0);
       await window.mouse.wheel(-0.2 * width, -0.1 * width);
-      await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+      await window.clock.runFor(SEGMENT_GAP_MS);
       await expect(shownBuffer(window)).toHaveAttribute("aria-label", LIST);
       // The momentum after a pause of 40 ms: small, diagonal steps.
       await window.clock.runFor(5);
@@ -627,7 +625,7 @@ test.describe("the swipe that switches the buffer", () => {
     await holdClock(window);
     await window.mouse.wheel(-0.25 * width, 0);
     await expect.poll(() => moved(window)).not.toEqual([]);
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     // The pause of the end and the spring-back: within the 200 ms of AK4.
     expect(await springs(window)).toEqual([90, 90]);
     expect(SEGMENT_GAP_MS + Math.max(...(await springs(window)))).toBeLessThanOrEqual(200);
@@ -702,14 +700,14 @@ test.describe("the swipe that switches the buffer", () => {
     const width = await pointAt(window);
     await holdClock(window);
     await window.mouse.wheel(-0.6 * width, 0);
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of storms");
     await window.clock.runFor(GESTURE_GAP_MS);
     // The second swipe ends the slide; its target is drawn and joins at the edge.
     await startSwipe(window, -1);
     await window.mouse.wheel(-0.5 * width, 0);
     await expect.poll(() => moved(window)).not.toEqual([]);
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     await window.clock.resume();
     await expect(shownLayer(window).locator("article h1")).toHaveText("Measure wind speed");
   });
@@ -753,7 +751,7 @@ test.describe("the swipe that switches the buffer", () => {
     await window.keyboard.type(" Gusts.");
     await window.mouse.wheel(-0.6 * width, 0);
     await expect.poll(() => moved(window)).not.toEqual([]);
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     // The slide started in the commit of the switch: no frame of the held clock has run since.
     expect(await held()).toEqual(["paused", "paused"]);
     expect(await rounded(window)).toEqual(back(0.6));
@@ -805,7 +803,7 @@ test.describe("the swipe that switches the buffer", () => {
     expect(await shownLayer(window).evaluate((layer) => layer.style.transform)).toBe(
       `translateX(${String(0.6 * width)}px)`,
     );
-    await window.clock.runFor(SEGMENT_GAP_MS + FRAME_MS);
+    await window.clock.runFor(SEGMENT_GAP_MS);
     await window.clock.resume();
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", LIST);
     await slideSettled(window);

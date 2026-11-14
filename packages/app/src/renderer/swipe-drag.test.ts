@@ -243,9 +243,16 @@ it("input during the drag is reported, and none after it", () => {
     window.dispatchEvent(new Event(type));
   }
   expect(input).toHaveBeenCalledTimes(4);
+  // A modifier pressed alone is no input; a key with one held is.
+  for (const key of ["Shift", "Control", "Alt", "Meta"]) {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+  }
+  expect(input).toHaveBeenCalledTimes(4);
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "p", altKey: true }));
+  expect(input).toHaveBeenCalledTimes(5);
   drag.cancel();
   window.dispatchEvent(new Event("keydown"));
-  expect(input).toHaveBeenCalledTimes(4);
+  expect(input).toHaveBeenCalledTimes(5);
   // Without a handler for input the drag just listens.
   const quiet = new SwipeDrag(host());
   quiet.start("left", "a", "b", "back", true);
