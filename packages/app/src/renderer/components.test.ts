@@ -2144,11 +2144,19 @@ describe("OverviewView", () => {
     title: `Title ${String(n)}`,
   });
   const entry = (n: number): RecentEntry => ({ id: `uuid-${String(n)}`, repository: "spec" });
-  const handlers = (): Record<string, (input: Record<string, unknown>) => unknown> => ({
+  /** The UUIDs of a list of the recent elements (`readRecent`), or none for a list of counts. */
+  const idsOf = (input: Record<string, unknown>): string[] | undefined =>
+    (input["selection"] as { ids?: string[] } | undefined)?.ids;
+  /** The recent elements of `ids` as `element.list` gives them; it fails as a whole on a UUID in `gone`. */
+  const listOf = (ids: readonly string[], gone: ReadonlySet<string>): unknown =>
+    ids.some((id) => gone.has(id))
+      ? Object.assign(new Error("gone"), { code: "ref.unknown" })
+      : { elements: ids.map((id) => element(Number(id.replace("uuid-", "")))) };
+  const handlers = (
+    gone: ReadonlySet<string> = new Set(),
+  ): Record<string, (input: Record<string, unknown>) => unknown> => ({
     "element.facets": () => FACETS,
-    "element.get": (input: Record<string, unknown>) => ({
-      element: element(Number(String(input["ref"]).replace("uuid-", ""))),
-    }),
+    "element.list": (input: Record<string, unknown>) => listOf(idsOf(input) ?? [], gone),
   });
 
   /** The overview as the app uses it: the loading hook, the view, and what it reported. */
@@ -2262,13 +2270,11 @@ describe("OverviewView", () => {
   });
 
   it("reads the recent elements with their repository, newest first, and leaves out one that cannot be read", async () => {
-    const h = handlers();
-    const get = h["element.get"];
-    h["element.get"] = (input) => (input["ref"] === "uuid-2" ? new Error("gone") : get?.(input));
-    const call = fakeCall(h);
+    const call = fakeCall(handlers(new Set(["uuid-2"])));
     await mount(unrecorded(call) as unknown as Call, { recent: [entry(3), entry(2), entry(1)] });
     expect(options()).toEqual(["Need 1", "System Requirement 3", "SR-3Title 3", "SR-1Title 1"]);
-    expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-3", repository: "spec" });
+    expect(call).toHaveBeenCalledWith("element.list", { selection: { ids: ["uuid-3", "uuid-2", "uuid-1"] } });
+    expect(call).not.toHaveBeenCalledWith("element.get", expect.anything());
     expect(texts(".group")).toEqual(["Recent"]);
   });
 
@@ -2282,7 +2288,7 @@ describe("OverviewView", () => {
     expect(options()).toHaveLength(3);
     await view.revision(1);
     expect(asked("element.facets")).toBe(2);
-    expect(asked("element.get")).toBe(2);
+    expect(asked("element.list")).toBe(2);
   });
 
   it("asks for nothing while it is not shown, and shows what it has at once when it is shown again", async () => {
@@ -2293,7 +2299,7 @@ describe("OverviewView", () => {
     expect(call.mock.calls.map(([called]) => called)).toEqual([
       "element.facets",
       "perspective.list",
-      "element.get",
+      "element.list",
     ]);
     await view.active(false);
     await view.active(true);
@@ -2321,7 +2327,7 @@ describe("OverviewView", () => {
               ? FACETS
               : name === "perspective.list"
                 ? { perspectives: [] }
-                : { element: element(1) },
+                : { elements: [element(1)] },
         });
       }
       await Promise.resolve();
@@ -2411,7 +2417,10 @@ describe("OverviewView", () => {
   ) => ({
     ...handlers(),
     "perspective.list": () => ({ perspectives: names.map(listed) }),
-    "element.list": (input: Record<string, unknown>) => counts(String(input["perspective"])),
+    "element.list": (input: Record<string, unknown>) => {
+      const ids = idsOf(input);
+      return ids === undefined ? counts(String(input["perspective"])) : listOf(ids, new Set());
+    },
   });
 
   it("[SR-118/AK-h5f7] shows at most ten perspectives under Perspectives, by name ignoring case, each with the count of its selection", async () => {
@@ -2449,7 +2458,9 @@ describe("OverviewView", () => {
     expect(query('.perspective[role="option"]').getAttribute("aria-label")).toBe("alpha 5");
     // The count is the total of `element.list` with the perspective, in the call given (the window's view);
     // the eleventh is not counted.
-    const listCalls = call.mock.calls.filter(([name]) => name === "element.list").map(([, input]) => input);
+    const listCalls = call.mock.calls
+      .filter(([name, input]) => name === "element.list" && input["selection"] === undefined)
+      .map(([, input]) => input);
     expect(listCalls).toHaveLength(10);
     expect(listCalls[0]).toEqual({ perspective: "alpha", limit: 1, fields: ["identifier"], sort: [] });
   });

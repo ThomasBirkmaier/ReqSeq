@@ -173,7 +173,13 @@ const NO_WORKSPACE = new Error(
 /** The commands of a workspace with three elements. */
 const workspace = (): Record<string, Handler> => ({
   "workspace.status": () => STATUS,
-  "element.list": () => ({ elements: [row(1), row(2), row(3)], total: 3 }),
+  // A list of UUIDs (the recent elements of the overview, the buffers of a restart) gives those elements.
+  "element.list": (input) => {
+    const ids = (input["selection"] as { ids?: string[] } | undefined)?.ids;
+    return ids === undefined
+      ? { elements: [row(1), row(2), row(3)], total: 3 }
+      : { elements: ids.map((id) => row(Number(id.replace("uuid-", "")))), total: ids.length };
+  },
   "element.get": (input) => ({
     element: row(Number(String(input["ref"]).replace("uuid-", "")), {
       versionDate: "2026-10-24T10:00:00Z",
@@ -1606,9 +1612,12 @@ describe("App, the overview (SR-118)", () => {
   it("[SR-118/AK-yggg] below the types the overview shows at most five recently opened elements, newest first", async () => {
     seed([1, 2, 3, 4, 5, 6, 7].map(known));
     const handlers = twoTypes();
-    const get = handlers["element.get"];
+    const list = handlers["element.list"];
     // The element of the second entry is gone, so its row is left out silently.
-    handlers["element.get"] = (input) => (input["ref"] === "uuid-2" ? new Error("gone") : get?.(input));
+    handlers["element.list"] = (input) =>
+      ((input["selection"] as { ids?: string[] } | undefined)?.ids ?? []).includes("uuid-2")
+        ? Object.assign(new Error("gone"), { code: "ref.unknown" })
+        : list?.(input);
     const { bridge } = fakeBridge(handlers);
     await render(bridge);
     expect(options()).toEqual([
@@ -1720,7 +1729,12 @@ describe("App, the overview (SR-118)", () => {
     await render(bridge);
     await click(shownAll('[role="option"]')[0] ?? container);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: need");
-    expect(calls(invoke, "element.list")).toHaveLength(1);
+    // One page of the list, besides the read of the recent element by its UUID.
+    expect(
+      calls(invoke, "element.list").filter(
+        (input) => (input as { selection?: { ids?: unknown } }).selection?.ids === undefined,
+      ),
+    ).toHaveLength(1);
     await runCommand("show overview");
     await click(shownAll('[role="option"]')[2] ?? container);
     expect(query("article h1").textContent).toBe("Title 3");
