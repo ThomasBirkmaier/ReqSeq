@@ -1,7 +1,7 @@
 {
   "name": "trace.neighbourhood",
   "title": "Show neighbourhood",
-  "summary": "The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
+  "summary": "The elements linked to one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
   "effect": "read",
   "stage": 3,
   "implements": ["SR-107"],
@@ -21,7 +21,7 @@
     "type": "object",
     "properties": {
       "ref": {
-        "description": "The element whose neighbourhood is shown.",
+        "description": "The element whose links are walked.",
         "$ref": "../common.schema.json#/$defs/elementRef"
       },
       "repository": {
@@ -57,7 +57,7 @@
         "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
       "view": {
-        "description": "Only the elements of the neighbourhood that this view holds: `core` or a variant ID; without it every element.",
+        "description": "Only the elements reached that this view holds: `core` or a variant ID; without it every element.",
         "$ref": "../common.schema.json#/$defs/view"
       },
       "limit": {

@@ -87,7 +87,7 @@
             "count": {
               "type": "integer",
               "minimum": 0,
-              "description": "How many rows of the whole selection have at least one relation in this column (SR-125 AK3, SR-153 AK2), whatever state its other end is in; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in."
+              "description": "How many rows of the whole selection have at least one relation in this column (SR-125 AK3, SR-153 AK2), whatever the status or availability of its other end; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in."
             },
             "expected": {
               "type": "integer",

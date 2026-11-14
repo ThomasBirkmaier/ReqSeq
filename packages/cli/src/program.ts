@@ -94,7 +94,7 @@ const addServers = (program: Command, options: ProgramOptions): void => {
   const docs = serve
     .command("docs")
     .description(
-      "The documentation of this version on 127.0.0.1 only, to read and search in a browser without network. " +
+      "The documentation of this ReqSeq version on 127.0.0.1 only, to read and search in a browser without network. " +
         "Prints its address. Needs no workspace. Runs until Ctrl-C.",
     )
     .option("--port <number>", "TCP port (default: 0, any free port)");
@@ -315,7 +315,7 @@ export function buildProgram(options: ProgramOptions): Command {
     .description(
       "ReqSeq: requirements as plain files in Git. Every command of the catalog, from the command line.",
     )
-    .version(options.version, "-V, --version", "print the version")
+    .version(options.version, "-V, --version", "print the ReqSeq version")
     .helpOption("-h, --help", "show help")
     .enablePositionalOptions()
     .exitOverride()

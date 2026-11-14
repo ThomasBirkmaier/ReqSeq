@@ -37,7 +37,7 @@ problems:
     cause: Two elements of the same type have the same identifier, so a reference by that identifier is ambiguous.
     remedy: Give one of them another identifier.
   element.file-name-clash:
-    cause: Two element files in one folder have the same short file name, derived from the end of their UUIDs. This version does not raise it yet.
+    cause: Two element files in one folder have the same short file name, derived from the end of their UUIDs. This ReqSeq version does not raise it yet.
     remedy: Rename one of the files by hand. ReqSeq never renames files.
   element.unknown-type:
     cause: The element's `type` is not in the metamodel. ReqSeq shows the element but only reads it.
@@ -91,7 +91,7 @@ problems:
     cause: "A link reference definition in the text or in a Markdown property has a `reqseq:` destination, for example `[ref]: reqseq:SR-001` for the reference-style link `[Title][ref]`. Only an inline Markdown link is a reference, so such a link counts for nothing, neither for outdated relations nor for the trace."
     remedy: Write the link inline, `[Title](reqseq:SR-001)`, and give the text again with element.update, which resolves the target to its UUID and version. Then remove the definition.
   relation.inaccessible-target:
-    cause: The target of a relation is in a repository of the workspace that is not on this machine. This version does not raise it yet; it shows such targets as not accessible.
+    cause: The target of a relation is in a repository of the workspace that is not on this machine. This ReqSeq version does not raise it yet; it shows such targets as not accessible.
     remedy: Clone the repository where the workspace file expects it.
   relation.not-allowed:
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
@@ -178,8 +178,8 @@ problems:
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
   baseline.repository-commit-differs:
-    cause: A repository the baseline names is checked out at another commit than the one the baseline stores for it. `baseline.get` reads the files on disk, not the baseline's commits, so the warning names what was read. Without evidence that is the usual case, since the states compare the baseline with today's files. With evidence the status is read from the evidence records on disk, for example a record committed after the baseline is missing when the repository is at an older commit.
-    remedy: For the evidence status as it stood at the baseline, check out the commit the baseline names in that repository (the full commit is under `repositories` of the output) and run the command again. Otherwise none is needed.
+    cause: A repository the baseline names is checked out at another commit than the one the baseline stores for it. `baseline.get` reads the files on disk, not the baseline's commits, so the warning names what was read. Without `withEvidence` that is the usual case, since the `state` values compare the baseline with today's files. With `withEvidence` the status is read from the evidence records on disk, for example a record committed after the baseline is missing when the repository is at an older commit.
+    remedy: For the verification status as it stood at the baseline, check out the commit the baseline names in that repository (the full commit is under `repositories` of the output) and run the command again. Otherwise none is needed.
   filter.invalid:
     cause: A saved filter cannot be read or does not match its format.
     remedy: Fix or save the filter again.
@@ -258,7 +258,7 @@ errors:
     cause: The element can only be read, for example because its type is not in the metamodel.
     remedy: Use a type of the metamodel for the element, or add its type to the metamodel.
   element.not-found:
-    cause: The element the command needs is not in the workspace. This version does not raise it yet.
+    cause: The element the command needs is not in the workspace. This ReqSeq version does not raise it yet.
     remedy: Check the reference and that the element's repository is on this machine.
   metamodel.meaning-unassigned:
     cause: No relation kind of the metamodel has the meaning the command needs.
@@ -306,8 +306,8 @@ errors:
     cause: The folder to write to does not exist or is in a repository that is not on this machine. Outside the workspace's repositories ReqSeq creates no folders.
     remedy: Create the folder, or clone the repository.
   command.not-implemented:
-    cause: The command is in the catalog, but this version does not implement it yet.
-    remedy: Use a later version of ReqSeq.
+    cause: The command is in the catalog, but this ReqSeq version does not implement it yet.
+    remedy: Use a later ReqSeq version.
   internal:
     cause: An error inside ReqSeq, or a call that its caller aborted.
     remedy: Repeat the call; if it fails again, report it with the message.

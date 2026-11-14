@@ -53,7 +53,7 @@
       "additionalProperties": false
     },
     "inputValue": {
-      "description": "Property value of a write command: like `value`, but a relation target is an element reference (UUID, short ID or identifier, alone or as `{ id, repository? }`) whose version the tool sets (SR-021).",
+      "description": "Property value of a write command: like `value`, but a relation target is an element reference (UUID, short ID or identifier, alone or as `{ id, repository? }`) whose version ReqSeq sets (SR-021).",
       "anyOf": [
         {
           "$ref": "#/$defs/scalar"

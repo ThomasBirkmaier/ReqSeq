@@ -26,7 +26,7 @@ const withKey = (key: string | undefined, keyMac: string | undefined): string =>
 
 const appSection = (access: CommandAccess): string => {
   if (!access.implemented) {
-    return "Not offered by the app yet: this version does not implement the command.";
+    return "Not offered by the app yet: this ReqSeq version does not implement the command.";
   }
   if (access.app.shownIn !== undefined) {
     return `Not in the command prompt: the app shows its output in ${inline(access.app.shownIn)}.`;
@@ -71,7 +71,7 @@ export function commandPage(
   order: number,
   example?: CommandExample | string,
 ): string {
-  const notYet = access.implemented ? [] : ["This version does not implement the command yet.", ""];
+  const notYet = access.implemented ? [] : ["This ReqSeq version does not implement the command yet.", ""];
   return [
     "---",
     `title: ${JSON.stringify(entry.title)}`,

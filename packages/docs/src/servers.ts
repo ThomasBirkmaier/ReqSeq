@@ -22,7 +22,7 @@ export const SERVERS: readonly {
   {
     argv: ["serve", "docs"],
     purpose: () =>
-      "Serves this documentation of the installed version, to read and search in a browser without network.",
+      "Serves this documentation of the installed ReqSeq version, to read and search in a browser without network.",
   },
   {
     argv: ["mcp"],

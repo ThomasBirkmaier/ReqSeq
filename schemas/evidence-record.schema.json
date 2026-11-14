@@ -40,7 +40,7 @@
     "date": { "$ref": "common.schema.json#/$defs/dateTime" },
     "evidence": {
       "type": "string",
-      "description": "Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it."
+      "description": "Where the evidence document is: relative path, file URL or any URI. ReqSeq does not open or manage it."
     },
     "test-case": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." },
     "criteria": {
@@ -48,7 +48,7 @@
       "items": { "$ref": "common.schema.json#/$defs/criterionRef" },
       "minItems": 1,
       "uniqueItems": true,
-      "description": "The acceptance criteria the record holds for (D-072, SR-028 AK4), each by its criterion key or by its number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. `evidence.record` writes keys (SR-030 AK4). The record counts for the criterion of the current version with that key; a number of an older version counts through the key the criterion had in the newest commit with that version (SR-031 AK11). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A key that no criterion of the named version carries, or a number that version does not have, is a finding of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5)."
+      "description": "The acceptance criteria the record holds for (D-072, SR-028 AK4), each by its criterion key or by its number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. `evidence.record` writes keys (SR-030 AK4). The record counts for the criterion of the current version with that key; a number of an older version counts through the key the criterion had in the newest commit with that version (SR-031 AK11). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A key that no criterion of the named version carries, or a number that version does not have, is a problem of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5)."
     }
   },
   "allOf": [

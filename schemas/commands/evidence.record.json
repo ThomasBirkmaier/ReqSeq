@@ -102,7 +102,7 @@
       },
       "evidence": {
         "type": "string",
-        "description": "Where the evidence is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
+        "description": "Where the evidence document is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
       },
       "testCase": {
         "type": "string",

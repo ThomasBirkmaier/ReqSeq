@@ -62,7 +62,7 @@
       },
       "display": {
         "type": "object",
-        "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in core so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
+        "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
         "properties": {
           "shared": {
             "type": "object",
@@ -216,7 +216,7 @@
       },
       "problems": {
         "type": "array",
-        "description": "Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`.",
+        "description": "Problems in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         }

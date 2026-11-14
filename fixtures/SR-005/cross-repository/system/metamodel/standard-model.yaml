@@ -63,7 +63,7 @@ types:
     required: [title]
   - key: variant
     name: Variant
-    description: "A variant of the product. Its requirements replace requirements of the core only through Replaces; Excludes names the core requirements that do not apply in it."
+    description: "A variant of a system, built on the common core. Its requirements replace requirements of the core only through Replaces; Excludes names the core requirements that do not apply in it."
     prefix: VAR
     meaning: variant
     properties: [title, packages, source, source-identifier, import-date, delivery, import-version]
@@ -124,7 +124,7 @@ properties:
     markdown: true
   - key: validity
     name: Validity
-    description: "The variants the requirement applies to; without validity it belongs to the core and applies to every variant."
+    description: "The variants the requirement applies in; without validity it belongs to the core and applies in every variant."
     kind: relation
     many: true
     target-types: [variant]
@@ -139,7 +139,7 @@ properties:
     meaning: packages
   - key: emergent
     name: Emergent
-    description: "Whether the requirement has emergent behaviour: behaviour that does not follow from its children alone. Such a requirement needs evidence of its own."
+    description: "Whether the requirement has emergent behaviour: behaviour that does not follow from its children alone. Such a requirement needs a verification of its own."
     kind: choice
     meaning: emergent
     choices:

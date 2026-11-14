@@ -343,7 +343,7 @@
         "date": { "$ref": "common.schema.json#/$defs/dateTime" },
         "evidence": {
           "type": "string",
-          "description": "Where the evidence is: relative path, file URL or any URI."
+          "description": "Where the evidence document is: relative path, file URL or any URI."
         },
         "testCase": {
           "type": "string",
@@ -368,7 +368,7 @@
         },
         "evidenceSource": {
           "type": "string",
-          "description": "Where the evidence of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened."
+          "description": "Where the evidence document of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened."
         },
         "className": {
           "type": "string",
