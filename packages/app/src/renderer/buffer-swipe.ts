@@ -36,8 +36,8 @@ export const SEGMENT_GAP_MS = 35;
 export const LATE_MS = 10;
 /** The wait after a late segment timer: about one frame, in which a swipe that goes on sends its next event. */
 export const LATE_WAIT_MS = 20;
-/** A late timer waits no longer than this after it was due: the longest gap in a swipe on CI was 112 ms. */
-export const LATE_UNTIL_MS = GESTURE_GAP_MS;
+/** A late timer waits no longer than this after it was due: the longest gap in a swipe on CI was 230 ms. */
+export const LATE_UNTIL_MS = 2 * GESTURE_GAP_MS;
 /** The distance after which a segment is vertical or the swipe. */
 export const DECIDE_PX = 8;
 /** The distance after which a segment of a spent gesture is a new swipe, vertical, or more of the old one. */

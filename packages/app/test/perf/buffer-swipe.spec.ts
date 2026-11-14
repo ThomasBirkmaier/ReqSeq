@@ -10,7 +10,9 @@
 // joins the shown buffer at its edge (it is drawn), then steps of 40 px. In the window: each wheel event's
 // `timeStamp`, the moment the target joins, the moment the slide or spring-back animations are made, and the moment
 // they finished. Every run is kept; a run with a gap of 30 ms or more between two events (a stalled frame, so the
-// swipe may have ended early) is counted in a row of its own.
+// swipe may have ended early) is counted in a row of its own. A swipe that split into two (its slide or spring-back
+// started before its last event, or the rest of it ended that motion) has no time: the row of its kind names the
+// splits, and a row of their count with a threshold of 0 fails the test.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -371,8 +373,35 @@ const report = async (
   unsaved: readonly Run[],
 ): Promise<PerfMeasurement[]> => {
   const kindOf = (run: Run): Kind => kinds.get(run.target) ?? "result";
-  const toEnd = (run: Run): number => (run.end ?? Number.NaN) - run.last;
   const recorded: PerfMeasurement[] = [];
+  const toEnd = (run: Run): number => (run.end ?? Number.NaN) - run.last;
+  // A swipe that split: its slide or spring-back started before its last event, or was ended by the rest of it,
+  // so it has no end of its motion. It is no time: the row names it, and a row of its own counts it, red.
+  const split = (run: Run): boolean => !Number.isFinite(toEnd(run)) || (run.motion ?? run.last) < run.last;
+  const slowest = (runs: readonly Run[], of: (run: Run) => number): number =>
+    Math.max(0, ...runs.filter((run) => !split(run)).map(of));
+  const timed = async (
+    name: string,
+    runs: readonly Run[],
+    options: { readonly basis: string; readonly thresholdMs?: number },
+  ): Promise<void> => {
+    const splits = runs.filter(split).length;
+    recorded.push(
+      await recordValue(
+        `${name} (slowest of ${String(runs.length - splits)}${splits > 0 ? `; ${String(splits)} split` : ""})`,
+        slowest(runs, toEnd),
+        options,
+      ),
+    );
+    if (splits > 0 && options.thresholdMs !== undefined) {
+      recorded.push(
+        await recordValue(`${name}: swipes that split into two (of ${String(runs.length)})`, splits, {
+          basis: options.basis,
+          thresholdMs: 0,
+        }),
+      );
+    }
+  };
   const summary: Record<string, unknown> = {};
   const all = [...switched, ...sprung, ...unsaved];
   recorded.push(
@@ -398,29 +427,28 @@ const report = async (
     for (const sign of [-1, 1] as const) {
       const of = to.filter((run) => run.way === sign);
       if (of.length > 0) {
-        recorded.push(
-          await recordValue(
-            `app: swipe ${sign === -1 ? "to Previous" : "to Next"} buffer, last event to the end of the slide to the ${kind} (slowest of ${String(of.length)})`,
-            Math.max(...of.map(toEnd)),
-            { basis: sign === -1 ? "SR-211 AK1" : "SR-211 AK2", thresholdMs: LIMIT_MS },
-          ),
+        await timed(
+          `app: swipe ${sign === -1 ? "to Previous" : "to Next"} buffer, last event to the end of the slide to the ${kind}`,
+          of,
+          { basis: sign === -1 ? "SR-211 AK1" : "SR-211 AK2", thresholdMs: LIMIT_MS },
         );
       }
     }
     recorded.push(
       await recordValue(
-        `app: swipe, last event until the slide to the ${kind} starts: pause and commit (slowest of ${String(to.length)})`,
-        Math.max(...to.map((run) => (run.motion ?? Number.NaN) - run.last)),
+        `app: swipe, last event until the slide to the ${kind} starts: pause and commit (slowest of ${String(to.filter((run) => !split(run)).length)})`,
+        slowest(to, (run) => (run.motion ?? run.last) - run.last),
         { basis: COMPARE },
       ),
     );
     if (back.length > 0) {
-      recorded.push(
-        await recordValue(
-          `app: swipe of a quarter toward the ${kind}, last event to the end of the spring-back (slowest of ${String(back.length)})`,
-          Math.max(...back.map(toEnd)),
-          { basis: "SR-211 AK4", thresholdMs: LIMIT_MS },
-        ),
+      await timed(
+        `app: swipe of a quarter toward the ${kind}, last event to the end of the spring-back`,
+        back,
+        {
+          basis: "SR-211 AK4",
+          thresholdMs: LIMIT_MS,
+        },
       );
       recorded.push(
         await recordValue(
@@ -438,12 +466,13 @@ const report = async (
       ),
     );
   }
-  recorded.push(
-    await recordValue(
-      `app: swipe to Previous buffer from an element with unsaved input, last event to the end of the slide (slowest of ${String(unsaved.length)})`,
-      Math.max(...unsaved.map(toEnd)),
-      { basis: "SR-211 AK1", thresholdMs: LIMIT_MS },
-    ),
+  await timed(
+    `app: swipe to Previous buffer from an element with unsaved input, last event to the end of the slide`,
+    unsaved,
+    {
+      basis: "SR-211 AK1",
+      thresholdMs: LIMIT_MS,
+    },
   );
   summary["unsaved"] = unsaved.map(toEnd);
   summary["gaps"] = all.map((run) => run.gap);

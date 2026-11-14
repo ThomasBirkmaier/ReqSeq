@@ -462,15 +462,15 @@ describe("SwipeGesture", () => {
     const run = setup();
     delay = 30;
     run.replay(swipe(0, 6, 10), 0);
-    // Due at 35 ms after the last event, it fires at 65, 115, 165 and 215 ms: at 215 it is 180 ms past due.
+    // Due at 35 ms after the last event, it fires at 65, 115, …, 315 and 365 ms: at 365 it is 330 ms past due.
     vi.advanceTimersByTime(SEGMENT_GAP_MS + LATE_UNTIL_MS);
     expect(run.log).toEqual(["begin forward"]);
     vi.advanceTimersByTime(30);
     expect(run.log).toEqual(["begin forward", "end"]);
-    // The gesture timer, due at 150 ms, ends the gesture at 330 ms: the next event starts a new one.
-    vi.advanceTimersByTime(330 - 215);
+    // The gesture timer, due at 150 ms, ends the gesture at 480 ms: the next event starts a new one.
+    vi.advanceTimersByTime(480 - 365);
     delay = 0;
-    run.replay(swipe(run.at() + 330, 6, 10), 0);
+    run.replay(swipe(run.at() + 480, 6, 10), 0);
     expect(run.log).toEqual(["begin forward", "end", "begin forward"]);
   });
 
