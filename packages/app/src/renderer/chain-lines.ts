@@ -2,14 +2,14 @@
 // (`result.ts`), with the `evidence` of the chain under the element rows it belongs to instead of a list of
 // its own, as the CLI shows it. Under a requirement, each test case is a line "test case <class name> ›
 // <name>" (" · not executed" for one that has no execution, AK3), with one line per execution below it,
-// in core's order (newest first): "<date> · <result> · <item> · <Beleg>" (AK1); a record without a test
-// case is a line "record <date> · <method> · <result> · <item> · <Beleg>"; a record of a variant ends in
-// "variant <UUID>" (the output names no variants). The Beleg is text, never opened (offline): the record's
+// in core's order (newest first): "<date> · <result> · <item> · <evidence document>" (AK1); a record without a test
+// case is a line "record <date> · <method> · <result> · <item> · <evidence document>"; a record of a variant ends in
+// "variant <UUID>" (the output names no variants). The evidence document is text, never opened (offline): the record's
 // `evidenceSource` as core gives it (#821). An evidence item names its element by UUID
 // and repository and belongs to a child (core gives none for a parent): it goes under the last row of that
 // element among the nodes, since the parents come before the children (an element of a cycle is both); one
 // whose element has no row (cut by the line limit) is not shown. The root's `validationRecords` (#646) are lines
-// "validation <date> · <result> · <item> · <Beleg> · version <version>" under the root row, none when the
+// "validation <date> · <result> · <item> · <evidence document> · version <version>" under the root row, none when the
 // root is not on the page. Layout only: core gives the test cases, their executions and
 // the records (ADR-0002).
 import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core";

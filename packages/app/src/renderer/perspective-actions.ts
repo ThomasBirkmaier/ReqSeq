@@ -134,7 +134,7 @@ export const perspectiveChoices = (
   ];
 };
 
-/** What the minibuffer says for a workspace without perspectives (AK1). */
+/** What the command prompt says for a workspace without perspectives (AK1). */
 export const NONE = "The workspace has no perspectives.";
 
 /** The ID of "Save list as perspective". */

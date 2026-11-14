@@ -1,4 +1,4 @@
-// What the modeline and the minibuffer show of the open workspace (`workspace.status`). Pure display
+// What the modeline and the command prompt show of the open workspace (`workspace.status`). Pure display
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
 import type { DataExportElement } from "@reqseq/core";
 import type { InvokeResult } from "../shared/protocol.js";
@@ -26,7 +26,7 @@ export interface WorkspaceView {
   readonly readOnly: boolean;
   /** Further parts of the modeline, each only when it means something. */
   readonly marks: readonly string[];
-  /** The line for the minibuffer: why no workspace is open. */
+  /** The line for the command prompt: why no workspace is open. */
   readonly message: string;
 }
 
@@ -40,7 +40,7 @@ export const windowTitle = (view: WorkspaceView | undefined): string =>
 export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.readOnly === true;
 
 /**
- * The modeline and minibuffer of a `workspace.status` answer, with the keys of macOS when `mac`. A folder without
+ * The modeline and command prompt of a `workspace.status` answer, with the keys of macOS when `mac`. A folder without
  * a workspace (core's `workspace.not-found`, which names the missing `file`) and none one level below gets the way
  * to make one there.
  */
@@ -183,7 +183,7 @@ export const matrixSpot = (
 
 /**
  * What the reader selected in a buffer, the selected row or graph node, as a text that changes only when
- * the selection does (SR-150 AK4): a reload that marks the same row again, or a graph that marks its own
+ * the mark does (SR-150 AK4): a reload that marks the same row again, or a graph that marks its own
  * element when it opens, does not change it.
  */
 export const markToken = (buffer: Buffer | undefined): string | undefined => {

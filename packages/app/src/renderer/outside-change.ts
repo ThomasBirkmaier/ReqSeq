@@ -192,11 +192,11 @@ export const diskMark = (
 ): "deleted" | "changed" | undefined =>
   deleted ? "deleted" : conflict === undefined ? undefined : "changed";
 
-/** What the minibuffer says once when a conflict begins. */
+/** What the command prompt says once when a conflict begins. */
 export const changedOnDisk = (name: string): string =>
   `${name} changed on disk. Resolve with "Resolve change on disk"`;
 
-/** What the minibuffer says once when the file is gone, and on every try to change it. */
+/** What the command prompt says once when the file is gone, and on every try to change it. */
 export const deletedOnDisk = (name: string): string =>
   `${name} was deleted on disk; its content stays here until you close the buffer`;
 

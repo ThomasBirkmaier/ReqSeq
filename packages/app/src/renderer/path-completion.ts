@@ -102,7 +102,7 @@ export const entryChoices = (
       `${folder}${item.name}${end}`,
       {
         marks: ranges,
-        ...(item.kind === "link" ? { hint: "link" } : {}),
+        ...(item.kind === "link" ? { hint: "symbolic link" } : {}),
       },
     );
   });

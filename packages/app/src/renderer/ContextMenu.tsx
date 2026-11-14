@@ -1,7 +1,7 @@
 // The context menu (D-075, SR-194 AK1): the app's own quiet menu at the pointer, not the system's. Each
 // entry shows the name of the command as the command prompt does and its key; the last one, after a
 // separator, opens the command prompt. The menu takes no focus (`use-context-menu.ts`), so it is announced
-// as a live region and its selection is its active descendant.
+// as a live region and its marked entry is its active descendant.
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Choice } from "./actions.js";
 import type { MenuHit } from "./context-menu.js";
@@ -83,7 +83,7 @@ export const ContextMenu = ({
         top: at?.y ?? 0,
         visibility: at === undefined ? "hidden" : "visible",
       }}
-      // A press in the menu moves no focus and no selection: the editor or list keeps both.
+      // A press in the menu moves no focus and no mark: the editor or list keeps both.
       onMouseDown={(event) => {
         event.preventDefault();
       }}

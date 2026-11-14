@@ -374,7 +374,7 @@ test.describe("the context menu", () => {
     expect(await entryNames(window)).toEqual([...BUFFER_ENTRIES, "Split window", ALL]);
     await choose(window, "Split window");
     await rightClick(window.locator("[data-area][data-active]"), { x: 20, y: 20 });
-    expect(await entryNames(window)).toEqual([...BUFFER_ENTRIES, "Other window", "Unsplit window", ALL]);
+    expect(await entryNames(window)).toEqual([...BUFFER_ENTRIES, "Other pane", "Unsplit window", ALL]);
   });
 
   test("[SR-194/AK-hkgb] on macOS Ctrl+click is a right-click", async () => {

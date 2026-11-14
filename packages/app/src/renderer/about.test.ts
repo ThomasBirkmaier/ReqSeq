@@ -33,7 +33,7 @@ const values = (info: AboutInfo): Record<string, string> =>
 describe("the window About ReqSeq (SR-161)", () => {
   it("[SR-161/AK-hbxy] lays out versions, build, runtime and the open workspace as groups of rows", () => {
     expect(aboutGroups(DELIVERY).map((group) => group.heading)).toEqual([
-      "Version",
+      "ReqSeq version",
       "Build",
       "Runtime",
       "Workspace",
@@ -68,7 +68,7 @@ describe("the window About ReqSeq (SR-161)", () => {
       App: "0.9.0",
       "Command line": "0.9.0",
       "MCP server": "0.9.0",
-      Build: "from a checkout, not a delivery",
+      Build: "from a checkout, not a release",
       Platform: "linux",
       Architecture: "x64",
       Node: "22.20.0",
@@ -85,7 +85,7 @@ describe("the window About ReqSeq (SR-161)", () => {
     const lines = text.split("\n");
     expect(lines.slice(0, 5)).toEqual([
       "About ReqSeq",
-      "Version",
+      "ReqSeq version",
       "  App: 0.9.0",
       "  Command line: 0.9.0",
       "  MCP server: 0.9.0",

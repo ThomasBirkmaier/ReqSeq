@@ -113,7 +113,7 @@ export const savedSpeech = (
   }
   // Autosave is silent (D-062); a hint of core or the number of directly affected elements is said once,
   // not after every pause. A number that was said and is 0 now is replaced by `Saved <name>`, so the
-  // minibuffer does not keep it after a change of only the title or status (AK3).
+  // command prompt does not keep it after a change of only the title or status (AK3).
   const news = (hint !== undefined && hint !== said.hint) || now.affected !== said.affected;
   return news ? { echo, said: now } : { said: now };
 };

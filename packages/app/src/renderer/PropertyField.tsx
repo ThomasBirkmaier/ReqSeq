@@ -18,7 +18,7 @@ export interface PropertyFieldProps {
   readonly box: PropertyBox;
   /** The box as it is edited; none for a box that is not edited (a value that is no text). */
   readonly editable: EditableBox | undefined;
-  /** The document of a choice or relation box with input (set in the minibuffer), or of a cleared unknown one. */
+  /** The document of a choice or relation box with input (set in the command prompt), or of a cleared unknown one. */
   readonly value: string | undefined;
   /** The props of its editor, for a box of a text kind; none for any other box. */
   readonly textBox: TextBoxProps | undefined;

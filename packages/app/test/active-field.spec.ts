@@ -207,7 +207,7 @@ test.describe("the field the focus is in", () => {
     await expect(window.locator('[data-area="right"]')).toBeVisible();
     await field(window, "topic").first().focus();
     await expect.poll(() => tintedAnywhere(window)).toBe(1);
-    await command(window, "Other window");
+    await command(window, "Other pane");
     await expect(window.locator("article [data-field]:focus-within")).toHaveCount(0);
     await expect.poll(() => tintedAnywhere(window)).toBe(0);
   });

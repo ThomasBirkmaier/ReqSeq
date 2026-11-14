@@ -538,8 +538,8 @@ test.describe("Split window", () => {
     await expect(window.getByRole("tab")).toHaveCount(0);
     await expect(window.getByRole("tablist")).toHaveCount(0);
     await expect(window.getByRole("navigation")).toHaveCount(0);
-    // Other window: the element is active; what is typed into it is saved.
-    await command(window, "Other window");
+    // Other pane: the element is active; what is typed into it is saved.
+    await command(window, "Other pane");
     await expect(modeline(window)).not.toContainText("Graph:");
     await expect(modeline(window)).toContainText(ELEMENT_ID);
     await expect(right.locator("article")).toBeFocused();
@@ -549,7 +549,7 @@ test.describe("Split window", () => {
     await expect.poll(() => savedText(running)).toContain(" SPLIT");
     await expect(left.locator(".graph-node").first()).toBeVisible();
     // Back to the graph, then a click into the text of the element: it is active, the caret is where clicked.
-    await command(window, "Other window");
+    await command(window, "Other pane");
     await expect(modeline(window)).toContainText("Graph:");
     await right
       .locator(".cm-line")

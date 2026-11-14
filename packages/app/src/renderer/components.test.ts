@@ -1966,7 +1966,7 @@ describe("ListView, a list", () => {
     ]);
     const line = query('.package-summary [role="link"]');
     expect(query(".package-summary").hidden).toBe(false);
-    expect(line.textContent).toContain("Coverage 1 of 2 with evidence");
+    expect(line.textContent).toContain("Coverage 1 of 2 with verification");
     await press(line, "Enter");
     expect(opened).toHaveLength(1);
     expect(opened[0]).toMatchObject({
@@ -2023,12 +2023,12 @@ describe("ListView, a list", () => {
       await Promise.resolve();
     });
     await flush();
-    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with evidence");
+    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with verification");
     await render(
       createElement(ListView, { ...props, buffer: { ...first, sort: [{ by: "title", order: "desc" }] } }),
     );
     expect(lists).toHaveLength(2);
-    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with evidence");
+    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with verification");
     expect(call.mock.calls.filter(([name]) => name === "evidence.coverage")).toHaveLength(1);
   });
 

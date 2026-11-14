@@ -48,7 +48,7 @@ export const withHelp = (
   };
 };
 
-/** What the minibuffer says after a request to open the documentation. */
+/** What the command prompt says after a request to open the documentation. */
 export const docsEcho = (
   result: { readonly ok: true } | { readonly ok: false; readonly message: string },
 ): string => (result.ok ? "Opened the documentation in the browser" : result.message);

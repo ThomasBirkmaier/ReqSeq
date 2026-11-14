@@ -203,7 +203,7 @@ export interface PromptMark {
   readonly remove: () => void;
 }
 
-/** What the minibuffer asks for. */
+/** What the command prompt asks for. */
 export interface Prompt {
   readonly label: string;
   readonly items: readonly Choice[];
@@ -301,7 +301,7 @@ export type PromptFill = Partial<
 
 /** How `ElementControls.text` runs its command. */
 export interface TextOptions {
-  /** The field gets the focus afterwards (default); false: it stays where it is (the minibuffer of "Find in element", SR-189). */
+  /** The field gets the focus afterwards (default); false: it stays where it is (the command prompt of "Find in element", SR-189). */
   readonly focus?: boolean;
   /** On the text of the element, whichever field had the cursor (find and replace search the text, SR-189). */
   readonly inText?: boolean;
@@ -435,10 +435,10 @@ export interface ActionContext {
   readonly paste?: () => void;
   /**
    * Opens the bundled documentation in the browser (SR-141): the start page, or the page of `topic`, a catalog
-   * command name or an action ID; says in the minibuffer whether it could. Absent: the app cannot.
+   * command name or an action ID; says in the command prompt whether it could. Absent: the app cannot.
    */
   readonly docs?: (topic?: string) => void;
-  /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
+  /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the command prompt says it. */
   readonly notify?: (text: string) => void;
   /**
    * The elements shown last in this workspace, newest first, as buffers (`recent.ts`, SR-118; their names
@@ -474,7 +474,7 @@ export interface ActionContext {
   readonly given?: GivenArguments;
   /**
    * What was pressed for the open context menu of a property box (`menuContext`, SR-205 AK4): its entries act
-   * on the line pressed, also inside a selection whose caret is on another line. Absent elsewhere.
+   * on the line pressed, also inside marked text whose caret is on another line. Absent elsewhere.
    */
   readonly pressed?: Element;
   /** The shown buffer has unsaved changes. */
@@ -649,7 +649,7 @@ export const historyKeyAction = (context: ActionContext, event: KeyPress): Actio
   return button === undefined ? undefined : mouseButtonAction(context, button);
 };
 /**
- * "Other window" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
+ * "Other pane" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
  * physical Ctrl key on macOS belongs to the editor.
  */
 export const OTHER_WINDOW_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "o" };
@@ -684,7 +684,7 @@ const metamodelIn = (context: ActionContext, mode: MetamodelBuffer["mode"]): Met
   return shown?.kind === "metamodel" && shown.mode === mode ? shown : undefined;
 };
 
-/** Shows the metamodel in `to` when it is shown in `from`; the selection stays. */
+/** Shows the metamodel in `to` when it is shown in `from`; the marked entry stays. */
 const switchMetamodel =
   (from: MetamodelBuffer["mode"], to: MetamodelBuffer["mode"]) =>
   (context: ActionContext): void => {
@@ -1002,7 +1002,7 @@ const someNames = (buffers: Buffers): string => {
 
 /**
  * "Close all buffers" (SR-123): closing leaves the elements, so their unsaved text is saved first (SR-105
- * AK1), and the buffers close. Only text that could not be saved makes the minibuffer ask, not a dialog
+ * AK1), and the buffers close. Only text that could not be saved makes the command prompt ask, not a dialog
  * (SR-123 AK2): the first choice, which Enter takes, keeps the buffers that have unsaved text; the second
  * discards it.
  */
@@ -1234,7 +1234,7 @@ export const ACTIONS: readonly Action[] = [
   },
   {
     id: "other-window",
-    title: "Other window",
+    title: "Other pane",
     description: "Move to the other pane of the window.",
     shortcut: OTHER_WINDOW_SHORTCUT,
     available: (context: ActionContext): boolean => context.layout?.other !== undefined,
@@ -1510,7 +1510,7 @@ export const ACTIONS: readonly Action[] = [
     // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the prefix key, ThomasBirkmaier/ReqSeq-archive#472). Not
     // offered on the metamodel itself (SR-133): there the toggle switches between graph and text, so on
     // the text "sm" finds "Show metamodel as graph" only with more letters (review N2). An open metamodel
-    // buffer is shown as a graph and keeps its selection.
+    // buffer is shown as a graph and keeps its marked entry.
     id: "metamodel",
     title: "Show metamodel",
     covers: ["metamodel.get"],

@@ -4,7 +4,7 @@
 // for which field, `metamodel-layout.ts` places them. HTML boxes and labels over one SVG of curves,
 // greys only (D-062): no value here means "outdated" or "gap". A box shows the name, the prefix, "abstract"
 // for an abstract type and every property, the inherited ones muted (AK2).
-// The graph is one tab stop; the arrows move the selection between the boxes (`graph-nav.ts`, AK4).
+// The graph is one tab stop; the arrows move the mark between the boxes (`graph-nav.ts`, AK4).
 // Ctrl/Cmd+T shows the same answer as text (`MetamodelTextView.tsx`, AK4, AK5); the selected type stays,
 // and the graph opens on it again.
 import { bufferMark, useHidden, useHiddenUpdate } from "./area-slot.js";

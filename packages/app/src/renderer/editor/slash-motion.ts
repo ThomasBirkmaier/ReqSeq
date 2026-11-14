@@ -1,4 +1,4 @@
-// The slash menu in motion (SR-129 AK5): it looks and moves like the card of the command line (SR-182).
+// The slash menu in motion (SR-129 AK5): it looks and moves like the card of the command prompt (SR-182).
 // When the menu of @codemirror/autocomplete appears, a seam as wide as its shadow is put around its list
 // and a backdrop that dims the whole window behind it; the menu, the seam and the backdrop show by one
 // progress, the menu grows from the caret. When the menu goes, a copy of it runs the motion back, shorter,

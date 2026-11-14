@@ -1,17 +1,17 @@
 ---
 title: Trace a requirement
-description: Derive system requirements from a need, follow the trace chain, find the parents of a requirement and see all links in a matrix.
+description: Derive system requirements from a need, follow the trace chain, find the parents of a requirement and see all relations in a matrix.
 sidebar:
   order: 2
 ---
 
-A system requirement traces to the need it meets through a relation stored in its own file. This page links two requirements to a need, follows the chain down, looks up the parents of one requirement and shows the links of the whole workspace as a matrix. The relation keeps the version of the need; when the need changes later, ReqSeq marks the relation as outdated, so you know to review the requirement.
+A system requirement traces to the need it meets through a relation stored in its own file. This page relates two requirements to a need, follows the chain down, looks up the parents of one requirement and shows the relations of the whole workspace as a matrix. The relation keeps the version of the need; when the need changes later, ReqSeq marks the relation as outdated, so you know to review the requirement.
 
 ## App
 
 1. Create the need and the requirements with **Create element** (Ctrl+K E, ⌘K E on macOS).
 2. In the element buffer of a requirement, run **Create relation** (Ctrl+K R) and choose the kind Derives from and the need.
-3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J) shows the parents, children and incoming links of the open element in place.
+3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J) shows the children of the open element as a tree and below them its incoming relations and references, in place; its parents stand above its title.
 4. In a list of elements, **Show traceability matrix** (Ctrl+T, ⌘T) shows the list as a matrix, one column per relation kind and direction.
 5. **Show graph** (Ctrl+Shift+G, ⌘⇧G) draws the element with its neighbours. Each requirement shows its verification status and verified criteria, a need the share of its requirements that are verified.
 
@@ -68,7 +68,7 @@ total: 3
 No problems.
 ```
 
-Both requirements are children of the need; the number is their depth below it, and the order of elements at the same depth may differ. A gap says what is missing, here evidence that the requirement is met.
+Both requirements are children of the need; the number is their depth below it, and the order of elements at the same depth may differ. A gap says what is missing, here an evidence record that shows the requirement is met.
 
 ```sh
 reqseq trace related parents --refs SR-5e1d0a
@@ -96,7 +96,7 @@ rows:
 total: 3
 ```
 
-The columns are numbered; the count says how many rows have a link in a column. Below each row, its cells name the elements at the other end by column number, `–` for an empty cell and `[outdated]` for a link to an older version. `--json` gives each cell in full.
+The columns are numbered; the count says how many rows have a relation in a column. Below each row, its cells name the elements at the other end by column number, `–` for an empty cell and `[outdated]` for a relation to an older version. `--json` gives each cell in full.
 
 Gaps and shares appear only where the metamodel sets a minimum: a relation kind's `limits` with `min`, for example `{ source-type: system-requirement, target-type: need, min: 1 }` under `derives-from`. Such a column reads `2 of 3 · 66.6 %` (rows that meet the minimum, of the rows it applies to, and their share), and a row below it has `[gap]` after its cell. An empty cell without a minimum is no gap. The standard model sets no minimum.
 

@@ -1982,12 +1982,13 @@ describe("Split window (SR-115 AK3)", () => {
     };
   };
 
-  it("[SR-150/AK-mpfv] Other window has the key Alt+O on every platform", () => {
+  it("[SR-150/AK-mpfv] Other pane, id other-window, has the key Alt+O on every platform", () => {
+    expect(action("other-window").title).toBe("Other pane");
     expect(action("other-window").shortcut).toEqual({ mod: false, shift: false, alt: true, key: "o" });
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "o" }, true)).toBe("⌥O");
   });
 
-  it("[SR-115/AK-cycg] Split window, Other window and Unsplit window are prompt commands, available only when they apply", () => {
+  it("[SR-115/AK-cycg] Split window, Other pane and Unsplit window are prompt commands, available only when they apply", () => {
     for (const id of ["split-window", "unsplit-window"]) {
       expect(action(id).shortcut).toBeUndefined();
       expect(action(id).covers).toBeUndefined();
@@ -1996,7 +1997,7 @@ describe("Split window (SR-115 AK3)", () => {
     const one = layoutOf(undefined);
     const unsplit = setup([element, overview], {}, true, { layout: one.layout });
     expect(titles(unsplit.context)).toContain("Split window");
-    expect(titles(unsplit.context)).not.toContain("Other window");
+    expect(titles(unsplit.context)).not.toContain("Other pane");
     expect(titles(unsplit.context)).not.toContain("Unsplit window");
     runAction(action("split-window"), unsplit.context);
     expect(one.calls).toEqual(["split"]);
@@ -2012,16 +2013,16 @@ describe("Split window (SR-115 AK3)", () => {
     ).toBe(false);
     // Where the window offers no areas (no layout), nothing of it is offered.
     expect(titles(setup([element, overview]).context)).not.toContain("Split window");
-    // Split: Other window switches to the inactive area's buffer, Unsplit window joins the areas.
+    // Split: Other pane switches to the inactive area's buffer, Unsplit window joins the areas.
     const two = layoutOf(overview.key);
     const split = setup([element, overview], {}, true, { layout: two.layout });
     expect(titles(split.context)).not.toContain("Split window");
-    expect(titles(split.context)).toEqual(expect.arrayContaining(["Other window", "Unsplit window"]));
+    expect(titles(split.context)).toEqual(expect.arrayContaining(["Other pane", "Unsplit window"]));
     runAction(action("other-window"), split.context);
     expect(split.dispatched).toEqual([{ type: "switch", key: overview.key }]);
     runAction(action("unsplit-window"), split.context);
     expect(two.calls).toEqual(["unsplit"]);
-    // Run with no split (a stale prompt), Other window does nothing.
+    // Run with no split (a stale prompt), Other pane does nothing.
     const stale = setup([element, overview], {}, true, { layout: one.layout });
     runAction(action("other-window"), stale.context);
     expect(stale.dispatched).toEqual([]);

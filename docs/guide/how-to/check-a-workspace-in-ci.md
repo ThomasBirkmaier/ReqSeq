@@ -9,7 +9,7 @@ sidebar:
 
 ## App
 
-Not possible in the app: a pipeline runs without one. To see the same findings while you work, run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
+Not possible in the app: a pipeline runs without one. To see the same problems while you work, run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
 
 ![The command prompt of the app: type a part of a command's name to narrow the list.](../images/app-command-prompt.png)
 
@@ -39,14 +39,14 @@ checkedElements: 1
 No problems.
 ```
 
-By default only errors fail the check. `--fail-on warning` lets warnings fail it too, and `--fail-on info` every finding. `--severity` only changes what is shown, never the result.
+By default only errors fail the check. `--fail-on warning` lets warnings fail it too, and `--fail-on info` every problem. `--severity` only changes what is shown, never the result.
 
 The exit code is what the pipeline reads:
 
 | Exit code | Meaning |
 |---|---|
-| 0 | No finding at or above `--fail-on` |
-| 1 | A finding at or above `--fail-on`: `ok` is false |
+| 0 | No problem at or above `--fail-on` |
+| 1 | A problem at or above `--fail-on`: `ok` is false |
 | 2 | Wrong usage or input, such as an unknown option value |
 | 3 | Internal error |
 | 4 | The revision of `--changed-since` is not in any repository of the workspace |
@@ -77,9 +77,9 @@ jobs:
       - run: reqseq workspace check --changed-since origin/${{ github.base_ref }} --fail-on warning
 ```
 
-### Gate on evidence
+### Gate on verification
 
-`workspace check` does not fail on missing evidence. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
+`workspace check` does not fail on missing verification. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
 
 ```sh
 reqseq element create system-requirement "Show the wind speed" --text "The station shows the wind speed."

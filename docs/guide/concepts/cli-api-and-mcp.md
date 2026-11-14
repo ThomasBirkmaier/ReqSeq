@@ -13,7 +13,7 @@ A workspace is the folder with `reqseq-workspace.yaml`. Without `--workspace`, R
 
 ## CLI
 
-`element.create` is `reqseq element create`. Required texts are positional, the other fields of the input are flags, and `--help` lists them. `--input` takes the whole input as JSON, inline, from a file (`@input.json`) or from standard input (`-`), and a flag next to it replaces that field. An object without a flag of its own goes only through `--input`. PowerShell and `cmd.exe` break inline JSON; use a file there.
+`element.create` is `reqseq element create`. Required texts are positional, the other fields of the input are flags, and `--help` lists them. `--input` takes the whole input as JSON, inline, from a file (`@input.json`) or from standard input (`-`), and a flag next to it overrides that field. An object without a flag of its own goes only through `--input`. PowerShell and `cmd.exe` break inline JSON; use a file there.
 
 ```sh
 reqseq workspace init . "Weather station"
@@ -31,7 +31,7 @@ The element gets the text of the flag. `--json` prints exactly the output of the
 
 The exit code:
 
-- `0`: done, without an error finding.
+- `0`: done, without a problem of severity error.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 - `2`: not run: wrong usage or input, something missing, a conflict, or not available.
 - `3`: an internal error.
@@ -51,7 +51,7 @@ Authorization: Bearer <token>
 { "ref": "N-7fe707" }
 ```
 
-The answer is the output of the command, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with a status such as 400 for invalid input, 404 for something missing, 409 for a conflict, 500 for an internal error, 401 for a wrong token and 403 for a request with an `Origin` header ([error codes](/reference/problem-codes/#error-codes)).
+The answer is the output of the command, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with a status such as 400 for wrong input, 404 for something missing, 409 for a conflict, 500 for an internal error, 401 for a wrong token and 403 for a request with an `Origin` header ([error codes](/reference/problem-codes/#error-codes)).
 
 ## MCP
 

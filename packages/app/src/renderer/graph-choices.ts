@@ -121,7 +121,7 @@ export const hasFilter = (buffer: GraphBuffer): boolean =>
   buffer.kinds !== undefined || buffer.meanings !== undefined;
 
 /**
- * The buffer with `filter` in place of its own; the depth, view and selection stay. A filter of evidence
+ * The buffer with `filter` in place of its own; the depth, view and marked node stay. A filter of evidence
  * alone follows no link (`kinds: []`, which `trace.graph` takes as "nothing followed").
  */
 const withFilter = (buffer: GraphBuffer, filter: GraphFilter): GraphBuffer => {

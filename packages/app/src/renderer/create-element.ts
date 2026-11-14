@@ -1,6 +1,6 @@
 // Creating an element in the command prompt (SR-064): "Create element", the catalog command `element.create`,
 // asks the type, the title and then each required property of the type in turn, one after the other in the
-// minibuffer (no form, D-062); an empty input skips a property (`catalog-commands.ts`). Core creates the
+// command prompt (no form, D-062); an empty input skips a property (`catalog-commands.ts`). Core creates the
 // element with what was given and saves it also with empty required properties, with a hint for each
 // (AK2). The element buffer then shows only the filled properties (D-062, SR-104 AK1), the modeline counts
 // the hints, and "Add property" offers every other property of the type (AK3); Ctrl/Cmd+Enter `create-prompt.ts`.
@@ -95,7 +95,7 @@ export const propertiesInput = (
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
-/** What the minibuffer says once the element is created: its name and how many hints core gave (AK2). */
+/** What the command prompt says once the element is created: its name and how many hints core gave (AK2). */
 export const createdEcho = (output: Pick<ElementCreateOutput, "element" | "problems">): string => {
   const hints = output.problems?.length ?? 0;
   const name = elementBufferOf(output.element).name;

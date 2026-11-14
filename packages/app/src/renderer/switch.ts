@@ -3,7 +3,7 @@
 // the other workspace only when everything is saved. Each element buffer with a draft is saved with
 // `element.update`, as "Save element" saves it (`property-edit.ts`): the text that was typed, and the
 // boxes whose document differs from what the file stores. One after the other; the first that cannot be
-// saved stops the switch (spec question ThomasBirkmaier/ReqSeq-archive#523): its draft stays, the minibuffer names the element, and
+// saved stops the switch (spec question ThomasBirkmaier/ReqSeq-archive#523): its draft stays, the command prompt names the element, and
 // the open workspace stays. The title of a draft goes as `title` (ThomasBirkmaier/ReqSeq-archive#621, `TITLE_FIELD`). A draft whose file
 // changed outside since it was typed on is not saved over that change: the rule of SR-106
 // (`outside-change.ts`) finds a conflict, and it stops the switch as well.
@@ -46,22 +46,22 @@ export type SaveResult =
   | { readonly ok: true; readonly affected?: { readonly name: string; readonly count: number } }
   | { readonly ok: false; readonly name: string; readonly message: string };
 
-/** What the minibuffer says when input could not be saved before a switch. */
+/** What the command prompt says when input could not be saved before a switch. */
 export const notSaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
   `${result.name} could not be saved (${result.message}); the workspace was not changed`;
 
-/** What the minibuffer says when the input of a buffer that was left could not be saved (SR-105). */
+/** What the command prompt says when the input of a buffer that was left could not be saved (SR-105). */
 export const leftUnsaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
   `${result.name} could not be saved (${result.message}); its input stays in its buffer`;
 
 /**
- * What the minibuffer says when input could not be saved before the window closes (SR-105 AK1): the
+ * What the command prompt says when input could not be saved before the window closes (SR-105 AK1): the
  * window stays open, and closing it again discards the input.
  */
 export const closeUnsaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
   `${result.name} could not be saved (${result.message}): close the window again to discard the unsaved input`;
 
-/** What the minibuffer says when main gave up waiting for the save before the window closes. */
+/** What the command prompt says when main gave up waiting for the save before the window closes. */
 export const CLOSE_NOT_IN_TIME =
   "Saving before the window closes took longer than 2 s; the window stays open, and closing it again within 10 s closes it without waiting";
 
@@ -74,7 +74,7 @@ export const CHANGED_ON_DISK = "its file changed on disk since it was typed on";
 /** Why a switch stops when the input changed while it was saved: the newer input is not in the file. */
 export const CHANGED_WHILE_SAVING = "it was changed while it was saved";
 
-/** What the minibuffer says when main gave up waiting for the save (a timeout). */
+/** What the command prompt says when main gave up waiting for the save (a timeout). */
 export const notSavedInTime = (open: string | undefined): string =>
   `The unsaved input was not saved in time; ${open === undefined ? "no workspace is open" : `${open} stays open`}`;
 

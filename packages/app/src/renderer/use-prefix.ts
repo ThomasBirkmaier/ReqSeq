@@ -1,9 +1,9 @@
 // The prefix key in the window (SR-109 AK3, SR-121 AK3): Ctrl/Cmd+K, then a letter runs one of the most
-// frequent commands (`bindings.ts`); when no key follows within half a second, the minibuffer shows the
+// frequent commands (`bindings.ts`); when no key follows within half a second, the command prompt shows the
 // possible next keys with their commands. The window's key handler starts the prefix (`start`) in the
 // same event as Ctrl/Cmd+K, so the next key, however fast, finds it waiting: the listeners below are added
 // once, read refs, and take the next key in the capture phase, before the editor or a box sees it.
-// Ctrl+N, Ctrl+P and the arrows move a selection through the next keys, shown at once, and Enter runs the
+// Ctrl+N, Ctrl+P and the arrows move a mark through the next keys, shown at once, and Enter runs the
 // selected one (SR-122 AK6).
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import type { Buffers } from "./buffers.js";
 import type { NextKey } from "./bindings.js";
 import { PREFIX_BINDINGS, PREFIX_DELAY_MS, nextKeys, prefixStep, prefixWaiting } from "./bindings.js";
 
-/** A row of the list of next keys, as the minibuffer shows it. */
+/** A row of the list of next keys, as the command prompt shows it. */
 export interface NextKeyRow {
   readonly key: string;
   readonly name: string;
@@ -63,7 +63,7 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
     setRows(keys.map(({ key, name }, row) => ({ key, name, selected: row === at })));
   }, []);
 
-  /** Moves the selection by `step`, the first row when none is selected; shows the next keys if needed. */
+  /** Moves the mark by `step`, the first row when none is selected; shows the next keys if needed. */
   const move = useCallback(
     (step: 1 | -1): void => {
       const keys = shownKeys.current ?? nextKeys(latest.current.items());

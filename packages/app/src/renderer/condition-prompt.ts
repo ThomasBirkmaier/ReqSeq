@@ -358,7 +358,7 @@ const KINDS: readonly Kind[] = [
   { key: "text", name: "Text search" },
 ];
 
-/** The marks as the minibuffer shows them, each with its × (AK9): `again` asks the step again without it. */
+/** The marks as the command prompt shows them, each with its × (AK9): `again` asks the step again without it. */
 const promptMarks = (
   marks: readonly ConditionMark[],
   again: (marks: readonly ConditionMark[]) => void,

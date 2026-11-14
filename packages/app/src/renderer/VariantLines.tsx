@@ -86,7 +86,7 @@ export const CutLine = ({
           "aria-expanded": open,
           "aria-controls": id,
           onClick: (event: React.MouseEvent<HTMLElement>) => {
-            // A link opens its element; a click in the open reason or a selection of text keeps it open.
+            // A link opens its element; a click in the open reason or marking text keeps it open.
             const inside =
               event.target instanceof Element &&
               event.target.closest('[role="link"], .whole-reason') !== null;

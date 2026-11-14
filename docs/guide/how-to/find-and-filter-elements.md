@@ -180,7 +180,7 @@ elements:
 total: 4
 ```
 
-`element facets` counts the types, statuses and property values a filter or group can take. Folding is a view of the app; the CLI leaves those elements out with `{"not":{"invalid":true}}`.
+`element facets` counts the types, statuses and property values a filter or group can take. Folding changes only what the app displays; the CLI leaves those elements out with `{"not":{"invalid":true}}`.
 
 ## API
 

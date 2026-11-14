@@ -24,7 +24,7 @@ const record = (fields: Partial<DataExportEvidenceRecord>): DataExportEvidenceRe
 const text = (parts: readonly LinePart[]): string => parts.map((part) => part.text).join("");
 
 describe("the lines of an element's evidence records", () => {
-  it("gives date, method, result, item, Beleg, version and baselines of each record, in core's order", () => {
+  it("gives date, method, result, item, evidence document, version and baselines of each record, in core's order", () => {
     const lines = evidenceLines(
       {
         records: [
@@ -232,7 +232,7 @@ describe("the lines of an element's evidence records", () => {
     expect(text(line ?? [])).toBe("2026-10-21T09:00:00Z · passed · uuid-x · version n1:1111111111111111");
   });
 
-  it("shows the Beleg as core gives it in `evidenceSource`, and none without it (#821)", () => {
+  it("shows the evidence document as core gives it in `evidenceSource`, and none without it (#821)", () => {
     const lines = evidenceLines(
       {
         records: [

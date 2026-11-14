@@ -1,4 +1,4 @@
-// "Open workspace" (SR-131): a minibuffer prompt with the workspaces opened last, the most recent first,
+// "Open workspace" (SR-131): a prompt in the command prompt with the workspaces opened last, the most recent first,
 // narrowed as typed with the fuzzy search of the command prompt (`fuzzy.ts`); choosing one opens it in
 // this window in place of the open workspace. A typed folder path is a choice of its own, the first one
 // (AK5): it opens the workspace found from that folder upwards. The list and the switch are the main

@@ -1,5 +1,5 @@
 // The context menu in the text of an element (SR-195): what its entries ask of the editor at the place of
-// the right-click. The press has already put the caret at the pointer, or kept the selection it landed in
+// the right-click. The press has already put the caret at the pointer, or kept the marked text it landed in
 // (AK2, `focusPressed`), so each test reads the editor's own state: Cut and Copy with text selected (AK1),
 // "Follow reference" on a reference (AK4), the table actions in a table (AK5), and "Fold section" or
 // "Unfold section" on a heading with a section (AK6). Display only: the actions do the work.

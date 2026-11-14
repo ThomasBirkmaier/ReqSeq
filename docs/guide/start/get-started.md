@@ -3,7 +3,7 @@ title: Get started
 description: Create a workspace, a first need and a requirement derived from it, look at the trace chain and check the workspace.
 ---
 
-This page creates a workspace with a need and a system requirement derived from it, in the app and on the command line. The commands run when the documentation is built, so they work with its version. On macOS, read ⌘ for Ctrl.
+This page creates a workspace with a need and a system requirement derived from it, in the app and on the command line. The commands run when the documentation is built, so they work with its ReqSeq version. On macOS, read ⌘ for Ctrl.
 
 ## Install
 
@@ -31,7 +31,7 @@ No problems.
 
 ReqSeq never commits: put the folder under Git yourself.
 
-In the app: Ctrl+O and choose the folder, then run **Initialise workspace** in the command prompt (Ctrl+Shift+P). The minibuffer at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
+In the app: Ctrl+O and choose the folder, then run **Initialise workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
@@ -52,7 +52,7 @@ No problems.
 
 `N-7fe707` is its short ID; use yours in its place below. A new element starts as draft; only people change a status.
 
-In the app: run **Create element** (Ctrl+K E). The minibuffer asks for the type (`Need`) and the title. The need opens in its own buffer: press Enter to write its text, and Ctrl+S to save.
+In the app: run **Create element** (Ctrl+K E). The command prompt asks for the type (`Need`) and the title. The need opens in its own buffer: press Enter to write its text, and Ctrl+S to save.
 
 ## Derive a system requirement
 
@@ -71,9 +71,9 @@ warning  element.missing-required  ...
 warning  trace.no-parent  ...
 ```
 
-A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. The third warning says that it has no parent yet.
+A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. The third, a hint, says that it has no parent yet.
 
-Link the requirement to the need it derives from, with your own short IDs:
+Relate the requirement to the need it derives from, with your own short IDs:
 
 ```sh
 reqseq relation add SR-c67baa derives-from N-7fe707
@@ -105,7 +105,7 @@ total: 2
 No problems.
 ```
 
-The chain runs from the need to its requirements and their evidence; the gap says that no test shows the requirement yet.
+The chain runs from the need to its requirements and their evidence records; the gap says that no test shows the requirement yet.
 
 In the app: open the need with Ctrl+P and a word of its title, then press Ctrl+J for its neighbourhood, or run **Show trace chain**.
 

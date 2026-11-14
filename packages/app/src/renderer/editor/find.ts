@@ -1,6 +1,6 @@
 // Find and replace in the text of the open element (SR-189). The search is the typed text itself, no
 // pattern; it ignores case while it is all lower case, as Emacs does (smart case). The editor marks every hit
-// and the current one apart, also while the minibuffer has the focus (`findMarks`); the prompts of
+// and the current one apart, also while the command prompt has the focus (`findMarks`); the prompts of
 // `find-actions.ts` drive it with the commands below. Each replace is one transaction kept apart in the undo
 // history, so one undo takes it back (AK4).
 import { isolateHistory } from "@codemirror/commands";

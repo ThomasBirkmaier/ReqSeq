@@ -12,12 +12,12 @@ The text of an element is Markdown (CommonMark with the GitHub extensions) in it
 1. Open the element with Ctrl+P and press Enter to put the cursor into its text. Ctrl+S saves, Escape leaves the text.
 2. Type `/` at the start of a line or after a space for the slash menu: headings, normal text, lists, a task list, a quote, a code block, a math block, a diagram, a table, a link, a reference to an element, an image, bold and italic text, today's date and a calendar. Typing narrows the list, Enter takes the entry.
 3. Type `[[` for a reference to another element and pick it in the prompt that opens. The reference keeps the version of its target, so it is marked outdated when the target changes. A click on it opens the target.
-4. Paste or drop an image file, or take “Image” in the slash menu. ReqSeq copies the file into a folder next to the element file, named like that file without its extension, and links it relatively. The image counts to the version too. An image from the network is never loaded.
+4. Paste or drop an image file, or take “Image” in the slash menu. ReqSeq copies the file into a folder next to the element file, named like that file without its extension, and writes a relative Markdown link to it. The image counts to the version too. An image from the network is never loaded.
 5. Paste formatted text from a browser or a word processor: it arrives as Markdown, never as HTML.
 6. In a list, Enter continues it, Tab and Shift+Tab indent and outdent an item with its sub-items, and Alt+Up and Alt+Down move it; you can also drag it with the mouse. A click on the box of a task ticks it, as does the action “Toggle task”.
 7. In a table, Tab goes to the next cell and adds a row after the last one. The actions “Align table”, “Insert row”, “Insert column”, “Delete row” and “Delete column” work on the table at the cursor.
-8. Tab on a heading folds its section, and again unfolds it; “Go to heading” jumps to one by name. Folding changes only the view, never the file.
-9. “Bold” (Ctrl+B), “Italic” (Ctrl+I), “Inline code” and “Link” format the selection, and “Find in element” and “Replace” search the text.
+8. Tab on a heading folds its section, and again unfolds it; “Go to heading” jumps to one by name. Folding changes only the display, never the file.
+9. “Bold” (Ctrl+B), “Italic” (Ctrl+I), “Inline code” and “Link” format the marked text, and “Find in element” and “Replace” search the text.
 
 ![A requirement open in the app with the slash menu below a new line of its text: headings, lists, a table and more, each with the Markdown it writes.](../images/app-slash-menu.png)
 

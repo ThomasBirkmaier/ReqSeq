@@ -8,10 +8,10 @@ sidebar:
 Any test tool that writes JUnit XML (Vitest, pytest, Jest, the Node test runner with `--test-reporter=junit`, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:
 
 1. Each test names the requirement it checks by its short ID, for example `[SR-c67baa] shows the wind speed`. [Name the requirement in a test](/how-to/name-the-requirement-in-a-test/) has the forms for each tool.
-2. The test tool writes its JUnit file into an evidence folder of the workspace, one file per build.
-3. ReqSeq enriches the file once: it adds the UUID and the current version of each named requirement, the build (the item under test) and the date. [Record test results in CI](/how-to/record-test-results-in-ci/) has the pipeline step for GitHub Actions and GitLab CI.
+2. The test tool writes its JUnit file into an evidence folder of the workspace, one file per test run.
+3. ReqSeq enriches the file once: it adds the UUID and the current version of each named requirement, the item under test (such as the build) and the date. [Record test results in CI](/how-to/record-test-results-in-ci/) has the pipeline step for GitHub Actions and GitLab CI.
 
-The tests name only the ID, never the version. When a requirement changes, the next run records the new version, and until then the requirement shows as `outdated`. For a variant build, and for the evidence as it stood at a baseline, see [Record evidence for a variant](/how-to/record-evidence-for-a-variant/). Dashboards and other evaluation tools read the requirements with their evidence and status from `reqseq data export`.
+The tests name only the ID, never the version. When a requirement changes, the next run records the new version, and until then the requirement shows as `outdated`. For an item under test of a variant, and for the evidence as it stood at a baseline, see [Record evidence for a variant](/how-to/record-evidence-for-a-variant/). Dashboards and other evaluation tools read the requirements with their evidence and status from `reqseq data export`.
 
 The workspace file `reqseq-workspace.yaml` must list the evidence folder, under the name of one of its repositories:
 
@@ -24,11 +24,11 @@ evidence:
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. A file a pipeline writes shows up within seconds.
+Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the item under test. A file a pipeline writes shows up within seconds.
 
 A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the status too. **Show evidence status** lists each requirement with its status, **Show evidence coverage** counts per level.
 
-![A requirement whose test failed: its badge "Core: failed (0 of 1 criteria, AK1 not verified)" and below it the failed test record.](../images/app-verification-badges.png)
+![A requirement whose test failed: its badge "Core: failed (0 of 1 criteria, AK1 not verified)" and below it the evidence record of the failed test.](../images/app-verification-badges.png)
 
 ## CLI
 
@@ -99,9 +99,9 @@ elements:
 total: 1
 ```
 
-The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without evidence.
+The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without verification.
 
-For a check that is no automated test, such as an inspection, write a record by hand. `--criteria` limits it to some acceptance criteria, by key or number (the file holds their keys); without it the record holds for all:
+For a check that is no automated test, such as an inspection, write a verification record by hand. `--criteria` limits it to some acceptance criteria, by key or number (the file holds their keys); without it the record holds for all:
 
 ```sh
 reqseq evidence record SR-c67baa verification passed --method inspection --item build-1

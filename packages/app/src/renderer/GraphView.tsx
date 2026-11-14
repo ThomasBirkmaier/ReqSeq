@@ -3,7 +3,7 @@
 // (`graph-layout.ts`) and draws them: HTML boxes over one SVG of soft curves, greys only, colour only for
 // "outdated" (D-062). The element stands in the middle of its graph, between its
 // parents and its children, marked by its border; the view opens on it (AK1).
-// The graph is one tab stop; the selection moves inside it (`graph-nav.ts`), Enter or a click opens a
+// The graph is one tab stop; the mark moves inside it (`graph-nav.ts`), Enter or a click opens a
 // node as the current element (AK5), `+` and `-` show one level more or less. With evidence (AK3), a
 // muted box below a node sums up its evidence; it is no option, so the keys and Enter skip it, and the
 // node's accessible name says the summary.
@@ -344,7 +344,7 @@ export const GraphView = ({
             {layout.evidence.map((box) => {
               const text = evidenceText(box.evidence);
               return (
-                // No option and no selection: the node's accessible name says it (AK5).
+                // No option and no mark: the node's accessible name says it (AK5).
                 <div
                   key={box.key}
                   className="graph-evidence"

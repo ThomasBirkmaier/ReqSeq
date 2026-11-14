@@ -41,7 +41,7 @@ const paragraphs = (lines: readonly string[]): string =>
 /** The groups of the window, in the order of the output; a value the output leaves out has no row. */
 export const aboutGroups = (info: AboutInfo): AboutGroup[] => [
   {
-    heading: "Version",
+    heading: "ReqSeq version",
     rows: [
       ...row("App", info.versions.app),
       ...row("Command line", info.versions.cli),
@@ -51,7 +51,7 @@ export const aboutGroups = (info: AboutInfo): AboutGroup[] => [
   {
     heading: "Build",
     rows: [
-      ...(info.build.development === true ? row("Build", "from a checkout, not a delivery") : []),
+      ...(info.build.development === true ? row("Build", "from a checkout, not a release") : []),
       ...row("Commit", info.build.commit),
       ...row("Build date", info.build.date),
       ...row("Platform", info.build.platform),

@@ -101,7 +101,7 @@ export const useOverview = (
         return;
       }
       const { types, total, incomplete } = answer.output;
-      // Without the perspectives the overview still shows the types; the minibuffer says why.
+      // Without the perspectives the overview still shows the types; the command prompt says why.
       const perspectives = listed.ok ? shownPerspectives(listed.output.perspectives) : [];
       setCounted({ revision, call, data: { types, total, incomplete, perspectives } });
       if (!listed.ok) {
@@ -365,7 +365,7 @@ const RowContent = ({ row }: { readonly row: OverviewRow }): React.JSX.Element =
         {counted === undefined ? null : "count" in counted ? (
           <span className="count">{String(counted.count)}</span>
         ) : (
-          // The reason in short; the minibuffer says it in full when the row is opened.
+          // The reason in short; the command prompt says it in full when the row is opened.
           <span className="reason" title={counted.message}>
             {counted.reason}
           </span>

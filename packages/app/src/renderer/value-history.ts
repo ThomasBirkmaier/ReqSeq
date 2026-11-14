@@ -1,4 +1,4 @@
-// The undo history of a choice or relation box (SR-105 AK2): its value is set in the minibuffer, so no
+// The undo history of a choice or relation box (SR-105 AK2): its value is set in the command prompt, so no
 // editor keeps a history for it. Each box keeps the documents it had before each change since the buffer
 // was opened; Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on the box step back and forth through them. An undo or
 // redo is input like any other: the box shows that document, and autosave writes it. Pure; the buffer

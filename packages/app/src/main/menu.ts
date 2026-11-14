@@ -1,6 +1,6 @@
 // The application menu (ADR-0010). Hidden until Alt on Windows and Linux (`autoHideMenuBar`): the
 // window shows only what means something (white sheet), the rest comes on demand. Minimal on purpose:
-// the keys belong to the minibuffer and the buffers that come (D-061..D-063), so the menu binds only
+// the keys belong to the command prompt and the buffers that come (D-061..D-063), so the menu binds only
 // Ctrl/Cmd+O, quitting (closing on macOS) and the text editing keys of the Edit menu. Help opens the bundled
 // documentation (SR-141 AK2), without a key.
 import type { MenuItemConstructorOptions } from "electron";

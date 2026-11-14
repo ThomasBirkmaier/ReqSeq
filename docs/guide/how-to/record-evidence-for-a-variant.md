@@ -1,11 +1,11 @@
 ---
 title: Record evidence for a variant
-description: Record the test results of a variant build, let results of a variant-independent repository count for every variant, and see the evidence as it stood at a baseline.
+description: Record the test results of an item under test of a variant, let results of a variant-independent repository count for every variant, and see the evidence as it stood at a baseline.
 sidebar:
   order: 4.3
 ---
 
-A test result without variant counts only for the core. For the test run of a variant build, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded, replaced or not valid there).
+A test result without variant counts only for the core. For the test run of an item under test of a variant, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded or replaced there, or not applying there).
 
 One test run can count for the core and for a variant at once, for example a run on the operating system a variant stands for. Give the variant once per view, `core` among them: each enriched test case then gets one `reqseq:variant` property per view, the variant's UUID or `core`, and counts for exactly those views. Without the property a test case counts for the core only.
 
@@ -23,7 +23,7 @@ To see the evidence as it stood at a baseline, run `reqseq baseline get "Release
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt and answer the build with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the variant. **Show evidence status** shows the status per view.
+Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the variant. **Show evidence status** shows the status per view.
 
 ## CLI
 

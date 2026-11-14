@@ -11,7 +11,7 @@ This page adds the type `component`, a property `component-id` with the meaning 
 
 ## App
 
-Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) shows the types and relation kinds with their problems, and **Check workspace** lists what does not fit the new model. Then create a component with **Create element** and link it with **Create relation**.
+Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) shows the types and relation kinds with their problems, and **Check workspace** lists what does not fit the new model. Then create a component with **Create element** and relate a requirement to it with **Create relation**.
 
 ## CLI
 

@@ -128,7 +128,7 @@ describe("package page", () => {
     const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
     expect(await askPackageSummary(call as unknown as Call, "uuid-p")).toEqual({
       ok: true,
-      line: "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
+      line: "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
       coverage: answers["evidence.coverage"],
     });
     expect(call.mock.calls).toEqual([
@@ -234,7 +234,7 @@ describe("the line of a list", () => {
     ]);
     expect(summary).toMatchObject({
       ok: true,
-      line: "Coverage 1 of 2 with evidence · Degree (Coastal station) 50 % (1 verified, 1 open)",
+      line: "Coverage 1 of 2 with verification · Degree (Coastal station) 50 % (1 verified, 1 open)",
     });
   });
 });

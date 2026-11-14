@@ -332,9 +332,9 @@ test("[SR-117/AK-knhb] in a split window the agent's element opens in the area o
     await expect(right).not.toHaveAttribute("data-active", "");
     expect(await focusedIn("left")).toBe(true);
     // The user looks into the mode's area and comes back: the next access still goes to the right.
-    await runCommand(window, "Other window");
+    await runCommand(window, "Other pane");
     await expect(right).toHaveAttribute("data-active", "");
-    await runCommand(window, "Other window");
+    await runCommand(window, "Other pane");
     await expect(left).toHaveAttribute("data-active", "");
     await agent.call("element_get", { ref: MEASURE.id });
     await expect(right.locator("article h1")).toHaveText(MEASURE.title);

@@ -1,8 +1,8 @@
 // The slash menu of the editor (SR-129): a `/` typed where a word may begin opens a menu at the cursor
-// with the Markdown elements; letters narrow it as in the command line (`fuzzy.ts`), Ctrl+N / Ctrl+P and the
+// with the Markdown elements; letters narrow it as in the command prompt (`fuzzy.ts`), Ctrl+N / Ctrl+P and the
 // arrow keys choose (SR-122), Enter takes the entry, Escape closes it and leaves the `/` as typed. The menu
 // edits the text only (ADR-0002); `@codemirror/autocomplete` supplies the list at the caret, the listbox
-// roles and the mouse; `slash-motion.ts` gives it the look and the motion of the command line's card (AK5).
+// roles and the mouse; `slash-motion.ts` gives it the look and the motion of the command prompt's card (AK5).
 // The decisions of the review of the plan (R1 to R5) are marked where they apply.
 import {
   acceptCompletion,

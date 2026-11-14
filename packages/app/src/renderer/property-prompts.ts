@@ -1,6 +1,6 @@
-// The prompts that set the value of a property box (SR-104): the minibuffer is the only control (D-062), so a
+// The prompts that set the value of a property box (SR-104): the command prompt is the only control (D-062), so a
 // property is added, a choice taken and a relation target set in it, with the same fuzzy search as the
-// command line. The prompts only list what core and the metamodel allow and hand the result back; the box
+// list of commands. The prompts only list what core and the metamodel allow and hand the result back; the box
 // builds `element.update` from it (`property-edit.ts`, ADR-0002).
 import type { Choice, Prompt } from "./actions.js";
 import { elementBuffer } from "./buffers.js";

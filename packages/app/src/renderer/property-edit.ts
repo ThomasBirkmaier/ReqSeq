@@ -86,12 +86,12 @@ export const isNumberedList = (value: unknown): boolean =>
   value.length > 0 &&
   value.map(criterionText).every((item) => typeof item === "string" && !item.includes("\n"));
 
-/** The kinds whose value the user picks in the minibuffer: there is no text to type (SR-104 AK3). */
+/** The kinds whose value the user picks in the command prompt: there is no text to type (SR-104 AK3). */
 export const isValueKind = (kind: PropertyInfo["kind"]): boolean => kind === "choice" || kind === "relation";
 
 /**
  * Whether the document of a box is set by an action, not typed in an editor: a choice or relation (the
- * minibuffer), or a property the type does not know ("Clear property").
+ * command prompt), or a property the type does not know ("Clear property").
  */
 export const isValueBox = (box: EditableBox): boolean => isValueKind(box.info.kind) || box.unknown === true;
 
@@ -500,13 +500,13 @@ export const relationRows = (
   );
 };
 
-/** What the minibuffer says on entering a list with a value that holds a line break (a hand-written file). */
+/** What the command prompt says on entering a list with a value that holds a line break (a hand-written file). */
 export const lineBreakNote = (key: string): string =>
   `${key} has a value with a line break: edit it in the file`;
 
 /** Whether a box that the type knows is not edited: a value with a line break, or a target that cannot be read. */
 export const isLocked = (box: EditableBox): boolean => box.lineBreak || box.unmatched === true;
 
-/** What the minibuffer says on entering a box that `isLocked`. */
+/** What the command prompt says on entering a box that `isLocked`. */
 export const lockNote = (key: string, box: EditableBox): string =>
   box.lineBreak ? lineBreakNote(key) : `${key} has a target that cannot be read: edit it in the file`;

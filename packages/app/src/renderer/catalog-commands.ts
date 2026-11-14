@@ -1,7 +1,7 @@
 // Catalog commands in the command prompt (SR-073 AK2, SR-108, ThomasBirkmaier/ReqSeq-archive#85). The prompt lists the implemented read
 // and write commands by their `title`, except those an app action covers; while the workspace is
 // read-only, no write command that core refuses then; while a folder without a workspace is open, only
-// "Initialise workspace". Choosing one asks its arguments one by one in the minibuffer, Emacs
+// "Initialise workspace". Choosing one asks its arguments one by one in the command prompt, Emacs
 // `completing-read` style, in the order of the catalog's `arguments`; each source is answered by one
 // existing read command and shown as it is (ADR-0002: the app builds the input and decides nothing about
 // what is allowed; core validates). The output opens a result buffer.
@@ -21,7 +21,7 @@
 // found by search among its target types, or typed text; a list property takes one value per Enter. An
 // empty input skips the property, or ends the values of a list. With Ctrl/Cmd+Enter `properties` and `relations`
 // are built from marks (`create-prompt.ts`, SR-215 AK8). The new element opens in its element buffer, and the
-// minibuffer says how many hints core gave.
+// command prompt says how many hints core gave.
 //
 // A write command is asked like a read command, with two more rules: one without required arguments asks
 // its first argument (`hint.confirm`: `ref`), and an optional argument whose explicit `of` names a field

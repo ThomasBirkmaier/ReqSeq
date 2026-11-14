@@ -1,7 +1,7 @@
 // The list buffer and the search buffer: rows of elements as `element.list` and `element.search` give
-// them, in pages. The next page is asked for when the selection or the scroll reaches the end, so a
+// them, in pages. The next page is asked for when the marked row or the scroll reaches the end, so a
 // workspace of 50,000 elements is never loaded at once (N-036). A row whose element changed outside the
-// app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll. As a
+// app is highlighted briefly (SR-116), and a change keeps the rows, the marked row and the scroll. As a
 // buffer of its own, the list stands like the elements of a package page: in the centred column, under a
 // heading that says what it shows and how many (SR-148, D-062), and under it the line of coverage and
 // verification degree of its elements, as a package page has it (`SummaryLine`). A grouped list (SR-149)
@@ -16,7 +16,7 @@
 // Elements in the statuses the user folds (SR-201, `fold-statuses.ts`) stand after the other rows, under a
 // row that names their count and is collapsed whenever the list opens: core is asked once for the
 // selection without them and once for only them, each in its own pages. The section row is an option of the
-// listbox like the others, so the selection reaches it; click, Enter and Tab toggle it, Right opens and Left
+// listbox like the others, so the mark reaches it; click, Enter and Tab toggle it, Right opens and Left
 // closes it (SR-193 AK1, AK2). A tree (SR-075) folds nothing.
 import { bufferMark, useHidden, useHiddenUpdate, useReveal } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -125,7 +125,7 @@ interface Asked {
 
 /** Rows moved by Page Up and Page Down. */
 const SCREEN = 10;
-/** The next page is asked for when the selection is this close to the last loaded row. */
+/** The next page is asked for when the marked row is this close to the last loaded row. */
 const NEAR_END = 5;
 
 /** A page of a list: `element.list` with its selection, sort and grouping. */
@@ -592,7 +592,7 @@ export const ListView = ({
     }
   });
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
-  // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
+  // the new ones are there, so the marked row and the scroll stay too (a change from outside, a save).
   const asked = useRef<string | undefined>(undefined);
   const root = useRef<HTMLDivElement>(null);
   // Counts the loads: an answer of an older one (another filter, a later change) is dropped.
@@ -850,7 +850,7 @@ export const ListView = ({
 
   /**
    * Opens or closes the folded section (SR-201 AK3) and selects its row. Opened, it shows the rows loaded
-   * with the list; closed, a selection in it goes to the section row, and the modeline counts its rows no more.
+   * with the list; closed, a mark in it goes to the section row, and the modeline counts its rows no more.
    */
   const toggle = (next: boolean): void => {
     if (sectionAt === undefined || view.status !== "ok") {

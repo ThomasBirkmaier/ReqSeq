@@ -261,11 +261,11 @@ test.describe("the line under the title of a package page", () => {
     );
   };
 
-  test("[SR-112/AK-s1rj] a package page shows „Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)“ equal to evidence.coverage and evidence.degree", async () => {
+  test("[SR-112/AK-s1rj] a package page shows „Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)“ equal to evidence.coverage and evidence.degree", async () => {
     const { window } = running;
     await openById(window, "PKG-00d003", "AK3");
     const line =
-      "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)";
+      "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)";
     await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d003")).toBe(line);
     // Under the title, before the text.
@@ -296,7 +296,7 @@ test.describe("the line under the title of a package page", () => {
       (JSON.parse(coverage.stdout) as { levels: Parameters<typeof packageSummaryText>[0] }).levels,
       JSON.parse(degree.stdout) as Parameters<typeof packageSummaryText>[1],
     );
-    expect(line).toMatch(/^Coverage \d+ of \d+ with evidence/);
+    expect(line).toMatch(/^Coverage \d+ of \d+ with verification/);
     await expect(shownLayer(window).locator(".buffer.list .package-summary")).toHaveText(line ?? "");
     // Under the heading, above the rows.
     const top = async (selector: string): Promise<number> =>
@@ -312,7 +312,7 @@ test.describe("the line under the title of a package page", () => {
   test("[SR-112/AK-cg1v] 10 requirements without records give the line with zeros; a package without requirements has none", async () => {
     const { window } = running;
     await openById(window, "PKG-00d004", "Ten open");
-    const line = "Coverage 0 of 10 with evidence · Degree (core) 0 % (10 open)";
+    const line = "Coverage 0 of 10 with verification · Degree (core) 0 % (10 open)";
     await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d004")).toBe(line);
     await openById(window, "PKG-00d005", "Only a need");

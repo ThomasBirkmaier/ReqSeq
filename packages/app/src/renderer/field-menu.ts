@@ -12,7 +12,7 @@ export const LISTABLE = "data-listable";
 
 /**
  * The criterion of the line of a criteria box that `target` was pressed in, and the box (its `data-field`).
- * The line is that of the press, also inside a selection that reaches other lines; none outside a line.
+ * The line is that of the press, also inside marked text that reaches other lines; none outside a line.
  */
 export const pressedCriterion = (
   target: Element,
