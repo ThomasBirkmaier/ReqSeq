@@ -301,8 +301,11 @@ jobs:
   # below is green when both shards are. `electron-macos-shard` and `electron-windows-shard` run the same steps on macOS and Windows.
   electron-shard:
     name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
-    # A normal run takes 5-6 minutes (install, build, half of about 450 tests one app at a time); the bound ends a hang.
-    timeout-minutes: 15
+    # A normal run takes 9-12 minutes (install, build, every second test file one app at a time; median 9.1 for shard 1
+    # and 11.4 for shard 2, up to 14.7, 95 green shard jobs, 2026-11-13/14), and a runner about 35 % slower hit the old
+    # bound of 15 with every test green (#1711); 35 % over the slowest test step (13.4) plus setup is about 19. The
+    # bound ends a hang.
+    timeout-minutes: 20
     if: ${{ github.event.action != 'closed' }}
     strategy:
       fail-fast: false
