@@ -64,12 +64,18 @@ interface Wheel {
   readonly prevented: boolean;
 }
 
-/** Records every wheel event from now on, in `window.wheels`, and every slide animation made, in `window.slides`. */
+/**
+ * Records every wheel event from now on, in `window.wheels`, and every slide animation made, in `window.slides`.
+ * While `window.hold` is set, each slide animation is paused where it starts and kept in `window.held`, so a
+ * test can tell whether an input ended it (as `buffer-slide.spec.ts` does).
+ */
 const record = (window: Page): Promise<void> =>
   window.evaluate(() => {
-    const own = window as unknown as { wheels: Wheel[]; slides: string[] };
+    const own = window as unknown as { wheels: Wheel[]; slides: string[]; hold: boolean; held: Animation[] };
     own.wheels = [];
     own.slides = [];
+    own.hold = false;
+    own.held = [];
     addEventListener("wheel", (event: WheelEvent) => {
       own.wheels.push({ cancelable: event.cancelable, prevented: event.defaultPrevented });
     });
@@ -81,6 +87,10 @@ const record = (window: Page): Promise<void> =>
           continue;
         }
         seen.add(animation);
+        if (own.hold) {
+          animation.pause();
+          own.held.push(animation);
+        }
         const target = effect.target as HTMLElement | null;
         const [first, last] = effect.getKeyframes();
         own.slides.push(
@@ -270,8 +280,13 @@ test.describe("the swipe that switches the buffer", () => {
       if (reduced) {
         await window.emulateMedia({ reducedMotion: "reduce" });
       }
-      // The list, which the swipe switches to, scrolls vertically and stands at its top.
+      // The list, which the swipe switches to, scrolls vertically and stands at its top. Its slide is held.
       await window.setViewportSize({ width: await window.evaluate(() => innerWidth), height: 260 });
+      await window.evaluate(() => {
+        (window as unknown as { hold: boolean }).hold = true;
+      });
+      const held = (): Promise<string[]> =>
+        window.evaluate(() => (window as unknown as { held: Animation[] }).held.map((one) => one.playState));
       const width = await pointAt(window);
       await holdClock(window);
       await window.mouse.wheel(-0.6 * width, 0);
@@ -283,10 +298,19 @@ test.describe("the swipe that switches the buffer", () => {
       for (const step of [5, 4, 3]) {
         await window.mouse.wheel(-step, step / 2);
       }
-      // The slide of the switch was not ended by it (with motion its picture still stands).
-      expect(await window.locator(".slide-picture").count()).toBe(reduced ? 0 : 1);
       await window.clock.runFor(GESTURE_GAP_MS);
       await window.clock.resume();
+      // The slide of the switch was not ended by the momentum: it is still held where it started.
+      if (!reduced) {
+        await expect.poll(held).toEqual(["paused", "paused"]);
+        await frames(window);
+        expect(await held()).toEqual(["paused", "paused"]);
+      }
+      await window.evaluate(() => {
+        for (const animation of (window as unknown as { held: Animation[] }).held) {
+          animation.finish();
+        }
+      });
       await slideSettled(window);
       await frames(window);
       await expect(shownBuffer(window)).toHaveAttribute("aria-label", LIST);

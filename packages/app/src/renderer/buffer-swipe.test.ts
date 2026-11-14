@@ -256,6 +256,88 @@ describe("SwipeGesture", () => {
     expect(short.log).toEqual(["begin forward", "end"]);
   });
 
+  it("with reduced motion a quick second swipe switches again: the bar is its last step, not the first one's peak", () => {
+    const run = setup({ reduced: true });
+    const rise = (start: number, peak: number, total: number): Recorded[] => {
+      const steps: Recorded[] = [];
+      let sum = 0;
+      for (let index = 0; sum < total; index += 1) {
+        const dx = Math.min(peak, 1 + index * 3);
+        steps.push({ t: start + index * 8, dx });
+        sum += dx;
+      }
+      return steps;
+    };
+    const first = rise(0, 20, 380);
+    // Its momentum falls to a few px, then the second swipe comes 60 ms later, with a lower peak.
+    const end = (first.at(-1)?.t ?? 0) + 8;
+    const tail = [8, 6, 4, 3].map((dx, index) => ({ t: end + index * 8, dx }));
+    const second = rise(end + 24 + 60, 15, 380);
+    run.replay([...first, ...tail, ...second]);
+    expect(run.log).toEqual([
+      "begin forward",
+      "switch forward",
+      "end",
+      "begin forward",
+      "switch forward",
+      "end",
+    ]);
+  });
+
+  it("a swipe from the edge of content just scrolled to it switches, while that scroll's momentum still runs", () => {
+    let calls = 0;
+    // The first ask: the table scrolls that way first; the next one, once it stands at its edge: it does not.
+    const run = setup({ ignored: () => calls++ === 0 });
+    const second = [1, 3, 6, 10, 15, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20].map((dx, index) => ({
+      t: 300 + index * 8,
+      dx,
+    }));
+    run.replay([...swipe(0, 20, 20), ...momentum(160, 6, 4), ...second]);
+    expect(run.log).toEqual(["begin forward", "switch forward", "end"]);
+    // Not prevented while it scrolled; prevented from the event the swipe began on.
+    expect(run.prevented.slice(0, 24).some(Boolean)).toBe(false);
+    expect(run.prevented.at(-1)).toBe(true);
+  });
+
+  it("a horizontal swipe 60 ms after a vertical fling switches; within the fling's own segment it does not (AK6)", () => {
+    const run = setup();
+    const fling = [
+      ...swipe(0, 15, 0, 40),
+      ...Array.from({ length: 4 }, (_, index) => ({ t: 120 + index * 30, dx: 0, dy: 4 })),
+    ];
+    const second = [1, 3, 6, 10, 15, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20].map((dx, index) => ({
+      t: 270 + index * 8,
+      dx,
+      dy: 1,
+    }));
+    run.replay([...fling, ...second]);
+    expect(run.log).toEqual(["begin forward", "switch forward", "end"]);
+    const same = setup();
+    same.replay([...swipe(0, 5, 0, 10), ...second.map((event) => ({ ...event, t: event.t - 230 }))]);
+    expect(same.log).toEqual([]);
+  });
+
+  it("a probe that the window still ignores asks once and stays left to the browser", () => {
+    const run = setup({ ignored: () => true });
+    const second = [1, 3, 6, 10, 15, 25, 30, 30, 30, 30].map((dx, index) => ({ t: 150 + index * 8, dx }));
+    run.replay([...swipe(0, 10, 20), ...second]);
+    expect(run.host.ignored).toHaveBeenCalledTimes(2);
+    expect(run.prevented.some(Boolean)).toBe(false);
+    expect(run.log).toEqual([]);
+  });
+
+  it("a noisy start, (1,1) (2,2) (3,2), locks the gesture vertical at 8 px: 500 px sideways after it only scroll", () => {
+    // Recorded as the current result, for the check on a real trackpad (#1706).
+    const run = setup();
+    run.replay([
+      { t: 0, dx: 1, dy: 1 },
+      { t: 8, dx: 2, dy: 2 },
+      { t: 16, dx: 3, dy: 2 },
+      ...swipe(24, 25, 20),
+    ]);
+    expect(run.log).toEqual(["scroll 3"]);
+  });
+
   it("joins a segment its timer ended late: the next event came less than 35 ms after the last", () => {
     const run = setup({ width: 900 });
     run.replay(swipe(0, 30, 6), SEGMENT_GAP_MS);

@@ -22,7 +22,8 @@
 // - The swipe switches when its distance passes a third of the width of its area (AK1, AK2, AK9), at its end,
 //   or at once without motion (AK13). Then the gesture is spent (AK7): its rest, momentum included, is
 //   prevented and does nothing; only a segment that starts like a new swipe (a small first step, then rising)
-//   is a new swipe, and one clearly vertical scrolls again.
+//   is a new swipe, and one clearly vertical scrolls again. Such a segment after a pause also lets an ignored or
+//   vertical gesture switch: a swipe from the edge of a table just scrolled, or after a vertical fling.
 
 /** A gesture ends after this pause. */
 export const GESTURE_GAP_MS = 150;
@@ -116,8 +117,10 @@ interface Gesture {
   sided: boolean;
   vertical: boolean;
   spent: boolean;
-  /** The last |dX| of the swipe that switched. */
+  /** The last |dX| before the last pause (of the swipe that switched, the scroll, the ignored events). */
   tail: number;
+  /** Ignored or vertical, and a pause came since: a new segment that rises is asked about again. */
+  probing: boolean;
 }
 
 const signOf = (value: number): -1 | 0 | 1 => (value < 0 ? -1 : value > 0 ? 1 : 0);
@@ -139,6 +142,8 @@ export class SwipeGesture {
   private segment: Segment | undefined;
   // The swipe the timer ended below the third, and its way, which the next event may join again.
   private ended: { readonly segment: Segment; readonly way: SwipeWay } | undefined;
+  // A segment of an ignored or vertical gesture after a pause, which may start a new swipe.
+  private probe: (Segment & { asked: boolean }) | undefined;
   private segmentTimer: unknown;
   private gestureTimer: unknown;
 
@@ -162,6 +167,7 @@ export class SwipeGesture {
         vertical: false,
         spent: false,
         tail: 0,
+        probing: false,
       };
       this.gesture = gesture;
     } else if (!gesture.ignored && !gesture.sided && step.dx !== 0) {
@@ -169,7 +175,7 @@ export class SwipeGesture {
       gesture.ignored = this.host.ignored(signOf(step.dx));
     }
     if (gesture.ignored || gesture.vertical) {
-      return false;
+      return this.probeStep(step, gesture);
     }
     const segment = this.segmentFor(step, gesture);
     segment.sx += step.dx;
@@ -187,6 +193,7 @@ export class SwipeGesture {
         this.reducedSwitch(segment, gesture);
         return true;
       case "spent":
+        gesture.tail = size;
         return true;
     }
   }
@@ -201,6 +208,59 @@ export class SwipeGesture {
     this.gesture = undefined;
     this.segment = undefined;
     this.ended = undefined;
+    this.probe = undefined;
+  }
+
+  // An ignored or vertical gesture is left to the browser: in the segment it was decided in, also when it turns
+  // horizontal (AK6). After a pause, a segment that starts and rises as a new swipe does (`startsAgain`) and is
+  // horizontal asks the window again, once: a swipe from the edge of a table just scrolled, or after a vertical
+  // fling, while its momentum still runs. If the window lets it, it is the swipe from that event on.
+  private probeStep(step: WheelStep, gesture: Gesture): boolean {
+    const size = Math.abs(step.dx);
+    if (!gesture.probing) {
+      gesture.tail = size;
+      return false;
+    }
+    const probe = (this.probe ??= { ...this.fresh(step, "open"), asked: false });
+    probe.sx += step.dx;
+    probe.sy += step.dy;
+    probe.top = Math.max(probe.top, size);
+    probe.last = size;
+    probe.time = step.time;
+    if (
+      probe.asked ||
+      !step.cancelable ||
+      Math.abs(probe.sx) + Math.abs(probe.sy) < SPENT_DECIDE_PX ||
+      vertical(probe.sx, probe.sy) ||
+      !this.startsAgain(probe, gesture)
+    ) {
+      return false;
+    }
+    probe.asked = true;
+    if (this.host.ignored(signOf(probe.sx))) {
+      return false;
+    }
+    this.probe = undefined;
+    Object.assign(gesture, { ignored: false, sided: true, vertical: false, probing: false });
+    const segment: Segment = { ...probe, mode: "swipe", way: wayOf(probe.sx) };
+    this.segment = segment;
+    this.host.begin(wayOf(probe.sx));
+    this.reducedSwitch(segment, gesture);
+    return true;
+  }
+
+  private fresh(step: WheelStep, mode: Mode): Segment {
+    return {
+      mode,
+      sx: 0,
+      sy: 0,
+      held: 0,
+      way: undefined,
+      first: Math.abs(step.dx),
+      top: 0,
+      last: 0,
+      time: step.time,
+    };
   }
 
   private restart(): void {
@@ -208,11 +268,17 @@ export class SwipeGesture {
     this.timers.clear(this.gestureTimer);
     this.segmentTimer = this.timers.set(() => {
       this.endSegment();
+      const gesture = this.gesture;
+      if (gesture !== undefined && (gesture.ignored || gesture.vertical)) {
+        gesture.probing = true;
+        this.probe = undefined;
+      }
     }, SEGMENT_GAP_MS);
     this.gestureTimer = this.timers.set(() => {
       this.endSegment();
       this.gesture = undefined;
       this.ended = undefined;
+      this.probe = undefined;
     }, GESTURE_GAP_MS);
   }
 
@@ -227,17 +293,7 @@ export class SwipeGesture {
       this.host.begin(ended.way);
       return ended.segment;
     }
-    const segment: Segment = {
-      mode: gesture.spent ? "after" : "open",
-      sx: 0,
-      sy: 0,
-      held: 0,
-      way: undefined,
-      first: Math.abs(step.dx),
-      top: 0,
-      last: 0,
-      time: step.time,
-    };
+    const segment = this.fresh(step, gesture.spent ? "after" : "open");
     this.segment = segment;
     return segment;
   }
@@ -275,8 +331,9 @@ export class SwipeGesture {
     return true;
   }
 
-  // A segment after a switch is a new swipe when it starts as a swipe on a trackpad starts, with a small step,
-  // and then rises to twice its first step, to `RISE_PX` and past the last step of the swipe that switched:
+  // A segment after a switch (or after a pause of an ignored or vertical gesture) is a new swipe when it starts as
+  // a swipe on a trackpad starts, with a small step, and then rises to twice its first step, to `RISE_PX` and past
+  // the last step before the pause:
   // momentum only falls (its steps after a pause were 3-9 px), and a notch of a wheel that repeats starts large.
   private startsAgain(segment: Segment, gesture: Gesture): boolean {
     return (

@@ -23,13 +23,13 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ## The minibuffer and the modeline
 
-The bottom line is the minibuffer. It shows the last message, and a command that needs input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
+The bottom line is the minibuffer. It shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
 ## Buffers
 
-Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer, and opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, like the mouse buttons Back and Forward, go back and forth with a sideways slide. A sideways swipe with two fingers on the trackpad, or the horizontal mouse wheel, does the same once it has gone more than a third of the width of the buffer's area (in a split window, of its half); content that scrolls sideways, such as the matrix, scrolls first, and the wheel with Shift only scrolls. **Close buffer** (Ctrl+K B) saves an element's input first.
+Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe and a sideways wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
 A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
 
@@ -39,11 +39,11 @@ A workspace opens on the overview: counts per type and for up to ten **Perspecti
 
 ## Context menus
 
-A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, lists every command there by name.
+A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, lists every command there.
 
 ## Help
 
-**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens this documentation of the app's version in your browser without network.
+**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens the documentation of this version in your browser, offline.
 
 ## Light and dark
 
