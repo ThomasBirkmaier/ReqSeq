@@ -15,7 +15,7 @@
     { "field": "value", "complete": "value", "of": "property" },
     { "field": "confirm", "complete": "boolean" },
     { "field": "expected", "complete": "number" },
-    { "field": "plan", "complete": "text" }
+    { "field": "plan", "complete": "text", "class": "output" }
   ],
   "input": {
     "type": "object",

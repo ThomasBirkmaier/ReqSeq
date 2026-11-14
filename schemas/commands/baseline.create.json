@@ -8,7 +8,7 @@
   "stage": 5,
   "implements": ["SR-050", "SR-101"],
   "arguments": [
-    { "field": "name", "complete": "text" },
+    { "field": "name", "complete": "text", "class": "name" },
     { "field": "selection", "complete": "selection" }
   ],
   "input": {

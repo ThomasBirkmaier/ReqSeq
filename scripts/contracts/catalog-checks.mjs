@@ -212,6 +212,17 @@ const checkMeaning = (arg) =>
     ? []
     : [`"${arg.field}": meaning is only for an element source, not ${arg.complete}`];
 
+/**
+ * `class`: on every `text` source and only there, so a new argument asked as free text is taken up in the
+ * catalog on purpose (SR-215 AK2); the meta schema holds the closed list of classes.
+ */
+const checkClass = (arg) =>
+  (arg.complete === "text") === (arg.class !== undefined)
+    ? []
+    : arg.complete === "text"
+      ? [`"${arg.field}": a text source needs a class (SR-215 AK2)`]
+      : [`"${arg.field}": class is only for a text source, not ${arg.complete}`];
+
 /** `replaces`: only earlier optional fields, each once (a required one is always given). */
 function checkReplaces(arg, earlier, required) {
   const names = arg.replaces ?? [];
@@ -329,6 +340,7 @@ function checkArguments(cmd, schemas) {
     errors.push(
       ...checkContext(arg, cmd.arguments.slice(0, index)),
       ...checkMeaning(arg),
+      ...checkClass(arg),
       ...checkKind(arg, property, schemas),
       ...checkDescription(arg, property, schemas),
       ...checkReplaces(arg, cmd.arguments.slice(0, index), required),

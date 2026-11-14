@@ -10,7 +10,7 @@
   "arguments": [
     { "field": "output", "complete": "file" },
     { "field": "selection", "complete": "selection" },
-    { "field": "profile", "complete": "text" },
+    { "field": "profile", "complete": "text", "class": "name" },
     { "field": "mapping", "complete": "file" },
     { "field": "omitProperties", "complete": "property" },
     { "field": "statements", "complete": "boolean" }

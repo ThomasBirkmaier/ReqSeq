@@ -6,7 +6,7 @@
   "stage": 3,
   "implements": ["SR-066", "SR-068", "SR-098", "SR-137", "SR-149", "SR-174", "SR-216"],
   "arguments": [
-    { "field": "query", "complete": "text" },
+    { "field": "query", "complete": "text", "class": "query" },
     { "field": "selection", "complete": "selection" },
     { "field": "fields", "complete": "searchField" },
     { "field": "group", "complete": "group" },

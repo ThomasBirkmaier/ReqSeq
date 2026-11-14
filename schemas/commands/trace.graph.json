@@ -25,7 +25,7 @@
     },
     {
       "field": "kinds",
-      "complete": "text"
+      "complete": "relationKind"
     },
     {
       "field": "meanings",

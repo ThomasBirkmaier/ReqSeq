@@ -7,7 +7,7 @@
   "stage": 3,
   "implements": ["SR-143"],
   "arguments": [
-    { "field": "path", "complete": "text" },
+    { "field": "path", "complete": "text", "class": "path" },
     { "field": "files", "complete": "boolean" },
     { "field": "absolute", "complete": "boolean" }
   ],

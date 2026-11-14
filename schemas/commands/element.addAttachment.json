@@ -18,11 +18,13 @@
     },
     {
       "field": "content",
-      "complete": "text"
+      "complete": "text",
+      "class": "output"
     },
     {
       "field": "name",
-      "complete": "text"
+      "complete": "text",
+      "class": "name"
     },
     {
       "field": "repository",
