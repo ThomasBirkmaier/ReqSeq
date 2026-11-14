@@ -23,9 +23,9 @@ The command prompt orders its hits by the match first (SR-108 AK1: the beginning
 
 The command prompt also lists the catalog's implemented read commands by their `title` ("Show trace chain", "List hints", "Check workspace", ...); a command an action does is listed once, by the action ("List all elements", "Search elements", "Show neighbourhood", "Show traceability matrix", and "Go to element or buffer" for `element.get`). Seven read commands whose output the app shows only inside other commands are neither listed nor found (SR-133 AK4, `SHOWN_IN` in `command-entry.ts`, next to `covers`): "List folder" (every path input), "List recent workspaces" ("Open workspace"), "Show last agent access" ("Follow agent"), "Show facets" (the list filters, the overview, the values of an element that open a list), "Show relation options" ("Create relation", the matrix, the relation kinds an argument offers), "List saved filters" ("Filter list by saved filter") and "List perspectives" ("Open perspective", "Save list as perspective", the overview); also in a read-only workspace. They are not covered by those actions, which keep their own description (SR-210 AK5), and stay in CLI, API and MCP; their reference page names that place instead of a prompt entry.
 
-`catalog-commands.ts` walks the catalog: it asks the arguments and runs the command. The state of the argument entry, and the shape the values built from hits share, are in `catalog-entry.ts`.
+`catalog-commands.ts` walks the catalog: it asks the arguments and runs the command. The argument entry of a command (`Entry`) and the shape the values built from hits share are in `catalog-entry.ts`.
 
-Choosing one asks its arguments in the minibuffer one by one, in the order of the catalog's `arguments` ("Create relation SR-1 · kind:"); each source's values come from one read command (Arguments, below). The prompt of an argument opens at once with its label and fills its candidates when they arrive; Enter or Ctrl/Cmd+Enter pressed before acts on them then, and a source that fails says why in the label. Enter takes the candidate or the text and runs the command after the last required argument; Backspace in an empty input and Escape go back one argument (before the first, to the command prompt, SR-134 AK1); Ctrl/Cmd+Enter takes the answer and then offers the optional arguments ("Run" first), and is remembered and waits for the hits of the typed text like Enter; a list field takes one value per Enter and Enter on an empty input ends it.
+Choosing a catalog command asks its arguments in the minibuffer one by one, in the order of the catalog's `arguments` ("Create relation SR-1 · kind:"); each source's values come from one read command (Arguments, below). The prompt of an argument opens at once with its label and fills its candidates when they arrive; Enter or Ctrl/Cmd+Enter pressed before acts on them then, and a source that fails says why in the label. Enter takes the candidate or the text and runs the command after the last required argument; Backspace in an empty input and Escape go back one argument (before the first, to the command prompt, SR-134 AK1); Ctrl/Cmd+Enter takes the answer and then offers the optional arguments ("Run" first), and is remembered and waits for the hits of the typed text like Enter; a list field takes one value per Enter and Enter on an empty input ends it.
 
 The app checks nothing: an input core refuses with `input.invalid` asks again, with core's message, the value core names (the field of the first schema violation, else the property in `key`), in its place; the values read from it are dropped and asked or offered again, the others stay; a refusal that names nothing asked asks the value given last. The output opens a result buffer. An item of a list whose `id` is an element of `names` is that element's row with its other fields indented under it, as the CLI gives it: an entry of "Show baseline" (`baseline.get`) is its element with its state (changed, superseded, removed, added, missing, inaccessible), its version in the baseline with that version's date, and with `withEvidence` (Ctrl/Cmd+Enter, then withEvidence yes) a verification row per view with the records dated after the baseline and the validation status (SR-051, SR-094); "Compare baseline" gives both commits and the Git command (SR-051 AK4). There the share of a verification degree (`evidence.degree`, SR-037) is a percentage by core's rule of every access (`@reqseq/core/verification-degree`: one decimal, rounded down).
 
@@ -37,7 +37,9 @@ Before a write command runs, the input of every open buffer is saved, the shown 
 
 ## Arguments
 
-### Fixed values
+Text, numbers and JSON are typed: as text only the arguments whose catalog entry has a `class` of SR-215 AK2, as JSON only the mapping of "Save ReqIF mapping" (a test over the catalog checks the arguments the prompt asks, not those of a command an action covers, SR-215 AK2).
+
+### Offered and typed values
 
 Each source's values come from one read command:
 
@@ -55,8 +57,6 @@ Each source's values come from one read command:
 - paths are typed with completion (above)
 
 A value the metamodel names (a type, status, property, relation kind or choice) shows its key beside its name, a criterion its key, and an evidence location or a file its repository (SR-215 AK1). A `selection` is the shown list's (on the list of all elements outside a view, every element: the empty selection for a command that requires one, "Bulk update elements" and "Create baseline", #856), or on a package page its package (`selection.package`, for every command with a selection, reads and writes alike: "Create baseline" there asks only the name, SR-050 AK1), and never asked; a command that requires one is offered only there.
-
-Text, numbers and JSON are typed: as text only the arguments whose catalog entry has a `class` of SR-215 AK2, as JSON only the mapping of "Save ReqIF mapping" (a test over the catalog checks the arguments the prompt asks, not those of a command an action covers, SR-215 AK2).
 
 ### Condition
 
