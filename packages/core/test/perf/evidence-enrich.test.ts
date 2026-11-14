@@ -6,8 +6,9 @@
 // (ADR-0011): the time and what the call adds to the heap and to the resident memory. Its own file,
 // so the Vitest process measures nothing else, and the generated tree is dropped before the call.
 // A second run (SR-029 AK5, #627) enriches 50,000 test cases named in the form `sr_<id>_check` through
-// the name pattern `{prefix}_{id}`, plus two names of about 200 KB built against the matcher; this run
-// does not measure reading `{ak}`. Both files name only requirements that apply in the core.
+// the name pattern `{prefix}_{id}`, plus two names of about 200 KB built against the matcher. Both files
+// name only requirements that apply in the core; neither names a criterion, so reading `{ak}` (SR-029 AK13)
+// is not measured.
 import {
   generateLargeWorkspace,
   measurePeakMemory,

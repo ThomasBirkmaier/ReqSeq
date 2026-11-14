@@ -64,7 +64,6 @@ beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
 });
 
-/** The problems but the hints of the fixture's requirements, which have no parent (SR-022 AK6). */
 /** The problems without the hints these tests are not about: no parent (SR-022 AK6), criteria without key (SR-204 AK10). */
 const withoutNoParent = <P extends { readonly code: string }>(problems: readonly P[]): P[] =>
   problems.filter((p) => p.code !== "trace.no-parent" && p.code !== "element.criterion-key-missing");

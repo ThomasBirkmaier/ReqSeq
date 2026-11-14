@@ -120,7 +120,8 @@ export interface GeneratedElement {
   readonly title: string;
   readonly version: string;
   /**
-   * Whether it applies in the core: every element without a validity (D-020). A system requirement with a
+   * Whether it applies in the core: every element without a validity (D-020). Not the generator's own
+   * `core` pool, which holds only the requirements drawn never to get one; others may get none either. A system requirement with a
    * validity applies only in the variants it names, so a record of it for the core counts nowhere (SR-040).
    */
   readonly core: boolean;

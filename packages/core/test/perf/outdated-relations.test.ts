@@ -138,9 +138,9 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     );
     const titles = new Map(tree.elements.map((e) => [e.id, e.title]));
     expect(all.hints.every((h) => h.elementTitle === titles.get(h.elementId ?? ""))).toBe(true);
-    expect(
-      all.hints.every((h) => h.targetTitle === undefined || h.targetTitle === titles.get(h.targetId ?? "")),
-    ).toBe(true);
+    expect(all.hints.every((h) => h.targetId === undefined || h.targetTitle === titles.get(h.targetId))).toBe(
+      true,
+    );
     // An element with outdated relations, not one that is only a hint without a parent.
     const source = check.problems.find((h) => h.code === "relation.outdated");
     expect(source).toBeDefined();
