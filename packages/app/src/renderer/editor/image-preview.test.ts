@@ -56,6 +56,43 @@ const images = (state: EditorState): Found[] => {
   return found;
 };
 
+/** A test value for `--muted`, set on the parent; the note must take it (muted colour as `[SR-128/AK-sthw]`). */
+const MUTED = "rgb(96, 104, 113)";
+
+/** `doc` in an editor with the preview and the image plugin in the document, the cursor at `cursor`. */
+const mounted = (doc: string, cursor: number): { view: EditorView; parent: HTMLElement } => {
+  const parent = document.createElement("div");
+  parent.style.setProperty("--muted", MUTED);
+  document.body.append(parent);
+  const state = EditorState.create({
+    doc,
+    selection: { anchor: cursor },
+    extensions: [markdownSupport({}), livePreview(RULES), ...(imagePreview(() => ELEMENT).extensions ?? [])],
+  });
+  ensureSyntaxTree(state, doc.length, 1e9);
+  const view = new EditorView({ state, parent });
+  view.dispatch({ effects: focusEffect.of(true) });
+  return { view, parent };
+};
+
+/** The note is quiet: the muted colour, smaller type than the source of its line, and no dialog. */
+const expectQuiet = (note: Element): void => {
+  const line = note.closest(".cm-line");
+  expect(line).not.toBeNull();
+  expect(getComputedStyle(note).color).toBe(MUTED);
+  expect(parseFloat(getComputedStyle(note).fontSize)).toBeLessThan(
+    parseFloat(getComputedStyle(line ?? note).fontSize),
+  );
+  expect(document.querySelector('dialog, [role="dialog"], [role="alertdialog"]')).toBeNull();
+};
+
+/** Types `text` at the cursor, one character at a time, as the keyboard does. */
+const type = (view: EditorView, text: string): void => {
+  for (const character of text) {
+    view.dispatch(view.state.replaceSelection(character));
+  }
+};
+
 describe("imageTarget", () => {
   it("[SR-184/AK-bjm1] loads nothing from the network, a data: address or outside the repository", () => {
     const file = "requirements/SR-1.md";
@@ -125,28 +162,66 @@ describe("image preview", () => {
     ]);
   });
 
-  it("[SR-184/AK-bjm1] keeps the source with a quiet note for an address it does not load", () => {
-    const doc = "![a](https://example.com/a.png) ![b](data:image/png;base64,AA) ![c](../../c.png)";
+  it("[SR-184/AK-bjm1] keeps the source with a note right after it in its line that names the case, quiet, and typing goes on", () => {
+    const network = "![a](https://example.com/a.png)";
+    const data = "![b](data:image/png;base64,AA)";
+    const outside = "![c](../../c.png)";
+    const doc = `Text ${network} ${data} ${outside}`;
     expect(images(stateOf(doc)).map((item) => item.detail)).toEqual(["network", "data", "outside"]);
+    // The cursor in the line of the notes, after "Te".
+    const { view, parent } = mounted(`${doc}\nend`, 2);
+    const [line] = view.contentDOM.querySelectorAll(".cm-line");
+    // Each note stands directly after its source, in the same line.
+    expect(line?.textContent).toBe(
+      `Text ${network}${NOTE_TEXT.network} ${data}${NOTE_TEXT.data} ${outside}${NOTE_TEXT.outside}`,
+    );
+    const notes = [...(line?.querySelectorAll(".cm-lr-image-note") ?? [])];
+    expect(notes).toHaveLength(3);
+    notes.forEach(expectQuiet);
+    // The cursor stays, and typing goes on: also a new image source on the network gets its note at once.
+    expect(view.state.selection.main.head).toBe(2);
+    type(view, "x");
+    expect(view.state.doc.line(1).text).toBe(`Texxt ${network} ${data} ${outside}`);
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).to } });
+    type(view, ` ${network} more`);
+    expect(view.state.doc.line(2).text).toBe(`end ${network} more`);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    const second = view.contentDOM.querySelectorAll(".cm-line")[1];
+    expect(second?.textContent).toBe(`end ${network}${NOTE_TEXT.network} more`);
+    expectQuiet(second?.querySelector(".cm-lr-image-note") ?? parent);
+    view.destroy();
+    parent.remove();
   });
 
-  it("[SR-184/AK-vqh4] turns an image that does not load into its source with a quiet note", () => {
-    const doc = "![pixel](SR-1/pixel.png)";
-    const state = stateOf(doc);
-    const view = new EditorView({ state, extensions: [livePreview(RULES)] });
-    const image = new ImageWidget(PIXEL, "pixel", false).toDOM(view).querySelector("img");
+  it("[SR-184/AK-vqh4] turns an image that does not load into its source with a note right after it, quiet, also later while the cursor is elsewhere", () => {
+    const source = "![pixel](SR-1/pixel.png)";
+    const doc = `${source} after\nsecond`;
+    const cursor = doc.length - 2;
+    const { view, parent } = mounted(doc, cursor);
+    const image = view.contentDOM.querySelector("img:not(.cm-widgetBuffer)");
     expect(image?.getAttribute("src")).toBe(PIXEL);
-    expect(image?.alt).toBe("pixel");
+    expect(image?.getAttribute("alt")).toBe("pixel");
     image?.dispatchEvent(new Event("load"));
     expect(images(view.state)[0]?.kind).toBe("in-place");
+    // It fails to load while the cursor is in the other line.
     image?.dispatchEvent(new Event("error"));
     expect(images(view.state)).toEqual([
-      { from: doc.length, to: doc.length, kind: "note", detail: "unreadable" },
+      { from: source.length, to: source.length, kind: "note", detail: "unreadable" },
     ]);
+    const [line] = view.contentDOM.querySelectorAll(".cm-line");
+    expect(line?.textContent).toBe(`${source}${NOTE_TEXT.unreadable} after`);
+    expectQuiet(line?.querySelector(".cm-lr-image-note") ?? parent);
+    // The cursor stays at its place, and typing goes on there.
+    expect(view.state.selection.main.head).toBe(cursor);
+    type(view, "xy");
+    expect(view.state.doc.line(2).text).toBe("secoxynd");
+    expect(view.contentDOM.querySelector(".cm-lr-image-note")?.textContent).toBe(NOTE_TEXT.unreadable);
     // Taking the focus asks again.
+    view.dispatch({ effects: focusEffect.of(false) });
     view.dispatch({ effects: focusEffect.of(true) });
     expect(view.state.field(failedImages).size).toBe(0);
     view.destroy();
+    parent.remove();
   });
 
   it("finds the destination of a reference image in its definition", () => {
