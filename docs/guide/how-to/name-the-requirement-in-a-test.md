@@ -53,7 +53,7 @@ Run **Enrich JUnit file** in the command prompt and answer the item under test w
 
 ## CLI
 
-For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pattern after the file and the item under test:
+For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pattern too:
 
 ```rust
 #[test]

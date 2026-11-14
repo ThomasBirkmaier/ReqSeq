@@ -31,7 +31,7 @@ The element gets the text of the flag. `--json` prints exactly the output of the
 
 The exit code:
 
-- `0`: done, without a problem of severity error.
+- `0`: done, without an error.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 - `2`: not run: wrong usage or input, something missing, a conflict, or not available.
 - `3`: an internal error.

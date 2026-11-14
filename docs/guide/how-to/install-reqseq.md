@@ -9,7 +9,7 @@ ReqSeq comes as one portable archive per system: unpacking it is installing it. 
 
 ## Download and check
 
-Each GitHub release has these files; `<version>` is the ReqSeq version of the release.
+Each GitHub release has these files; `<version>` is its ReqSeq version.
 
 | System | Download |
 |---|---|
@@ -85,6 +85,6 @@ On Linux it is the absolute path of `~/ReqSeq/bin/reqseq`. On Windows, clients t
 
 ## Update or remove
 
-A new ReqSeq version is a new download: put it in place of the old folder or `ReqSeq.app`. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the Ubuntu step and the first start on macOS and Windows.
+A new ReqSeq version is a new download: swap it for the old folder or `ReqSeq.app`. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the Ubuntu step and the first start on macOS and Windows.
 
 To remove ReqSeq, delete its folder, the folder `reqseq` in your system's cache folder (`~/Library/Caches`, `~/.cache`, `%LOCALAPPDATA%`) and the data folder (`~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq`).

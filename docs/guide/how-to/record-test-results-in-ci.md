@@ -9,7 +9,7 @@ After the tests, the pipeline runs one line per JUnit file, `reqseq evidence enr
 
 - `results.xml` is the JUnit file of the test tool, and `$BUILD` what was tested (the item under test), such as the build number.
 - `--workspace` is the folder with `reqseq-workspace.yaml`.
-- `--output` is where the enriched file goes: a folder below an evidence folder of the workspace, one file per run, so the item under test is part of the name. Without it the file is enriched in place. The folder must exist; Git keeps no empty folders, so commit it with an empty `.gitkeep`, or run `mkdir -p` before the line.
+- `--output` is where the enriched file goes: a folder below an evidence folder of the workspace, one file per run, so `$BUILD` is part of the name. Without it the file is enriched in place. The folder must exist; Git keeps no empty folders, so commit it with an empty `.gitkeep`, or run `mkdir -p` before the line.
 
 The line exits with 1 when a test names an ID the workspace does not have, and lists those test cases, so the step fails; the other test cases are enriched all the same. A high `withoutReference` count may mean that tests name their requirement in a form ReqSeq does not read ([Name the requirement in a test](/how-to/name-the-requirement-in-a-test/)).
 
@@ -17,7 +17,7 @@ Run the line once per JUnit file, each with its own `--output` name, for example
 
 On a runner whose system is a variant, add `--variant core --variant <variant> --skip-not-in-view`: a result counts where its requirement applies, and one that applies in neither is left out ([Record evidence for a variant](/how-to/record-evidence-for-a-variant/)).
 
-The enriched file is an evidence record only once it is committed in the evidence folder: let the pipeline commit it where it may push to the requirements repository (`git add evidence/ci && git commit -m "Test results of $BUILD"`). ReqSeq never commits. A file kept only as a pipeline artifact is read once it is copied there.
+The enriched file counts only once it is committed in the evidence folder: let the pipeline commit it where it may push to the requirements repository (`git add evidence/ci && git commit -m "Test results of $BUILD"`). ReqSeq never commits. A file kept only as a pipeline artifact is read once it is copied there.
 
 **GitHub Actions** (both snippets run the step when a test failed too, so a failure is recorded):
 

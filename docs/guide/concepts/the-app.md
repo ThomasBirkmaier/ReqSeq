@@ -21,9 +21,9 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
-## Messages, input and the modeline
+## Messages and the modeline
 
-The bottom line, the command prompt, also shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
+The command prompt also shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
@@ -35,7 +35,7 @@ A workspace opens on the overview: counts per type and for up to ten **Perspecti
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
-**Split window** shows two buffers side by side; the other pane previews the element you mark in a list or graph, until you work in it. Alt+O (**Other pane**) switches panes, **Unsplit window** ends the split.
+**Split window** shows two buffers side by side; the other pane previews the element you mark in a list or graph, until you work in it. Alt+O switches panes, **Unsplit window** ends the split.
 
 ## Context menus
 

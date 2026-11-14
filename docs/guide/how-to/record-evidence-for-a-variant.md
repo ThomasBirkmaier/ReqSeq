@@ -5,7 +5,7 @@ sidebar:
   order: 4.3
 ---
 
-A test result without variant counts only for the core. For the test run of an item under test of a variant, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded or replaced there, or not applying there).
+A test result without variant counts only for the core. For a test run on a variant, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded, replaced or not applying there).
 
 One test run can count for the core and for a variant at once, for example a run on the operating system a variant stands for. Give the variant once per view, `core` among them: each enriched test case then gets one `reqseq:variant` property per view, the variant's UUID or `core`, and counts for exactly those views. Without the property a test case counts for the core only.
 
