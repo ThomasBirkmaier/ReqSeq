@@ -233,6 +233,8 @@ export interface SlideHost {
   readonly root: () => ParentNode | null | undefined;
   /** A slide is taken, waits or runs (`true`), or ended (`false`): the reads drawn in advance wait meanwhile. */
   readonly busy?: (busy: boolean) => void;
+  /** The switch to `to` ended: its slide ran out, an input or another change ended it, or it never moved. */
+  readonly ended?: (to: string) => void;
 }
 
 type Phase =
@@ -355,11 +357,12 @@ export class SlideController {
     if (picture === undefined) {
       return;
     }
+    // A target the drag showed is drawn as the reader saw it, also when a change came during the swipe and its
+    // view holds the generation it was drawn in (SR-212 AK5): it slides on at once.
     const entry = this.ahead.get(spec.to);
     const ahead =
-      generation !== undefined &&
-      entry?.generation === generation &&
-      (clean || !entry.recorded || spec.peeked === true);
+      entry !== undefined &&
+      (spec.peeked === true || (entry.generation === generation && (clean || !entry.recorded)));
     this.phase = { kind: "armed", spec, picture, drawn: ahead, ahead };
     this.listen(true);
   }
@@ -521,6 +524,9 @@ export class SlideController {
     }
     this.listen(false);
     this.phase = { kind: "idle" };
+    if (phase.kind !== "idle") {
+      this.host.ended?.(phase.spec.to);
+    }
   }
 
   private listen(on: boolean): void {

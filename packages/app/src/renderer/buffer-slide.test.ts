@@ -270,6 +270,31 @@ describe("a slide in a window", () => {
     expect(side().textContent).toBe("One");
   });
 
+  it("[SR-212/AK-tfck] moves at once to a target the drag showed, also when a change came during the swipe", () => {
+    // The held view reports the generation it was drawn in, older than the current one.
+    slides.ready("two", 1, 6, true);
+    slides.prepare({ ...BACK, peeked: true }, 8, false);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toHaveLength(2);
+    slides.finish();
+    commit("<article data-buffer>One</article>");
+    // Not shown by a drag, the same entry waits for the draw.
+    slides.ready("two", 1, 6, true);
+    slides.prepare(BACK, 8, false);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toEqual([]);
+    // Without an entry, a peeked target waits too.
+    slides.finish();
+    commit("<article data-buffer>One</article>");
+    slides.unready("two", 1);
+    slides.prepare({ ...BACK, peeked: true }, 8);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toEqual([]);
+  });
+
   it("[SR-212/AK-tfck] moves at once to a buffer drawn from its record only when leaving changes nothing", () => {
     slides.ready("two", 1, 7, true);
     expect(slides.drawnAt("two", 7)).toBe(true);
@@ -341,6 +366,27 @@ describe("a slide in a window", () => {
     expect(busy.at(-1)).toBe(true);
     slides.finish();
     expect(busy.at(-1)).toBe(false);
+  });
+
+  it("tells the window which switch ended, each time it goes idle", () => {
+    const ended: string[] = [];
+    slides = new SlideController({
+      view: window,
+      root: () => root,
+      ended: (to) => {
+        ended.push(to);
+      },
+    });
+    slides.finish();
+    expect(ended).toEqual([]);
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    window.dispatchEvent(new Event("keydown"));
+    expect(ended).toEqual(["two"]);
+    slides.prepare({ ...BACK, from: "two", to: "three" });
+    slides.settle("left", "one");
+    expect(ended).toEqual(["two", "three"]);
   });
 
   it("[SR-212/AK-d25h] ends by itself in the end state: no picture, nothing moved", async () => {

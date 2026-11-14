@@ -15,6 +15,7 @@ import { BufferArea } from "./BufferArea.js";
 import type { Buffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES } from "./outside-marks.js";
 import { referenceTitles } from "./reference-titles.js";
 
@@ -50,6 +51,8 @@ const area = (gate: ReadGate, answered = false) => {
       : Promise.resolve({ ok: false, code: "test", message: "not in this test" }),
   );
   const drop = vi.fn<(key: string) => void>();
+  const ready =
+    vi.fn<(key: string, mount: number, generation: number | undefined, recorded: boolean) => void>();
   const element = (): ElementProps =>
     ({
       onCopy: () => undefined,
@@ -64,12 +67,12 @@ const area = (gate: ReadGate, answered = false) => {
       packages: { types: new Set(["package"]), key: "packages" },
       properties: new Map(),
     }) as unknown as ElementProps;
-  const views = (seen: number, switchSaves: number) =>
+  const views = (seen: number, switchSaves: number, outside: OutsideChanges) =>
     ({
       call: call as unknown as Call,
       revision: seen,
       seen,
-      outside: NO_CHANGES,
+      outside,
       dispatch: () => undefined,
       onData: () => undefined,
       onEcho: () => undefined,
@@ -85,22 +88,30 @@ const area = (gate: ReadGate, answered = false) => {
       },
       element,
       gate,
-      ready: () => undefined,
+      ready,
       clean: () => true,
       stopped: false,
       drop,
       switchSaves,
     }) as unknown as AreaViews;
-  const render = async (hidden: readonly Buffer[], seen = 0, switchSaves = 0): Promise<void> => {
-    const besides = hidden.map((buffer) => ({ buffer, by: "read" as const }));
+  const render = async (
+    hidden: readonly Buffer[],
+    seen = 0,
+    switchSaves = 0,
+    by: "read" | "swipe" = "read",
+    held?: string,
+    outside: OutsideChanges = NO_CHANGES,
+  ): Promise<void> => {
+    const besides = hidden.map((buffer) => ({ buffer, by }));
     await act(async () => {
       root.render(
         createElement(BufferArea, {
           area: { side: "left", buffer: SHOWN, active: true },
           split: false,
           onActivate: () => undefined,
-          views: views(seen, switchSaves),
+          views: views(seen, switchSaves, outside),
           hidden: besides,
+          held,
         }),
       );
       await Promise.resolve();
@@ -108,7 +119,7 @@ const area = (gate: ReadGate, answered = false) => {
   };
   const reads = (ref: string): number =>
     call.mock.calls.filter(([name, input]) => name === "element.get" && input["ref"] === ref).length;
-  return { render, reads, drop };
+  return { render, reads, drop, ready };
 };
 
 it("[SR-212/AK-tfck] a layer drawn in advance that goes while its reads wait at the gate sends none of them", async () => {
@@ -219,5 +230,37 @@ it("[SR-212/AK-tfck] a layer drawn in advance is dropped by a save of leaving to
   });
   expect(reads("uuid-1")).toBe(1);
   expect(drop).toHaveBeenCalledWith(HIDDEN.key);
+  gate.dispose();
+});
+
+it("[SR-212/AK-tfck] the target a swipe shows is held as drawn during a change, and reads again once the hold ends", async () => {
+  const gate = new ReadGate(60_000);
+  const { render, reads, ready } = area(gate, true);
+  // Drawn for a swipe, it reads as a shown view.
+  await render([HIDDEN], 0, 0, "swipe");
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(1);
+  // The drag shows it; then a change from outside names it: it reads nothing and reports the generation it was
+  // drawn in.
+  const named: OutsideChanges = { ...NO_CHANGES, seq: 1, named: new Map([["uuid-1", 1]]) };
+  await render([HIDDEN], 0, 0, "swipe", HIDDEN.key);
+  await render([HIDDEN], 1, 0, "swipe", HIDDEN.key, named);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBe(1);
+  expect(ready.mock.calls.filter(([key]) => key === HIDDEN.key).at(-1)?.[2]).toBe(0);
+  // Another area's target is not held: the hold is by key.
+  await render([HIDDEN], 2, 0, "swipe", "another", named);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(reads("uuid-1")).toBeGreaterThan(1);
+  expect(ready.mock.calls.filter(([key]) => key === HIDDEN.key).at(-1)?.[2]).toBe(2);
   gate.dispose();
 });

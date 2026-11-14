@@ -61,6 +61,8 @@ import { NO_WALK, cycleKey, cycleOrder } from "./buffer-cycle.js";
 import { SlideController, directionOf, motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeWay } from "./buffer-swipe.js";
 import { pastThird } from "./buffer-swipe.js";
+import { heldIn, releaseHold } from "./swipe-hold.js";
+import type { SwipeHold } from "./swipe-hold.js";
 import { SwipeDrag } from "./swipe-drag.js";
 import { useWheelSwipe } from "./use-wheel-swipe.js";
 import { SwipeDraw } from "./swipe-draw.js";
@@ -220,13 +222,19 @@ const useSlides = (
   side: string,
   shown: Buffer | undefined,
   gate: ReadGate,
+  ended: (to: string) => void,
 ): SlideController => {
   const slides = useRef<SlideController | undefined>(undefined);
+  const endedNow = useRef(ended);
+  endedNow.current = ended;
   slides.current ??= new SlideController({
     view: window,
     root: () => sheet.current,
     busy: (busy) => {
       gate.slide(busy);
+    },
+    ended: (to) => {
+      endedNow.current(to);
     },
   });
   const controller = slides.current;
@@ -738,7 +746,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   walk.current = cycleOrder(walk.current, buffers);
   // When the reads of the buffers drawn in advance may go (SR-212 AK5): after the shown one is drawn.
   const gate = useMemo(() => new ReadGate(), []);
-  const slides = useSlides(sheet, layout.active, current, gate);
+  // The target a swipe shows, held as drawn while a change comes until the swipe or its slide ended (SR-212
+  // AK5, `swipe-hold.ts`).
+  const [hold, setHold] = useState<SwipeHold | undefined>(undefined);
+  const release = (key: string | undefined): void => {
+    setHold((now) => releaseHold(now, key));
+  };
+  const slides = useSlides(sheet, layout.active, current, gate, release);
   // While a prompt is open the reader may be choosing the next buffer: no read drawn in advance starts then.
   const prompting = prompt !== undefined;
   useLayoutEffect(() => {
@@ -1299,6 +1313,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const action = mouseButtonAction(now, way === "back" ? 3 : 4);
     cancelPrefix();
     releasedAt.current = progress;
+    const target = drag.of?.target;
     try {
       flushSync(() => {
         drag.handOff();
@@ -1309,6 +1324,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       });
     } finally {
       releasedAt.current = undefined;
+    }
+    // The hold ends with the slide of the switch (`ended`); a switch that took no slide ends it now.
+    if (!slides.busy) {
+      release(target);
     }
   };
   const wheelSwipe = useWheelSwipe(sheet, {
@@ -1347,9 +1366,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           slides.drawnAt(target, revisionNow.current),
         );
       }
+      const side = layout.active;
       void swipe.draw(target).then((drawn) => {
         if (drawn) {
           drag.drawn(target);
+          if (drag.of?.target === target) {
+            setHold({ side, key: target });
+          }
         }
       });
     },
@@ -1371,16 +1394,20 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     // Not switched: the shown buffer springs back, and the draw ends after it (AK4).
     end: () => {
+      const target = drag.of?.target;
       drag.springBack(() => {
         swipe.end();
+        release(target);
       });
     },
   });
   endSwipe.current = () => {
     wheelSwipe.abort();
     if (drag.active) {
+      const target = drag.of?.target;
       drag.cancel();
       swipe.end();
+      release(target);
     }
   };
   // Another buffer shown in the area, another area active, or the target's draw ended (closed, or no longer
@@ -1620,6 +1647,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
               key={area.side}
               area={area}
               {...(area.active ? { hidden: neighbours } : {})}
+              held={heldIn(hold, area.side)}
               split={split}
               views={views}
               onActivate={() => {

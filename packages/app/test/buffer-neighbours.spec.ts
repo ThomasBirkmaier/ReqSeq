@@ -123,6 +123,58 @@ const hiddenTitle = (window: Page): Promise<string[]> =>
     .locator('[data-area][data-active] > [data-layer="neighbour"] article h1')
     .evaluateAll((titles) => titles.map((title) => title.textContent));
 
+/** The pause of the wheel that ends a swipe (`SEGMENT_GAP_MS` of `buffer-swipe.ts`). */
+const SEGMENT_GAP_MS = 35;
+
+/** The title the target of a swipe shows at the edge of the shown buffer (SR-211 AK3). */
+const peekTitle = (window: Page): Locator =>
+  window.locator("[data-area][data-active] > [data-peek] article h1");
+
+/** Gives the element of `file` the title `title` outside the app. */
+const retitleFile = async (running: RunningApp, file: string, title: string): Promise<void> => {
+  const at = path.join(running.workspace?.root ?? "", ...file.split("/"));
+  await fs.writeFile(at, (await fs.readFile(at, "utf8")).replace(/^title: .*$/m, `title: ${title}`));
+};
+
+/**
+ * Starts a swipe toward Previous buffer while the window's clock stands still, and waits until its target, drawn
+ * in advance, joins the shown buffer at its edge. Returns the width of the area.
+ */
+const swipeBack = async (window: Page): Promise<number> => {
+  const box = await window.locator("[data-area][data-active]").boundingBox();
+  const width = box?.width ?? 0;
+  await window.mouse.move((box?.x ?? 0) + width / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  await window.clock.install();
+  await window.clock.pauseAt(Date.now() + 1000);
+  await window.mouse.wheel(-20, 0);
+  await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(1);
+  return width;
+};
+
+/**
+ * Lets the window's clock run until the change of the workspace reached the window: `done` holds. The swipe goes
+ * on meanwhile by a pixel within each pause shorter than the one that would end it.
+ */
+const untilSeen = async (window: Page, done: () => Promise<boolean>): Promise<void> => {
+  await expect
+    .poll(async () => {
+      await window.clock.runFor(SEGMENT_GAP_MS - 15);
+      await window.mouse.wheel(-1, 0);
+      return done();
+    })
+    .toBe(true);
+};
+
+/** The reads of the element `id` itself. */
+const gets = (sent: readonly CoreRequest[], id: string): CoreRequest[] =>
+  naming(sent, id).filter(
+    (request) => request.name === "element.get" && (request.input as { ref?: unknown } | null)?.ref === id,
+  );
+
+/** Whether a slide runs now. */
+const sliding = (window: Page): Promise<boolean> =>
+  window.evaluate(() => document.getAnimations().some((animation) => animation.id === "buffer-slide"));
+
 test.describe("the previous and the next buffer drawn in advance", () => {
   let running: RunningApp;
   let requests: CoreRequests;
@@ -650,6 +702,116 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     expect(
       naming(await requests.sent(), NEED.id).filter((request) => request.name === "trace.neighbourhood"),
     ).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a change while a swipe shows its target holds the target as drawn; the switch slides at once and draws it anew after the slide", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    const width = await swipeBack(window);
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    // The change reached the window: the overview beside the element, drawn from its record, is dropped.
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    expect(gets(await requests.sent(), NEED.id)).toEqual([]);
+    // Past a third: the slide runs straight after the pause of the release, not after the deadline of 1 s.
+    await window.mouse.wheel(-0.6 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    expect(await sliding(window)).toBe(true);
+    await window.clock.resume();
+    await slideSettled(window);
+    // After the slide it is drawn anew, as every shown buffer after a change: one read.
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    await quiet(requests);
+    expect(
+      naming(await requests.sent(), NEED.id).filter((request) => request.name === "element.get"),
+    ).toHaveLength(1);
+  });
+
+  test("[SR-212/AK-tfck] a change during a swipe that springs back: the target is no longer drawn in advance until the next switch, and read at it", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    const width = await swipeBack(window);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await window.mouse.wheel(-0.1 * width, 0);
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await window.clock.runFor(SEGMENT_GAP_MS + 200);
+    await window.clock.resume();
+    await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
+    await expect.poll(() => hiddenViews(window)).not.toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    expect(gets(await requests.sent(), NEED.id)).toEqual([]);
+    await window.keyboard.press("Alt+KeyP");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    expect(naming(await requests.sent(), NEED.id).map((request) => request.name)).toContain("element.get");
+  });
+
+  test("[SR-212/AK-tfck] a change of the shown element during a swipe redraws it, while the target stays as drawn", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    await swipeBack(window);
+    await retitleFile(running, "requirements/SR-0000000000b1.md", "Measure gusts");
+    await untilSeen(
+      window,
+      async () => (await shownLayer(window).locator("article h1").textContent()) === "Measure gusts",
+    );
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await window.clock.runFor(SEGMENT_GAP_MS + 200);
+    await window.clock.resume();
+  });
+
+  test("[SR-212/AK-tfck] a key during the slide of a switch after a change ends the hold: the target is read again once", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    const width = await swipeBack(window);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await window.mouse.wheel(-0.6 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    // The slide stands still where it starts until the key ends it (SR-212 AK2).
+    await window.evaluate(() => {
+      for (const animation of document.getAnimations()) {
+        if (animation.id === "buffer-slide") {
+          animation.pause();
+        }
+      }
+    });
+    expect(await sliding(window)).toBe(true);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(NEED.title);
+    await window.keyboard.press("ArrowDown");
+    await window.clock.resume();
+    expect(await sliding(window)).toBe(false);
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    await quiet(requests);
+    expect(
+      naming(await requests.sent(), NEED.id).filter((request) => request.name === "element.get"),
+    ).toHaveLength(1);
   });
 });
 
