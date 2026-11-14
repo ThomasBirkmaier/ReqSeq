@@ -213,6 +213,19 @@ const moved = (window: Page, side?: string): Promise<string[]> =>
     side,
   );
 
+/**
+ * The shift in px of the shown layer of the active area, parsed from its `translateX(...px)`: a float may be
+ * written with more digits on one system than on another, so it is compared with `toBeCloseTo`, not as text.
+ */
+const shift = async (window: Page): Promise<number> => {
+  const transform = await shownLayer(window).evaluate((layer) => layer.style.transform);
+  const value = /^translateX\((-?[\d.e+-]+)px\)$/.exec(transform)?.[1];
+  if (value === undefined) {
+    throw new Error(`not a shift in px: ${transform}`);
+  }
+  return Number(value);
+};
+
 /** The target that joins the shown buffer of the active area at its edge (AK3). */
 const peeking = (window: Page): Locator => window.locator("[data-area][data-active] > [data-peek]");
 
@@ -581,18 +594,16 @@ test.describe("the swipe that switches the buffer", () => {
     await window.screenshot({ path: path.join(OUT, "buffer-swipe-halfway.png") });
     // Back toward the start: the element follows back to its place, never past it.
     await window.mouse.wheel(0.4 * width, 0);
-    expect(await shownLayer(window).evaluate((layer) => layer.style.transform)).toBe("translateX(0px)");
+    expect(await shift(window)).toBeCloseTo(0, 2);
     await window.clock.runFor(GESTURE_GAP_MS);
     await expect.poll(() => moved(window)).toEqual([]);
     // Toward the overview, which is not drawn in advance: the element stands until it is drawn, then follows
     // the distance from there.
     await window.mouse.wheel(0.1 * width, 0);
     await expect(peeking(window)).toHaveCount(1);
-    expect(await shownLayer(window).evaluate((layer) => layer.style.transform)).toBe("translateX(0px)");
+    expect(await shift(window)).toBeCloseTo(0, 2);
     await window.mouse.wheel(0.1 * width, 0);
-    expect(await shownLayer(window).evaluate((layer) => layer.style.transform)).toBe(
-      `translateX(${String(-0.1 * width)}px)`,
-    );
+    expect(await shift(window)).toBeCloseTo(-0.1 * width, 2);
     await window.clock.runFor(GESTURE_GAP_MS);
     await window.clock.resume();
     await expect.poll(() => moved(window)).toEqual([]);
@@ -800,9 +811,7 @@ test.describe("the swipe that switches the buffer", () => {
     await expect.poll(() => moved(window)).toEqual([]);
     // A second swipe does not wait again: the list stays drawn beside the element, from its record.
     await window.mouse.wheel(-0.6 * width, 0);
-    expect(await shownLayer(window).evaluate((layer) => layer.style.transform)).toBe(
-      `translateX(${String(0.6 * width)}px)`,
-    );
+    expect(await shift(window)).toBeCloseTo(0.6 * width, 2);
     await window.clock.runFor(SEGMENT_GAP_MS);
     await window.clock.resume();
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", LIST);
