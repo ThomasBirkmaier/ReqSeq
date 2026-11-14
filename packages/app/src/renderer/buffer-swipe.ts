@@ -143,7 +143,8 @@ export class SwipeGesture {
   // The swipe the timer ended below the third, and its way, which the next event may join again.
   private ended: { readonly segment: Segment; readonly way: SwipeWay } | undefined;
   // A segment of an ignored or vertical gesture after a pause, which may start a new swipe.
-  private probe: (Segment & { asked: boolean }) | undefined;
+  private probe:
+    (Segment & { asked: boolean; readonly ignores: Readonly<Record<-1 | 1, boolean>> }) | undefined;
   private segmentTimer: unknown;
   private gestureTimer: unknown;
 
@@ -221,7 +222,12 @@ export class SwipeGesture {
       gesture.tail = size;
       return false;
     }
-    const probe = (this.probe ??= { ...this.fresh(step, "open"), asked: false });
+    // The window is asked at the probe's first event, both ways, before its events scroll anything (AK5).
+    const probe = (this.probe ??= {
+      ...this.fresh(step, "open"),
+      asked: false,
+      ignores: { [-1]: this.host.ignored(-1), 1: this.host.ignored(1) },
+    });
     probe.sx += step.dx;
     probe.sy += step.dy;
     probe.top = Math.max(probe.top, size);
@@ -237,7 +243,7 @@ export class SwipeGesture {
       return false;
     }
     probe.asked = true;
-    if (this.host.ignored(signOf(probe.sx))) {
+    if (probe.ignores[probe.sx < 0 ? -1 : 1]) {
       return false;
     }
     this.probe = undefined;

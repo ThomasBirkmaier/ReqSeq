@@ -299,6 +299,23 @@ describe("SwipeGesture", () => {
     expect(run.prevented.at(-1)).toBe(true);
   });
 
+  it("a swipe that starts short of the edge of content it scrolls does not switch when it reaches the edge (AK5)", () => {
+    // The table scrolls toward the end until the probe's events have pushed it to its edge.
+    let atEdge = false;
+    const run = setup({ ignored: (sign) => sign === 1 && !atEdge });
+    const second = [1, 3, 6, 10, 15, 25, 30, 30, 30, 30, 30, 30, 30, 30].map((dx, index) => ({
+      t: 300 + index * 8,
+      dx,
+    }));
+    run.replay([...swipe(0, 20, 20), ...momentum(160, 6, 4)], 0);
+    run.replay(second.slice(0, 1), 0);
+    // 15 px later the table stands at its edge: the window would now let a swipe that way switch.
+    atEdge = true;
+    run.replay(second.slice(1));
+    expect(run.log).toEqual([]);
+    expect(run.prevented.some(Boolean)).toBe(false);
+  });
+
   it("a horizontal swipe 60 ms after a vertical fling switches; within the fling's own segment it does not (AK6)", () => {
     const run = setup();
     const fling = [
@@ -321,7 +338,8 @@ describe("SwipeGesture", () => {
     const run = setup({ ignored: () => true });
     const second = [1, 3, 6, 10, 15, 25, 30, 30, 30, 30].map((dx, index) => ({ t: 150 + index * 8, dx }));
     run.replay([...swipe(0, 10, 20), ...second]);
-    expect(run.host.ignored).toHaveBeenCalledTimes(2);
+    // Once for the gesture, then both ways at the probe's first event.
+    expect(run.host.ignored).toHaveBeenCalledTimes(3);
     expect(run.prevented.some(Boolean)).toBe(false);
     expect(run.log).toEqual([]);
   });

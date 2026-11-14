@@ -9,13 +9,13 @@ The app works like a text editor: you run everything from one command prompt, an
 
 ## Open a workspace
 
-On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key of **File > Open Workspace…**, opens the folder dialog. **Open workspace** in the command prompt offers the workspaces you opened last, or takes a folder path.
+On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key of **File > Open Workspace…**, opens the folder dialog. **Open workspace** in the command prompt offers recent workspaces, or takes a folder path.
 
 ## The command prompt
 
 Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape steps back, then closes.
 
-An entry with a key shows it, so the prompt teaches you the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that may follow.
+An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that follow.
 
 The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)), except those whose output the app shows elsewhere; F1 on one opens its reference page.
 
@@ -23,13 +23,13 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ## The minibuffer and the modeline
 
-The bottom line is the minibuffer. It shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
+The bottom line, the minibuffer, shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
 ## Buffers
 
-Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe and a sideways wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
+Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
 A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
 
