@@ -660,6 +660,8 @@ const Slot = ({
     <div
       className="slide-layer"
       data-layer={shown ? "main" : "neighbour"}
+      // By which a swipe finds the layer of its target, to move it beside the shown one (`swipe-drag.ts`).
+      data-key={buffer.key}
       inert={hidden}
       aria-hidden={hidden ? "true" : undefined}
     >

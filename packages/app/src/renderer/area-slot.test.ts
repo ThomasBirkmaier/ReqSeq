@@ -84,6 +84,18 @@ describe("the gate of the reads drawn in advance", () => {
     gate.dispose();
   });
 
+  it("stays closed while a swipe moves the shown buffer or springs back (SR-211 AK3)", async () => {
+    const gate = new ReadGate(1000);
+    gate.show("a", true);
+    gate.drag(true);
+    const waiting = pass(gate);
+    expect(gate.open).toBe(false);
+    expect(await settled(waiting)).toBe(false);
+    gate.drag(false);
+    expect(await settled(waiting)).toBe(true);
+    gate.dispose();
+  });
+
   it("[SR-212/AK-tfck] stays closed while a prompt is open, where the reader may choose the next buffer", async () => {
     const gate = new ReadGate(1000);
     gate.show("a", true);

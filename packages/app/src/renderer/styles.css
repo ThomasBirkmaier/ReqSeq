@@ -115,6 +115,12 @@ body,
   pointer-events: none;
 }
 
+/* The target of a swipe that joins the shown buffer at its edge (SR-211 AK3, swipe-drag.ts): painted while it
+   joins (as its area is), still inert and not reached by the pointer. */
+.slide-layer[data-layer="neighbour"][data-peek] {
+  visibility: inherit;
+}
+
 .slide-picture {
   height: 100%;
 }
