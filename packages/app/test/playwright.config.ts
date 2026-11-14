@@ -8,8 +8,8 @@ import { defineConfig } from "@playwright/test";
 // unset or empty runs all files. Playwright's own --shard cuts the sorted list into blocks, and the slow files sort
 // first (about 340 s against 190 s for two shards). Every <total>-th file evened that out at first, but as files grew,
 // shard 2 of 2 came to hold 340 of 582 tests (332 s against 705 s on Ubuntu, #1650). So the files go by their number of
-// tests, the largest first, each to the shard with the fewest so far: two shards then hold 292 and 290 tests (526 s and
-// 511 s on the same run). The count is read from the source, so a test made in a loop counts once.
+// tests, the largest first, each to the shard with the fewest so far: on that run two shards would have taken 526 s and
+// 511 s. The count is read from the source, so a test made in a loop counts once.
 function shardFiles(value: string): RegExp[] {
   const match = /^(\d+)\/(\d+)$/.exec(value);
   const shard = Number(match?.[1]);

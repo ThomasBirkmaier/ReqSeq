@@ -480,8 +480,9 @@ jobs:
 
   # macOS in shards like Ubuntu and Windows (#1229): in one job the suite of 455 tests took 18 to 28.5 minutes,
   # depending on the runner (the same tests ran 1.5 times as long on a slow one), and hit the bound of 30. With two
-  # shards of 290 tests each, the tests of one took about 15 minutes and up to 23 on a slow runner, and the bound of
-  # 25 cancelled green jobs (#1650); a macOS test takes about 1.4 s longer than on Ubuntu. A third shard adds only its
+  # shards, the tests of one took about 15 minutes and up to 23 on a slow runner, and the bound of 25 cancelled green
+  # jobs (#1650); even balanced, two shards would come close to it there. A macOS test takes about 1.4 s longer than
+  # on Ubuntu. A third shard adds only its
   # setup (about 2 minutes) to the macOS minutes of a run, and the macOS jobs of a run end sooner, so the 5 macOS
   # runners are free as early as before. `electron (macos-26)` below is green when all three are.
   electron-macos-shard:
