@@ -686,7 +686,33 @@ test.describe("the swipe that switches the buffer", () => {
     expect(await moved(window)).toEqual([]);
   });
 
-  test("[SR-211/AK-ck1v] [SR-212/AK-kqvx] a key during a swipe ends it at once without a switch and acts on the buffer shown: a letter lands in the element", async () => {
+  test("[SR-211/AK-wfd3] two quick swipes the same way switch twice: the second, during the first one's slide, draws its target and the buffer follows it", async () => {
+    const { window } = running;
+    // The swipes go from the element to "Warn of storms", then to "Measure wind speed". That one is no
+    // neighbour of the element: it is drawn in advance beside "Warn of storms" once that is shown.
+    await open(window, "Measure wind speed");
+    await open(window, "Warn of storms");
+    await open(window, ELEMENT);
+    // The first one's slide is held, so the reads of "Measure wind speed" drawn in advance wait at the gate.
+    await window.evaluate(() => {
+      (window as unknown as { hold: boolean }).hold = true;
+    });
+    const width = await pointAt(window);
+    await holdClock(window);
+    await window.mouse.wheel(-0.6 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Warn of storms");
+    await window.clock.runFor(GESTURE_GAP_MS);
+    // The second swipe ends the slide; its target is drawn and joins at the edge.
+    await startSwipe(window, -1);
+    await window.mouse.wheel(-0.5 * width, 0);
+    await expect.poll(() => moved(window)).not.toEqual([]);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    await window.clock.resume();
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Measure wind speed");
+  });
+
+  test("a key during a swipe ends it at once without a switch and acts on the buffer shown: a letter lands in the element", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
     const editor = shownLayer(window).locator(".cm-content").first();

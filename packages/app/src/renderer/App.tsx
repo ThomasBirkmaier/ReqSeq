@@ -1377,9 +1377,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
   });
   endSwipe.current = () => {
+    wheelSwipe.abort();
     if (drag.active) {
       drag.cancel();
-      wheelSwipe.abort();
       swipe.end();
     }
   };

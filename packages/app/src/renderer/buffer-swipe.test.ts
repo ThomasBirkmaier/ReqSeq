@@ -6,6 +6,7 @@ import type { SwipeHost, SwipeTimers, SwipeWay } from "./buffer-swipe.js";
 import {
   DECIDE_PX,
   GESTURE_GAP_MS,
+  LATE_UNTIL_MS,
   LATE_WAIT_MS,
   SEGMENT_GAP_MS,
   SwipeGesture,
@@ -26,10 +27,15 @@ export interface Recorded {
 
 // Behind the clock by `lag` ms: a timer that fires late.
 let lag = 0;
+// Whether the window is visible.
+let shown = true;
+// Each timer fires this many ms after its time: a timer that is always late.
+let delay = 0;
 
 const timers: SwipeTimers = {
   now: () => Date.now() + lag,
-  set: (run, ms) => setTimeout(run, ms),
+  visible: () => shown,
+  set: (run, ms) => setTimeout(run, ms + delay),
   clear: (handle) => {
     clearTimeout(handle as ReturnType<typeof setTimeout>);
   },
@@ -452,10 +458,47 @@ describe("SwipeGesture", () => {
     expect(idle.log).toEqual(["begin forward", "end"]);
   });
 
+  it("a timer that is always late waits no longer than LATE_UNTIL_MS after it was due: the gesture ends", () => {
+    const run = setup();
+    delay = 30;
+    run.replay(swipe(0, 6, 10), 0);
+    // Due at 35 ms after the last event, it fires at 65, 115, 165 and 215 ms: at 215 it is 180 ms past due.
+    vi.advanceTimersByTime(SEGMENT_GAP_MS + LATE_UNTIL_MS);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(30);
+    expect(run.log).toEqual(["begin forward", "end"]);
+    // The gesture timer, due at 150 ms, ends the gesture at 330 ms: the next event starts a new one.
+    vi.advanceTimersByTime(330 - 215);
+    delay = 0;
+    run.replay(swipe(run.at() + 330, 6, 10), 0);
+    expect(run.log).toEqual(["begin forward", "end", "begin forward"]);
+  });
+
+  it("in a hidden window a late timer does not wait: the segment ends", () => {
+    const run = setup();
+    shown = false;
+    delay = 1000;
+    run.replay(swipe(0, 6, 10), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS + 999);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    shown = true;
+    delay = 0;
+    expect(run.log).toEqual(["begin forward", "end"]);
+  });
+
   it("the window's timers are looked up at each call", () => {
-    const view = { setTimeout: vi.fn(() => 7), clearTimeout: vi.fn(), performance: { now: () => 12 } };
+    const view = {
+      setTimeout: vi.fn(() => 7),
+      clearTimeout: vi.fn(),
+      performance: { now: () => 12 },
+      document: { visibilityState: "hidden" },
+    };
     const own = windowTimers(view as unknown as Window);
     expect(own.now()).toBe(12);
+    expect(own.visible()).toBe(false);
+    view.document.visibilityState = "visible";
+    expect(own.visible()).toBe(true);
     const run = vi.fn();
     expect(own.set(run, 5)).toBe(7);
     own.clear(7);

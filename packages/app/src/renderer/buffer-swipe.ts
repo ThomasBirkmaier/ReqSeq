@@ -13,7 +13,8 @@
 //   (the timer fired late, the main thread was busy), or, below the third, when it goes on in its direction
 //   with a step of a wheel notch. A timer of these pauses that fires more than `LATE_MS` late (a long frame,
 //   such as the first paint of a large target at the edge) waits `LATE_WAIT_MS` more, as often as it is late
-//   again, since the next event of a swipe that goes on comes with the next frame.
+//   again until `LATE_UNTIL_MS` after it was due, since the next event of a swipe that goes on comes with the
+//   next frame. In a window that is not visible it never waits: its timers are throttled, so always late.
 // - An event with Shift, Ctrl, Meta or Alt held is not read at all (AK10: Shift+wheel only scrolls).
 // - The first event of a gesture asks the window whether it switches nothing (`ignored`): then nothing of the
 //   gesture is prevented or counted. The window asks again with the direction once dX is not 0 (AK5).
@@ -35,6 +36,8 @@ export const SEGMENT_GAP_MS = 35;
 export const LATE_MS = 10;
 /** The wait after a late segment timer: about one frame, in which a swipe that goes on sends its next event. */
 export const LATE_WAIT_MS = 20;
+/** A late timer waits no longer than this after it was due: the longest gap in a swipe on CI was 112 ms. */
+export const LATE_UNTIL_MS = GESTURE_GAP_MS;
 /** The distance after which a segment is vertical or the swipe. */
 export const DECIDE_PX = 8;
 /** The distance after which a segment of a spent gesture is a new swipe, vertical, or more of the old one. */
@@ -94,10 +97,13 @@ export interface SwipeTimers {
   readonly clear: (handle: unknown) => void;
   /** The time in ms, by which a timer that fired late is seen. */
   readonly now: () => number;
+  /** Whether the window is visible: the timers of a hidden one are throttled and fire late. */
+  readonly visible: () => boolean;
 }
 
 export const windowTimers = (view: Window): SwipeTimers => ({
   now: () => view.performance.now(),
+  visible: () => view.document.visibilityState === "visible",
   set: (run, ms) => view.setTimeout(run, ms),
   clear: (handle) => {
     view.clearTimeout(handle as number);
@@ -313,14 +319,17 @@ export class SwipeGesture {
 
   /**
    * Runs `run` after `ms`, unless its timer fires more than `LATE_MS` late: the main thread was busy (a long
-   * frame), so it waits `LATE_WAIT_MS` more, as often as that timer is late too. `keep` takes each handle.
+   * frame), so it waits `LATE_WAIT_MS` more, as often as that timer is late too, until `LATE_UNTIL_MS` after
+   * `due`. A hidden window's timers are always late, so there it never waits. `keep` takes each handle.
    */
-  private patient(keep: (handle: unknown) => void, run: () => void, ms: number): void {
+  private patient(keep: (handle: unknown) => void, run: () => void, ms: number, due?: number): void {
     const armed = this.timers.now();
+    const first = due ?? armed + ms;
     keep(
       this.timers.set(() => {
-        if (this.timers.now() - armed > ms + LATE_MS) {
-          this.patient(keep, run, LATE_WAIT_MS);
+        const now = this.timers.now();
+        if (now - armed > ms + LATE_MS && now - first < LATE_UNTIL_MS && this.timers.visible()) {
+          this.patient(keep, run, LATE_WAIT_MS, first);
         } else {
           run();
         }

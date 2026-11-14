@@ -34,7 +34,7 @@ export const dragOffsets = (
 const px = (value: number): string => `translateX(${String(value)}px)`;
 
 /** The input that ends a drag at once, without a switch (as `buffer-slide.ts` ends a slide). */
-const ENDING = ["keydown", "pointerdown", "mousedown", "mouseup"] as const;
+export const ENDING = ["keydown", "pointerdown", "mousedown", "mouseup"] as const;
 
 /** What a drag needs of the page. */
 export interface DragHost {

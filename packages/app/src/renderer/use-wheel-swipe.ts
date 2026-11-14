@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeHost, SwipeWay } from "./buffer-swipe.js";
 import { SwipeGesture, windowTimers } from "./buffer-swipe.js";
+import { ENDING } from "./swipe-drag.js";
 import { scrollsFirst, verticalScroller, wheelPixels } from "./swipe-target.js";
 
 export interface WheelSwipeOptions {
@@ -127,8 +128,19 @@ export const useWheelSwipe = (
         wheel.preventDefault();
       }
     };
+    // A key or a press of a mouse button ends the swipe, also when no drag runs (without motion, or toward the
+    // other area): the input acts, and the rest of the gesture does nothing (AK12).
+    const onInput = (): void => {
+      gesture.abort();
+    };
     root.addEventListener("wheel", onWheel, { passive: false });
+    for (const type of ENDING) {
+      view.addEventListener(type, onInput, { capture: true });
+    }
     return () => {
+      for (const type of ENDING) {
+        view.removeEventListener(type, onInput, { capture: true });
+      }
       root.removeEventListener("wheel", onWheel);
       gesture.dispose();
       current.current = undefined;

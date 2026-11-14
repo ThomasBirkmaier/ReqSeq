@@ -146,6 +146,37 @@ it("an aborted swipe releases nothing, and the rest of its gesture does nothing"
   expect(props.move).toHaveBeenCalledTimes(1);
 });
 
+it("a key or a press during a swipe aborts it without a drag too: the rest of the gesture switches nothing", () => {
+  // Without motion, a swipe below the third, then a key, then more of it past the third.
+  window.matchMedia = ((query: string) => ({ matches: true, media: query })) as typeof window.matchMedia;
+  const props = options();
+  render(props);
+  layout();
+  wheel(byId("wide"), { deltaX: -100 });
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "p", altKey: true }));
+  });
+  const rest = wheel(byId("wide"), { deltaX: -200 });
+  expect(rest.defaultPrevented).toBe(true);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  expect(props.switch).not.toHaveBeenCalled();
+  expect(props.release).not.toHaveBeenCalled();
+  // With motion (the other area shows the target, no drag): a press, then the release past a third does nothing.
+  window.matchMedia = ((query: string) => ({ matches: false, media: query })) as typeof window.matchMedia;
+  vi.advanceTimersByTime(1000);
+  wheel(byId("wide"), { deltaX: -300 });
+  act(() => {
+    window.dispatchEvent(new MouseEvent("pointerdown"));
+  });
+  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  expect(props.release).not.toHaveBeenCalled();
+  // After the pause, a new swipe works again: the listeners only abort, they do not block.
+  vi.advanceTimersByTime(1000);
+  wheel(byId("wide"), { deltaX: -300 });
+  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  expect(props.release).toHaveBeenCalledTimes(1);
+});
+
 it("switches nothing when the window blocks it at the end", () => {
   let blocked = false;
   const props = options({ blocked: () => blocked });
