@@ -55,7 +55,7 @@ export function codesPage(codes: ProblemCodes): string {
     "",
     "## Problem codes",
     "",
-    "A problem is a finding or a hint in the result of a command, for example of the workspace check, with a severity of error, warning or info. The command itself succeeded.",
+    "A problem is a message in the result of a command, for example of the workspace check, with a severity of error, warning or info; a hint is a problem of severity warning about one element. The command itself succeeded.",
     "",
     ...section(codes.problems, "problem"),
     "## Error codes",

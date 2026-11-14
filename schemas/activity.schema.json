@@ -20,7 +20,7 @@
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "SHA-256 (hex) of the element's file as the call left it, so that a reader can tell whether it sees that state of the file yet."
+      "description": "SHA-256 (hex) of the element's file as the call left it, so that a reader can tell whether it sees that content of the file yet."
     },
     "access": { "$ref": "#/$defs/access" }
   },
