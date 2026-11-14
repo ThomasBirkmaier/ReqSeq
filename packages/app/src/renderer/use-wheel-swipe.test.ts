@@ -177,6 +177,21 @@ it("a key or a press during a swipe aborts it without a drag too: the rest of th
   expect(props.release).toHaveBeenCalledTimes(1);
 });
 
+it("a modifier key alone during a swipe does not abort it: the release past a third switches", () => {
+  const props = options();
+  render(props);
+  layout();
+  wheel(byId("wide"), { deltaX: -100 });
+  act(() => {
+    for (const key of ["Shift", "Control", "Alt", "Meta"]) {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+    }
+  });
+  wheel(byId("wide"), { deltaX: -200 });
+  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  expect(props.release).toHaveBeenCalledWith("back", 300, 600);
+});
+
 it("switches nothing when the window blocks it at the end", () => {
   let blocked = false;
   const props = options({ blocked: () => blocked });

@@ -12,7 +12,8 @@
 // they finished. Every run is kept; a run with a gap of 30 ms or more between two events (a stalled frame, so the
 // swipe may have ended early) is counted in a row of its own. A swipe that split into two (its slide or spring-back
 // started before its last event, or the rest of it ended that motion) has no time: the row of its kind names the
-// splits, and a row of their count with a threshold of 0 fails the test.
+// splits (and fails when every swipe of it split), and the row of their count, with a threshold of 0 and the largest
+// event gap of those swipes, fails the test.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -383,24 +384,27 @@ const report = async (
   const timed = async (
     name: string,
     runs: readonly Run[],
-    options: { readonly basis: string; readonly thresholdMs?: number },
+    options: { readonly basis: string; readonly thresholdMs: number },
   ): Promise<void> => {
-    const splits = runs.filter(split).length;
+    const splits = runs.filter(split);
+    const ended = runs.length - splits.length;
     recorded.push(
       await recordValue(
-        `${name} (slowest of ${String(runs.length - splits)}${splits > 0 ? `; ${String(splits)} split` : ""})`,
+        `${name} (slowest of ${String(ended)}${splits.length > 0 ? `; ${String(splits.length)} split` : ""})`,
         slowest(runs, toEnd),
-        options,
+        ended > 0 ? options : { ...options, failed: "every swipe split" },
       ),
     );
-    if (splits > 0 && options.thresholdMs !== undefined) {
-      recorded.push(
-        await recordValue(`${name}: swipes that split into two (of ${String(runs.length)})`, splits, {
-          basis: options.basis,
-          thresholdMs: 0,
-        }),
-      );
-    }
+    // The largest gap between the events of a swipe that split tells a stall of the page (over LATE_UNTIL_MS)
+    // from a swipe that ended early.
+    const gap = Math.round(Math.max(0, ...splits.map((run) => run.gap)));
+    recorded.push(
+      await recordValue(
+        `${name}: swipes that split into two (of ${String(runs.length)}${splits.length > 0 ? `; largest event gap ${String(gap)} ms` : ""})`,
+        splits.length,
+        { basis: options.basis, thresholdMs: 0, unit: "count" },
+      ),
+    );
   };
   const summary: Record<string, unknown> = {};
   const all = [...switched, ...sprung, ...unsaved];
@@ -408,7 +412,7 @@ const report = async (
     await recordValue(
       `app: swipes whose events had a gap of ${String(STALL_MS)} ms or more (of ${String(all.length)}; kept)`,
       all.filter((run) => run.gap >= STALL_MS).length,
-      { basis: COMPARE },
+      { basis: COMPARE, unit: "count" },
     ),
   );
   for (const kind of KINDS) {
@@ -579,6 +583,7 @@ test.describe("the swipe that switches the buffer with 50,000 elements and 200,0
     console.log(`PERF buffer swipe scrolls first: ${JSON.stringify([...scrolling])}`);
     const recorded = await report(kinds, switched, sprung, unsaved);
     for (const measurement of recorded.filter((one) => one.thresholdMs !== undefined)) {
+      expect.soft(measurement.failed, thresholdMessage(measurement)).toBeUndefined();
       expect
         .soft(measurement.ms, thresholdMessage(measurement))
         .toBeLessThanOrEqual(measurement.thresholdMs ?? 0);

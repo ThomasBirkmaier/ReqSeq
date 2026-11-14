@@ -30,6 +30,9 @@ export interface WheelSwipe {
   readonly abort: () => void;
 }
 
+/** A key that only modifies others, held during a swipe: it does not end it (as in `use-context-menu.ts`). */
+const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
+
 const activeArea = (sheet: HTMLElement | null): HTMLElement | null =>
   sheet?.querySelector<HTMLElement>("[data-area][data-active]") ?? null;
 
@@ -128,9 +131,12 @@ export const useWheelSwipe = (
         wheel.preventDefault();
       }
     };
-    // A key or a press of a mouse button ends the swipe, also when no drag runs (without motion, or toward the
+    // A key (not a modifier alone) or a press of a mouse button ends the swipe, also when no drag runs (without motion, or toward the
     // other area): the input acts, and the rest of the gesture does nothing (AK12).
-    const onInput = (): void => {
+    const onInput = (input: Event): void => {
+      if (input instanceof KeyboardEvent && MODIFIERS.has(input.key)) {
+        return;
+      }
       gesture.abort();
     };
     root.addEventListener("wheel", onWheel, { passive: false });

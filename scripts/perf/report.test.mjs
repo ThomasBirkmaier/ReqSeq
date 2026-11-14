@@ -53,6 +53,22 @@ describe("perf report", () => {
     expect(exceeded([COLD, CHECK, WRITE])).toEqual([COLD]);
   });
 
+  it("writes a count without a unit, and a measurement without a value as exceeded", () => {
+    const splits = { name: "splits", basis: "SR-211 AK1", ms: 1, thresholdMs: 0, unit: "count" };
+    const none = { name: "slide", basis: "SR-211 AK1", ms: 0, thresholdMs: 200, failed: "every swipe split" };
+    const fine = { name: "kept", basis: "SR-211", ms: 3, unit: "count" };
+    expect(parseResults(`${JSON.stringify(splits)}\n${JSON.stringify(none)}\n`)).toEqual([splits, none]);
+    expect(() => parseResults('{"name":"x","basis":"y","ms":1,"unit":"s"}\n')).toThrow(/not a measurement/);
+    expect(() => parseResults('{"name":"x","basis":"y","ms":1,"failed":true}\n')).toThrow(
+      /not a measurement/,
+    );
+    expect(exceeded([splits, none, fine])).toEqual([splits, none]);
+    const report = renderReport({ measurements: [splits, none, fine], machine: MACHINE, commit: "abc123" });
+    expect(report).toContain("| splits | SR-211 AK1 | 1 | 0 | **exceeded** |");
+    expect(report).toContain("| slide | SR-211 AK1 | none: every swipe split | 200 ms | **exceeded** |");
+    expect(report).toContain("| kept | SR-211 | 3 |  | no threshold |");
+  });
+
   it("writes a table with basis, time, threshold and result, and the run it comes from", () => {
     const report = renderReport({
       measurements: [COLD, CHECK, WRITE],
