@@ -38,6 +38,8 @@ export interface ContextMenu {
   readonly menu: MenuState | undefined;
   /** Whether the menu is open now, read by the window's listeners. */
   readonly isOpen: () => boolean;
+  /** Whether the wheel event `event` closed the menu: a swipe it ends switches no buffer (SR-211 AK11). */
+  readonly closedBy: (event: WheelEvent) => boolean;
   readonly close: () => void;
   /** Selects the entry at `index` (the pointer is on it). */
   readonly select: (index: number) => void;
@@ -143,6 +145,8 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
   latest.current = options;
   const [menu, setMenu] = useState<MenuState | undefined>(undefined);
   const menuNow = useRef<MenuState | undefined>(undefined);
+  // The wheel events that closed the menu (`closedBy`).
+  const closing = useRef(new WeakSet<WheelEvent>());
   const show = useCallback((next: MenuState | undefined): void => {
     menuNow.current = next;
     setMenu(next);
@@ -271,6 +275,9 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
 
     const wheel = (event: WheelEvent): void => {
       if (!inMenu(event.target)) {
+        if (menuNow.current !== undefined) {
+          closing.current.add(event);
+        }
         close();
       }
     };
@@ -307,5 +314,6 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
   }, [prompting, close]);
 
   const isOpen = useCallback((): boolean => menuNow.current !== undefined, []);
-  return { menu, isOpen, close, select };
+  const closedBy = useCallback((event: WheelEvent): boolean => closing.current.has(event), []);
+  return { menu, isOpen, closedBy, close, select };
 };

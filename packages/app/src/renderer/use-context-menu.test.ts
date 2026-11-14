@@ -174,6 +174,12 @@ describe("useContextMenu", () => {
     closes(() => {
       element("row").dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
     });
+    // The wheel event that closed it is known, so a swipe it starts switches no buffer (SR-211 AK11).
+    rightClick(element("empty"));
+    const closing = send(element("row"), new WheelEvent("wheel", { bubbles: true }));
+    expect(menu.closedBy(closing)).toBe(true);
+    const later = send(element("row"), new WheelEvent("wheel", { bubbles: true }));
+    expect(menu.closedBy(later)).toBe(false);
     closes(() => {
       window.dispatchEvent(new Event("blur"));
     });

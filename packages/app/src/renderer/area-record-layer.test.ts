@@ -311,3 +311,24 @@ it("a buffer drawn for a swipe reads at once, as a shown one, and then stays dra
   expect(area.ready).toHaveBeenLastCalledWith(A.key, 0, 0, true);
   gate.dispose();
 });
+
+it("a buffer drawn for a swipe reads again after a change, as a shown one, and is not drawn in advance from the read before", async () => {
+  const gate = new ReadGate(60_000);
+  const area = harness(gate);
+  await area.render(B, []);
+  await area.open(B.key);
+  await area.render(B, [[A, "swipe"]]);
+  expect(area.reads("uuid-a")).toBe(1);
+  expect(area.ready).toHaveBeenLastCalledWith(A.key, 0, 0, false);
+  // A change of the workspace while the swipe draws A: A reads again, as a shown buffer does, and is ready in
+  // the new generation only once that read is in.
+  await area.render(B, [[A, "swipe"]], { seen: 1 });
+  expect(area.reads("uuid-a")).toBe(2);
+  expect(area.drop).not.toHaveBeenCalled();
+  expect(area.ready).toHaveBeenLastCalledWith(A.key, 0, 1, false);
+  // The swipe springs back: A stays beside B, drawn from that read.
+  await area.render(B, [[A, "record"]], { seen: 1 });
+  expect(area.drop).not.toHaveBeenCalled();
+  expect(area.reads("uuid-a")).toBe(2);
+  gate.dispose();
+});

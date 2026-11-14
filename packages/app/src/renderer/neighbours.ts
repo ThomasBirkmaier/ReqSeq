@@ -74,16 +74,19 @@ export const neighbourBuffers = (
 /**
  * The buffers drawn beside the shown one (the first of `buffers`): `besides` without those a change `dropped`
  * until the next switch, and the buffer a swipe draws (`swiped`, SR-211 AK3) as `swipe`, also when it was
- * dropped.
+ * dropped; never the shown one or the one the other area shows (`other`).
  */
 export const withSwipe = (
   besides: readonly Neighbour[],
   buffers: Buffers,
   dropped: ReadonlySet<string>,
   swiped: string | undefined,
+  other?: string,
 ): readonly Neighbour[] => {
   const shown = buffers[0]?.key;
   const kept = besides.filter(({ buffer }) => !dropped.has(buffer.key) && buffer.key !== swiped);
-  const drawn = buffers.find((buffer) => buffer.key === swiped && buffer.key !== shown);
+  const drawn = buffers.find(
+    (buffer) => buffer.key === swiped && buffer.key !== shown && buffer.key !== other,
+  );
   return drawn === undefined ? kept : [...kept, { buffer: drawn, by: "swipe" }];
 };
