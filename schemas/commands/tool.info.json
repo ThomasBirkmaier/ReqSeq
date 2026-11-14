@@ -24,7 +24,7 @@
         },
         "additionalProperties": false,
         "required": ["app", "cli", "mcp"],
-        "description": "The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery."
+        "description": "The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version."
       },
       "build": {
         "description": "The build of ReqSeq that runs.",
@@ -32,7 +32,7 @@
         "properties": {
           "commit": {
             "$ref": "../common.schema.json#/$defs/commit",
-            "description": "The commit the delivery was built from. Left out in a build from a checkout."
+            "description": "The commit the release was built from. Left out in a build from a checkout."
           },
           "date": {
             "$ref": "../common.schema.json#/$defs/dateTime",
@@ -40,7 +40,7 @@
           },
           "development": {
             "const": true,
-            "description": "Built from a checkout, not delivered: commit and date are unknown. Left out in a delivery."
+            "description": "Built from a checkout, not a release: commit and date are unknown. Left out in a release."
           },
           "platform": {
             "type": "string",
@@ -73,7 +73,7 @@
         },
         "additionalProperties": false,
         "required": ["node"],
-        "description": "The runtime of the process. The delivered command line, API and MCP server run on the Electron of the app, so a delivery gives the same values in every access."
+        "description": "The runtime of the process. The command line, API and MCP server of a release run on the Electron of the app, so a release gives the same values in every access."
       },
       "workspace": {
         "description": "The open workspace.",
@@ -111,7 +111,7 @@
           "thirdParty": {
             "type": "string",
             "minLength": 1,
-            "description": "The file of the delivery that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout."
+            "description": "The file of the release that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout."
           }
         },
         "additionalProperties": false,
@@ -124,7 +124,7 @@
           "bundled": {
             "type": "string",
             "minLength": 1,
-            "description": "The folder of the delivery with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
+            "description": "The folder of the release with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
           },
           "online": {
             "type": "string",

@@ -33,7 +33,7 @@ concurrency:
 # Two lanes (#303, #412): every push starts the Ubuntu lane (`static`, `checks` and `electron` on ubuntu-24.04). A draft
 # pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
-# `checks` and `electron` on macos-26 and windows-2025, Electron in two shards on macOS and three on Windows (#1311).
+# `checks` and `electron` on macos-26 and windows-2025, Electron in three shards on each (#1311, #1650).
 # The lanes ran one after the other while runner minutes cost money; in a public repository they are free, and in
 # sequence a full run took about 24 minutes instead of about 15 (#412). So every pull request is checked on all
 # three systems before its merge (merge skill), but not every push.
@@ -301,7 +301,7 @@ jobs:
   # below is green when both shards are. `electron-macos-shard` and `electron-windows-shard` run the same steps on macOS and Windows.
   electron-shard:
     name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
-    # A normal run takes 9-12 minutes (install, build, every second test file one app at a time; median 9.1 for shard 1
+    # Before the files were dealt out by their number of tests (#1650), a run took 9-12 minutes (median 9.1 for shard 1
     # and 11.4 for shard 2, up to 14.7, 95 green shard jobs, 2026-11-13/14), and a runner about 35 % slower hit the old
     # bound of 15 with every test green (#1711); 35 % over the slowest test step (13.4) plus setup is about 19. The
     # bound ends a hang.
@@ -481,15 +481,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps: *checks-steps
 
-  # macOS in two shards like Ubuntu and Windows (#1229): in one job the suite of 455 tests took 18 to 28.5 minutes,
-  # depending on the runner (the same tests ran 1.5 times as long on a slow one), and hit the bound of 30. A second
-  # shard adds only its setup (about 1.5 minutes) to the macOS minutes of a run. `electron (macos-26)` below is green
-  # when both are.
+  # macOS in shards like Ubuntu and Windows (#1229): in one job the suite of 455 tests took 18 to 28.5 minutes,
+  # depending on the runner (the same tests ran 1.5 times as long on a slow one), and hit the bound of 30. With two
+  # shards, the tests of one took about 15 minutes and up to 23 on a slow runner, and the bound of 25 cancelled green
+  # jobs (#1650); even balanced, two shards would come close to it there. A macOS test takes about 1.4 s longer than
+  # on Ubuntu. A third shard adds only its
+  # setup (about 2 minutes) to the macOS minutes of a run, and the macOS jobs of a run end sooner, so the 5 macOS
+  # runners are free as early as before. `electron (macos-26)` below is green when all three are.
   electron-macos-shard:
-    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/2)
-    # A normal run takes 12-19 minutes (one app at a time; 18 shard jobs, 2026-11-10), and a slow runner hit the
-    # old bound of 20 with every test green (#1423); the bound ends a hang. A longer bound, not a third shard,
-    # since macOS runs at most 5 jobs at once.
+    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/3)
+    # About 195 tests per shard: 10-11 minutes of tests on a normal runner, about 16 on a slow one; the bound ends
+    # a hang.
     timeout-minutes: 25
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
@@ -497,8 +499,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-26]
-        shard: [1, 2]
-        shards: [2]
+        shard: [1, 2, 3]
+        shards: [3]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
@@ -515,15 +517,14 @@ jobs:
         os: [macos-26]
     runs-on: ubuntu-24.04
     steps:
-      - name: Both shards passed
+      - name: All shards passed
         env:
           RESULT: ${{ needs.electron-macos-shard.result }}
         run: test "$RESULT" = success
 
   # Windows runs Electron slowest, so in shards (#412). With two, a shard job took 17 minutes in the median and up to
   # 18.4 (58 runs, 2026-11-09/10; 15 of them tests, the rest setup and build), and a slow runner hit the bound of 20
-  # (#1311); macOS stays at two, since it runs at most 5 jobs at once. `electron (windows-2025)` below is green when
-  # all three are.
+  # (#1311). `electron (windows-2025)` below is green when all three are.
   electron-windows-shard:
     name: electron (${{ matrix.os }}, ${{ matrix.shard }}/3)
     # A normal run takes about 12 minutes; the bound ends a hang.

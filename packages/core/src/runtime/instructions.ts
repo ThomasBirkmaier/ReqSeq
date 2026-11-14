@@ -75,6 +75,6 @@ export function agentInstructions(
     "",
     "Read-only tools carry readOnlyHint. Write tools change only ReqSeq files in the working tree, never Git; no tool deletes an element.",
     `Only ${nameOf("element.setStatus")} and ${nameOf("element.supersede")} change a status, and only on explicit request; no other tool changes one.`,
-    "A failed call is a tool error whose text is a JSON object with `code` and `message`; findings are not errors but `problems` in the result.",
+    "A failed call is a tool error whose text is a JSON object with `code` and `message`; a problem is not a failed call but an entry of `problems` in the result, whatever its severity.",
   ].join("\n");
 }

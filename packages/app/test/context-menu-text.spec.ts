@@ -111,9 +111,16 @@ const fromCommandLine = async (window: Page, name: string): Promise<void> => {
   await window.keyboard.press("Enter");
 };
 
+/** How long `select` keeps trying, as long as an expect waits on the CI runners of macOS and Windows. */
+const SELECT_TIMEOUT_MS = 15_000;
+
 /**
  * Selects the word `word` on line `row` of the text with a double click, as a person does; the caret goes to
- * that line first, so the line shows its source before the word is measured.
+ * that line first, so the line shows its source before the word is measured. The line's source marks come
+ * and go as the caret and the focus move, which moves the words after them: a word measured before that
+ * settles is clicked beside it (#1685: on macOS a double click selected another character). So the word is
+ * measured and clicked again until the selection is the word, as a person clicks again after a miss.
+ * Only this setup is tried again, never a check of an AK.
  */
 const select = async (window: Page, word: string, row: number): Promise<void> => {
   await content(window).focus();
@@ -121,9 +128,13 @@ const select = async (window: Page, word: string, row: number): Promise<void> =>
   for (let step = 1; step < row; step += 1) {
     await window.keyboard.press("ArrowDown");
   }
-  const point = await pointOf(content(window), word);
-  await window.mouse.dblclick(point.x, point.y);
-  await expect.poll(() => window.evaluate(() => document.getSelection()?.toString())).toBe(word);
+  await expect(async () => {
+    const point = await pointOf(content(window), word);
+    await window.mouse.dblclick(point.x, point.y);
+    await expect
+      .poll(() => window.evaluate(() => document.getSelection()?.toString()), { timeout: 1000 })
+      .toBe(word);
+  }).toPass({ timeout: SELECT_TIMEOUT_MS });
 };
 
 test.describe("the context menu in the text", () => {

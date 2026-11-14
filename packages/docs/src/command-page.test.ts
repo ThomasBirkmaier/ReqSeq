@@ -57,7 +57,7 @@ describe("commandPage", () => {
 
   it("marks a command this version does not implement", () => {
     const text = page(entry("element.get"), { ...access, implemented: false });
-    expect(text).toContain("This version does not implement the command yet.");
+    expect(text).toContain("This ReqSeq version does not implement the command yet.");
     expect(text).toContain("Not offered by the app yet");
   });
 

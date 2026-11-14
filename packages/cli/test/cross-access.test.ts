@@ -459,13 +459,11 @@ const maskNewElement = (result: Result): Result => {
     let text = JSON.stringify(result).replace(/n[12]:[0-9a-f]{16}/g, "<version>");
     for (const [index, { id = "" }] of output.created.entries()) {
       const tail = id.replaceAll("-", "");
-      text = text
-        .split(id)
-        .join(`<id${String(index)}>`)
-        .split(tail.slice(-12))
-        .join(`<tail12-${String(index)}>`)
-        .split(tail.slice(-6))
-        .join(`<tail6-${String(index)}>`);
+      text = maskTail(
+        maskTail(text.split(id).join(`<id${String(index)}>`), tail.slice(-12), `<tail12-${String(index)}>`),
+        tail.slice(-6),
+        `<tail6-${String(index)}>`,
+      );
     }
     return JSON.parse(text) as Result;
   }
@@ -474,18 +472,19 @@ const maskNewElement = (result: Result): Result => {
     return result;
   }
   const digits = element.id.replaceAll("-", "");
+  const text = JSON.stringify(result).split(element.id).join("<id>").split(element.version).join("<version>");
   return JSON.parse(
-    JSON.stringify(result)
-      .split(element.id)
-      .join("<id>")
-      .split(element.version)
-      .join("<version>")
-      .split(digits.slice(-12))
-      .join("<tail12>")
-      .split(digits.slice(-6))
-      .join("<tail6>"),
+    maskTail(maskTail(text, digits.slice(-12), "<tail12>"), digits.slice(-6), "<tail6>"),
   ) as Result;
 };
+
+/**
+ * `text` with `tail` replaced by `placeholder` where it ends a short ID or a file name: after a dash and not
+ * followed by another hex digit (`SR-<tail>`, D-017, D-056). The same digits elsewhere, such as in the text of an
+ * imported file, stay (#1654).
+ */
+const maskTail = (text: string, tail: string, placeholder: string): string =>
+  text.replace(new RegExp(`(?<=-)${tail}(?![0-9a-f])`, "g"), placeholder);
 
 const DEFAULT: Scenario = { name: "default input {}", input: {}, expect: "output" };
 
@@ -820,5 +819,22 @@ describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_
       const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
       expect(needs.filter((id) => !file.includes(id))).toEqual([]);
     }
+  });
+});
+
+describe("cross-access: masking a new element (#1654)", () => {
+  it("masks the tails of a short ID and a file name, not the same digits in the text of a file", () => {
+    const id = "12345678-1234-4123-8123-abcdef011040";
+    const namespace = "http://www.omg.org/spec/ReqIF/20110401/reqif.xsd";
+    const result: Result = {
+      outcome: { output: { created: [{ id, shortId: "SR-011040" }] } },
+      files: { "SR/SR-abcdef011040.md": `id: ${id}\n`, "in/all.reqif": `<REQ-IF xmlns="${namespace}"/>` },
+      changed: ["SR/SR-abcdef011040.md"],
+    };
+    expect(maskNewElement(result)).toEqual({
+      outcome: { output: { created: [{ id: "<id0>", shortId: "SR-<tail6-0>" }] } },
+      files: { "SR/SR-<tail12-0>.md": "id: <id0>\n", "in/all.reqif": `<REQ-IF xmlns="${namespace}"/>` },
+      changed: ["SR/SR-<tail12-0>.md"],
+    });
   });
 });

@@ -43,12 +43,12 @@
       "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
     },
     "uuidRef": {
-      "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question ThomasBirkmaier/ReqSeq-archive#316).",
+      "description": "A UUID version 4 as a caller gives it, in any case; ReqSeq stores it in lower case (spec question ThomasBirkmaier/ReqSeq-archive#316).",
       "type": "string",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
     },
     "elementId": {
-      "description": "A reference to an element as the tool writes it in outputs: UUID or short ID in their canonical form.",
+      "description": "A reference to an element as ReqSeq writes it in outputs: UUID or short ID in their canonical form.",
       "anyOf": [
         {
           "$ref": "#/$defs/uuid"
@@ -101,7 +101,7 @@
       "maxLength": 64
     },
     "keyOrName": {
-      "description": "A metamodel value as a person gives it: its key or its display name, in any case (`Obsolete` names the status obsolete). The tool stores the key (SR-012 AK3).",
+      "description": "A metamodel value as a person gives it: its key or its display name, in any case (`Obsolete` names the status obsolete). ReqSeq stores the key (SR-012 AK3).",
       "type": "string",
       "minLength": 1
     },
@@ -131,7 +131,7 @@
       }
     },
     "relationRefs": {
-      "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).",
+      "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). ReqSeq checks them as relation.add does and stores each target with its current version (#175).",
       "type": "object",
       "propertyNames": {
         "$ref": "#/$defs/key"
@@ -151,7 +151,7 @@
       }
     },
     "relationTargetInput": {
-      "description": "Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question ThomasBirkmaier/ReqSeq-archive#177).",
+      "description": "Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and ReqSeq writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target ReqSeq writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question ThomasBirkmaier/ReqSeq-archive#177).",
       "type": "object",
       "required": ["id"],
       "properties": {
@@ -162,7 +162,7 @@
           "$ref": "#/$defs/version"
         },
         "title": {
-          "description": "Ignored; the tool writes it.",
+          "description": "Ignored; ReqSeq writes it.",
           "type": "string"
         },
         "repository": {
@@ -198,12 +198,12 @@
       "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
     },
     "localPath": {
-      "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).",
+      "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after symbolic links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).",
       "type": "string",
       "minLength": 1
     },
     "problem": {
-      "description": "A finding or hint. Commands return problems as data so every access shows the same result (SR-080).",
+      "description": "A problem, also a hint (a problem of severity warning about one element). Commands return problems as data so every access shows the same result (SR-080).",
       "type": "object",
       "required": ["code", "severity", "message"],
       "properties": {
@@ -305,7 +305,7 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none."
+          "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a reference of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A reference in the text has none."
         },
         "place": {
           "type": "object",
@@ -318,12 +318,12 @@
             },
             "repository": {
               "type": "string",
-              "description": "The repository the item or link names (D-058), as it writes it; absent when it names none."
+              "description": "The repository the item or reference names (D-058), as it writes it; absent when it names none."
             },
             "occurrence": {
               "type": "integer",
               "minimum": 1,
-              "description": "`text` only: the link is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
+              "description": "`text` only: the reference is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
             }
           },
           "additionalProperties": false
@@ -439,7 +439,7 @@
       ]
     },
     "error": {
-      "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).",
+      "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).",
       "type": "object",
       "required": ["code", "message"],
       "properties": {
@@ -563,7 +563,7 @@
       "additionalProperties": false
     },
     "viewId": {
-      "description": "A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).",
+      "description": "A view as ReqSeq writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).",
       "anyOf": [
         {
           "const": "core"
@@ -574,7 +574,7 @@
       ]
     },
     "view": {
-      "description": "`core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043).",
+      "description": "`core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those that apply in it; elements without validity property are in every view (SR-043).",
       "anyOf": [
         {
           "const": "core"

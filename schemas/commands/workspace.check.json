@@ -1,7 +1,7 @@
 {
   "name": "workspace.check",
   "title": "Check workspace",
-  "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+  "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
   "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
   "effect": "read",
   "stage": 1,
@@ -49,12 +49,12 @@
       "severity": {
         "enum": ["error", "warning", "info"],
         "default": "info",
-        "description": "Lowest severity of the problems shown; does not change ok or the exit code. Findings left out are counted in hidden."
+        "description": "Lowest severity of the problems shown; does not change ok or the exit code. Problems left out are counted in hidden."
       },
       "failOn": {
         "enum": ["error", "warning", "info"],
         "default": "error",
-        "description": "Lowest severity of a finding that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
+        "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
       }
     },
     "additionalProperties": false
@@ -64,7 +64,7 @@
     "properties": {
       "ok": {
         "type": "boolean",
-        "description": "False when the workspace has a finding at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps."
+        "description": "False when the workspace has a problem at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the problems the restriction keeps."
       },
       "problems": {
         "type": "array",
@@ -74,11 +74,11 @@
       },
       "hidden": {
         "type": "object",
-        "description": "The findings that severity leaves out of problems, by severity; only when it leaves out at least one, so that no problems shown does not read as no findings.",
+        "description": "The problems that severity leaves out of `problems`, by severity; only when it leaves out at least one, so that an empty `problems` does not read as a workspace without problems.",
         "properties": {
           "below": {
             "enum": ["error", "warning"],
-            "description": "The severity given: the findings counted are below it."
+            "description": "The severity given: the problems counted are below it."
           },
           "warning": {
             "description": "Warnings left out.",

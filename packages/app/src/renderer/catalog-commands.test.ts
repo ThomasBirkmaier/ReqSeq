@@ -3908,6 +3908,25 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     expect(await marks(refused.asked)).toEqual(["{a"]);
   });
 
+  it("[SR-134/AK-trng] Escape after a refused condition goes back one argument without core's message, which names the condition", async () => {
+    const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
+    const { asked, call } = await atWhere(false, { "filter.save": () => refusal });
+    (await last(asked)).literal?.("{a")?.run();
+    item((await last(asked)).items, "Take 1 condition").more?.();
+    await choose(asked, "sort", "No sort", "Run");
+    expect((await last(asked)).label).toBe("where.all[0]: must be an object · Save filter open · where:");
+    const saves = () => call.mock.calls.filter(([name]) => name === "filter.save").length;
+    const saved = saves();
+    // Escape goes back to the sort, the argument given before; the message names the condition, not it.
+    (await last(asked)).back?.();
+    const sort = await last(asked);
+    expect(sort.label).toBe("Save filter open · sort:");
+    expect(saves()).toBe(saved);
+    // Further back as well: the name has the plain label.
+    sort.back?.();
+    expect((await last(asked)).label).toBe("Save filter · name:");
+  });
+
   it("[SR-215/AK-hnzf] the input is the marks in their order under all, as the command line takes it", async () => {
     const { asked, call } = await atWhere();
     await choose(asked, "Status", "Draft");

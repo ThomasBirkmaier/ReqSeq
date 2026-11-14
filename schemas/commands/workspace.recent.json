@@ -38,7 +38,7 @@
           "additionalProperties": false,
           "required": ["root", "opened", "exists"]
         },
-        "description": "The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+        "description": "The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
       }
     },
     "additionalProperties": false,

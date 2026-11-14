@@ -217,10 +217,10 @@ describe("withEvidenceRecords", () => {
     }
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
     // Pinned: a change of the generator shifts every perf baseline, so it shows here (the standard
-    // model it copies got the meaning acceptance-criteria in #960, and packages on every type in #1293;
-    // every acceptance criterion got its criterion key in #1565).
+    // model it copies got the meaning acceptance-criteria in #960, packages on every type in #1293, other
+    // descriptions in #1540, and every acceptance criterion got its criterion key in #1565).
     expect(evidence.workspace.digest).toBe(
-      "ed930f36918f5bb302037543f0104ec17e98410b1f4a7b5f4454158f3ac81d2c",
+      "c95f2dcf7c30ea4bd398ca855148c9b1bcc60ab2d58b0a8678950c7883cd232b",
     );
   });
 
