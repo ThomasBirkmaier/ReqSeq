@@ -119,6 +119,11 @@ export interface GeneratedElement {
   readonly file: string;
   readonly title: string;
   readonly version: string;
+  /**
+   * Whether it applies in the core: every element without a validity (D-020). A system requirement with a
+   * validity applies only in the variants it names, so a record of it for the core counts nowhere (SR-040).
+   */
+  readonly core: boolean;
 }
 
 export interface GeneratedWorkspace {
@@ -634,12 +639,25 @@ const flowMapping = (target: StoredTarget): string =>
     .map(([key, value]) => `${key}: ${value}`)
     .join(", ")} }`;
 
-/** One YAML line or block per key; values are plain scalars by construction (no `: `, `,`, `#`). */
+/**
+ * The criterion key of the `n`-th acceptance criterion of an element (SR-204 AK5), `k001` and on: every
+ * criterion has one, as `element.assignCriterionKeys` leaves a workspace (#1565). A key does not count to the
+ * version (SR-091 AK6), so the versions stay those of the texts.
+ */
+const criterionKeyAt = (n: number): string => `k${String(n + 1).padStart(3, "0")}`;
+
+/**
+ * One YAML line or block per key; values are plain scalars by construction (no `: `, `#`; a `,` only in an
+ * acceptance criterion, written as a block mapping with its criterion key).
+ */
 const yamlEntry = (key: string, value: unknown): string => {
+  if (key === "acceptance-criteria" && Array.isArray(value)) {
+    const items = value.map((item: unknown, n) => `  - key: ${criterionKeyAt(n)}\n    text: ${String(item)}`);
+    return `${key}:\n${items.join("\n")}\n`;
+  }
+  // Every other list is one of relation targets.
   if (Array.isArray(value)) {
-    const items = value.map((item: unknown) =>
-      typeof item === "string" ? `  - ${item}` : `  - ${flowMapping(item as StoredTarget)}`,
-    );
+    const items = value.map((item: unknown) => `  - ${flowMapping(item as StoredTarget)}`);
     return `${key}:\n${items.join("\n")}\n`;
   }
   // `yes` and `no` are text in YAML 1.2; quoted they read the same in every YAML version.
@@ -752,6 +770,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
       file: d.file,
       title: d.title,
       version: d.version,
+      core: !d.relations.has("validity"),
     })),
     relations: drafts.reduce(
       (sum, d) => sum + [...d.relations.values()].reduce((n, list) => n + list.length, 0),

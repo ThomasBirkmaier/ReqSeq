@@ -217,9 +217,10 @@ describe("withEvidenceRecords", () => {
     }
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
     // Pinned: a change of the generator shifts every perf baseline, so it shows here (the standard
-    // model it copies got the meaning acceptance-criteria in #960, and packages on every type in #1293).
+    // model it copies got the meaning acceptance-criteria in #960, and packages on every type in #1293;
+    // every acceptance criterion got its criterion key in #1565).
     expect(evidence.workspace.digest).toBe(
-      "acd5e7384bd996673f2487d508bb0e1559cc0b996d68be86f69cb67f97415b06",
+      "ed930f36918f5bb302037543f0104ec17e98410b1f4a7b5f4454158f3ac81d2c",
     );
   });
 
@@ -265,6 +266,10 @@ describe("pytestJunit", () => {
     expect(refs).toHaveLength(testCases);
     const tails = generated.elements.map((e) => e.id.slice(-6));
     expect(refs.every((ref) => tails.filter((t) => t === ref?.slice(3)).length === 1)).toBe(true);
+    // Only requirements that apply in the core (#1565): the generated workspace has others too.
+    const core = new Set(generated.elements.filter((e) => e.core).map((e) => e.id.slice(-6)));
+    expect(generated.elements.some((e) => e.type === "system-requirement" && !e.core)).toBe(true);
+    expect(refs.every((ref) => core.has(ref?.slice(3) ?? ""))).toBe(true);
   });
 
   it("refuses a workspace without a system requirement whose short ID is unique", () => {

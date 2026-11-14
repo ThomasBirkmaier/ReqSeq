@@ -198,7 +198,7 @@ describe("generateLargeWorkspace", () => {
         expect(target?.order).toBeLessThan(byId.get(source.id)?.order ?? 0);
         expect(version).toBe(target?.version);
         changed += (target?.order ?? 1) % 100 === 0 ? 1 : 0;
-        expect(frontmatter).toMatch(/\n {2}- Given the station runs, [^\n]*, see \[[^\]]+\]\(reqseq:/u);
+        expect(frontmatter).toMatch(/\n {4}text: Given the station runs, [^\n]*, see \[[^\]]+\]\(reqseq:/u);
       }
     }
     expect(found).toBe(generated.criterionReferences);
@@ -245,6 +245,17 @@ describe("generateLargeWorkspace", () => {
     expect(withValidity.size).toBeGreaterThan(10);
     expect(excluded.length).toBeGreaterThan(20);
     expect(excluded.filter((id) => withValidity.has(id))).toEqual([]);
+  });
+
+  it("marks the elements that apply in the core: all but the requirements with a validity (D-020)", () => {
+    const generated = small(7, 5000, 20_000);
+    const withValidity = new Set(
+      relationsOf(generated)
+        .filter((r) => r.key === "validity")
+        .map((r) => r.source.id),
+    );
+    expect(withValidity.size).toBeGreaterThan(10);
+    expect(generated.elements.filter((e) => !e.core).map((e) => e.id)).toEqual([...withValidity]);
   });
 
   describe("variantRules (stage 5 plan, VR-S6)", () => {
@@ -393,7 +404,9 @@ describe("generateLargeWorkspace", () => {
     const generated = small();
     const texts = [...generated.files.values()].join("\n");
     expect(texts).toMatch(/\nemergent: "(yes|no)"\n/);
-    expect(texts).toMatch(/\nacceptance-criteria:\n {2}- Given /);
+    // Every acceptance criterion with its criterion key (#1565): none without one, the keys in item order.
+    expect(texts).toMatch(/\nacceptance-criteria:\n {2}- key: k001\n {4}text: Given /);
+    expect(texts).not.toMatch(/\nacceptance-criteria:\n {2}- Given /);
     expect(texts).not.toMatch(/\ntitle: [^\n]*[,:#{}[\]]/);
   });
 

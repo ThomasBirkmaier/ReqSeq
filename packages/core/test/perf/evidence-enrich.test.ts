@@ -6,9 +6,8 @@
 // (ADR-0011): the time and what the call adds to the heap and to the resident memory. Its own file,
 // so the Vitest process measures nothing else, and the generated tree is dropped before the call.
 // A second run (SR-029 AK5, #627) enriches 50,000 test cases named in the form `sr_<id>_check` through
-// the name pattern `{prefix}_{id}`, plus two names of about 200 KB built against the matcher. The
-// acceptance criteria of the generated requirements have no criterion keys, so a name with `{ak}`
-// would be refused (SR-029 AK13, #1419); this run does not measure reading `{ak}`.
+// the name pattern `{prefix}_{id}`, plus two names of about 200 KB built against the matcher; this run
+// does not measure reading `{ak}`. Both files name only requirements that apply in the core.
 import {
   generateLargeWorkspace,
   measurePeakMemory,
@@ -44,7 +43,10 @@ const patternJunit = (elements: readonly GeneratedElement[]): string => {
   for (const element of elements) {
     tails.set(element.id.slice(-6), (tails.get(element.id.slice(-6)) ?? 0) + 1);
   }
-  const named = elements.filter((e) => e.type === "system-requirement" && tails.get(e.id.slice(-6)) === 1);
+  // Only requirements that apply in the core: a test case of another counts nowhere (SR-040).
+  const named = elements.filter(
+    (e) => e.type === "system-requirement" && e.core && tails.get(e.id.slice(-6)) === 1,
+  );
   const cases: string[] = [];
   for (let n = 0; n < PATTERN_CASES; n += 1) {
     const element = named[n % named.length];
