@@ -8,7 +8,7 @@
 // muted box below a node sums up its evidence; it is no option, so the keys and Enter skip it, and the
 // node's accessible name says the summary.
 // A link names its relation kind only on demand (SR-154, `GraphLinks.tsx`).
-import { bufferMark, useHidden } from "./area-slot.js";
+import { bufferMark, useHidden, useHiddenUpdate } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@reqseq/core";
 import { typeName as typeNameOf } from "@reqseq/core/graph-words";
@@ -108,6 +108,8 @@ export const GraphView = ({
   const openedSplit = useRef(split);
   const input = graphInput(buffer);
   const asked = JSON.stringify(input);
+  // A hidden graph draws as a transition, so a key in the shown buffer comes first (SR-082 AK3).
+  const later = useHiddenUpdate();
 
   useEffect(() => {
     generation.current += 1;
@@ -136,8 +138,10 @@ export const GraphView = ({
         const layout = layoutGraph(answer.output);
         performance.mark(GRAPH_MARKS.layout);
         shownOutput.current = json;
-        setError(undefined);
-        setShown({ output: answer.output, layout });
+        later(() => {
+          setError(undefined);
+          setShown({ output: answer.output, layout });
+        });
       } catch (thrown: unknown) {
         // A layout that fails keeps what the sheet shows and says why (never a blank buffer).
         const message = `The graph could not be laid out: ${String(thrown)}`;

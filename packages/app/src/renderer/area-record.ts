@@ -14,6 +14,8 @@ export const RECORDED: ReadonlySet<string> = new Set([
   "element.get",
   "metamodel.get",
   "perspective.list",
+  // The matrix asks what may be related per type of row (SR-199 AK3).
+  "relation.options",
 ]);
 
 /**
@@ -40,7 +42,7 @@ type Output = Readonly<Record<string, unknown>>;
 
 interface Piece {
   readonly offset: number;
-  readonly limit: number | undefined;
+  readonly limit: number;
   readonly output: Output;
 }
 
@@ -83,7 +85,7 @@ const namesOf = (pieces: readonly Output[]): unknown[] | undefined => {
 };
 
 /**
- * The page of `name` from `offset`, `limit` rows (all when `limit` is undefined), put together from `pieces`
+ * The page of `name` from `offset`, `limit` rows, put together from `pieces`
  * of the same list: the rows of each part of `PAGED` taken in order, the rest of the output from the first
  * piece used, `offset` the one asked. None when the pieces do not cover the rows asked: a gap, or a piece that
  * gave fewer rows than it asked for only at the end of the list.
@@ -92,11 +94,11 @@ export const pageFrom = (
   name: string,
   pieces: readonly Piece[],
   offset: number,
-  limit: number | undefined,
+  limit: number,
 ): Output | undefined => {
   const parts = PAGED[name] ?? [];
   const sorted = [...pieces].sort((one, other) => one.offset - other.offset);
-  const end = limit === undefined ? Number.POSITIVE_INFINITY : offset + limit;
+  const end = offset + limit;
   const used: { readonly piece: Piece; readonly from: number; readonly to: number }[] = [];
   let at = offset;
   while (at < end) {
@@ -112,7 +114,7 @@ export const pageFrom = (
     const ended = sorted.some(
       (one) =>
         one.offset <= at &&
-        (one.limit === undefined || rowsOf(name, one.output).length < one.limit) &&
+        rowsOf(name, one.output).length < one.limit &&
         one.offset + rowsOf(name, one.output).length <= at,
     );
     if (!ended) {
@@ -187,12 +189,14 @@ export class AnswerRecord {
     }
     this.count += 1;
     this.exact.set(exactKey(name, input), answer as Answer<never>);
-    if (name in PAGED) {
+    // A page without a limit is kept only as it was asked: what core gives then is no page of known size.
+    const limit = numberOr(input["limit"], undefined);
+    if (name in PAGED && limit !== undefined) {
       const key = listKey(name, input);
       const pieces = this.pages.get(key) ?? [];
       pieces.push({
         offset: numberOr(input["offset"], 0) ?? 0,
-        limit: numberOr(input["limit"], undefined),
+        limit,
         output: (answer as unknown as { readonly output: Output }).output,
       });
       this.pages.set(key, pieces);
@@ -209,15 +213,11 @@ export class AnswerRecord {
       return exact;
     }
     const pieces = this.pages.get(listKey(name, input));
-    if (pieces === undefined) {
+    const limit = numberOr(input["limit"], undefined);
+    if (pieces === undefined || limit === undefined) {
       return undefined;
     }
-    const output = pageFrom(
-      name,
-      pieces,
-      numberOr(input["offset"], 0) ?? 0,
-      numberOr(input["limit"], undefined),
-    );
+    const output = pageFrom(name, pieces, numberOr(input["offset"], 0) ?? 0, limit);
     return output === undefined ? undefined : ({ ok: true, output } as unknown as Answer<never>);
   }
 }

@@ -24,7 +24,8 @@
 //
 // The buffers drawn only from their record (a list, the matrix, a graph, the overview; `area-record.ts`), in a
 // test of their own: SR-082 AK3 with Enter on a relation right after leaving one of them, while its fresh hidden
-// view draws from the record (a list with its cursor past its first page, the matrix, a graph); SR-082 AK3 after
+// view draws from the record (a list with its cursor past its first page, the matrix, the graph of a package at
+// the bound of 500 nodes, SR-111 AK6); SR-082 AK3 after
 // a held Alt+P over lists after a change; recorded: the frame gap while typing with them beside the shown element,
 // and the heap the records and hidden views hold.
 import fs from "node:fs/promises";
@@ -57,6 +58,8 @@ const HELD_PRESSES = 6;
 const REPEAT_MS = 33;
 /** How often each measurement is taken; the slowest is recorded. */
 const ROUNDS = 3;
+/** The nodes the graph drawn from its record reaches at least: the bound of a graph is 500 (SR-111 AK6). */
+const GRAPH_NODES = 450;
 /** The most ms an open waits before the spec fails with what it saw, far below the test's bound. */
 const OPEN_WAIT_MS = 30_000;
 /** The most ms an armed Enter waits for its read; a round whose read was not sent is taken again. */
@@ -905,7 +908,8 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     const [, , ...others] = requirements;
     const b = others[ROUNDS + 6];
     const [x1, x2] = others.slice(ROUNDS + 7);
-    if (b === undefined || x1 === undefined || x2 === undefined) {
+    const thePackage = pkg;
+    if (b === undefined || x1 === undefined || x2 === undefined || thePackage === undefined) {
       throw new Error("the generated workspace has too few elements with a title of their own");
     }
     const kept = {
@@ -1003,16 +1007,30 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     await command(window, "Show as list");
     await listShown();
 
-    // The graph of B: shown, then B after it.
+    // The graph of a package, one level deeper with + until it reaches the bound of a graph (500 nodes, SR-111
+    // AK6) or grows no more: shown, then B after it.
     step("record: graph");
-    await open(window, b.title);
+    await open(window, thePackage.title);
     await command(window, "Show graph");
     const laidOut = window.locator(`${SHOWN} .buffer.graph[data-laid-out]`);
     await expect(laidOut).toBeVisible({ timeout: 60_000 });
-    const nodes = Number(await laidOut.getAttribute("data-laid-out"));
+    const laidOutNodes = async (): Promise<number> => Number(await laidOut.getAttribute("data-laid-out"));
+    let nodes = await laidOutNodes();
+    for (let deeper = 0; deeper < 6 && nodes < GRAPH_NODES; deeper += 1) {
+      const before = nodes;
+      await window.locator(`${SHOWN} .buffer.graph`).focus();
+      await window.keyboard.press("+");
+      await window.waitForTimeout(SETTLE_SWITCH_MS);
+      await expect(laidOut).toBeVisible({ timeout: 60_000 });
+      nodes = await laidOutNodes();
+      if (nodes === before) {
+        break;
+      }
+    }
+    expect(nodes).toBeGreaterThanOrEqual(GRAPH_NODES);
     await open(window, b.title);
     await window.keyboard.press("Alt+KeyP");
-    const graph = await leaveAndOpen(`the graph of an element (${String(nodes)} nodes)`, async () => {
+    const graph = await leaveAndOpen(`the graph of a package (${String(nodes)} nodes)`, async () => {
       await expect(laidOut).toBeVisible({ timeout: 60_000 });
     });
 

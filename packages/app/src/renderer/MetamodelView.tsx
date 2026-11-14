@@ -7,7 +7,7 @@
 // The graph is one tab stop; the arrows move the selection between the boxes (`graph-nav.ts`, AK4).
 // Ctrl/Cmd+T shows the same answer as text (`MetamodelTextView.tsx`, AK4, AK5); the selected type stays,
 // and the graph opens on it again.
-import { bufferMark, useHidden } from "./area-slot.js";
+import { bufferMark, useHidden, useHiddenUpdate } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -69,7 +69,6 @@ const lineKey = (link: MetamodelLink): string =>
       ? `kind:${link.kind}`
       : `property:${link.property}`;
 
-/** The sides of a curve as a key and as data attributes. */
 /**
  * The layouts made, by the output of `metamodel.get` they were made for: a view drawn hidden from its record
  * gets the output object its shown view got (`area-record.ts`), so it does not lay it out again (SR-212 AK5).
@@ -86,6 +85,7 @@ const laidOutOnce = (output: object, make: () => MetamodelLayout): MetamodelLayo
   return made;
 };
 
+/** The sides of a curve as a key and as data attributes. */
 type Ends = Pick<MetamodelLayout["paths"][number], "source" | "target">;
 const pairKey = (path: Ends): string => `${path.source}>${path.target}`;
 
@@ -135,6 +135,8 @@ const useMetamodel = (
   const generation = useRef(0);
   // The output shown, as JSON: an answer equal to it (a change elsewhere) is not laid out again.
   const shownOutput = useRef<string | undefined>(undefined);
+  // A hidden sheet draws as a transition, so a key in the shown buffer comes first (SR-082 AK3).
+  const later = useHiddenUpdate();
   useEffect(() => {
     generation.current += 1;
     const mine = generation.current;
@@ -157,8 +159,10 @@ const useMetamodel = (
           layoutMetamodel(metamodelGraph(answer.output), measureIn(root.current)),
         );
         shownOutput.current = json;
-        setError(undefined);
-        setShown({ output: answer.output, layout });
+        later(() => {
+          setError(undefined);
+          setShown({ output: answer.output, layout });
+        });
       } catch (thrown: unknown) {
         // A layout that fails keeps what the sheet shows and says why (never a blank buffer).
         const message = `The metamodel could not be laid out: ${String(thrown)}`;

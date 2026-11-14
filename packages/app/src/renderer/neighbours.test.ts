@@ -55,7 +55,7 @@ describe("the buffers drawn in advance", () => {
     expect(neighbourBuffers([], [], undefined, PACKAGES)).toEqual([]);
   });
 
-  it("[SR-211/AK-wfd3] leave out those dropped, and add the buffer a swipe draws, also a dropped one, never the shown one", () => {
+  it("leave out those dropped, and add the buffer a swipe draws, also a dropped one, never the shown one", () => {
     const need = typed("n", "need");
     const around = neighbourhoodBuffer("n", "spec", "n");
     const list = filteredList([]);

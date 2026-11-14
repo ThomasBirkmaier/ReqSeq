@@ -294,7 +294,7 @@ it("[SR-212/AK-tfck] a view read for drawing in advance is not read again after 
   later.dispose();
 });
 
-it("[SR-211/AK-wfd3] a buffer drawn for a swipe reads at once, as a shown one, and then stays drawn from what it read", async () => {
+it("a buffer drawn for a swipe reads at once, as a shown one, and then stays drawn from what it read", async () => {
   const gate = new ReadGate(60_000);
   const area = harness(gate);
   // The gate is shut: a slide runs, and the shown buffer has not drawn yet.

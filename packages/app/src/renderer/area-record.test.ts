@@ -108,6 +108,14 @@ describe("AnswerRecord", () => {
       record.answer("element.list", { selection: { ids: ["y"] }, offset: 0, limit: 200 }),
     ).toBeUndefined();
     expect(record.answer("trace.graph", { ref: "a" })).toBeUndefined();
+    // A page without a limit is answered only as it was asked, and never put together from pages.
+    expect(record.answer("element.list", { selection: { ids: ["x"] }, offset: 0 })).toBeUndefined();
+    const whole = { ok: true, output: listPage(0, 300, 300) };
+    record.add("element.list", { selection: { ids: ["z"] } }, whole);
+    expect(record.answer("element.list", { selection: { ids: ["z"] } })).toBe(whole);
+    expect(
+      record.answer("element.list", { selection: { ids: ["z"] }, offset: 0, limit: 10 }),
+    ).toBeUndefined();
   });
 
   it("[SR-212/AK-tfck] keeps no write, no failure, and misses from the answer past its room on", () => {

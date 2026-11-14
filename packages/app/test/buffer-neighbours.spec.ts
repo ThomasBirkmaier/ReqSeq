@@ -7,7 +7,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { CoreRequest, CoreRequests, RunningApp } from "./support/app.js";
 import { goTo, launchApp, listAll, recordRequests, shownLayer, slideSettled } from "./support/app.js";
 
@@ -112,6 +112,10 @@ const rewrite = async (running: RunningApp, change: (text: string) => string): P
 /** Gives the need the title `title` outside the app. */
 const retitle = (running: RunningApp, title: string): Promise<void> =>
   rewrite(running, (text) => text.replace(/^title: .*$/m, `title: ${title}`));
+
+/** The layers drawn hidden beside the shown buffer of the active area. */
+const hiddenLayer = (window: Page): Locator =>
+  window.locator('[data-area][data-active] > [data-layer="neighbour"]');
 
 /** The title the hidden view of the area shows (its buffer is named anew only once it is shown). */
 const hiddenTitle = (window: Page): Promise<string[]> =>
@@ -510,6 +514,55 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
     await expect(shownLayer(window).locator(".overview .line.recent")).toHaveText([new RegExp(NEED.title)]);
+  });
+
+  test("[SR-212/AK-tfck] the matrix left and returned without a change slides in at once, with no request for its rows or relation options", async () => {
+    const { window } = running;
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(shownLayer(window).locator("tbody tr").first()).toBeVisible();
+    const rows = await shownLayer(window).locator("tbody tr").count();
+    await quiet(requests);
+    await open(window, NEED.title);
+    await expect(hiddenLayer(window).locator("tbody tr")).toHaveCount(rows);
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator("tbody tr")).toHaveCount(rows);
+    expect(
+      (await requests.sent()).filter(({ name }) => name === "trace.matrix" || name === "relation.options"),
+    ).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a graph left and returned without a change slides in at once, with no request for it", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await command(window, "Show graph");
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    await quiet(requests);
+    await open(window, SPEED.title);
+    await expect(hiddenLayer(window).locator(".buffer.graph[data-laid-out]")).toHaveCount(1);
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    expect((await requests.sent()).filter(({ name }) => name === "trace.graph")).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] the overview left for a list and returned slides in at once, with no request for its counts", async () => {
+    const { window } = running;
+    await quiet(requests);
+    await listAll(window);
+    await expect(hiddenLayer(window).locator(".overview .line").first()).toBeAttached();
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
+    expect(
+      (await requests.sent()).filter(
+        (request) => request.name === "element.facets" && JSON.stringify(request.input) === "{}",
+      ),
+    ).toEqual([]);
   });
 
   test("[SR-212/AK-tfck] a list and a graph walked past and back are not read while away, and the switch to them waits for the draw", async () => {

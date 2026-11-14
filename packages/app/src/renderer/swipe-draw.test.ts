@@ -9,7 +9,7 @@ const host = (ready: readonly string[] = []) => ({
 });
 
 describe("SwipeDraw", () => {
-  it("[SR-211/AK-wfd3] draws a buffer not drawn in advance: it is the key while the swipe lasts, resolved once drawn", async () => {
+  it("draws a buffer not drawn in advance: it is the key while the swipe lasts, resolved once drawn", async () => {
     const swipe = new SwipeDraw();
     const window = host();
     swipe.attach(window);
@@ -32,14 +32,14 @@ describe("SwipeDraw", () => {
     stop();
   });
 
-  it("[SR-211/AK-wfd3] a buffer drawn in advance already resolves at once", async () => {
+  it("a buffer drawn in advance already resolves at once", async () => {
     const swipe = new SwipeDraw();
     swipe.attach(host(["element"]));
     await expect(swipe.draw("element")).resolves.toBe(true);
     expect(swipe.key).toBe("element");
   });
 
-  it("[SR-211/AK-ck1v] gives up when another draw takes its place, the swipe ends, or the buffer is closed", async () => {
+  it("gives up when another draw takes its place, the swipe ends, or the buffer is closed", async () => {
     const swipe = new SwipeDraw();
     swipe.attach(host());
     const first = swipe.draw("a");
