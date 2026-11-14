@@ -872,7 +872,7 @@ describe("App", () => {
     expect(calls(invoke, "workspace.status")).toHaveLength(2);
     await change("restarted");
     expect(calls(invoke, "element.get")).toHaveLength(3);
-    expect(text("Minibuffer")).toBe("The core process stopped and was started again.");
+    expect(text("Minibuffer")).toBe("The background process of the app stopped and was started again.");
     expect(query("article h1").textContent).toBe("Title 1");
   });
 
@@ -970,13 +970,13 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledTimes(before);
     expect(query("article h1").textContent).toBe("Title 1");
     expect(text("Minibuffer")).toBe(
-      "The core process keeps stopping. Press Ctrl+O to open the workspace again.",
+      "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     expect(text("Modeline")).toContain("stopped");
     await runCommand("show element id");
     expect(invoke).toHaveBeenCalledTimes(before);
     expect(text("Minibuffer")).toBe(
-      "The core process keeps stopping. Press Ctrl+O to open the workspace again.",
+      "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     handlers["workspace.status"] = () => ({ name: "Again", readOnly: false });
     await change("opened");

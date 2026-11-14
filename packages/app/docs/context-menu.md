@@ -13,7 +13,7 @@ A right-click in an area of the sheet, on macOS also a click with Ctrl held, ope
 
 ## buffer
 
-SR-194 AK6: "Go to element or buffer", "Search elements", "Close buffer", "Split window"; in a split window "Other window" and "Unsplit window" in place of "Split window".
+SR-194 AK6: "Go to element or buffer", "Search elements", "Close buffer", "Split window"; in a split window "Other pane" and "Unsplit window" in place of "Split window".
 
 ## text
 

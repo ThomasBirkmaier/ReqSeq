@@ -14,7 +14,7 @@ The key is in the element file. A number in the name, or a key no criterion or s
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
-**Vitest** (the example in the delivery, `resources/docs/junit/vitest/`):
+**Vitest** (the example in the release, `resources/docs/junit/vitest/`):
 
 ```js
 it("[SR-a1c0de] accepts a valid password", () => { /* ... */ });
@@ -49,11 +49,11 @@ A match starts and ends at a word boundary (the start or end of the name, a char
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt and answer the build with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
+Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
 
 ## CLI
 
-For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pattern after the file and the build:
+For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pattern too:
 
 ```rust
 #[test]

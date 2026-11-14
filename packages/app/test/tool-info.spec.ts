@@ -41,7 +41,7 @@ test.describe("About ReqSeq", () => {
   test("[SR-161/AK-hbxy] the command prompt shows version, build, runtime and the open workspace in a window", async () => {
     await runCommand(running, "About ReqSeq");
     const window = about(running);
-    for (const group of ["Version", "Build", "Runtime", "Workspace", "Licence", "Documentation"]) {
+    for (const group of ["ReqSeq version", "Build", "Runtime", "Workspace", "Licence", "Documentation"]) {
       await expect(window.getByRole("region", { name: group })).toBeVisible();
     }
     await expect(window).toContainText("Weather station");

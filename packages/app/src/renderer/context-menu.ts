@@ -151,7 +151,7 @@ const MODELINE_PLACES: ReadonlySet<MenuPlace> = new Set(["field-status", "field-
 
 /**
  * The place of a press on `target`: the nearest mark inside its area, else `buffer`; outside the areas of
- * the sheet only a field of the modeline, and elsewhere (the rest of the modeline, the minibuffer)
+ * the sheet only a field of the modeline, and elsewhere (the rest of the modeline, the command prompt)
  * undefined, where there is no menu.
  */
 export const placeAt = (target: Element): MenuPlace | undefined => {

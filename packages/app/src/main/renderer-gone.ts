@@ -2,7 +2,7 @@
 // was killed. Then the window would stay blank and its unsaved input would be gone (#270). Main loads the
 // page again in the same window, without a dialog (SR-105 AK3); the page finds the workspace open in the
 // core process, its buffers in local storage (SR-115 AK4) and its drafts in the window's session storage
-// (`draft-store.ts`), and its minibuffer says that the input came back. A page that keeps ending is
+// (`draft-store.ts`), and its command prompt says that the input came back. A page that keeps ending is
 // loaded again at most RELOAD_LIMIT times within RELOAD_WINDOW_MS, so a bug that crashes it at start does
 // not loop; after that the window stays as it is and a line in the log says why.
 

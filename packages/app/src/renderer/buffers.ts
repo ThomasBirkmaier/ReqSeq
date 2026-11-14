@@ -36,7 +36,7 @@ export type ListedPerspective = CommandTypes["perspective.list"]["output"]["pers
  * longer be chosen at opening, SR-213 AK7). The buffer asks `element.list` with that, not with the name, so
  * a change of the file outside the app leaves the list as it is until the perspective is opened again
  * (SR-214, rationale). `warning` is core's warning that the grouping was left out, for a buffer that came
- * back at a restart: the minibuffer says it when the buffer is first shown, and it is then dropped.
+ * back at a restart: the command prompt says it when the buffer is first shown, and it is then dropped.
  *
  * A buffer that came back at a restart for a name only a faulty file holds has nothing saved: it shows
  * core's refusal (`error`, `file.faulty`) and lists nothing, so it offers no list action and gives no
@@ -630,7 +630,7 @@ export const metamodelBuffer = (mode: MetamodelBuffer["mode"] = "graph"): Metamo
 });
 
 /**
- * The selection of the metamodel buffer once `node` is selected: a type (or "Any type") is the selected
+ * The marked entry of the metamodel buffer once `node` is selected: a type (or "Any type") is the selected
  * type of both modes; a relation kind, which only the text has as a row, leaves the type as it was.
  */
 const selectIn = (buffer: MetamodelBuffer, node: string): MetamodelBuffer => {
@@ -765,7 +765,7 @@ export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
 const groupLabel = (group: string | undefined): string =>
   group === undefined ? "" : ` · grouped by ${group}`;
 
-/** The name of a buffer, as the minibuffer lists it and the sheet is labelled. */
+/** The name of a buffer, as the command prompt lists it and the sheet is labelled. */
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":

@@ -1,21 +1,21 @@
 ---
 title: Remove a draft
-description: Remove a draft that was never approved and is in no baseline, without leaving links to it behind.
+description: Remove a draft that was never approved and is in no baseline, without leaving relations or references to it behind.
 sidebar:
   order: 6
 ---
 
-ReqSeq never deletes an element: one that was approved or is in a baseline is replaced with **Supersede element** (`reqseq element supersede`), so its history stays. An element in status Draft that never had status Approved and is in no baseline you can remove yourself with Git, in three steps:
+ReqSeq never deletes an element: one that was approved or is in a baseline is superseded with **Supersede element** (`reqseq element supersede`), so its history stays. An element in status Draft that never had status Approved and is in no baseline you can remove yourself with Git, in three steps:
 
-1. Find the elements that link to it and remove those links.
+1. Find the elements that point to it and remove those relations and references.
 2. Remove its file with `git rm`, or delete the file if Git does not track it yet.
-3. Run `workspace check`, which reports any link left behind as the error `relation.missing-target`.
+3. Run `workspace check`, which reports any relation or reference left behind as the error `relation.missing-target`.
 
 ReqSeq itself does not remove the file, because it never deletes elements.
 
 ## App
 
-1. Open the draft and run **Show neighbourhood** (Ctrl+J, ⌘J on macOS) to see the elements that link to it.
+1. Open the draft and run **Show neighbourhood** (Ctrl+J, ⌘J on macOS) to see the elements that point to it.
 2. Open each of them and run **Remove relation** with the kind and the draft as target. An inline reference or a relation property that names the draft is removed by changing the text or the property.
 3. Remove the file with `git rm` in a terminal; the app does not remove files.
 4. Run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
@@ -45,7 +45,7 @@ SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
 
-Before the need can go, find what links to it. `--direction down` lists every element whose file has a relation, a relation property or an inline reference to it, and `--json` names the kind of each link:
+Before the need can go, find what points to it. `--direction down` lists every element whose file has a relation, a relation property or an inline reference to it, and `--json` names the kind of each relation or reference:
 
 ```sh
 reqseq trace neighbourhood N-7fe707 --direction down
@@ -88,7 +88,7 @@ ok: true
 warning  trace.no-parent  SR-c67baa  ...
 ```
 
-No error is left. The warning says that the requirement now derives from nothing, so give it another parent or remove it the same way.
+No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way.
 
 ## API
 

@@ -7,8 +7,8 @@
 // The renderer is not trusted, so a paste needs all of this: the one request `"paste"`, from the main frame
 // of the ReqSeq window (`sender.ts`), within 1 s of an input the person made that can run a command, as
 // `input-event` reports it, and at most one paste for each such input. Those inputs are the release of the
-// left button (an entry of the menu or the command line clicked) and Enter without a modifier (an entry
-// chosen by key, the command line's Enter, which "Paste" from the command line needs, SR-195 AK3). Space
+// left button (an entry of the menu or the command prompt clicked) and Enter without a modifier (an entry
+// chosen by key, the command prompt's Enter, which "Paste" from the command prompt needs, SR-195 AK3). Space
 // arms nothing, so typing a space never does; the menu's entry "Paste" is chosen by key with Enter.
 // Main cannot tell where the Enter went: an Enter typed into the text arms a paste as well. So a renderer
 // taken over can paste the clipboard into a field of its own, and read it there, within 1 s after any left
@@ -48,7 +48,7 @@ const KEY_MODIFIERS = new Set(["shift", "control", "ctrl", "alt", "meta", "comma
 
 /**
  * Whether `input` is one that runs a command: the release of the left button (a click on an entry), or a
- * press of Enter without a modifier (an entry chosen by key, the command line's Enter). Not Space, which is
+ * press of Enter without a modifier (an entry chosen by key, the command prompt's Enter). Not Space, which is
  * typed in every text.
  */
 export const runsCommand = (input: EditInput): boolean =>

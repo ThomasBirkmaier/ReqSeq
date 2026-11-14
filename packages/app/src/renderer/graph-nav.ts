@@ -19,15 +19,15 @@ export interface NavLayout {
   readonly paths: readonly { readonly source: string; readonly target: string }[];
 }
 
-/** The keys that move the selection, by what they do. */
+/** The keys that move the mark, by what they do. */
 const MOVES: readonly { readonly keys: readonly string[]; readonly does: string }[] = [
-  { keys: ["ArrowUp", "ArrowDown"], does: "Follow a link up or down" },
+  { keys: ["ArrowUp", "ArrowDown"], does: "Follow a relation up or down" },
   { keys: ["ArrowLeft", "ArrowRight"], does: "Go through a layer" },
   { keys: ["PageUp", "PageDown"], does: "Go from layer to layer" },
   { keys: ["Home"], does: "Back to the element, or the first type of the metamodel" },
 ];
 
-/** The keys that move the selection, for the keyboard reference (SR-139 AK5). */
+/** The keys that move the mark, for the keyboard reference (SR-139 AK5). */
 export const GRAPH_KEYS: readonly KeyRow[] = MOVES.map((move) => ({
   keys: move.keys.map((key) => ({ press: press(key) })),
   does: move.does,
@@ -57,12 +57,15 @@ export const GRAPH_MORE_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press(DEPTH_LESS) }], does: "In the graph of an element: one level less" },
   {
     keys: [{ press: press(LINK_NEXT) }],
-    does: "In the graph of an element: the next link of the selected box, with its relation kind",
+    does: "In the graph of an element: the next relation of the selected box, with its relation kind",
   },
-  { keys: [{ press: press(LINK_BACK) }], does: "In the graph of an element: from a link back to its box" },
+  {
+    keys: [{ press: press(LINK_BACK) }],
+    does: "In the graph of an element: from a relation back to its box",
+  },
 ];
 
-/** The keys that move the selection. */
+/** The keys that move the mark. */
 export const GRAPH_MOVES: readonly string[] = MOVES.flatMap((move) => move.keys);
 
 /** The candidate nearest in x to `from`; on a tie the nearer layer, then the one listed first. */

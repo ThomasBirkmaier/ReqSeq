@@ -1,8 +1,8 @@
 // The lines of an element's evidence records on its page (SR-032), from `evidence.list` as it is
 // (ADR-0002: core computes, the app lays out). One line per record, in core's order (newest first):
-// "<date> · <kind> · <method> · <result>: <reason> · <item> · <Beleg> · <variant> · version <version> ·
+// "<date> · <kind> · <method> · <result>: <reason> · <item> · <evidence document> · <variant> · version <version> ·
 // baselines <name>, <name>", with the parts of the CLI's line (SR-080), a reason on one line as on the
-// validation line (`reasonLine`). The kind is named only when it is no verification; the Beleg (SR-032
+// validation line (`reasonLine`). The kind is named only when it is no verification; the evidence document (SR-032
 // AK1) is the record's `evidenceSource` as core gives it (#821), text never opened (offline); the
 // variant (SR-047 AK2) is a link named by `names` of `element.get`, or its UUID; the baselines are the files that hold the record's version (SR-032 AK2), left out when none
 // does. A part that is absent is left out with its separator. After the records, one note per problem of

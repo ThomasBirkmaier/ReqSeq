@@ -1,6 +1,6 @@
 // Entry of the main process; everything it does is in startShell. Paths are those of the build
 // (electron.vite.config.mjs): out/main/{index,core}.js, out/preload/index.cjs, out/renderer/; the documentation
-// is that of the delivery (`docs.ts`).
+// is that of the release (`docs.ts`).
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import electron from "electron";

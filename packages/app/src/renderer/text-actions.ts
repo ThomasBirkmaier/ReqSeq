@@ -1,6 +1,6 @@
 // The actions of the command prompt that edit the text at its cursor (D-073: what the mouse does at the place of
-// a thing, the command line does by name). Each runs an editing command of `editor/` on the text editor, with the
-// selection it had before the prompt opened, and gives the text the focus; one that does not apply there says
+// a thing, the command prompt does by name). Each runs an editing command of `editor/` on the text editor, with the
+// marked text it had before the prompt opened, and gives the text the focus; one that does not apply there says
 // why. The editing logic stays in its module (`editor/tasks.ts`, `editor/tables.ts`, ...); this list only names it. Editor-only, no
 // catalog command, like the slash menu (ADR-0010).
 import type { Command } from "@codemirror/view";
@@ -16,7 +16,7 @@ export interface TextActionSpec {
   readonly title: string;
   readonly description: string;
   readonly command: Command;
-  /** Said in the minibuffer when the command does not apply at the cursor ("No task on this line"). */
+  /** Said in the command prompt when the command does not apply at the cursor ("No task on this line"). */
   readonly none: string;
   readonly shortcut?: Shortcut;
 }
@@ -44,13 +44,13 @@ export const textAction = ({ id, title, description, command, none, shortcut }: 
 const NO_FORMAT = "The text cannot be formatted here";
 
 /**
- * "Link" (SR-186 AK5): asks for the address in the minibuffer, then writes the link at the cursor of the text.
+ * "Link" (SR-186 AK5): asks for the address in the command prompt, then writes the link at the cursor of the text.
  * An empty address writes nothing.
  */
 export const linkAction: Action = {
   id: "format-link",
   title: "Link",
-  description: "Write a link with a typed address at the cursor.",
+  description: "Write a Markdown link with a typed address at the cursor.",
   available: hasText,
   run: (context) => {
     context.ask({
@@ -157,7 +157,7 @@ export const TEXT_ACTIONS: readonly Action[] = [
     command: deleteColumn,
     none: "The cursor is not in a table with more than one column",
   }),
-  // SR-186: the formats of the selection, with the keys of AK2 (Cmd on macOS, SR-145).
+  // SR-186: the formats of the marked text, with the keys of AK2 (Cmd on macOS, SR-145).
   textAction({
     id: "format-bold",
     title: "Bold",

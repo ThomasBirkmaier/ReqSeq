@@ -1,5 +1,5 @@
-// The keys of a prompt in the minibuffer (`Minibuffer.tsx`, SR-122, SR-108), as one table for the keyboard
-// reference (SR-139 AK5). The minibuffer moves with `listStep` (`PROMPT_MOVES`) and takes `MORE_SHORTCUT` from here.
+// The keys of a prompt in the command prompt (`Minibuffer.tsx`, SR-122, SR-108), as one table for the keyboard
+// reference (SR-139 AK5). The command prompt moves with `listStep` (`PROMPT_MOVES`) and takes `MORE_SHORTCUT` from here.
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { PROMPT_MOVES, press } from "./keys.js";
 

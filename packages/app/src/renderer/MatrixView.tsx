@@ -83,7 +83,7 @@ type View =
 
 /** Rows moved by Page Up and Page Down. */
 const SCREEN = 10;
-/** The next page is asked for when the selection is this close to the last loaded row. */
+/** The next page is asked for when the marked row is this close to the last loaded row. */
 const NEAR_END = 5;
 
 const nearEnd = ({ scrollHeight, scrollTop, clientHeight }: HTMLElement): boolean =>

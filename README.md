@@ -1,6 +1,6 @@
 # ReqSeq
 
-ReqSeq is a local, Git-based requirements tool: one Markdown file per element, traceability, coverage and evidence.
+ReqSeq is a local, Git-based requirements tool: one Markdown file per element, traceability, coverage and verification.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)

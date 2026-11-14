@@ -91,7 +91,7 @@ const STOPPED = {
   ok: false,
   error: {
     code: "internal",
-    message: "The core process stopped before it answered",
+    message: "The background process of the app stopped before it answered",
     details: { aborted: true },
   },
 };

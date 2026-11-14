@@ -14,7 +14,7 @@ The app starts without a workspace, and the bottom line says how to open one:
 - Ctrl+O (⌘O on macOS) opens the folder dialog of your system, the same as "File > Open Workspace…" in the menu. On Windows and Linux the menu bar is hidden until you press Alt. Choose the workspace folder or any folder inside it: the app opens the nearest workspace from there upwards.
 - Ctrl+Shift+P (⌘⇧P) opens the command prompt. Its entry "Open workspace" lists the workspaces you opened last, the most recent first, and narrows them as you type; one that no longer holds its workspace file is marked "not found". Or type an absolute path, starting with `/`, `~` or, on Windows, a drive letter such as `C:\`. Enter on the first line, "Open" with your path, opens the workspace of that folder or a folder above it. Below it the prompt suggests the folders that match the name after the last separator; Down and Enter put one into the path, so you can type on.
 
-The workspace you choose replaces the open one in the same window, after your unsaved input is saved.
+The workspace you choose takes the place of the open one in the same window, after your unsaved input is saved.
 
 If you choose the folder one level above a workspace with Ctrl+O, such as the root of the repository, the bottom line names the right one: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
 

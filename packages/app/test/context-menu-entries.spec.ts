@@ -297,7 +297,7 @@ test.describe("the context menu of an element as an entry", () => {
       await listAll(window);
       await fromCommandLine(window, "Split window");
       await expect(window.locator("[data-area]")).toHaveCount(2);
-      await fromCommandLine(window, "Other window");
+      await fromCommandLine(window, "Other pane");
       const area = window.locator("[data-area]:not([data-active])");
       await expect(area.locator(".row").first()).toBeVisible();
       return area;
@@ -308,7 +308,7 @@ test.describe("the context menu of an element as an entry", () => {
     let window = running.window;
     let area = await splitWithList(window);
     const side = await area.getAttribute("data-area");
-    await fromCommandLine(window, "Other window");
+    await fromCommandLine(window, "Other pane");
     await expect(window.locator(`[data-area="${side ?? ""}"]`)).toHaveAttribute("data-active", "");
     const listed = shownLayer(window, side ?? "").locator(".row");
     for (let step = 0; step < 3; step += 1) {

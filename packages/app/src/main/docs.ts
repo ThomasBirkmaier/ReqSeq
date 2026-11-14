@@ -1,6 +1,6 @@
 // The bundled documentation (SR-141 AK2, AK3): Help > ReqSeq Documentation,
 // the action "Open documentation" and F1 on an entry of the command prompt open a page of the documentation site
-// of the delivery in the person's default browser. Main serves the site with the docs server of `reqseq serve docs`
+// of the release in the person's default browser. Main serves the site with the docs server of `reqseq serve docs`
 // (`startDocsServer` of `@reqseq/api/docs-server`, 127.0.0.1 only, the bytes of `@reqseq/core/docs-site`), started on the first
 // request and stopped when the app quits. The app gets no window and no protocol for it (D-062 unchanged).
 //
@@ -58,9 +58,9 @@ export const docsPath = (topic: unknown): DocsPath | undefined => {
 };
 
 /**
- * Where the documentation of the app lies: in a delivery the `docs` folder of its CLI (`resources/cli/docs`, ADR-0014),
+ * Where the documentation of the app lies: in a release the `docs` folder of its CLI (`resources/cli/docs`, ADR-0014),
  * which `reqseq serve docs` serves too. An unpackaged build takes `--docs-folder <folder>` (a docs build or the fixture
- * site of a test), else `packages/cli/docs` of the checkout; a delivery ignores the switch.
+ * site of a test), else `packages/cli/docs` of the checkout; a release ignores the switch.
  */
 export const docsFolder = (options: {
   readonly packaged: boolean;
@@ -108,7 +108,7 @@ const startDocsServer = async (folder: string): Promise<DocsServer> => {
   return api.startDocsServer({ folder });
 };
 
-/** The message of a failure: core's (`file.folder-missing` when the delivery has no site), else a plain one. */
+/** The message of a failure: core's (`file.folder-missing` when the release has no site), else a plain one. */
 const failure = (error: unknown): OpenDocsResult => ({
   ok: false,
   message: error instanceof Error ? error.message : "The documentation could not be opened",

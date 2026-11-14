@@ -94,10 +94,12 @@ describe("packageSummaryText (SR-112)", () => {
     ];
     expect(
       packageSummaryText(levels, { degree: { share: 0.6, counts: counts(6, 0, 1, 1, 2) }, view: "core" }),
-    ).toBe("Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)");
+    ).toBe(
+      "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+    );
     expect(
       packageSummaryText(levels, { degree: { share: 0.7, counts: counts(5, 2, 0, 0, 3) }, view: "core" }),
-    ).toBe("Coverage 8 of 10 with evidence · Degree (core) 70 % (5 verified, 2 indirect, 3 open)");
+    ).toBe("Coverage 8 of 10 with verification · Degree (core) 70 % (5 verified, 2 indirect, 3 open)");
   });
 
   it("[SR-112/AK-s1rj] gives for package P3 of fixtures/SR-037/degree the numbers of evidence.coverage and evidence.degree", async () => {
@@ -115,7 +117,7 @@ describe("packageSummaryText (SR-112)", () => {
     // P3 holds a need and two obsolete requirements: neither is in the line.
     expect(coverage.levels.map((level) => level.type)).toEqual(["need", "system-requirement"]);
     expect(packageSummaryText(coverage.levels, degree)).toBe(
-      "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+      "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
     );
   });
 
@@ -125,7 +127,7 @@ describe("packageSummaryText (SR-112)", () => {
         degree: { share: 0, counts: counts(0, 0, 0, 0, 10) },
         view: "core",
       }),
-    ).toBe("Coverage 0 of 10 with evidence · Degree (core) 0 % (10 open)");
+    ).toBe("Coverage 0 of 10 with verification · Degree (core) 0 % (10 open)");
     expect(
       packageSummaryText([{ total: 2 }], { degree: { counts: counts(0, 0, 0, 0, 0) }, view: "core" }),
     ).toBe(undefined);
@@ -144,7 +146,7 @@ describe("packageSummaryText (SR-112)", () => {
         names: [coastal],
       }),
     ).toBe(
-      "Coverage 8 of 10 with evidence · Degree (Coastal station) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
+      "Coverage 8 of 10 with verification · Degree (Coastal station) 60 % (6 verified, 1 failed, 1 outdated, 2 open)",
     );
     expect(summaryViewText("uuid-v2", [coastal, untitled])).toBe("VAR-0000c2");
     expect(summaryViewText("uuid-v3", [coastal])).toBe("uuid-v3");
@@ -165,7 +167,7 @@ describe("packageSummaryText (SR-112)", () => {
       workspace,
     })) as CommandOutput<"evidence.degree">;
     expect(packageSummaryText(coverage.levels, degree)).toBe(
-      "Coverage 0 of 2 with evidence · Degree (Coastal) 0 % (2 open)",
+      "Coverage 0 of 2 with verification · Degree (Coastal) 0 % (2 open)",
     );
   });
 
@@ -175,7 +177,7 @@ describe("packageSummaryText (SR-112)", () => {
         degree: { counts: counts(0, 0, 0, 0, 1) },
         view: "core",
       }),
-    ).toBe("Coverage 0 of 1 with evidence · Degree (core) 0 % (1 open)");
+    ).toBe("Coverage 0 of 1 with verification · Degree (core) 0 % (1 open)");
   });
 });
 

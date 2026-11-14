@@ -110,7 +110,7 @@ export const CLICK: Shortcut = { mod: false, shift: false, key: "click" };
 export const isWindows = (platform: string): boolean => platform.startsWith("Win");
 
 /**
- * The step of a key in a hit list of the minibuffer (SR-122): 1 down, -1 up, else undefined. Down and
+ * The step of a key in a hit list of the command prompt (SR-122): 1 down, -1 up, else undefined. Down and
  * Tab, Up, and the physical Ctrl key with N or P (Emacs), on every platform, also on macOS.
  */
 export const listStep = (event: KeyPress): 1 | -1 | undefined => {
@@ -142,7 +142,7 @@ export const leavesPart = (event: KeyPress, cursor: number): boolean =>
   event.key === "Escape" || (rowStep(event) === -1 && cursor === 0);
 
 /**
- * The row a key moves the selection of a list in the main window to (SR-122 AK4/AK5), before the list
+ * The row a key moves the mark of a list in the main window to (SR-122 AK4/AK5), before the list
  * clamps it to its rows; undefined when the key is not the list's. The list takes (prevents) every key
  * this gives a number for. A `cursor` below 0 means that no row is selected: a fresh list shows none.
  *
@@ -150,7 +150,7 @@ export const leavesPart = (event: KeyPress, cursor: number): boolean =>
  * - Up and Ctrl+P go one row up. With no row selected, Up selects the first row, and Ctrl+P is not the
  *   list's: on Linux and Windows it stays Ctrl+P "Go to" (SR-118 AK3, SR-115 AK1); on macOS, where "Go
  *   to" is Cmd+P only, it does nothing. With a row selected, the physical Ctrl+P only moves the
- *   selection, also on the first row (AK5), on every platform; Cmd+P on macOS always jumps.
+ *   mark, also on the first row (AK5), on every platform; Cmd+P on macOS always jumps.
  * - A list without rows takes neither Ctrl+N nor Ctrl+P.
  * - Page Down and Page Up go `screen` rows (none when the list has no `screen`), Home to the first row,
  *   End to the last.

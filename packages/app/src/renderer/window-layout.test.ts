@@ -97,7 +97,7 @@ describe("window layout (SR-115 AK3)", () => {
   it("[SR-115/AK-cycg] choosing the other area's buffer (switch, open, Next buffer) makes that area active; a buffer is never in both areas", () => {
     let state = run(opened(element(1), element(2)), { type: "split" });
     expect(shown(state)).toEqual([`${element(2).key}*`, element(1).key]);
-    // "Other window" and Next buffer dispatch a switch to the other area's buffer.
+    // "Other pane" and Next buffer dispatch a switch to the other area's buffer.
     state = reduceWindow(state, { type: "switch", key: element(1).key });
     expect(shown(state)).toEqual([element(2).key, `${element(1).key}*`]);
     expect(state.layout.active).toBe("right");

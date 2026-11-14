@@ -27,7 +27,7 @@ import {
 } from "./follow.js";
 
 /**
- * What the minibuffer says when the mode is turned on and `workspace.activity` gives no access: none is
+ * What the command prompt says when the mode is turned on and `workspace.activity` gives no access: none is
  * recorded, or the copy cannot record or keep one; the renderer does not know which.
  */
 export const NO_ACCESS = "Following agent: no agent access to show";
@@ -42,7 +42,7 @@ export interface FollowOptions {
   readonly dispatch: (action: WindowAction) => void;
   /** How many buffers have unsaved changes. */
   readonly drafts: number;
-  /** The minibuffer has a prompt open. */
+  /** The command prompt has a prompt open. */
   readonly prompt: boolean;
   /** The buffer with this key has unsaved changes. */
   readonly drafted: (key: string) => boolean;
@@ -58,7 +58,7 @@ export interface Follow {
   readonly mark: string | undefined;
   /** Call when the shown buffer changed: whether the mode showed it (then it is no recent element). */
   readonly seen: (key: string | undefined) => boolean;
-  /** Call when the prompt of the minibuffer ends: by Escape (`cancelled`), or by a choice in it. */
+  /** Call when a prompt in the command prompt ends: by Escape (`cancelled`), or by a choice in it. */
   readonly closed: (cancelled: boolean) => void;
 }
 

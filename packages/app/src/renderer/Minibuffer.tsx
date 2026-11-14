@@ -1,4 +1,4 @@
-// The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
+// The command prompt: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
@@ -65,7 +65,7 @@ const leaving = new WeakMap<HTMLElement, HTMLElement>();
  */
 const TAKES_PLACE_MS = 300;
 
-/** When a card that stood still last closed, by the minibuffer it was in (`performance.now()`). */
+/** When a card that stood still last closed, by the command prompt it was in (`performance.now()`). */
 const closedAt = new WeakMap<HTMLElement, number>();
 
 /**
@@ -121,8 +121,8 @@ const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined 
 };
 
 /**
- * The card above the minibuffer (SR-182): the hits of a prompt or the next keys (SR-109). When it appears
- * it rises from the command line while the backdrop dims and blurs in a seam as wide as its shadow, all
+ * The card above the command prompt (SR-182): the hits of a prompt or the next keys (SR-109). When it appears
+ * it rises from the command prompt while the backdrop dims and blurs in a seam as wide as its shadow, all
  * by the same progress (AK1, AK2, AK5); new hits, or a card that comes within `TAKES_PLACE_MS` of one
  * that stood and closed, move nothing (AK4); on close a copy runs the motion back, shorter (AK6). The input keeps the focus
  * throughout (AK3). The times and amounts are the `--card-*` tokens of styles.css; without motion the
@@ -529,7 +529,7 @@ const HelpContent = ({
 
 /**
  * The marks of a value built from hits (SR-215 AK3), in the input before the typed text: each a box in greys
- * (D-062) with its label and an × that removes it (AK9). The × is a control of the minibuffer, as the hits are;
+ * (D-062) with its label and an × that removes it (AK9). The × is a control of the command prompt, as the hits are;
  * the input keeps the focus.
  */
 const Marks = ({
@@ -602,7 +602,7 @@ const HelpDrawer = ({
         }
       }}
       onKeyDown={(event) => {
-        // A modifier alone, as the first key of Ctrl/Cmd+C, keeps the selection too.
+        // A modifier alone, as the first key of Ctrl/Cmd+C, keeps the marked text too.
         if (MODIFIERS.has(event.key) || matches(event, COPY_SHORTCUT, mac)) {
           event.stopPropagation();
           return;
@@ -764,7 +764,7 @@ const useCommandHelp = (entry: Choice | undefined): CommandHelpState => {
 /**
  * The keys of the command help in the input; whether `event` was taken. Ctrl+H, the physical Ctrl key also on
  * macOS (SR-145 AK1, AK4), opens it for the marked entry, nothing for an entry without one (SR-210 AK5), and closes
- * it; in the command line it is never the text's key (on macOS Ctrl+H deletes a character). While it is open (AK4)
+ * it; in the command prompt it is never the text's key (on macOS Ctrl+H deletes a character). While it is open (AK4)
  * Escape and Backspace on an empty input (`query`) close it (SR-134 AK2, AK4), the keys of the list scroll it and
  * the mark stays (SR-122 AK1 to AK3, SR-145 AK3), and Enter, Ctrl/Cmd+Enter and Tab do nothing. A key that changes
  * the input closes it where the input changes.
@@ -809,7 +809,7 @@ const PromptLine = ({
   readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
   const [query, setQuery] = useState(given.initial ?? "");
-  // The selection while none is chosen: the first row, or none at all while the hits only preview (SR-183).
+  // The marked row while none is chosen: the first row, or none at all while the hits only preview (SR-183).
   const none = given.preview === true ? -1 : 0;
   const [selected, setSelected] = useState(none);
   // The hits shown, with the question they answer.
@@ -902,10 +902,10 @@ const PromptLine = ({
   const help = useCommandHelp(current?.item);
   const helpOpen = help.open;
   // The row picked with the keys, read when an answer arrives: an exact title put first then must not
-  // move the selection to another row (#195).
+  // move the mark to another row (#195).
   const picked = useRef<{ readonly at: number; readonly id: string | undefined }>({ at: 0, id: undefined });
   picked.current = { at: selected, id: current?.item.id };
-  // The hits shown belong to an older text than the typed one, and the selection is among them or there
+  // The hits shown belong to an older text than the typed one, and the marked row is among them or there
   // is none yet (no literal choice and none of the prompt's own rows for this text). Read when a key is
   // pressed: a question asked in this render (`change`) makes the shown hits stale.
   const stale = (): boolean => found.question !== latest.current && current?.own !== true;
@@ -1110,7 +1110,7 @@ const PromptLine = ({
     return true;
   };
 
-  /** Escape in the first step, or a press outside the minibuffer (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
+  /** Escape in the first step, or a press outside the command prompt (SR-134 AK3, SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
@@ -1119,7 +1119,7 @@ const PromptLine = ({
   const cancelNow = useRef(cancel);
   cancelNow.current = cancel;
   const input = useRef<HTMLInputElement>(null);
-  // A press of a mouse button (left, middle, right) anywhere outside the minibuffer and its card ends the
+  // A press of a mouse button (left, middle, right) anywhere outside the command prompt and its card ends the
   // whole prompt, in every step, and goes on to what it presses: the prompt is no dialog (D-062). The buttons
   // Back and Forward do nothing while a prompt is open (SR-163), so they do not end it either.
   useEffect(() => {
@@ -1156,8 +1156,8 @@ const PromptLine = ({
     if (helpKey(event, help, query)) {
       return;
     }
-    // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
-    // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
+    // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the mark. They go no further: Ctrl+P is
+    // "Go to" in the window, but in an open prompt it only moves the mark, on every platform.
     const step = listStep(event);
     if (step !== undefined) {
       event.preventDefault();

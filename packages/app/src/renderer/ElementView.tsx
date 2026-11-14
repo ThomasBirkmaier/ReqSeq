@@ -4,7 +4,7 @@
 // (SR-104): a property of a text kind (text, number, date) is edited in its box, one editor with the values,
 // one per line (`TextBox.tsx`); a property the metamodel marks `markdown` shows its values formatted like the
 // text, with the source on the line with the caret only (SR-127). The value of a choice or relation property
-// is set in the minibuffer, the one control (D-062): Enter on its box asks for the allowed values or for an
+// is set in the command prompt, the one control (D-062): Enter on its box asks for the allowed values or for an
 // element (`property-prompts.ts`). "Add property" puts an empty box at its place, with the caret in it, or
 // with the focus on it and the prompt open at once for a choice or relation. A property the type does not
 // know stays a read-only box (D-012, spec question ThomasBirkmaier/ReqSeq-archive#469). Empty properties are left out; the UUID and the
@@ -278,7 +278,7 @@ export interface ElementViewProps {
   readonly onPickElement: (request: ReferenceRequest) => void;
   /** The titles of reference targets in other repositories (D-058), kept by the app for the workspace. */
   readonly titles: ReferenceTitles;
-  /** The minibuffer asks for the property to add or the value of a choice or relation (SR-104): the app opens the prompt. */
+  /** The command prompt asks for the property to add or the value of a choice or relation (SR-104): the app opens the prompt. */
   readonly onAsk: (prompt: Prompt) => void;
   /** The unsaved text this buffer had when it was shown last, if any, with the file text it was typed on. */
   readonly draft: Draft | undefined;
@@ -637,7 +637,7 @@ export const ElementView = ({
   // the caret goes when it comes.
   const [titleOpen, setTitleOpen] = useState(false);
   const titleFocus = useRef<number | "start" | "end" | undefined>(undefined);
-  // The documents of the boxes of a choice or relation (SR-104 AK3) that have input: set in the minibuffer,
+  // The documents of the boxes of a choice or relation (SR-104 AK3) that have input: set in the command prompt,
   // so no editor holds them. `onFile` is what the callbacks read, the state makes the boxes show them.
   const [, setValues] = useState<ReadonlyMap<string, string>>(new Map());
   // The box that "Add property" just added: it takes the focus (and the prompt) when it is there.
@@ -1042,7 +1042,7 @@ export const ElementView = ({
       keepDraft(back.draft);
     }
     // The boxes of the draft that were added come back (their base is the empty document), and the
-    // documents of the choices and relations set in the minibuffer with them.
+    // documents of the choices and relations set in the command prompt with them.
     onFile.current = { ...onFile.current, added: back.added };
     setAdded(back.added);
     onFile.current = { ...onFile.current, values: back.values };
@@ -1380,7 +1380,7 @@ export const ElementView = ({
     void autosave.current?.now(() => saveInput("asked", afterSave));
   };
   // A save that went wrong: the modeline says `not saved` with the reason while it holds (SR-105 AK5), and
-  // the minibuffer the reason, once while it stays the same (autosave tries again on the next input, never in a loop).
+  // the command prompt the reason, once while it stays the same (autosave tries again on the next input, never in a loop).
   const notWritten = (message: string, mode: SaveMode): void => {
     setNotSaved(message);
     const speech = failedSpeech(said.current, mode, message);
@@ -1410,7 +1410,7 @@ export const ElementView = ({
         return false;
       }
       const { element, fileSha256: sha, affected } = answer.output;
-      // The minibuffer stays: it names the element that was left with its directly affected elements
+      // The command prompt stays: it names the element that was left with its directly affected elements
       // (SR-024 AK2); 0 says nothing, as leaving says nothing.
       if (affected > 0) {
         now.current.onEcho(savedLine(renameAction(element).name, undefined, affected));
@@ -1719,7 +1719,7 @@ export const ElementView = ({
   const intoMembers = (root: HTMLElement): void => {
     root.querySelector<HTMLElement>(".members .list")?.focus();
   };
-  // Enter on a choice or relation box asks for the value in the minibuffer (SR-104 AK3); on the title or a box
+  // Enter on a choice or relation box asks for the value in the command prompt (SR-104 AK3); on the title or a box
   // with an editor it puts the caret at the end, else (a title or a box that is not edited) in the text.
   const enterField = (label: string | undefined): void => {
     if (label === TITLE_FIELD && titleEditable()) {
@@ -1918,7 +1918,7 @@ export const ElementView = ({
   };
   // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
   // on its copy symbol is outside the value.
-  // A selection made by dragging over the value is no click on it.
+  // Text marked by dragging over the value is no click on it.
   const clickChoice = (target: Element): void => {
     const label = clickedLabel(target);
     if (label !== undefined && now.current.boxes.get(label)?.info.kind === "choice" && !selectedIn(target)) {

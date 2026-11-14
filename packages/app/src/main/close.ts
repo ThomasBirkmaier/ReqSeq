@@ -3,7 +3,7 @@
 // the first close of the window is held: main asks the window to save its unsaved input (SAVE_CHANNEL with
 // `closing`, as before a switch of the workspace, SR-131 AK3) and closes it once the window answers that
 // everything is saved. When the window answers that input is left (a change on disk, a deleted file, a
-// value core refuses), the window stays open and its minibuffer says why; the window itself lets the next
+// value core refuses), the window stays open and its command prompt says why; the window itself lets the next
 // close go through. A window that does not answer in time stays open too (it is told, and says so), and a
 // close within CLOSE_FREE_MS after that goes through without asking, so a window that hangs can always be
 // closed; a later close asks again. No dialog (SR-105 AK3).

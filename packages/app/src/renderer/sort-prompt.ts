@@ -123,7 +123,7 @@ const marksOf = (sort: readonly SortKey[], keys: readonly Key[]): readonly SortM
     markOf(keys.find((known) => known.by === key.by) ?? { by: key.by, name: key.by }, key.order),
   );
 
-/** The marks as the minibuffer shows them, each with its × (AK9): `again` asks the step again without it. */
+/** The marks as the command prompt shows them, each with its × (AK9): `again` asks the step again without it. */
 const promptMarks = (
   marks: readonly SortMark[],
   again: (marks: readonly SortMark[]) => void,

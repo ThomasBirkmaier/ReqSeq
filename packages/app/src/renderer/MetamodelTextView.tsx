@@ -4,7 +4,7 @@
 // version" (the inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
 // source and target types, and a line per limit under it (SR-152); then the problems of the output. Greys only (D-062).
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
-// Ctrl+P, Page Up and Page Down, Home and End move the selection. The selected type is the graph's
+// Ctrl+P, Page Up and Page Down, Home and End move the mark. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
 import { bufferMark, useHidden } from "./area-slot.js";
 import { Fragment, useEffect, useMemo, useRef } from "react";

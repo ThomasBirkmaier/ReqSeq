@@ -49,7 +49,7 @@ export const EDITOR_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: press("[[") }],
-    does: "In the text and a Markdown property box, outside code and links: the prompt “Insert reference”; the pick replaces the `[[` with a reference, Escape leaves it as typed",
+    does: "In the text and a Markdown property box, outside code and links: the prompt “Insert reference”; the pick turns the `[[` into a reference, Escape leaves it as typed",
   },
   { keys: pressesOf(SLASH_NEXT), does: "In the slash menu: the next entry" },
   { keys: pressesOf(SLASH_PREVIOUS), does: "In the slash menu: the entry before" },

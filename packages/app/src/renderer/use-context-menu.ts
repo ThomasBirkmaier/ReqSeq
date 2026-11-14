@@ -2,7 +2,7 @@
 // press with Ctrl held (AK7), opens the app's own menu at the pointer. The listeners are added once and
 // read refs, like those of the prefix key (`use-prefix.ts`). The menu never takes the focus: while it is
 // open, its keys are taken in the capture phase, so the editor, the list and the active area keep their
-// focus and selection. A press of the left or middle button outside it closes it and then does what it
+// focus and marked text. A press of the left or middle button outside it closes it and then does what it
 // does without the menu (AK4, as the command prompt in SR-134 AK3).
 import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -55,8 +55,8 @@ const inMenu = (target: EventTarget | null): boolean =>
 const FOCUSABLE = "input, textarea, select, [contenteditable='true'], [tabindex]";
 
 /**
- * The right press sets the focus as a left one would, but keeps a selection it lands in: in a text editor
- * the caret goes to the pointer unless the press is inside the selection (SR-195 AK2); elsewhere the field
+ * The right press sets the focus as a left one would, but keeps marked text it lands in: in a text editor
+ * the caret goes to the pointer unless the press is inside the marked text (SR-195 AK2); elsewhere the field
  * pressed takes the focus. The native handling is prevented, because it selects a word or starts a drag.
  */
 export const focusPressed = (target: Element, point: { readonly x: number; readonly y: number }): void => {
@@ -101,7 +101,7 @@ export const giveFocusBack = (target: Element, back: Element | null): void => {
   to?.focus({ preventScroll: true });
 };
 
-/** The caret or selection of the page as a box, when there is one with a place on the screen. */
+/** The caret or marked text of the page as a box, when there is one with a place on the screen. */
 const selectionBox = (): DOMRect | undefined => {
   const selection = document.getSelection();
   const box =

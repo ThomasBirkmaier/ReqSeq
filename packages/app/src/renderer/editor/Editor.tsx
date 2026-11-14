@@ -210,7 +210,7 @@ const theme = EditorView.theme({
   ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
   // The hits of "Find in element" (SR-189, `find.ts`): the grey of a selection, the current one outlined too,
-  // since the minibuffer has the focus and the text shows no selection of its own then.
+  // since the command prompt has the focus and the text shows no selection of its own then.
   ".cm-lr-find": { backgroundColor: "var(--select)", borderRadius: "2px" },
   ".cm-lr-find-current": { outline: "1px solid var(--text)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
@@ -276,7 +276,7 @@ const theme = EditorView.theme({
     pointerEvents: "none",
   },
   // The slash menu (SR-129, `slash-menu.ts`): the tooltip of @codemirror/autocomplete with the look of the
-  // card of the command line (AK5, `.card-list` in styles.css): its list is the card, the tooltip around it
+  // card of the command prompt (AK5, `.card-list` in styles.css): its list is the card, the tooltip around it
   // is clear, so the seam and the motion of `slash-motion.ts` stand around the list. The base theme of the
   // library has colour literals (a light grey box, a blue selection) that would stay in the dark scheme, so
   // every rule that sets one is overridden here by tokens, with selectors as specific as its own (the theme

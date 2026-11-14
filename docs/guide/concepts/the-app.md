@@ -1,6 +1,6 @@
 ---
 title: The app
-description: How the desktop app works - the command prompt, the minibuffer and the modeline, buffers and the split window, and context menus.
+description: How the desktop app works - the command prompt and the modeline, buffers and the split window, and context menus.
 sidebar:
   order: 1
 ---
@@ -13,17 +13,17 @@ On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key
 
 ## The command prompt
 
-Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the selection, Escape steps back, then closes.
+Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the marked entry, Escape steps back, then closes.
 
-An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that follow.
+An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the next letters.
 
 The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)), except those whose output the app shows elsewhere; F1 on one opens its reference page.
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
-## The minibuffer and the modeline
+## Messages and the modeline
 
-The bottom line, the minibuffer, shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
+The command prompt also shows the last message, and a command needing input asks there, one argument after another, with the candidates above it. Enter takes an answer, Ctrl+Enter also offers the optional arguments.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
@@ -35,7 +35,7 @@ A workspace opens on the overview: counts per type and for up to ten **Perspecti
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
-**Split window** shows two buffers side by side; the other side previews the element you select in a list or graph, until you work in it. Alt+O switches sides, **Unsplit window** ends the split.
+**Split window** shows two buffers side by side; the other pane previews the element you mark in a list or graph, until you work in it. Alt+O switches panes, **Unsplit window** ends the split.
 
 ## Context menus
 
@@ -43,7 +43,7 @@ A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph no
 
 ## Help
 
-**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens the documentation of this version in your browser, offline.
+**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens the documentation of this ReqSeq version in your browser, offline.
 
 ## Light and dark
 
@@ -51,6 +51,6 @@ The app follows your system; **Toggle dark mode** switches until it quits, **Fol
 
 ## Following an agent
 
-While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that its next step replaces (never one you typed in); in a split window, on the inactive side. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
+While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that shows its next step too (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
 
 All keys: [keyboard shortcuts](/reference/keyboard-shortcuts/).

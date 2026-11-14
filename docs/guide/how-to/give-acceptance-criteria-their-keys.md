@@ -5,7 +5,7 @@ sidebar:
   order: 4.4
 ---
 
-Every acceptance criterion carries a criterion key, so a test or a record that names it by key still names it after criteria are added or moved (SR-204, D-072). ReqSeq gives the key when a criterion is created or changed. A criterion written by hand, or one from a workspace of an older version, has none until it is changed; `workspace check` reports such a requirement with the warning `element.criterion-key-missing` (SR-204 AK10).
+Every acceptance criterion carries a criterion key, so a test or a verification record that names it by key still names it after criteria are added or moved (SR-204, D-072). ReqSeq gives the key when a criterion is created or changed. A criterion written by hand, or one from a workspace of an older ReqSeq version, has none until it is changed; `workspace check` reports such a requirement with the hint `element.criterion-key-missing` (SR-204 AK10).
 
 **Assign criterion keys** gives every criterion without key in a selection its key at once. Keys that criteria have stay as they are, and so do the versions, since a key does not count to the version (SR-204 AK3, SR-091 AK6). The command names how many elements changed.
 

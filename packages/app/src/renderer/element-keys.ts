@@ -110,7 +110,7 @@ export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Escape") }], does: "On the block “On disk”: back to the buffer" },
   {
     keys: [{ press: press("Enter") }],
-    does: "On a link to a parent, a variant or the target in a relation box: open that element",
+    does: "On a parent in the line of parents, a variant or the target in a relation box: open that element",
   },
   {
     keys: [{ press: press("Enter") }, { press: press(" ") }, { press: press("Tab") }],

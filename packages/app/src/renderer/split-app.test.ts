@@ -318,7 +318,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(areas()).toEqual(["SR-000001 Title 1*", "SR-000002 Title 2"]);
   });
 
-  it("[SR-115/AK-cycg] after Split window an element and its graph stand side by side; the modeline names the active one; Other window and a click switch it; the element view is not mounted again", async () => {
+  it("[SR-115/AK-cycg] after Split window an element and its graph stand side by side; the modeline names the active one; Other pane and a click switch it; the element view is not mounted again", async () => {
     await openElement();
     await press(window, { key: "G", ctrlKey: true, shiftKey: true });
     expect(areas()).toEqual(["Graph: SR-000001 Title 1*"]);
@@ -329,7 +329,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(query('[data-area="left"]').contains(document.activeElement)).toBe(true);
     expect(container.querySelectorAll(".graph-node")).toHaveLength(2);
     const readsAfterSplit = reads.get("uuid-1");
-    await runCommand("Other window");
+    await runCommand("Other pane");
     expect(areas()).toEqual(["Graph: SR-000001 Title 1", "SR-000001 Title 1*"]);
     expect(modeline()).not.toContain("Graph");
     expect(modeline()).toContain("SR-000001");
@@ -358,7 +358,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     await typeIn("left", " ONE");
     await press(window, { key: "s", ctrlKey: true });
     expect(written.get("uuid-1")).toBe("Hello ONE");
-    await runCommand("Other window");
+    await runCommand("Other pane");
     expect(areas()).toEqual(["SR-000001 Title 1", "SR-000002 Title 2*"]);
     await typeIn("right", " TWO");
     await press(window, { key: "s", ctrlKey: true });
@@ -388,7 +388,7 @@ describe("App, Split window (SR-115 AK3)", () => {
   it("[SR-105/AK-p4gn] Close all buffers in a split saves the input of the element in the inactive area once", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
-    await runCommand("Other window");
+    await runCommand("Other pane");
     await runCommand("Close all buffers");
     await flush();
     expect(writes).toEqual(["uuid-1"]);
@@ -606,7 +606,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
   });
 
-  it("[SR-150/AK-mpfv] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
+  it("[SR-150/AK-mpfv] Option+O while typing in the text editor makes the other pane active and types nothing", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
     const content = query('[data-area="left"] .cm-content');

@@ -26,11 +26,11 @@ describe("path completion", () => {
     expect(splitPath("name", true)).toEqual({ folder: "", name: "name" });
   });
 
-  it("narrows the entries by the typed name, folders and links before files, with the letters marked", () => {
+  it("narrows the entries by the typed name, folders and symbolic links before files, with the letters marked", () => {
     const choices = entryChoices(ENTRIES, "out/", "o", false);
     // "out" and "o-notes.md" match at the start of a word, so each comes first among its kind.
     expect(choices.map((choice) => [choice.name, choice.complete, choice.hint])).toEqual([
-      ["out/", "out/out/", "link"],
+      ["out/", "out/out/", "symbolic link"],
       ["docs/", "out/docs/", undefined],
       ["o-notes.md", "out/o-notes.md", undefined],
       ["export.reqif", "out/export.reqif", undefined],

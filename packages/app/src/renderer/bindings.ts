@@ -97,7 +97,7 @@ export type PrefixStep =
   /** Escape: the prefix ends, quietly. */
   | { readonly kind: "cancel" }
   /**
-   * Ctrl+N, Ctrl+P (the physical Ctrl key, also on macOS) or Down, Up: the selection in the list of next
+   * Ctrl+N, Ctrl+P (the physical Ctrl key, also on macOS) or Down, Up: the mark in the list of next
    * keys moves (SR-122 AK6), and the prefix keeps waiting.
    */
   | { readonly kind: "move"; readonly step: 1 | -1 }
@@ -154,7 +154,7 @@ const bare = (event: PrefixPress): boolean =>
   !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
 
 /**
- * The move of the selection in the next keys (SR-122 AK6): Ctrl+N/Ctrl+P (`ctrlStep` checks the modifiers)
+ * The move of the mark in the next keys (SR-122 AK6): Ctrl+N/Ctrl+P (`ctrlStep` checks the modifiers)
  * or a bare Down/Up; an arrow with a modifier is another key ("Ctrl+K Shift+Down").
  */
 const moveStep = (event: PrefixPress): 1 | -1 | undefined =>

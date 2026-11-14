@@ -61,7 +61,7 @@ export interface HeldOn {
 
 /**
  * What holds an access back now, or undefined (AK5 „ungespeicherte Eingaben“, spec question 2, assumption
- * (b)): a draft in any buffer, or an open prompt of the minibuffer, whose candidates a switch would change.
+ * (b)): a draft in any buffer, or an open prompt in the command prompt, whose candidates a switch would change.
  * The one place the answer to the question changes.
  */
 export const holdOf = (drafts: number, prompt: boolean): Hold | undefined =>

@@ -54,7 +54,7 @@ export const DOCS_CHANNEL = "reqseq:open-docs";
 
 /**
  * Main to renderer: Help > ReqSeq Documentation was chosen; the window opens the documentation as the action "Open
- * documentation" does, and says in the minibuffer when it cannot. Carries nothing.
+ * documentation" does, and says in the command prompt when it cannot. Carries nothing.
  */
 export const HELP_CHANNEL = "reqseq:help";
 
@@ -74,7 +74,7 @@ const SWIPE_DIRECTIONS: readonly unknown[] = ["left", "right"] satisfies readonl
 export const swipeDirection = (value: unknown): SwipeDirection | undefined =>
   SWIPE_DIRECTIONS.includes(value) ? (value as SwipeDirection) : undefined;
 
-/** Main's answer on DOCS_CHANNEL: opened, or why not (`file.folder-missing`'s message when the delivery has no site). */
+/** Main's answer on DOCS_CHANNEL: opened, or why not (`file.folder-missing`'s message when the release has no site). */
 export type OpenDocsResult = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
 /**

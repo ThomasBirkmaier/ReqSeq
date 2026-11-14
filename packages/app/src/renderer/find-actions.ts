@@ -1,6 +1,6 @@
-// "Find in element", "Replace" and "Replace all" (SR-189): prompts of the minibuffer that drive the search of
+// "Find in element", "Replace" and "Replace all" (SR-189): prompts of the command prompt that drive the search of
 // `editor/find.ts` on the text of the shown element. While a prompt is open the text keeps its marks and the
-// minibuffer keeps the focus; the text gets it back when the prompt ends. Editor-only, no catalog command, like
+// command prompt keeps the focus; the text gets it back when the prompt ends. Editor-only, no catalog command, like
 // the slash menu (ADR-0010).
 import type { Command } from "@codemirror/view";
 import type { Action, ActionContext } from "./actions.js";
@@ -17,7 +17,7 @@ let lastQuery = "";
 const NO_TEXT = "The text cannot be searched here";
 
 /**
- * Runs `command` on the text; the focus stays in the minibuffer unless `focus`. `read`: it only marks and moves
+ * Runs `command` on the text; the focus stays in the command prompt unless `focus`. `read`: it only marks and moves
  * the caret, so it runs in a read-only element too (find, AK1); a replace refuses there.
  */
 const onText = (context: ActionContext, command: Command, focus = false, read = true): void => {

@@ -179,7 +179,7 @@ export const restored = (
   const basis = change.kind === "conflict" ? kept.sha : sha;
   const draft = makeDraft({ doc: keptText ?? loaded, base: loaded }, boxes, basis);
   // The boxes of the draft that were added come back (their base is the empty document), and the documents
-  // of the choices and relations set in the minibuffer with them, and of the cleared properties the type
+  // of the choices and relations set in the command prompt with them, and of the cleared properties the type
   // does not know (#189). The title is no property key.
   const type = properties.get(element.type);
   const known = boxes.flatMap(([key, box]) => {

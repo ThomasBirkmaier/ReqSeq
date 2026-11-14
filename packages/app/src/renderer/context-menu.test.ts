@@ -77,6 +77,17 @@ describe("the places of the context menu", () => {
       "other-window",
       "unsplit-window",
     ]);
+    // The names the menu shows: in a split window "Other pane" and "Unsplit window" stand for "Split window".
+    expect(
+      placeEntries("buffer").map((entry) => ACTIONS.find((action) => action.id === entry.id)?.title),
+    ).toEqual([
+      "Go to element or buffer",
+      "Search elements",
+      "Close buffer",
+      "Split window",
+      "Other pane",
+      "Unsplit window",
+    ]);
   });
 
   it("finds the mark of a press inside an area, else the buffer, and nothing outside the areas", () => {

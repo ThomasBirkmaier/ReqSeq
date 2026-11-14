@@ -236,7 +236,7 @@ export const shortcutReference = (
       {
         title: "After the prefix key",
         about:
-          "Press the prefix key, then the letter, bare or with Ctrl/Cmd held. The letter runs its command where the command prompt offers it; after half a second the minibuffer shows the possible next keys.",
+          "Press the prefix key, then the letter, bare or with Ctrl/Cmd held. The letter runs its command where the command prompt offers it; after half a second the command prompt shows the possible next keys.",
         rows: [
           ...tables.bindings.map((binding) => ({
             keys: [prefixLabel(binding.key, false)],
@@ -249,7 +249,7 @@ export const shortcutReference = (
       },
       {
         title: "In a prompt",
-        about: "In the command prompt, in “Go to” and while a command asks its arguments in the minibuffer.",
+        about: "In the command prompt: its list of commands, “Go to” and the arguments a command asks for.",
         rows: [
           ...rows(tables.prompt),
           // "All commands…" says what it does in this row, as its explanation line does (SR-210 AK6).

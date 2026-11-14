@@ -1,4 +1,4 @@
-// How the minibuffer says to open a workspace, with keys only: Windows and Linux hide the menu bar until Alt
+// How the command prompt says to open a workspace, with keys only: Windows and Linux hide the menu bar until Alt
 // (ADR-0010), so File > Open Workspace is not visible there. The keys come from the menu (`menu-keys.ts`) and the
 // command prompt (`keys.ts`), so the text cannot drift from them. Pure: the preload and the renderer read it.
 import { COMMAND_SHORTCUT, shortcutLabel } from "../renderer/keys.js";
@@ -12,7 +12,7 @@ const folderKey = (mac: boolean): string =>
   shortcutLabel(acceleratorShortcut(OPEN_WORKSPACE.accelerator), mac);
 
 /**
- * What the minibuffer says while no workspace is open: the folder dialog, which also opens a folder without a
+ * What the command prompt says while no workspace is open: the folder dialog, which also opens a folder without a
  * workspace for "Initialise workspace", and the action of the command prompt for the workspaces opened last.
  */
 export const noWorkspaceMessage = (mac: boolean): string =>
@@ -28,4 +28,4 @@ export const initHint = (mac: boolean): string =>
 
 /** What it says after the core process stopped for good: the folder dialog opens the workspace again. */
 export const stoppedMessage = (mac: boolean): string =>
-  `The core process keeps stopping. Press ${folderKey(mac)} to open the workspace again.`;
+  `The background process of the app keeps stopping. Press ${folderKey(mac)} to open the workspace again.`;

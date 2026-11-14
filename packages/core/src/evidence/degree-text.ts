@@ -88,7 +88,7 @@ const SUMMARY_STATUSES = ["verified", "indirect", "failed", "outdated", "open"] 
  * The line of a package page (SR-112 AK3, AK4): the coverage summed over the requirement levels (those with
  * `withEvidence`; needs are not in it), then the degree with the view it is for (`summaryViewText`) and the
  * count of each status that occurs, e.g.
- * "Coverage 8 of 10 with evidence · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)". Undefined
+ * "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)". Undefined
  * when the selection has no counted requirement: such a package has no line (AK4).
  */
 export const packageSummaryText = (
@@ -111,5 +111,5 @@ export const packageSummaryText = (
     (status) => `${String(degree.counts[status])} ${status}`,
   );
   const view = summaryViewText(output.view, output.names);
-  return `Coverage ${String(withEvidence)} of ${String(total)} with evidence · Degree (${view}) ${degreePercent(degree.share ?? 0)} (${counts.join(", ")})`;
+  return `Coverage ${String(withEvidence)} of ${String(total)} with verification · Degree (${view}) ${degreePercent(degree.share ?? 0)} (${counts.join(", ")})`;
 };

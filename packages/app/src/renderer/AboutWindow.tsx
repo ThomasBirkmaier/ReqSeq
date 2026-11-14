@@ -1,5 +1,5 @@
 // The window "About ReqSeq" (SR-161, the exception of D-062): centered over the whole app, a soft card with
-// a shadow like the card of the command line, over a backdrop dimmed and blurred more than behind that card
+// a shadow like the card of the command prompt, over a backdrop dimmed and blurred more than behind that card
 // (AK6). Read only (AK1). Each row copies its value with the copy symbol of a field (SR-128), seen on hover
 // or focus, or with Enter or Ctrl/Cmd+C while it has the focus (Up, Down and Tab move it); "Copy all" (also
 // Ctrl/Cmd+Shift+C) copies the whole content as one block (AK3). Escape or a click beside it
@@ -23,7 +23,7 @@ const selectedIn = (root: HTMLElement | null): boolean => {
   return selection?.isCollapsed === false && root?.contains(selection.anchorNode) === true;
 };
 
-/** Enter, or Ctrl/Cmd+C without a selection in the window, copies the row with the focus. */
+/** Enter, or Ctrl/Cmd+C without marked text in the window, copies the row with the focus. */
 const copiesRow = (key: string, mod: boolean, root: HTMLElement | null): boolean =>
   key === "Enter" || (mod && key.toLowerCase() === "c" && !selectedIn(root));
 

@@ -228,7 +228,7 @@ test.describe("on a fixture workspace", () => {
     expect(pid).toBeGreaterThan(0);
     process.kill(pid ?? 0);
     await expect(running.window.getByLabel("Minibuffer")).toHaveText(
-      "The core process stopped and was started again.",
+      "The background process of the app stopped and was started again.",
     );
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     expect((await invoke(running, "element.get", { ref: "SR-e88fb3" })).ok).toBe(true);
