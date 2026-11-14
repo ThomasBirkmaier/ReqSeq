@@ -442,6 +442,41 @@ describe("images checked on use (the watcher does not report them, ADR-0008)", (
   });
 });
 
+describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", () => {
+  it("builds and keeps the versions of the whole store by default, and reads only the records with build false", async () => {
+    const { workspace } = await open();
+    const store = await workspace.get(elementStoreState);
+    const own = await currentVersionsOf(workspace, store.elements, { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeUndefined();
+    expect(own.size).toBe(store.elements.length);
+    const built = await currentVersionsOf(workspace, store.elements);
+    expect(workspace.peek(currentVersionsState)).toBeDefined();
+    expect([...built.values()]).toEqual([...own.values()]);
+    // Once built, build false takes the kept entries.
+    const versions = await currentVersions(workspace);
+    const kept = await currentVersionsOf(workspace, store.elements, { build: false });
+    const record = await recordOf(workspace, "needs/N-a00000000001.md");
+    expect(kept.get(record)).toBe(versions.byRecord.get(record));
+  });
+
+  it("with build false still builds the whole store when a loaded version is of another fingerprint (#755)", async () => {
+    const { fixture, workspace } = await open();
+    const store = await workspace.get(elementStoreState);
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write(
+      "metamodel/model.yaml",
+      model.replace(
+        "{ key: title, name: Title, kind: text, meaning: title }",
+        "{ key: title, name: Title, kind: text, meaning: title, content: true }",
+      ),
+    );
+    await workspace.reset(metamodelState);
+    expect(workspace.peek(currentVersionsState)).toBeUndefined();
+    await currentVersionsOf(workspace, store.elements, { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeDefined();
+  });
+});
+
 describe("the versions of the model cache after a metamodel change (#755)", () => {
   /** Sets every file a minute back and waits until their change times lie `RACY_MS` back (model-cache.test.ts). */
   const settle = async (root: string): Promise<void> => {

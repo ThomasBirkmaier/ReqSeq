@@ -11,8 +11,8 @@
 // one (`open` without record), a requirement only with a validation record, no other element (SR-038 AK5). Both come
 // from the evidence block's `verificationState` (`evidence/verification.ts`), which element.get and
 // evidence.status share. Only the elements that have records get a current version
-// (`currentVersionsOf`: the files of those elements, or the whole store when they are a large share
-// of it, ADR-0008), so a workspace without records reads no element file for it. The versions are
+// (`currentVersionsOf` with `build: false`: the files of those elements, or the kept versions of the
+// whole store when they are built, ADR-0008), so a workspace without records reads no element file for it. The versions are
 // read by `ready`, which the conditions `verification` and `validation` await once before they ask
 // (#439): the condition "has evidence" needs no version and reads none. While the metamodel is not
 // valid the records are not compared: every requirement is `open`, every need `open`, nothing has

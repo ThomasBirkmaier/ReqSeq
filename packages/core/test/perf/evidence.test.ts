@@ -41,7 +41,13 @@ import {
   verificationState,
 } from "../../src/evidence/index.js";
 import { MODEL_CACHE_FILE, RACY_MS } from "../../src/model/model-cache.js";
-import { applyStoreChange, elementStoreState, updateElements, warmModel } from "../../src/model/index.js";
+import {
+  applyStoreChange,
+  currentVersions,
+  elementStoreState,
+  updateElements,
+  warmModel,
+} from "../../src/model/index.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
@@ -357,7 +363,9 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect((await ws().get(verificationState)).versionBatches()).toBe(batches);
     // The status state alone built again, with the current versions and the incoming index kept: the
     // walks below the top in the core, the neutral view and each variant above its seeds (ThomasBirkmaier/ReqSeq-archive#698), and
-    // the version batch from the kept current versions.
+    // the version batch from the kept current versions. The status reads its batches without building
+    // the versions of the whole store (#1662), so they are built here first, as a hint command does.
+    await currentVersions(ws());
     await ws().reset(verificationState);
     const { result: rebuilt } = await measure(
       "element.get of the top system requirement with its parents line: after a reset of the status state (current versions and incoming index kept)",

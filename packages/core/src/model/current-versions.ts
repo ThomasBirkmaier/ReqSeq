@@ -545,31 +545,58 @@ const keptFor = async (
   return kept;
 };
 
+/** How `currentVersionsOf` reads (#1662). */
+export interface VersionsOfOptions {
+  /**
+   * Whether a large share of the store builds and keeps the versions of the whole store (default true).
+   * False for a reader that keeps what it reads itself (the verification status): it reads only its
+   * records, unless one of them has a loaded version of another fingerprint (a metamodel change), which
+   * only the build of the whole store learns again for the model cache (#755).
+   */
+  readonly build?: boolean;
+}
+
+/** Whether a record of `records` has a loaded version whose type counts other properties now (#755). */
+const relearnable = (run: Run, records: readonly ElementRecord[]): boolean => {
+  const { versioning } = run;
+  return (
+    versioning !== undefined &&
+    records.some((record) => {
+      const loaded = run.loaded(record);
+      return (
+        loaded !== undefined && loaded.fingerprint !== typeVersioningOf(versioning, record.type).fingerprint
+      );
+    })
+  );
+};
+
 /**
  * The current versions of `records` only, in their order and each record once, for a command that
  * shows some elements (`listElements`, the hints of one element in its view, SR-026 AK3). Taken
  * from the versions the workspace keeps when their build has ended (`currentVersionsIfBuilt`: a
  * build that is running is not waited for), each checked as `checkImages` checks it but only for
  * these records (`keptFor`); when none are built and `records` are a large share of the store
- * (`WHOLE_STORE_SHARE`), the versions of the whole store are built and kept first. Every other record's version is computed from its file as
+ * (`WHOLE_STORE_SHARE`), the versions of the whole store are built and kept first, unless `build` is
+ * false (`VersionsOfOptions`). Every other record's version is computed from its file as
  * `buildCurrentVersions` does. A page of a large workspace thus reads only its own files, also in a
  * fresh CLI process (N-036), and builds no state. The kept state is not changed.
  */
 export const currentVersionsOf = async (
   workspace: Workspace,
   records: readonly ElementRecord[],
+  options: VersionsOfOptions = {},
 ): Promise<ReadonlyMap<ElementRecord, CurrentVersion>> => {
   const [store, layout, metamodel] = await Promise.all([
     workspace.get(elementStoreState),
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
   ]);
-  const versions =
-    (await currentVersionsIfBuilt(workspace)) ??
-    (records.length * WHOLE_STORE_SHARE >= store.elements.length
-      ? await currentVersions(workspace)
-      : undefined);
   const run = runOf({ store, layout, metamodel });
+  const whole =
+    records.length * WHOLE_STORE_SHARE >= store.elements.length &&
+    (options.build !== false || relearnable(run, records));
+  const versions =
+    (await currentVersionsIfBuilt(workspace)) ?? (whole ? await currentVersions(workspace) : undefined);
   const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));
   return entriesOf(run, records, known);
 };
