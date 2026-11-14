@@ -32,6 +32,14 @@ export const SLIDE_MS = 160;
  */
 export const DRAW_DEADLINE_MS = 1000;
 
+/**
+ * A guard for a motion whose animations never finish because the window draws no frames (a stalled or hidden
+ * page does not advance its animations, #1729): after its time and this much more, the slide ends anyway in its
+ * end state, as a key ends it (AK2). It is counted from the start of the motion, so a first frame that comes
+ * later than this lets the slide jump to its end. A paused slide is held on purpose and is left alone.
+ */
+export const RUN_GUARD_MS = SLIDE_MS;
+
 /** The curve where the page has no `--card-ease` (the token of the card of the command line, SR-182). */
 export const SLIDE_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 
@@ -262,6 +270,7 @@ type Phase =
       readonly picture: Picture;
       readonly track: Track;
       readonly animations: readonly Animation[];
+      readonly guard: ReturnType<typeof setTimeout>;
     };
 
 /**
@@ -469,9 +478,10 @@ export class SlideController {
     }
     clearTimeout(phase.deadline);
     const frames = slideKeyframes(phase.spec.direction, phase.spec.progress);
+    const duration = slideDuration(phase.spec.progress);
     const timing: KeyframeAnimationOptions = {
       id: SLIDE_ID,
-      duration: slideDuration(phase.spec.progress),
+      duration,
       easing: slideEase(this.host.view),
       fill: "forwards",
     };
@@ -487,12 +497,14 @@ export class SlideController {
     }
     phase.track.side.style.removeProperty("transform");
     phase.track.main.style.removeProperty("transform");
+    const guard = this.guard(animations, duration + RUN_GUARD_MS);
     this.phase = {
       kind: "running",
       spec: phase.spec,
       picture: phase.picture,
       track: phase.track,
       animations,
+      guard,
     };
     const [first] = animations;
     first?.finished.then(
@@ -506,6 +518,24 @@ export class SlideController {
     );
   }
 
+  /**
+   * The timer that ends the running slide of `animations` after `ms` when they have not finished. A paused
+   * animation is held on purpose (tests hold a slide halfway), so the guard waits again instead.
+   */
+  private guard(animations: readonly Animation[], ms: number): ReturnType<typeof setTimeout> {
+    return setTimeout(() => {
+      const { phase } = this;
+      if (phase.kind !== "running" || phase.animations !== animations) {
+        return;
+      }
+      if (animations.some((animation) => animation.playState === "paused")) {
+        this.phase = { ...phase, guard: this.guard(animations, RUN_GUARD_MS) };
+        return;
+      }
+      this.finish();
+    }, ms);
+  }
+
   private clear(): void {
     const { phase } = this;
     if (phase.kind === "waiting") {
@@ -513,6 +543,7 @@ export class SlideController {
     }
     if (phase.kind === "waiting" || phase.kind === "running") {
       if (phase.kind === "running") {
+        clearTimeout(phase.guard);
         for (const animation of phase.animations) {
           animation.cancel();
         }

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SlideSpec } from "./buffer-slide.js";
 import {
   DRAW_DEADLINE_MS,
+  RUN_GUARD_MS,
   SLIDE_EASE,
   SLIDE_ID,
   SLIDE_MS,
@@ -406,6 +407,50 @@ describe("a slide in a window", () => {
     expect(side().hidden).toBe(true);
     expect(side().childElementCount).toBe(0);
     expect(running()).toEqual([]);
+  });
+
+  it("[SR-212/AK-d25h] ends in the end state when its animations never finish, as in a window that draws no frames (#1729)", () => {
+    // Only the timers: the frames stay those of `frame()`.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.drawn("two");
+    slides.settle("left", "two");
+    frame();
+    frame();
+    expect(running()).toHaveLength(2);
+    // Under fake timers the animations stand still while running, as in a window that draws no frames.
+    vi.advanceTimersByTime(SLIDE_MS + RUN_GUARD_MS - 1);
+    expect(slides.busy).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(slides.busy).toBe(false);
+    expect(side().hidden).toBe(true);
+    expect(side().childElementCount).toBe(0);
+    expect(running()).toEqual([]);
+  });
+
+  it("leaves a slide that is paused on purpose running past the guard, and ends it once it runs on and stalls", () => {
+    // Only the timers: the frames stay those of `frame()`.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.drawn("two");
+    slides.settle("left", "two");
+    frame();
+    frame();
+    const animations = running();
+    for (const animation of animations) {
+      animation.pause();
+    }
+    vi.advanceTimersByTime(SLIDE_MS + RUN_GUARD_MS * 4);
+    expect(slides.busy).toBe(true);
+    expect(side().childElementCount).toBe(1);
+    for (const animation of animations) {
+      animation.play();
+    }
+    vi.advanceTimersByTime(RUN_GUARD_MS);
+    expect(slides.busy).toBe(false);
+    expect(side().childElementCount).toBe(0);
   });
 
   it("[SR-212/AK-d25h] slides anyway when the new view never says it is drawn", () => {
