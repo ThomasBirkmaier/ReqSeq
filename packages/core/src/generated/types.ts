@@ -277,7 +277,7 @@ export type Commit = string;
 export type RelativePath = string;
 
 /**
- * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).
+ * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after symbolic links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).
  * Schema: `schemas/common.schema.json#/$defs/localPath`.
  */
 export type LocalPath = string;
@@ -330,15 +330,15 @@ export interface Problem {
   readonly currentCommit?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
+  /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a reference of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A reference in the text has none. */
   readonly key?: Key;
   /** Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names. */
   readonly place?: {
     /** `relation`: an item of the relation kind or relation-valued property `key`. `text`: an inline reference in the text, or with `key` in a value of that property marked `markdown` (SR-127). */
     readonly in: "relation" | "text";
-    /** The repository the item or link names (D-058), as it writes it; absent when it names none. */
+    /** The repository the item or reference names (D-058), as it writes it; absent when it names none. */
     readonly repository?: string;
-    /** `text` only: the link is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID). */
+    /** `text` only: the reference is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID). */
     readonly occurrence?: number;
   };
   /** The target type of the limit a count hint is about (SR-152). */
@@ -875,7 +875,7 @@ export interface DataExportRelation {
   readonly kind: Key;
   /** `kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds. */
   readonly property?: true;
-  /** `reference` = inline link in the text (SR-066). */
+  /** `reference` = inline reference in the text (SR-066). */
   readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference" | null;
   /** `out`: the element stores the relation. `in`: another element stores it and points at this one. */
   readonly direction: "out" | "in";
@@ -1818,7 +1818,7 @@ export interface CommandCatalog {
     readonly whileReadOnly?: "refuse" | "allow";
     /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
     readonly whileReadOnlyReason?: string;
-    /** The stage of the build plan in which the command is built. */
+    /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
     /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
@@ -2959,23 +2959,23 @@ export interface TraceAffectedOutput {
 }
 
 /**
- * Input of `trace.neighbourhood` as `run` gets it: validated, properties with a `default` filled in. The elements linked to one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
+ * Input of `trace.neighbourhood` as `run` gets it: validated, properties with a `default` filled in. The elements reached from one element over its relations and inline references, of every relation kind, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
  * Schema: `schemas/commands/trace.neighbourhood.json input`.
  */
 export interface TraceNeighbourhoodInput {
-  /** The element whose links are walked. */
+  /** The element whose relations and references are walked. */
   readonly ref: ElementRef;
   /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
-  /** `up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target (ADR-0004). */
+  /** `up`: along the relations and references the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the relations and references that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a relation or reference is placed below its target (ADR-0004). */
   readonly direction: "up" | "down" | "both";
   /** The deepest depth in each direction; 0: the root only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
-  /** Walk as far as the links go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  /** Walk as far as the relations and references go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
   readonly allLevels: boolean;
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
-  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   /** Only the elements reached that this view holds: `core` or a variant ID; without it every element. */
   readonly view?: View;
@@ -2986,7 +2986,7 @@ export interface TraceNeighbourhoodInput {
 }
 
 /**
- * Output of `trace.neighbourhood`. The elements linked to one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
+ * Output of `trace.neighbourhood`. The elements reached from one element over its relations and inline references, of every relation kind, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
  * Schema: `schemas/commands/trace.neighbourhood.json output`.
  */
 export interface TraceNeighbourhoodOutput {
@@ -3009,20 +3009,20 @@ export interface TraceNeighbourhoodOutput {
     readonly file: string;
     /** Steps from the root in its walk: 0 for the root. */
     readonly depth: number;
-    /** `up` for an element reached along the links its file stores, `down` for one reached along the links that point at it; left out for the root. */
+    /** `up` for an element reached along the relations and references its file stores, `down` for one reached along those that point at it; left out for the root. */
     readonly direction?: "up" | "down";
-    /** Its links were looked at; false only at `maxDepth`, where the walk was cut. */
+    /** Its relations and references were looked at; false only at `maxDepth`, where the walk was cut. */
     readonly expanded: boolean;
   }[];
   /** The number of all nodes; `nodes` holds the page. */
   readonly total: number;
-  /** Every link the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
+  /** Every relation and reference the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them). */
   readonly edges: readonly {
-    /** The element whose file stores the link. */
+    /** The element whose file stores the relation or reference. */
     readonly source: Uuid;
     /** Workspace name of the repository of `source`. */
     readonly sourceRepository: string;
-    /** The element the link points at (ADR-0004), whatever the walk direction. */
+    /** The element the relation or reference points at (ADR-0004), whatever the walk direction. */
     readonly target: Uuid;
     /** Workspace name of the repository of `target`. */
     readonly targetRepository: string;
@@ -3040,18 +3040,18 @@ export interface TraceNeighbourhoodOutput {
     readonly cyclic: boolean;
     /** The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: ["derivation"]`). First means first reached breadth first (spec question ThomasBirkmaier/ReqSeq-archive#421). */
     readonly repeated: boolean;
-    /** The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
+    /** The relation or reference stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
   readonly incomplete: Incomplete;
 }
 
 /**
- * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a relation.
  * Schema: `schemas/commands/trace.matrix.json input`.
  */
 export interface TraceMatrixInput {
-  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk. */
+  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a relation whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk. */
   readonly selection?: ElementSelection;
   /** As in `element.list`: the rows are in the order `element.list` gives for the same `selection` and `sort` (SR-125 AK1). Without `sort`, the sort of the saved filter in `selection.filter`. `hierarchy` first makes the rows the derivation tree and gives each row its `depth`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -3064,7 +3064,7 @@ export interface TraceMatrixInput {
 }
 
 /**
- * Output of `trace.matrix`. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a relation.
  * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
@@ -3117,7 +3117,7 @@ export interface TraceMatrixOutput {
       readonly className?: string;
       /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
       readonly executed: boolean;
-      /** The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
+      /** The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence document of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
       /** How the cell is marked (SR-126 AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them (SR-031). Left out otherwise, also when a newer execution of an older version is `last` (#201). */
       readonly mark?: "not-executed" | "outdated" | "failed";
@@ -3144,7 +3144,7 @@ export interface TraceMatrixOutput {
   readonly total: number;
   /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2). */
   readonly incomplete: Incomplete;
-  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125). */
+  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement that applies only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125). */
   readonly evidence?: {
     /** The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions ThomasBirkmaier/ReqSeq-archive#593, ThomasBirkmaier/ReqSeq-archive#592 Q1). `element.get` and `evidence.status` give every view. */
     readonly view: ViewId;
@@ -3336,7 +3336,7 @@ export interface HintListOutput {
     /** Hints of this kind that pass the filters. */
     readonly count: number;
   }[];
-  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;
@@ -3600,11 +3600,11 @@ export interface EvidenceListInput {
  * Schema: `schemas/commands/evidence.list.json output`.
  */
 export interface EvidenceListOutput {
-  /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
+  /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence document (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
-  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
+  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
   readonly bearing: readonly number[];
-  /** The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run. */
+  /** The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run. */
   readonly display: {
     /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
     readonly shared: {
@@ -3647,7 +3647,7 @@ export interface EvidenceListOutput {
         readonly records: readonly number[];
       }[];
     }[];
-    /** AK3: the records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here. */
+    /** AK3: the records outside `bearing` by test run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here. */
     readonly older: readonly {
       readonly date: IsoDateTime;
       readonly version: Version;

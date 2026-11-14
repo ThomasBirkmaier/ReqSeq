@@ -47,14 +47,14 @@
     "properties": {
       "records": {
         "type": "array",
-        "description": "The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does).",
+        "description": "The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence document (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does).",
         "items": {
           "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
         }
       },
       "bearing": {
         "type": "array",
-        "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
+        "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
         "items": {
           "type": "integer",
           "minimum": 0
@@ -62,7 +62,7 @@
       },
       "display": {
         "type": "object",
-        "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
+        "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run.",
         "properties": {
           "shared": {
             "type": "object",
@@ -180,7 +180,7 @@
           },
           "older": {
             "type": "array",
-            "description": "AK3: the records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
+            "description": "AK3: the records outside `bearing` by test run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
             "items": {
               "type": "object",
               "properties": {

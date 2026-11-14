@@ -64,7 +64,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 6,
-            "description": "The stage of the build plan in which the command is built."
+            "description": "The stage in which the command is built."
           },
           "implements": {
             "type": "array",

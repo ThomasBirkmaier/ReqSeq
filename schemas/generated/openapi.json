@@ -99,7 +99,7 @@
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 6,
-                            "description": "The stage of the build plan in which the command is built."
+                            "description": "The stage in which the command is built."
                           },
                           "implements": {
                             "type": "array",
@@ -6484,7 +6484,7 @@
     "/v1/commands/trace.neighbourhood": {
       "post": {
         "operationId": "trace_neighbourhood",
-        "summary": "The elements linked to one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
+        "summary": "The elements reached from one element over its relations and inline references, of every relation kind, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
         "tags": [
           "trace"
         ],
@@ -6501,7 +6501,7 @@
                 "type": "object",
                 "properties": {
                   "ref": {
-                    "description": "The element whose links are walked.",
+                    "description": "The element whose relations and references are walked.",
                     "$ref": "#/components/schemas/common/$defs/elementRef"
                   },
                   "repository": {
@@ -6516,7 +6516,7 @@
                       "both"
                     ],
                     "default": "both",
-                    "description": "`up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target."
+                    "description": "`up`: along the relations and references the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the relations and references that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a relation or reference is placed below its target."
                   },
                   "maxDepth": {
                     "type": "integer",
@@ -6526,7 +6526,7 @@
                   "allLevels": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Walk as far as the links go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+                    "description": "Walk as far as the relations and references go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
                   },
                   "kinds": {
                     "type": "array",
@@ -6548,7 +6548,7 @@
                         "reference"
                       ]
                     },
-                    "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+                    "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
                   },
                   "view": {
                     "description": "Only the elements reached that this view holds: `core` or a variant ID; without it every element.",
@@ -6633,11 +6633,11 @@
                               "up",
                               "down"
                             ],
-                            "description": "`up` for an element reached along the links its file stores, `down` for one reached along the links that point at it; left out for the root."
+                            "description": "`up` for an element reached along the relations and references its file stores, `down` for one reached along those that point at it; left out for the root."
                           },
                           "expanded": {
                             "type": "boolean",
-                            "description": "Its links were looked at; false only at `maxDepth`, where the walk was cut."
+                            "description": "Its relations and references were looked at; false only at `maxDepth`, where the walk was cut."
                           }
                         },
                         "additionalProperties": false,
@@ -6660,13 +6660,13 @@
                     },
                     "edges": {
                       "type": "array",
-                      "description": "Every link the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
+                      "description": "Every relation and reference the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them).",
                       "items": {
                         "type": "object",
                         "properties": {
                           "source": {
                             "$ref": "#/components/schemas/common/$defs/uuid",
-                            "description": "The element whose file stores the link."
+                            "description": "The element whose file stores the relation or reference."
                           },
                           "sourceRepository": {
                             "type": "string",
@@ -6674,7 +6674,7 @@
                           },
                           "target": {
                             "$ref": "#/components/schemas/common/$defs/uuid",
-                            "description": "The element the link points at, whatever the walk direction."
+                            "description": "The element the relation or reference points at, whatever the walk direction."
                           },
                           "targetRepository": {
                             "type": "string",
@@ -6722,7 +6722,7 @@
                           },
                           "outdated": {
                             "type": "boolean",
-                            "description": "The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form."
+                            "description": "The relation or reference stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form."
                           }
                         },
                         "additionalProperties": false,
@@ -6861,7 +6861,7 @@
     "/v1/commands/trace.matrix": {
       "post": {
         "operationId": "trace_matrix",
-        "summary": "Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.",
+        "summary": "Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a relation.",
         "tags": [
           "trace"
         ],
@@ -6882,7 +6882,7 @@
                 "properties": {
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection",
-                    "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
+                    "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold). In a variant view (`selection.view`, or the view of the saved filter) a relation whose other end the view does not hold (also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
                   },
                   "sort": {
                     "type": "array",
@@ -7059,7 +7059,7 @@
                                 },
                                 "last": {
                                   "$ref": "#/components/schemas/data-export/$defs/evidenceRecord",
-                                  "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
+                                  "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence document of a JUnit execution. Left out when `executed` is false."
                                 },
                                 "mark": {
                                   "enum": [
@@ -7180,7 +7180,7 @@
                     },
                     "evidence": {
                       "type": "object",
-                      "description": "The header of the evidence columns: given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement`; then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence.",
+                      "description": "The header of the evidence columns: given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement`; then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement that applies only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence.",
                       "properties": {
                         "view": {
                           "$ref": "#/components/schemas/common/$defs/viewId",
@@ -8087,7 +8087,7 @@
                     },
                     "hints": {
                       "type": "array",
-                      "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+                      "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
                       }
@@ -9768,14 +9768,14 @@
                   "properties": {
                     "records": {
                       "type": "array",
-                      "description": "The evidence records of the element, newest first, each with its version, item, date, result and evidence and the baselines that contain its version (`baselines`; empty when none does).",
+                      "description": "The evidence records of the element, newest first, each with its version, item, date, result and evidence document and the baselines that contain its version (`baselines`; empty when none does).",
                       "items": {
                         "$ref": "#/components/schemas/data-export/$defs/evidenceRecord"
                       }
                     },
                     "bearing": {
                       "type": "array",
-                      "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion every record with the newest date of the current version, else every one with the newest date of an older version, so the whole run of a CI stays open; a record without criteria counts for every criterion. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
+                      "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
                       "items": {
                         "type": "integer",
                         "minimum": 0
@@ -9783,7 +9783,7 @@
                     },
                     "display": {
                       "type": "object",
-                      "description": "The Evidence section at a glance, computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by run.",
+                      "description": "The Evidence section at a glance, computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run.",
                       "properties": {
                         "shared": {
                           "type": "object",
@@ -9931,7 +9931,7 @@
                         },
                         "older": {
                           "type": "array",
-                          "description": "The records outside `bearing` by run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
+                          "description": "The records outside `bearing` by test run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
                           "items": {
                             "type": "object",
                             "properties": {
@@ -14485,7 +14485,7 @@
             "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
           },
           "localPath": {
-            "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded. App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder.",
+            "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after symbolic links are followed; `~` is not expanded. App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder.",
             "type": "string",
             "minLength": 1
           },
@@ -14612,7 +14612,7 @@
               },
               "key": {
                 "$ref": "#/components/schemas/common/$defs/key",
-                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid`, the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A link in the text has none."
+                "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message: the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`; `element.too-many-items`), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid`, the property of `element.text-emptied`, `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a reference of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style`. A reference in the text has none."
               },
               "place": {
                 "type": "object",
@@ -14630,12 +14630,12 @@
                   },
                   "repository": {
                     "type": "string",
-                    "description": "The repository the item or link names, as it writes it; absent when it names none."
+                    "description": "The repository the item or reference names, as it writes it; absent when it names none."
                   },
                   "occurrence": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "`text` only: the link is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
+                    "description": "`text` only: the reference is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
                   }
                 },
                 "additionalProperties": false
@@ -15377,7 +15377,7 @@
                   "reference",
                   null
                 ],
-                "description": "`reference` = inline link in the text."
+                "description": "`reference` = inline reference in the text."
               },
               "direction": {
                 "description": "`out`: the element stores the relation. `in`: another element stores it and points at this one.",

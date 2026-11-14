@@ -1,7 +1,7 @@
 {
   "name": "trace.matrix",
   "title": "Show traceability matrix",
-  "summary": "Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a link.",
+  "summary": "Traceability matrix of a selection: one row per element, one column per relation kind and direction, each cell the elements at the other end, with outdated and missing marks and per column how many rows have a relation.",
   "details": "Rows in list order, columns for each kind and direction that occurs. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.",
   "effect": "read",
   "stage": 3,
@@ -18,7 +18,7 @@
     "properties": {
       "selection": {
         "$ref": "../common.schema.json#/$defs/selection",
-        "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
+        "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a relation whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
       },
       "sort": {
         "type": "array",
@@ -171,7 +171,7 @@
                   },
                   "last": {
                     "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
-                    "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
+                    "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence document of a JUnit execution. Left out when `executed` is false."
                   },
                   "mark": {
                     "enum": ["not-executed", "outdated", "failed"],
@@ -267,7 +267,7 @@
       },
       "evidence": {
         "type": "object",
-        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
+        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement that applies only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
         "properties": {
           "view": {
             "$ref": "../common.schema.json#/$defs/viewId",

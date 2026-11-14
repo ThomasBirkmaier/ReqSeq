@@ -259,7 +259,7 @@
         },
         "meaning": {
           "enum": ["derivation", "replacement", "succession", "exclusion", "reference", null],
-          "description": "`reference` = inline link in the text (SR-066)."
+          "description": "`reference` = inline reference in the text (SR-066)."
         },
         "direction": {
           "description": "`out`: the element stores the relation. `in`: another element stores it and points at this one.",

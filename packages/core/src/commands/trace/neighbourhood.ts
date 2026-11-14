@@ -1,5 +1,5 @@
-// trace.neighbourhood (SR-107, D-031, D-062): the elements linked to one element over every relation
-// kind, relation property and inline reference, up and down to a depth, with `repeated` and
+// trace.neighbourhood (SR-107, D-031, D-062): the elements reached from one element over every
+// relation kind, relation property and inline reference, up and down to a depth, with `repeated` and
 // `outdated` per edge (trace/neighbourhood.ts). Without `maxDepth` the direct neighbours; the whole
 // chain comes with `allLevels`. `kinds` and `meanings` narrow what is followed; `view` keeps the
 // elements the view of the core or a variant holds (`viewRuleOf`, SR-040, SR-041, SR-043), and a
