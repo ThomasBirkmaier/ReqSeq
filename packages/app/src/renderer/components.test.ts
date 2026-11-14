@@ -1565,8 +1565,8 @@ describe("ListView, a list", () => {
           total: 2,
           incomplete: false,
           rows: [
-            elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Title 1"),
-            elementBuffer("uuid-2", "spec", "SR-000002 Title 2"),
+            { ...elementBuffer("uuid-1", "spec", "SR-000001 (SR-036) Title 1"), type: "system-requirement" },
+            { ...elementBuffer("uuid-2", "spec", "SR-000002 Title 2"), type: "system-requirement" },
           ],
         },
       ],
@@ -1818,7 +1818,9 @@ describe("ListView, a list", () => {
     await press(list, "ArrowDown");
     await press(list, "ArrowDown");
     await press(list, "Enter");
-    expect(opened).toEqual([elementBuffer("uuid-2", "spec", "SR-000002 Title 2")]);
+    expect(opened).toEqual([
+      { ...elementBuffer("uuid-2", "spec", "SR-000002 Title 2"), type: "system-requirement" },
+    ]);
     expect(query("#elsewhere").textContent).toBe("SR-000002 Title 2");
     expect(actions.at(-2)).toEqual({ type: "cursor", key: "list", cursor: 1 });
   });
@@ -1828,7 +1830,9 @@ describe("ListView, a list", () => {
     const { opened, actions } = await listHarness(asCall(call), listBuffer("All elements"));
     await click(query("#row-2"));
     expect(actions[0]).toEqual({ type: "cursor", key: "list", cursor: 2 });
-    expect(opened).toEqual([elementBuffer("uuid-3", "spec", "SR-000003 Title 3")]);
+    expect(opened).toEqual([
+      { ...elementBuffer("uuid-3", "spec", "SR-000003 Title 3"), type: "system-requirement" },
+    ]);
   });
 
   it("does nothing on Enter without rows", async () => {

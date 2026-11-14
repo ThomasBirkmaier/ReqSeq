@@ -260,6 +260,63 @@ describe("a slide in a window", () => {
     expect(running()).toHaveLength(2);
   });
 
+  it("[SR-212/AK-tfck] moves at once in the commit that shows a buffer drawn in advance in the current generation", () => {
+    slides.ready("two", 1, 7);
+    slides.prepare(BACK, 7);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    // No frame waited for: the motion runs from the commit on.
+    expect(running()).toHaveLength(2);
+    expect(side().textContent).toBe("One");
+  });
+
+  it("[SR-212/AK-tfck] waits for the draw of a buffer drawn in another generation, by another mount, or gone", () => {
+    for (const [mount, generation, gone] of [
+      [1, 6, false],
+      [2, 7, true],
+    ] as const) {
+      slides.ready("two", 1, generation);
+      if (gone) {
+        // Another mount going leaves the drawn one; its own going takes it.
+        slides.unready("two", mount);
+        slides.unready("two", 1);
+      }
+      slides.prepare(BACK, 7);
+      commit("<article data-buffer>Two</article>");
+      slides.settle("left", "two");
+      expect(running()).toEqual([]);
+      slides.drawn("two");
+      frame();
+      frame();
+      expect(running()).toHaveLength(2);
+      slides.finish();
+      commit("<article data-buffer>One</article>");
+    }
+    // Without a generation nothing counts as drawn in advance.
+    slides.ready("two", 1, 7);
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toEqual([]);
+  });
+
+  it("[SR-212/AK-tfck] tells the window while a slide is taken, waits or runs, so the reads drawn in advance wait", () => {
+    const busy: boolean[] = [];
+    slides = new SlideController({
+      view: window,
+      root: () => root,
+      busy: (now) => {
+        busy.push(now);
+      },
+    });
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(busy.at(-1)).toBe(true);
+    slides.finish();
+    expect(busy.at(-1)).toBe(false);
+  });
+
   it("[SR-212/AK-d25h] ends by itself in the end state: no picture, nothing moved", async () => {
     slides.prepare(BACK);
     commit("<article data-buffer>Two</article>");

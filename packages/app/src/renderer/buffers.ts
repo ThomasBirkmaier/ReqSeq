@@ -137,6 +137,11 @@ export interface ElementBuffer {
   readonly memberSteps?: readonly FilterStep[];
   /** A package page: the selected row of its elements; set once the reader has used them. */
   readonly memberCursor?: number;
+  /**
+   * The key of the element's type, once a read of it said so; not stored with the session. Only an element
+   * known not to be a package page is drawn in advance (SR-212 AK5, `neighbours.ts`).
+   */
+  readonly type?: string;
 }
 
 /** The calm start (SR-118): one line per element type with its count, then the elements opened last. */
@@ -272,6 +277,8 @@ export type BufferAction =
   | { readonly type: "restore"; readonly buffers: Buffers }
   /** The selected row of a list or search buffer, or of the elements of a package page. */
   | { readonly type: "cursor"; readonly key: string; readonly cursor: number }
+  /** A read of the element `id` in `repository` said its type: its element buffers keep it (SR-212 AK5). */
+  | TypedAction
   /**
    * The selected node of a graph, as `<repository>:<id>`, or the selected box or row of the metamodel
    * (`type:<key>`, `any`, `relation:<key>`).
@@ -288,6 +295,14 @@ export interface RenameAction {
   readonly id: string;
   readonly repository: string;
   readonly name: string;
+}
+
+/** The type of the element `id` in `repository` (`elementType`, the key of the type), as a read of it said. */
+export interface TypedAction {
+  readonly type: "typed";
+  readonly id: string;
+  readonly repository: string;
+  readonly elementType: string;
 }
 
 /** The most buffers kept; the least recent one goes first. */
@@ -564,6 +579,7 @@ export const readOnlyBuffer = (buffer: ElementBuffer): ElementBuffer => ({
   repository: buffer.repository,
   name: buffer.name,
   readOnly: true,
+  ...(buffer.type === undefined ? {} : { type: buffer.type }),
 });
 
 export const neighbourhoodBuffer = (id: string, repository: string, name: string): NeighbourhoodBuffer => ({
@@ -629,12 +645,15 @@ export const elementBufferOf = (element: {
   readonly shortId: string;
   readonly identifier?: string | undefined;
   readonly title: string;
-}): ElementBuffer =>
-  elementBuffer(
+  readonly type?: string | undefined;
+}): ElementBuffer => {
+  const buffer = elementBuffer(
     element.id,
     element.repository,
     shownIdTitle(element.shortId, element.identifier, element.title),
   );
+  return element.type === undefined ? buffer : { ...buffer, type: element.type };
+};
 
 /**
  * The action that names the buffers of `element` as it was read or saved (#273): a title changed in the
@@ -793,6 +812,18 @@ const restored = (buffers: Buffers, more: Buffers): Buffers => {
 const namedAfter = (buffer: Buffer): buffer is ElementBuffer | NeighbourhoodBuffer | GraphBuffer =>
   buffer.kind === "element" || buffer.kind === "neighbourhood" || buffer.kind === "graph";
 
+/** The element buffers of the element `id` in `repository` with its type; the same buffers when all have it. */
+const typed = (buffers: Buffers, action: TypedAction): Buffers => {
+  const stale = (buffer: Buffer): boolean =>
+    buffer.kind === "element" &&
+    buffer.id === action.id &&
+    buffer.repository === action.repository &&
+    buffer.type !== action.elementType;
+  return buffers.some(stale)
+    ? buffers.map((buffer) => (stale(buffer) ? { ...buffer, type: action.elementType } : buffer))
+    : buffers;
+};
+
 /** The buffers of the element `id` in `repository` named `name`; the same buffers when all are already. */
 const renamed = (buffers: Buffers, id: string, repository: string, name: string): Buffers => {
   const stale = (buffer: Buffer): boolean =>
@@ -802,8 +833,21 @@ const renamed = (buffers: Buffers, id: string, repository: string, name: string)
     : buffers;
 };
 
+/** `buffer`, with the type of the element the open buffer `before` knows when `buffer` knows none (SR-212 AK5). */
+const withType = (buffer: Buffer, before: Buffer | undefined): Buffer =>
+  buffer.kind === "element" &&
+  buffer.type === undefined &&
+  before?.kind === "element" &&
+  before.type !== undefined
+    ? { ...buffer, type: before.type }
+    : buffer;
+
 /** `buffer` in front, in place of the one with its key or with the key `replacing`. */
-const opened = (buffers: Buffers, buffer: Buffer, replacing: string | undefined): Buffers => {
+const opened = (buffers: Buffers, shown: Buffer, replacing: string | undefined): Buffers => {
+  const buffer = withType(
+    shown,
+    buffers.find((open) => open.key === shown.key),
+  );
   const kept =
     replacing === undefined || replacing === buffer.key
       ? buffers
@@ -858,6 +902,8 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       });
     case "rename":
       return renamed(buffers, action.id, action.repository, action.name);
+    case "typed":
+      return typed(buffers, action);
   }
 };
 

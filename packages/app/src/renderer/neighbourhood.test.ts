@@ -144,7 +144,10 @@ describe("parentLevels", () => {
       ["Title S1", "Title S2"],
     ]);
     expect(levels[0]?.map((parent) => parent.label)).toEqual(["X-N1 (N1)", "X-N2 (N2)"]);
-    expect(levels[0]?.[0]?.open).toEqual(elementBuffer("uuid-N1", "spec", "X-N1 (N1) Title N1"));
+    expect(levels[0]?.[0]?.open).toEqual({
+      ...elementBuffer("uuid-N1", "spec", "X-N1 (N1) Title N1"),
+      type: "t",
+    });
     expect(more).toBe(false);
   });
 
@@ -209,7 +212,10 @@ describe("treeRows", () => {
       ["X-C1 (C1)", 2, 1, false, undefined, false, 0],
       ["X-S2 (S2)", 1, 0, false, true, false, undefined],
     ]);
-    expect(opened.rows[1]?.row.open).toEqual(elementBuffer("uuid-C1", "spec", "X-C1 (C1) Title C1"));
+    expect(opened.rows[1]?.row.open).toEqual({
+      ...elementBuffer("uuid-C1", "spec", "X-C1 (C1) Title C1"),
+      type: "t",
+    });
     expect(opened.cut).toBe(false);
   });
 

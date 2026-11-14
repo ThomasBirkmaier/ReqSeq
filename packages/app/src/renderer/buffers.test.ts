@@ -381,6 +381,30 @@ describe("renaming the buffers of an element (#273)", () => {
     expect(renamed[4]).toBe(other);
   });
 
+  it("[SR-212/AK-tfck] gives the element buffers of an element the type a read said, and keeps the same buffers when they have it", () => {
+    const other = elementBuffer("id-a", "elsewhere", "SR-1 Alpha");
+    const neighbourhood = neighbourhoodBuffer("id-a", "repo", "SR-1 Alpha");
+    const open: Buffers = [a, readOnlyBuffer(a), neighbourhood, other, list];
+    const action = { type: "typed", id: "id-a", repository: "repo", elementType: "need" } as const;
+    const typed = reduceBuffers(open, action);
+    expect(typed.map((buffer) => (buffer.kind === "element" ? buffer.type : undefined))).toEqual([
+      "need",
+      "need",
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(typed[2]).toBe(neighbourhood);
+    expect(reduceBuffers(typed, action)).toBe(typed);
+    // Opened again from a link that does not say the type, the buffer keeps the one it knows.
+    expect(reduceBuffers(typed, { type: "open", buffer: a })[0]).toEqual({ ...a, type: "need" });
+    // A read-only buffer of a typed buffer keeps the type; a buffer built from a read has it.
+    expect(readOnlyBuffer({ ...a, type: "need" }).type).toBe("need");
+    expect(elementBufferOf({ id: "x", repository: "r", shortId: "N-1", title: "T", type: "need" }).type).toBe(
+      "need",
+    );
+  });
+
   it("keeps the same buffers when every buffer of the element has the name already", () => {
     const open: Buffers = [a, b];
     expect(reduceBuffers(open, renameAction({ ...element, title: "Alpha" }))).toBe(open);

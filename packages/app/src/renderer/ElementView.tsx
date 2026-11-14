@@ -147,6 +147,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
+import { bufferMark, useHidden, useReveal } from "./area-slot.js";
 import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
@@ -285,6 +286,11 @@ export interface ElementViewProps {
   readonly onDraft: (key: string, draft: Draft | undefined) => void;
   /** Gives the app the means to save and edit while the text is shown, and takes them back. */
   readonly register: (controls: ElementControls | undefined) => void;
+  /**
+   * A read said the element's type, when the buffer does not carry it yet: whether it is a package page decides
+   * whether it is drawn in advance (SR-212 AK5). Default: nothing.
+   */
+  readonly onType?: (element: Pick<DataExportElement, "id" | "repository" | "type">) => void;
   /** The types that are packages (SR-112); an element of one shows the elements that name it. */
   readonly packages: PackageModel | undefined;
   /**
@@ -309,6 +315,9 @@ export interface ElementViewProps {
    */
   readonly active?: boolean;
 }
+
+/** `value` for a shown view, nothing for one drawn hidden in advance (SR-212 AK5). */
+const shownOnly = <T,>(hidden: boolean, value: T): T | undefined => (hidden ? undefined : value);
 
 /** Whether the loaded element is of a type with the meaning `variant`. */
 const isVariantPage = (view: ElementLoad, variantTypes: ReadonlySet<string> | undefined): boolean =>
@@ -446,6 +455,7 @@ export const ElementView = ({
   draft,
   onDraft,
   register,
+  onType,
   packages,
   variantTypes,
   properties,
@@ -453,6 +463,11 @@ export const ElementView = ({
   keep,
   active: inArea,
 }: ElementViewProps): React.JSX.Element => {
+  // Drawn in advance, hidden beside the shown buffer (SR-212 AK5): it reads and draws, and does nothing a
+  // reader notices until it is shown. Whatever it shows then is what a fresh view at the switch shows.
+  const hidden = useHidden();
+  const hiddenNow = useRef(hidden);
+  hiddenNow.current = hidden;
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
   // The last answer of `element.get`, for the lines of the variants and the verification status (SR-046,
   // SR-047): a save answers without them, so they stay until the element is read again.
@@ -500,6 +515,8 @@ export const ElementView = ({
     undefined,
   );
   const { marked, mark } = useOutsideMarks();
+  // Input that came back with the file while the view was hidden: saved once it is shown.
+  const saveOnReveal = useRef(false);
   // What the buffer knows of its file besides the input (SR-106, `disk-state.ts`): the bytes the input was
   // typed on, the fields with input that the file no longer agrees with (AK2: nothing is saved meanwhile),
   // whether the file is gone (AK3: the content stays, read-only, until the file is there again), and the
@@ -587,6 +604,8 @@ export const ElementView = ({
   const { active, membersFocus } = useArea(inArea, returning.current, () => api.current.flush());
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const isPackage = packageModel !== undefined;
+  // What the page shows of a package: nothing while hidden, so its elements are never read for it (SR-212 AK5).
+  const pageModel = shownOnly(hidden, packageModel);
   const readOnly = isReadOnly(view);
   // The boxes that are edited (SR-104), and the editors of those with text by key. Each is compared with its
   // stored document in `onFile`, like the text with the baseline. The boxes that were added (AK2) have no
@@ -641,6 +660,7 @@ export const ElementView = ({
     onOpenTarget,
     onPickElement,
     onAsk,
+    onType,
     readOnly,
     handle,
     boxes,
@@ -665,6 +685,7 @@ export const ElementView = ({
     onOpenTarget,
     onPickElement,
     onAsk,
+    onType,
     readOnly,
     handle,
     boxes,
@@ -1058,10 +1079,18 @@ export const ElementView = ({
       }
       loadedOnce.current = true;
       if (back && inputDocs().size > 0) {
-        autosave.current?.input();
+        // A hidden view saves nothing: its input is saved once it is shown.
+        if (hiddenNow.current) {
+          saveOnReveal.current = true;
+        } else {
+          autosave.current?.input();
+        }
       }
     }
     setView({ status: "ok", element });
+    if (now.current.buffer.type !== element.type) {
+      now.current.onType?.(element);
+    }
     // The buffers of the element take a title changed on disk (#273).
     rename(renameAction(element));
   };
@@ -1148,6 +1177,17 @@ export const ElementView = ({
       current = false;
     };
   }, [call, buffer.key, buffer.id, buffer.repository, revision, touched]);
+  // Shown after it was drawn in advance: what a first load at the switch sets, the highlight of an element
+  // changed outside just now (SR-116), and the input that came back with its file is saved.
+  useReveal(() => {
+    if (loadedOnce.current && outside.fresh(buffer.id)) {
+      mark([TITLE_FIELD]);
+    }
+    if (saveOnReveal.current) {
+      saveOnReveal.current = false;
+      autosave.current?.input();
+    }
+  });
   useLinesAgain(call, buffer, elsewhere, got, setGot);
   // The parents line is asked for at the same time as the element, and the element is shown with it, so
   // nothing above the title comes in later and moves the fields under the pointer (ThomasBirkmaier/ReqSeq-archive#542). Every change from
@@ -1193,7 +1233,8 @@ export const ElementView = ({
   // The keys of the boxes with a value that opens a list, for their context menu (SR-196 AK2).
   const [listable, setListable] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
-    if (loadedElement === undefined) {
+    // Only the shown element's context menu needs them (SR-196 AK2): a hidden view asks once it is shown.
+    if (loadedElement === undefined || hidden) {
       return;
     }
     const answer = valueFacets(loadedElement);
@@ -1202,7 +1243,7 @@ export const ElementView = ({
         setListable(new Set(settled.ok ? listableValues(settled.output, []).map((value) => value.key) : []));
       }
     });
-  }, [valueKey, outside.seq]);
+  }, [valueKey, outside.seq, hidden]);
   // The file changed outside under the input, or is gone (SR-106): the modeline says so.
   const disk = diskMark(deleted, conflict);
   useEffect(() => {
@@ -2077,7 +2118,7 @@ export const ElementView = ({
     <article
       className="buffer element"
       aria-label={buffer.name}
-      data-buffer=""
+      {...bufferMark(hidden)}
       tabIndex={0}
       ref={setArticle}
       onFocus={(event) => {
@@ -2158,7 +2199,7 @@ export const ElementView = ({
               }}
               titleDisk={diskBlock(TITLE_FIELD)}
               belowTitle={
-                packageModel === undefined ? undefined : (
+                pageModel === undefined ? undefined : (
                   <PackageSummaryLine
                     call={call}
                     id={buffer.id}
@@ -2298,9 +2339,9 @@ export const ElementView = ({
               marked={marked}
               onOpenRelation={onOpenRelation}
             />
-            {packageModel === undefined ? null : (
+            {pageModel === undefined ? null : (
               <PackageMembers
-                model={packageModel}
+                model={pageModel}
                 buffer={buffer}
                 selection={selection}
                 call={call}

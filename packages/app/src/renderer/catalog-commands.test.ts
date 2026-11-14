@@ -1808,7 +1808,7 @@ describe('"Create element": the required properties asked in the command line (S
     expect(call).toHaveBeenLastCalledWith("element.create", { type: "report", title: "Wind gusts" });
     expect(dispatched.at(-1)).toEqual({
       type: "open",
-      buffer: elementBuffer("uuid-9", "spec", "REP-000009 Wind gusts"),
+      buffer: { ...elementBuffer("uuid-9", "spec", "REP-000009 Wind gusts"), type: "report" },
     });
     expect(echoed.at(-1)).toBe("Created REP-000009 Wind gusts · 3 hints");
   });

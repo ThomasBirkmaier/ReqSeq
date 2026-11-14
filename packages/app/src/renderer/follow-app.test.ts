@@ -11,6 +11,9 @@ import { App } from "./App.js";
 import { NO_ACCESS } from "./use-follow.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
+/** The layer of the shown buffer of the active area: views drawn in advance stand hidden beside it (SR-212 AK5). */
+const SHOWN = '[data-area][data-active] > [data-layer="main"]';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Handler = (input: Record<string, unknown>) => unknown;
@@ -213,7 +216,7 @@ const runCommand = async (name: string): Promise<void> => {
 /** Ctrl+Shift+O: the mode on, or off again. */
 const toggle = (): Promise<void> => keyDown(window, "O", { ctrlKey: true, shiftKey: true });
 
-const title = (): string | null | undefined => container.querySelector("article h1")?.textContent;
+const title = (): string | null | undefined => container.querySelector(`${SHOWN} article h1`)?.textContent;
 
 const typeText = async (insert: string): Promise<void> => {
   const view = EditorView.findFromDOM(query(".cm-editor"));

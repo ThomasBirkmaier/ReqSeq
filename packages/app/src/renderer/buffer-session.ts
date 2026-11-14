@@ -424,6 +424,8 @@ const GONE = new Set(["ref.unknown", "ref.ambiguous"]);
 
 interface Names {
   readonly names: ReadonlyMap<string, string>;
+  /** The keys of their types, by repository and UUID, for the elements drawn in advance (SR-212 AK5). */
+  readonly types: ReadonlyMap<string, string>;
   /** False when a read failed for another reason than `GONE`. */
   readonly complete: boolean;
 }
@@ -437,14 +439,14 @@ interface Names {
 const readNames = async (call: Call, elements: readonly Named[]): Promise<Names> => {
   const ids = [...new Set(elements.map((element) => element.id))];
   if (ids.length === 0) {
-    return { names: new Map(), complete: true };
+    return { names: new Map(), types: new Map(), complete: true };
   }
   const listed = await call("element.list", { selection: { ids } });
   if (listed.ok) {
+    const elements = listed.output.elements ?? [];
     return {
-      names: new Map(
-        (listed.output.elements ?? []).map((element) => [nameKey(element), elementBufferOf(element).name]),
-      ),
+      names: new Map(elements.map((element) => [nameKey(element), elementBufferOf(element).name])),
+      types: new Map(elements.map((element) => [nameKey(element), element.type])),
       complete: true,
     };
   }
@@ -454,14 +456,10 @@ const readNames = async (call: Call, elements: readonly Named[]): Promise<Names>
       call("element.get", { ref: element.id, repository: element.repository }),
     ),
   );
+  const found = answers.flatMap((answer) => (answer.ok ? [answer.output.element] : []));
   return {
-    names: new Map(
-      answers.flatMap((answer) =>
-        answer.ok
-          ? [[nameKey(answer.output.element), elementBufferOf(answer.output.element).name] as const]
-          : [],
-      ),
-    ),
+    names: new Map(found.map((element) => [nameKey(element), elementBufferOf(element).name])),
+    types: new Map(found.map((element) => [nameKey(element), element.type])),
     complete: answers.every((answer) => answer.ok || GONE.has(answer.code)),
   };
 };
@@ -529,9 +527,14 @@ const readPerspectives = async (call: Call, names: readonly string[]): Promise<P
 const readCommands = (catalog: readonly CommandListing[]): ReadonlySet<string> =>
   new Set(catalog.filter((entry) => entry.implemented && entry.effect === "read").map((entry) => entry.name));
 
-/** The element buffer `stored` rebuilds with its name: read-only, the sort and the filter steps of a package page. */
-const rebuildElement = (stored: StoredBuffer & { readonly kind: "element" }, name: string): Buffer => {
-  const element = elementBuffer(stored.id, stored.repository, name);
+/** The element buffer `stored` rebuilds with its name and type: read-only, the sort and the filter steps of a package page. */
+const rebuildElement = (
+  stored: StoredBuffer & { readonly kind: "element" },
+  name: string,
+  type: string | undefined,
+): Buffer => {
+  const named = elementBuffer(stored.id, stored.repository, name);
+  const element = type === undefined ? named : { ...named, type };
   return {
     ...(stored.readOnly === true ? readOnlyBuffer(element) : element),
     ...(stored.memberSort === undefined ? {} : { memberSort: stored.memberSort }),
@@ -542,7 +545,7 @@ const rebuildElement = (stored: StoredBuffer & { readonly kind: "element" }, nam
 /** The buffer `stored` rebuilds; undefined when it cannot be shown again. */
 const rebuild = (
   stored: StoredBuffer,
-  names: ReadonlyMap<string, string>,
+  { names, types }: Pick<Names, "names" | "types">,
   runs: ReadonlySet<string>,
   perspectives: ReadonlyMap<string, Buffer>,
 ): Buffer | undefined => {
@@ -575,7 +578,7 @@ const rebuild = (
         return undefined;
       }
       if (stored.kind === "element") {
-        return rebuildElement(stored, name);
+        return rebuildElement(stored, name, types.get(nameKey(stored)));
       }
       if (stored.kind === "neighbourhood") {
         return { ...neighbourhoodBuffer(stored.id, stored.repository, name), open: stored.open };
@@ -600,7 +603,7 @@ export const restoreSession = async (
     return { buffers: [], complete: true };
   }
   const hasResult = session.buffers.some((buffer) => buffer.kind === "result");
-  const [{ names, complete }, runs, perspectives] = await Promise.all([
+  const [named, runs, perspectives] = await Promise.all([
     readNames(call, namedIn(session)),
     hasResult ? catalog().then(readCommands, () => new Set<string>()) : Promise.resolve(new Set<string>()),
     readPerspectives(
@@ -608,7 +611,7 @@ export const restoreSession = async (
       session.buffers.flatMap((buffer) => (buffer.kind === "perspective" ? [buffer.name] : [])),
     ),
   ]);
-  const rebuilt = session.buffers.map((stored) => rebuild(stored, names, runs, perspectives.buffers));
+  const rebuilt = session.buffers.map((stored) => rebuild(stored, named, runs, perspectives.buffers));
   const seen = new Set<string>();
   const buffers = rebuilt.flatMap((buffer) => {
     if (buffer === undefined || seen.has(buffer.key)) {
@@ -617,5 +620,5 @@ export const restoreSession = async (
     seen.add(buffer.key);
     return [buffer];
   });
-  return { buffers, complete: complete && perspectives.complete };
+  return { buffers, complete: named.complete && perspectives.complete };
 };

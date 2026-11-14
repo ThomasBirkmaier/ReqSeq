@@ -95,7 +95,8 @@ body,
 
 /* The track of a switch in motion (SR-212, buffer-slide.ts): two layers over the whole area, each moved by its
    own translateX in % of the area. The live view is in "main"; "side" holds the picture of the view that was
-   left, only while a slide runs, and is never hit by the pointer. */
+   left, only while a slide runs, and is never hit by the pointer. The live layer is not contained: the cards
+   of its view (the slash menu's backdrop) cover the whole window. */
 .slide-layer {
   position: absolute;
   inset: 0;
@@ -103,6 +104,14 @@ body,
 
 .slide-layer[data-layer="side"] {
   contain: strict;
+  pointer-events: none;
+}
+
+/* A buffer drawn in advance (SR-212 AK5): laid out beside the shown one, not painted, and not reached by the
+   pointer; showing it only flips its layer's attributes. */
+.slide-layer[data-layer="neighbour"] {
+  contain: strict;
+  visibility: hidden;
   pointer-events: none;
 }
 

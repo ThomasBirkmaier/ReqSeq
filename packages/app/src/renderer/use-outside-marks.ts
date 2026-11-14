@@ -2,6 +2,7 @@
 // mark is gone `MARK_MS` after it was set, well within the 3 s of AK2, and a mark that is on is not set again, so an element
 // flashes once. The class `outside-change` (styles.css) is the tint.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useHidden } from "./area-slot.js";
 import { MARK_MS } from "./outside-marks.js";
 
 /** The class of a field or a row that changed outside. */
@@ -16,8 +17,14 @@ export interface OutsideMarks {
   readonly mark: (keys: Iterable<string>) => void;
 }
 
+/**
+ * The highlights of a view. A view drawn hidden in advance (SR-212 AK5) sets none: once shown, it sets what a
+ * fresh view at the switch would set (`useReveal`).
+ */
 export const useOutsideMarks = (): OutsideMarks => {
   const [marked, setMarked] = useState(NONE);
+  const hidden = useRef(false);
+  hidden.current = useHidden();
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   useEffect(
     () => () => {
@@ -28,6 +35,9 @@ export const useOutsideMarks = (): OutsideMarks => {
     [],
   );
   const mark = useCallback((keys: Iterable<string>): void => {
+    if (hidden.current) {
+      return;
+    }
     const added = [...new Set(keys)].filter((key) => !timers.current.has(key));
     if (added.length === 0) {
       return;

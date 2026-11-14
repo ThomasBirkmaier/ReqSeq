@@ -30,6 +30,7 @@ import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
 import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
 import { OVERVIEW_KEY, elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
+import { ReadGate, countingWrites, drawnBy } from "./area-slot.js";
 import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
@@ -51,6 +52,7 @@ import { SlideController, directionOf, shownLayer } from "./buffer-slide.js";
 import { bufferSwitchBlocked } from "./buffer-switch.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
+import { neighbourBuffers } from "./neighbours.js";
 import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
@@ -202,9 +204,16 @@ const useSlides = (
   sheet: React.RefObject<HTMLElement | null>,
   side: string,
   shown: Buffer | undefined,
+  gate: ReadGate,
 ): SlideController => {
   const slides = useRef<SlideController | undefined>(undefined);
-  slides.current ??= new SlideController({ view: window, root: () => sheet.current });
+  slides.current ??= new SlideController({
+    view: window,
+    root: () => sheet.current,
+    busy: (busy) => {
+      gate.slide(busy);
+    },
+  });
   const controller = slides.current;
   const key = shown?.key;
   useLayoutEffect(() => {
@@ -213,10 +222,33 @@ const useSlides = (
   useEffect(
     () => () => {
       controller.finish();
+      gate.dispose();
     },
     [controller],
   );
   return controller;
+};
+
+const NONE: ReadonlySet<string> = new Set();
+
+/**
+ * The buffers drawn in advance that a change dropped since the shown `buffer` was switched to: they are
+ * not read again in the background, and drawn in advance again only after the next switch (SR-212 AK5).
+ */
+const useDropped = (
+  buffer: Buffer | undefined,
+): { readonly dropped: ReadonlySet<string>; readonly drop: (key: string) => void } => {
+  const shown = buffer?.key;
+  const switches = useRef({ key: shown, count: 0 });
+  if (switches.current.key !== shown) {
+    switches.current = { key: shown, count: switches.current.count + 1 };
+  }
+  const [dropped, setDropped] = useState({ at: 0, keys: NONE });
+  const drop = useCallback((key: string): void => {
+    const at = switches.current.count;
+    setDropped((before) => ({ at, keys: new Set([...(before.at === at ? before.keys : []), key]) }));
+  }, []);
+  return { dropped: dropped.at === switches.current.count ? dropped.keys : NONE, drop };
 };
 
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
@@ -267,6 +299,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const openPrompt = useRef<Prompt | undefined>(undefined);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
+  // The writes of the save of leaving an element (SR-105 AK1) not yet answered by their change, and the changes
+  // that were such a write: they count to the switch, so the buffers drawn in advance read once more after them
+  // (SR-212 AK5).
+  const leavingWrites = useRef(0);
+  const [switchSaves, setSwitchSaves] = useState(0);
   // The changes from outside that named elements (SR-116, SR-106): every view but an element buffer
   // reads again on each, an element buffer only on its own; what changed is highlighted where it is shown.
   const fresh = useMemo(() => arrivals(), []);
@@ -444,8 +481,24 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       started ||= currentKey !== undefined;
       restoreBuffers(currentKey, asked, back);
     };
+    // A write of the save of leaving, answered just before its change on the same channel: the change counts
+    // to the switch (SR-212 AK5). Taken when the change comes, so a refresh that ends early loses no count;
+    // another workspace starts with none.
+    const takeSwitchSave = (reason: WorkspaceChangeReason | undefined): (() => void) => {
+      if (reason === "opened") {
+        leavingWrites.current = 0;
+      }
+      if (reason !== "written" || leavingWrites.current === 0) {
+        return () => undefined;
+      }
+      leavingWrites.current -= 1;
+      return () => {
+        setSwitchSaves((count) => count + 1);
+      };
+    };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
+      const countSwitchSave = takeSwitchSave(reason);
       const result = await tracked.invoke("workspace.status", {});
       if (!mounted || asked !== opened) {
         return;
@@ -477,6 +530,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // The shown buffer asks again, also a list that is the same list of another workspace.
       if (reason !== undefined) {
         setRevision((count) => count + 1);
+        countSwitchSave();
       }
       // The type names come with the workspace; the modeline shows keys until they are there. A write of
       // the app changes no metamodel (no command writes it), so autosave does not read it every second.
@@ -602,7 +656,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }
       const result = await saveOne(
         {
-          call,
+          call: countingWrites(call, leavingWrites),
           buffers: [buffer],
           drafts: drafts.current,
           properties: propertiesNow.current,
@@ -649,7 +703,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, [buffers]);
 
   walk.current = cycleOrder(walk.current, buffers);
-  const slides = useSlides(sheet, layout.active, current);
+  // When the reads of the buffers drawn in advance may go (SR-212 AK5): after the shown one is drawn.
+  const gate = useMemo(() => new ReadGate(), []);
+  const slides = useSlides(sheet, layout.active, current, gate);
+  // While a prompt is open the reader may be choosing the next buffer: no read drawn in advance starts then.
+  const prompting = prompt !== undefined;
+  useLayoutEffect(() => {
+    gate.prompt(prompting);
+  }, [gate, prompting]);
+  // The previous and the next buffer of the active area, drawn hidden beside the shown one (SR-212 AK5),
+  // without those dropped after a change since the last switch: they are not read again in the background.
+  const { dropped, drop } = useDropped(current);
+  const neighbours = neighbourBuffers(buffers, walk.current.order, layout.other, {
+    known: typeNames.size > 0,
+    model: packages,
+  }).filter((buffer) => !dropped.has(buffer.key));
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
     if (session === undefined) {
@@ -675,7 +743,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       walk.current = { order: walk.current.order, cycled: key };
       const from = buffers[0]?.key;
       if (from !== undefined) {
-        slides.prepare({ side: layout.active, from, to: key, direction: directionOf(step) });
+        slides.prepare(
+          { side: layout.active, from, to: key, direction: directionOf(step) },
+          revisionNow.current,
+        );
       }
     },
     leaveEditor: () => {
@@ -1194,9 +1265,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const onData = useCallback(
     (key: string, data: BufferData | undefined): void => {
       setLoaded((before) => new Map(before).set(key, data));
-      // What a view loaded is drawn in the same commit: a switch in motion to it starts (SR-212). A list or a
-      // search result (the data with its rows) says so itself (`onDrawn`), once its rows show their verification.
-      if (data !== undefined && !("rows" in data)) {
+      // What a view loaded is drawn in the same commit: a switch in motion to it starts (SR-212).
+      if (drawnBy(data)) {
         slides.drawn(key);
       }
     },
@@ -1208,8 +1278,20 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     [slides],
   );
-  // What a buffer that no area shows any more loaded goes: shown again, it loads again.
-  const shownKeys = shownAreas.map((area) => area.buffer.key);
+  // A hidden view says when it is drawn with no read pending: a switch to it slides at once (SR-212 AK5).
+  const ready = useCallback(
+    (key: string, mount: number, generation: number | undefined): void => {
+      if (generation === undefined) {
+        slides.unready(key, mount);
+      } else {
+        slides.ready(key, mount, generation);
+      }
+    },
+    [slides],
+  );
+  // What a buffer that no area shows any more loaded goes: shown again, it loads again. A buffer drawn in
+  // advance keeps it, so the modeline has it when the buffer is shown.
+  const shownKeys = [...shownAreas.map((area) => area.buffer.key), ...neighbours.map((buffer) => buffer.key)];
   useEffect(() => {
     setLoaded((before) => shownOnly(before, shownKeys));
   }, [shownKeys.join("\n")]);
@@ -1283,6 +1365,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     onData,
     onEcho: setEcho,
     onDrawn,
+    gate,
+    ready,
+    drop,
+    switchSaves,
     typeNames,
     kindNames,
     // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
@@ -1310,6 +1396,15 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       onDraft,
       keep: keepOf(buffer),
       register: setElementControls,
+      // Not held while the view is hidden: whether it is a package page decides whether it is drawn in advance.
+      onType: (element) => {
+        dispatch({
+          type: "typed",
+          id: element.id,
+          repository: element.repository,
+          elementType: element.type,
+        });
+      },
       packages,
       variantTypes,
       properties,
@@ -1325,6 +1420,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
             <BufferArea
               key={area.side}
               area={area}
+              {...(area.active ? { hidden: neighbours } : {})}
               split={split}
               views={views}
               onActivate={() => {

@@ -564,7 +564,7 @@ describe("go to element or buffer", () => {
     ]);
     found?.[0]?.run();
     expect(dispatched).toEqual([
-      { type: "open", buffer: elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind") },
+      { type: "open", buffer: { ...elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind"), type: "t" } },
     ]);
   });
 

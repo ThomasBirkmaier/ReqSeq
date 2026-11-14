@@ -185,6 +185,7 @@ describe("GraphView", () => {
           id: "uuid-S1",
           repository: "spec",
           name: "X-S1 (S1) Title S1",
+          type: "system-requirement",
         },
       },
     ]);
@@ -410,6 +411,7 @@ describe("GraphView", () => {
           id: "uuid-C1",
           repository: "spec",
           name: "X-C1 (C1) Title C1",
+          type: "system-requirement",
         },
       },
     ]);

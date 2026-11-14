@@ -345,11 +345,12 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(container.querySelector("input")).toBeNull();
     expect(areas()).toEqual(["Graph: SR-000001 Title 1", "SR-000001 Title 1*"]);
     await pointerDown("left");
-    // Unsplit: the graph stays, alone.
+    expect(reads.get("uuid-1")).toBe(readsAfterSplit);
+    // Unsplit: the graph stays, alone; the element, its previous buffer now, is drawn hidden in advance
+    // (SR-212 AK5).
     await runCommand("Unsplit window");
     expect(areas()).toEqual(["Graph: SR-000001 Title 1*"]);
     expect(query('[aria-label="Sheet"]').children).toHaveLength(1);
-    expect(reads.get("uuid-1")).toBe(readsAfterSplit);
   });
 
   it("[SR-115/AK-cycg] two elements side by side: Save element and element commands act on the active one, input goes to its own element", async () => {
