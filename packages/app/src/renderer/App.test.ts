@@ -253,11 +253,20 @@ const render = async (bridge: ReqSeqBridge): Promise<void> => {
   await flush();
 };
 
-const text = (label: string): string | null | undefined =>
-  container.querySelector(`[aria-label="${label}"]`)?.textContent;
+const text = (label: string): string | null | undefined => shownOne(`[aria-label="${label}"]`)?.textContent;
+
+/** What the reader sees: the elements of `selector` outside the layers drawn hidden in advance (SR-212 AK5). */
+const shownAll = (selector: string): Element[] =>
+  [...container.querySelectorAll(selector)].filter(
+    (element) => element.closest('[data-layer="neighbour"]') === null,
+  );
+
+/** The first of them, or none. */
+const shownOne = (selector: string): HTMLElement | null =>
+  (shownAll(selector)[0] as HTMLElement | undefined) ?? null;
 
 const query = (selector: string): HTMLElement => {
-  const found = container.querySelector<HTMLElement>(selector);
+  const found = (shownAll(selector)[0] ?? null) as HTMLElement | null;
   if (found === null) {
     throw new Error(`nothing matches ${selector}`);
   }
@@ -322,7 +331,7 @@ const clickLine = async (): Promise<void> => {
 
 /** In the command prompt with an empty input: a click on its last row, "All commands…" (SR-133 AK3). */
 const allCommands = async (): Promise<void> => {
-  const last = [...container.querySelectorAll('[role="option"]')].find(
+  const last = [...shownAll('[role="option"]')].find(
     (option) => option.querySelector(".name")?.textContent === "All commands…",
   );
   if (last === undefined) {
@@ -356,8 +365,7 @@ const renderList = async (bridge: ReqSeqBridge): Promise<void> => {
   await listAll();
 };
 
-const texts = (selector: string): string[] =>
-  [...container.querySelectorAll(selector)].map((element) => element.textContent);
+const texts = (selector: string): string[] => [...shownAll(selector)].map((element) => element.textContent);
 
 /** The calls of `name`, without those a list makes for the verification of its rows (SR-137). */
 const calls = (invoke: ReturnType<typeof fakeBridge>["invoke"], name: string): unknown[] =>
@@ -386,7 +394,7 @@ describe("App", () => {
       onHelp: () => () => undefined,
     };
     await render(bridge);
-    expect(container.querySelector('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
+    expect(shownOne('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
     expect(text("Modeline")).toBe("");
     expect(text("Minibuffer")).toBe("");
     await act(async () => {
@@ -419,14 +427,14 @@ describe("App", () => {
     platform.mockReturnValue("Linux x86_64");
     root = createRoot(container);
     await render(other.bridge);
-    expect(container.querySelector(".titlebar")).toBeNull();
+    expect(shownOne(".titlebar")).toBeNull();
   });
 
   it("shows the list of all elements, its count in the modeline, and gives the list the focus", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
     expect(calls(invoke, "element.list")).toEqual([{ sort: DEFAULT_SORT, limit: 200, offset: 0 }]);
-    expect([...container.querySelectorAll(".row .title")].map((title) => title.textContent)).toEqual([
+    expect([...shownAll(".row .title")].map((title) => title.textContent)).toEqual([
       "Title 1",
       "Title 2",
       "Title 3",
@@ -492,10 +500,10 @@ describe("App", () => {
     expect(text("Minibuffer")).toBe(
       "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
     );
-    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    expect(shownOne('[role="listbox"]')).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
@@ -571,12 +579,10 @@ describe("App", () => {
     await renderList(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
-    expect(
-      [...container.querySelectorAll('[role="option"] .name')].map((name) => name.textContent),
-    ).toContain("Sort list");
+    expect([...shownAll('[role="option"] .name')].map((name) => name.textContent)).toContain("Sort list");
     expect(document.activeElement).toBe(query("input"));
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(document.activeElement).toBe(query('[role="listbox"]'));
     await keyDown(window, "p", { metaKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
@@ -636,7 +642,7 @@ describe("App", () => {
     // Not among the first nine without use: from "All commands…".
     expect(texts('[role="option"] .name')).not.toContain("Filter list by status");
     await allCommands();
-    const status = [...container.querySelectorAll('[role="option"]')].find(
+    const status = [...shownAll('[role="option"]')].find(
       (option) => option.textContent === "Filter list by status",
     );
     await act(async () => {
@@ -648,7 +654,7 @@ describe("App", () => {
     await keyDown(query("input"), "Escape");
     expect(query("label").textContent).toBe("All commands");
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     await clickLine();
     // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
     expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
@@ -673,11 +679,11 @@ describe("App", () => {
     expect(calls(invoke, "element.list")).toHaveLength(lists);
     // The first step closes: the command prompt, and a prompt a shortcut opened.
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(calls(invoke, "element.list")).toHaveLength(lists);
   });
 
@@ -701,7 +707,7 @@ describe("App", () => {
     expect(document.activeElement).toBe(query("article"));
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
-    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+    expect([...shownAll('[role="option"]')].map((option) => option.textContent)).toEqual([
       "All elements",
       "Overview",
     ]);
@@ -812,7 +818,7 @@ describe("App", () => {
     expect(text("Minibuffer")).toBe('The element "uuid-3" is gone');
     expect(query("article .quiet").textContent).toBe('The element "uuid-3" is gone');
     // The element left is drawn hidden in advance beside it (SR-212 AK5).
-    expect(container.querySelector(`${SHOWN} article h1`)).toBeNull();
+    expect(shownOne(`${SHOWN} article h1`)).toBeNull();
   });
 
   it("filters the list by a type through the command prompt", async () => {
@@ -877,7 +883,7 @@ describe("App", () => {
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
     await change("opened");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
     expect(text("Modeline")).toBe("Overview3 elementsOther");
     expect(document.title).toBe("Other - ReqSeq");
@@ -930,9 +936,7 @@ describe("App", () => {
       incomplete: false,
     });
     await change("opened");
-    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
-      "Need 1",
-    ]);
+    expect([...shownAll('[role="option"]')].map((option) => option.textContent)).toEqual(["Need 1"]);
     expect(text("Modeline")).toBe("Overview1 elementOther");
   });
 
@@ -951,7 +955,7 @@ describe("App", () => {
     await render(bridge);
     handlers["workspace.status"] = () => NO_WORKSPACE;
     await change("opened");
-    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    expect(shownOne('[role="listbox"]')).toBeNull();
     expect(text("Modeline")).toBe("No workspace");
     expect(document.title).toBe("ReqSeq");
   });
@@ -1032,7 +1036,7 @@ describe("App", () => {
       const { bridge } = fakeBridge(workspace());
       await render(bridge);
       const selected = (): string | undefined =>
-        container.querySelector('.candidates [aria-selected="true"]')?.textContent ?? undefined;
+        shownOne('.candidates [aria-selected="true"]')?.textContent ?? undefined;
       // The command prompt: Ctrl+P must not jump.
       await keyDown(window, "P", { ...mod(), shiftKey: true });
       const first = selected();
@@ -1055,9 +1059,9 @@ describe("App", () => {
   const ctrl = { ctrlKey: true };
   /** The id of the selected row of the list or overview, if one is. */
   const selectedRow = (): string | undefined =>
-    container.querySelector('[data-buffer] [aria-selected="true"]')?.id ?? undefined;
+    shownOne('[data-buffer] [aria-selected="true"]')?.id ?? undefined;
   /** The label of the open prompt, if one is. */
-  const prompt = (): string | undefined => container.querySelector("label")?.textContent ?? undefined;
+  const prompt = (): string | undefined => shownOne("label")?.textContent ?? undefined;
 
   it("[SR-122/AK-mqwc] Ctrl+N and Ctrl+P walk the overview, the list and the search result like Down and Up; Ctrl+N first selects the first row", async () => {
     const handlers = workspace();
@@ -1210,10 +1214,8 @@ describe("App", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     await keyDown(window, "p", { ctrlKey: true });
     const selected = (): string | null | undefined =>
-      container.querySelector('.candidates [aria-selected="true"]')?.textContent;
-    const names = [...container.querySelectorAll('.candidates [role="option"]')].map(
-      (option) => option.textContent,
-    );
+      shownOne('.candidates [aria-selected="true"]')?.textContent;
+    const names = [...shownAll('.candidates [role="option"]')].map((option) => option.textContent);
     expect(names.length).toBeGreaterThan(1);
     expect(selected()).toBe(names[0]);
     await keyDown(query("input"), "n", { ctrlKey: true });
@@ -1233,7 +1235,7 @@ describe("App", () => {
     document.body.addEventListener("keydown", handled);
     await keyDown(query("main"), "P", { ctrlKey: true, shiftKey: true });
     document.body.removeEventListener("keydown", handled);
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     await keyDown(query("main"), "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
   });
@@ -1243,7 +1245,7 @@ describe("App", () => {
     await render(bridge);
     await keyDown(window, "x", { ctrlKey: true });
     await keyDown(window, "a");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
   });
 });
 
@@ -1353,10 +1355,10 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     return { fake, bridge: { ...fake.bridge, commands: () => Promise.resolve(helped() as never) } };
   };
   const marked = (): string | undefined =>
-    container.querySelector('.candidates [aria-selected="true"] .name')?.textContent ?? undefined;
+    shownOne('.candidates [aria-selected="true"] .name')?.textContent ?? undefined;
   // The open command help: closed, it stays in the card, out of sight and hidden from a screen reader.
   const helpText = (): string | undefined =>
-    container.querySelector('#command-help[data-open="true"]')?.textContent ?? undefined;
+    shownOne('#command-help[data-open="true"]')?.textContent ?? undefined;
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
     "[SR-210/AK-wz9v] [SR-145/AK-bfb2] [SR-145/AK-tbrz] on %s, Ctrl+H shows the command help of the marked command; Cmd+H does not",
@@ -1494,7 +1496,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("#command-help .help-summary").textContent).toBe(description);
     // No arguments and no call on the command line: the app alone has it. Its key, if it has one.
     expect(texts("#command-help h3").filter((heading) => heading !== "Key")).toEqual([]);
-    expect(container.querySelector("#command-help .help-cli")).toBeNull();
+    expect(shownOne("#command-help .help-cli")).toBeNull();
     await keyDown(query("input"), "Escape");
     await keyDown(query("input"), "Escape");
     // In Go to, on an element or a buffer, there is no explanation, and Ctrl+H does nothing; it is the command
@@ -1502,7 +1504,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     await keyDown(window, "p", mod());
     expect(query("label").textContent).toBe("Go to");
     await type("Title");
-    expect(container.querySelector("#prompt-explain")).toBeNull();
+    expect(shownOne("#prompt-explain")).toBeNull();
     const ctrl = await pressed(query("input"), "h", { ctrlKey: true });
     expect(ctrl.defaultPrevented).toBe(true);
     expect(helpText()).toBeUndefined();
@@ -1552,7 +1554,7 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(texts('#candidates [role="option"] .name')).toEqual(all);
     // Escape closes it (SR-134 AK2); "All commands…" recorded no use.
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(window.localStorage.getItem("reqseq.usage.v1") ?? "").not.toContain("all-commands");
   });
 
@@ -1563,16 +1565,15 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("#prompt-explain .explain-text").textContent).toBe("A command of the catalog.");
     expect(query("input").getAttribute("aria-describedby")).toBe("prompt-explain");
     await type("Show affected elements qqqqxz");
-    expect(container.querySelector(".candidates")).toBeNull();
+    expect(shownOne(".candidates")).toBeNull();
     expect(query("#prompt-explain .explain-text").textContent).toBe("");
-    expect(container.querySelector("#prompt-explain .explain-side")).toBeNull();
+    expect(shownOne("#prompt-explain .explain-side")).toBeNull();
     expect(query("input").getAttribute("aria-describedby")).toBeNull();
   });
 });
 
 describe("App, the overview (SR-118)", () => {
-  const options = (): string[] =>
-    [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+  const options = (): string[] => [...shownAll('[role="option"]')].map((option) => option.textContent);
   const TWO_TYPES = {
     total: 5,
     types: [
@@ -1599,7 +1600,7 @@ describe("App, the overview (SR-118)", () => {
     expect(text("Modeline")).toBe("Overview5 elementsWeather stationread-only");
     expect(document.activeElement).toBe(query('[role="listbox"]'));
     // No heading and no empty line for the recent elements before one was opened (D-062).
-    expect(container.querySelector(".group")).toBeNull();
+    expect(shownOne(".group")).toBeNull();
   });
 
   it("[SR-118/AK-yggg] below the types the overview shows at most five recently opened elements, newest first", async () => {
@@ -1667,7 +1668,7 @@ describe("App, the overview (SR-118)", () => {
     expect(options()).toEqual(["Need 2", "System Requirement 3"]);
     handlers["workspace.status"] = () => NO_WORKSPACE;
     await change("opened");
-    expect(container.querySelector("[data-buffer]")).toBeNull();
+    expect(shownOne("[data-buffer]")).toBeNull();
   });
 
   it("[SR-118/AK-yggg] counts again when the workspace changed, and not when the overview is only shown again", async () => {
@@ -1717,11 +1718,11 @@ describe("App, the overview (SR-118)", () => {
     seed([known(3)]);
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
-    await click(container.querySelectorAll('[role="option"]')[0] ?? container);
+    await click(shownAll('[role="option"]')[0] ?? container);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: need");
     expect(calls(invoke, "element.list")).toHaveLength(1);
     await runCommand("show overview");
-    await click(container.querySelectorAll('[role="option"]')[2] ?? container);
+    await click(shownAll('[role="option"]')[2] ?? container);
     expect(query("article h1").textContent).toBe("Title 3");
   });
 
@@ -1738,10 +1739,10 @@ describe("App, the overview (SR-118)", () => {
     await flushUntil(() => options().includes("Zulu 1"));
     expect(options()).toEqual(["Need 2", "System Requirement 3", "Alpha cannot be listed", "Zulu 1"]);
     // Opening one that cannot be listed says why, and opens nothing.
-    await click(container.querySelectorAll('[role="option"]')[2] ?? container);
+    await click(shownAll('[role="option"]')[2] ?? container);
     expect(text("Minibuffer")).toBe('Perspective "Alpha": its saved filter "Gone" does not exist');
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
-    await click(container.querySelectorAll('[role="option"]')[3] ?? container);
+    await click(shownAll('[role="option"]')[3] ?? container);
     expect(query("[data-buffer] h1").textContent).toContain("Zulu");
     expect(calls(invoke, "element.list")).toContainEqual({
       perspective: "Zulu",
@@ -1750,9 +1751,10 @@ describe("App, the overview (SR-118)", () => {
     });
     // The prompt of "Open perspective" lists it first now (SR-214 AK1).
     await runCommand("Open perspective");
-    expect(
-      [...container.querySelectorAll('.candidates [role="option"] .name')].map((name) => name.textContent),
-    ).toEqual(["Zulu", "Alpha"]);
+    expect([...shownAll('.candidates [role="option"] .name')].map((name) => name.textContent)).toEqual([
+      "Zulu",
+      "Alpha",
+    ]);
   });
 
   it("[SR-118/AK-h5f7] counts each perspective in the view of the window, and again when another view is chosen", async () => {
@@ -1820,7 +1822,7 @@ describe("App, the overview (SR-118)", () => {
     await render(bridge);
     expect(calls(invoke, "element.list")).toEqual([]);
     expect(options()).toHaveLength(2);
-    expect(container.querySelector(".row .title")).toBeNull();
+    expect(shownOne(".row .title")).toBeNull();
   });
 
   it('[SR-118/AK-t1qm] "List all elements" opens the full list from the overview', async () => {
@@ -1878,7 +1880,7 @@ describe("App, the overview (SR-118)", () => {
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
     expect(options()).toEqual(["Need 2", "System Requirement 3"]);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    const offered = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+    const offered = [...shownAll('[role="option"]')].map((option) => option.textContent);
     expect(offered.some((name) => name.startsWith("Close"))).toBe(false);
     expect(offered.some((name) => name.startsWith("Show overview"))).toBe(false);
   });
@@ -1985,7 +1987,7 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.search")).toEqual([{ query: "title", fields: ["id", "title"], limit: 20 }]);
     await keyDown(query("input"), "Enter");
     expect(editorView().state.doc.toString()).toBe("Hello [Title 2](reqseq:uuid-2)");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(editorView().hasFocus).toBe(true);
     expect(document.activeElement).toBe(query(".cm-content"));
   });
@@ -1997,7 +1999,7 @@ describe("App, the text editor", () => {
     await typeKeys(" /ref");
     await keyDown(query(".cm-content"), "Enter");
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(editorView().state.doc.toString()).toBe("Hello /ref");
     expect(document.activeElement).toBe(query(".cm-content"));
   });
@@ -2016,7 +2018,7 @@ describe("App, the text editor", () => {
     expect(query("label").textContent).toBe("Command");
     expect(document.activeElement).toBe(query("input"));
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     vi.useFakeTimers();
     await act(async () => {
       const end = editorView().state.doc.length;
@@ -2239,7 +2241,7 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe(
       "SR-000001 Title 1 could not be saved (The element is read-only): close the window again to discard the unsaved input",
     );
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(shownOne('[role="dialog"]')).toBeNull();
     // Input after the question asks again.
     await typeText(".");
     await close();
@@ -2342,7 +2344,7 @@ describe("App, the text editor", () => {
     // No command, no prompt, no other key while it is busy.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await clickLine();
-    expect(container.querySelector('[role="option"]')).toBeNull();
+    expect(shownOne('[role="option"]')).toBeNull();
     expect(text("Minibuffer")).toBe("Opening another workspace…");
     written({ ok: true, output: { element: row(1, { text: "Hello!" }), files: [], affected: 0 } });
     await act(async () => {
@@ -2367,13 +2369,13 @@ describe("App, the text editor", () => {
     // Opened, the other workspace still loading: the old buffers and drafts are gone at once, so nothing
     // can be typed into them, and the window takes input again, so a load that hangs never locks it.
     expect(query(".sheet").inert).toBe(false);
-    expect(container.querySelector(".cm-editor")).toBeNull();
+    expect(shownOne(".cm-editor")).toBeNull();
     expect(text("Modeline")).not.toContain("SR-000001");
     expect(text("Modeline")).not.toContain("modified");
     expect(text("Minibuffer")).toBe("Opening another workspace…");
     // The command prompt opens (it offers "Open workspace" again), and stays open when the status comes.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    expect(container.querySelector('.minibuffer [role="option"]')).not.toBeNull();
+    expect(shownOne('.minibuffer [role="option"]')).not.toBeNull();
     await act(async () => {
       status();
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -2381,7 +2383,7 @@ describe("App, the text editor", () => {
     await flush();
     expect(query(".sheet").inert).toBe(false);
     expect(text("Modeline")).toContain("Overview");
-    expect(container.querySelector('.minibuffer [role="option"]')).not.toBeNull();
+    expect(shownOne('.minibuffer [role="option"]')).not.toBeNull();
   });
 
   it("[SR-131/AK-nkm5] says so when main gave up waiting for the save, and takes input again", async () => {
@@ -2432,9 +2434,7 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.update")).toHaveLength(1);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await allCommands();
-    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
-      "Edit textEnter",
-    );
+    expect([...shownAll('[role="option"]')].map((o) => o.textContent)).toContain("Edit textEnter");
     await keyDown(query("input"), "Escape");
     await runCommand("edit text");
     expect(editorView().hasFocus).toBe(true);
@@ -2469,7 +2469,7 @@ describe("App, the text editor", () => {
     const { invoke } = await openElement(handlers);
     await keyDown(window, "a", { ctrlKey: true, altKey: true });
     expect(text("Minibuffer")).toContain("Add property");
-    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+    expect([...shownAll('[role="option"]')].map((option) => option.textContent)).toEqual([
       "Verification Methodmethod",
       "Topictopic",
     ]);
@@ -2478,13 +2478,13 @@ describe("App, the text editor", () => {
     // The box is there, the focus on it, and the choice prompt asks at once with the choices of the metamodel.
     expect(query('[data-field="method"]')).not.toBeNull();
     expect(text("Minibuffer")).toContain("Verification Method");
-    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+    expect([...shownAll('[role="option"]')].map((option) => option.textContent)).toEqual([
       "Testtest",
       "Analysisanalysis",
     ]);
     await type("anal");
     await keyDown(query("input"), "Enter");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     expect(document.activeElement).toBe(query('[data-field="method"]'));
     expect(texts('[data-field="method"] .line')).toEqual(["analysis"]);
     expect(text("Modeline")).toContain("modified");
@@ -2550,7 +2550,7 @@ describe("App, the text editor", () => {
     const { invoke } = await openElement(handlers);
     await typeText("!");
     await keyDown(query(".cm-content"), "n", { altKey: true });
-    expect(container.querySelector(`${SHOWN} article`)).toBeNull();
+    expect(shownOne(`${SHOWN} article`)).toBeNull();
     // No prompt opened, and no second has passed: the save is the leaving's own.
     expect(calls(invoke, "element.update")).toEqual([
       { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
@@ -2605,7 +2605,7 @@ describe("App, the text editor", () => {
     await keyDown(query("input"), "Enter");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
-    expect(container.querySelector(".cm-editor")).toBeNull();
+    expect(shownOne(".cm-editor")).toBeNull();
     await act(async () => {
       answer?.();
       await Promise.resolve();
@@ -2753,9 +2753,9 @@ describe("App, the text editor", () => {
     // shown last, a recent element that is no longer open (SR-115 AK1).
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
-    expect(
-      [...container.querySelectorAll(".candidates [role=option]")].map((option) => option.textContent),
-    ).toEqual(["SR-000001 Title 1"]);
+    expect([...shownAll(".candidates [role=option]")].map((option) => option.textContent)).toEqual([
+      "SR-000001 Title 1",
+    ]);
   });
 
   it('[SR-123/AK-xbx2] Close all buffers keeps a buffer in conflict: shown again, it says its change on disk after "Closed 1 buffer", and nothing is written', async () => {
@@ -2811,20 +2811,18 @@ describe("App, the text editor", () => {
     await keyDown(query("input"), "Enter");
     await runCommand("close all buffers");
     expect(query("label").textContent).toBe("1 buffer with unsaved changes (SR-000001 Title 1)");
-    expect(
-      [...container.querySelectorAll(".candidates [role=option]")].map((option) => option.textContent),
-    ).toEqual([
+    expect([...shownAll(".candidates [role=option]")].map((option) => option.textContent)).toEqual([
       "Close all but the buffers with unsaved changes",
       "Close all and discard the unsaved changes",
     ]);
-    expect(container.querySelector("dialog, [role=dialog], [role=alertdialog], [aria-modal]")).toBeNull();
+    expect(shownOne("dialog, [role=dialog], [role=alertdialog], [aria-modal]")).toBeNull();
     // Escape goes back to the command prompt (SR-134 AK1), and a second one closes it; every buffer stays.
     await keyDown(query("input"), "Escape");
     expect(query("label").textContent).toBe("Command");
     await keyDown(query("input"), "Escape");
-    expect(container.querySelector("input")).toBeNull();
+    expect(shownOne("input")).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
-    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(2);
+    expect(shownAll(".candidates [role=option]")).toHaveLength(2);
     await keyDown(query("input"), "Escape");
     // Plain Enter takes the first choice: the buffer with unsaved text stays, and is still modified.
     await runCommand("close all buffers");
@@ -2880,7 +2878,7 @@ describe("App, the text editor", () => {
       const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       await allCommands();
-      expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
+      expect([...shownAll('[role="option"]')].map((o) => o.textContent)).toContain(
         "Follow referenceCtrl+Enter",
       );
       await keyDown(query("input"), "Escape");
@@ -2937,7 +2935,7 @@ describe("App, the text editor", () => {
 
   describe("the list of the elements with a value (SR-132)", () => {
     const options = (): (string | null)[] =>
-      [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+      [...shownAll('[role="option"]')].map((option) => option.textContent);
 
     it("[SR-132/AK-y207] Ctrl+Shift+Enter on an element asks among its values, and the value taken opens its list", async () => {
       const { invoke } = await openElement();
@@ -3072,7 +3070,7 @@ describe("App, the package page (SR-112)", () => {
     );
 
   const memberTitles = (): string[] =>
-    [...container.querySelectorAll(".members .row .title")].map((title) => title.textContent);
+    [...shownAll(".members .row .title")].map((title) => title.textContent);
 
   it("[SR-112/AK-fzbz] an opened package shows below its title and text every element that names it", async () => {
     const { invoke } = await openPackage();
@@ -3080,11 +3078,7 @@ describe("App, the package page (SR-112)", () => {
     expect(memberCalls(invoke)).toEqual([
       { selection: { where: { package: "uuid-p" } }, sort: DEFAULT_SORT, limit: 200, offset: 0 },
     ]);
-    const parts = [
-      ...container.querySelectorAll(
-        "article h1, article .cm-editor, article .members h2, article .members .row",
-      ),
-    ];
+    const parts = [...shownAll("article h1, article .cm-editor, article .members h2, article .members .row")];
     expect(parts.map((part) => part.tagName)).toEqual(["H1", "DIV", "H2", "DIV", "DIV", "DIV"]);
     expect(parts[1]?.className).toContain("cm-editor");
     expect(query(".members h2").textContent).toBe("← packages 3");
@@ -3102,14 +3096,14 @@ describe("App, the package page (SR-112)", () => {
     await type("title");
     await keyDown(query("input"), "Enter");
     expect(query("article h1").textContent).toBe("Title 2");
-    expect(container.querySelector(".members")).toBeNull();
+    expect(shownOne(".members")).toBeNull();
     expect(memberCalls(fake.invoke)).toEqual([]);
   });
 
   it("[SR-112/AK-fzbz] a package that no element names shows no heading", async () => {
     await openPackage(withPackage(() => ({ elements: [], total: 0 })));
     expect(query("article h1").textContent).toBe("Stufe-3");
-    expect(container.querySelector(".members h2")).toBeNull();
+    expect(shownOne(".members h2")).toBeNull();
     expect(query(".members").hasAttribute("hidden")).toBe(true);
   });
 
@@ -3149,11 +3143,10 @@ describe("App, the package page (SR-112)", () => {
     await keyDown(query(".members .list"), "Enter");
     expect(query("article h1").textContent).toBe("Title 4");
     // The element left for the package is drawn in advance as its previous buffer (SR-212 AK5): read once
-    // more, hidden; the package page, a neighbour of the last one, is not.
+    // more, hidden; the package page is drawn from what it read when shown, and read no more.
     expect(calls(invoke, "element.get").map((input) => (input as { ref: string }).ref)).toEqual([
       "uuid-p",
       "uuid-3",
-      "uuid-p",
       "uuid-3",
       "uuid-4",
     ]);
@@ -3256,7 +3249,7 @@ describe("App, the package page (SR-112)", () => {
     handlers["metamodel.get"] = () => new Error("The metamodel is broken");
     const { invoke } = await openPackage(handlers);
     expect(query("article h1").textContent).toBe("Stufe-3");
-    expect(container.querySelector(".members")).toBeNull();
+    expect(shownOne(".members")).toBeNull();
     expect(memberCalls(invoke)).toEqual([]);
   });
 
@@ -3273,7 +3266,7 @@ describe("App, the package page (SR-112)", () => {
     const back = await pressed(query(".members .list"), "p", { ctrlKey: true });
     expect(back.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(query("article"));
-    expect(container.querySelector("label")).toBeNull();
+    expect(shownOne("label")).toBeNull();
   });
 
   it("[SR-122/AK-mqwc] Ctrl+N on the page goes to the first element also when another one was used", async () => {
@@ -3329,7 +3322,7 @@ describe("App, the package page (SR-112)", () => {
       focus("Title");
       // Ctrl+P on the first field only moves: nowhere, and it is not Go to.
       expect((await pressed(field("Title"), "p", { ctrlKey: true })).defaultPrevented).toBe(true);
-      expect(container.querySelector("label")).toBeNull();
+      expect(shownOne("label")).toBeNull();
       expect(document.activeElement).toBe(field("Title"));
       expect((await pressed(field("Title"), "n", { ctrlKey: true })).defaultPrevented).toBe(true);
       expect(document.activeElement).toBe(query('[data-field="Text"] .cm-content'));
@@ -3382,7 +3375,7 @@ describe("App, the package page (SR-112)", () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await openPackage();
     expect((await pressed(query("article"), "p", { ctrlKey: true })).defaultPrevented).toBe(false);
-    expect(container.querySelector("label")).toBeNull();
+    expect(shownOne("label")).toBeNull();
     await keyDown(query("article"), "p", { metaKey: true });
     expect(query("label").textContent).toBe("Go to");
   });
@@ -3397,7 +3390,7 @@ describe("App, the package page (SR-112)", () => {
       expect(document.activeElement).toBe(content);
       await keyDown(content, key, key === "n" ? { ctrlKey: true } : {});
       expect(document.activeElement).toBe(query(".members .list"));
-      expect(container.querySelector("label")).toBeNull();
+      expect(shownOne("label")).toBeNull();
     },
   );
 
@@ -3419,7 +3412,7 @@ describe("App, the package page (SR-112)", () => {
     await keyDown(text, "n", { ctrlKey: true });
     await keyDown(topic, "n", { ctrlKey: true });
     expect(document.activeElement).toBe(query(".members .list"));
-    expect(container.querySelector("label")).toBeNull();
+    expect(shownOne("label")).toBeNull();
   });
 });
 
@@ -3457,7 +3450,7 @@ describe("App, copy field (SR-128)", () => {
 
   it("[SR-128/AK-sthw] shows a copy symbol with the ID in the modeline of an element, and none on a list", async () => {
     await renderList(fakeBridge(withText()).bridge);
-    expect(container.querySelector(".modeline .copy")).toBeNull();
+    expect(shownOne(".modeline .copy")).toBeNull();
     await keyDown(query('[role="listbox"]'), "Enter");
     const field = query('.modeline [data-field="ID"]');
     expect(field.textContent).toBe("SR-000001 (SR-036)");
@@ -3541,9 +3534,7 @@ describe("App, copy field (SR-128)", () => {
     });
     await keyDown(query('[data-field="criteria"]'), "P", copyKeys);
     await allCommands();
-    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
-      "Copy fieldCtrl+Shift+C",
-    );
+    expect([...shownAll('[role="option"]')].map((o) => o.textContent)).toContain("Copy fieldCtrl+Shift+C");
     await type("Copy field");
     await keyDown(query("input"), "Enter");
     expect(copyText).toHaveBeenCalledExactlyOnceWith("first\nsecond");
@@ -3562,7 +3553,7 @@ describe("App, copy field (SR-128)", () => {
     await keyDown(window, "C", copyKeys);
     expect(copyText).not.toHaveBeenCalled();
     await keyDown(window, "P", copyKeys);
-    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).not.toContain(
+    expect([...shownAll('[role="option"]')].map((o) => o.textContent)).not.toContain(
       "Copy fieldCtrl+Shift+C",
     );
   });

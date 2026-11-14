@@ -36,8 +36,18 @@ const flush = async (): Promise<void> => {
   });
 };
 
+/** What the reader sees: the elements of `selector` outside the layers drawn hidden in advance (SR-212 AK5). */
+const shownAll = (selector: string): Element[] =>
+  [...container.querySelectorAll(selector)].filter(
+    (element) => element.closest('[data-layer="neighbour"]') === null,
+  );
+
+/** The first of them, or none. */
+const shownOne = (selector: string): HTMLElement | null =>
+  (shownAll(selector)[0] as HTMLElement | undefined) ?? null;
+
 const query = (selector: string): HTMLElement => {
-  const found = container.querySelector<HTMLElement>(selector);
+  const found = (shownAll(selector)[0] ?? null) as HTMLElement | null;
   if (found === null) {
     throw new Error(`nothing matches ${selector}`);
   }
@@ -313,7 +323,7 @@ describe("statuses folded in lists (SR-201)", () => {
     // A folded row opens like any other; back on the list, the section is collapsed again.
     await keyDown(list, "ArrowDown");
     await keyDown(list, "Enter");
-    expect(container.querySelector(".list")).toBeNull();
+    expect(shownOne(".list")).toBeNull();
     await keyDown(window, "p", { altKey: true });
     expect(shown()).toEqual(["N-001 (N-001)", "N-003 (N-003)", "▸ Folded statuses (1)"]);
     await keyDown(query(".list"), "ArrowLeft");

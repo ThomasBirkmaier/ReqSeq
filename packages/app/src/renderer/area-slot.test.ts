@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // The layers of an area that hold a view (SR-212 AK5): when the reads of a hidden view may go, what it holds
 // back until it is shown, and what it does when it is shown.
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,9 +9,11 @@ import {
   HeldCalls,
   ReadGate,
   SlotContext,
+  WritesInFlight,
   countingWrites,
   drawnBy,
   useHidden,
+  useHiddenUpdate,
   useReveal,
 } from "./area-slot.js";
 import type { Call } from "./call.js";
@@ -151,7 +153,9 @@ describe("a view shown after it was drawn in advance", () => {
     root = createRoot(container);
     const show = (hidden: boolean): void => {
       act(() =>
-        root?.render(createElement(SlotContext.Provider, { value: { hidden } }, createElement(View))),
+        root?.render(
+          createElement(SlotContext.Provider, { value: { hidden, whole: !hidden } }, createElement(View)),
+        ),
       );
     };
     show(false);
@@ -164,6 +168,51 @@ describe("a view shown after it was drawn in advance", () => {
     show(false);
     show(false);
     expect(revealed).toEqual([false]);
+  });
+});
+
+describe("the state a read gives a view", () => {
+  let root: Root | undefined;
+  afterEach(() => {
+    act(() => root?.unmount());
+  });
+
+  it("[SR-212/AK-tfck] is applied at once while shown, as a transition while hidden, and says so once it is committed", async () => {
+    const seen: string[] = [];
+    let apply: ((value: string, then?: () => void) => void) | undefined;
+    const View = (): null => {
+      const [value, setValue] = useState("none");
+      const later = useHiddenUpdate();
+      apply = (next, then) => {
+        later(() => {
+          setValue(next);
+        }, then);
+      };
+      seen.push(value);
+      return null;
+    };
+    root = createRoot(document.createElement("div"));
+    const show = (hidden: boolean): void => {
+      act(() =>
+        root?.render(
+          createElement(SlotContext.Provider, { value: { hidden, whole: true } }, createElement(View)),
+        ),
+      );
+    };
+    show(false);
+    const committed: string[] = [];
+    act(() => {
+      apply?.("shown", () => committed.push("shown"));
+    });
+    expect(committed).toEqual(["shown"]);
+    show(true);
+    await act(async () => {
+      apply?.("hidden", () => committed.push(seen.at(-1) ?? ""));
+      apply?.("again");
+      await Promise.resolve();
+    });
+    expect(committed).toEqual(["shown", "again"]);
+    expect(seen.at(-1)).toBe("again");
   });
 });
 
@@ -245,5 +294,44 @@ describe("the writes of the save of leaving", () => {
     await call("element.update", { ref: "uuid-1" });
     expect(pending.current).toBe(1);
     expect(inner).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("the saves of the window in flight", () => {
+  it("[SR-212/AK-tfck] counts a save from its sending until its change of the workspace, not a failed one or a read", async () => {
+    const writes = new WritesInFlight();
+    let answer: (settled: { readonly ok: boolean }) => void = () => undefined;
+    const inner = vi.fn((name: string) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : Promise.resolve({ ok: true, output: {} }),
+    );
+    const call = writes.counting(inner as unknown as Call);
+    await call("element.get", { ref: "uuid-1" });
+    expect(writes.none).toBe(true);
+    const saved = call("element.update", { ref: "uuid-1" });
+    expect(writes.none).toBe(false);
+    answer({ ok: true });
+    await saved;
+    // Answered: the change it makes is still to come.
+    expect(writes.none).toBe(false);
+    writes.changed("external");
+    expect(writes.none).toBe(false);
+    writes.changed("written");
+    expect(writes.none).toBe(true);
+    writes.changed("written");
+    expect(writes.none).toBe(true);
+    const failed = call("element.update", { ref: "uuid-1" });
+    answer({ ok: false });
+    await failed;
+    expect(writes.none).toBe(true);
+    const lost = call("element.update", { ref: "uuid-1" });
+    answer({ ok: true });
+    await lost;
+    // Another workspace: no change of this one follows.
+    writes.changed("opened");
+    expect(writes.none).toBe(true);
   });
 });

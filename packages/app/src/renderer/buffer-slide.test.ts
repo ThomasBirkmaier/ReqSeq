@@ -270,6 +270,32 @@ describe("a slide in a window", () => {
     expect(side().textContent).toBe("One");
   });
 
+  it("[SR-212/AK-tfck] moves at once to a buffer drawn from its record only when leaving changes nothing", () => {
+    slides.ready("two", 1, 7, true);
+    expect(slides.drawnAt("two", 7)).toBe(true);
+    expect(slides.drawnAt("two", 6)).toBe(false);
+    // The buffer left has input to save, or a save is in flight: the record may be out of date.
+    slides.prepare(BACK, 7, false);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toEqual([]);
+    slides.finish();
+    commit("<article data-buffer>One</article>");
+    // A buffer read for drawing in advance reads once more after the save of leaving: it moves at once.
+    slides.ready("two", 1, 7, false);
+    slides.prepare(BACK, 7, false);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toHaveLength(2);
+    slides.finish();
+    commit("<article data-buffer>One</article>");
+    slides.ready("two", 1, 7, true);
+    slides.prepare(BACK, 7, true);
+    commit("<article data-buffer>Two</article>");
+    slides.settle("left", "two");
+    expect(running()).toHaveLength(2);
+  });
+
   it("[SR-212/AK-tfck] waits for the draw of a buffer drawn in another generation, by another mount, or gone", () => {
     for (const [mount, generation, gone] of [
       [1, 6, false],

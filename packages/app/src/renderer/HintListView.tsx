@@ -5,6 +5,7 @@
 // the mark over headings and hints (SR-122 AK4); Enter or a click on a hint opens its element. The full
 // message is the tooltip of a hint and, for the marked hint, part of the modeline. A variant an outdated
 // evidence record names by its UUID is named as the view prompt names it (`views.ts`).
+import { bufferMark, useHidden } from "./area-slot.js";
 import { useEffect, useMemo, useState } from "react";
 import type { HintListOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -64,6 +65,8 @@ export const HintListView = ({
   onData,
 }: HintListViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const views = useVariantNames(call, output);
   const list = useMemo(() => hintList(output, views), [output, views]);
   // Every group is open when the list opens (SR-026 AK5).
@@ -145,7 +148,7 @@ export const HintListView = ({
       role="listbox"
       aria-label={buffer.name}
       aria-activedescendant={marked === undefined ? undefined : `${scope}hint-${String(cursor)}`}
-      data-buffer=""
+      {...bufferAttribute}
       tabIndex={0}
       onKeyDown={keyDown}
     >

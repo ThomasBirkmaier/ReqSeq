@@ -3,20 +3,74 @@
 // buffer would, and does nothing a reader would notice: it says nothing, takes no focus, starts no save and
 // highlights nothing until it is shown. Its reads wait until the shown buffer is drawn (`ReadGate`), so none
 // starts while the reader waits for a buffer; one already sent when the reader asks for another still runs.
-import { createContext, useContext, useLayoutEffect, useRef } from "react";
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { DRAW_DEADLINE_MS } from "./buffer-slide.js";
 import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 
-/** What a view knows of its layer: whether it is hidden beside the shown buffer. */
+/**
+ * What a view knows of its layer: whether it is hidden beside the shown buffer, and whether it draws all it
+ * shows there. A view read for drawing in advance (`read`, `neighbours.ts`) reads no more than what a switch
+ * needs, not the elements of a package page; one drawn from its record or for a swipe draws everything, as its
+ * reads cost no read of the workspace or are what the reader waits for.
+ */
 export interface SlotState {
   readonly hidden: boolean;
+  readonly whole: boolean;
 }
 
-export const SlotContext = createContext<SlotState>({ hidden: false });
+export const SlotContext = createContext<SlotState>({ hidden: false, whole: true });
 
 /** The view stands hidden beside the shown buffer (SR-212 AK5). */
 export const useHidden = (): boolean => useContext(SlotContext).hidden;
+
+/**
+ * Applies the state a read gave: at once in a shown view; in a hidden one as a transition, which React renders
+ * in slices and puts behind any input, so the draw of a long list or matrix drawn in advance never holds up a key
+ * the reader presses meanwhile, such as Enter on a relation of the shown element (SR-082 AK3, SR-212 AK5). `then`
+ * runs once the update is committed, so a view counts as drawn only when what it drew stands.
+ */
+export const useHiddenUpdate = (): ((update: () => void, then?: () => void) => void) => {
+  const hidden = useRef(false);
+  hidden.current = useHidden();
+  const [applied, setApplied] = useState(0);
+  const queued = useRef(0);
+  const waiting = useRef<{ readonly at: number; readonly then: () => void }[]>([]);
+  useEffect(() => {
+    const due = waiting.current.filter(({ at }) => at <= applied);
+    waiting.current = waiting.current.filter(({ at }) => at > applied);
+    for (const { then } of due) {
+      then();
+    }
+  }, [applied]);
+  return (update, then) => {
+    if (!hidden.current) {
+      update();
+      then?.();
+      return;
+    }
+    queued.current += 1;
+    const at = queued.current;
+    if (then !== undefined) {
+      waiting.current.push({ at, then });
+    }
+    startTransition(() => {
+      update();
+      setApplied(at);
+    });
+  };
+};
+
+/** The view draws all it shows: it is shown, or drawn from its record or for a swipe (`SlotState`). */
+export const useWhole = (): boolean => useContext(SlotContext).whole;
 
 /**
  * Runs `reveal` in a layout effect when the view's layer goes from hidden to shown: before the first frame of
@@ -247,3 +301,46 @@ export const countingWrites =
     }
     return answer;
   };
+
+/**
+ * The saves of elements (`element.update`) of the window not yet done: sent and not answered, or answered and
+ * waiting for their change of the workspace (`written`, which the host posts right after the answer). While
+ * one is, a buffer drawn from its record may be out of date at a switch (SR-212 AK5).
+ */
+export class WritesInFlight {
+  private sent = 0;
+  private answered = 0;
+
+  /** No save is in flight. */
+  get none(): boolean {
+    return this.sent === 0 && this.answered === 0;
+  }
+
+  /** `call`, counting its saves. */
+  counting(call: Call): Call {
+    return async (name, input) => {
+      if (name !== "element.update") {
+        return call(name, input);
+      }
+      this.sent += 1;
+      try {
+        const answer = await call(name, input);
+        if (answer.ok) {
+          this.answered += 1;
+        }
+        return answer;
+      } finally {
+        this.sent -= 1;
+      }
+    };
+  }
+
+  /** A change of the workspace came: `written` ends the wait of one save answered; another workspace ends all. */
+  changed(reason: string | undefined): void {
+    if (reason === "opened") {
+      this.answered = 0;
+    } else if (reason === "written" && this.answered > 0) {
+      this.answered -= 1;
+    }
+  }
+}

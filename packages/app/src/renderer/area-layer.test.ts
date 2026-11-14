@@ -76,14 +76,23 @@ const area = (gate: ReadGate, answered = false) => {
       onDrawn: () => undefined,
       typeNames: new Map(),
       kindNames: new Map(),
-      overview: { data: undefined, perspectives: [], recents: [], openPerspective: () => undefined },
+      overview: {
+        data: undefined,
+        perspectives: [],
+        recents: [],
+        recent: [],
+        openPerspective: () => undefined,
+      },
       element,
       gate,
       ready: () => undefined,
+      clean: () => true,
+      stopped: false,
       drop,
       switchSaves,
     }) as unknown as AreaViews;
   const render = async (hidden: readonly Buffer[], seen = 0, switchSaves = 0): Promise<void> => {
+    const besides = hidden.map((buffer) => ({ buffer, by: "read" as const }));
     await act(async () => {
       root.render(
         createElement(BufferArea, {
@@ -91,7 +100,7 @@ const area = (gate: ReadGate, answered = false) => {
           split: false,
           onActivate: () => undefined,
           views: views(seen, switchSaves),
-          hidden,
+          hidden: besides,
         }),
       );
       await Promise.resolve();

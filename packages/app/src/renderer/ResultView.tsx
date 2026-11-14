@@ -7,6 +7,7 @@
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (ThomasBirkmaier/ReqSeq-archive#85).
 // The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4).
+import { bufferMark, useHidden } from "./area-slot.js";
 import { useEffect, useMemo } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";
@@ -37,6 +38,8 @@ export const ResultView = ({
   onEcho,
 }: ResultViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   // The chain shows its evidence under the elements (SR-033); every other output is laid out by shape.
   const lines = useMemo(
     () => linesOf({ command: buffer.command, output: buffer.output }),
@@ -119,7 +122,7 @@ export const ResultView = ({
       aria-activedescendant={
         lines[cursor]?.open === undefined ? undefined : `${scope}result-${String(cursor)}`
       }
-      data-buffer=""
+      {...bufferAttribute}
       tabIndex={0}
       onKeyDown={keyDown}
     >

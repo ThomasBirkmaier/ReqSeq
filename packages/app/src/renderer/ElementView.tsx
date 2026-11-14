@@ -147,7 +147,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
-import { bufferMark, useHidden, useReveal } from "./area-slot.js";
+import { bufferMark, useHidden, useReveal, useWhole } from "./area-slot.js";
 import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
@@ -466,6 +466,7 @@ export const ElementView = ({
   // Drawn in advance, hidden beside the shown buffer (SR-212 AK5): it reads and draws, and does nothing a
   // reader notices until it is shown. Whatever it shows then is what a fresh view at the switch shows.
   const hidden = useHidden();
+  const whole = useWhole();
   const hiddenNow = useRef(hidden);
   hiddenNow.current = hidden;
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
@@ -604,8 +605,10 @@ export const ElementView = ({
   const { active, membersFocus } = useArea(inArea, returning.current, () => api.current.flush());
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const isPackage = packageModel !== undefined;
-  // What the page shows of a package: nothing while hidden, so its elements are never read for it (SR-212 AK5).
-  const pageModel = shownOnly(hidden, packageModel);
+  // What the page shows of a package: nothing while hidden and read for drawing in advance, so its elements
+  // are never read for it (SR-212 AK5); all of it when drawn from its record, which reads no workspace, or for
+  // a swipe (SR-211 AK3).
+  const pageModel = shownOnly(!whole, packageModel);
   const readOnly = isReadOnly(view);
   // The boxes that are edited (SR-104), and the editors of those with text by key. Each is compared with its
   // stored document in `onFile`, like the text with the baseline. The boxes that were added (AK2) have no

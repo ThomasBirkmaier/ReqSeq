@@ -1,12 +1,13 @@
 // The previous and the next buffer drawn in advance (SR-212 AK5) on the built app: an element that is no package
 // page and the neighbourhood of an element stand drawn hidden beside the shown buffer, so a switch to one of them
-// slides without waiting for its draw and shows what a fresh view at the switch shows; no other buffer is read for
-// it, nor the buffer of the other area of a split window. The requests of the window to core are counted in the
+// slides without waiting for its draw and shows what a fresh view at the switch shows; any other buffer stays drawn,
+// from what it read when shown, while it stays beside the shown one and nothing it shows changed, and is never read
+// for it; nor is the buffer of the other area of a split window. The requests of the window to core are counted in the
 // preload's world (`recordRequests`). Times at 50,000 elements are measured in `test/perf/neighbours.spec.ts`.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { CoreRequest, CoreRequests, RunningApp } from "./support/app.js";
 import { goTo, launchApp, listAll, recordRequests, shownLayer, slideSettled } from "./support/app.js";
 
@@ -112,6 +113,10 @@ const rewrite = async (running: RunningApp, change: (text: string) => string): P
 const retitle = (running: RunningApp, title: string): Promise<void> =>
   rewrite(running, (text) => text.replace(/^title: .*$/m, `title: ${title}`));
 
+/** The layers drawn hidden beside the shown buffer of the active area. */
+const hiddenLayer = (window: Page): Locator =>
+  window.locator('[data-area][data-active] > [data-layer="neighbour"]');
+
 /** The title the hidden view of the area shows (its buffer is named anew only once it is shown). */
 const hiddenTitle = (window: Page): Promise<string[]> =>
   window
@@ -141,7 +146,9 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
     await quiet(requests);
     // Hidden: inert, out of the accessibility tree, without the focus, not found as a buffer.
-    const layer = window.locator('[data-area][data-active] > [data-layer="neighbour"]');
+    const layer = window
+      .locator('[data-area][data-active] > [data-layer="neighbour"]')
+      .filter({ has: window.locator("article") });
     await expect(layer).toHaveAttribute("inert", "");
     await expect(layer).toHaveAttribute("aria-hidden", "true");
     await expect(layer.locator("[data-buffer]")).toHaveCount(0);
@@ -330,17 +337,22 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     ).toBe(0);
   });
 
-  test("[SR-212/AK-tfck] a package page neighbour sends no request in the background, and the switch to it waits for its draw", async () => {
+  test("[SR-212/AK-tfck] a package page left drawn stays drawn with its elements, sends no request in the background, and slides in at once", async () => {
     const { window } = running;
     await open(window, SENSORS.title);
     await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
+    await quiet(requests);
     await requests.clear();
     await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`PKG-0000d1 ${SENSORS.title}`);
+    await expect(
+      window.locator('[data-area][data-active] > [data-layer="neighbour"] .members .row').first(),
+    ).toBeAttached();
     await quiet(requests);
-    expect(await hiddenViews(window)).toEqual([]);
     expect(naming(await requests.sent(), SENSORS.id)).toEqual([]);
-    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(false);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
     await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
+    expect(naming(await requests.sent(), SENSORS.id)).toEqual([]);
   });
 
   test("[SR-212/AK-tfck] in a split window only the active area draws in advance, never the other area's buffer", async () => {
@@ -409,5 +421,332 @@ test.describe("the previous and the next buffer drawn in advance", () => {
       new RegExp(NEED.title),
       new RegExp(SPEED.title),
     ]);
+  });
+
+  test("[SR-212/AK-tfck] a list left and returned without a change slides in at once, with no request for it from leaving to returning", async () => {
+    const { window } = running;
+    await listAll(window);
+    await expect(shownLayer(window).locator(".package-summary")).toBeVisible();
+    await quiet(requests);
+    await open(window, NEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator('[aria-label="All elements"]')).toBeVisible();
+    await expect(shownLayer(window).locator(".row")).toHaveCount(14);
+    expect(listReads(await requests.sent())).toEqual([]);
+    await expect(shownLayer(window).locator("[data-buffer]")).toBeFocused();
+  });
+
+  test("[SR-212/AK-tfck] after an own save a list is no longer drawn in advance and not read; after a change from outside it slides in once drawn, current", async () => {
+    const { window } = running;
+    await listAll(window);
+    await quiet(requests);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await quiet(requests);
+    await requests.clear();
+    // An own save: the autosave of typed text.
+    await shownLayer(window).locator(".cm-content").first().click();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.type(" Gusts.");
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED.id])).stdout)
+      .toContain("Gusts.");
+    await expect.poll(() => hiddenViews(window)).not.toContain("All elements");
+    await quiet(requests);
+    expect(listReads(await requests.sent())).toEqual([]);
+    // Shown again and left, then changed outside: dropped, not read until the switch, which waits for its draw.
+    await window.keyboard.press("Alt+KeyP");
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
+    await quiet(requests);
+    await window.keyboard.press("Alt+KeyN");
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await quiet(requests);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    await expect.poll(() => hiddenViews(window)).not.toContain("All elements");
+    await quiet(requests);
+    expect(listReads(await requests.sent())).toEqual([]);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(false);
+    await expect(shownLayer(window).locator(".row .title").filter({ hasText: "See the gusts" })).toHaveCount(
+      1,
+    );
+    expect(listReads(await requests.sent())).not.toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a list left with input still to save is drawn at the switch: typed, then Alt+P at once", async () => {
+    const { window } = running;
+    await listAll(window);
+    await quiet(requests);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await quiet(requests);
+    await shownLayer(window).locator(".cm-content").first().click();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.type(" At once.");
+    await requests.clear();
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(false);
+    await expect(shownLayer(window).locator('[aria-label="All elements"]')).toBeVisible();
+    expect(listReads(await requests.sent())).not.toEqual([]);
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED.id])).stdout)
+      .toContain("At once.");
+  });
+
+  test("[SR-212/AK-tfck] the overview, then an element opened from it: the overview is drawn at the switch back, with the element among the recent ones", async () => {
+    const { window } = running;
+    await quiet(requests);
+    await requests.clear();
+    await open(window, NEED.title);
+    await quiet(requests);
+    // Opening the element made it a recent one: what the overview shows changed, so it is not drawn in advance.
+    expect(await hiddenViews(window)).not.toContain("Overview");
+    // Its counts are not read in the background.
+    expect(
+      (await requests.sent()).filter(
+        (request) => request.name === "element.facets" && JSON.stringify(request.input) === "{}",
+      ),
+    ).toEqual([]);
+    // Drawn at the switch: the window keeps what it read for the overview, so its draw takes no read either.
+    await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
+    await expect(shownLayer(window).locator(".overview .line.recent")).toHaveText([new RegExp(NEED.title)]);
+  });
+
+  test("[SR-212/AK-tfck] the matrix left and returned without a change slides in at once, with no request for its rows or relation options", async () => {
+    const { window } = running;
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(shownLayer(window).locator("tbody tr").first()).toBeVisible();
+    const rows = await shownLayer(window).locator("tbody tr").count();
+    await quiet(requests);
+    await open(window, NEED.title);
+    await expect(hiddenLayer(window).locator("tbody tr")).toHaveCount(rows);
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator("tbody tr")).toHaveCount(rows);
+    expect(
+      (await requests.sent()).filter(({ name }) => name === "trace.matrix" || name === "relation.options"),
+    ).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a graph left and returned without a change slides in at once, with no request for it", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await command(window, "Show graph");
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    await quiet(requests);
+    await open(window, SPEED.title);
+    await expect(hiddenLayer(window).locator(".buffer.graph[data-laid-out]")).toHaveCount(1);
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    expect((await requests.sent()).filter(({ name }) => name === "trace.graph")).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] the overview left for a list and returned slides in at once, with no request for its counts", async () => {
+    const { window } = running;
+    await quiet(requests);
+    await listAll(window);
+    await expect(hiddenLayer(window).locator(".overview .line").first()).toBeAttached();
+    await requests.clear();
+    await quiet(requests);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
+    expect(
+      (await requests.sent()).filter(
+        (request) => request.name === "element.facets" && JSON.stringify(request.input) === "{}",
+      ),
+    ).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a list and a graph walked past and back are not read while away, and the switch to them waits for the draw", async () => {
+    const { window } = running;
+    await listAll(window);
+    await open(window, NEED.title);
+    await command(window, "Show graph");
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    await open(window, SPEED.title);
+    await open(window, SECOND.title);
+    await quiet(requests);
+    await requests.clear();
+    // Back through the walk: Measure wind speed, then the graph, which left the side of the shown buffer.
+    await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
+    await quiet(requests);
+    expect((await requests.sent()).filter((request) => request.name === "trace.graph")).toEqual([]);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(false);
+    await expect(shownLayer(window).locator(".buffer.graph[data-laid-out]")).toBeVisible();
+    await window.keyboard.press("Alt+KeyP");
+    await slideSettled(window);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(NEED.title);
+    await quiet(requests);
+    expect(listReads(await requests.sent())).toEqual([]);
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(false);
+    await expect(shownLayer(window).locator(".row").first()).toBeVisible();
+  });
+
+  test("[SR-212/AK-tfck] a list drawn in advance is dropped without a request when the view, the folded statuses or the size of the window change", async () => {
+    const { window } = running;
+    await listAll(window);
+    await quiet(requests);
+    await open(window, NEED.title);
+    for (const change of [
+      async () => {
+        await command(window, "Choose view");
+        await expect(window.locator("label.prompt-label")).toHaveText("View");
+        await window.keyboard.type("Core");
+        await expect(window.locator('.candidates [role="option"]').first()).toContainText("Core");
+        await window.keyboard.press("Enter");
+      },
+      async () => {
+        await command(window, "Fold status in lists");
+        await window.keyboard.type("Draft");
+        await expect(window.locator('.candidates [role="option"]').first()).toContainText("Draft");
+        await window.keyboard.press("Enter");
+      },
+      async () => {
+        const size = window.viewportSize() ?? { width: 1200, height: 800 };
+        await window.setViewportSize({ width: size.width - 120, height: size.height });
+      },
+    ]) {
+      await expect.poll(() => hiddenViews(window, "left")).toContain("All elements");
+      await quiet(requests);
+      await requests.clear();
+      await change();
+      await expect.poll(() => hiddenViews(window, "left")).not.toContain("All elements");
+      await quiet(requests);
+      expect(listReads(await requests.sent())).toEqual([]);
+      // Shown and left again, it is drawn in advance again.
+      await window.keyboard.press("Alt+KeyP");
+      await expect(shownLayer(window, "left").locator(".row").first()).toBeVisible();
+      await quiet(requests);
+      await window.keyboard.press("Alt+KeyN");
+      await expect(shownLayer(window, "left").locator("article h1")).toHaveText(NEED.title);
+    }
+  });
+
+  test("[SR-212/AK-tfck] a neighbourhood drawn in advance is not read again after a change of the view", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await command(window, "Show neighbourhood");
+    await expect(shownLayer(window).locator(".neighbourhood .row").first()).toBeVisible();
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`Neighbourhood: N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    await requests.clear();
+    await command(window, "Choose view");
+    await window.keyboard.type("Core");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Core");
+    await window.keyboard.press("Enter");
+    await expect.poll(() => hiddenViews(window)).not.toContain(`Neighbourhood: N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    expect(
+      naming(await requests.sent(), NEED.id).filter((request) => request.name === "trace.neighbourhood"),
+    ).toEqual([]);
+  });
+});
+
+/** The reads of a list: its rows, their verification and its coverage line (the elements of a package page aside). */
+const listReads = (sent: readonly CoreRequest[]): CoreRequest[] =>
+  sent.filter(
+    (request) =>
+      ["element.list", "evidence.coverage", "evidence.degree"].includes(request.name) &&
+      // Not the reads of a prompt (the variants of "Choose view") or of one element.
+      !/"ids"|packages|variant/u.test(JSON.stringify(request.input)),
+  );
+
+/** 300 needs more than the fixture has, so the list of all elements is longer than a page (200 rows). */
+const MANY = Object.fromEntries(
+  Array.from({ length: 300 }, (_, at) => {
+    const hex = (0x100000000000 + at).toString(16);
+    return [
+      `needs/N-${hex}.md`,
+      `---\nid: 69069069-0000-4000-8000-${hex}\ntype: need\nstatus: draft\ntitle: Need ${String(at)}\n---\n\nText.\n`,
+    ];
+  }),
+);
+
+test.describe("a long list drawn in advance", () => {
+  let running: RunningApp;
+  let requests: CoreRequests;
+
+  test.beforeEach(async () => {
+    running = await launchApp({ ...FIXTURE, files: MANY }, { colorScheme: "light" });
+    const { window } = running;
+    await window.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(shownLayer(window).locator(".overview .line").first()).toBeVisible();
+    requests = await recordRequests(window);
+  });
+
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  /** Moves the cursor of the shown list to its last row with the keys, past its first page (200 rows). */
+  const toLast = async (window: Page): Promise<void> => {
+    await shownLayer(window).locator('[role="listbox"]').focus();
+    await window.keyboard.press("End");
+    await expect.poll(() => shownLayer(window).locator(".row").count()).toBeGreaterThan(300);
+    await window.keyboard.press("End");
+    const row = async (): Promise<number> =>
+      Number(
+        /-(\d+)$/u.exec(
+          (await shownLayer(window).locator('[role="listbox"]').getAttribute("aria-activedescendant")) ?? "",
+        )?.[1] ?? -1,
+      );
+    await expect.poll(row).toBeGreaterThan(300);
+  };
+
+  test("[SR-212/AK-tfck] a list with its cursor past the first page, also after a change while shown, slides in at once with no request, at that row", async () => {
+    const { window } = running;
+    await listAll(window);
+    await toLast(window);
+    // A change while it is shown: it reads its rows again, up to its cursor.
+    await retitle(running, "See the gusts");
+    await expect(shownLayer(window).locator(".row .title").filter({ hasText: "See the gusts" })).toHaveCount(
+      1,
+    );
+    await quiet(requests);
+    // The last option may be the row of the folded statuses (SR-201): the row above it is an element.
+    await window.keyboard.press("ArrowUp");
+    const selected = await shownLayer(window).locator('[aria-selected="true"]').textContent();
+    await window.keyboard.press("Enter");
+    await expect(shownLayer(window).locator("article h1")).toBeVisible();
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await quiet(requests);
+    await requests.clear();
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    await expect(shownLayer(window).locator('[aria-selected="true"]')).toHaveText(selected ?? "");
+    await expect(shownLayer(window).locator('[aria-selected="true"]')).toBeInViewport();
+    expect(listReads(await requests.sent())).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a list scrolled away from its cursor, left and returned shows the position of a fresh draw", async () => {
+    const { window } = running;
+    await listAll(window);
+    const scroller = shownLayer(window).locator(".buffer.list");
+    await scroller.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await quiet(requests);
+    await open(window, NEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain("All elements");
+    await quiet(requests);
+    await requests.clear();
+    expect(await slidesAtOnce(window, "Alt+KeyP")).toBe(true);
+    expect(
+      await shownLayer(window)
+        .locator(".buffer.list")
+        .evaluate((element) => element.scrollTop),
+    ).toBe(0);
+    expect(listReads(await requests.sent())).toEqual([]);
   });
 });

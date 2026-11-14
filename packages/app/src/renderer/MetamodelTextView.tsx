@@ -6,6 +6,7 @@
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
 // Ctrl+P, Page Up and Page Down, Home and End move the selection. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
+import { bufferMark, useHidden } from "./area-slot.js";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import { useIdScope } from "./area-scope.js";
 import { rowTarget } from "./keys.js";
@@ -84,6 +85,8 @@ export const MetamodelTextView = ({
   root,
 }: SheetProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const text = useMemo(() => (shown === undefined ? undefined : metamodelText(shown.output)), [shown]);
   const rows = text?.rows ?? [];
   const has = (key: string | undefined): key is string =>
@@ -132,7 +135,7 @@ export const MetamodelTextView = ({
       role="listbox"
       aria-label="Metamodel as text"
       aria-activedescendant={cursor < 0 ? undefined : `${scope}mm-row-${String(cursor)}`}
-      data-buffer=""
+      {...bufferAttribute}
       data-rows={text === undefined ? undefined : String(rows.length)}
       tabIndex={0}
       onKeyDown={keyDown}

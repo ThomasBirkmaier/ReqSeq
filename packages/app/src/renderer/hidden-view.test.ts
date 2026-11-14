@@ -111,7 +111,7 @@ const mount = async (options: {
   const node = (hidden: boolean) =>
     createElement(
       SlotContext.Provider,
-      { value: { hidden } },
+      { value: { hidden, whole: !hidden } },
       createElement(ElementView, {
         call: fake.call as unknown as Call,
         buffer: elementBuffer("uuid-1", "spec", NAME),

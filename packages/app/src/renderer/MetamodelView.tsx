@@ -7,6 +7,7 @@
 // The graph is one tab stop; the arrows move the selection between the boxes (`graph-nav.ts`, AK4).
 // Ctrl/Cmd+T shows the same answer as text (`MetamodelTextView.tsx`, AK4, AK5); the selected type stays,
 // and the graph opens on it again.
+import { bufferMark, useHidden, useHiddenUpdate } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -68,6 +69,22 @@ const lineKey = (link: MetamodelLink): string =>
       ? `kind:${link.kind}`
       : `property:${link.property}`;
 
+/**
+ * The layouts made, by the output of `metamodel.get` they were made for: a view drawn hidden from its record
+ * gets the output object its shown view got (`area-record.ts`), so it does not lay it out again (SR-212 AK5).
+ */
+const laidOut = new WeakMap<object, MetamodelLayout>();
+
+const laidOutOnce = (output: object, make: () => MetamodelLayout): MetamodelLayout => {
+  const kept = laidOut.get(output);
+  if (kept !== undefined) {
+    return kept;
+  }
+  const made = make();
+  laidOut.set(output, made);
+  return made;
+};
+
 /** The sides of a curve as a key and as data attributes. */
 type Ends = Pick<MetamodelLayout["paths"][number], "source" | "target">;
 const pairKey = (path: Ends): string => `${path.source}>${path.target}`;
@@ -118,6 +135,8 @@ const useMetamodel = (
   const generation = useRef(0);
   // The output shown, as JSON: an answer equal to it (a change elsewhere) is not laid out again.
   const shownOutput = useRef<string | undefined>(undefined);
+  // A hidden sheet draws as a transition, so a key in the shown buffer comes first (SR-082 AK3).
+  const later = useHiddenUpdate();
   useEffect(() => {
     generation.current += 1;
     const mine = generation.current;
@@ -136,10 +155,14 @@ const useMetamodel = (
         return;
       }
       try {
-        const layout = layoutMetamodel(metamodelGraph(answer.output), measureIn(root.current));
+        const layout = laidOutOnce(answer.output, () =>
+          layoutMetamodel(metamodelGraph(answer.output), measureIn(root.current)),
+        );
         shownOutput.current = json;
-        setError(undefined);
-        setShown({ output: answer.output, layout });
+        later(() => {
+          setError(undefined);
+          setShown({ output: answer.output, layout });
+        });
       } catch (thrown: unknown) {
         // A layout that fails keeps what the sheet shows and says why (never a blank buffer).
         const message = `The metamodel could not be laid out: ${String(thrown)}`;
@@ -344,6 +367,8 @@ export interface SheetProps {
 /** The graph of the metamodel: boxes and curves, the arrows between the boxes. */
 const GraphSheet = ({ shown, error, buffer, dispatch, root, split }: SheetProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   // Whether the view has opened on a layout, and whether the window was split then: a later layout keeps
   // the reader's scroll, a split or unsplit opens on the selected box again (SR-115 AK3).
   const opened = useRef(false);
@@ -404,7 +429,7 @@ const GraphSheet = ({ shown, error, buffer, dispatch, root, split }: SheetProps)
       // The sheet of the graph outside its types: "Show metamodel as text" (SR-199 AK2).
       data-menu="metamodel-graph"
       aria-activedescendant={index === undefined ? undefined : `${scope}mm-type-${String(index)}`}
-      data-buffer=""
+      {...bufferAttribute}
       data-laid-out={shown === undefined ? undefined : String(shown.layout.nodes.length)}
       tabIndex={0}
       onKeyDown={keyDown}

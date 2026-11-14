@@ -11,6 +11,7 @@
 // execution or its mark, and "Verification", the status, with the degree of the selection above it; a
 // requirement without a test case has the accent "—", a row that is no requirement in the view leaves both
 // blank. They hold no cursor target.
+import { bufferMark, useHidden, useHiddenUpdate, useReveal } from "./area-slot.js";
 import { useEffect, useRef, useState } from "react";
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -202,8 +203,17 @@ export const MatrixView = ({
   outside,
 }: MatrixViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const [view, setView] = useState<View>({ status: "loading" });
   const { marked, mark } = useOutsideMarks();
+  // A view drawn hidden in advance highlights the rows changed outside when it is shown, as a fresh view at the
+  // switch would (SR-116, SR-212 AK5).
+  useReveal(() => {
+    if (outside !== undefined && view.status === "ok") {
+      mark(view.rows.map((row) => row.element.open.id).filter(outside.fresh));
+    }
+  });
   // Which target of the selected row the cursor is on: 0 the row element, then its relations in order.
   const [target, setTarget] = useState(0);
   // The cell a right-click selected (SR-194 AK5): its row and column; undefined while none is.
@@ -222,6 +232,8 @@ export const MatrixView = ({
     setView({ status: "loading" });
   });
 
+  // A hidden matrix draws its rows as a transition, so a key in the shown buffer comes first (SR-082).
+  const later = useHiddenUpdate();
   useEffect(() => {
     generation.current += 1;
     const mine = generation.current;
@@ -235,13 +247,15 @@ export const MatrixView = ({
       if (answer.ok) {
         const { incomplete } = answer.output;
         const rows = matrixRows(answer.output);
-        setView({
-          status: "ok",
-          columns: answer.output.columns,
-          rows,
-          total: answer.output.total,
-          incomplete,
-          evidence: answer.output.evidence,
+        later(() => {
+          setView({
+            status: "ok",
+            columns: answer.output.columns,
+            rows,
+            total: answer.output.total,
+            incomplete,
+            evidence: answer.output.evidence,
+          });
         });
         if (outside !== undefined) {
           mark(rows.map((row) => row.element.open.id).filter(outside.fresh));
@@ -396,7 +410,7 @@ export const MatrixView = ({
         role="grid"
         aria-label={bufferName(buffer)}
         aria-activedescendant={activeRow(`${scope}matrix-row`, cursor, rows.length)}
-        data-buffer=""
+        {...bufferAttribute}
         tabIndex={0}
         onKeyDown={keyDown}
       >

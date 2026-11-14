@@ -8,6 +8,7 @@
 // muted box below a node sums up its evidence; it is no option, so the keys and Enter skip it, and the
 // node's accessible name says the summary.
 // A link names its relation kind only on demand (SR-154, `GraphLinks.tsx`).
+import { bufferMark, useHidden, useHiddenUpdate } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@reqseq/core";
 import { typeName as typeNameOf } from "@reqseq/core/graph-words";
@@ -92,6 +93,8 @@ export const GraphView = ({
   split = false,
 }: GraphViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const [shown, setShown] = useState<Shown | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const root = useRef<HTMLDivElement>(null);
@@ -105,6 +108,8 @@ export const GraphView = ({
   const openedSplit = useRef(split);
   const input = graphInput(buffer);
   const asked = JSON.stringify(input);
+  // A hidden graph draws as a transition, so a key in the shown buffer comes first (SR-082 AK3).
+  const later = useHiddenUpdate();
 
   useEffect(() => {
     generation.current += 1;
@@ -133,8 +138,10 @@ export const GraphView = ({
         const layout = layoutGraph(answer.output);
         performance.mark(GRAPH_MARKS.layout);
         shownOutput.current = json;
-        setError(undefined);
-        setShown({ output: answer.output, layout });
+        later(() => {
+          setError(undefined);
+          setShown({ output: answer.output, layout });
+        });
       } catch (thrown: unknown) {
         // A layout that fails keeps what the sheet shows and says why (never a blank buffer).
         const message = `The graph could not be laid out: ${String(thrown)}`;
@@ -289,7 +296,7 @@ export const GraphView = ({
       // The sheet outside the nodes: the graph's depth and relation kinds (SR-199 AK1); a node is an entry.
       data-menu="graph"
       aria-activedescendant={layout === undefined ? undefined : activeOption(chosen, scope, nodeOption)}
-      data-buffer=""
+      {...bufferAttribute}
       data-laid-out={layout === undefined ? undefined : String(layout.nodes.length)}
       tabIndex={0}
       onKeyDown={keyDown}
