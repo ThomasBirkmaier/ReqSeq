@@ -4,6 +4,7 @@
 // so the same tests run on Linux and macOS. The package is opened by Ctrl+P, so the tests do not
 // depend on what the window shows at the start. The line under the title (AK3, AK4) runs on
 // fixtures/SR-037/degree, whose package P3 holds the requirements of every verification status.
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
@@ -239,10 +240,13 @@ const openById = async (window: Page, shortId: string, title: string): Promise<v
   await expect(shownLayer(window).locator(".members .row").first()).toBeVisible();
 };
 
+/** Where the light screenshots of the line go (CI keeps them with the Electron artifacts). */
+const SCREENSHOTS = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
+
 test.describe("the line under the title of a package page", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
-    running = await launchApp(DEGREE);
+    running = await launchApp(DEGREE, { colorScheme: "light" });
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
   });
   test.afterEach(async () => {
@@ -268,6 +272,7 @@ test.describe("the line under the title of a package page", () => {
       "Coverage 8 of 10 with verification · Degree (core) 60 % (6 verified, 1 failed, 1 outdated, 2 open)";
     await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d003")).toBe(line);
+    await window.screenshot({ path: path.join(SCREENSHOTS, "package-page-line-light.png") });
     // Under the title, before the text.
     const top = async (selector: string): Promise<number> =>
       (await window.locator(selector).first().boundingBox())?.y ?? -1;
@@ -315,6 +320,7 @@ test.describe("the line under the title of a package page", () => {
     const line = "Coverage 0 of 10 with verification · Degree (core) 0 % (10 open)";
     await expect(shownLayer(window).locator("article .package-summary")).toHaveText(line);
     expect(await lineOfCli("PKG-00d004")).toBe(line);
+    await window.screenshot({ path: path.join(SCREENSHOTS, "package-page-zeros-light.png") });
     await openById(window, "PKG-00d005", "Only a need");
     // The line is there once core answered, and hidden: no requirement is counted.
     await expect(shownLayer(window).locator("article .package-summary")).toBeAttached();

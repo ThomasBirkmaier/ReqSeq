@@ -15,7 +15,7 @@ On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key
 
 Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the marked entry, Escape steps back, then closes.
 
-An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the letters that follow.
+An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the next letters.
 
 The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)), except those whose output the app shows elsewhere; F1 on one opens its reference page.
 
@@ -51,6 +51,6 @@ The app follows your system; **Toggle dark mode** switches until it quits, **Fol
 
 ## Following an agent
 
-While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that its next step reuses (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
+While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that shows its next step too (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
 
 All keys: [keyboard shortcuts](/reference/keyboard-shortcuts/).

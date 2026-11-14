@@ -9,7 +9,7 @@ The command line, the local API and the MCP server run the commands of the app's
 
 ## The workspace
 
-A workspace is the folder with `reqseq-workspace.yaml`. Without `--workspace`, ReqSeq looks for that file in the current folder and then in each folder above it; when none has it, the current folder is the workspace, as `reqseq workspace init .` needs. `--workspace <folder>` names it instead. `reqseq serve api` and `reqseq mcp` find it the same way when they start.
+A workspace is the folder with `reqseq-workspace.yaml`. Without `--workspace`, ReqSeq looks for that file in the current folder and then in each folder above it; when none has it, the current folder is the workspace, as `reqseq workspace init .` needs. `--workspace <folder>` names it instead. `reqseq serve api` and `reqseq mcp` find it the same way at start.
 
 ## CLI
 
@@ -27,11 +27,11 @@ files:
 No problems.
 ```
 
-The element gets the text of the flag. `--json` prints exactly the output of the command, as the API and MCP give it, for scripts. Problems go to standard output, errors to standard error.
+The element gets the text of the flag. `--json` prints the output of the command, as the API and MCP give it, for scripts. Problems go to standard output, errors to standard error.
 
 The exit code:
 
-- `0`: done, without an error.
+- `0`: done, without a problem of severity error.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 - `2`: not run: wrong usage or input, something missing, a conflict, or not available.
 - `3`: an internal error.

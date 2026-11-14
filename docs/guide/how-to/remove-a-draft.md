@@ -9,7 +9,7 @@ ReqSeq never deletes an element: one that was approved or is in a baseline is su
 
 1. Find the elements that point to it and remove those relations and references.
 2. Remove its file with `git rm`, or delete the file if Git does not track it yet.
-3. Run `workspace check`, which reports any relation left behind as the error `relation.missing-target`.
+3. Run `workspace check`, which reports any relation or reference left behind as the error `relation.missing-target`.
 
 ReqSeq itself does not remove the file, because it never deletes elements.
 

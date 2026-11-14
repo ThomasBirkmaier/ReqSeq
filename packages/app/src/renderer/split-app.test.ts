@@ -606,7 +606,7 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
   });
 
-  it("[SR-150/AK-mpfv] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
+  it("[SR-150/AK-mpfv] Option+O while typing in the text editor makes the other pane active and types nothing", async () => {
     await twoElements();
     await typeIn("left", " LEFT");
     const content = query('[data-area="left"] .cm-content');

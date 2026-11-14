@@ -71,7 +71,7 @@ warning  element.missing-required  ...
 warning  trace.no-parent  ...
 ```
 
-A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. The third, a hint, says that it has no parent yet.
+A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. All three are hints; the third says that it has no parent yet.
 
 Relate the requirement to the need it derives from, with your own short IDs:
 
