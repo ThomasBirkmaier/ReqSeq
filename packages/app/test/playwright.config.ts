@@ -1,13 +1,15 @@
 // Electron tests (ADR-0011): Playwright drives the built app (`pnpm build:electron`) through
 // `_electron.launch`, under `xvfb-run` on Linux. `pnpm test:electron` builds and runs them.
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, sep } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 // CI runs the files in shards on Ubuntu, macOS and Windows (#303, #412, #1229), given as ELECTRON_SHARD=<shard>/<total>, for example 1/2;
 // unset or empty runs all files. Playwright's own --shard cuts the sorted list into blocks, and the slow files sort
-// first (about 340 s against 190 s for two shards); every <total>-th file per shard evens that out (about 255 s
-// against 280 s).
+// first (about 340 s against 190 s for two shards). Every <total>-th file evened that out at first, but as files grew,
+// shard 2 of 2 came to hold 340 of 582 tests (332 s against 705 s on Ubuntu, #1650). So the files go by their number of
+// tests, the largest first, each to the shard with the fewest so far: on that run two shards would have taken 526 s and
+// 511 s. The count is read from the source, so a test made in a loop counts once.
 function shardFiles(value: string): RegExp[] {
   const match = /^(\d+)\/(\d+)$/.exec(value);
   const shard = Number(match?.[1]);
@@ -15,11 +17,32 @@ function shardFiles(value: string): RegExp[] {
   if (match === null || shard < 1 || shard > total) {
     throw new Error(`ELECTRON_SHARD must be <shard>/<total> with 1 <= shard <= total, got "${value}"`);
   }
-  return readdirSync(import.meta.dirname, { recursive: true, encoding: "utf8" })
+  const files = readdirSync(import.meta.dirname, { recursive: true, encoding: "utf8" })
     .filter((file) => file.endsWith(".spec.ts") && !file.startsWith(`perf${sep}`))
-    .sort()
-    .filter((_, index) => index % total === shard - 1)
-    .map((file) => exactPath(join(import.meta.dirname, file)));
+    .map((file) => ({ file, tests: testCount(join(import.meta.dirname, file)) }))
+    // The same order on every system: by count, then by name with "/" for the separator.
+    .sort((a, b) => b.tests - a.tests || compareNames(a.file, b.file));
+  const load = Array.from({ length: total }, () => 0);
+  const mine: string[] = [];
+  for (const { file, tests } of files) {
+    const least = load.indexOf(Math.min(...load));
+    load[least] = (load[least] ?? 0) + tests;
+    if (least === shard - 1) {
+      mine.push(file);
+    }
+  }
+  return mine.map((file) => exactPath(join(import.meta.dirname, file)));
+}
+
+/** The calls of `test(`, `test.fail(`, `test.fixme(` and `test.only(` at the start of a line in `file`; at least 1. */
+function testCount(file: string): number {
+  return Math.max(1, readFileSync(file, "utf8").match(/^\s*test(?:\.(?:fail|fixme|only))?\(/gm)?.length ?? 0);
+}
+
+function compareNames(a: string, b: string): number {
+  const left = a.split(sep).join("/");
+  const right = b.split(sep).join("/");
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 // A glob would read the backslashes of a Windows path as escapes and match nothing (#412), so each file becomes a
