@@ -26,6 +26,7 @@ import { isGone } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { countPerspective } from "./perspective-actions.js";
 import type { RecentEntry } from "./recent.js";
+import { entryKey, readRecent } from "./recent-read.js";
 import { activeRow } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { shownId } from "./id-title.js";
@@ -43,8 +44,6 @@ export interface OverviewData {
 
 /** A turn at once, for a caller without other calls to give way to. */
 const AT_ONCE = (): Promise<void> => Promise.resolve();
-
-const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.id}`;
 
 /**
  * Loads what the overview shows while it is `active`: the counts and the perspectives once per `revision`
@@ -157,25 +156,25 @@ export const useOverview = (
       return;
     }
     let live = true;
-    void Promise.all(
-      recent.map(async (entry) => ({
-        entry,
-        answer: await call("element.get", { ref: entry.id, repository: entry.repository }),
-      })),
-    ).then((answers) => {
+    // Names only, with one list (#1670): an element.get of each would compute its verification status too.
+    void readRecent(call, recent).then((reads) => {
       if (live) {
+        const answers = recent.flatMap((entry) => {
+          const read = reads.get(entryKey(entry));
+          return read === undefined ? [] : [{ entry, read }];
+        });
         setGone(
-          answers.flatMap(({ entry, answer }) =>
-            !answer.ok && isGone(answer.code) ? [elementBuffer(entry.id, entry.repository, "").key] : [],
+          answers.flatMap(({ entry, read }) =>
+            !read.ok && isGone(read.code) ? [elementBuffer(entry.id, entry.repository, "").key] : [],
           ),
         );
         setResolved(
           new Map(
-            answers.flatMap(({ entry, answer }) => {
-              if (!answer.ok) {
+            answers.flatMap(({ entry, read }) => {
+              if (!read.ok) {
                 return [];
               }
-              const { element } = answer.output;
+              const { element } = read;
               const buffer = elementBufferOf(element);
               return [
                 [

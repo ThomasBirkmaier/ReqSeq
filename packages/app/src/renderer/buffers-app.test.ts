@@ -85,23 +85,31 @@ const HANDLERS: Record<string, Handler> = {
   }),
 };
 
-/** The UUIDs core no longer knows (their files deleted outside): `element.get` answers `ref.unknown`. */
+/**
+ * The UUIDs core no longer knows (their files deleted outside): `element.get` answers `ref.unknown`, and so
+ * does a list of the recent elements that names one (`readRecent`).
+ */
 const gone = new Set<string>();
-/** The UUIDs whose `element.get` does not answer (yet). */
+/** The UUIDs whose `element.get`, or a list of the recent elements that names one, does not answer (yet). */
 const pending = new Set<string>();
 /** The workspace `workspace.status` names. */
 let workspaceName = "Weather station";
 
 const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
-  const ref = String(input["ref"]);
-  if (name === "element.get" && pending.has(ref)) {
+  const ids = (input["selection"] as { ids?: string[] } | undefined)?.ids;
+  const refs = name === "element.get" ? [String(input["ref"])] : name === "element.list" ? (ids ?? []) : [];
+  if (refs.some((ref) => pending.has(ref))) {
     return new Promise<InvokeResult>(() => undefined);
   }
-  if (name === "element.get" && gone.has(ref)) {
+  const unknown = refs.find((ref) => gone.has(ref));
+  if (unknown !== undefined) {
     return Promise.resolve({
       ok: false,
-      error: { code: "ref.unknown", message: `No element has the UUID ${ref}` },
+      error: { code: "ref.unknown", message: `No element has the UUID ${unknown}` },
     });
+  }
+  if (name === "element.list" && ids !== undefined) {
+    return Promise.resolve({ ok: true, output: { elements: ids.map((id) => row(numberOf(id))) } });
   }
   if (name === "workspace.status") {
     return Promise.resolve({ ok: true, output: { name: workspaceName, readOnly: true } });
@@ -274,7 +282,7 @@ describe("App, Go to after a restart (SR-115 AK1)", () => {
     );
     await render();
     expect(shown()).toBe("Overview");
-    expect(invoke).toHaveBeenCalledWith("element.get", { ref: "uuid-3", repository: "spec" });
+    expect(invoke).toHaveBeenCalledWith("element.list", { selection: { ids: ["uuid-3", "uuid-2"] } });
     invoke.mockClear();
     await press(window, { key: "p", ctrlKey: true });
     expect(candidates()).toEqual(["SR-000003 Title 3", "SR-000002 Title 2"]);
