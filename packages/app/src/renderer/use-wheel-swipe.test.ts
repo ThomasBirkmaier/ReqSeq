@@ -10,6 +10,9 @@ import { SEGMENT_GAP_MS } from "./buffer-swipe.js";
 import type { WheelSwipe, WheelSwipeOptions } from "./use-wheel-swipe.js";
 import { useWheelSwipe } from "./use-wheel-swipe.js";
 
+/** More than one frame: a pause ends once a frame has begun after it. */
+const FRAME_MS = 20;
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root;
@@ -77,7 +80,9 @@ const wheel = (
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({
+    toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame", "Date"],
+  });
   // The window can animate: with motion, a swipe switches at its end.
   document.documentElement.animate = vi.fn() as typeof document.documentElement.animate;
   window.matchMedia = ((query: string) => ({ matches: false, media: query })) as typeof window.matchMedia;
@@ -118,7 +123,7 @@ it("a swipe over the active area prevents its events, begins, moves, is released
   expect(event.defaultPrevented).toBe(true);
   expect(props.begin).toHaveBeenCalledWith("back");
   expect(props.move).toHaveBeenCalledWith("back", 300);
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.release).toHaveBeenCalledWith("back", 300, 600);
   expect(props.switch).not.toHaveBeenCalled();
   expect(props.end).toHaveBeenCalled();
@@ -141,7 +146,7 @@ it("an aborted swipe releases nothing, and the rest of its gesture does nothing"
   wheel(byId("wide"), { deltaX: -300 });
   control?.abort();
   wheel(byId("wide"), { deltaX: -10 });
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.release).not.toHaveBeenCalled();
   expect(props.move).toHaveBeenCalledTimes(1);
 });
@@ -158,7 +163,7 @@ it("a key or a press during a swipe aborts it without a drag too: the rest of th
   });
   const rest = wheel(byId("wide"), { deltaX: -200 });
   expect(rest.defaultPrevented).toBe(true);
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.switch).not.toHaveBeenCalled();
   expect(props.release).not.toHaveBeenCalled();
   // With motion (the other area shows the target, no drag): a press, then the release past a third does nothing.
@@ -168,12 +173,12 @@ it("a key or a press during a swipe aborts it without a drag too: the rest of th
   act(() => {
     window.dispatchEvent(new MouseEvent("pointerdown"));
   });
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.release).not.toHaveBeenCalled();
   // After the pause, a new swipe works again: the listeners only abort, they do not block.
   vi.advanceTimersByTime(1000);
   wheel(byId("wide"), { deltaX: -300 });
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.release).toHaveBeenCalledTimes(1);
 });
 
@@ -188,7 +193,7 @@ it("a modifier key alone during a swipe does not abort it: the release past a th
     }
   });
   wheel(byId("wide"), { deltaX: -200 });
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.release).toHaveBeenCalledWith("back", 300, 600);
 });
 
@@ -199,7 +204,7 @@ it("switches nothing when the window blocks it at the end", () => {
   layout();
   wheel(byId("wide"), { deltaX: 300 });
   blocked = true;
-  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_MS);
   expect(props.begin).toHaveBeenCalledWith("forward");
   expect(props.release).not.toHaveBeenCalled();
   expect(props.end).toHaveBeenCalled();

@@ -395,7 +395,7 @@ const report = async (
         ended > 0 ? options : { ...options, failed: "every swipe split" },
       ),
     );
-    // The largest gap between the events of a swipe that split tells a stall of the page (over LATE_UNTIL_MS)
+    // The largest gap between the events of a swipe that split tells a stall of the page (over FRAME_WAIT_MS)
     // from a swipe that ended early.
     const gap = Math.round(Math.max(0, ...splits.map((run) => run.gap)));
     recorded.push(

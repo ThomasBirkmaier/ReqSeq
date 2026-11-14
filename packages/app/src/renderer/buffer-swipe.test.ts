@@ -6,8 +6,7 @@ import type { SwipeHost, SwipeTimers, SwipeWay } from "./buffer-swipe.js";
 import {
   DECIDE_PX,
   GESTURE_GAP_MS,
-  LATE_UNTIL_MS,
-  LATE_WAIT_MS,
+  FRAME_WAIT_MS,
   SEGMENT_GAP_MS,
   SwipeGesture,
   pastThird,
@@ -25,18 +24,30 @@ export interface Recorded {
   readonly cancelable?: boolean;
 }
 
-// Behind the clock by `lag` ms: a timer that fires late.
-let lag = 0;
 // Whether the window is visible.
 let shown = true;
-// Each timer fires this many ms after its time: a timer that is always late.
-let delay = 0;
+// The window draws a frame every `frameMs` ms, counted from `origin`, 1 ms after that frame's input (0: a frame
+// comes at once, in the call); `undefined`: it draws none.
+let frameMs: number | undefined = 0;
+let origin = 0;
 
 const timers: SwipeTimers = {
-  now: () => Date.now() + lag,
   visible: () => shown,
-  set: (run, ms) => setTimeout(run, ms + delay),
+  set: (run, ms) => setTimeout(run, ms),
   clear: (handle) => {
+    clearTimeout(handle as ReturnType<typeof setTimeout>);
+  },
+  frame: (run) => {
+    if (frameMs === undefined) {
+      return undefined;
+    }
+    if (frameMs === 0) {
+      run();
+      return undefined;
+    }
+    return setTimeout(run, frameMs - ((Date.now() - origin) % frameMs) + 1);
+  },
+  cancelFrame: (handle) => {
     clearTimeout(handle as ReturnType<typeof setTimeout>);
   },
 };
@@ -111,6 +122,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  shown = true;
+  frameMs = 0;
 });
 
 describe("SwipeGesture", () => {
@@ -433,69 +446,80 @@ describe("SwipeGesture", () => {
     expect(idle.log).toEqual([]);
   });
 
-  it("a segment timer that fires late after a long frame waits a frame more: the swipe that goes on stays one", () => {
+  it("a slow frame does not end the segment: a swipe of one event per 45 ms frame stays one, and switches", () => {
     const run = setup();
-    run.replay(swipe(0, 6, 10), 0);
-    // The main thread was busy: the timer fires 30 ms late.
-    lag = 30;
-    vi.advanceTimersByTime(SEGMENT_GAP_MS);
-    lag = 0;
+    origin = Date.now();
+    frameMs = 45;
+    // One event per frame, as the window gets them: 12 x 25 px, past the third of 600 px only at the end.
+    run.replay(swipe(0, 12, 25, 0, 45), 0);
     expect(run.log).toEqual(["begin forward"]);
-    // The next event comes within the frame after: one segment, which ends past a third.
-    run.gesture.wheel({ dx: 300, dy: 0, modified: false, cancelable: true, time: 200 });
-    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    vi.advanceTimersByTime(GESTURE_GAP_MS + 2 * 45);
     expect(run.log).toEqual(["begin forward", "switch forward", "end"]);
-    // Late again: it waits again. Then on time with nothing after it: the segment ends.
-    const idle = setup();
-    idle.replay(swipe(0, 6, 10), 0);
-    lag = 30;
-    vi.advanceTimersByTime(SEGMENT_GAP_MS);
-    lag = 60;
-    vi.advanceTimersByTime(LATE_WAIT_MS);
-    expect(idle.log).toEqual(["begin forward"]);
-    lag = 0;
-    vi.advanceTimersByTime(LATE_WAIT_MS);
-    expect(idle.log).toEqual(["begin forward", "end"]);
   });
 
-  it("a timer that is always late waits no longer than LATE_UNTIL_MS after it was due: the gesture ends", () => {
+  it("a real pause ends the segment at its time when a frame came after the last event, else at the next frame", () => {
     const run = setup();
-    delay = 30;
-    run.replay(swipe(0, 6, 10), 0);
-    // Due at 35 ms after the last event, it fires at 65, 115, …, 315 and 365 ms: at 365 it is 330 ms past due.
-    vi.advanceTimersByTime(SEGMENT_GAP_MS + LATE_UNTIL_MS);
-    expect(run.log).toEqual(["begin forward"]);
-    vi.advanceTimersByTime(30);
-    expect(run.log).toEqual(["begin forward", "end"]);
-    // The gesture timer, due at 150 ms, ends the gesture at 480 ms: the next event starts a new one.
-    vi.advanceTimersByTime(480 - 365);
-    delay = 0;
-    run.replay(swipe(run.at() + 480, 6, 10), 0);
-    expect(run.log).toEqual(["begin forward", "end", "begin forward"]);
-  });
-
-  it("in a hidden window a late timer does not wait: the segment ends", () => {
-    const run = setup();
-    shown = false;
-    delay = 1000;
-    run.replay(swipe(0, 6, 10), 0);
-    vi.advanceTimersByTime(SEGMENT_GAP_MS + 999);
+    origin = Date.now();
+    frameMs = 16;
+    run.replay(swipe(0, 6, 10, 0, 16), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS - 1);
     expect(run.log).toEqual(["begin forward"]);
     vi.advanceTimersByTime(1);
-    shown = true;
-    delay = 0;
     expect(run.log).toEqual(["begin forward", "end"]);
+    // Frames of 45 ms: at the time no frame has come after the last event; the next one ends the segment.
+    const slow = setup();
+    origin = Date.now();
+    frameMs = 45;
+    slow.replay(swipe(0, 6, 10, 0, 45), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS);
+    expect(slow.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(45 + 1 - SEGMENT_GAP_MS);
+    expect(slow.log).toEqual(["begin forward", "end"]);
+  });
+
+  it("in a hidden window, which draws no frames, the segment ends on its time", () => {
+    const run = setup();
+    shown = false;
+    frameMs = undefined;
+    run.replay(swipe(0, 6, 10), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS - 1);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    expect(run.log).toEqual(["begin forward", "end"]);
+  });
+
+  it("a visible window that draws no frame ends the segment after FRAME_WAIT_MS, and the gesture after it", () => {
+    const run = setup();
+    frameMs = undefined;
+    run.replay(swipe(0, 6, 10), 0);
+    vi.advanceTimersByTime(SEGMENT_GAP_MS + FRAME_WAIT_MS - 1);
+    expect(run.log).toEqual(["begin forward"]);
+    vi.advanceTimersByTime(1);
+    expect(run.log).toEqual(["begin forward", "end"]);
+    // The gesture ends at GESTURE_GAP_MS + FRAME_WAIT_MS: the next event starts a new one.
+    vi.advanceTimersByTime(GESTURE_GAP_MS - SEGMENT_GAP_MS);
+    frameMs = 0;
+    run.replay(swipe(run.at() + GESTURE_GAP_MS + FRAME_WAIT_MS, 6, 10), 0);
+    expect(run.log).toEqual(["begin forward", "end", "begin forward"]);
   });
 
   it("the window's timers are looked up at each call", () => {
     const view = {
       setTimeout: vi.fn(() => 7),
       clearTimeout: vi.fn(),
-      performance: { now: () => 12 },
+      requestAnimationFrame: vi.fn((run: () => void) => {
+        run();
+        return 9;
+      }),
+      cancelAnimationFrame: vi.fn(),
       document: { visibilityState: "hidden" },
     };
     const own = windowTimers(view as unknown as Window);
-    expect(own.now()).toBe(12);
+    const drawn = vi.fn();
+    expect(own.frame(drawn)).toBe(9);
+    expect(drawn).toHaveBeenCalled();
+    own.cancelFrame(9);
+    expect(view.cancelAnimationFrame).toHaveBeenCalledWith(9);
     expect(own.visible()).toBe(false);
     view.document.visibilityState = "visible";
     expect(own.visible()).toBe(true);
