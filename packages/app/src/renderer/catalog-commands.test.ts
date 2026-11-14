@@ -1,6 +1,8 @@
-import { getCommandRuntime } from "@reqseq/core";
+import os from "node:os";
+import { createCommandRuntime, defineTestCommand, getCommandRuntime, Workspace } from "@reqseq/core";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { cliUsage } from "../core/cli-usage.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
@@ -224,6 +226,66 @@ describe("path arguments of catalog commands (SR-143)", () => {
     expect(prompt.literal?.("spec")).toMatchObject({ hint: "folder" });
     expect(await prompt.seek?.("sp")).toEqual({ choices: [], note: "No workspace is open" });
     expect(call).toHaveBeenLastCalledWith("workspace.listFolder", { path: "", files: false });
+  });
+
+  it("[SR-143/AK-zhpy] gives the evidence of Record evidence and the folder of Create element no suggestions, and the command gets a leading ~ as typed", async () => {
+    const typed = [
+      ["evidence.record", "evidence", "~/reports/run.pdf"],
+      ["element.create", "folder", "~/drafts"],
+    ] as const;
+    const { context, asked, call } = setup([shown], {
+      "workspace.listFolder": () => listing,
+      "evidence.record": () => ({ files: [] }),
+      "element.create": () => ({ element: hit(1), files: [] }),
+    });
+    const sent: Record<string, unknown> = {};
+    for (const [name, field, text] of typed) {
+      const listed = command(name);
+      const alone = { ...listed, arguments: listed.arguments.filter((arg) => arg.field === field) };
+      catalogItems(context, [{ ...alone, input: { ...alone.input, required: [field] } }], [])[0]?.run();
+      const prompt = await last(asked);
+      // Typed text: nothing to seek, no row of its own, no suggestions.
+      expect(prompt.seek).toBeUndefined();
+      expect(prompt.literal).toBeUndefined();
+      expect(prompt.items).toEqual([]);
+      prompt.text?.(text);
+      await flush();
+      expect(call).toHaveBeenLastCalledWith(name, { [field]: text });
+      sent[name] = call.mock.lastCall?.[1];
+    }
+    expect(call.mock.calls.map(([name]) => name)).not.toContain("workspace.listFolder");
+
+    // Under the app's path rule core takes a leading ~ for the home folder only in local paths
+    // (`withHome`); these two get the text as the prompt sent it.
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(fixture.cleanup);
+    const received: unknown[] = [];
+    const stub = (name: string) =>
+      defineTestCommand<unknown, unknown>({
+        name,
+        run: (ctx, input) => {
+          received.push({ input, home: ctx.localPaths.home });
+          return Promise.resolve({});
+        },
+      });
+    const core = createCommandRuntime({
+      commands: [stub("evidence.record"), stub("element.create")],
+      validateOutput: false,
+    });
+    const workspace = new Workspace(fixture.root);
+    const record = {
+      ref: "SR-1",
+      kind: "verification",
+      result: "passed",
+      ...(sent["evidence.record"] as object),
+    };
+    const create = { type: "need", title: "Drafted", ...(sent["element.create"] as object) };
+    await core.invoke("evidence.record", record, { workspace, access: "app" });
+    await core.invoke("element.create", create, { workspace, access: "app" });
+    expect(received).toEqual([
+      { input: { ...record, evidence: "~/reports/run.pdf" }, home: os.homedir() },
+      { input: { ...create, folder: "~/drafts" }, home: os.homedir() },
+    ]);
   });
 });
 
