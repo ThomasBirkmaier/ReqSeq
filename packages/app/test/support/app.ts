@@ -928,13 +928,21 @@ export const transitionsSettled = (window: Page): Promise<void> =>
 export const slideSettled = (window: Page): Promise<void> =>
   expect
     .poll(() =>
-      window.evaluate(
-        () =>
-          document.querySelector(".slide-picture") === null &&
-          document.getAnimations().every((one) => one.id !== "buffer-slide" || one.playState !== "running"),
-      ),
+      // "settled", or what is left, so that a failure says whether the picture stayed, a slide still ran and how
+      // far, and whether the page was shown (#1729).
+      window.evaluate(() => {
+        const picture = document.querySelector(".slide-picture") !== null;
+        const slides = document
+          .getAnimations()
+          .filter((one) => one.id === "buffer-slide" && one.playState === "running");
+        if (!picture && slides.length === 0) {
+          return "settled";
+        }
+        const times = slides.map((one) => String(one.currentTime)).join(", ");
+        return `picture: ${String(picture)}, running slides at ms: [${times}], timeline at ms: ${String(document.timeline.currentTime)}, page: ${document.visibilityState}`;
+      }),
     )
-    .toBe(true);
+    .toBe("settled");
 
 /**
  * A swipe to the left or right as macOS reports it to the window, as older mouse software sends the buttons Back

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SlideSpec } from "./buffer-slide.js";
 import {
   DRAW_DEADLINE_MS,
+  RUN_GUARD_MS,
   SLIDE_EASE,
   SLIDE_ID,
   SLIDE_MS,
@@ -402,6 +403,27 @@ describe("a slide in a window", () => {
     }
     await animations[0]?.finished;
     await Promise.resolve();
+    expect(slides.busy).toBe(false);
+    expect(side().hidden).toBe(true);
+    expect(side().childElementCount).toBe(0);
+    expect(running()).toEqual([]);
+  });
+
+  it("[SR-212/AK-d25h] ends in the end state when its animations never finish, as in a window that draws no frames (#1729)", () => {
+    vi.useFakeTimers();
+    slides.prepare(BACK);
+    commit("<article data-buffer>Two</article>");
+    slides.drawn("two");
+    slides.settle("left", "two");
+    frame();
+    frame();
+    expect(running()).toHaveLength(2);
+    for (const animation of running()) {
+      animation.pause();
+    }
+    vi.advanceTimersByTime(SLIDE_MS + RUN_GUARD_MS - 1);
+    expect(slides.busy).toBe(true);
+    vi.advanceTimersByTime(1);
     expect(slides.busy).toBe(false);
     expect(side().hidden).toBe(true);
     expect(side().childElementCount).toBe(0);

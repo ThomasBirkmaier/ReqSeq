@@ -32,6 +32,13 @@ export const SLIDE_MS = 160;
  */
 export const DRAW_DEADLINE_MS = 1000;
 
+/**
+ * A guard for a motion whose animations never finish because the window draws no frames (a stalled or hidden
+ * page does not advance its animations, #1729): after its time and this much more, the slide ends anyway in its
+ * end state, as a key ends it (AK2).
+ */
+export const RUN_GUARD_MS = SLIDE_MS;
+
 /** The curve where the page has no `--card-ease` (the token of the card of the command line, SR-182). */
 export const SLIDE_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 
@@ -262,6 +269,7 @@ type Phase =
       readonly picture: Picture;
       readonly track: Track;
       readonly animations: readonly Animation[];
+      readonly guard: ReturnType<typeof setTimeout>;
     };
 
 /**
@@ -469,9 +477,10 @@ export class SlideController {
     }
     clearTimeout(phase.deadline);
     const frames = slideKeyframes(phase.spec.direction, phase.spec.progress);
+    const duration = slideDuration(phase.spec.progress);
     const timing: KeyframeAnimationOptions = {
       id: SLIDE_ID,
-      duration: slideDuration(phase.spec.progress),
+      duration,
       easing: slideEase(this.host.view),
       fill: "forwards",
     };
@@ -487,12 +496,18 @@ export class SlideController {
     }
     phase.track.side.style.removeProperty("transform");
     phase.track.main.style.removeProperty("transform");
+    const guard = setTimeout(() => {
+      if (this.phase.kind === "running" && this.phase.animations === animations) {
+        this.finish();
+      }
+    }, duration + RUN_GUARD_MS);
     this.phase = {
       kind: "running",
       spec: phase.spec,
       picture: phase.picture,
       track: phase.track,
       animations,
+      guard,
     };
     const [first] = animations;
     first?.finished.then(
@@ -513,6 +528,7 @@ export class SlideController {
     }
     if (phase.kind === "waiting" || phase.kind === "running") {
       if (phase.kind === "running") {
+        clearTimeout(phase.guard);
         for (const animation of phase.animations) {
           animation.cancel();
         }
