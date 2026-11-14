@@ -9,7 +9,7 @@
   "implements": ["SR-014"],
   "arguments": [
     { "field": "path", "complete": "folder" },
-    { "field": "name", "complete": "text" },
+    { "field": "name", "complete": "text", "class": "name" },
     { "field": "metamodel", "complete": "metamodelLocation" }
   ],
   "input": {

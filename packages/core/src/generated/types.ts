@@ -1864,6 +1864,18 @@ export interface CommandCatalog {
       readonly of?: string;
       /** Only on an `element` source: the field takes an element whose type has this meaning (`variant`, D-020; `package`, D-040), and its values are those elements. A field with a meaning is never the nearest earlier field a source without `of` reads, so `evidence.record criteria` reads `ref`, not `variant`; an explicit `of` may name it (`catalog-checks.mjs`). */
       readonly meaning?: "variant" | "package";
+      /** Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list (SR-215 AK2), so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source). */
+      readonly class?:
+        | "name"
+        | "title"
+        | "text"
+        | "description"
+        | "time"
+        | "version"
+        | "revision"
+        | "query"
+        | "path"
+        | "output";
       /** Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value other than `false`, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291); `all` yes confirms those of the workspace, not those of the shown element as `ref` (#644). `catalog-checks.mjs` checks the fields. */
       readonly replaces?: readonly string[];
       /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */

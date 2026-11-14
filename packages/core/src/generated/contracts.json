@@ -3711,6 +3711,21 @@
                     ],
                     "description": "Only on an `element` source: the field takes an element whose type has this meaning (`variant`; `package`), and its values are those elements. A field with a meaning is never the nearest earlier field a source without `of` reads, so `evidence.record criteria` reads `ref`, not `variant`; an explicit `of` may name it (`catalog-checks.mjs`)."
                   },
+                  "class": {
+                    "enum": [
+                      "name",
+                      "title",
+                      "text",
+                      "description",
+                      "time",
+                      "version",
+                      "revision",
+                      "query",
+                      "path",
+                      "output"
+                    ],
+                    "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element; revision: a Git revision; query: a search query or a pattern that finds text; path: a path or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source)."
+                  },
                   "replaces": {
                     "type": "array",
                     "minItems": 1,
@@ -3832,7 +3847,8 @@
           },
           {
             "field": "name",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "metamodel",
@@ -4068,7 +4084,8 @@
           },
           {
             "field": "changedSince",
-            "complete": "text"
+            "complete": "text",
+            "class": "revision"
           },
           {
             "field": "severity",
@@ -4279,7 +4296,8 @@
         "arguments": [
           {
             "field": "path",
-            "complete": "text"
+            "complete": "text",
+            "class": "path"
           },
           {
             "field": "files",
@@ -4773,11 +4791,13 @@
           },
           {
             "field": "title",
-            "complete": "text"
+            "complete": "text",
+            "class": "title"
           },
           {
             "field": "text",
-            "complete": "text"
+            "complete": "text",
+            "class": "text"
           },
           {
             "field": "properties",
@@ -4794,7 +4814,8 @@
           },
           {
             "field": "folder",
-            "complete": "text"
+            "complete": "text",
+            "class": "path"
           }
         ],
         "input": {
@@ -5016,7 +5037,8 @@
           },
           {
             "field": "version",
-            "complete": "text"
+            "complete": "text",
+            "class": "version"
           },
           {
             "field": "versionDate",
@@ -5618,11 +5640,13 @@
           },
           {
             "field": "title",
-            "complete": "text"
+            "complete": "text",
+            "class": "title"
           },
           {
             "field": "text",
-            "complete": "text"
+            "complete": "text",
+            "class": "text"
           },
           {
             "field": "set",
@@ -5651,7 +5675,8 @@
           },
           {
             "field": "expectedFileSha256",
-            "complete": "text"
+            "complete": "text",
+            "class": "output"
           }
         ],
         "input": {
@@ -5997,7 +6022,8 @@
           },
           {
             "field": "plan",
-            "complete": "text"
+            "complete": "text",
+            "class": "output"
           }
         ],
         "input": {
@@ -6306,11 +6332,13 @@
           },
           {
             "field": "content",
-            "complete": "text"
+            "complete": "text",
+            "class": "output"
           },
           {
             "field": "name",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "repository",
@@ -8032,7 +8060,7 @@
           },
           {
             "field": "kinds",
-            "complete": "text"
+            "complete": "relationKind"
           },
           {
             "field": "meanings",
@@ -8397,7 +8425,7 @@
           },
           {
             "field": "kinds",
-            "complete": "text"
+            "complete": "relationKind"
           },
           {
             "field": "meanings",
@@ -8786,7 +8814,8 @@
         "arguments": [
           {
             "field": "query",
-            "complete": "text"
+            "complete": "text",
+            "class": "query"
           },
           {
             "field": "selection",
@@ -9171,7 +9200,8 @@
         "arguments": [
           {
             "field": "name",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "where",
@@ -9179,7 +9209,8 @@
           },
           {
             "field": "description",
-            "complete": "text"
+            "complete": "text",
+            "class": "description"
           },
           {
             "field": "view",
@@ -9337,7 +9368,8 @@
         "arguments": [
           {
             "field": "name",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "where",
@@ -9345,7 +9377,8 @@
           },
           {
             "field": "description",
-            "complete": "text"
+            "complete": "text",
+            "class": "description"
           },
           {
             "field": "filter",
@@ -9750,7 +9783,8 @@
           },
           {
             "field": "item",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "variant",
@@ -9759,15 +9793,18 @@
           },
           {
             "field": "date",
-            "complete": "text"
+            "complete": "text",
+            "class": "time"
           },
           {
             "field": "evidence",
-            "complete": "text"
+            "complete": "text",
+            "class": "path"
           },
           {
             "field": "testCase",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "criteria",
@@ -9775,7 +9812,8 @@
           },
           {
             "field": "reason",
-            "complete": "text"
+            "complete": "text",
+            "class": "text"
           },
           {
             "field": "folder",
@@ -9945,11 +9983,13 @@
           },
           {
             "field": "item",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "date",
-            "complete": "text"
+            "complete": "text",
+            "class": "time"
           },
           {
             "field": "variant",
@@ -9961,7 +10001,8 @@
           },
           {
             "field": "namePattern",
-            "complete": "text"
+            "complete": "text",
+            "class": "query"
           },
           {
             "field": "output",
@@ -10720,7 +10761,8 @@
         "arguments": [
           {
             "field": "name",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "selection",
@@ -11291,7 +11333,8 @@
           },
           {
             "field": "source",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           }
         ],
         "input": {
@@ -11404,7 +11447,8 @@
           },
           {
             "field": "delivery",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "mapping",
@@ -11412,7 +11456,8 @@
           },
           {
             "field": "source",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "take",
@@ -11615,7 +11660,8 @@
           },
           {
             "field": "profile",
-            "complete": "text"
+            "complete": "text",
+            "class": "name"
           },
           {
             "field": "mapping",

@@ -27,7 +27,8 @@
     },
     {
       "field": "item",
-      "complete": "text"
+      "complete": "text",
+      "class": "name"
     },
     {
       "field": "variant",
@@ -36,15 +37,18 @@
     },
     {
       "field": "date",
-      "complete": "text"
+      "complete": "text",
+      "class": "time"
     },
     {
       "field": "evidence",
-      "complete": "text"
+      "complete": "text",
+      "class": "path"
     },
     {
       "field": "testCase",
-      "complete": "text"
+      "complete": "text",
+      "class": "name"
     },
     {
       "field": "criteria",
@@ -52,7 +56,8 @@
     },
     {
       "field": "reason",
-      "complete": "text"
+      "complete": "text",
+      "class": "text"
     },
     {
       "field": "folder",

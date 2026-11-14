@@ -10,11 +10,11 @@
   "implements": ["SR-029", "SR-063"],
   "arguments": [
     { "field": "file", "complete": "file" },
-    { "field": "item", "complete": "text" },
-    { "field": "date", "complete": "text" },
+    { "field": "item", "complete": "text", "class": "name" },
+    { "field": "date", "complete": "text", "class": "time" },
     { "field": "variant", "complete": "view" },
     { "field": "skipNotInView", "complete": "boolean" },
-    { "field": "namePattern", "complete": "text" },
+    { "field": "namePattern", "complete": "text", "class": "query" },
     { "field": "output", "complete": "file" }
   ],
   "input": {

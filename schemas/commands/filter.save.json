@@ -8,9 +8,9 @@
   "stage": 3,
   "implements": ["SR-070"],
   "arguments": [
-    { "field": "name", "complete": "text" },
+    { "field": "name", "complete": "text", "class": "name" },
     { "field": "where", "complete": "condition" },
-    { "field": "description", "complete": "text" },
+    { "field": "description", "complete": "text", "class": "description" },
     { "field": "view", "complete": "view" },
     { "field": "sort", "complete": "sort" }
   ],

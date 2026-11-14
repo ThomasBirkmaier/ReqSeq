@@ -10,9 +10,9 @@
   "implements": ["SR-052", "SR-053", "SR-054", "SR-055", "SR-056", "SR-057", "SR-087", "SR-095"],
   "arguments": [
     { "field": "file", "complete": "file" },
-    { "field": "delivery", "complete": "text" },
+    { "field": "delivery", "complete": "text", "class": "name" },
     { "field": "mapping", "complete": "file" },
-    { "field": "source", "complete": "text" },
+    { "field": "source", "complete": "text", "class": "name" },
     { "field": "take", "complete": "element" },
     { "field": "keep", "complete": "element" }
   ],

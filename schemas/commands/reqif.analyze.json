@@ -8,7 +8,7 @@
   "arguments": [
     { "field": "file", "complete": "file" },
     { "field": "mapping", "complete": "file" },
-    { "field": "source", "complete": "text" }
+    { "field": "source", "complete": "text", "class": "name" }
   ],
   "input": {
     "type": "object",

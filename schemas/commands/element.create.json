@@ -21,12 +21,12 @@
   ],
   "arguments": [
     { "field": "type", "complete": "type" },
-    { "field": "title", "complete": "text" },
-    { "field": "text", "complete": "text" },
+    { "field": "title", "complete": "text", "class": "title" },
+    { "field": "text", "complete": "text", "class": "text" },
     { "field": "properties", "complete": "properties", "flag": "set" },
     { "field": "relations", "complete": "relations" },
     { "field": "repository", "complete": "repository" },
-    { "field": "folder", "complete": "text" }
+    { "field": "folder", "complete": "text", "class": "path" }
   ],
   "input": {
     "type": "object",
