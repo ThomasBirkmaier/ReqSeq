@@ -19,10 +19,8 @@
 // "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
 // the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
 // found by search among its target types, or typed text; a list property takes one value per Enter. An
-// empty input skips the property, or ends the values of a list. With Ctrl/Cmd+Enter the optional `properties`
-// (the properties of the type without a value, skipped required ones too) and `relations` (the kinds the type
-// may have as source, then a target) are built from hits as marks (`create-prompt.ts`, SR-215 AK8); their
-// value joins the required properties in `properties`. The new element opens in its element buffer, and the
+// empty input skips the property, or ends the values of a list. With Ctrl/Cmd+Enter `properties` and `relations`
+// are built from marks (`create-prompt.ts`, SR-215 AK8). The new element opens in its element buffer, and the
 // minibuffer says how many hints core gave.
 //
 // A write command is asked like a read command, with two more rules: one without required arguments asks
@@ -51,8 +49,7 @@
 // element, or those of an ambiguous reference (`ref.ambiguous`); `metamodelLocation` the repository, then
 // the path; `group` the groupings of the elements the call's earlier `where`, `filter`, `perspective` and shown
 // selection select (one `element.facets`, `list-groups.ts`); a `condition` is built from hits as marks
-// (`condition-prompt.ts`, SR-215 AK3), a `sort` (`sort-prompt.ts`, AK7), `properties` and `relations` of a new
-// element (`create-prompt.ts`, AK8). A hit the
+// (`condition-prompt.ts`, SR-215 AK3). A hit the
 // metamodel names shows its key beside the name (SR-215 AK1). A `selection` is never
 // asked: it is the shown list's, or on a package page its package (`selection.package`), for every command
 // with a selection, reads and writes alike.
@@ -930,9 +927,8 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       groupings(output, packages).map(({ group, name }) => ({ value: group, name, key: group })),
     );
   },
-  // Built step by step from hits (`askCondition`, `askSort`, `askProperties`, `askRelations`); never asked
-  // through their offer. The `FITTING` entries of properties and relations make them readers of the type: their
-  // value is dropped when the type is asked again.
+  // Built step by step from hits (`askCondition`, `askSort`, `create-prompt.ts`); never asked through their
+  // offer. Properties and relations read the type (`FITTING`): their value goes when it is asked again.
   condition: typed(jsonOr),
   sort: typed(jsonOr),
   properties: typed(jsonOr),
@@ -1309,13 +1305,17 @@ const readersOf = (args: readonly Argument[], field: string): ReadonlySet<string
  */
 const askAgain = (context: CatalogContext, answered: Entry, at: number): void => {
   const again = answered.given[at];
+  const readers =
+    again === undefined ? new Set<string>() : readersOf(answered.command.arguments, again.field);
+  // Marks held for a reader go with the value it reads (a new type has other properties, SR-215 AK8).
+  const { held, ...kept } = answered;
   const entry = {
-    ...answered,
+    ...kept,
+    ...(held === undefined || readers.has(held.field) ? {} : { held }),
     ...(again === undefined ? {} : { again: again.rank }),
     ...(again?.marks === undefined ? {} : { marks: again.marks }),
   };
   const itsProperties = new Set((again?.asks ?? []).map((asked) => asked.key));
-  const readers = again === undefined ? new Set<string>() : readersOf(entry.command.arguments, again.field);
   const given = entry.given.filter(
     (value, place) =>
       place !== at &&

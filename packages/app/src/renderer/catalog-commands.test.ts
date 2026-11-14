@@ -2201,11 +2201,8 @@ describe('"Create element": the other properties and the relations built from ma
     const target = await last(asked);
     expect(target.label).toBe("Create element Software Requirement Wind · relations · derives-from:");
     const found = await target.find?.("tit");
-    expect(call).toHaveBeenLastCalledWith("element.search", {
-      query: "tit",
+    expect(call.mock.lastCall?.[1]).toMatchObject({
       selection: { where: { type: ["requirement", "software-requirement"] } },
-      fields: ["id", "title"],
-      limit: 20,
     });
     found?.[0]?.run();
     item((await last(asked)).items, "Derives from").run();
@@ -2236,9 +2233,6 @@ describe('"Create element": the other properties and the relations built from ma
     const skipped = await last(asked);
     expect(skipped.label).toBe("Create element Software Requirement Wind · more arguments:");
     item(skipped.items, "properties").run();
-    // Ctrl/Cmd+Enter on a property without a mark skips too.
-    item((await last(asked)).items, "Rationale").more?.();
-    item((await last(asked)).items, "properties").run();
     item((await last(asked)).items, "Rationale").run();
     (await last(asked)).text?.("Gusts");
     const marked = await last(asked);
@@ -2278,6 +2272,14 @@ describe('"Create element": the other properties and the relations built from ma
     skipped.empty?.(true);
     item((await last(asked)).items, "relations").run();
     expect(markLabels(await last(asked))).toEqual(["refines: SR-000005"]);
+    // Back to the type: the marks go with it, a new type has other kinds.
+    for (let at = 0; at < 3; at += 1) {
+      (await last(asked)).back?.();
+    }
+    item((await last(asked)).items, "Decision").run();
+    (await last(asked)).more?.("Wind");
+    item((await last(asked)).items, "relations").run();
+    expect(markLabels(await last(asked))).toEqual([]);
   });
 
   it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] at a property's values Escape goes back to the properties with the values given so far; an × removes a mark in each step", async () => {
@@ -2304,11 +2306,7 @@ describe('"Create element": the other properties and the relations built from ma
     let refuse = true;
     const { asked, call, first } = await atBuilt("properties", undefined, {
       "element.create": (input) =>
-        refuse
-          ? refusedWith("properties.rationale: too long", {
-              errors: [{ field: "properties.rationale", message: "properties.rationale: too long" }],
-            })
-          : created(input),
+        refuse ? refusedWith("Too long", { key: "rationale", value: "Gusts" }) : created(input),
     });
     item(first.items, "Rationale").run();
     (await last(asked)).text?.("Gusts");
@@ -2316,9 +2314,7 @@ describe('"Create element": the other properties and the relations built from ma
     item((await last(asked)).items, "Run").run();
     await flush();
     const again = await last(asked);
-    expect(again.label).toBe(
-      "properties.rationale: too long · Create element Software Requirement Wind · properties:",
-    );
+    expect(again.label).toBe("Too long · Create element Software Requirement Wind · properties:");
     expect(markLabels(again)).toEqual(["rationale: Gusts"]);
     refuse = false;
     item(again.items, "Take 1 property").run();

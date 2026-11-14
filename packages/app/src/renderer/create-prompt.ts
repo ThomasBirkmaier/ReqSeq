@@ -1,9 +1,7 @@
 // The optional properties and relations of a new element ("Create element" after Ctrl/Cmd+Enter), built from hits
-// as marks (SR-215 AK4, AK8, AK9, AK10) as a condition is (`condition-prompt.ts`): the properties of the type
-// without a value, then their values as a required one asks them (SR-064 AK1), or the relation kinds of the type
-// (`metamodel.get` `relationKinds`), then a target among their target types. The value is per mark what the CLI
-// takes: properties as their boxes save them (`propertiesInput`), relations by kind with the target's UUID, a
-// list where a kind has several. Core checks the input (ADR-0002).
+// as marks (SR-215 AK4, AK8, AK9, AK10) as a condition is: the properties of the type without a value, then their
+// values (SR-064 AK1), or the relation kinds of the type (`relationKinds`), then a target. The value is per mark
+// what the CLI takes, properties as their boxes save them. Core checks the input (ADR-0002).
 import type { ElementInputValue, MetamodelGetOutput } from "@reqseq/core";
 import type { ActionContext, ArgumentExplanation, Choice, PromptFill, PromptMark } from "./actions.js";
 import { findElements } from "./actions.js";
@@ -13,6 +11,9 @@ import type { PropertyInfo } from "./element-view.js";
 import { propertyInfo } from "./element-view.js";
 import { choiceItems } from "./property-edit.js";
 import { rowName } from "./rows.js";
+
+/** The title, asked before, and the origin, which only reqif.import writes (`reqif/origin.ts` of core, SR-057). */
+const UNWRITTEN = ["title", "source", "source-identifier", "import-date", "delivery", "import-version"];
 
 type Metamodel =
   | { readonly ok: true; readonly output: MetamodelGetOutput }
@@ -42,7 +43,6 @@ export interface RelationMark {
 export interface BuildAsk<M> {
   readonly context: ActionContext;
   readonly line: string;
-  /** Why core refused the value, said in the first step when it is asked again. */
   readonly error?: string;
   /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
   readonly explain: ArgumentExplanation;
@@ -51,7 +51,6 @@ export interface BuildAsk<M> {
   readonly filled: readonly string[];
   /** One argument back, with the marks, which stand again when the argument is asked again (AK9). */
   readonly back: (marks: readonly M[]) => void;
-  /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly take: (marks: readonly M[], more: boolean) => void;
   /** The finishing hit without a mark: no value (AK4, AK10). */
   readonly skip: (more: boolean) => void;
@@ -266,7 +265,9 @@ export const askProperties = (given: BuildAsk<PropertyMark>, marks: readonly Pro
       .flatMap((key) => output.properties.filter((property) => property.key === key))
       .filter(
         ({ key, meaning }) =>
-          meaning !== "title" && !given.filled.includes(key) && !marks.some((mark) => mark.property === key),
+          !UNWRITTEN.includes(meaning ?? "") &&
+          !given.filled.includes(key) &&
+          !marks.some((mark) => mark.property === key),
       )
       .map((property) => ({
         key: property.key,

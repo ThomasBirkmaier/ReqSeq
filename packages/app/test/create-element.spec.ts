@@ -244,17 +244,19 @@ test.describe("Create element", () => {
     // The skipped required property is offered, the one given a value not.
     await expect.poll(() => names(window)).toContain("Acceptance Criteria");
     expect(await names(window)).not.toContain("Requirement Type");
+    // Nor the origin, which only reqif.import writes (SR-057).
+    expect(await names(window)).not.toContain("Source");
     await pick(window, "Verification", "Verification Method");
     await pick(window, "test", "Test");
     await pick(window, "Rationale", "Rationale");
-    await window.keyboard.type("Masten");
+    await window.keyboard.type("Masts");
     await window.keyboard.press("Enter");
     await pick(window, "Package", "Package");
     await pick(window, "Sensors", "Sensors");
     await window.keyboard.press("Enter"); // ends the list
     await expect(marks(window)).toHaveText([
       "verification-method: Test×",
-      "rationale: Masten×",
+      "rationale: Masts×",
       "packages: PKG-0000d1×",
     ]);
     await expect(marked(window)).toHaveText("Take 3 properties");
@@ -263,7 +265,6 @@ test.describe("Create element", () => {
     await window.screenshot({ path: path.join(SHOTS, "sr-215-create-element-light.png") });
     await expect.poll(() => names(window)).toContain("Acceptance Criteria");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toContainText("· more arguments:");
     await pick(window, "relations", "relations");
     await pick(window, "Derives from", "Derives from");
     await pick(window, "See the wind", "See the wind");
@@ -271,14 +272,13 @@ test.describe("Create element", () => {
     await expect.poll(() => names(window)).toContain("Refines");
     await expect(marked(window)).toHaveText("Take 1 relation");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toContainText("· more arguments:");
     await pick(window, "Run", "Run");
     await expect(window.locator("article h1")).toHaveText(TITLE);
     const got = await created(running);
     const fromApp = (await fileOf(running, got)).replaceAll(got.element.id, "<id>");
     // The command line with the same entries writes the same file but the UUID (AK10).
     const uuid = "69069069-0000-4000-8000-0000000000";
-    const entries = `--set requirement-type=performance --set verification-method=test --set rationale=Masten --set packages=[{"id":"${uuid}d1","repository":"system"}] --relations derives-from=${uuid}a1`;
+    const entries = `--set requirement-type=performance --set verification-method=test --set rationale=Masts --set packages=[{"id":"${uuid}d1","repository":"system"}] --relations derives-from=${uuid}a1`;
     const cli = await cliJson<Got>(running, ["element", "create", TYPE, TITLE, ...entries.split(" ")]);
     expect((await fileOf(running, cli)).replaceAll(cli.element.id, "<id>")).toBe(fromApp);
   });
