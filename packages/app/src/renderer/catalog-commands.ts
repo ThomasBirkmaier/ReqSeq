@@ -14,7 +14,8 @@
 // `runtime/input-errors.ts`), else the property core names in `key` (for example `withChoiceKeys`: an
 // unknown or ambiguous choice). The answer takes the refused value's place; the other values stay, except
 // those read from it (the properties of a type, an argument whose offer reads it). A refusal that names
-// nothing asked in this run asks the value given last.
+// nothing asked in this run asks the value given last. The message stays with the argument it names: a step back
+// drops it (#1703).
 //
 // "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
 // the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
@@ -1175,9 +1176,13 @@ const firstOffered = (
   return shown?.kind === "element" || shown?.kind === "neighbourhood" ? shown : context.row;
 };
 
-/** One argument back: the value given last is asked again; before the first, the command prompt. */
+/**
+ * One argument back: the value given last is asked again; before the first, the command prompt. Core's
+ * message of a refusal stays with the argument it names, so the step back drops it (#1703).
+ */
 const back = (context: CatalogContext, entry: Entry): void => {
-  askAgain(context, entry, entry.given.length - 1);
+  const { error: _error, ...rest } = entry;
+  askAgain(context, rest, rest.given.length - 1);
 };
 
 /**
