@@ -898,8 +898,14 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await window.clock.resume();
     await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(0);
     await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
-    // Shown without a slide, the need reads as every shown buffer: its change, and the next one.
-    await open(window, "See the gusts");
+    // Shown without a slide, the need reads as every shown buffer: its change, and the next one. It is picked
+    // among the open buffers by its ID, whose name still has the old title: core's search index is carried over
+    // the change in the background (`search-state.ts` of core), which this test does not wait for.
+    await goTo(window);
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    await window.keyboard.type("N-0000a1");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("N-0000a1");
+    await window.keyboard.press("Enter");
     await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
     await retitle(running, "See the storm");
     await expect(shownLayer(window).locator("article h1")).toHaveText("See the storm");
