@@ -876,7 +876,7 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     expect(await motionsMade(window)).toContain("buffer-spring");
     // A swipe toward Next buffer (the overview, dropped by the change) ends at once by a key, before its target
     // is drawn: the drag it starts ends the spring-back, whose end then calls nothing back.
-    await window.evaluate(() => {
+    const springAtKey = await window.evaluate(() => {
       const area = document.querySelector<HTMLElement>("[data-area][data-active]");
       const box = area?.getBoundingClientRect();
       const x = (box?.left ?? 0) + (box?.width ?? 0) / 2;
@@ -885,10 +885,15 @@ test.describe("the previous and the next buffer drawn in advance", () => {
       under.dispatchEvent(
         new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 20, clientX: x, clientY: y }),
       );
+      // The drag of the new swipe started: it ended the spring-back.
+      const [spring] = (window as unknown as { motions: Motions }).motions.paused;
+      const state = spring?.playState;
       document.activeElement?.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
       );
+      return state;
     });
+    expect(springAtKey).toBe("idle");
     await playMotions(window);
     await window.clock.resume();
     await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(0);
