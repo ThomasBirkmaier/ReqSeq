@@ -189,7 +189,8 @@ const SORTS: readonly (readonly [
   ["Hierarchy (tree)", [{ by: "hierarchy", order: "asc" }]],
 ];
 
-const ORDERS = [
+/** The directions "Order" offers after a sort key, also in the sort the command prompt builds (SR-215 AK7). */
+export const ORDERS = [
   ["ascending", "asc"],
   ["descending", "desc"],
 ] as const;
