@@ -172,6 +172,21 @@
                                   ],
                                   "description": "Only on an `element` source: the field takes an element whose type has this meaning (`variant`; `package`), and its values are those elements. A field with a meaning is never the nearest earlier field a source without `of` reads, so `evidence.record criteria` reads `ref`, not `variant`; an explicit `of` may name it (`catalog-checks.mjs`)."
                                 },
+                                "class": {
+                                  "enum": [
+                                    "name",
+                                    "title",
+                                    "text",
+                                    "description",
+                                    "time",
+                                    "version",
+                                    "revision",
+                                    "query",
+                                    "path",
+                                    "output"
+                                  ],
+                                  "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element; revision: a Git revision; query: a search query or a pattern that finds text; path: a path or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source)."
+                                },
                                 "replaces": {
                                   "type": "array",
                                   "minItems": 1,

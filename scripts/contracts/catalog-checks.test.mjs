@@ -14,7 +14,13 @@ const input = {
   },
   required: ["ref"],
 };
-const arg = (field, complete, of) => (of ? { field, complete, of } : { field, complete });
+/** An entry of `arguments`; a `text` source gets the class every one needs (SR-215 AK2). */
+const arg = (field, complete, of) => ({
+  field,
+  complete,
+  ...(of ? { of } : {}),
+  ...(complete === "text" ? { class: "name" } : {}),
+});
 const ALL = [
   arg("ref", "element"),
   arg("kind", "relationKind", "ref"),
@@ -282,7 +288,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
   });
 
   it("binds condition, sort, group and searchField to their schemas both ways, the others one way (SR-215)", () => {
-    const at = (field, complete, of) => (of === undefined ? { field, complete } : { field, complete, of });
+    const at = (field, complete, of) => ({ ...arg(field, complete), ...(of === undefined ? {} : { of }) });
     const fields = {
       ref: { type: "string" },
       type: { type: "string" },
@@ -414,6 +420,25 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ];
     expect(check(command("test.one", "One", onText, schema))).toEqual([
       'schemas/commands/test.one.json: arguments: "variant": meaning is only for an element source, not text',
+    ]);
+  });
+
+  it("a class on every text source and only there (SR-215 AK2)", () => {
+    const fields = { ref: { type: "string" }, name: { type: "string" }, limit: { type: "integer" } };
+    const schema = { type: "object", properties: fields, required: ["ref"] };
+    const classed = [arg("ref", "element"), arg("name", "text"), arg("limit", "number")];
+    expect(check(command("test.one", "One", classed, schema))).toEqual([]);
+    const unclassed = [arg("ref", "element"), { field: "name", complete: "text" }, arg("limit", "number")];
+    expect(check(command("test.one", "One", unclassed, schema))).toEqual([
+      'schemas/commands/test.one.json: arguments: "name": a text source needs a class (SR-215 AK2)',
+    ]);
+    const onNumber = [
+      arg("ref", "element"),
+      arg("name", "text"),
+      { ...arg("limit", "number"), class: "name" },
+    ];
+    expect(check(command("test.one", "One", onNumber, schema))).toEqual([
+      'schemas/commands/test.one.json: arguments: "limit": class is only for a text source, not number',
     ]);
   });
 

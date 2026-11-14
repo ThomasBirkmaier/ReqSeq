@@ -9,9 +9,9 @@
   "stage": 3,
   "implements": ["SR-213"],
   "arguments": [
-    { "field": "name", "complete": "text" },
+    { "field": "name", "complete": "text", "class": "name" },
     { "field": "where", "complete": "condition" },
-    { "field": "description", "complete": "text" },
+    { "field": "description", "complete": "text", "class": "description" },
     { "field": "filter", "complete": "filter" },
     { "field": "group", "complete": "group" },
     { "field": "sort", "complete": "sort" }

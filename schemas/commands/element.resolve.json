@@ -7,7 +7,7 @@
   "implements": ["SR-060", "SR-205"],
   "arguments": [
     { "field": "ref", "complete": "element" },
-    { "field": "version", "complete": "text" },
+    { "field": "version", "complete": "text", "class": "version" },
     { "field": "versionDate", "complete": "boolean" },
     { "field": "repository", "complete": "repository" },
     { "field": "file", "complete": "elementFile" }

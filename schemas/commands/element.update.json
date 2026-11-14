@@ -24,15 +24,15 @@
   ],
   "arguments": [
     { "field": "ref", "complete": "element" },
-    { "field": "title", "complete": "text" },
-    { "field": "text", "complete": "text" },
+    { "field": "title", "complete": "text", "class": "title" },
+    { "field": "text", "complete": "text", "class": "text" },
     { "field": "set", "complete": "json" },
     { "field": "unset", "complete": "property", "of": "ref" },
     { "field": "setItems", "complete": "json" },
     { "field": "addRelations", "complete": "json" },
     { "field": "removeRelations", "complete": "json" },
     { "field": "repository", "complete": "repository" },
-    { "field": "expectedFileSha256", "complete": "text" }
+    { "field": "expectedFileSha256", "complete": "text", "class": "output" }
   ],
   "input": {
     "type": "object",

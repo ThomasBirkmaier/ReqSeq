@@ -4487,3 +4487,125 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
     }
   });
 });
+
+describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, #1649)", () => {
+  type Source = CommandListing["arguments"][number]["complete"];
+  /**
+   * How the prompt asks each source: hits of AK1, built from hits by AK3/AK6, AK7 or AK8, typed with path
+   * completion (SR-143), or free input, which AK2 allows only for the classes below and the numbers.
+   */
+  const ASKED: Readonly<Record<Source, "hits" | "built" | "path" | "text" | "number" | "json" | "never">> = {
+    element: "hits",
+    type: "hits",
+    status: "hits",
+    invalidStatus: "hits",
+    relationKind: "hits",
+    relationTarget: "hits",
+    relation: "hits",
+    property: "hits",
+    value: "hits",
+    hint: "hits",
+    filter: "hits",
+    baseline: "hits",
+    perspective: "hits",
+    view: "hits",
+    repository: "hits",
+    choice: "hits",
+    boolean: "hits",
+    criterion: "hits",
+    evidenceLocation: "hits",
+    elementFile: "hits",
+    metamodelLocation: "hits",
+    group: "hits",
+    searchField: "hits",
+    condition: "built",
+    sort: "built",
+    properties: "built",
+    relations: "built",
+    folder: "path",
+    file: "path",
+    text: "text",
+    number: "number",
+    json: "json",
+    selection: "never",
+  };
+  /** The free text AK2 allows: names, titles, texts, descriptions, points in time, versions, Git revisions, search queries, paths and values another command gives. */
+  const CLASSES: readonly string[] = [
+    "name",
+    "title",
+    "text",
+    "description",
+    "time",
+    "version",
+    "revision",
+    "query",
+    "path",
+    "output",
+  ];
+  /** The only argument asked as JSON: the mapping of "Save ReqIF mapping". */
+  const AS_JSON = ["reqif.saveMapping mapping"];
+
+  /** The commands the prompt offers by their own entry (not those an action covers), with a list shown. */
+  const prompted = (catalog: readonly CommandListing[]): CommandListing[] => {
+    const { context } = setup([listBuffer("type: need", { where: { type: ["need"] } })]);
+    const ids = new Set(catalogItems(context, catalog, ACTIONS).map((item) => item.id));
+    return catalog.filter((command) => ids.has(`command:${command.name}`));
+  };
+  /** Every argument the prompt asks that AK2 does not allow, as `<command> <field>`. */
+  const outside = (catalog: readonly CommandListing[]): string[] =>
+    prompted(catalog).flatMap((command) =>
+      command.arguments.flatMap((arg) => {
+        const asked = ASKED[arg.complete];
+        const allowed =
+          asked === "text"
+            ? arg.class !== undefined && CLASSES.includes(arg.class)
+            : asked !== "json" || AS_JSON.includes(`${command.name} ${arg.field}`);
+        return allowed ? [] : [`${command.name} ${arg.field}`];
+      }),
+    );
+
+  it("[SR-215/AK-qpq7] asks as free text only the classes of AK2 and numbers, and as JSON only the ReqIF mapping", () => {
+    const commands = prompted(CATALOG);
+    const free = commands.flatMap((command) =>
+      command.arguments
+        .filter((arg) => arg.complete === "text")
+        .map((arg) => `${command.name} ${arg.field}: ${arg.class ?? "none"}`),
+    );
+    expect(outside(CATALOG)).toEqual([]);
+    // The cases whose class was not obvious (#1649).
+    expect(free).toEqual(
+      expect.arrayContaining([
+        "evidence.enrichJunit namePattern: query",
+        "evidence.record item: name",
+        "evidence.record evidence: path",
+        "reqif.export profile: name",
+      ]),
+    );
+    // The commands an action covers are not asked, so they are not checked: element.update asks `set` as JSON.
+    expect(commands.map((command) => command.name)).not.toContain("element.update");
+    // A new argument asked as text without a class, or as JSON, fails.
+    const evidenceRecord = CATALOG.find((command) => command.name === "evidence.record");
+    const saveMapping = CATALOG.find((command) => command.name === "reqif.saveMapping");
+    if (evidenceRecord === undefined || saveMapping === undefined) {
+      throw new Error("catalog without evidence.record or reqif.saveMapping");
+    }
+    const unclassed = {
+      ...evidenceRecord,
+      arguments: evidenceRecord.arguments.map(({ class: _class, ...arg }) => arg),
+    };
+    const asJson = {
+      ...evidenceRecord,
+      arguments: evidenceRecord.arguments.map((arg) =>
+        arg.field === "variant" ? { field: arg.field, complete: "json" as const } : arg,
+      ),
+    };
+    expect(outside([unclassed, saveMapping])).toEqual([
+      "evidence.record item",
+      "evidence.record date",
+      "evidence.record evidence",
+      "evidence.record testCase",
+      "evidence.record reason",
+    ]);
+    expect(outside([asJson, saveMapping])).toEqual(["evidence.record variant"]);
+  });
+});
