@@ -476,6 +476,29 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
       await command(window, "Close buffer");
     };
 
+    /** What the window shows: the shown and the hidden buffers, the focus and the minibuffer's text. */
+    const situation = async (): Promise<string> => {
+      const shown = await window
+        .locator(`${SHOWN} article h1`)
+        .textContent({ timeout: 1_000 })
+        .catch(() => "none");
+      const drawn = (await hiddenViews(window)).join(", ");
+      const rest = await window.evaluate(() => {
+        const focus = document.activeElement;
+        const where = focus === null ? "none" : `${focus.tagName}.${focus.className}`.slice(0, 80);
+        const minibuffer = document.querySelector('[aria-label="Minibuffer"]')?.textContent ?? "";
+        return `focus ${where}; minibuffer "${minibuffer.slice(0, 160)}"`;
+      });
+      return `shown ${shown ?? ""}; drawn in advance: ${drawn === "" ? "none" : drawn}; ${rest}`;
+    };
+    /** Waits for `check`; when it fails, the failure says `what` was expected and what the window showed. */
+    const seen = async (check: Promise<void>, what: string): Promise<void> => {
+      try {
+        await check;
+      } catch (error) {
+        throw new Error(`${what}: not so (${await situation()})`, { cause: error });
+      }
+    };
     /**
      * The Enter armed with `enterOn`, once it went, within `ARMED_WAIT_MS`. Undefined when its read was not sent
      * (a change dropped the view drawn in advance, SR-212 AK5, as an autosave still running at a switch does):
@@ -493,10 +516,7 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         fired = await requests.fired();
       }
       if (fired === undefined) {
-        const drawn = (await hiddenViews(window)).join(", ");
-        step(
-          `${what}: the armed read was not sent (drawn in advance: ${drawn === "" ? "none" : drawn}), taken again`,
-        );
+        step(`${what}: the armed read was not sent (${await situation()}), taken again`);
       }
       return fired;
     };
@@ -713,12 +733,30 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
         // Alt+P goes back to C. An autosave still running at the switch drops B instead (SR-212 AK5): then B is
         // not read, and the round is taken again.
         const left = ` left ${String(attempt)}`;
-        await window.locator(`${SHOWN} .cm-content`).first().click();
+        // Each step checked before the next, so a lost key fails here with what the window showed.
+        const editor = window.locator(`${SHOWN} .cm-content`).first();
+        await editor.click();
+        await seen(expect(editor).toBeFocused(), `B's editor focused, attempt ${String(attempt)}`);
         await window.keyboard.press("ControlOrMeta+End");
         await window.keyboard.type(left);
+        await seen(expect(editor).toContainText(left.trim()), `"${left.trim()}" typed in B`);
         await window.keyboard.press("Alt+KeyP");
+        // Alt+P left B: C shows, or already the element the armed Enter opened.
+        await seen(
+          expect.poll(() => shownTitle(window)).not.toBe(b.title),
+          `Alt+P away from B, attempt ${String(attempt)}`,
+        );
         const fired = await armedFired(`save of leaving, attempt ${String(attempt)}`);
-        await expect.poll(() => fs.readFile(fileOf(b), "utf8")).toContain(left.trim());
+        const saved = await expect
+          .poll(() => fs.readFile(fileOf(b), "utf8"))
+          .toContain(left.trim())
+          .then(() => true)
+          .catch(() => false);
+        if (!saved) {
+          throw new Error(
+            `save of leaving, attempt ${String(attempt)}: "${left.trim()}" not saved (${await situation()})`,
+          );
+        }
         if (fired === undefined) {
           await expect.poll(() => shownTitle(window)).toBe(c.title);
           continue;
