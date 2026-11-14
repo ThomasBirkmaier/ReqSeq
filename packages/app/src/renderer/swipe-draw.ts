@@ -70,6 +70,16 @@ export class SwipeDraw {
     }
   }
 
+  /**
+   * The buffers drawn beside the shown one are `keys`: a draw whose buffer is not among them any more (the
+   * other area shows it, or it was dropped for another reason) ends, so its promise settles.
+   */
+  beside(keys: readonly string[]): void {
+    if (this.wanted !== undefined && !keys.includes(this.wanted.key)) {
+      this.end();
+    }
+  }
+
   /** The swipe ended: the buffer is drawn in advance again only by the rules of SR-212 AK5. */
   end(): void {
     if (this.wanted === undefined) {

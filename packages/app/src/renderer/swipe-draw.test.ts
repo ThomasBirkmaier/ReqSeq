@@ -57,6 +57,18 @@ describe("SwipeDraw", () => {
     swipe.open([]);
   });
 
+  it("gives up when its buffer is no longer drawn beside the shown one", async () => {
+    const swipe = new SwipeDraw();
+    swipe.attach(host());
+    const drawn = swipe.draw("a");
+    swipe.beside(["a", "b"]);
+    expect(swipe.key).toBe("a");
+    swipe.beside(["b"]);
+    await expect(drawn).resolves.toBe(false);
+    expect(swipe.key).toBeUndefined();
+    swipe.beside([]);
+  });
+
   it("draws nothing for a window that never attached", async () => {
     const swipe = new SwipeDraw();
     const drawn = swipe.draw("a");

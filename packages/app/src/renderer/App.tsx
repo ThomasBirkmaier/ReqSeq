@@ -13,6 +13,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { flushSync } from "react-dom";
 import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
@@ -56,8 +57,10 @@ import { COMMAND_SHORTCUT, isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
-import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
-import { SlideController, directionOf, shownLayer } from "./buffer-slide.js";
+import { NO_WALK, cycleKey, cycleOrder } from "./buffer-cycle.js";
+import { SlideController, directionOf, motionAllowed, shownLayer } from "./buffer-slide.js";
+import type { SwipeWay } from "./buffer-swipe.js";
+import { useWheelSwipe } from "./use-wheel-swipe.js";
 import { SwipeDraw } from "./swipe-draw.js";
 import { bufferSwitchBlocked } from "./buffer-switch.js";
 import type { PackageModel } from "./package-page.js";
@@ -751,6 +754,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     buffers,
     dropped,
     swiped,
+    layout.other,
   );
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
@@ -1222,7 +1226,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // Back and Forward (SR-163 AK4): what the mouse button does, read from refs as `onMouse` does. It ends a
   // running slide first, as a key does (SR-212 AK2), also when it then switches nothing; it switches nothing
   // in the states of `bufferSwitchBlocked` and closes none of them; a waiting prefix key ends, as a press of a
-  // mouse button ends it. Wheel events are not read, so a wheel that still coasts changes nothing.
+  // mouse button ends it. It does not ask the swipe of the wheel (`useWheelSwipe` below), so it switches also
+  // while a wheel still coasts.
   const prefixCardShown = prefix.cardShown;
   const cancelPrefix = prefix.cancel;
   useEffect(
@@ -1251,6 +1256,55 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }),
     [bridge, slides, contextMenu.isOpen, prefixCardShown, cancelPrefix],
   );
+  // A horizontal swipe on the trackpad, or the horizontal mouse wheel, switches as Alt+P and Alt+N do (SR-211,
+  // `buffer-swipe.ts`): not in the states of `bufferSwitchBlocked`, without a workspace or without another
+  // buffer. A swipe ends a running slide once it is a swipe (SR-212 AK2) and draws the buffer it would switch
+  // to (SR-211 AK3, `swipe-draw.ts`), unless the other area shows it or nothing moves. The switch and the end
+  // of the draw go into one commit, so the drawn layer becomes the shown one without being drawn again.
+  const otherNow = useRef(layout.other);
+  otherNow.current = layout.other;
+  useWheelSwipe(sheet, {
+    blocked: () => {
+      const now = latest.current;
+      return (
+        !now.workspace ||
+        mouseButtonAction(now, 3) === undefined ||
+        bufferSwitchBlocked(
+          {
+            switching: switchingNow.current,
+            prompting: openPrompt.current !== undefined,
+            contextMenu: contextMenu.isOpen(),
+            about: aboutOpen.current,
+            nextKeys: prefixCardShown(),
+          },
+          document,
+        )
+      );
+    },
+    closedMenu: contextMenu.closedBy,
+    begin: (way: SwipeWay) => {
+      slides.interrupt();
+      const now = latest.current;
+      const target = cycleKey(now.cycleOrder, now.buffers[0]?.key, way === "back" ? 1 : -1);
+      if (target !== undefined && target !== otherNow.current && motionAllowed(window)) {
+        void swipe.draw(target);
+      }
+    },
+    switch: (way: SwipeWay) => {
+      const now = latest.current;
+      const action = mouseButtonAction(now, way === "back" ? 3 : 4);
+      cancelPrefix();
+      flushSync(() => {
+        if (action !== undefined) {
+          runAction(action, now);
+        }
+        swipe.end();
+      });
+    },
+    end: () => {
+      swipe.end();
+    },
+  });
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -1336,6 +1390,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   useEffect(() => {
     swipe.open(buffers.map((buffer) => buffer.key));
   }, [swipe, buffers]);
+  // A draw for a swipe whose buffer is no longer beside the shown one ends, so it settles (SR-211 AK3).
+  const besideKeys = neighbours.map(({ buffer }) => buffer.key).join("\n");
+  useEffect(() => {
+    swipe.beside(besideKeys.split("\n"));
+  }, [swipe, besideKeys]);
   // What a buffer that no area shows any more loaded goes: shown again, it loads again. A buffer drawn in
   // advance keeps it, so the modeline has it when the buffer is shown.
   const shownKeys = [

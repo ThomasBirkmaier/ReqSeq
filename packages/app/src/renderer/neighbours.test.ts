@@ -55,7 +55,7 @@ describe("the buffers drawn in advance", () => {
     expect(neighbourBuffers([], [], undefined, PACKAGES)).toEqual([]);
   });
 
-  it("leave out those dropped, and add the buffer a swipe draws, also a dropped one, never the shown one", () => {
+  it("leave out those dropped, and add the buffer a swipe draws, also a dropped one, never the shown or the other area's one", () => {
     const need = typed("n", "need");
     const around = neighbourhoodBuffer("n", "spec", "n");
     const list = filteredList([]);
@@ -71,5 +71,7 @@ describe("the buffers drawn in advance", () => {
     ]);
     expect(withSwipe(besides, buffers, new Set(), need.key)).toEqual(besides);
     expect(withSwipe(besides, buffers, new Set(), "closed")).toEqual(besides);
+    // The buffer the other area of a split window shows is not drawn for a swipe.
+    expect(withSwipe(besides, buffers, new Set([list.key]), list.key, list.key)).toEqual([besides[0]]);
   });
 });

@@ -345,6 +345,24 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     );
     await window.keyboard.press("Escape");
     await slideSettled(window);
+    // A swipe of the trackpad or the wheel (SR-211) during a slide ends it once it is a swipe, and walks on from
+    // the new buffer.
+    await window.evaluate(() => {
+      (window as unknown as { held: Animation[] }).held.length = 0;
+    });
+    await window.keyboard.press("Alt+KeyN");
+    await expect.poll(held).toEqual(["paused", "paused"]);
+    const landed = (await shownBuffer(window).getAttribute("aria-label")) ?? "";
+    const area = await window.locator("[data-area][data-active]").boundingBox();
+    await window.mouse.move(
+      (area?.x ?? 0) + (area?.width ?? 0) / 2,
+      (area?.y ?? 0) + (area?.height ?? 0) / 2,
+    );
+    await window.mouse.wheel(0.6 * (area?.width ?? 0), 0);
+    await expect.poll(async () => (await held()).slice(0, 2)).toEqual(["idle", "idle"]);
+    await expect(shownBuffer(window)).not.toHaveAttribute("aria-label", landed);
+    await window.keyboard.press("Escape");
+    await slideSettled(window);
     // Nothing was typed into the element: its text in the app and on disk is as before.
     await open(window, ELEMENT);
     await expect(shownLayer(window).locator(".cm-content")).not.toContainText("zz");
