@@ -15,6 +15,7 @@ import {
   perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
+  withGroup,
   withQuery,
 } from "./buffers.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
@@ -26,6 +27,7 @@ import { isWindows } from "./keys.js";
 import {
   NO_SHOWN_FILTER,
   NO_SHOWN_SORT,
+  SHOWN_GROUP,
   catalogItems,
   contextField,
   fits,
@@ -1077,32 +1079,6 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
     ],
   };
 
-  /** Answers `text` to the prompt of `field` of `name`, asked first; resolves the input. */
-  const typedInput = async (name: string, field: string, text: string): Promise<unknown> => {
-    const { context, asked, call } = setup([shown], {
-      "element.search": () => ({ hits: [hit(1)], total: 1 }),
-      "metamodel.get": () => CREATE_METAMODEL,
-      "element.create": () => ({
-        element: { ...hit(9), properties: {}, relations: [] },
-        files: [],
-        problems: [],
-      }),
-    });
-    catalogItems(context, [only(name, field)], [])[0]?.run();
-    const prompt = await last(asked);
-    expect(prompt.label).toBe(`Ask it · ${field}:`);
-    prompt.text?.(text);
-    // A list takes one value per Enter; Enter on an empty input ends it.
-    if (
-      (command(name).input as { properties: Record<string, { type?: unknown }> }).properties[field]?.type ===
-      "array"
-    ) {
-      (await last(asked)).empty?.(false);
-    }
-    await flush();
-    return call.mock.calls.at(-1)?.[1][field];
-  };
-
   it("lists the new sources on the arguments the plan names, and a meaning only on element arguments", () => {
     const named = CATALOG.flatMap((entry) =>
       entry.arguments
@@ -1142,16 +1118,6 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
         "workspace.init metamodel metamodelLocation",
       ].sort(),
     );
-  });
-
-  it.each([
-    // The sources of #1647 and #1648 stay as they were: a grouping as text, the composed values as JSON.
-    ["element.list", "group", "status", "status"],
-    ["perspective.save", "group", "{not json", "{not json"],
-    ["element.create", "properties", '{"severity":2}', { severity: 2 }],
-    ["element.create", "relations", '{"refines":"N-1"}', { refines: "N-1" }],
-  ])("asks %s %s as its old source did: %s", async (name, field, text, value) => {
-    expect(await typedInput(name, field, text)).toEqual(value);
   });
 
   it("[SR-215/AK-fj75] shows types, statuses, properties, relation kinds and choices by name with the key beside", async () => {
@@ -1814,8 +1780,8 @@ describe('"Create element": the required properties asked in the command line (S
     (await last(decision.asked)).text?.("Use wind");
     await flush();
     expect(decision.call).toHaveBeenLastCalledWith("element.create", { type: "decision", title: "Use wind" });
-    // With Ctrl/Cmd+Enter on the title its optional arguments follow, never `properties`; the
-    // relations of the new element are one of them (#175).
+    // Only with Ctrl/Cmd+Enter on the title its optional arguments follow: the other properties and the
+    // relations of the new element among them (SR-215 AK8).
     const more = creating();
     start(more.context, "element.create");
     item((await last(more.asked)).items, "Decision").run();
@@ -1823,6 +1789,7 @@ describe('"Create element": the required properties asked in the command line (S
     expect((await last(more.asked)).items.map((i) => i.name)).toEqual([
       "Run",
       "text",
+      "properties",
       "relations",
       "repository",
       "folder",
@@ -1918,8 +1885,15 @@ describe('"Create element": the required properties asked in the command line (S
     scope.empty?.(false);
     const more = await last(asked);
     expect(more.label).toBe("Create element Note On wind SR-000004 · more arguments:");
-    // The other properties are added in the element buffer, not as `properties` here.
-    expect(more.items.map((i) => i.name)).toEqual(["Run", "text", "relations", "repository", "folder"]);
+    // The other properties are offered as `properties` (SR-215 AK8).
+    expect(more.items.map((i) => i.name)).toEqual([
+      "Run",
+      "text",
+      "properties",
+      "relations",
+      "repository",
+      "folder",
+    ]);
     item(more.items, "Run").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.create", {
@@ -2105,6 +2079,248 @@ describe('"Create element": the required properties asked in the command line (S
       type: "decision",
       title: "Wind gusts",
     });
+  });
+});
+
+describe('"Create element": the other properties and the relations built from marks (SR-215 AK8)', () => {
+  const created = (input: Record<string, unknown>) => ({
+    element: { ...hit(9), type: input["type"], title: input["title"], properties: {}, relations: [] },
+    files: ["f9.md"],
+    problems: [],
+  });
+
+  /**
+   * "Create element" of a Software Requirement titled "Wind" with Ctrl/Cmd+Enter, its required `component`
+   * skipped (or answered `component`), at the optional argument `field`; resolves the first step.
+   */
+  const atBuilt = async (
+    field: string,
+    component?: string,
+    answers: Record<string, (input: Record<string, unknown>) => Answer> = {},
+  ) => {
+    const running = setup([overviewBuffer()], {
+      "metamodel.get": () => CREATE_METAMODEL,
+      "element.create": created,
+      "element.search": () => ({ hits: [hit(4), hit(5)], total: 2 }),
+      ...answers,
+    });
+    const { context, asked } = running;
+    start(context, "element.create");
+    item((await last(asked)).items, "Software Requirement").run();
+    (await last(asked)).more?.("Wind");
+    const required = await last(asked);
+    if (component === undefined) {
+      required.empty?.(true);
+    } else {
+      item(required.items, component).more?.();
+    }
+    item((await last(asked)).items, field).run();
+    return { ...running, first: await last(asked) };
+  };
+
+  const names = (prompt: Prompt): string[] =>
+    prompt.items.map((choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`);
+  const markLabels = (prompt: Prompt): string[] => (prompt.marks ?? []).map((mark) => mark.label);
+
+  it("[SR-215/AK-tn9x] [SR-215/AK-hnzf] [SR-210/AK-t8sc] offers the properties of the type without a value, a skipped required one too, then their values; each property with its values is one mark", async () => {
+    const { asked, call, first } = await atBuilt("properties");
+    expect(first.label).toBe("Create element Software Requirement Wind · properties:");
+    expect(first.explain?.building).toEqual({ enter: "takes the marked hit", unmark: false, json: false });
+    // By name with the key beside; never the title.
+    expect(names(first)).toEqual([
+      "No properties",
+      "Rationale | rationale",
+      "Package | packages",
+      "Component | component",
+    ]);
+    item(first.items, "Component").run();
+    const component = await last(asked);
+    expect(component.label).toBe("Create element Software Requirement Wind · properties · component:");
+    expect(names(component)).toEqual(["Display | display", "Sensor | sensor"]);
+    item(component.items, "Display").run();
+    // A list takes one value per Enter, in the same mark.
+    const more = await last(asked);
+    expect(markLabels(more)).toEqual(["component: Display"]);
+    expect(names(more)).toEqual(["Sensor | sensor"]);
+    item(more.items, "Sensor").run();
+    (await last(asked)).empty?.(false);
+    const second = await last(asked);
+    expect(markLabels(second)).toEqual(["component: Display, Sensor"]);
+    expect(second.explain?.building?.unmark).toBe(true);
+    expect(names(second)).toEqual(["Take 1 property", "Rationale | rationale", "Package | packages"]);
+    item(second.items, "Rationale").run();
+    (await last(asked)).text?.("Gusts break masts");
+    item((await last(asked)).items, "Package").run();
+    (await (await last(asked)).find?.("pkg"))?.[0]?.run();
+    // The explanation line names the keys of the step (SR-210 AK2).
+    expect((await last(asked)).explain?.building?.enter).toBe(
+      "adds a value, on an empty input ends the values",
+    );
+    (await last(asked)).empty?.(false);
+    const third = await last(asked);
+    expect(markLabels(third)).toEqual([
+      "component: Display, Sensor",
+      "rationale: Gusts break masts",
+      "packages: SR-000004",
+    ]);
+    expect(names(third)).toEqual(["Take 3 properties"]);
+    item(third.items, "Take 3 properties").run();
+    const run = await last(asked);
+    expect(run.label).toBe(
+      "Create element Software Requirement Wind component: Display, Sensor · rationale: Gusts break masts · packages: SR-000004 · more arguments:",
+    );
+    // The properties built from marks are not offered again.
+    expect(run.items.map((choice) => choice.name)).not.toContain("properties");
+    item(run.items, "Run").run();
+    await flush();
+    // Each entry with its value, as the command line takes it (AK10).
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "software-requirement",
+      title: "Wind",
+      properties: {
+        component: ["display", "sensor"],
+        rationale: "Gusts break masts",
+        packages: [{ id: "uuid-4", repository: "spec" }],
+      },
+    });
+  });
+
+  it("[SR-215/AK-tn9x] [SR-215/AK-hnzf] offers the relation kinds the type may have as source, then the elements of their target types; each relation is one mark", async () => {
+    const { asked, call, first } = await atBuilt("relations");
+    expect(first.label).toBe("Create element Software Requirement Wind · relations:");
+    expect(names(first)).toEqual([
+      "No relations",
+      "Derives from | derives-from",
+      "Replaces | replaces",
+      "Delegates to | delegates-to",
+      "Based on | based-on",
+      "Concerns | concerns",
+      "Refines | refines",
+    ]);
+    item(first.items, "Derives from").run();
+    const target = await last(asked);
+    expect(target.label).toBe("Create element Software Requirement Wind · relations · derives-from:");
+    const found = await target.find?.("tit");
+    expect(call.mock.lastCall?.[1]).toMatchObject({
+      selection: { where: { type: ["requirement", "software-requirement"] } },
+    });
+    found?.[0]?.run();
+    item((await last(asked)).items, "Derives from").run();
+    (await (await last(asked)).find?.("tit"))?.[1]?.run();
+    item((await last(asked)).items, "Based on").run();
+    (await (await last(asked)).find?.("tit"))?.[0]?.run();
+    const taken = await last(asked);
+    expect(markLabels(taken)).toEqual([
+      "derives-from: SR-000004",
+      "derives-from: SR-000005",
+      "based-on: SR-000004",
+    ]);
+    item(taken.items, "Take 3 relations").run();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    // A kind with several targets as a list, with one as its reference (AK10).
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "software-requirement",
+      title: "Wind",
+      relations: { "derives-from": ["uuid-4", "uuid-5"], "based-on": "uuid-4" },
+    });
+  });
+
+  it("[SR-215/AK-fm4s] the finishing hit is marked first: without a mark it skips the argument, with marks it takes them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+    const { asked, call, first } = await atBuilt("relations");
+    expect(first.items[0]?.name).toBe("No relations");
+    first.items[0]?.run();
+    const skipped = await last(asked);
+    expect(skipped.label).toBe("Create element Software Requirement Wind · more arguments:");
+    item(skipped.items, "properties").run();
+    item((await last(asked)).items, "Rationale").run();
+    (await last(asked)).text?.("Gusts");
+    const marked = await last(asked);
+    expect(marked.items[0]?.name).toBe("Take 1 property");
+    // With a mark, Ctrl/Cmd+Enter on any hit takes the marks.
+    item(marked.items, "Package").more?.();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "software-requirement",
+      title: "Wind",
+      properties: { rationale: "Gusts" },
+    });
+  });
+
+  it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark where the property or kind is chosen; Escape keeps the marks, which stand again", async () => {
+    const { asked, first } = await atBuilt("relations");
+    expect(first.unmark).toBe(true);
+    item(first.items, "Based on").run();
+    const target = await last(asked);
+    // Choosing the target: Backspace and Escape go back to the kinds, no mark goes.
+    expect(target.unmark).toBeUndefined();
+    target.back?.();
+    item((await last(asked)).items, "Based on").run();
+    (await (await last(asked)).find?.("tit"))?.[0]?.run();
+    item((await last(asked)).items, "Refines").run();
+    (await (await last(asked)).find?.("tit"))?.[1]?.run();
+    const two = await last(asked);
+    expect(markLabels(two)).toEqual(["based-on: SR-000004", "refines: SR-000005"]);
+    two.marks?.[0]?.remove();
+    const one = await last(asked);
+    expect(markLabels(one)).toEqual(["refines: SR-000005"]);
+    // Escape goes back an argument (the property skipped last) with the marks, which stand again later.
+    one.back?.();
+    const skipped = await last(asked);
+    expect(skipped.label).toBe("Create element Software Requirement Wind · component:");
+    skipped.empty?.(true);
+    item((await last(asked)).items, "relations").run();
+    expect(markLabels(await last(asked))).toEqual(["refines: SR-000005"]);
+    // Back to the type: the marks go with it, a new type has other kinds.
+    for (let at = 0; at < 3; at += 1) {
+      (await last(asked)).back?.();
+    }
+    item((await last(asked)).items, "Decision").run();
+    (await last(asked)).more?.("Wind");
+    item((await last(asked)).items, "relations").run();
+    expect(markLabels(await last(asked))).toEqual([]);
+  });
+
+  it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] at a property's values Escape goes back to the properties with the values given so far; an × removes a mark in each step", async () => {
+    const { asked, first } = await atBuilt("properties");
+    item(first.items, "Component").run();
+    item((await last(asked)).items, "Display").run();
+    const values = await last(asked);
+    expect(values.unmark).toBeUndefined();
+    values.back?.();
+    const properties = await last(asked);
+    expect(properties.label).toBe("Create element Software Requirement Wind · properties:");
+    expect(markLabels(properties)).toEqual(["component: Display"]);
+    // An empty text adds nothing; an × in a later step removes the mark and asks the first step.
+    item(properties.items, "Rationale").run();
+    (await last(asked)).text?.(" ");
+    item((await last(asked)).items, "Rationale").run();
+    (await last(asked)).marks?.[0]?.remove();
+    const none = await last(asked);
+    expect(none.label).toBe("Create element Software Requirement Wind · properties:");
+    expect(markLabels(none)).toEqual([]);
+  });
+
+  it("[SR-215/AK-rx2z] a property core refuses is asked again with its message and the marks back", async () => {
+    let refuse = true;
+    const { asked, call, first } = await atBuilt("properties", undefined, {
+      "element.create": (input) =>
+        refuse ? refusedWith("Too long", { key: "rationale", value: "Gusts" }) : created(input),
+    });
+    item(first.items, "Rationale").run();
+    (await last(asked)).text?.("Gusts");
+    item((await last(asked)).items, "Take 1 property").run();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    const again = await last(asked);
+    expect(again.label).toBe("Too long · Create element Software Requirement Wind · properties:");
+    expect(markLabels(again)).toEqual(["rationale: Gusts"]);
+    refuse = false;
+    item(again.items, "Take 1 property").run();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call.mock.lastCall?.[1]).toMatchObject({ properties: { rationale: "Gusts" } });
   });
 });
 
@@ -4079,5 +4295,195 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
       ...KEYS.slice(0, 5),
       "Workspace order",
     ]);
+  });
+});
+
+describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const FACETS = {
+    total: 3,
+    types: [],
+    statuses: [{ key: "draft", count: 2 }],
+    properties: [
+      {
+        key: "component",
+        name: "Component",
+        kind: "choice",
+        count: 2,
+        missing: 1,
+        distinct: 1,
+        values: [{ value: "display", name: "Display", count: 2 }],
+      },
+      {
+        key: "packages",
+        name: "Packages",
+        kind: "relation",
+        count: 1,
+        missing: 2,
+        distinct: 1,
+        values: [{ value: "PKG-1", count: 1 }],
+      },
+      { key: "rationale", name: "Rationale", kind: "text", count: 3, missing: 0, distinct: 3 },
+    ],
+  };
+  const PERSPECTIVE = { name: "Mine", file: "perspectives/mine.yaml", where: { status: ["draft"] } };
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => FACETS,
+    "filter.list": () => ({ filters: [{ name: "open needs", file: "f.yaml", where: {} }], problems: [] }),
+    "perspective.list": () => ({
+      perspectives: [PERSPECTIVE, { ...PERSPECTIVE, name: "Other", filter: "x" }],
+    }),
+    "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+  };
+
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
+    }
+    await flush();
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map(
+      (choice) => `${choice.name}${choice.hint === undefined ? "" : ` | ${choice.hint}`}`,
+    );
+
+  const facetCalls = (call: ReturnType<typeof setup>["call"]): unknown[] =>
+    call.mock.calls.filter(([name]) => name === "element.facets").map(([, input]) => input);
+
+  /** "Save perspective rain" with the condition type Decision, asked up to its grouping, `filter` given first. */
+  const atGroup = async (
+    buffers: Buffers = [shown],
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+    filter = false,
+    beforeGroup = (): void => undefined,
+  ) => {
+    const run = setup(buffers, { ...answers, ...extra });
+    start(run.context, "perspective.save", true);
+    (await last(run.asked)).text?.("rain");
+    await choose(run.asked, "Type", "Decision");
+    item((await last(run.asked)).items, "Take 1 condition").more?.();
+    if (filter) {
+      await choose(run.asked, "filter");
+      item((await last(run.asked)).items, "open needs").more?.();
+    }
+    const before = facetCalls(run.call).length;
+    beforeGroup();
+    await choose(run.asked, "group");
+    return { ...run, before };
+  };
+
+  it("[SR-215/AK-fj75] offers type, status, package and the properties with values of the elements where and filter select, by name with the key beside, from one element.facets", async () => {
+    const { asked, call, before } = await atGroup([shown], {}, true);
+    expect((await last(asked)).label).toBe("Save perspective rain type: decision open needs · group:");
+    // Not the property of the packages, which "Package" groups by, nor free text.
+    expect(await names(asked)).toEqual([
+      "Type | type",
+      "Status | status",
+      "Package | package",
+      "Component | component",
+    ]);
+    const facets = facetCalls(call).slice(before);
+    expect(facets).toHaveLength(1);
+    await choose(asked, "Component", "Run");
+    const [name, saved] = call.mock.calls.at(-1) ?? [];
+    expect(name).toBe("perspective.save");
+    expect(saved).toMatchObject({ name: "rain", filter: "open needs", group: "component" });
+    expect(facets[0]).toEqual({ selection: { where: saved?.["where"], filter: "open needs" } });
+  });
+
+  it("[SR-215/AK-fj75] a refused where drops the grouping read from it; a filter, which reads nothing, stays", async () => {
+    const refusal = refusedWith("where: unknown type", { errors: [{ field: "where" }] });
+    const { asked, call } = await atGroup([shown], { "perspective.save": () => refusal }, true);
+    await choose(asked, "Status", "Run");
+    expect(call).toHaveBeenLastCalledWith("perspective.save", expect.objectContaining({ group: "status" }));
+    expect((await last(asked)).label).toBe("where: unknown type · Save perspective rain open needs · where:");
+    item((await last(asked)).items, "Take 1 condition").run();
+    await flush();
+    const more = (await last(asked)).items.map((choice) => choice.name);
+    expect(more).toContain("group");
+    expect(more).not.toContain("filter");
+  });
+
+  it("[SR-215/AK-fj75] of a list command, the groupings of the shown selection and the perspective's, whose saved filter counts where the list has none", async () => {
+    const list = filteredList([savedStep("Sensors"), typeStep("need")]);
+    const listed: CommandListing = { ...command("element.list"), title: "Ask it" };
+    const ofList = async (buffers: Buffers, perspective: string) => {
+      const run = setup(buffers, answers);
+      catalogItems(run.context, [listed], [])[0]?.more?.();
+      await choose(run.asked, "perspective");
+      item((await last(run.asked)).items, perspective).more?.();
+      await choose(run.asked, "group");
+      return facetCalls(run.call).at(-1);
+    };
+    expect(await ofList([list], "Other")).toEqual({
+      selection: { filter: "Sensors", where: { all: [list.selection?.where, PERSPECTIVE.where] } },
+    });
+    expect(await ofList([shown], "Other")).toEqual({ selection: { where: PERSPECTIVE.where, filter: "x" } });
+    // Without a selection: every element.
+    const bare = setup([shown], answers);
+    catalogItems(bare.context, [listed], [])[0]?.more?.();
+    await choose(bare.asked, "group");
+    expect(facetCalls(bare.call).at(-1)).toEqual({});
+  });
+
+  it("says why when the perspective or the facets cannot be read, and offers no Package without a property of the packages", async () => {
+    const listed: CommandListing = { ...command("element.list"), title: "Ask it" };
+    let faultyFiles = false;
+    const run = setup([shown], {
+      ...answers,
+      "perspective.list": () =>
+        faultyFiles ? new Error("The perspectives are faulty") : answers["perspective.list"](),
+    });
+    catalogItems(run.context, [listed], [])[0]?.more?.();
+    await choose(run.asked, "perspective");
+    item((await last(run.asked)).items, "Mine").more?.();
+    faultyFiles = true;
+    await choose(run.asked, "group");
+    expect((await last(run.asked)).label).toBe("The perspectives are faulty · Ask it Mine · group:");
+
+    const faulty = await atGroup([shown], { "element.facets": () => new Error("The facets failed") });
+    expect((await last(faulty.asked)).label).toBe(
+      "The facets failed · Save perspective rain type: decision · group:",
+    );
+    let broken = false;
+    const bare = await atGroup(
+      [shown],
+      { "metamodel.get": () => (broken ? new Error("faulty") : FIXTURE_METAMODEL) },
+      false,
+      () => {
+        broken = true;
+      },
+    );
+    expect(await names(bare.asked)).toEqual([
+      "Type | type",
+      "Status | status",
+      "Component | component",
+      "Packages | packages",
+    ]);
+  });
+
+  it("[SR-215/AK-w8q6] on a grouped list the grouping of the shown list is the first hit, and Enter takes the grouping Save list as perspective saves; the matrix, a search and a list without groups have none", async () => {
+    const list = withGroup(filteredList([typeStep("need")]), "component");
+    const grouped = await atGroup([list]);
+    expect((await names(grouped.asked))[0]).toBe(`${SHOWN_GROUP} | Component`);
+    await choose(grouped.asked, SHOWN_GROUP);
+    expect((await last(grouped.asked)).label).toBe(
+      "Save perspective rain type: decision Component · more arguments:",
+    );
+    await choose(grouped.asked, "Run");
+    expect(grouped.call).toHaveBeenLastCalledWith(
+      "perspective.save",
+      expect.objectContaining({ group: perspectiveInput(list, "rain").group }),
+    );
+    // A grouping no hit names is shown by its key.
+    const free = await atGroup([withGroup(filteredList([]), "rationale")]);
+    expect((await names(free.asked))[0]).toBe(`${SHOWN_GROUP} | rationale`);
+    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
+    const matrix = { ...filteredList([typeStep("need")], undefined, true), group: "status" };
+    for (const other of [filteredList([typeStep("need")]), matrix, search]) {
+      expect((await names((await atGroup([other])).asked))[0]).toBe("Type | type");
+    }
   });
 });

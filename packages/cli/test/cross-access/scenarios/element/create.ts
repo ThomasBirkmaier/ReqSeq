@@ -47,6 +47,26 @@ scenariosOf("element.create", [
     newElement: true,
   },
   {
+    name: "the properties and relations the command prompt builds from marks: each entry with its value, the same file by every access but the UUID (SR-215 AK10)",
+    tag: "[SR-215/AK-hnzf]",
+    fixture: FILTER,
+    input: {
+      type: "system-requirement",
+      title: "Survive gusts",
+      properties: {
+        "requirement-type": "functional",
+        rationale: "Gusts break masts",
+        packages: [{ id: "69069069-0000-4000-8000-0000000000d1", repository: "system" }],
+      },
+      relations: {
+        "derives-from": ["69069069-0000-4000-8000-0000000000a1", "69069069-0000-4000-8000-0000000000a2"],
+        "based-on": "69069069-0000-4000-8000-0000000000e1",
+      },
+    },
+    expect: "output",
+    newElement: true,
+  },
+  {
     name: "a variant is an element file of type variant in the workspace of the core",
     fixture: { fixture: "SR-040/validity", git: true },
     input: { type: "variant", title: "Valley" },

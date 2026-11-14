@@ -2,16 +2,22 @@
 // required property of the type in turn in the minibuffer; an empty input skips one. The new element opens
 // with its title, its text and the properties that were given (D-062: an empty property shows no box), the
 // minibuffer and the modeline count core's hints, and after reopening "Add property" offers every other
-// property of the type. Each result is compared with the CLI and the file of the workspace (SR-080).
+// property of the type. Each result is compared with the CLI and the file of the workspace (SR-080). With
+// Ctrl/Cmd+Enter the other properties and the relations are built from marks, and the file is the one the
+// command line writes for the same entries but the UUID (SR-215 AK8, AK10).
 // Keys use ControlOrMeta (Linux and macOS).
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
+const SHOTS =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 const TYPE = "system-requirement";
 const TITLE = "Böen anzeigen";
 
@@ -36,6 +42,15 @@ interface Metamodel {
 }
 
 const label = (window: Page): Locator => window.getByLabel("Minibuffer").locator("label");
+const marked = (window: Page): Locator => window.locator('.candidates [aria-selected="true"] .name');
+const marks = (window: Page): Locator => window.getByRole("list", { name: "Marks" }).getByRole("listitem");
+
+/** Types `text` and takes the hit it marks, which must contain `name`. */
+const pick = async (window: Page, text: string, name: string): Promise<void> => {
+  await window.keyboard.type(text);
+  await expect(marked(window)).toContainText(name);
+  await window.keyboard.press("Enter");
+};
 const echo = (window: Page): Locator => window.getByLabel("Minibuffer");
 const modeline = (window: Page): Locator => window.getByLabel("Modeline");
 const names = (window: Page): Promise<string[]> =>
@@ -211,5 +226,60 @@ test.describe("Create element", () => {
       .poll(async () => (await created(running)).element.properties["verification-method"])
       .toBe("test");
     expect(await fileOf(running, await created(running))).toContain("verification-method: test");
+  });
+  test("[SR-215/AK-tn9x] [SR-215/AK-hnzf] with Ctrl/Cmd+Enter builds the other properties and the relations from marks, and the file is the one the command line writes but the UUID", async () => {
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "Create element", "Create element");
+    await pick(window, "System Requirement", "System Requirement");
+    await window.keyboard.type(TITLE);
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await pick(window, "perf", "Performance");
+    await expect(label(window)).toContainText("· acceptance-criteria:");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label(window)).toContainText("· more arguments:");
+    await pick(window, "properties", "properties");
+    await expect(marked(window)).toHaveText("No properties");
+    // The skipped required property is offered, the one given a value not.
+    await expect.poll(() => names(window)).toContain("Acceptance Criteria");
+    expect(await names(window)).not.toContain("Requirement Type");
+    // Nor the origin, which only reqif.import writes (SR-057).
+    expect(await names(window)).not.toContain("Source");
+    await pick(window, "Verification", "Verification Method");
+    await pick(window, "test", "Test");
+    await pick(window, "Rationale", "Rationale");
+    await window.keyboard.type("Masts");
+    await window.keyboard.press("Enter");
+    await pick(window, "Package", "Package");
+    await pick(window, "Sensors", "Sensors");
+    await window.keyboard.press("Enter"); // ends the list
+    await expect(marks(window)).toHaveText([
+      "verification-method: Test×",
+      "rationale: Masts×",
+      "packages: PKG-0000d1×",
+    ]);
+    await expect(marked(window)).toHaveText("Take 3 properties");
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.emulateMedia({ colorScheme: "light" });
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-create-element-light.png") });
+    await expect.poll(() => names(window)).toContain("Acceptance Criteria");
+    await window.keyboard.press("Enter");
+    await pick(window, "relations", "relations");
+    await pick(window, "Derives from", "Derives from");
+    await pick(window, "See the wind", "See the wind");
+    await expect(marks(window)).toHaveText(["derives-from: N-0000a1×"]);
+    await expect.poll(() => names(window)).toContain("Refines");
+    await expect(marked(window)).toHaveText("Take 1 relation");
+    await window.keyboard.press("Enter");
+    await pick(window, "Run", "Run");
+    await expect(window.locator("article h1")).toHaveText(TITLE);
+    const got = await created(running);
+    const fromApp = (await fileOf(running, got)).replaceAll(got.element.id, "<id>");
+    // The command line with the same entries writes the same file but the UUID (AK10).
+    const uuid = "69069069-0000-4000-8000-0000000000";
+    const entries = `--set requirement-type=performance --set verification-method=test --set rationale=Masts --set packages=[{"id":"${uuid}d1","repository":"system"}] --relations derives-from=${uuid}a1`;
+    const cli = await cliJson<Got>(running, ["element", "create", TYPE, TITLE, ...entries.split(" ")]);
+    expect((await fileOf(running, cli)).replaceAll(cli.element.id, "<id>")).toBe(fromApp);
   });
 });

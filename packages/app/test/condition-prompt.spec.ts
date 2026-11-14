@@ -2,8 +2,8 @@
 // AK5, AK6, AK7, AK9, AK10, SR-134 AK4, SR-210 AK2): "Save filter" asks its `where` as kinds and their values,
 // each chosen condition a mark in the input; Backspace and the × of a mark remove it; text that starts with "{"
 // is one condition in JSON; the finishing hit saves the file the command line writes for the same input. On a
-// filtered list, "Save perspective" takes the list's conditions with Enter, Enter, and on a sorted list its sort,
-// each key then "Order", as "Save list as perspective" does. The
+// filtered list, "Save perspective" takes the list's conditions with Enter, Enter, on a sorted list its sort,
+// each key then "Order", and on a grouped list its grouping (AK1, AK5), as "Save list as perspective" does. The
 // light screenshots go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS). Keys use
 // ControlOrMeta, so the same test runs on Linux, macOS and Windows.
 import fsp from "node:fs/promises";
@@ -245,5 +245,55 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     ]);
     expect(cli.code).toBe(0);
     expect(await saved("Sorted")).toBe(fromApp);
+  });
+
+  test("[SR-215/AK-fj75] [SR-215/AK-w8q6] on a grouped list Save perspective offers the groupings by name with the key beside, the list's first, and the file is the one the command line writes", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "List all elements", "List all elements");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "Group list", "Group list");
+    // The groupings come with the facets of the list.
+    await expect(marked(window)).toHaveText("Type");
+    await pick(window, "Status", "Status");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "Save perspective", "Save perspective");
+    await window.keyboard.type("Grouped");
+    await window.keyboard.press("Enter");
+    await expect(marked(window)).toHaveText("No condition: all elements");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await pick(window, "group", "group");
+    await expect(label(window)).toHaveText("Save perspective Grouped all elements · group:");
+    // The grouping of the shown list is the first hit (AK5), then the groupings, each with its key (AK1).
+    await expect(marked(window)).toHaveText("Grouping of the shown list");
+    const hit = (name: string) =>
+      window.locator('.candidates [role="option"]').filter({ has: window.getByText(name, { exact: true }) });
+    await expect(hit("Grouping of the shown list").locator(".hint")).toHaveText("Status");
+    await expect(hit("Type").locator(".hint")).toHaveText("type");
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-group-light.png") });
+    await window.keyboard.press("Enter");
+    await expect(marked(window)).toHaveText("Run");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveCount(0);
+    const saved = async (name: string): Promise<string> => {
+      const listed = await running.cli(["perspective", "list"]);
+      const file = (
+        JSON.parse(listed.stdout) as { perspectives: { name: string; file: string }[] }
+      ).perspectives.find((perspective) => perspective.name === name)?.file;
+      return file === undefined ? "" : fsp.readFile(path.join(running.workspace?.root ?? "", file), "utf8");
+    };
+    await expect.poll(() => saved("Grouped")).toContain("status");
+    const fromApp = await saved("Grouped");
+    const cli = await running.cli([
+      "perspective",
+      "save",
+      "Grouped",
+      "--where",
+      JSON.stringify({ all: [] }),
+      "--group",
+      "status",
+    ]);
+    expect(cli.code).toBe(0);
+    expect(await saved("Grouped")).toBe(fromApp);
   });
 });

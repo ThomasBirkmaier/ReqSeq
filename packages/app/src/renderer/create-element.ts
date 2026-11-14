@@ -3,8 +3,8 @@
 // minibuffer (no form, D-062); an empty input skips a property (`catalog-commands.ts`). Core creates the
 // element with what was given and saves it also with empty required properties, with a hint for each
 // (AK2). The element buffer then shows only the filled properties (D-062, SR-104 AK1), the modeline counts
-// the hints, and "Add property" offers every other property of the type (AK3). These helpers only read
-// what `metamodel.get` and `element.create` give (ADR-0002).
+// the hints, and "Add property" offers every other property of the type (AK3); Ctrl/Cmd+Enter `create-prompt.ts`.
+// These helpers only read what `metamodel.get` and `element.create` give (ADR-0002).
 import type { ElementCreateOutput, ElementInputValue, MetamodelGetOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { PropertyInfo } from "./element-view.js";
