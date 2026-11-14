@@ -8,15 +8,16 @@
 //   text column (AK1). On a line that shows its source, the source stays and the image follows below the
 //   line (AK2).
 // - A destination on the network, a `data:` address, an absolute path or one that leaves the repository is
-//   never loaded: the source stays with a quiet note after it (AK3). An image that does not load (missing,
-//   no readable image) turns into the same note (AK4).
+//   never loaded: the source stays, with a note right after it in the same line that names the case, in the
+//   muted colour of secondary text and in smaller type than the source (AK3). An image that does not load
+//   (missing, no readable image) turns into its source with such a note (AK4). A note opens no dialog and
+//   moves no cursor, so typing goes on.
 //
 // Which destinations count follows the version rule of core (`model/images.ts` `imageLink`, ADR-0005
 // "Files"): an image the preview draws counts to the version, and one it notes as outside does not. It
 // leaves out what only the disk decides (the walk's skipped names and `ignore` globs, nested
-// repositories): such an image is drawn when the core process serves it. Assumption (spec question
-// #1100): "out of the workspace" in SR-184 AK3 is out of the element's repository, as
-// the version rule and SR-097 AK2 (the image is found on the Git server) have it.
+// repositories): such an image is drawn when the core process serves it. Out of the element's repository
+// is outside (SR-184 AK3), also when the path reaches another repository of the workspace.
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Extension, Range } from "@codemirror/state";
 import { StateEffect, StateField } from "@codemirror/state";
@@ -244,7 +245,7 @@ export const NOTE_TEXT: Readonly<Record<ImageNote, string>> = {
   unreadable: "not shown: file missing or not an image",
 };
 
-/** The quiet note after the source of an image that is not drawn. */
+/** The note right after the source of an image that is not drawn, in the muted colour and smaller type. */
 export class ImageNoteWidget extends WidgetType {
   readonly note: ImageNote;
 
