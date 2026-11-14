@@ -3,8 +3,9 @@
 // values (SR-064 AK1), or the relation kinds of the type (`relationKinds`), then a target. The value is per mark
 // what the CLI takes, properties as their boxes save them. Core checks the input (ADR-0002).
 import type { ElementInputValue, MetamodelGetOutput } from "@reqseq/core";
-import type { ActionContext, ArgumentExplanation, Choice, PromptFill, PromptMark } from "./actions.js";
+import type { Choice, PromptFill, PromptMark } from "./actions.js";
 import { findElements } from "./actions.js";
+import type { BuiltAsk } from "./catalog-entry.js";
 import type { PropertyAnswer } from "./create-element.js";
 import { propertiesInput } from "./create-element.js";
 import type { PropertyInfo } from "./element-view.js";
@@ -40,18 +41,10 @@ export interface RelationMark {
 }
 
 /** What the steps need from the argument entry (`catalog-commands.ts`). */
-export interface BuildAsk<M> {
-  readonly context: ActionContext;
-  readonly line: string;
-  readonly error?: string;
-  /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
-  readonly explain: ArgumentExplanation;
+export interface BuildAsk<M> extends BuiltAsk<M> {
   readonly type: unknown;
   /** The properties given a value before (the required ones): not offered. */
   readonly filled: readonly string[];
-  /** One argument back, with the marks, which stand again when the argument is asked again (AK9). */
-  readonly back: (marks: readonly M[]) => void;
-  readonly take: (marks: readonly M[], more: boolean) => void;
   /** The finishing hit without a mark: no value (AK4, AK10). */
   readonly skip: (more: boolean) => void;
   /** The metamodel, read once for the argument, so the hits of its later steps come at once. */
