@@ -1,6 +1,6 @@
-// The hold of a swipe's target (SR-212 AK5, `swipe-hold.ts`); on the built app `test/buffer-swipe.spec.ts`.
+// The hold of a swipe's target (SR-212 AK5, `swipe-hold.ts`); on the built app `test/buffer-neighbours.spec.ts`.
 import { expect, it } from "vitest";
-import { heldIn, releaseHold } from "./swipe-hold.js";
+import { heldIn, holdWhenShown, releaseHold } from "./swipe-hold.js";
 
 const HOLD = { side: "left", key: "two" };
 
@@ -15,4 +15,12 @@ it("only the area of the drag holds the target (SR-211 AK9)", () => {
   expect(heldIn(HOLD, "left")).toBe("two");
   expect(heldIn(HOLD, "right")).toBeUndefined();
   expect(heldIn(undefined, "left")).toBeUndefined();
+});
+
+it("[SR-212/AK-tfck] a held buffer shown with nothing moving toward it is held no longer; while a slide or drag moves, it stays held", () => {
+  expect(holdWhenShown(HOLD, "left", "two", false)).toBeUndefined();
+  expect(holdWhenShown(HOLD, "left", "two", true)).toBe(HOLD);
+  expect(holdWhenShown(HOLD, "left", "one", false)).toBe(HOLD);
+  expect(holdWhenShown(HOLD, "right", "two", false)).toBe(HOLD);
+  expect(holdWhenShown(undefined, "left", "two", false)).toBeUndefined();
 });

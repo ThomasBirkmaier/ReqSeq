@@ -52,7 +52,9 @@ const animate = function (this: Element, frames: Keyframe[], options: KeyframeAn
   return animation as unknown as Animation;
 };
 
-const host = (more: { busy?: (busy: boolean) => void; input?: () => void } = {}) => ({
+const host = (
+  more: { busy?: (busy: boolean) => void; input?: () => void; cancelled?: (target: string) => void } = {},
+) => ({
   view: window,
   root: () => document.body,
   ...more,
@@ -219,6 +221,26 @@ it("a spring-back of a drag that ended meanwhile calls nothing", async () => {
   await flush();
   expect(done).not.toHaveBeenCalled();
   expect(drag.of?.target).toBe("b");
+});
+
+it("a new drag tells which drag it ended, also one springing back, and also when it starts nothing itself", async () => {
+  const cancelled = vi.fn<(target: string) => void>();
+  const drag = new SwipeDrag(host({ cancelled }));
+  drag.start("left", "a", "c", "forward", true);
+  expect(cancelled).not.toHaveBeenCalled();
+  drag.move(100);
+  const done = vi.fn();
+  drag.springBack(done);
+  drag.start("left", "a", "b", "back", false);
+  await flush();
+  expect(done).not.toHaveBeenCalled();
+  expect(cancelled.mock.calls).toEqual([["c"]]);
+  // Without the area it starts nothing, but the drag before it ended all the same.
+  drag.start("right", "a", "c", "forward", true);
+  expect(drag.active).toBe(false);
+  expect(cancelled.mock.calls).toEqual([["c"], ["b"]]);
+  drag.start("right", "a", "c", "forward", true);
+  expect(cancelled).toHaveBeenCalledTimes(2);
 });
 
 it("hands its part of the width to the switch and leaves nothing moved", () => {

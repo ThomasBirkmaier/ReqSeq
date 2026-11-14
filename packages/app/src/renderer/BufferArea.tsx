@@ -397,11 +397,15 @@ const useLayerViews = (
   if (!holding) {
     heldAt.current = undefined;
   } else {
-    heldAt.current ??= readyIn.current ?? {
-      seen: readAt.current.seen,
-      revision: readAt.current.revision,
-      outside: outsideAt.current,
-    };
+    if (heldAt.current === undefined) {
+      const at = readyIn.current ?? {
+        seen: readAt.current.seen,
+        revision: readAt.current.revision,
+        outside: outsideAt.current,
+      };
+      // Nothing it shows is new while held: what changed just now is highlighted once it reads again (SR-116).
+      heldAt.current = { ...at, outside: { ...at.outside, fresh: () => false } };
+    }
   }
   if ((shown || by === "swipe") && !holding) {
     outsideAt.current = views.outside;

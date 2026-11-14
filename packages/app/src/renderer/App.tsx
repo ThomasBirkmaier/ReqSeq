@@ -61,7 +61,7 @@ import { NO_WALK, cycleKey, cycleOrder } from "./buffer-cycle.js";
 import { SlideController, directionOf, motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeWay } from "./buffer-swipe.js";
 import { pastThird } from "./buffer-swipe.js";
-import { heldIn, releaseHold } from "./swipe-hold.js";
+import { heldIn, holdWhenShown, releaseHold } from "./swipe-hold.js";
 import type { SwipeHold } from "./swipe-hold.js";
 import { SwipeDrag } from "./swipe-drag.js";
 import { useWheelSwipe } from "./use-wheel-swipe.js";
@@ -778,6 +778,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         input: () => {
           endSwipe.current();
         },
+        // A new swipe ended the drag before it, also its spring-back, whose end then calls nothing back.
+        cancelled: (target) => {
+          release(target);
+        },
       }),
   );
   // The part of the width a released swipe went, for the switch it makes (`cycled`, SR-211 AK1, AK2).
@@ -1419,6 +1423,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       endSwipe.current();
     }
   }, [drag, layout.active, shownKey, swiped]);
+  // A held target shown while no drag or slide moves toward it (Ctrl+P, a click, a switch without motion) is held
+  // no longer, so it reads as every shown buffer (SR-212 AK5). After the slide's own layout effect (`useSlides`),
+  // so the slide of a swipe's switch counts as moving.
+  useLayoutEffect(() => {
+    setHold((now) =>
+      holdWhenShown(now, layout.active, shownKey, slides.busy || drag.of?.target === shownKey),
+    );
+  }, [slides, drag, layout.active, shownKey, hold]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the

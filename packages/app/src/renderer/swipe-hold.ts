@@ -18,3 +18,14 @@ export const releaseHold = (hold: SwipeHold | undefined, key: string | undefined
 /** What the area `side` holds: the key, or none. */
 export const heldIn = (hold: SwipeHold | undefined, side: string): string | undefined =>
   hold?.side === side ? hold.key : undefined;
+
+/**
+ * The hold once `shown` is the buffer the area `side` shows: a held buffer shown while no drag or slide moves
+ * toward it (Ctrl+P, a click, a switch without motion) is held no longer, so it reads as every shown buffer.
+ */
+export const holdWhenShown = (
+  hold: SwipeHold | undefined,
+  side: string,
+  shown: string | undefined,
+  moving: boolean,
+): SwipeHold | undefined => (hold?.side === side && hold.key === shown && !moving ? undefined : hold);
