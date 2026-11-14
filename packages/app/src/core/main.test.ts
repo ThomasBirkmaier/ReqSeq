@@ -24,8 +24,10 @@ describe("core process entry", () => {
       options.exit(1);
       expect(exit).toHaveBeenCalledWith(1);
       const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-      options.log("The core process could not open the workspace: x");
-      expect(write).toHaveBeenCalledWith("The core process could not open the workspace: x\n");
+      options.log("The background process of the app could not open the workspace: x");
+      expect(write).toHaveBeenCalledWith(
+        "The background process of the app could not open the workspace: x\n",
+      );
       write.mockRestore();
     } finally {
       exit.mockRestore();

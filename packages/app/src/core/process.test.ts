@@ -260,7 +260,7 @@ describe("serveCoreProcess", () => {
     await waitUntil(() => inside.exit.mock.calls.length === 1);
     expect(inside.exit).toHaveBeenCalledWith(1);
     expect(inside.log).toHaveBeenCalledWith(
-      `The core process could not open the workspace: ${folder} holds no reqseq-workspace.yaml`,
+      `The background process of the app could not open the workspace: ${folder} holds no reqseq-workspace.yaml`,
     );
     expect(inside.parent.sent).toEqual([]);
     expect(record).toHaveBeenCalledOnce();
@@ -402,7 +402,7 @@ describe("serveCoreProcess: a workspace that cannot be opened", () => {
     await waitUntil(() => exit.mock.calls.length === 1);
     expect(exit).toHaveBeenCalledWith(1);
     expect(log).toHaveBeenCalledWith(
-      "The core process could not open the workspace: EACCES: permission denied",
+      "The background process of the app could not open the workspace: EACCES: permission denied",
     );
     const { core, window } = windowPort();
     let closed = false;
@@ -424,7 +424,7 @@ describe("serveCoreProcess: a workspace that cannot be opened", () => {
     });
     parent.send({ type: "open", folder: os.tmpdir() });
     await waitUntil(() => exit.mock.calls.length === 1);
-    expect(log).toHaveBeenCalledWith("The core process could not open the workspace: odd");
+    expect(log).toHaveBeenCalledWith("The background process of the app could not open the workspace: odd");
   });
 });
 

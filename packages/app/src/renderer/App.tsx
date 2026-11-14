@@ -120,7 +120,7 @@ import { NO_MARK, markStep } from "./follow-mark.js";
 import { stoppedMessage } from "../shared/open-hint.js";
 
 const MESSAGES: Readonly<Record<string, string>> = {
-  restarted: "The core process stopped and was started again.",
+  restarted: "The background process of the app stopped and was started again.",
 };
 
 /** No relation kinds or properties: the metamodel is not read (yet). */

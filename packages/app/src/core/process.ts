@@ -140,7 +140,7 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
         // tells the window that it keeps stopping.
         host ??= open(request.folder, request.exact === true).catch((error: unknown) => {
           options.log(
-            `The core process could not open the workspace: ${error instanceof Error ? error.message : String(error)}`,
+            `The background process of the app could not open the workspace: ${error instanceof Error ? error.message : String(error)}`,
           );
           options.exit(1);
           return undefined;

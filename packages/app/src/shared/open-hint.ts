@@ -28,4 +28,4 @@ export const initHint = (mac: boolean): string =>
 
 /** What it says after the core process stopped for good: the folder dialog opens the workspace again. */
 export const stoppedMessage = (mac: boolean): string =>
-  `The core process keeps stopping. Press ${folderKey(mac)} to open the workspace again.`;
+  `The background process of the app keeps stopping. Press ${folderKey(mac)} to open the workspace again.`;

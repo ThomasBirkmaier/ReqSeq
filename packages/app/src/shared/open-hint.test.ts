@@ -18,10 +18,10 @@ describe("the hint how to open a workspace", () => {
       "No workspace is open. Press ⌘O to choose a folder, or ⌘⇧P for Open workspace.",
     );
     expect(stoppedMessage(false)).toBe(
-      "The core process keeps stopping. Press Ctrl+O to open the workspace again.",
+      "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     expect(stoppedMessage(true)).toBe(
-      "The core process keeps stopping. Press ⌘O to open the workspace again.",
+      "The background process of the app keeps stopping. Press ⌘O to open the workspace again.",
     );
   });
 
