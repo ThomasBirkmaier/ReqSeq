@@ -7,8 +7,10 @@
 // the marks in their order; without a mark the finishing hit skips the argument. Core checks the sort
 // (ADR-0002: the app builds the input and decides nothing about what is allowed).
 import type { FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { ActionContext, ArgumentExplanation, Choice, PromptFill, PromptMark } from "./actions.js";
+import type { ActionContext, Choice, PromptFill, PromptMark } from "./actions.js";
 import { ORDERS } from "./list-actions.js";
+import { listSort, listing, selectionOf } from "./buffers.js";
+import type { BuiltAsk, Entry } from "./catalog-entry.js";
 
 type SortKey = FilterSortKeyWithDefaults;
 
@@ -25,18 +27,7 @@ export interface SortMark {
 export type ShownSort = { readonly sort: readonly SortKey[] } | { readonly note: string };
 
 /** What the steps of a sort need from the argument entry (`catalog-commands.ts`). */
-export interface SortAsk {
-  readonly context: ActionContext;
-  /** The command's line and the field, "Save filter open · sort": the prompts' labels start with it. */
-  readonly line: string;
-  /** Why core refused the sort, said in the first step when it is asked again. */
-  readonly error?: string;
-  /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
-  readonly explain: ArgumentExplanation;
-  /** One argument back, with the marks given, which stand again when the sort is asked again (AK9). */
-  readonly back: (marks: readonly SortMark[]) => void;
-  /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
-  readonly take: (marks: readonly SortMark[], more: boolean) => void;
+export interface SortAsk extends BuiltAsk<SortMark> {
   /** Skips the argument: the finishing hit without a mark (AK4, AK10). */
   readonly skip: (more: boolean) => void;
   /** The sort of the shown list, the first hit without a mark (AK5); worked out only when no mark is set. */
@@ -282,4 +273,26 @@ export const askSort = (given: SortAsk, marks: readonly SortMark[]): void => {
       given.back(marks);
     },
   });
+};
+
+/** Why "Save filter" offers no sort of a shown list with a saved filter (SR-215 AK5). */
+export const NO_SHOWN_SORT = "No sort of the shown list: a filter cannot hold its saved filter";
+
+/**
+ * The sort of the shown list for the sort of "Save filter" and "Save perspective" (SR-215 AK5): of a list, not
+ * the matrix, the search hits or a package page, the sort it is shown in (`listSort`), as "Save list as
+ * perspective" saves it; none when the sort of its saved filter holds. "Save filter" has none for a list with
+ * a saved filter, and says why.
+ */
+export const shownSort = (context: ActionContext, entry: Entry): ShownSort | undefined => {
+  const list = context.buffers[0];
+  const perspective = entry.command.name === "perspective.save";
+  if ((!perspective && entry.command.name !== "filter.save") || !listing(list) || list.matrix === true) {
+    return undefined;
+  }
+  if (!perspective && selectionOf(list.steps)?.filter !== undefined) {
+    return { note: NO_SHOWN_SORT };
+  }
+  const sort = listSort(list);
+  return sort === undefined ? undefined : { sort };
 };

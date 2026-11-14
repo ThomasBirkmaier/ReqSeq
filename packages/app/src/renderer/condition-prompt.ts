@@ -22,6 +22,9 @@ import type {
   PromptMark,
 } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
+import { listing, selectionOf } from "./buffers.js";
+import type { BuiltAsk, Entry } from "./catalog-entry.js";
+import { appended } from "./catalog-entry.js";
 import type { Facet } from "./list-filters.js";
 import { viewName, viewsOf } from "./views.js";
 import {
@@ -44,23 +47,14 @@ export interface ConditionMark {
 }
 
 /** What the steps of a condition need from the argument entry (`catalog-commands.ts`). */
-export interface ConditionAsk {
-  readonly context: ActionContext;
+export interface ConditionAsk extends BuiltAsk<ConditionMark> {
   /** The condition's schema in the catalog: the verification and validation statuses are its enums. */
   readonly schema: unknown;
-  /** The command's line and the field, "Save filter open · where": the prompts' labels start with it. */
-  readonly line: string;
-  /** Why core refused the condition, said in the first step when it is asked again (AK6). */
-  readonly error?: string;
-  /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
-  readonly explain: ArgumentExplanation;
   /**
    * One argument back, with the marks given, which stand again when the condition is asked again (AK9):
    * Backspace on an empty input without a mark, and Escape, in the first step.
    */
   readonly back: (marks: readonly ConditionMark[]) => void;
-  /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
-  readonly take: (marks: readonly ConditionMark[], more: boolean) => void;
   /**
    * The conditions of the shown list, the first hit without a mark (AK5), or why there is none; worked out
    * only when no mark is set.
@@ -554,4 +548,54 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
     },
   };
   given.context.ask(prompt);
+};
+
+/** Why "Save filter" offers no conditions of a shown list with a saved filter (SR-215 AK5). */
+export const NO_SHOWN_FILTER = "No conditions of the shown list: a filter cannot hold its saved filter";
+
+/**
+ * The conditions of the shown list for the condition of "Save filter" and "Save perspective" (SR-215 AK5): a
+ * list, not the matrix, the search hits or a package page, whose steps give a condition or a saved filter.
+ * Its saved filter goes to `filter` of "Save perspective"; "Save filter" has none for such a list, and says
+ * why. `ask` goes on with the argument entry that has it.
+ */
+export const shownConditions = (
+  context: ActionContext,
+  entry: Entry,
+  ask: (at: Entry) => ConditionAsk,
+): ShownConditions | undefined => {
+  const list = context.buffers[0];
+  const perspective = entry.command.name === "perspective.save";
+  if (
+    (!perspective && entry.command.name !== "filter.save") ||
+    !listing(list) ||
+    list.matrix === true ||
+    list.steps.length === 0
+  ) {
+    return undefined;
+  }
+  const filter = selectionOf(list.steps)?.filter;
+  if (filter !== undefined && !perspective) {
+    return { note: NO_SHOWN_FILTER };
+  }
+  const marks = shownMarks(list.steps);
+  if (marks.length === 0 && filter === undefined) {
+    return undefined;
+  }
+  // The saved filter goes in first, labelled so the line says it is saved with the condition.
+  const at =
+    filter === undefined
+      ? entry
+      : {
+          ...entry,
+          given: appended(
+            { ...entry, given: entry.given.filter((given) => given.field !== "filter") },
+            { field: "filter", value: filter, label: `filter: ${filter}` },
+          ),
+        };
+  return {
+    marks,
+    key: list.steps.map((step) => step.label).join(" · "),
+    ask: () => ask(at),
+  };
 };

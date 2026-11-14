@@ -24,16 +24,10 @@ import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import {
-  NO_SHOWN_FILTER,
-  NO_SHOWN_SORT,
-  SHOWN_GROUP,
-  catalogItems,
-  contextField,
-  fits,
-  refusedOf,
-  withExplanations,
-} from "./catalog-commands.js";
+import { NO_SHOWN_FILTER } from "./condition-prompt.js";
+import { SHOWN_GROUP } from "./group-prompt.js";
+import { NO_SHOWN_SORT } from "./sort-prompt.js";
+import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
 import { coveredCommand, SHOWN_IN, shownIn } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
