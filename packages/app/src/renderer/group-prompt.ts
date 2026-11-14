@@ -12,10 +12,11 @@ type Selection = NonNullable<CommandTypes["element.facets"]["input"]["selection"
 type Condition = NonNullable<Selection["where"]>;
 
 /**
- * The selection whose elements a `group` is offered for (`groupReads` in `catalog-commands.ts`): the shown one (`selection`), the
- * condition (`where`), the saved filter (`filter`, else the shown one's) and the selection of the perspective
- * (`perspective`, from `perspective.list`), all of whose conditions must hold; its saved filter counts only
- * where no other is given, since a selection names one. None without any of them: every element.
+ * The selection whose elements a `group` is offered for (`groupReads` in `catalog-commands.ts`): the shown
+ * one (`selection`), the condition (`where`), the saved filter (`filter`, else the shown one's) and the
+ * selection of the perspective (`perspective`, from `perspective.list`), all of whose conditions must hold;
+ * its saved filter counts only where no other is given, since a selection names one. None without any of
+ * them: every element.
  */
 const groupSelection = async (
   context: ActionContext,
@@ -47,8 +48,8 @@ const groupSelection = async (
 };
 
 /**
- * The groupings of the elements the call selects (`groupSelection`), as "Group list" offers them, by name with
- * the key beside: one `element.facets`, which the prompt then narrows as typed (SR-108 AK5).
+ * The groupings of the elements the call selects (`groupSelection`), as "Group list" offers them, by name
+ * with the key beside: one `element.facets`, which the prompt then narrows as typed (SR-108 AK5).
  */
 export const offerGroups = async (
   context: ActionContext,

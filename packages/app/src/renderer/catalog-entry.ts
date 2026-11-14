@@ -1,8 +1,9 @@
-// The state of the argument entry of one catalog command (`catalog-commands.ts`, which walks the catalog), and
-// what the values built from hits share with it: the condition (`condition-prompt.ts`), the sort
-// (`sort-prompt.ts`), the grouping (`group-prompt.ts`) and the properties and relations of a new element
-// (`create-prompt.ts`). Each of them is asked through one shape (`BuiltAsk`): the line, back with the marks
-// held, and the value the marks give, which the walk takes as the argument's value.
+// The state of the argument entry of one catalog command (`catalog-commands.ts`, which walks the catalog),
+// and what the values built from hits share with it: the condition (`condition-prompt.ts`), the sort
+// (`sort-prompt.ts`) and the properties and relations of a new element (`create-prompt.ts`) are each asked
+// through one shape (`BuiltAsk`): the line, back with the marks held, and the value the marks give, which the
+// walk takes as the argument's value. The grouping (`group-prompt.ts`) is a closed list without marks and
+// uses only the offer shapes (`Offer`, `Value`).
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, ArgumentExplanation } from "./actions.js";
 import type { ConditionMark } from "./condition-prompt.js";
@@ -163,7 +164,10 @@ export interface BuiltAsk<M> {
   readonly error?: string;
   /** The explanation line of the argument (SR-210 AK2), to which each step adds its keys. */
   readonly explain: ArgumentExplanation;
-  /** One argument back, with the marks given, which stand again when the argument is asked again (SR-215 AK9). */
+  /**
+   * One argument back, with the marks given, which stand again when the argument is asked again (SR-215
+   * AK9).
+   */
   readonly back: (marks: readonly M[]) => void;
   /** Takes the marks as the value; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
   readonly take: (marks: readonly M[], more: boolean) => void;

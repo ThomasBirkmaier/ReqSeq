@@ -55,9 +55,9 @@
 // with a selection, reads and writes alike.
 //
 // This file walks the catalog: the state of the entry and the shape the values built from hits share are in
-// `catalog-entry.ts`; each built value is a module of its own (`condition-prompt.ts`, `sort-prompt.ts`,
-// `group-prompt.ts`, `create-prompt.ts`) with its steps or offer, the shown list's value first and the
-// value it gives.
+// `catalog-entry.ts`. Each value built from hits is a module of its own with its steps and the value it gives
+// (`condition-prompt.ts`, `sort-prompt.ts`, `create-prompt.ts`), the condition and the sort with the shown
+// list's value first; the grouping's offer, with the shown list's grouping first, is `group-prompt.ts`.
 import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
@@ -1378,7 +1378,8 @@ const builtAsk = <M extends BuiltMark>(
 
 /**
  * What the steps of a condition need (SR-215): its schema, the line, back with the marks held, the value the
- * marks give; `shown` the conditions of the shown list (AK5). Its back keeps the marks asked again in the entry.
+ * marks give; `shown` the conditions of the shown list (AK5). Its back keeps the marks asked again in the
+ * entry.
  */
 const conditionAsk = (
   context: CatalogContext,
