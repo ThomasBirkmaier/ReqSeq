@@ -86,8 +86,22 @@ const expectNote = async (window: Page, shown: Locator, source: string, nth = 0)
     const range = document.createRange();
     range.setStart(row, 0);
     range.setEndBefore(node);
-    const before = [...range.getClientRects()].filter((rect) => rect.width > 0).at(-1);
-    const box = node.getBoundingClientRect();
+    // The last character of the source, and the first fragment of the note: where the line wraps (the
+    // wider font on Windows), the note's box spans two rows and starts at the left edge of the column.
+    const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+    let last: Text | undefined;
+    for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+      if (text.textContent !== "" && node.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_PRECEDING) {
+        last = text as Text;
+      }
+    }
+    const end = document.createRange();
+    if (last !== undefined) {
+      end.setStart(last, last.length - 1);
+      end.setEnd(last, last.length);
+    }
+    const before = [...end.getClientRects()].at(-1);
+    const box = node.getClientRects()[0] ?? node.getBoundingClientRect();
     return {
       text: range.toString(),
       gap: box.left - (before?.right ?? Number.NaN),
