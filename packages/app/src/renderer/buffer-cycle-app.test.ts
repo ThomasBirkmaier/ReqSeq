@@ -302,13 +302,18 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
       ).length;
     expect(reads()).toBeGreaterThan(0);
     const before = reads();
+    const lists = (): number => invoke.mock.calls.filter(([name]) => name === "element.list").length;
+    const listed = lists();
     await alt(window, "n");
     expect(shown()).toBe("SR-000001 Title 1");
     expect(query(`${SHOWN} article`)).toBe(hidden);
     expect(reads()).toBe(before);
     expect(document.activeElement).toBe(hidden);
-    // The list, a buffer of another kind, is not drawn hidden.
-    expect(container.querySelector('[data-layer="neighbour"]')).toBeNull();
+    // The list, a buffer of another kind, is drawn hidden only from what it read while shown: no read of it.
+    expect(
+      container.querySelector('[data-layer="neighbour"] [role="listbox"]')?.getAttribute("aria-label"),
+    ).toBe("All elements");
+    expect(lists()).toBe(listed);
   });
 
   it("[SR-115/AK-m5pg] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {

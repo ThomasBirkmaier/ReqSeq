@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { elementBuffer, filteredList, neighbourhoodBuffer, overviewBuffer } from "./buffers.js";
 import type { PackageTypes } from "./neighbours.js";
-import { drawnInAdvance, neighbourBuffers, neighbourKeys } from "./neighbours.js";
+import { drawnInAdvance, neighbourBuffers, neighbourKeys, withSwipe } from "./neighbours.js";
 
 const PACKAGES: PackageTypes = { known: true, model: { types: new Set(["package"]), key: "packages" } };
 
@@ -34,18 +34,42 @@ describe("the buffers drawn in advance", () => {
     expect(neighbourKeys(["a", "b"], "x", undefined)).toEqual([]);
   });
 
-  it("[SR-212/AK-tfck] come from the walk's order around the shown buffer, of the kinds drawn in advance", () => {
+  it("[SR-212/AK-tfck] come from the walk's order around the shown buffer, read only when of the kinds read for it", () => {
     const need = typed("n", "need");
     const sensors = typed("p", "package");
     const around = neighbourhoodBuffer("n", "spec", "n");
     const list = filteredList([]);
     const buffers = [need, list, sensors, around];
     const order = buffers.map((buffer) => buffer.key);
-    expect(neighbourBuffers(buffers, order, undefined, PACKAGES)).toEqual([around]);
+    expect(neighbourBuffers(buffers, order, undefined, PACKAGES)).toEqual([
+      { buffer: list, by: "record" },
+      { buffer: around, by: "read" },
+    ]);
     expect(
       neighbourBuffers([around, need, list], [around.key, need.key, list.key], undefined, PACKAGES),
-    ).toEqual([need]);
+    ).toEqual([
+      { buffer: need, by: "read" },
+      { buffer: list, by: "record" },
+    ]);
     expect(neighbourBuffers([around, need], [around.key, need.key], need.key, PACKAGES)).toEqual([]);
     expect(neighbourBuffers([], [], undefined, PACKAGES)).toEqual([]);
+  });
+
+  it("[SR-211/AK-wfd3] leave out those dropped, and add the buffer a swipe draws, also a dropped one, never the shown one", () => {
+    const need = typed("n", "need");
+    const around = neighbourhoodBuffer("n", "spec", "n");
+    const list = filteredList([]);
+    const besides = [
+      { buffer: around, by: "read" as const },
+      { buffer: list, by: "record" as const },
+    ];
+    const buffers = [need, around, list];
+    expect(withSwipe(besides, buffers, new Set([list.key]), undefined)).toEqual([besides[0]]);
+    expect(withSwipe(besides, buffers, new Set([list.key]), list.key)).toEqual([
+      besides[0],
+      { buffer: list, by: "swipe" },
+    ]);
+    expect(withSwipe(besides, buffers, new Set(), need.key)).toEqual(besides);
+    expect(withSwipe(besides, buffers, new Set(), "closed")).toEqual(besides);
   });
 });

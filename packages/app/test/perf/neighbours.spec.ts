@@ -21,6 +21,12 @@
 //
 // Recorded for comparison: the reads drawn in advance, Alt+P or Alt+N until a buffer drawn in advance starts to
 // slide, and the longest frame gap while typing with neighbours drawn.
+//
+// The buffers drawn only from their record (a list, the matrix, a graph, the overview; `area-record.ts`), in a
+// test of their own: SR-082 AK3 with Enter on a relation right after leaving one of them, while its fresh hidden
+// view draws from the record (a list with its cursor past its first page, the matrix, a graph); SR-082 AK3 after
+// a held Alt+P over lists after a change; recorded: the frame gap while typing with them beside the shown element,
+// and the heap the records and hidden views hold.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -110,6 +116,10 @@ const command = async (window: Page, title: string): Promise<void> => {
 
 /** Opens Ctrl+P with `title` typed and its hit first; the Enter is the caller's. */
 const goToTyped = async (window: Page, title: string): Promise<void> => {
+  // As `goTo` of `support/app.ts`: a list with the focus may take the key for itself.
+  await window.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
   await window.keyboard.press("ControlOrMeta+P");
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title, {
@@ -883,6 +893,220 @@ test.describe("buffers drawn in advance with 50,000 elements and 200,000 relatio
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(
       `PERF neighbours ${JSON.stringify({ toNeighbourhood, toElement, afterWrite: afterWrite.map(({ label, ms }) => ({ label, ms })), warm: warm.map(({ label, ms }) => ({ label, ms })), hostile, lags, leaving, focusing, afterOther: afterOther.map(({ label, ms }) => ({ label, ms })), opens, list, outside, gap, held, started, firstOpen })}`,
+    );
+    for (const measurement of recorded) {
+      if (measurement.thresholdMs !== undefined) {
+        assertWithin(measurement);
+      }
+    }
+  });
+  test("[SR-082/AK-tndr] the limit of an open holds while a list, the matrix, a graph or the overview is drawn from its record", async () => {
+    test.setTimeout(900_000);
+    const [, , ...others] = requirements;
+    const b = others[ROUNDS + 6];
+    const [x1, x2] = others.slice(ROUNDS + 7);
+    if (b === undefined || x1 === undefined || x2 === undefined) {
+      throw new Error("the generated workspace has too few elements with a title of their own");
+    }
+    const kept = {
+      home,
+      workspace: { root: fixture?.workspaceRoot ?? "", cleanup: () => Promise.resolve() },
+    };
+    await running?.close({ keep: true });
+    step("record: start");
+    running = await launchApp(undefined, { kept, validateOutput: false });
+    const { window } = running;
+    await window.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(window.getByLabel("Modeline")).toContainText(`${String(ELEMENTS)} elements`, {
+      timeout: 120_000,
+    });
+    const requests: CoreRequests = await recordRequests(window);
+    const recorded: PerfMeasurement[] = [];
+    const heap = (): Promise<number> =>
+      window.evaluate(
+        () => (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0,
+      );
+    const heapBefore = await heap();
+    /** A relation of the shown element to an element other than `b`: its title and selector. */
+    const relation = async (): Promise<{ readonly title: string; readonly selector: string }> => {
+      const links = window.locator(`${SHOWN} [role="link"][data-target-id]`);
+      await expect(links.first()).toBeVisible({ timeout: 60_000 });
+      for (const link of await links.all()) {
+        const target = byId.get((await link.getAttribute("data-target-id")) ?? "");
+        if (target !== undefined && target.id !== b.id) {
+          return { title: target.title, selector: `${SHOWN} [role="link"][data-target-id="${target.id}"]` };
+        }
+      }
+      throw new Error("the shown element has no relation to open");
+    };
+    const listShown = async (): Promise<void> => {
+      await expect(window.locator(`${SHOWN} .row`).first()).toBeVisible({ timeout: 60_000 });
+    };
+
+    /**
+     * `kept` is shown with B after it in the walk: Alt+N to B leaves it, so its fresh hidden view draws from its
+     * record; Enter on a relation of B at once after the switch, timed (SR-082 AK3). Then back to `kept`.
+     */
+    const leaveAndOpen = async (name: string, shown: () => Promise<void>): Promise<number> => {
+      const times: number[] = [];
+      for (let round = 0; round < ROUNDS; round += 1) {
+        await shown();
+        await window.waitForTimeout(SETTLE_SWITCH_MS);
+        await quiet(requests);
+        await requests.clear();
+        await window.keyboard.press("Alt+KeyN");
+        await expect.poll(() => shownTitle(window)).toBe(b.title);
+        const { title, selector } = await relation();
+        await window.locator(selector).first().focus();
+        times.push(await timeOpen(window, title));
+        await window.waitForTimeout(SETTLE_SWITCH_MS);
+        await command(window, "Close buffer");
+        await expect.poll(() => shownTitle(window)).toBe(b.title);
+        await window.keyboard.press("Alt+KeyP");
+      }
+      recorded.push(
+        await recordValue(
+          `app: Enter on a relation until the element shows, at once after leaving ${name} drawn from its record (slowest of ${String(ROUNDS)})`,
+          Math.max(...times),
+          {
+            basis: "SR-082 AK3 (with buffers drawn from their record, SR-212 AK5; the app)",
+            thresholdMs: OPEN_MS,
+          },
+        ),
+      );
+      return Math.max(...times);
+    };
+
+    // The list of all elements with its cursor past its first page (End twice: row 400 of 600 loaded), then B.
+    step("record: list");
+    await command(window, "List all elements");
+    await listShown();
+    await window.locator(`${SHOWN} [role="listbox"]`).focus();
+    await window.keyboard.press("End");
+    await expect
+      .poll(() => window.locator(`${SHOWN} .row`).count(), { timeout: 60_000 })
+      .toBeGreaterThan(200);
+    await window.keyboard.press("End");
+    await open(window, b.title);
+    await window.keyboard.press("Alt+KeyP");
+    const list = await leaveAndOpen("the list of all elements, its cursor past the first page", listShown);
+
+    // The matrix of the list.
+    step("record: matrix");
+    await command(window, "Show traceability matrix");
+    await expect(window.locator(`${SHOWN} .buffer.matrix [role="row"]`).nth(1)).toBeVisible({
+      timeout: 60_000,
+    });
+    const matrix = await leaveAndOpen("the traceability matrix of all elements", async () => {
+      await expect(window.locator(`${SHOWN} .buffer.matrix`)).toBeVisible({ timeout: 60_000 });
+    });
+    await command(window, "Show as list");
+    await listShown();
+
+    // The graph of B: shown, then B after it.
+    step("record: graph");
+    await open(window, b.title);
+    await command(window, "Show graph");
+    const laidOut = window.locator(`${SHOWN} .buffer.graph[data-laid-out]`);
+    await expect(laidOut).toBeVisible({ timeout: 60_000 });
+    const nodes = Number(await laidOut.getAttribute("data-laid-out"));
+    await open(window, b.title);
+    await window.keyboard.press("Alt+KeyP");
+    const graph = await leaveAndOpen(`the graph of an element (${String(nodes)} nodes)`, async () => {
+      await expect(laidOut).toBeVisible({ timeout: 60_000 });
+    });
+
+    // Typing in B with the graph and the list beside it, drawn from their records.
+    step("record: typing");
+    await window.keyboard.press("Alt+KeyN");
+    await expect.poll(() => shownTitle(window)).toBe(b.title);
+    await window.waitForTimeout(SETTLE_SWITCH_MS);
+    const heapKept = await heap();
+    await window.locator(`${SHOWN} .cm-content`).first().focus();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.evaluate(() => {
+      const w = globalThis as unknown as { __gap?: number; __gapOn?: boolean };
+      w.__gap = 0;
+      w.__gapOn = true;
+      let last = performance.now();
+      const frame = (at: number): void => {
+        w.__gap = Math.max(w.__gap ?? 0, at - last);
+        last = at;
+        if (w.__gapOn === true) {
+          requestAnimationFrame(frame);
+        }
+      };
+      requestAnimationFrame(frame);
+    });
+    await window.keyboard.type(" typed beside buffers drawn from their record", { delay: 50 });
+    const gap = await window.evaluate(() => {
+      const w = globalThis as unknown as { __gap?: number; __gapOn?: boolean };
+      w.__gapOn = false;
+      return w.__gap ?? 0;
+    });
+    await window.waitForTimeout(SETTLE_SWITCH_MS * 2);
+
+    // A held Alt+P over lists after a change: two filtered lists and the overview between elements, B changed
+    // outside just before, then Enter on a relation of B at once.
+    step("record: held Alt+P");
+    await command(window, "List all elements");
+    await listShown();
+    await open(window, x1.title);
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("station");
+    await window.keyboard.press("Enter");
+    await listShown();
+    await open(window, x2.title);
+    await command(window, "Show overview");
+    await expect(window.locator(`${SHOWN} [role="listbox"][aria-label="Overview"]`)).toBeVisible({
+      timeout: 60_000,
+    });
+    await open(window, b.title);
+    await window.waitForTimeout(SETTLE_SWITCH_MS);
+    const file = fileOf(x1);
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace(/^title: .*$/m, `title: ${x1.title} held`),
+    );
+    await window.waitForTimeout(SETTLE_SWITCH_MS);
+    // Four presses back from B over the overview, X2 and the filtered list land on X1, an element.
+    await window.keyboard.down("Alt");
+    for (let press = 0; press < 4; press += 1) {
+      await window.keyboard.press("KeyP");
+      await window.waitForTimeout(REPEAT_MS);
+    }
+    await window.keyboard.up("Alt");
+    await expect.poll(() => shownTitle(window).catch(() => "")).not.toBe("");
+    const target = await relation();
+    await window.locator(target.selector).first().focus();
+    const held = await timeOpen(window, target.title);
+    recorded.push(
+      await recordValue(
+        "app: Enter on a relation until the element shows, at once after a held Alt+P over lists after a change",
+        held,
+        {
+          basis: "SR-082 AK3 (with buffers drawn from their record, SR-212 AK5; the app)",
+          thresholdMs: OPEN_MS,
+        },
+      ),
+      await recordValue(
+        "app: the longest frame gap while typing, beside buffers drawn from their record",
+        gap,
+        {
+          basis: "SR-212 AK5 (recorded; typing has no limit of its own)",
+        },
+      ),
+      await recordValue(
+        "app: heap with a list, the matrix and a graph drawn from their record (MB)",
+        Math.round((heapKept - heapBefore) / 1e6),
+        {
+          basis: "SR-212 AK5 (recorded)",
+        },
+      ),
+    );
+    // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
+    console.log(
+      `PERF records ${JSON.stringify({ list, matrix, graph, nodes, gap, held, heapMb: Math.round((heapKept - heapBefore) / 1e6) })}`,
     );
     for (const measurement of recorded) {
       if (measurement.thresholdMs !== undefined) {

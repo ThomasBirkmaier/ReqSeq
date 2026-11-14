@@ -5,6 +5,7 @@
 // perspectives from `perspective.list` and their counts from `element.list` with the perspective, the
 // recent elements from `element.get`; the app only shows them (ADR-0002). A recent element that changed
 // outside the app is highlighted briefly (SR-116).
+import { bufferMark, useHidden, useReveal } from "./area-slot.js";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
@@ -236,12 +237,17 @@ export const OverviewView = ({
   onData,
 }: OverviewViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const { marked, mark } = useOutsideMarks();
-  useEffect(() => {
+  // Shown after it was drawn hidden in advance, it highlights them as a fresh view at the switch would.
+  const markFresh = (): void => {
     if (outside !== undefined) {
       mark(recents.map((row) => row.buffer.id).filter(outside.fresh));
     }
-  }, [recents]);
+  };
+  useEffect(markFresh, [recents]);
+  useReveal(markFresh);
   const rows = data === undefined ? [] : overviewRows(data.types, perspectives, recents);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const firstPerspective = rows.findIndex((row) => row.kind === "perspective");
@@ -295,7 +301,7 @@ export const OverviewView = ({
       role="listbox"
       aria-label="Overview"
       aria-activedescendant={activeRow(`${scope}overview`, cursor, rows.length)}
-      data-buffer=""
+      {...bufferAttribute}
       tabIndex={0}
       onKeyDown={keyDown}
     >

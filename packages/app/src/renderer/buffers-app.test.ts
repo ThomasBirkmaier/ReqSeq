@@ -377,7 +377,14 @@ describe("App, no tab bar (SR-115 AK2)", () => {
       expect(query('[aria-label="Sheet"]').children).toHaveLength(1);
       const outside = [...query(".shell").children]
         .filter((part) => part.getAttribute("aria-label") !== "Modeline")
-        .map((part) => part.textContent)
+        // What the reader sees: not the layers drawn hidden in advance (SR-212 AK5), which are never painted.
+        .map((part) => {
+          const seen = part.cloneNode(true) as Element;
+          for (const layer of seen.querySelectorAll('[data-layer="neighbour"]')) {
+            layer.remove();
+          }
+          return seen.textContent;
+        })
         .join("\n");
       for (const name of hidden) {
         expect(outside).not.toContain(name);

@@ -510,8 +510,24 @@ const isLevelled = (
   return crossedLayers(output.nodes.map(keyOfNode), links) > CROSSED_LAYERS_ABOVE;
 };
 
+/**
+ * The layouts made, by the output they were made for: a view drawn hidden from its record gets the same output
+ * object its shown view got (`area-record.ts`), so it does not run dagre again (SR-212 AK5, SR-082 AK3).
+ */
+const laidOut = new WeakMap<TraceGraphOutput, GraphLayout>();
+
 /** Places the nodes of `output` and draws its links; deterministic: the same output gives the same layout. */
 export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
+  const kept = laidOut.get(output);
+  if (kept !== undefined) {
+    return kept;
+  }
+  const made = placeGraph(output);
+  laidOut.set(output, made);
+  return made;
+};
+
+const placeGraph = (output: TraceGraphOutput): GraphLayout => {
   const nodes = new Map(output.nodes.map((node) => [keyOfNode(node), node]));
   const graph = layoutGraphOf();
   graph.setGraph({

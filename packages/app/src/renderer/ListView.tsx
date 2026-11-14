@@ -18,6 +18,7 @@
 // selection without them and once for only them, each in its own pages. The section row is an option of the
 // listbox like the others, so the selection reaches it; click, Enter and Tab toggle it, Right opens and Left
 // closes it (SR-193 AK1, AK2). A tree (SR-075) folds nothing.
+import { bufferMark, useHidden, useHiddenUpdate, useReveal } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   ElementListOutput,
@@ -560,6 +561,8 @@ export const ListView = ({
   focusOnLoad = false,
 }: ListViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
+  const bufferAttribute = bufferMark(useHidden());
   const [view, setView] = useState<View>({ status: "loading" });
   // What each loaded row shows of its verification (SR-137), by position with the element it was given
   // for, so an entry never stands at another element's row while new rows wait for theirs; filled in after
@@ -572,6 +575,22 @@ export const ListView = ({
   const opened = useRef(open);
   opened.current = open;
   const { marked, mark } = useOutsideMarks();
+  // A view drawn hidden in advance highlights the rows changed outside when it is shown, as a fresh view at the
+  // switch would (SR-116, SR-212 AK5).
+  // A package page's elements that came back with it take the focus then, as they do when they load shown.
+  useReveal(() => {
+    if (outside !== undefined && view.status === "ok") {
+      mark(view.rows.map((row) => row.open.id).filter(outside.fresh));
+    }
+    const list = root.current;
+    if (part && view.status === "ok" && focusOnLoad && !focusTaken.current) {
+      focusTaken.current = true;
+      if (takesFocus(list, layoutOf(view, open).length)) {
+        list?.focus({ preventScroll: true });
+        list?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+      }
+    }
+  });
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
   // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
   const asked = useRef<string | undefined>(undefined);
@@ -611,22 +630,31 @@ export const ListView = ({
    * `mine`; of the folded rows when `folded`.
    */
   const drawnPart = useDrawnParts(buffer.key, kind, part, onDrawn);
+  // A hidden list draws its answers as a transition, so a key in the shown buffer comes first (SR-082).
+  const later = useHiddenUpdate();
   const verify = (mine: number, offset: number, limit: number, folded = false): Promise<void> => {
     if (limit === 0) {
       return Promise.resolve();
     }
     const from = folded ? selections.folded : selections.shown;
-    return fetchVerification(call, buffer, offset, limit, from).then((rows) => {
-      if (mine === generation.current && rows !== undefined) {
-        (folded ? setVerifiedFolded : setVerified)((before) => {
-          const next = [...before];
-          rows.forEach((row, at) => {
-            next[offset + at] = row;
-          });
-          return next;
-        });
-      }
-    });
+    return fetchVerification(call, buffer, offset, limit, from).then(
+      (rows) =>
+        new Promise<void>((done) => {
+          if (mine !== generation.current || rows === undefined) {
+            done();
+            return;
+          }
+          later(() => {
+            (folded ? setVerifiedFolded : setVerified)((before) => {
+              const next = [...before];
+              rows.forEach((row, at) => {
+                next[offset + at] = row;
+              });
+              return next;
+            });
+          }, done);
+        }),
+    );
   };
 
   /**
@@ -666,39 +694,46 @@ export const ListView = ({
       fetchPage(call, buffer, 0, limit, selections.shown),
       folding === undefined ? undefined : fetchPage(call, buffer, 0, page, folding),
     ]).then(([loaded, folded]) => {
-      if (mine !== generation.current) {
-        return;
-      }
-      reloading.current = false;
-      if (loaded.ok && folded?.ok !== false) {
-        const { ok: _ok, ...shown } = loaded;
-        const section = folded === undefined ? undefined : (({ ok: _done, ...rest }) => rest)(folded);
-        setView({ status: "ok", ...shown, ...(section === undefined ? {} : { folded: section }) });
-        // Drawn once its first rows show their verification too: a switch in motion to it starts then (SR-212).
-        void verify(mine, 0, loaded.rows.length).then(() => {
-          if (mine === generation.current) {
-            drawnPart("rows", key);
-          }
-        });
-        if (section !== undefined) {
-          void verify(mine, 0, section.rows.length, true);
-        }
-        if (outside !== undefined) {
-          mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
-        }
-        report(shown, section, opened.current);
-      } else {
-        const message = failure(loaded, folded);
-        setView({ status: "error", message });
-        onEcho(message);
-        onDrawn?.(buffer.key);
-      }
+      later(() => {
+        applyLoad(mine, key, loaded, folded);
+      });
     });
     return () => {
       generation.current += 1;
     };
     // The cursor is read when the rows are asked for again; moving it must not ask again.
   }, [call, buffer.key, kind, selection, sort, group, foldKey, revision]);
+
+  /** Shows the rows of load `mine`, unless a later load took its place. */
+  function applyLoad(mine: number, key: string, loaded: Page, folded: Page | undefined): void {
+    if (mine !== generation.current) {
+      return;
+    }
+    reloading.current = false;
+    if (loaded.ok && folded?.ok !== false) {
+      const { ok: _ok, ...shown } = loaded;
+      const section = folded === undefined ? undefined : (({ ok: _done, ...rest }) => rest)(folded);
+      setView({ status: "ok", ...shown, ...(section === undefined ? {} : { folded: section }) });
+      // Drawn once its first rows show their verification too: a switch in motion to it starts then (SR-212).
+      void verify(mine, 0, loaded.rows.length).then(() => {
+        if (mine === generation.current) {
+          drawnPart("rows", key);
+        }
+      });
+      if (section !== undefined) {
+        void verify(mine, 0, section.rows.length, true);
+      }
+      if (outside !== undefined) {
+        mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
+      }
+      report(shown, section, opened.current);
+    } else {
+      const message = failure(loaded, folded);
+      setView({ status: "error", message });
+      onEcho(message);
+      onDrawn?.(buffer.key);
+    }
+  }
 
   const { rows, folded, sectionAt, foldedRows, length, rowAtPosition } = layoutOf(view, open);
   const cursor = Math.min(buffer.cursor, Math.max(0, length - 1));
@@ -974,7 +1009,7 @@ export const ListView = ({
       role="listbox"
       aria-label={bufferName(buffer)}
       aria-activedescendant={activeRow(`${scope}row`, cursor, length)}
-      {...(part ? {} : { "data-buffer": "" })}
+      {...(part ? {} : bufferAttribute)}
       tabIndex={0}
       onKeyDown={keyDown}
       onScroll={(event) => {

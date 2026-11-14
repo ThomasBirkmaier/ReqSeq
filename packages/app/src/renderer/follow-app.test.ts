@@ -170,11 +170,20 @@ const render = async (bridge: ReqSeqBridge): Promise<void> => {
   await flush();
 };
 
-const text = (label: string): string | null | undefined =>
-  container.querySelector(`[aria-label="${label}"]`)?.textContent;
+const text = (label: string): string | null | undefined => shownOne(`[aria-label="${label}"]`)?.textContent;
+
+/** What the reader sees: the elements of `selector` outside the layers drawn hidden in advance (SR-212 AK5). */
+const shownAll = (selector: string): Element[] =>
+  [...container.querySelectorAll(selector)].filter(
+    (element) => element.closest('[data-layer="neighbour"]') === null,
+  );
+
+/** The first of them, or none. */
+const shownOne = (selector: string): HTMLElement | null =>
+  (shownAll(selector)[0] as HTMLElement | undefined) ?? null;
 
 const query = (selector: string): HTMLElement => {
-  const found = container.querySelector<HTMLElement>(selector);
+  const found = (shownAll(selector)[0] ?? null) as HTMLElement | null;
   if (found === null) {
     throw new Error(`nothing matches ${selector}`);
   }
@@ -216,7 +225,7 @@ const runCommand = async (name: string): Promise<void> => {
 /** Ctrl+Shift+O: the mode on, or off again. */
 const toggle = (): Promise<void> => keyDown(window, "O", { ctrlKey: true, shiftKey: true });
 
-const title = (): string | null | undefined => container.querySelector(`${SHOWN} article h1`)?.textContent;
+const title = (): string | null | undefined => shownOne(`${SHOWN} article h1`)?.textContent;
 
 const typeText = async (insert: string): Promise<void> => {
   const view = EditorView.findFromDOM(query(".cm-editor"));
@@ -233,7 +242,7 @@ const typeText = async (insert: string): Promise<void> => {
 /** The open buffers but the shown one, as "Go to" (Ctrl+P) lists them; the prompt closes again. */
 const openBuffers = async (): Promise<string[]> => {
   await keyDown(window, "p", { ctrlKey: true });
-  const names = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+  const names = [...shownAll('[role="option"]')].map((option) => option.textContent);
   await keyDown(query("input"), "Escape");
   return names;
 };
@@ -395,7 +404,7 @@ describe("Follow agent in the window (SR-117)", () => {
     await type("descending");
     await keyDown(query("input"), "Enter");
     expect(title()).toBeUndefined();
-    expect(container.querySelectorAll(".row").length).toBeGreaterThan(0);
+    expect(shownAll(".row").length).toBeGreaterThan(0);
     // Escape in a prompt still shows the held access.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     await fake.activity(access(3));
@@ -560,7 +569,7 @@ describe("Follow agent during a switch in motion (SR-212)", () => {
     expect(query('[data-layer="side"] .slide-picture').textContent).toContain("All elements");
     await fake.activity(access(1));
     expect(title()).toBe("Title 1");
-    expect(container.querySelector(".slide-picture")).toBeNull();
+    expect(shownOne(".slide-picture")).toBeNull();
     expect(query('[data-layer="main"]').style.transform).toBe("");
     expect(query('[data-layer="side"]').hidden).toBe(true);
   });

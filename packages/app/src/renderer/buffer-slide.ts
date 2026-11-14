@@ -272,7 +272,10 @@ export class SlideController {
   private readonly host: SlideHost;
   // The buffers drawn in advance (SR-212 AK5), by key: the mount of the hidden view and the generation of the
   // workspace (`seen`) it is drawn in. A slide to one drawn in the current generation starts at once.
-  private readonly ahead = new Map<string, { readonly mount: number; readonly generation: number }>();
+  private readonly ahead = new Map<
+    string,
+    { readonly mount: number; readonly generation: number; readonly recorded: boolean }
+  >();
   // The picture of a switch that an input ended before it moved, while the view it switched to has not
   // drawn: what the reader still sees of that area, so a switch on from there takes it again. It goes once
   // that view drew, at the next commit, or after `DRAW_DEADLINE_MS`.
@@ -303,9 +306,17 @@ export class SlideController {
     return this.phase.kind !== "idle";
   }
 
-  /** The hidden view `mount` of `key` is drawn, with no read of it pending, in `generation` (SR-212 AK5). */
-  ready(key: string, mount: number, generation: number): void {
-    this.ahead.set(key, { mount, generation });
+  /**
+   * The hidden view `mount` of `key` is drawn, with no read of it pending, in `generation` (SR-212 AK5);
+   * `recorded` when it was drawn from its record (`area-record.ts`).
+   */
+  ready(key: string, mount: number, generation: number, recorded = false): void {
+    this.ahead.set(key, { mount, generation, recorded });
+  }
+
+  /** The hidden view of `key` is drawn in `generation`. */
+  drawnAt(key: string, generation: number): boolean {
+    return this.ahead.get(key)?.generation === generation;
   }
 
   /** The hidden view `mount` of `key` is drawn no longer: it reads again, or it went. */
@@ -317,9 +328,11 @@ export class SlideController {
 
   /**
    * Takes the picture of the area `spec.side` for a switch; nothing without motion (AK4). When `to` is drawn in
-   * advance in `generation`, the commit that shows it starts the motion at once (SR-212 AK5).
+   * advance in `generation`, the commit that shows it starts the motion at once (SR-212 AK5); one drawn from
+   * its record only when leaving `from` changes nothing (`clean`: no input to save, no save in flight), as
+   * else it would slide in with what it showed before that change.
    */
-  prepare(spec: SlideSpec, generation?: number): void {
+  prepare(spec: SlideSpec, generation?: number, clean = true): void {
     const { phase } = this;
     if (!motionAllowed(this.host.view)) {
       this.finish();
@@ -335,7 +348,8 @@ export class SlideController {
     if (picture === undefined) {
       return;
     }
-    const ahead = generation !== undefined && this.ahead.get(spec.to)?.generation === generation;
+    const entry = this.ahead.get(spec.to);
+    const ahead = generation !== undefined && entry?.generation === generation && (clean || !entry.recorded);
     this.phase = { kind: "armed", spec, picture, drawn: ahead, ahead };
     this.listen(true);
   }

@@ -198,6 +198,12 @@ const crossingsAtABox = (layout: GraphLayout): string[] =>
   });
 
 describe("layoutGraph", () => {
+  it("[SR-212/AK-tfck] lays out an output once: a view drawn from its record gets the same layout without dagre", () => {
+    const layout = layoutGraph(S1_GRAPH);
+    expect(layoutGraph(S1_GRAPH)).toBe(layout);
+    expect(layoutGraph({ ...S1_GRAPH })).not.toBe(layout);
+  });
+
   it("[SR-111/AK-g4rk] puts what the element links to above it and what links to it below, also with links against the levels", () => {
     const layout = layoutGraph(S1_GRAPH);
     const root = at(layout, "S1");
