@@ -45,6 +45,11 @@ export interface DragHost {
   readonly busy?: (busy: boolean) => void;
   /** Input came during the drag: it ends at once (`cancel`), and the input then acts as without it. */
   readonly input?: () => void;
+  /**
+   * A new drag ended the one toward `target` (also during its spring-back, whose end then calls nothing back):
+   * what the window keeps for that target ends here (`swipe-hold.ts`).
+   */
+  readonly cancelled?: (target: string) => void;
 }
 
 interface Drag {
@@ -100,7 +105,11 @@ export class SwipeDrag {
    * already, else the shown buffer stands until `drawn()` (AK3).
    */
   start(side: string, from: string | undefined, target: string, way: SwipeWay, drawn: boolean): void {
+    const before = this.drag?.target;
     this.cancel();
+    if (before !== undefined) {
+      this.host.cancelled?.(before);
+    }
     const area = this.host.root()?.querySelector<HTMLElement>(`[data-area="${side}"]`);
     const main = shownLayer(area);
     if (area === null || area === undefined || main === null) {

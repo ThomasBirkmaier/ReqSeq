@@ -123,6 +123,100 @@ const hiddenTitle = (window: Page): Promise<string[]> =>
     .locator('[data-area][data-active] > [data-layer="neighbour"] article h1')
     .evaluateAll((titles) => titles.map((title) => title.textContent));
 
+/** The pause of the wheel that ends a swipe (`SEGMENT_GAP_MS` of `buffer-swipe.ts`). */
+const SEGMENT_GAP_MS = 35;
+
+/** The title the target of a swipe shows at the edge of the shown buffer (SR-211 AK3). */
+const peekTitle = (window: Page): Locator =>
+  window.locator("[data-area][data-active] > [data-peek] article h1");
+
+/** Gives the element of `file` the title `title` outside the app. */
+const retitleFile = async (running: RunningApp, file: string, title: string): Promise<void> => {
+  const at = path.join(running.workspace?.root ?? "", ...file.split("/"));
+  await fs.writeFile(at, (await fs.readFile(at, "utf8")).replace(/^title: .*$/m, `title: ${title}`));
+};
+
+/**
+ * Starts a swipe toward Previous buffer while the window's clock stands still, and waits until its target, drawn
+ * in advance, joins the shown buffer at its edge. Returns the width of the area.
+ */
+const swipeBack = async (window: Page): Promise<number> => {
+  const box = await window.locator("[data-area][data-active]").boundingBox();
+  const width = box?.width ?? 0;
+  await window.mouse.move((box?.x ?? 0) + width / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  await window.clock.install();
+  await window.clock.pauseAt(Date.now() + 1000);
+  await window.mouse.wheel(-20, 0);
+  await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(1);
+  return width;
+};
+
+/**
+ * Lets the window's clock run until the change of the workspace reached the window: `done` holds. The swipe goes
+ * on meanwhile by a pixel within each pause shorter than the one that would end it.
+ */
+const untilSeen = async (window: Page, done: () => Promise<boolean>): Promise<void> => {
+  await expect
+    .poll(async () => {
+      await window.clock.runFor(SEGMENT_GAP_MS - 15);
+      await window.mouse.wheel(-1, 0);
+      return done();
+    })
+    .toBe(true);
+};
+
+/** The reads of the element `id` itself. */
+const gets = (sent: readonly CoreRequest[], id: string): CoreRequest[] =>
+  naming(sent, id).filter(
+    (request) => request.name === "element.get" && (request.input as { ref?: unknown } | null)?.ref === id,
+  );
+
+/** The motions of the shown layer the window made, by id, since `recordMotions`; those of `paused` stand still. */
+interface Motions {
+  readonly made: string[];
+  readonly paused: Animation[];
+}
+
+/**
+ * Records each slide and spring-back of the shown layer when it is made, and pauses those whose id is in `pause`
+ * at once, so no check races the motion, which runs on real time while the window's clock stands still.
+ */
+const recordMotions = (window: Page, pause: readonly string[] = []): Promise<void> =>
+  window.evaluate((ids) => {
+    const own = window as unknown as { motions: Motions };
+    own.motions = { made: [], paused: [] };
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- called with its element below.
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, frames, options) {
+      const made = animate.call(this, frames, options);
+      const id = typeof options === "object" ? (options.id ?? "") : "";
+      if (this instanceof HTMLElement && this.dataset["layer"] === "main" && id.startsWith("buffer-")) {
+        own.motions.made.push(id);
+        if (ids.includes(id)) {
+          made.pause();
+          own.motions.paused.push(made);
+        }
+      }
+      return made;
+    };
+  }, pause);
+
+/** The ids of the motions made since `recordMotions`. */
+const motionsMade = (window: Page): Promise<string[]> =>
+  window.evaluate(() => [...(window as unknown as { motions: Motions }).motions.made]);
+
+/** Whether a slide stands in the window now, running or paused. */
+const sliding = (window: Page): Promise<boolean> =>
+  window.evaluate(() => document.getAnimations().some((animation) => animation.id === "buffer-slide"));
+
+/** Lets the paused motions run on. */
+const playMotions = (window: Page): Promise<void> =>
+  window.evaluate(() => {
+    for (const animation of (window as unknown as { motions: Motions }).motions.paused) {
+      animation.play();
+    }
+  });
+
 test.describe("the previous and the next buffer drawn in advance", () => {
   let running: RunningApp;
   let requests: CoreRequests;
@@ -650,6 +744,171 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     expect(
       naming(await requests.sent(), NEED.id).filter((request) => request.name === "trace.neighbourhood"),
     ).toEqual([]);
+  });
+
+  test("[SR-212/AK-tfck] a change while a swipe shows its target holds the target as drawn; the switch slides at once and draws it anew after the slide", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    await recordMotions(window);
+    const width = await swipeBack(window);
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    // The change reached the window: the overview beside the element, drawn from its record, is dropped.
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await quiet(requests);
+    expect(gets(await requests.sent(), NEED.id)).toEqual([]);
+    // Past a third: the slide starts straight after the pause of the release, not after the deadline of 1 s.
+    await window.mouse.wheel(-0.6 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    expect(await motionsMade(window)).toContain("buffer-slide");
+    await window.clock.resume();
+    await slideSettled(window);
+    // After the slide it is drawn anew, as every shown buffer after a change: one read.
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    await quiet(requests);
+    expect(
+      naming(await requests.sent(), NEED.id).filter((request) => request.name === "element.get"),
+    ).toHaveLength(1);
+  });
+
+  test("[SR-212/AK-tfck] a change during a swipe that springs back: the target is no longer drawn in advance until the next switch, and read at it", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    const width = await swipeBack(window);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await quiet(requests);
+    expect(gets(await requests.sent(), NEED.id)).toEqual([]);
+    await window.mouse.wheel(-0.1 * width, 0);
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await window.clock.runFor(SEGMENT_GAP_MS + 200);
+    await window.clock.resume();
+    await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
+    await expect.poll(() => hiddenViews(window)).not.toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    expect(gets(await requests.sent(), NEED.id)).toEqual([]);
+    await window.keyboard.press("Alt+KeyP");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    expect(naming(await requests.sent(), NEED.id).map((request) => request.name)).toContain("element.get");
+  });
+
+  test("[SR-212/AK-tfck] a change of the shown element during a swipe redraws it, while the target stays as drawn", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    await swipeBack(window);
+    await requests.clear();
+    await retitleFile(running, "requirements/SR-0000000000b1.md", "Measure gusts");
+    await untilSeen(
+      window,
+      async () => (await shownLayer(window).locator("article h1").textContent()) === "Measure gusts",
+    );
+    await expect(peekTitle(window)).toHaveText(NEED.title);
+    await quiet(requests);
+    expect(naming(await requests.sent(), NEED.id)).toEqual([]);
+    await window.clock.runFor(SEGMENT_GAP_MS + 200);
+    await window.clock.resume();
+  });
+
+  test("[SR-212/AK-tfck] a key during the slide of a switch after a change ends the hold: the target is read again once", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    // The slide stands still where it starts until the key ends it (SR-212 AK2).
+    await recordMotions(window, ["buffer-slide"]);
+    const width = await swipeBack(window);
+    await requests.clear();
+    await retitle(running, "See the gusts");
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await window.mouse.wheel(-0.6 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS);
+    expect(await sliding(window)).toBe(true);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(NEED.title);
+    await window.keyboard.press("ArrowDown");
+    await window.clock.resume();
+    expect(await sliding(window)).toBe(false);
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    await quiet(requests);
+    expect(
+      naming(await requests.sent(), NEED.id).filter((request) => request.name === "element.get"),
+    ).toHaveLength(1);
+  });
+
+  test("[SR-212/AK-tfck] a swipe the other way during a spring-back ends the hold: the target shown later reads its changes", async () => {
+    const { window } = running;
+    await open(window, NEED.title);
+    await open(window, SPEED.title);
+    await expect.poll(() => hiddenViews(window)).toContain(`N-0000a1 ${NEED.title}`);
+    await quiet(requests);
+    // The spring-back stands still, so the next swipe comes during it.
+    await recordMotions(window, ["buffer-spring"]);
+    const width = await swipeBack(window);
+    await retitle(running, "See the gusts");
+    await untilSeen(
+      window,
+      async () => !(await hiddenViews(window)).some((name) => name.startsWith("Overview")),
+    );
+    await window.mouse.wheel(-0.1 * width, 0);
+    await window.clock.runFor(SEGMENT_GAP_MS + 200);
+    expect(await motionsMade(window)).toContain("buffer-spring");
+    // A swipe toward Next buffer (the overview, dropped by the change) ends at once by a key, before its target
+    // is drawn: the drag it starts ends the spring-back, whose end then calls nothing back.
+    const springAtKey = await window.evaluate(() => {
+      const area = document.querySelector<HTMLElement>("[data-area][data-active]");
+      const box = area?.getBoundingClientRect();
+      const x = (box?.left ?? 0) + (box?.width ?? 0) / 2;
+      const y = (box?.top ?? 0) + (box?.height ?? 0) / 2;
+      const under = document.elementFromPoint(x, y) ?? document.body;
+      under.dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 20, clientX: x, clientY: y }),
+      );
+      // The drag of the new swipe started: it ended the spring-back.
+      const [spring] = (window as unknown as { motions: Motions }).motions.paused;
+      const state = spring?.playState;
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+      return state;
+    });
+    expect(springAtKey).toBe("idle");
+    await playMotions(window);
+    await window.clock.resume();
+    await expect(window.locator("[data-area][data-active] > [data-peek]")).toHaveCount(0);
+    await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
+    // Shown without a slide, the need reads as every shown buffer: its change, and the next one. It is picked
+    // among the open buffers by its ID, whose name still has the old title: core's search index is carried over
+    // the change in the background (`search-state.ts` of core), which this test does not wait for.
+    await goTo(window);
+    await expect(window.locator("#prompt-input")).toBeFocused();
+    await window.keyboard.type("N-0000a1");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("N-0000a1");
+    await window.keyboard.press("Enter");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
+    await retitle(running, "See the storm");
+    await expect(shownLayer(window).locator("article h1")).toHaveText("See the storm");
   });
 });
 

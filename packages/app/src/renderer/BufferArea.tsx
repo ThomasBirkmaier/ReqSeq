@@ -337,6 +337,13 @@ const notSent = (code: string, message: string): Awaited<ReturnType<Call>> => ({
  * reads behind the gate, counted, so the layer knows when its view is drawn with no read pending. A shown view
  * writes what it reads into the record of its buffer; a hidden view drawn from a record reads only from it.
  */
+/** What a view held for a swipe keeps (SR-212 AK5): the generation and the changes from outside it drew in. */
+interface HeldAt {
+  readonly seen: number;
+  readonly revision: number;
+  readonly outside: OutsideChanges;
+}
+
 const useLayerViews = (
   views: AreaViews,
   key: string,
@@ -344,6 +351,7 @@ const useLayerViews = (
   by: DrawnBy | undefined,
   records: AreaRecords,
   inputs: string,
+  holding: boolean,
   drawn: (key?: string) => void,
 ): {
   readonly views: AreaViews;
@@ -354,6 +362,8 @@ const useLayerViews = (
   readonly missed: () => boolean;
   readonly reveal: () => void;
   readonly flush: () => void;
+  /** The view reported itself drawn in the generation `seen` (and `revision`): a hold keeps that one. */
+  readonly readyIn: (at: HeldAt) => void;
 } => {
   const shownNow = useRef(shown);
   shownNow.current = shown;
@@ -370,9 +380,37 @@ const useLayerViews = (
   // window, SR-043) the view was mounted, shown or last read in: another call, or a change since then that is
   // not a save of leaving, makes it out of date, so a read is not sent; after a save of leaving alone it reads
   // once more. A view drawn from its record reads in the record's generation and call only.
-  const readAt = useRef({ seen: views.seen, saves: views.switchSaves, call: views.call });
-  if (shown || by === "swipe") {
-    readAt.current = { seen: views.seen, saves: views.switchSaves, call: views.call };
+  const readAt = useRef({
+    seen: views.seen,
+    revision: views.revision,
+    saves: views.switchSaves,
+    call: views.call,
+  });
+  // Held for a swipe (SR-212 AK5): the view keeps the generation and the changes from outside it drew in, those
+  // it reported ready in, so a change between that report and the hold does not slip through; it reads again
+  // once the hold ends.
+  const heldAt = useRef<HeldAt | undefined>(undefined);
+  // The generation the view last reported itself drawn in, with no read pending (`ready`).
+  const readyIn = useRef<HeldAt | undefined>(undefined);
+  // The changes from outside the view last read on as a shown one: an element view reads again on them.
+  const outsideAt = useRef(views.outside);
+  if (!holding) {
+    heldAt.current = undefined;
+  } else {
+    heldAt.current ??= readyIn.current ?? {
+      seen: readAt.current.seen,
+      revision: readAt.current.revision,
+      outside: outsideAt.current,
+    };
+  }
+  if ((shown || by === "swipe") && !holding) {
+    outsideAt.current = views.outside;
+    readAt.current = {
+      seen: views.seen,
+      revision: views.revision,
+      saves: views.switchSaves,
+      call: views.call,
+    };
   }
   const tagNow = (): RecordTag => ({ seen: latest.current.seen, call: latest.current.call });
   // The record a hidden view draws from, taken when it starts to draw from it.
@@ -488,7 +526,12 @@ const useLayerViews = (
             if (byNow.current === "record") {
               return fromRecord(name, input);
             }
-            readAt.current = { seen: latest.current.seen, saves: latest.current.switchSaves, call: inner };
+            readAt.current = {
+              seen: latest.current.seen,
+              revision: latest.current.revision,
+              saves: latest.current.switchSaves,
+              call: inner,
+            };
           }
         }
         if (asShown()) {
@@ -578,7 +621,16 @@ const useLayerViews = (
     };
   };
   return {
-    views: { ...views, call, ...callbacks, element },
+    views: {
+      ...views,
+      ...(heldAt.current ?? {}),
+      call,
+      ...callbacks,
+      element,
+    },
+    readyIn: (at: HeldAt) => {
+      readyIn.current = at;
+    },
     pending: () => pending.current,
     stale,
     missed: () => missed.current,
@@ -608,12 +660,14 @@ const Slot = ({
   views,
   records,
   inputs,
+  holding,
 }: SlotEntry & {
   readonly active: boolean;
   readonly split: boolean;
   readonly views: AreaViews;
   readonly records: AreaRecords;
   readonly inputs: string;
+  readonly holding: boolean;
 }): React.JSX.Element => {
   const scope = useId();
   // The buffer whose view reported its drawing in this layer since it was shown or mounted.
@@ -624,7 +678,7 @@ const Slot = ({
     reported.current = undefined;
   }
   const [tick, setTick] = useState(0);
-  const layer = useLayerViews(views, buffer.key, shown, by, records, inputs, (key?: string) => {
+  const layer = useLayerViews(views, buffer.key, shown, by, records, inputs, holding, (key?: string) => {
     if (key !== undefined && key === lastKey.current) {
       reported.current = key;
       views.gate.drawn(key);
@@ -660,7 +714,7 @@ const Slot = ({
   // The shown view keeps the record of its buffer, also before (or without) a read: the overview reads nothing
   // itself, and the record holds what else it shows.
   useEffect(() => {
-    if (shown) {
+    if (shown && !holding) {
       records.take(buffer.key, { seen: views.seen, call: views.call }, inputs);
     }
   });
@@ -687,8 +741,14 @@ const Slot = ({
       layer.pending() === 0 &&
       !layer.missed() &&
       (swiped || !layer.stale());
-    views.ready(buffer.key, mount, ready ? views.seen : undefined, by === "record");
-  }, [tick, views.seen, views.call, inputs, hidden, by]);
+    // A held view reports the generation it holds (SR-212 AK5); the slide counts it as drawn, as the drag
+    // showed it (`SlideSpec.peeked`).
+    const seen = layer.views.seen;
+    if (ready) {
+      layer.readyIn({ seen, revision: layer.views.revision, outside: layer.views.outside });
+    }
+    views.ready(buffer.key, mount, ready ? seen : undefined, by === "record");
+  }, [tick, views.seen, views.call, inputs, hidden, by, holding]);
   useEffect(
     () => () => {
       views.ready(buffer.key, mount, undefined, false);
@@ -744,6 +804,11 @@ export interface BufferAreaProps {
   readonly views: AreaViews;
   /** The buffers drawn hidden beside the shown one (SR-212 AK5, `neighbours.ts`); none by default. */
   readonly hidden?: readonly Neighbour[];
+  /**
+   * The buffer a swipe in this area shows beside the shown one, held as it is drawn until the swipe and its
+   * switch ended (SR-212 AK5): its view reads nothing new meanwhile.
+   */
+  readonly held?: string | undefined;
 }
 
 const NO_BUFFERS: readonly Neighbour[] = [];
@@ -754,6 +819,7 @@ export const BufferArea = ({
   onActivate,
   views,
   hidden = NO_BUFFERS,
+  held,
 }: BufferAreaProps): React.JSX.Element => {
   const activate = area.active ? undefined : onActivate;
   const root = useRef<HTMLDivElement>(null);
@@ -796,6 +862,7 @@ export const BufferArea = ({
           views={views}
           records={records}
           inputs={inputs(slot.buffer)}
+          holding={held === slot.buffer.key}
         />
       ))}
       <div className="slide-layer" data-layer="side" hidden />
