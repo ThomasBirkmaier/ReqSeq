@@ -7,17 +7,18 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SEGMENT_GAP_MS } from "./buffer-swipe.js";
-import type { WheelSwipeOptions } from "./use-wheel-swipe.js";
+import type { WheelSwipe, WheelSwipeOptions } from "./use-wheel-swipe.js";
 import { useWheelSwipe } from "./use-wheel-swipe.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root;
 let host: HTMLElement;
+let control: WheelSwipe | undefined;
 
 const Sheet = (props: WheelSwipeOptions): React.JSX.Element => {
   const sheet = useRef<HTMLElement>(null);
-  useWheelSwipe(sheet, props);
+  control = useWheelSwipe(sheet, props);
   return createElement(
     "main",
     { ref: sheet },
@@ -38,7 +39,9 @@ const options = (more: Partial<WheelSwipeOptions> = {}): WheelSwipeOptions => ({
   blocked: () => false,
   closedMenu: () => false,
   begin: vi.fn(),
+  move: vi.fn(),
   switch: vi.fn(),
+  release: vi.fn(() => true),
   end: vi.fn(),
   ...more,
 });
@@ -107,16 +110,40 @@ const layout = (
   document.elementsFromPoint = () => [element, byId("main"), area];
 };
 
-it("a swipe over the active area past a third prevents its events, begins, switches and ends", () => {
+it("a swipe over the active area prevents its events, begins, moves, is released with the width and ends", () => {
   const props = options();
   render(props);
   layout();
   const event = wheel(byId("wide"), { deltaX: -300 });
   expect(event.defaultPrevented).toBe(true);
   expect(props.begin).toHaveBeenCalledWith("back");
+  expect(props.move).toHaveBeenCalledWith("back", 300);
   vi.advanceTimersByTime(SEGMENT_GAP_MS);
-  expect(props.switch).toHaveBeenCalledWith("back");
+  expect(props.release).toHaveBeenCalledWith("back", 300, 600);
+  expect(props.switch).not.toHaveBeenCalled();
   expect(props.end).toHaveBeenCalled();
+});
+
+it("switches at once past a third without motion (AK13)", () => {
+  window.matchMedia = ((query: string) => ({ matches: true, media: query })) as typeof window.matchMedia;
+  const props = options();
+  render(props);
+  layout();
+  wheel(byId("wide"), { deltaX: -300 });
+  expect(props.switch).toHaveBeenCalledWith("back");
+  expect(props.move).not.toHaveBeenCalled();
+});
+
+it("an aborted swipe releases nothing, and the rest of its gesture does nothing", () => {
+  const props = options();
+  render(props);
+  layout();
+  wheel(byId("wide"), { deltaX: -300 });
+  control?.abort();
+  wheel(byId("wide"), { deltaX: -10 });
+  vi.advanceTimersByTime(SEGMENT_GAP_MS);
+  expect(props.release).not.toHaveBeenCalled();
+  expect(props.move).toHaveBeenCalledTimes(1);
 });
 
 it("switches nothing when the window blocks it at the end", () => {
@@ -128,7 +155,8 @@ it("switches nothing when the window blocks it at the end", () => {
   blocked = true;
   vi.advanceTimersByTime(SEGMENT_GAP_MS);
   expect(props.begin).toHaveBeenCalledWith("forward");
-  expect(props.switch).not.toHaveBeenCalled();
+  expect(props.release).not.toHaveBeenCalled();
+  expect(props.end).toHaveBeenCalled();
 });
 
 it("ignores a swipe outside the active area, with a button held, blocked, or that closed a menu", () => {

@@ -38,12 +38,24 @@ interface Options {
 
 const setup = (options: Options = {}) => {
   const log: string[] = [];
+  const moves: string[] = [];
   const host: SwipeHost = {
     ignored: vi.fn(options.ignored ?? (() => false)),
     width: () => options.width ?? 600,
     reduced: () => options.reduced ?? false,
     begin: (way: SwipeWay) => log.push(`begin ${way}`),
+    move: (way: SwipeWay, distance: number) => {
+      moves.push(`${way} ${String(distance)}`);
+    },
     switch: (way: SwipeWay) => log.push(`switch ${way}`),
+    // The window of the app switches past a third at the end, as `App.tsx` does without a drag.
+    release: (way: SwipeWay, distance: number) => {
+      if (!pastThird(distance, options.width ?? 600)) {
+        return false;
+      }
+      log.push(`switch ${way}`);
+      return true;
+    },
     end: () => log.push("end"),
     scroll: (dy: number) => log.push(`scroll ${String(dy)}`),
   };
@@ -68,7 +80,7 @@ const setup = (options: Options = {}) => {
     vi.advanceTimersByTime(after);
     clock += after;
   };
-  return { host, gesture, log, prevented, replay, at: () => clock };
+  return { host, gesture, log, moves, prevented, replay, at: () => clock };
 };
 
 /** A swipe of `steps` events `gap` ms apart from `start`, each `dx` (and `dy`) px. */
@@ -366,6 +378,37 @@ describe("SwipeGesture", () => {
     vi.advanceTimersByTime(SEGMENT_GAP_MS);
     expect(late).toBeGreaterThan(0);
     expect(run.log).toEqual(["begin forward", "end", "begin forward", "switch forward", "end"]);
+  });
+
+  it("tells the window each distance of the swipe, back to 0 on a reversal, and none without motion", () => {
+    const run = setup();
+    run.replay([...swipe(0, 3, 10), ...swipe(24, 4, -10)]);
+    expect(run.moves).toEqual([
+      "forward 10",
+      "forward 20",
+      "forward 30",
+      "forward 20",
+      "forward 10",
+      "forward 0",
+      "forward 0",
+    ]);
+    const still = setup({ reduced: true });
+    still.replay(swipe(0, 3, 10));
+    expect(still.moves).toEqual([]);
+  });
+
+  it("abort ends the swipe without a switch: the rest of the gesture does nothing (SR-211 AK12)", () => {
+    const run = setup();
+    run.replay(swipe(0, 30, 10), 0);
+    run.gesture.abort();
+    run.replay(swipe(240, 30, 10));
+    expect(run.log).toEqual(["begin forward"]);
+    expect(run.prevented.every(Boolean)).toBe(true);
+    // Without a swipe it changes nothing.
+    const idle = setup();
+    idle.gesture.abort();
+    idle.replay(swipe(0, 30, 10));
+    expect(idle.log).toEqual(["begin forward", "switch forward", "end"]);
   });
 
   it("dispose ends a swipe in progress and stops its timers", () => {

@@ -67,8 +67,15 @@ export interface SwipeHost {
   readonly reduced: () => boolean;
   /** A segment is the swipe in `way`: a running slide ends (SR-212 AK2), the target is drawn (SR-211 AK3). */
   readonly begin: (way: SwipeWay) => void;
-  /** The swipe switches. */
+  /** The swipe has gone `distance` px in `way` (SR-211 AK3: the shown buffer follows it). */
+  readonly move: (way: SwipeWay, distance: number) => void;
+  /** The swipe switches at once, without motion (AK13). */
   readonly switch: (way: SwipeWay) => void;
+  /**
+   * The swipe ended after `distance` px in `way`: the window switches past a third (AK1, AK2) or the buffer
+   * springs back (AK4). True when it switched.
+   */
+  readonly release: (way: SwipeWay, distance: number) => boolean;
   /** The swipe's segment ended, with or after its switch. */
   readonly end: () => void;
   /** Scrolls what a vertical segment held back. */
@@ -191,7 +198,7 @@ export class SwipeGesture {
       case "after":
         return this.decide(segment, gesture, step, SPENT_DECIDE_PX);
       case "swipe":
-        this.reducedSwitch(segment, gesture);
+        this.follow(segment, gesture);
         return true;
       case "spent":
         gesture.tail = size;
@@ -251,7 +258,7 @@ export class SwipeGesture {
     const segment: Segment = { ...probe, mode: "swipe", way: wayOf(probe.sx) };
     this.segment = segment;
     this.host.begin(wayOf(probe.sx));
-    this.reducedSwitch(segment, gesture);
+    this.follow(segment, gesture);
     return true;
   }
 
@@ -333,7 +340,7 @@ export class SwipeGesture {
     segment.mode = "swipe";
     segment.way = wayOf(segment.sx);
     this.host.begin(segment.way);
-    this.reducedSwitch(segment, gesture);
+    this.follow(segment, gesture);
     return true;
   }
 
@@ -350,11 +357,19 @@ export class SwipeGesture {
     );
   }
 
-  private reducedSwitch(segment: Segment, gesture: Gesture): void {
-    const way = this.passed(segment);
-    if (way !== undefined && this.host.reduced()) {
-      this.switchNow(segment, gesture, way);
+  /** The swipe went on: the window follows it, and without motion it switches past a third at once. */
+  private follow(segment: Segment, gesture: Gesture): void {
+    if (segment.way === undefined) {
+      return;
     }
+    if (this.host.reduced()) {
+      const way = this.passed(segment);
+      if (way !== undefined) {
+        this.switchNow(segment, gesture, way);
+      }
+      return;
+    }
+    this.host.move(segment.way, swipeDistance(segment.sx, segment.way));
   }
 
   /** The way of `segment` once its distance passed a third of the width. */
@@ -366,11 +381,27 @@ export class SwipeGesture {
   }
 
   private switchNow(segment: Segment, gesture: Gesture, way: SwipeWay): void {
+    this.spend(segment, gesture);
+    this.host.switch(way);
+    this.host.end();
+  }
+
+  private spend(segment: Segment, gesture: Gesture): void {
     segment.mode = "spent";
     gesture.spent = true;
     gesture.tail = segment.last;
-    this.host.switch(way);
-    this.host.end();
+  }
+
+  /**
+   * Ends the swipe now, without a switch by it: input came, or the window showed another buffer (SR-211 AK12).
+   * The rest of the gesture does nothing, as after a switch.
+   */
+  abort(): void {
+    const segment = this.segment;
+    this.ended = undefined;
+    if (segment?.mode === "swipe" && this.gesture !== undefined) {
+      this.spend(segment, this.gesture);
+    }
   }
 
   private endSegment(): void {
@@ -387,12 +418,13 @@ export class SwipeGesture {
       return;
     }
     const gesture = this.gesture;
-    const way = this.passed(segment);
-    if (gesture !== undefined && way !== undefined) {
-      this.switchNow(segment, gesture, way);
+    const way = segment.way;
+    if (gesture !== undefined && this.host.release(way, swipeDistance(segment.sx, way))) {
+      this.spend(segment, gesture);
+      this.host.end();
       return;
     }
     this.host.end();
-    this.ended = { segment, way: segment.way };
+    this.ended = { segment, way };
   }
 }
