@@ -199,8 +199,8 @@ test.describe("images in the live preview", () => {
     await expect(shown.locator("img:not(.cm-widgetBuffer)")).toHaveCount(0);
     await expectNote(window, shown, MISSING, 0);
     await expectNote(window, shown, BROKEN, 1);
-    // A missing image typed into the first line fails to load once the cursor has moved on to the next
-    // line: its note appears later, no dialog opens, and typing goes on where the cursor is.
+    // A missing image typed into the first line, then the cursor moves to the next line: the note is there,
+    // no dialog opens, and typing goes on at the cursor (a note that comes later: the unit test).
     await cursorInFirstLine(window);
     const late = `![late](${NAME}/late.png)`;
     await window.keyboard.type(` ${late}`);

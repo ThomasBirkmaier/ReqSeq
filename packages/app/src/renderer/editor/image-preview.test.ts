@@ -56,7 +56,7 @@ const images = (state: EditorState): Found[] => {
   return found;
 };
 
-/** The colour the parent gives secondary text (`--muted`, as `[SR-128/AK-sthw]` checks it). */
+/** A test value for `--muted`, set on the parent; the note must take it (muted colour as `[SR-128/AK-sthw]`). */
 const MUTED = "rgb(96, 104, 113)";
 
 /** `doc` in an editor with the preview and the image plugin in the document, the cursor at `cursor`. */
