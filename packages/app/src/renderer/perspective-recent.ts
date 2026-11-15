@@ -23,6 +23,19 @@ export const perspectiveUseKey = (status: InvokeResult): string | undefined => {
 export const rememberPerspective = (used: readonly string[], name: string): readonly string[] =>
   [name, ...used.filter((known) => fold(known) !== fold(name))].slice(0, PERSPECTIVES_KEPT);
 
+/**
+ * The names after the perspective `from` was renamed to `to` (SR-218 AK4): `to` at the place of `from`, once by its
+ * folded name; the same names when `from` was not opened.
+ */
+export const renamedPerspective = (used: readonly string[], from: string, to: string): readonly string[] => {
+  const at = used.findIndex((known) => fold(known) === fold(from));
+  return at === -1
+    ? used
+    : used.flatMap((known, place) =>
+        place === at ? [to] : fold(known) === fold(from) || fold(known) === fold(to) ? [] : [known],
+      );
+};
+
 /** The names stored under `key`; broken content, foreign content or a storage that throws give none. */
 export const loadPerspectiveUse = (storage: () => PerspectiveStorage, key: string): readonly string[] => {
   try {

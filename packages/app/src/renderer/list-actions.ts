@@ -31,6 +31,7 @@ import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
 import { QUERY_VIEWS, queryIn, supports } from "./list-query.js";
 import { PERSPECTIVE_ACTIONS } from "./perspective-actions.js";
+import { SAVED_FILE_ACTIONS } from "./saved-file-actions.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
@@ -407,8 +408,9 @@ export const LIST_ACTIONS: readonly Action[] = [
       });
     },
   },
-  // "Open perspective" (SR-214), next to "List all elements".
+  // "Open perspective" (SR-214), next to "List all elements", and renaming and deleting (SR-218).
   ...PERSPECTIVE_ACTIONS,
+  ...SAVED_FILE_ACTIONS,
   FILTER_ACTION,
   {
     id: "clear-filter",
