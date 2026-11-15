@@ -11,7 +11,7 @@ acceptance-criteria:
   - key: w3xm
     text: "Gegeben ein Arbeitsbereich mit nur einem Repository, wenn er geöffnet wird, dann liefern Status, Suche, Kette und Prüfung Ergebnisse derselben Form wie bei mehreren Repositories, und das eine Repository gilt als Haupt-Repository, auch ohne Kennzeichen."
   - key: kdfm
-    text: "Gegeben ein genanntes Repository fehlt lokal, wenn der Arbeitsbereich geöffnet wird, dann zeigt das Tool es als nicht vorhanden, die Prüfung des Bestands meldet es als Info, und das Tool arbeitet mit den übrigen normal; der Import einer Lieferung lehnt dann aber ab (SR-053 AK3); fehlt das Repository des Metamodells, gilt SR-011 AK4."
+    text: "Gegeben ein genanntes Repository fehlt lokal, wenn der Arbeitsbereich geöffnet wird, dann zeigt das Tool es als nicht vorhanden, die Prüfung des Bestands meldet es als Info, und das Tool arbeitet mit den übrigen normal; der Import einer Lieferung lehnt dann aber ab (SR-053 AK3), ebenso das Umbenennen und Löschen eines gespeicherten Filters, wenn das Repository der Perspektiven oder der Baselines fehlt (SR-217 AK6); fehlt das Repository des Metamodells, gilt SR-011 AK4."
   - key: hpgp
     text: "Gegeben eine Person nennt in der Datei `.reqseq/local.yaml` im Haupt-Repository, die nur für diesen Rechner gilt, für ein Repository einen anderen Ort auf ihrem Rechner, relativ oder absolut, wenn der Arbeitsbereich geöffnet wird, dann liest das Tool das Repository von dort; ist die Datei fehlerhaft, meldet das Tool eine Warnung und nimmt die Orte aus der Arbeitsbereichs-Datei."
   - key: gm6w
