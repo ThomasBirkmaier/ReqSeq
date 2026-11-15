@@ -16,6 +16,7 @@
 //   pushed out by `MAX_BUFFERS`), the area shows the next buffer in the order of use; with none left, the
 //   window has one area.
 // - `reset` (another workspace) leaves one area.
+// - `perspective-renamed` (SR-218 AK4) keeps a renamed perspective in its area under its new key.
 // - `side-by-side` (SR-044 AK2) shows two buffers in two areas: the first on the left, active, the second
 //   on the right.
 // - `beside` ("Open to the right", "Open to the left", SR-150 AK1 to AK3) opens an element in the area on
@@ -35,7 +36,7 @@
 //   there: any other change of its buffer, entering it (it becomes active) and unsplitting end it, and then
 //   it stays as it is (SR-150 AK5).
 import type { Buffer, BufferAction, Buffers, ElementBuffer } from "./buffers.js";
-import { onlyOverview, overviewBuffer, reduceBuffers } from "./buffers.js";
+import { onlyOverview, overviewBuffer, perspectiveKey, reduceBuffers } from "./buffers.js";
 
 /** The side of an area: left or right. */
 export type Side = "left" | "right";
@@ -107,6 +108,27 @@ const split = (state: WindowState): WindowState => {
   return { buffers, layout: withOther("left", nextOther(buffers)) };
 };
 
+/**
+ * The layout after the perspective `from` was renamed to `to` (SR-218 AK4): when the inactive area showed it, or a
+ * buffer of the new name that closed, the renamed one stands there under its new key, unless it is the shown one.
+ */
+const renamedOther = (
+  buffers: Buffers,
+  layout: Layout,
+  other: string,
+  { from, to }: { readonly from: string; readonly to: string },
+): WindowState => {
+  const renamed = perspectiveKey(to);
+  if (other !== perspectiveKey(from) && other !== renamed) {
+    return isOpen(buffers, other)
+      ? { buffers, layout }
+      : { buffers, layout: withOther(layout.active, nextOther(buffers)) };
+  }
+  return isOpen(buffers, renamed) && buffers[0]?.key !== renamed
+    ? { buffers, layout: { ...layout, other: renamed } }
+    : { buffers, layout: withOther(layout.active, nextOther(buffers)) };
+};
+
 /** The layout after a buffer action changed `before.buffers` into `buffers` (the rules above). */
 const settle = (before: WindowState, action: BufferAction, buffers: Buffers): WindowState => {
   const { layout } = before;
@@ -131,6 +153,9 @@ const settle = (before: WindowState, action: BufferAction, buffers: Buffers): Wi
     // that replaces it, a list saved as the perspective of the inactive area), the next one takes its place.
     const kept = shownBefore !== undefined && isOpen(buffers, shownBefore) ? shownBefore : nextOther(buffers);
     return { buffers, layout: withOther(opposite(layout.active), kept) };
+  }
+  if (action.type === "perspective-renamed") {
+    return renamedOther(buffers, layout, other, action);
   }
   return isOpen(buffers, other)
     ? { buffers, layout }

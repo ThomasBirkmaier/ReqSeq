@@ -284,7 +284,20 @@ export type BufferAction =
    * (`type:<key>`, `any`, `relation:<key>`).
    */
   | { readonly type: "select"; readonly key: string; readonly node: string }
-  | RenameAction;
+  | RenameAction
+  | SavedRenameAction;
+
+/**
+ * A perspective or a saved filter was renamed in the app (SR-218 AK4, AK5): `from` is its name before, `to` its
+ * name now. The buffer of the perspective takes the new name where it is; a buffer of another perspective that had
+ * the new name closes. The filter steps of lists and searches and the selection of perspective buffers that name
+ * the filter take the new name. Nothing else changes, so no buffer becomes "modified" (SR-214 AK6).
+ */
+export interface SavedRenameAction {
+  readonly type: "perspective-renamed" | "filter-renamed";
+  readonly from: string;
+  readonly to: string;
+}
 
 /**
  * The element was read or saved with this name (#273): its open element, read-only, neighbourhood and
@@ -856,6 +869,107 @@ const opened = (buffers: Buffers, shown: Buffer, replacing: string | undefined):
   return (moved === kept ? [buffer, ...kept] : moved).slice(0, MAX_BUFFERS);
 };
 
+/** The buffers without the one with `key`; the next most recent one is shown, or the overview when none is left. */
+const closed = (buffers: Buffers, key: string): Buffers => {
+  const rest = buffers.filter((buffer) => buffer.key !== key);
+  if (rest.length === buffers.length) {
+    return buffers;
+  }
+  if (rest.length > 0) {
+    return rest;
+  }
+  // The last buffer closed: the window shows the overview, never an empty sheet (SR-118). The lone
+  // overview stays as it is.
+  return onlyOverview(buffers) ? buffers : [overviewBuffer()];
+};
+
+/** What a list says it holds: the labels of its steps joined by " · ", or `label` without steps (`filteredList`). */
+const stepsLabel = (steps: readonly FilterStep[], label: string): string =>
+  steps.length === 0 ? label : steps.map((step) => step.label).join(" · ");
+
+/**
+ * The buffer of the perspective `from` under the name `to` (SR-218 AK4), at its place: its key, the first step
+ * (label and heading) and the name of its origin follow; its other steps, sort, grouping, mode and row stay, and
+ * so does "modified". A buffer of another perspective with the key of `to` closes.
+ */
+const perspectiveRenamed = (buffers: Buffers, from: string, to: string): Buffers => {
+  const key = perspectiveKey(from);
+  const own = buffers.find((buffer) => buffer.key === key);
+  if (own?.kind !== "list" || own.perspective === undefined) {
+    // Not open: a buffer of another perspective under the new name closes all the same.
+    return key === perspectiveKey(to) ? buffers : closed(buffers, perspectiveKey(to));
+  }
+  const perspective: PerspectiveOrigin = { ...own.perspective, name: to };
+  const steps = own.steps.map((step) => (step.perspective === true ? perspectiveStep(perspective) : step));
+  const renamedList: ListBuffer = {
+    ...own,
+    key: perspectiveKey(to),
+    label: stepsLabel(steps, own.label),
+    steps,
+    perspective,
+  };
+  return buffers
+    .filter((buffer) => buffer.key === key || buffer.key !== renamedList.key)
+    .map((buffer) => (buffer.key === key ? renamedList : buffer));
+};
+
+/** Whether `step` adds the saved filter `name`, as core compares names (case, Unicode normal form). */
+const stepNames = (step: FilterStep, name: string): boolean =>
+  step.selection.filter !== undefined && fold(step.selection.filter) === fold(name);
+
+/** `step` with the saved filter `to` in place of the one it named; its label too, unless it is a perspective's. */
+const stepRenamed = (step: FilterStep, to: string): FilterStep => ({
+  ...step,
+  ...(step.perspective === true ? {} : { label: `filter: ${to}` }),
+  selection: { ...step.selection, filter: to },
+});
+
+/**
+ * The lists and searches whose filter steps name the saved filter `from`, and the perspective buffers whose
+ * selection names it, with `to` in its place (SR-218 AK5); the same buffer object where nothing names it.
+ */
+const filterRenamed = (buffers: Buffers, from: string, to: string): Buffers => {
+  const renamedIn = (buffer: Buffer): Buffer => {
+    if (
+      (buffer.kind !== "list" && buffer.kind !== "search") ||
+      !buffer.steps.some((step) => stepNames(step, from))
+    ) {
+      return buffer;
+    }
+    const steps = buffer.steps.map((step) => (stepNames(step, from) ? stepRenamed(step, to) : step));
+    const selection = selectionOf(steps);
+    const { selection: _selection, ...rest } = buffer;
+    if (buffer.kind === "search") {
+      return {
+        ...rest,
+        kind: "search",
+        steps,
+        ...(selection === undefined ? {} : { selection }),
+      } as SearchBuffer;
+    }
+    const origin = buffer.perspective;
+    const saved = origin?.saved;
+    const perspective: PerspectiveOrigin | undefined =
+      origin === undefined || saved?.filter === undefined || fold(saved.filter) !== fold(from)
+        ? origin
+        : {
+            name: origin.name,
+            saved: { ...saved, filter: to },
+            ...(origin.warning === undefined ? {} : { warning: origin.warning }),
+          };
+    return {
+      ...(rest as Omit<ListBuffer, "selection">),
+      kind: "list",
+      label: stepsLabel(steps, buffer.label),
+      steps,
+      ...(selection === undefined ? {} : { selection }),
+      ...(perspective === undefined ? {} : { perspective }),
+    };
+  };
+  const next = buffers.map(renamedIn);
+  return next.every((buffer, at) => buffer === buffers[at]) ? buffers : next;
+};
+
 export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers => {
   switch (action.type) {
     case "open":
@@ -864,18 +978,8 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       return front(buffers, action.key);
     case "update":
       return replaced(buffers, action.buffer);
-    case "close": {
-      const rest = buffers.filter((buffer) => buffer.key !== action.key);
-      if (rest.length === buffers.length) {
-        return buffers;
-      }
-      if (rest.length > 0) {
-        return rest;
-      }
-      // The last buffer closed: the window shows the overview, never an empty sheet (SR-118). The lone
-      // overview stays as it is.
-      return onlyOverview(buffers) ? buffers : [overviewBuffer()];
-    }
+    case "close":
+      return closed(buffers, action.key);
     case "reset":
       return action.buffer === undefined ? [] : [action.buffer];
     case "restore":
@@ -904,6 +1008,10 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       return renamed(buffers, action.id, action.repository, action.name);
     case "typed":
       return typed(buffers, action);
+    case "perspective-renamed":
+      return perspectiveRenamed(buffers, action.from, action.to);
+    case "filter-renamed":
+      return filterRenamed(buffers, action.from, action.to);
   }
 };
 
