@@ -45,8 +45,9 @@ for (const cmd of catalog.commands) {
     entriesValid = false;
     errors.push(`${file}: ${ajv.errorsText(validEntry.errors)}`);
   }
-  // D-045, SR-072 AK2: no access may offer deleting an element.
-  if (/delete|remove/i.test(cmd.name) && !cmd.name.startsWith("relation.")) {
+  // D-045, SR-072 AK2: no access may offer deleting an element. A `deletes` entry deletes the file of a
+  // perspective or saved filter, which is no element (D-056, SR-217); the meta schema binds it to those groups.
+  if (/delete|remove/i.test(cmd.name) && !cmd.name.startsWith("relation.") && cmd.deletes === undefined) {
     errors.push(`${file}: elements are superseded, never deleted (D-045)`);
   }
   for (const part of ["input", "output"]) {

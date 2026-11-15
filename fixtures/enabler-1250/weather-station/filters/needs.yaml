@@ -1,0 +1,5 @@
+reqseq-filter: 1
+name: All needs
+description: Every need, by title.
+where: { type: [need] }
+sort: [{ by: title }]

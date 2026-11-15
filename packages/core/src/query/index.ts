@@ -41,6 +41,8 @@ export {
   readPerspectives,
 } from "./perspectives.js";
 export type { SavedPerspective, SavedPerspectives } from "./perspectives.js";
+export { deleteFilter, deletePerspective } from "./saved-delete.js";
+export type { SavedDelete, SavedDeleteExpected } from "./saved-delete.js";
 export { renameFilter, renamePerspective } from "./saved-rename.js";
 export type { SavedRename } from "./saved-rename.js";
 export { orderedGroups, orderedSelection } from "./ordered.js";

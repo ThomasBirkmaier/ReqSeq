@@ -25,10 +25,14 @@ import { EXIT, runCli } from "../src/index.js";
 const runtime = createCommandRuntime();
 const catalogNames = runtime.contracts.commands.map((c) => c.name);
 
-/** Words of an action that would delete something; see the core test for the one allowed exception. */
+/** Words of an action that would delete something; see the core test for the allowed exceptions. */
 const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard|clear|wipe/i;
 /** Removes a relation entry from the source file; the element and its file stay. */
 const RELATION_REMOVE = "relation.remove";
+/** Delete the file of a saved filter or perspective, which is no element (D-056, SR-217 AK5). */
+const SAVED_DELETES: readonly string[] = ["filter.delete", "perspective.delete"];
+/** Every delete-like command of the catalog, in catalog order; none of them deletes an element. */
+const ALLOWED = catalogNames.filter((name) => name === RELATION_REMOVE || SAVED_DELETES.includes(name));
 
 const ELEMENT_FILE = "requirements/SR-6328cee88fb3.md";
 const REF = "SR-e88fb3";
@@ -105,7 +109,7 @@ describe("the command line offers no delete (SR-099)", () => {
       expect([group, offered.sort()]).toEqual([group, actions.sort()]);
       const deletes = offered.filter((action) => DELETE_LIKE.test(action));
       expect(deletes.map((action) => `${group}.${action}`)).toEqual(
-        group === "relation" ? [RELATION_REMOVE] : [],
+        ALLOWED.filter((name) => name.startsWith(`${group}.`)),
       );
     }
   });
@@ -200,7 +204,11 @@ describe("the MCP server offers no delete (SR-099)", () => {
       );
       expect(
         tools.map((t) => t.name).filter((name) => DELETE_LIKE.test(name.slice(name.indexOf("_") + 1))),
-      ).toEqual([toolName(RELATION_REMOVE)]);
+      ).toEqual(ALLOWED.map(toolName));
+      // Only the tools that delete a file say so (SR-217 AK5); relation.remove deletes no file.
+      expect(tools.filter((t) => t.annotations?.destructiveHint === true).map((t) => t.name)).toEqual(
+        SAVED_DELETES.map(toolName),
+      );
 
       await expect(client.callTool({ name: "element_delete", arguments: { ref: REF } })).rejects.toThrow(
         "Tool element_delete not found",
@@ -271,9 +279,7 @@ describe("the app offers no delete (SR-099)", () => {
       ]);
       const listed = (await app.bridge.commands()).map((c) => c.name);
       expect(listed).toEqual(catalogNames);
-      expect(listed.filter((name) => DELETE_LIKE.test(name.slice(name.indexOf(".") + 1)))).toEqual([
-        RELATION_REMOVE,
-      ]);
+      expect(listed.filter((name) => DELETE_LIKE.test(name.slice(name.indexOf(".") + 1)))).toEqual(ALLOWED);
       for (const name of ["element.delete", "element.remove"]) {
         expect([name, await app.bridge.invoke(name, { ref: REF })]).toEqual([
           name,

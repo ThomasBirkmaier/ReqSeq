@@ -60,15 +60,38 @@ function checkSummary(cmd) {
     : [];
 }
 
-/** Titles: unique, and D-045: no access offers deleting an element. */
+/** Groups whose `deletes` entries delete a file that is no element (D-056, SR-217 AK5). */
+const DELETING_GROUPS = new Set(["perspective", "filter"]);
+
+/** Titles: unique, and D-045: no access offers deleting an element; a `deletes` entry may say delete. */
 function checkTitle(cmd, titles) {
   const errors = [];
   if (titles.has(cmd.title)) {
     errors.push(`title "${cmd.title}" is also the title of ${titles.get(cmd.title)}`);
   }
   titles.set(cmd.title, cmd.name);
-  if (/delete|remove/i.test(cmd.title) && !cmd.name.startsWith("relation.")) {
+  if (/delete|remove/i.test(cmd.title) && !cmd.name.startsWith("relation.") && cmd.deletes === undefined) {
     errors.push(`title "${cmd.title}": elements are superseded, never deleted (D-045)`);
+  }
+  return errors;
+}
+
+/**
+ * A `deletes` entry (the file of a perspective or saved filter) is a write command of its groups, with
+ * a boolean `confirm` whose default is false, so no call deletes without it (SR-217 AK5).
+ */
+function checkDeletes(cmd) {
+  const errors = [];
+  if (cmd.deletes !== undefined) {
+    if (!DELETING_GROUPS.has(cmd.name.split(".")[0]) || cmd.effect !== "write-files") {
+      errors.push(
+        `deletes: only write-files commands of perspective and filter delete a file (D-045, D-056)`,
+      );
+    }
+    const confirm = cmd.input.properties?.confirm;
+    if (confirm?.type !== "boolean" || confirm.default !== false) {
+      errors.push(`deletes: needs a boolean input confirm whose default is false (SR-217 AK5)`);
+    }
   }
   return errors;
 }
@@ -434,6 +457,7 @@ export function checkCatalog(catalog, schemas = {}) {
   return catalog.commands.flatMap((cmd) =>
     [
       ...checkTitle(cmd, titles),
+      ...checkDeletes(cmd),
       ...checkSummary(cmd),
       ...checkArguments(cmd, schemas),
       ...checkJsonLines(cmd, schemas),

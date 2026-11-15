@@ -69,19 +69,26 @@ interface Change {
 
 const NOTHING: SavedRename = { files: [], renamed: [], perspectives: [], problems: [] };
 
+/** What a refusal says was not done: `renamed` or, for `saved-delete.ts`, `deleted`. */
+export type SavedAction = "renamed" | "deleted";
+
 /** `file.folder-missing` when the folder of `kind` lies in a repository that is not on this machine or not listed. */
-const missingRepository = (setting: string, repository: string): CommandError =>
+const missingRepository = (setting: string, repository: string, action: SavedAction): CommandError =>
   new CommandError(
     "file.folder-missing",
-    `Not renamed: the ${setting} folder is in repository ${repository}, which is not available on this machine`,
+    `Not ${action}: the ${setting} folder is in repository ${repository}, which is not available on this machine`,
     { repository },
   );
 
 /** `file.folder-missing` when the folder of `kind` lies in a repository that is not on this machine or not listed. */
-const refuseMissingRepository = (kind: SavedKind, folder: SavedFolder<unknown>): RepositoryLocation => {
+export const refuseMissingRepository = (
+  kind: SavedKind,
+  folder: SavedFolder<unknown>,
+  action: SavedAction,
+): RepositoryLocation => {
   const { repository } = folder;
   if (repository?.available !== true) {
-    throw missingRepository(kind.setting, folder.location.repository);
+    throw missingRepository(kind.setting, folder.location.repository, action);
   }
   return repository;
 };
@@ -152,59 +159,76 @@ const baselineNamesFilter = (data: unknown, name: string): boolean =>
   namesFilter((data as { readonly selection?: unknown } | null)?.selection, name);
 
 /** `file.faulty` for files that may name the filter but cannot be changed or read (AK6). */
-const unsure = (filter: string, files: readonly string[]): CommandError =>
+const unsure = (filter: string, files: readonly string[], action: SavedAction): CommandError =>
   new CommandError(
     "file.faulty",
-    `Not renamed: the saved filter ${JSON.stringify(filter)} may be named in faulty files: ${files.join(", ")}; fix them by hand first`,
+    `Not ${action}: the saved filter ${JSON.stringify(filter)} may be named in faulty files: ${files.join(", ")}; fix them by hand first`,
     { files: [...files] },
   );
+
+/**
+ * The perspective files that name the filter `filter`, also those a file with the same name hides, in
+ * file order; refuses as AK6 says when the tool cannot be sure which files name it.
+ */
+export const perspectivesNaming = async (
+  layout: WorkspaceLayout,
+  filter: string,
+  action: SavedAction,
+): Promise<SavedFile<{ readonly filter?: string }>[]> => {
+  const folder = await readPerspectives(layout);
+  const repository =
+    folder.incomplete || folder.repository === undefined
+      ? refuseMissingRepository(PERSPECTIVES, folder, action)
+      : folder.repository;
+  if (folder.unreadable) {
+    throw unsure(filter, [workspacePath(layout, repository, folder.folder)], action);
+  }
+  const faulty = folder.faulty
+    .filter((f) => !f.readable || namesFilter(f.data, filter))
+    .map((f) => workspacePath(layout, repository, f.path));
+  if (faulty.length > 0) {
+    throw unsure(filter, faulty, action);
+  }
+  return [...folder.saved, ...folder.hidden]
+    .filter((p) => namesFilter(p.data, filter))
+    .sort((a, b) => Number(a.path > b.path) - Number(a.path < b.path));
+};
 
 /** The perspectives that name the filter `filter`, as changes to `newName` (AK4); refuses as AK6 says. */
 const perspectiveChanges = async (
   layout: WorkspaceLayout,
   filter: string,
   newName: string,
-): Promise<Change[]> => {
-  const folder = await readPerspectives(layout);
-  const repository =
-    folder.incomplete || folder.repository === undefined
-      ? refuseMissingRepository(PERSPECTIVES, folder)
-      : folder.repository;
-  if (folder.unreadable) {
-    throw unsure(filter, [workspacePath(layout, repository, folder.folder)]);
-  }
-  const faulty = folder.faulty
-    .filter((f) => !f.readable || namesFilter(f.data, filter))
-    .map((f) => workspacePath(layout, repository, f.path));
-  if (faulty.length > 0) {
-    throw unsure(filter, faulty);
-  }
-  return [...folder.saved, ...folder.hidden]
-    .filter((p) => namesFilter(p.data, filter) && p.data.filter !== newName)
-    .sort((a, b) => Number(a.path > b.path) - Number(a.path < b.path))
+): Promise<Change[]> =>
+  (await perspectivesNaming(layout, filter, "renamed"))
+    .filter((p) => p.data.filter !== newName)
     .map((saved) => ({ saved, to: saved.path, edits: [{ key: "filter", value: newName }] }));
-};
 
 /** Refuses when a baseline file names the filter, or one that may name it is faulty (AK6). */
-const refuseBaselines = async (workspace: Workspace, filter: string, command: CommandName): Promise<void> => {
+export const refuseBaselines = async (
+  workspace: Workspace,
+  filter: string,
+  command: CommandName,
+  action: SavedAction,
+): Promise<void> => {
   const baselines = await workspaceBaselines(workspace);
   const naming = baselines.baselines.filter((b) => baselineNamesFilter(b.data, filter)).map((b) => b.shown);
   if (naming.length > 0) {
     throw new CommandError(
       "input.invalid",
-      `name: the saved filter ${JSON.stringify(filter)} is named in ${naming.join(", ")}; ReqSeq never changes a baseline file, so it is not renamed`,
+      `name: the saved filter ${JSON.stringify(filter)} is named in ${naming.join(", ")}; ReqSeq never changes a baseline file, so it is not ${action}`,
       { command, fields: ["name"], reason: "referenced", files: naming },
     );
   }
   const layout = await workspace.get(workspaceLayoutState);
   const { repository, folder } = locate(layout, baselines.location);
   if (baselines.incomplete || repository === undefined) {
-    throw missingRepository("baselines", baselines.location.repository);
+    throw missingRepository("baselines", baselines.location.repository, action);
   }
   if (baselines.unreadable && folder !== undefined) {
     // A folder that cannot be listed is never the root of its repository, which the workspace needs.
     const shown = path.relative(repository.folder, folder).split(path.sep).join("/");
-    throw unsure(filter, [workspacePath(layout, repository, shown)]);
+    throw unsure(filter, [workspacePath(layout, repository, shown)], action);
   }
   const faulty: string[] = [];
   for (const file of baselines.faulty) {
@@ -214,12 +238,15 @@ const refuseBaselines = async (workspace: Workspace, filter: string, command: Co
     }
   }
   if (faulty.length > 0) {
-    throw unsure(filter, faulty);
+    throw unsure(filter, faulty, action);
   }
 };
 
 /** Refuses, before anything is written, every change AK7 refuses. */
-const checkChanges = async (changes: readonly Change[]): Promise<void> => {
+export const checkChanges = async (
+  changes: readonly Pick<Change, "saved" | "to">[],
+  action: SavedAction = "renamed",
+): Promise<void> => {
   for (const { saved, to } of changes) {
     // Each repository is on this machine: the folders of both kinds were checked when read.
     const { repository } = saved;
@@ -232,7 +259,9 @@ const checkChanges = async (changes: readonly Change[]): Promise<void> => {
     if ((await isWritableFolder(path.join(repository.folder, folder))) === false) {
       throw new CommandError(
         "file.read-only",
-        `Not written: the folder of ${saved.file} is not writable; nothing was written`,
+        action === "renamed"
+          ? `Not written: the folder of ${saved.file} is not writable; nothing was written`
+          : `Not deleted: the folder of ${saved.file} is not writable`,
         { repository: repository.name, folder },
       );
     }
@@ -349,7 +378,7 @@ export const renamePerspective = async (
 ): Promise<SavedRename> => {
   const layout = await workspace.get(workspaceLayoutState);
   const folder = await readSavedFolder<{ readonly name: string }>(layout, PERSPECTIVES);
-  refuseMissingRepository(PERSPECTIVES, folder);
+  refuseMissingRepository(PERSPECTIVES, folder, "renamed");
   const change = ownChange(PERSPECTIVES, folder, name, newName, "perspective.rename");
   if (change === undefined) {
     return NOTHING;
@@ -368,14 +397,14 @@ export const renameFilter = async (
   const command = "filter.rename";
   const layout = await workspace.get(workspaceLayoutState);
   const folder = await readSavedFolder<{ readonly name: string }>(layout, FILTERS);
-  refuseMissingRepository(FILTERS, folder);
+  refuseMissingRepository(FILTERS, folder, "renamed");
   const change = ownChange(FILTERS, folder, name, newName, command);
   if (change === undefined) {
     return NOTHING;
   }
   const filter = change.saved.name;
   const perspectives = await perspectiveChanges(layout, filter, newName);
-  await refuseBaselines(workspace, filter, command);
+  await refuseBaselines(workspace, filter, command, "renamed");
   const changes = [...perspectives, change];
   await checkChanges(changes);
   const written = await applyChanges(changes);

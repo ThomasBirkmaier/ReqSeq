@@ -184,7 +184,12 @@ const mcp = {
       name: cmd.name.replace(".", "_"),
       title: cmd.title,
       description: cmd.summary,
-      annotations: { readOnlyHint: cmd.effect === "read", destructiveHint: false, openWorldHint: false },
+      annotations: {
+        readOnlyHint: cmd.effect === "read",
+        // Only a command that deletes a file (`deletes`, SR-217 AK5); relation.remove deletes no file.
+        destructiveHint: cmd.deletes !== undefined,
+        openWorldHint: false,
+      },
       inputSchema: rewrite(cmd.input, toRef),
       outputSchema: rewrite(cmd.output, toRef),
     };

@@ -10,6 +10,7 @@ import type { FileSnapshot } from "./snapshot.js";
 import {
   checkReplaceable,
   createFilesAtomic,
+  deleteSavedFile,
   isTempFile,
   removeCreatedFiles,
   renameFileAtomic,
@@ -724,6 +725,114 @@ describe("renameFileAtomic and checkReplaceable (SR-217 AK2, AK7)", () => {
         message: "Not written: the folder of linked/b.yaml is linked outside the workspace",
       });
       expect(await fs.readdir(outside)).toEqual([]);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("deleteSavedFile (SR-217 AK5, AK7)", () => {
+  const Y = "reqseq-perspective: 1\nname: A\nwhere: { all: [] }\n";
+
+  it("deletes an unchanged .yaml file and keeps its folder, also when it is empty then", async () => {
+    await fs.mkdir(abs("p"));
+    await put("p/a.yaml", Y);
+    await deleteSavedFile(root, "p/a.yaml", await forge("p/a.yaml"));
+    expect(await fs.readdir(abs("p"))).toEqual([]);
+  });
+
+  it("deletes nothing but a .yaml file of its own snapshot", async () => {
+    for (const name of ["a.yml", "b.YAML", "c.md", "d.yaml.md"]) {
+      await put(name, Y);
+      await expect(deleteSavedFile(root, name, await forge(name))).rejects.toMatchObject({
+        code: "internal",
+      });
+    }
+    await put("a.yaml", Y);
+    await expect(deleteSavedFile(root, "a.yaml", await forge("a.yml"))).rejects.toMatchObject({
+      code: "internal",
+      message: "Not deleted: a.yaml is no saved file of this snapshot (a.yml)",
+    });
+    expect((await fs.readdir(root)).sort()).toEqual(["a.yaml", "a.yml", "b.YAML", "c.md", "d.yaml.md"]);
+  });
+
+  it("refuses a changed, faulty, removed or read-only file and deletes nothing", async () => {
+    await put("a.yaml", Y);
+    const before = await forge("a.yaml");
+    await put("a.yaml", `${Y}# changed\n`);
+    await expect(deleteSavedFile(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+      message: "Not deleted: a.yaml changed on disk since it was read. Read it again first.",
+    });
+    await put("a.yaml", "name: [\n");
+    await expect(deleteSavedFile(root, "a.yaml", await forge("a.yaml"))).rejects.toMatchObject({
+      code: "file.faulty",
+    });
+    await put("a.yaml", Y);
+    await fs.chmod(abs("a.yaml"), 0o444);
+    await expect(deleteSavedFile(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "file.read-only",
+      message: "Not deleted: a.yaml is read-only",
+    });
+    expect(await text("a.yaml")).toBe(Y);
+    await fs.chmod(abs("a.yaml"), 0o644);
+    await fs.rm(abs("a.yaml"));
+    await expect(deleteSavedFile(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+      message: "Not deleted: a.yaml was removed since it was read. Read it again first.",
+    });
+  });
+
+  it("retries a transient error, maps a refused unlink to file.read-only and another error to internal", async () => {
+    await put("a.yaml", Y);
+    const before = await forge("a.yaml");
+    vi.spyOn(fs, "unlink").mockRejectedValue(errno("EROFS"));
+    await expect(deleteSavedFile(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "file.read-only",
+      message: "Not deleted: the folder of a.yaml is not writable (EROFS)",
+    });
+    vi.spyOn(fs, "unlink").mockRejectedValue(errno("EIO"));
+    await expect(deleteSavedFile(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "internal",
+      message: "Not deleted: a.yaml (EIO)",
+    });
+    vi.restoreAllMocks();
+    const unlink = fs.unlink.bind(fs);
+    const spy = vi.spyOn(fs, "unlink").mockRejectedValueOnce(errno("EBUSY")).mockImplementation(unlink);
+    await deleteSavedFile(root, "a.yaml", before);
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  it("waits a moment for a name that stays listed after the unlink, as on Windows, and then returns", async () => {
+    await put("a.yaml", Y);
+    const unlink = fs.unlink.bind(fs);
+    // Marked for deletion: the name goes a moment after the unlink returns.
+    vi.spyOn(fs, "unlink").mockImplementationOnce((file) => {
+      setTimeout(() => void unlink(file), 30);
+      return Promise.resolve();
+    });
+    await deleteSavedFile(root, "a.yaml", await forge("a.yaml"));
+    expect(await fs.readdir(root)).toEqual([]);
+    await put("b.yaml", Y);
+    // A name that never goes: the call still returns after a bounded wait.
+    vi.spyOn(fs, "unlink").mockResolvedValueOnce(undefined);
+    await deleteSavedFile(root, "b.yaml", await forge("b.yaml"));
+    expect(await fs.readdir(root)).toEqual(["b.yaml"]);
+  });
+
+  it("refuses a folder linked outside the root", async () => {
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
+    try {
+      await fs.writeFile(path.join(outside, "a.yaml"), Y);
+      await fs.symlink(outside, abs("linked"), "junction");
+      await expect(
+        deleteSavedFile(root, "linked/a.yaml", await forge("linked/a.yaml")),
+      ).rejects.toMatchObject({
+        code: "input.invalid",
+        message: "Not deleted: the folder of linked/a.yaml is linked outside the workspace",
+      });
+      expect(await fs.readdir(outside)).toEqual(["a.yaml"]);
     } finally {
       await fs.rm(outside, { recursive: true, force: true });
     }

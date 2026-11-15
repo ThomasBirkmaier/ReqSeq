@@ -34,7 +34,7 @@
             "minLength": 1,
             "maxLength": 40,
             "pattern": "^[A-Z][^.!?]*$",
-            "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045)."
+            "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045)."
           },
           "summary": {
             "type": "string",
@@ -48,7 +48,7 @@
           },
           "effect": {
             "enum": ["read", "write-files"],
-            "description": "No command writes to Git (D-036). No command deletes elements (D-045)."
+            "description": "No command writes to Git (D-036). No command deletes elements (D-045); only entries with `deletes` delete a file."
           },
           "whileReadOnly": {
             "enum": ["refuse", "allow"],
@@ -59,6 +59,10 @@
             "minLength": 10,
             "pattern": "^[^\\n]+$",
             "description": "Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`."
+          },
+          "deletes": {
+            "const": "saved-file",
+            "description": "The command deletes a file, the file of a perspective or saved filter, which is no element (D-056, SR-217 AK5): only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint` (ADR-0002 rule 5, ADR-0009)."
           },
           "stage": {
             "type": "integer",
@@ -189,6 +193,17 @@
         "else": {
           "not": { "anyOf": [{ "required": ["whileReadOnly"] }, { "required": ["whileReadOnlyReason"] }] }
         },
+        "allOf": [
+          {
+            "if": { "required": ["deletes"] },
+            "then": {
+              "properties": {
+                "name": { "pattern": "^(perspective|filter)\\." },
+                "effect": { "const": "write-files" }
+              }
+            }
+          }
+        ],
         "additionalProperties": false
       }
     }
