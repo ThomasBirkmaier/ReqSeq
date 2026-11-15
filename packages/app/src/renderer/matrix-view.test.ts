@@ -252,6 +252,15 @@ describe("MatrixView", () => {
     ]);
   });
 
+  it("shows the ID of a target in a cell apart from its title, as the ID of the row element (#1758)", async () => {
+    await mount(asCall(fakeCall()));
+    expect(texts("tbody tr:nth-child(1) td.element .id")).toEqual(["SR-000001 (SR-1)"]);
+    expect(texts("tbody tr:nth-child(1) td.cell .target .id")).toEqual([
+      "N-000001 (N-1)",
+      "SR-000002 (SR-2)",
+    ]);
+  });
+
   it("[SR-153/AK-mcfm] marks the cells core names as gaps in the accent, also one with a link, and heads the column with met of expected and share", async () => {
     await mount(asCall(fakeCall()));
     expect(texts("thead th:nth-child(2) .count")).toEqual(["2 of 4 · 50 %"]);
