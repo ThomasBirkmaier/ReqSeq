@@ -93,8 +93,13 @@ export const renamedPath = (
   saved: SavedFile<unknown>,
   newName: string,
 ): string => {
-  // The own entry left out as listed, so another entry that folds alike stays taken.
   const own = path.posix.basename(saved.path);
+  // The rule's name without a suffix is the own file name, in any case: it stays (AK2), also when
+  // another entry differs from it only in case.
+  if (fold(newSavedFile(kind, newName, new Set())) === fold(own)) {
+    return saved.path;
+  }
+  // The own entry left out as listed, so another entry that folds alike stays taken.
   const entries = new Set(folder.listed.filter((entry) => entry !== own).map(fold));
   const file = newSavedFile(kind, newName, entries);
   return fold(file) === fold(own) ? saved.path : path.posix.join(path.posix.dirname(saved.path), file);
@@ -255,6 +260,40 @@ const renameBack = async (
   }
 };
 
+/**
+ * The error of a write that stopped (see the file comment): `files` were changed before it, and the
+ * file at `shown` was renamed and then renamed `back` (or not) after its name line failed; undefined
+ * `back` when it was not renamed. The error itself when nothing is to be said beyond it.
+ */
+const stoppedError = (
+  error: unknown,
+  files: readonly string[],
+  saved: SavedFile<unknown>,
+  shown: string,
+  back: boolean | undefined,
+): unknown => {
+  const written = back === false ? [...files, shown] : [...files];
+  if ((written.length === 0 && back !== true) || !(error instanceof CommandError)) {
+    return error;
+  }
+  const left =
+    back === true
+      ? `; ${saved.file} was renamed back and is unchanged`
+      : back === false
+        ? ` (${shown} keeps the old name in its file)`
+        : "";
+  const changed =
+    written.length === 0
+      ? "; nothing was changed"
+      : `. Already changed: ${written.join(", ")}; the same call again finishes the rename`;
+  return new CommandError(
+    error.code,
+    `${error.message}${left}${changed}`,
+    { ...error.details, ...(written.length === 0 ? {} : { written }) },
+    { cause: error },
+  );
+};
+
 /** Writes `changes` in order (see the file comment); gives the written and the renamed files. */
 const applyChanges = async (changes: readonly Change[]): Promise<Pick<SavedRename, "files" | "renamed">> => {
   const files: string[] = [];
@@ -280,18 +319,8 @@ const applyChanges = async (changes: readonly Change[]): Promise<Pick<SavedRenam
     } catch (error) {
       // Renamed, but its name line not written: back to its old path, so the same call finds it there
       // and not a file it hid (a duplicate of its old name).
-      const stays = moved !== undefined && !(await renameBack(saved, to, moved)) ? [shown] : [];
-      const written = [...files, ...stays];
-      if (written.length === 0 || !(error instanceof CommandError)) {
-        throw error;
-      }
-      const left = stays.length === 0 ? "" : ` (${shown} keeps the old name in its file)`;
-      throw new CommandError(
-        error.code,
-        `${error.message}. Already changed: ${written.join(", ")}${left}; the same call again finishes the rename`,
-        { ...error.details, written },
-        { cause: error },
-      );
+      const back = moved === undefined ? undefined : await renameBack(saved, to, moved);
+      throw stoppedError(error, files, saved, shown, back);
     }
   }
   return { files, renamed };

@@ -67,8 +67,8 @@ const open = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace
   return { fixture, workspace };
 };
 
-const rename = (workspace: Workspace): Promise<unknown> =>
-  invoke("filter.rename", { name: "Sensors", newName: "Sensor package" }, { workspace });
+const rename = (workspace: Workspace, newName = "Sensor package"): Promise<unknown> =>
+  invoke("filter.rename", { name: "Sensors", newName }, { workspace });
 
 const read = (fixture: FixtureWorkspace, file: string): Promise<string> =>
   fs.readFile(fixture.path(file), "utf8").catch(() => "(none)");
@@ -108,24 +108,44 @@ describe("filter.rename that stops part-way (SR-217)", () => {
 
   it("[SR-217/AK-q14p] keeps a file that hides a duplicate of its old name from taking over, and names a file that cannot be renamed back", async () => {
     const { fixture, workspace } = await open();
-    await fs.writeFile(fixture.path("filters/zz.yaml"), SENSORS);
-    fail.write = "filters/sensor-package.yaml";
-    await rename(workspace).catch(() => undefined);
+    // Sorts after the old file and before the new one: it would hold the old name first if the
+    // renamed file stayed under its new name with the old name in it.
+    await fs.writeFile(fixture.path("filters/t.yaml"), SENSORS);
+    fail.write = "filters/wind-sensors.yaml";
+    const error = (await rename(workspace, "Wind sensors").catch((e: unknown) => e)) as CommandError;
+    expect(error.message).toBe(
+      "Not written: filters/wind-sensors.yaml (ENOSPC); filters/sensors.yaml was renamed back and is unchanged. " +
+        "Already changed: perspectives/a.yaml, perspectives/b.yaml; the same call again finishes the rename",
+    );
+    expect(await read(fixture, "filters/sensors.yaml")).toBe(SENSORS);
     fail.write = undefined;
     // The same call again renames the file it renamed before, not the duplicate it hides.
-    expect(((await rename(workspace)) as { renamed: unknown }).renamed).toEqual([
-      { from: "filters/sensors.yaml", to: "filters/sensor-package.yaml" },
+    expect(((await rename(workspace, "Wind sensors")) as { renamed: unknown }).renamed).toEqual([
+      { from: "filters/sensors.yaml", to: "filters/wind-sensors.yaml" },
     ]);
-    expect(await read(fixture, "filters/zz.yaml")).toBe(SENSORS);
+    expect(await read(fixture, "filters/t.yaml")).toBe(SENSORS);
 
     const again = await open();
     fail.write = "filters/sensor-package.yaml";
     fail.back = true;
-    const error = (await rename(again.workspace).catch((e: unknown) => e)) as CommandError;
-    expect(error.details).toEqual({
+    const kept = (await rename(again.workspace).catch((e: unknown) => e)) as CommandError;
+    expect(kept.details).toEqual({
       written: ["perspectives/a.yaml", "perspectives/b.yaml", "filters/sensor-package.yaml"],
     });
-    expect(error.message).toContain("filters/sensor-package.yaml keeps the old name in its file");
+    expect(kept.message).toContain("filters/sensor-package.yaml keeps the old name in its file");
+  });
+
+  it("[SR-217/AK-q14p] says that nothing changed when the renamed file is renamed back", async () => {
+    const { fixture, workspace } = await open();
+    fail.write = "perspectives/c.yaml";
+    const error = (await invoke("perspective.rename", { name: "A", newName: "C" }, { workspace }).catch(
+      (e: unknown) => e,
+    )) as CommandError;
+    expect([error.message, error.details]).toEqual([
+      "Not written: perspectives/c.yaml (ENOSPC); perspectives/a.yaml was renamed back and is unchanged; nothing was changed",
+      {},
+    ]);
+    expect(await read(fixture, "perspectives/a.yaml")).toBe(perspective("A"));
   });
 
   it("[SR-217/AK-q14p] passes on an error that is no command error, and a failure of the first write as it is", async () => {

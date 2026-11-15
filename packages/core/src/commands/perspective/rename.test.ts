@@ -1,6 +1,8 @@
 // perspective.rename (SR-217 AK1 to AK3, AK7) on fixtures/SR-069/filter (see commands/element/list.test.ts
 // for its elements) with hand-written perspective files.
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -10,6 +12,20 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
 type Renamed = CommandOutput<"perspective.rename">;
+
+/** Whether the temporary folder tells file names apart by case (Linux; not macOS or Windows by default). */
+const caseSensitive = await (async (): Promise<boolean> => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-case-"));
+  try {
+    await fs.writeFile(path.join(folder, "a"), "");
+    return await fs.access(path.join(folder, "A")).then(
+      () => false,
+      () => true,
+    );
+  } finally {
+    await fs.rm(folder, { recursive: true, force: true });
+  }
+})();
 
 const DRAFTS =
   "# Open work\nreqseq-perspective: 1\nname: Drafts\ndescription: What is open\n" +
@@ -110,6 +126,30 @@ describe("perspective.rename (SR-217)", () => {
       "taken-file-2.yaml",
       "unicode-a-b.yaml",
     ]);
+  });
+
+  it.runIf(caseSensitive)(
+    "[SR-217/AK-yt8d] keeps the file name for a change of case only, also beside a file that differs only in case",
+    async () => {
+      const { fixture, workspace } = await open({
+        "perspectives/drafts.yaml": DRAFTS,
+        "perspectives/Drafts.yaml": "reqseq-perspective: 1\nname: Other\nwhere: { all: [] }\n",
+      });
+      expect(await rename(workspace, "Drafts", "drafts")).toEqual({
+        files: ["perspectives/drafts.yaml"],
+        renamed: [],
+        problems: [],
+      });
+      expect(Object.keys(await folder(fixture))).toEqual(["Drafts.yaml", "drafts.yaml"]);
+    },
+  );
+
+  it("[SR-217/AK-yt8d] keeps a file with a suffix whose name without it another file has", async () => {
+    const { workspace } = await open({
+      "perspectives/drafts.yaml": "reqseq-perspective: 1\nname: Other\nwhere: { all: [] }\n",
+      "perspectives/drafts-2.yaml": DRAFTS,
+    });
+    expect((await rename(workspace, "Drafts", "Drafts!")).files).toEqual(["perspectives/drafts-2.yaml"]);
   });
 
   it("[SR-217/AK-yt8d] names a renamed file as perspective.save names a new file: accents removed, at most 64 characters", async () => {
