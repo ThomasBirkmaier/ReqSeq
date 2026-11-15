@@ -70,6 +70,36 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
   });
 
+  it("a deletes entry may say delete, only as a write command of perspective or filter with confirm false by default (SR-217 AK5)", () => {
+    const confirm = { type: "boolean", default: false };
+    const deleting = (name, schema, effect = "write-files") => ({
+      ...command(name, "Delete it", [arg("ref", "element"), arg("confirm", "boolean")], schema),
+      effect,
+      deletes: "saved-file",
+    });
+    const withConfirm = {
+      type: "object",
+      properties: { ref: { type: "string" }, confirm },
+      required: ["ref"],
+    };
+    expect(check(deleting("filter.one", withConfirm))).toEqual([]);
+    const wrongPlace =
+      "deletes: only write-files commands of perspective and filter delete a file (D-045, D-056)";
+    expect(check(deleting("test.one", withConfirm))).toEqual([
+      `schemas/commands/test.one.json: ${wrongPlace}`,
+    ]);
+    expect(check(deleting("perspective.one", withConfirm, "read"))).toEqual([
+      `schemas/commands/perspective.one.json: ${wrongPlace}`,
+    ]);
+    const noDefault = {
+      ...withConfirm,
+      properties: { ref: { type: "string" }, confirm: { type: "boolean" } },
+    };
+    expect(check(deleting("filter.one", noDefault))).toEqual([
+      "schemas/commands/filter.one.json: deletes: needs a boolean input confirm whose default is false (SR-217 AK5)",
+    ]);
+  });
+
   it("a summary has at most 50 words, counted at white space (#1252)", () => {
     const words = (n) => Array.from({ length: n }, (_, i) => `w${String(i)}`).join(" ");
     expect(check({ ...command("test.one", "One"), summary: words(SUMMARY_WORDS) })).toEqual([]);

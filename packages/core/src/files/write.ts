@@ -14,10 +14,15 @@
 // bytes, called once per pass, for a text larger than one string (`jsonChunks`, #277). Chunks are
 // written one by one, hashed and counted as they go, so the snapshot is that of the whole file.
 //
-// After a rename or link the folder is fsynced, best effort (Windows cannot open folders).
+// Delete (`deleteSavedFile`, only the `.yaml` file of a perspective or saved filter, SR-217 AK5):
+// check the bytes against the snapshot and unlink, both inside one retry of the transient codes; the
+// window between check and unlink is a few system calls long, as for a replace. The folder stays.
+//
+// After a rename, link or delete the folder is fsynced, best effort (Windows cannot open folders).
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes, parseYamlFileBytes } from "./parse.js";
 import { readJsonlFile } from "./jsonl-data.js";
@@ -72,6 +77,9 @@ const tempPathFor = (absolute: string): string =>
     path.dirname(absolute),
     `.${path.basename(absolute)}.${randomBytes(4).toString("hex")}.reqseq-tmp`,
   );
+
+/** The only files `deleteSavedFile` deletes: perspectives and saved filters (D-056). */
+const SAVED_EXTENSION = ".yaml";
 
 const NO_HARD_LINKS: readonly string[] = ["EPERM", "ENOTSUP", "ENOSYS"];
 /** No write permission, or a read-only file system (e.g. a read-only metamodel repository, SR-018 AK2). */
@@ -472,6 +480,87 @@ export const renameFileAtomic = async (
     return makeSnapshot(target.file, expected.size, expected.mtimeMs, expected.sha256);
   } catch (e) {
     throw toCommandError(e, current, true);
+  }
+};
+
+/** How long `deleteSavedFile` waits for a deleted name to leave its folder (Windows, below). */
+const GONE_ATTEMPTS = 10;
+
+/**
+ * Resolves once `absolute` is gone (`lstat` gives `ENOENT`), or after `GONE_ATTEMPTS` looks; never
+ * throws. On Windows a name whose delete is still pending stays listed, and `lstat` of it fails with
+ * `EPERM` or `EACCES`, so only `ENOENT` counts as gone.
+ */
+const waitGone = async (absolute: string): Promise<void> => {
+  for (let attempt = 1; ; attempt++) {
+    const gone = await fs.lstat(absolute).then(
+      () => false,
+      (e: unknown) => errorCode(e) === "ENOENT",
+    );
+    if (gone || attempt === GONE_ATTEMPTS) {
+      return;
+    }
+    await sleep(20 * attempt);
+  }
+};
+
+/**
+ * A refusal of a delete (`deleteSavedFile`, and the checks `saved-delete.ts` shares with writes) says
+ * "Not deleted", not "Not written", and keeps its code and details; any other error stays as it is.
+ */
+export const notDeleted = (error: unknown): unknown =>
+  error instanceof CommandError && error.message.startsWith("Not written: ")
+    ? new CommandError(
+        error.code,
+        `Not deleted: ${error.message.slice("Not written: ".length)}`,
+        error.details,
+        { cause: error },
+      )
+    : error;
+
+/**
+ * Deletes the file of a perspective or saved filter (`perspective.delete`, `filter.delete`, SR-217
+ * AK5): `relativePath` below `root`, whose base name ends in `.yaml`, only while it is a writable
+ * regular file whose bytes are still those of `expected` and still parse as YAML. The check and the
+ * unlink run together inside one retry of the transient codes, as a replace does; afterwards a
+ * refused unlink (`EACCES`, `EPERM`, `EROFS`) is `file.read-only`. The window between the check and
+ * the unlink is a few system calls long, as for a replace. The folder stays, also when it is empty
+ * afterwards. On Windows a file another program holds open can stay listed after the unlink until
+ * that program closes it; the call waits a moment for its name to go. Refuses as `writeFileAtomic`
+ * does otherwise (links out of the root).
+ */
+export const deleteSavedFile = async (
+  root: string,
+  relativePath: string,
+  expected: FileSnapshot,
+): Promise<void> => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  if (!path.posix.basename(file).endsWith(SAVED_EXTENSION) || expected.path !== file) {
+    throw new CommandError(
+      "internal",
+      `Not deleted: ${file} is no saved file of this snapshot (${expected.path})`,
+    );
+  }
+  try {
+    if (!(await linksStayInside(root, path.dirname(absolute)))) {
+      throw new CommandError(
+        "input.invalid",
+        `Not deleted: the folder of ${file} is linked outside the workspace`,
+      );
+    }
+    await retry(async () => {
+      await checkUnchanged(absolute, file, expected, { kind: "yaml" });
+      await fs.unlink(absolute);
+    }, TRANSIENT_CODES).catch((e: unknown) => {
+      const code = String(errorCode(e));
+      throw NOT_WRITABLE.includes(code)
+        ? new CommandError("file.read-only", `Not deleted: the folder of ${file} is not writable (${code})`)
+        : e;
+    });
+    await waitGone(absolute);
+    await syncFolder(path.dirname(absolute));
+  } catch (e) {
+    throw notDeleted(toCommandError(e, file, true));
   }
 };
 

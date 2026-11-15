@@ -184,7 +184,12 @@ const mcp = {
       name: cmd.name.replace(".", "_"),
       title: cmd.title,
       description: cmd.summary,
-      annotations: { readOnlyHint: cmd.effect === "read", destructiveHint: false, openWorldHint: false },
+      annotations: {
+        readOnlyHint: cmd.effect === "read",
+        // True for the commands with `deletes` in the catalog (SR-217 AK5, ADR-0009).
+        destructiveHint: cmd.deletes !== undefined,
+        openWorldHint: false,
+      },
       inputSchema: rewrite(cmd.input, toRef),
       outputSchema: rewrite(cmd.output, toRef),
     };

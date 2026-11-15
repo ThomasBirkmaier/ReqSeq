@@ -63,6 +63,7 @@ export const FILES: Readonly<Record<string, string>> = {
   "new/.keep": "",
   "new/layout.png": "an image",
   "filters/wind.yaml": "reqseq-filter: 1\nname: Wind\nwhere: { status: [draft] }\n",
+  "filters/gusts.yaml": "reqseq-filter: 1\nname: Gusts\nwhere: { status: [approved] }\n",
   "perspectives/wind.yaml": "reqseq-perspective: 1\nname: Wind\nfilter: Wind\nwhere: { all: [] }\n",
   [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
   "in/lieferung.reqif": delivery("lieferung.reqif"),
@@ -241,11 +242,14 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "Wind", newName: "Wind speed" },
     { name: "Nope", newName: "Other" },
   ],
+  // Wind is named by a perspective, so it is refused; Gusts is deleted (SR-217 AK5, AK6).
+  "filter.delete": [{ name: "Gusts" }, { name: "Gusts", confirm: true }, { name: "Wind", confirm: true }],
   "perspective.list": [{}, { extra: true }],
   "perspective.rename": [
     { name: "Wind", newName: "Wind speed" },
     { name: "Nope", newName: "Other" },
   ],
+  "perspective.delete": [{ name: "Wind" }, { name: "Wind", confirm: true }, { name: "Nope", confirm: true }],
   "perspective.save": [
     { name: "Drafts", where: { status: ["draft"] }, group: "status", sort: [{ by: "status" }] },
     { name: "drafts", where: { any: [{ status: ["retired"] }, { invalid: true }] } },

@@ -7,7 +7,9 @@
 //   `*.yaml` file directly in that folder that matches the kind's schema, as the metamodel folder is
 //   read; a `.yml` file is reported and not read. These files are not elements (D-056: YAML files
 //   of the tool), so D-045 does not apply to them; saving never deletes, moves or renames one,
-//   renaming (`perspective.rename`, `filter.rename`, saved-rename.ts) renames its file (SR-217 AK2).
+//   renaming (`perspective.rename`, `filter.rename`, saved-rename.ts) renames its file (SR-217 AK2),
+//   and deleting (`perspective.delete`, `filter.delete`, saved-delete.ts) deletes it after confirmation
+//   (SR-217 AK5).
 // - Read on every call, never kept: a handful of small files, and a file another person committed
 //   is there as soon as the working copy has it (SR-070 AK2, SR-213 AK2), also for a running server
 //   or the app.

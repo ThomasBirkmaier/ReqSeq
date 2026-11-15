@@ -6,7 +6,8 @@ import { SCHEMA_BASE } from "@reqseq/core";
 
 export interface McpToolAnnotations {
   readonly readOnlyHint: boolean;
-  readonly destructiveHint: false;
+  /** True for the commands with `deletes` in the catalog (SR-217 AK5, ADR-0009). */
+  readonly destructiveHint: boolean;
   readonly openWorldHint: false;
 }
 
@@ -87,7 +88,11 @@ const tool = (entry: CatalogEntry): McpTool => ({
   name: toolName(entry.name),
   title: entry.title,
   description: entry.summary,
-  annotations: { readOnlyHint: entry.effect === "read", destructiveHint: false, openWorldHint: false },
+  annotations: {
+    readOnlyHint: entry.effect === "read",
+    destructiveHint: entry.deletes !== undefined,
+    openWorldHint: false,
+  },
   // Command schemas sit in schemas/commands/; their refs name the file, so the file here is a fallback only.
   inputSchema: rewrite(entry.input, "common.schema.json") as JsonSchema,
   outputSchema: rewrite(entry.output, "common.schema.json") as JsonSchema,

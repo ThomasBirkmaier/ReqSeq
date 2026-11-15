@@ -29,6 +29,15 @@ describe("catalogTools", () => {
     expect(list.$defs).toEqual(file["$defs"]);
   });
 
+  it("marks exactly the commands with deletes as destructive (SR-217 AK5)", () => {
+    const tools = catalogTools(loadContracts()).tools;
+    expect(tools.filter((t) => t.annotations.destructiveHint).map((t) => t.name)).toEqual([
+      "filter_delete",
+      "perspective_delete",
+    ]);
+    expect(tools.find((t) => t.name === "relation_remove")?.annotations.destructiveHint).toBe(false);
+  });
+
   it("gives every tool the title of its catalog entry (MCP `title`; the arguments stay out of MCP)", () => {
     const contracts = loadContracts();
     const list = catalogTools(contracts);

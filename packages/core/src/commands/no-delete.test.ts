@@ -22,6 +22,8 @@ const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard
  */
 const NOT_AN_ELEMENT_DELETE: Readonly<Record<string, string>> = {
   "relation.remove": "removes a relation entry from the source file; the element and its file stay",
+  "filter.delete": "deletes the file of a saved filter, which is no element (D-056, SR-217 AK5)",
+  "perspective.delete": "deletes the file of a perspective, which is no element (D-056, SR-217 AK5)",
 };
 
 const contracts = loadContracts();
@@ -53,6 +55,12 @@ const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   "perspective.rename": {
     "perspectives/drafts.yaml": "reqseq-perspective: 1\nname: Drafts\nwhere: { status: [draft] }\n",
   },
+  "filter.delete": {
+    "filters/drafts.yaml": "reqseq-filter: 1\nname: Drafts\nwhere: { status: [draft] }\n",
+  },
+  "perspective.delete": {
+    "perspectives/drafts.yaml": "reqseq-perspective: 1\nname: Drafts\nwhere: { status: [draft] }\n",
+  },
   "variant.exclude": {
     "variants/VAR-cccccccccccc.md": `---\nid: ${VARIANT}\ntype: variant\nstatus: draft\ntitle: Coast\n---\n`,
   },
@@ -60,6 +68,9 @@ const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
 
 /** Commands that rename the file of a perspective or saved filter, which is no element (SR-217 AK2, D-056). */
 const RENAMES: ReadonlySet<string> = new Set(["filter.rename", "perspective.rename"]);
+
+/** Commands that delete the file of a perspective or saved filter, which is no element (SR-217 AK5, D-056). */
+const DELETES: ReadonlySet<string> = new Set(["filter.delete", "perspective.delete"]);
 
 /** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3; baseline.create, SR-050 AK7). */
 const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create", "data.store"]);
@@ -148,6 +159,14 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "Drafts", newName: "Open drafts" },
     { name: "Nope", newName: "Other" },
   ],
+  // Deleting removes the file only with confirm (SR-217 AK5): the check below allows exactly the
+  // deleted file the output names, a `.yaml` file that is no element.
+  "filter.delete": [{ name: "Drafts" }, { name: "Drafts", confirm: true }, { name: "Drafts", confirm: true }],
+  "perspective.delete": [
+    { name: "drafts" },
+    { name: "Drafts", confirm: true },
+    { name: "Nope", confirm: true },
+  ],
   "perspective.rename": [
     { name: "Drafts", newName: "Open drafts" },
     { name: "open drafts", newName: "Open Drafts" },
@@ -231,7 +250,12 @@ describe("no delete of an element (SR-099, D-045)", () => {
   });
 
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
-    it(`[SR-099/AK-nbg9] ${name} never removes or moves a file${RENAMES.has(name) ? " but its own renamed one" : ""}`, async () => {
+    const own = RENAMES.has(name)
+      ? " but its own renamed one"
+      : DELETES.has(name)
+        ? " but its own deleted one"
+        : "";
+    it(`[SR-099/AK-nbg9] ${name} never removes or moves a file${own}`, async () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
         files: {
@@ -253,26 +277,36 @@ describe("no delete of an element (SR-099, D-045)", () => {
         (await workspace.get(elementStoreState)).elements.map((e) => e.id).sort();
       const outcomes: string[] = [];
       let moved = 0;
+      let removed = 0;
       for (const input of scenarios) {
         const filesBefore = filesBelow(fixture.root);
         const idsBefore = await ids();
         let renamed: readonly { readonly from: string; readonly to: string }[] = [];
+        let deleted: readonly string[] = [];
         try {
           const output = await runtime.invoke(name, await readFirstFor(name, input, { workspace }), {
             workspace,
           });
           renamed = (output as { readonly renamed?: typeof renamed }).renamed ?? [];
+          const gone = output as { readonly deleted?: boolean; readonly files?: readonly string[] };
+          deleted = gone.deleted === true ? (gone.files ?? []) : [];
           outcomes.push("output");
           moved += renamed.length;
+          removed += deleted.length;
         } catch {
           outcomes.push("error");
         }
         const filesAfter = new Set(filesBelow(fixture.root));
-        // Only a rename of a saved file moves one (SR-217, D-056: no element); none is removed.
+        // Only a rename of a saved file moves one and only a delete of one removes it (SR-217, D-056:
+        // no element); no other file goes.
         expect(
           renamed.every((r) => RENAMES.has(name) && filesAfter.has(r.to) && !r.from.endsWith(".md")),
         ).toBe(true);
-        expect(filesBefore.filter((file) => !filesAfter.has(file))).toEqual(renamed.map((r) => r.from));
+        expect(deleted.every((file) => DELETES.has(name) && file.endsWith(".yaml"))).toBe(true);
+        expect(filesBefore.filter((file) => !filesAfter.has(file))).toEqual([
+          ...renamed.map((r) => r.from),
+          ...deleted,
+        ]);
         const idsAfter = new Set(await ids());
         expect(idsBefore.filter((id) => !idsAfter.has(id))).toEqual([]);
       }
@@ -281,22 +315,28 @@ describe("no delete of an element (SR-099, D-045)", () => {
       expect(outcomes).toContain("error");
       // A rename command renames a file at least once, so the allowance above is shown to hold.
       expect(moved > 0).toBe(RENAMES.has(name));
+      // A delete command deletes a file once, so the allowance above is shown to hold.
+      expect(removed).toBe(DELETES.has(name) ? 1 : 0);
     });
   }
 
   it("[SR-099/AK-nbg9] only the files module removes or renames files", () => {
     const src = path.resolve(import.meta.dirname, "..");
-    const removing = fs
+    const sources = fs
       .readdirSync(src, { recursive: true, withFileTypes: true })
       .filter((e) => e.isFile() && e.name.endsWith(".ts") && !e.name.endsWith(".test.ts"))
-      .map((e) => path.join(e.parentPath, e.name))
+      .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"));
+    const read = (file: string): string => fs.readFileSync(path.join(src, file), "utf8");
+    const removing = sources
       .filter((file) =>
-        /\b(?:rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync|rename|renameSync)\(/.test(
-          fs.readFileSync(file, "utf8"),
-        ),
+        /\b(?:rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync|rename|renameSync)\(/.test(read(file)),
       )
-      .map((file) => path.relative(src, file).split(path.sep).join("/"))
       .sort();
     expect(removing).toEqual(["files/lock.ts", "files/private.ts", "files/write.ts"]);
+    // The one delete of a file the user wrote, the file of a perspective or saved filter (SR-217 AK5).
+    const deleting = sources
+      .filter((file) => !file.startsWith("files/") && /\bdeleteSavedFile\b/.test(read(file)))
+      .sort();
+    expect(deleting).toEqual(["query/saved-delete.ts"]);
   });
 });

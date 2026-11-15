@@ -3602,7 +3602,7 @@
               "minLength": 1,
               "maxLength": 40,
               "pattern": "^[A-Z][^.!?]*$",
-              "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations."
+              "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes`."
             },
             "summary": {
               "type": "string",
@@ -3619,7 +3619,7 @@
                 "read",
                 "write-files"
               ],
-              "description": "No command writes to Git. No command deletes elements."
+              "description": "No command writes to Git. No command deletes elements; only entries with `deletes` delete a file."
             },
             "whileReadOnly": {
               "enum": [
@@ -3633,6 +3633,10 @@
               "minLength": 10,
               "pattern": "^[^\\n]+$",
               "description": "Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`."
+            },
+            "deletes": {
+              "const": "saved-file",
+              "description": "The command deletes a file, the file of a perspective or saved filter, which is no element: only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint`."
             },
             "stage": {
               "type": "integer",
@@ -3818,6 +3822,25 @@
               ]
             }
           },
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "deletes"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "name": {
+                    "pattern": "^(perspective|filter)\\."
+                  },
+                  "effect": {
+                    "const": "write-files"
+                  }
+                }
+              }
+            }
+          ],
           "additionalProperties": false
         }
       }
@@ -9387,6 +9410,108 @@
         }
       },
       {
+        "name": "filter.delete",
+        "title": "Delete saved filter",
+        "summary": "Delete a saved filter after confirmation; without confirm the output names its name and file and nothing is deleted. A filter a perspective or baseline names is not deleted.",
+        "details": "Without `confirm` nothing is deleted: the output names the name stored in the file, the file and its fileSha256, which a call with `confirm` deletes. Every call checks everything again; nothing is kept between calls. Give `file` and `expectedFileSha256` from the call without `confirm`, so the confirmed call deletes only that file with those bytes. The folder stays, also when it is empty afterwards. When another file of the folder has the same name, it holds the name once the file is deleted: a warning in `problems`; remove such a file by hand when it is not wanted. Refused, already without `confirm`, when a perspective names the filter, also one hidden by a file with the same name: input.invalid with details.reason referenced and details.files; also when a baseline file names it (ReqSeq never changes a baseline file). file.faulty when only a faulty file holds the name, a faulty perspective or baseline file names the filter, a perspective or baseline file does not read as YAML, or the perspectives or baselines folder cannot be listed (details.files); file.folder-missing when the repository of the filters, perspectives or baselines folder is not on this machine (details.repository). Errors: input.invalid at `name` when no saved filter has it; file.changed-on-disk when another file holds the name than `file`, when the file has other bytes than `expectedFileSha256`, or when it changed while the call ran; input.invalid with details.reason git-folder for a place in Git; file.read-only when the file or its folder is not writable. Nothing is deleted on these.",
+        "effect": "write-files",
+        "deletes": "saved-file",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while the tool refuses write commands (SR-011 AK3).",
+        "stage": 3,
+        "implements": [
+          "SR-217"
+        ],
+        "arguments": [
+          {
+            "field": "name",
+            "complete": "filter"
+          },
+          {
+            "field": "confirm",
+            "complete": "boolean"
+          },
+          {
+            "field": "file",
+            "complete": "text",
+            "class": "path"
+          },
+          {
+            "field": "expectedFileSha256",
+            "complete": "text",
+            "class": "output"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The saved filter to delete, by its name in any case or Unicode normal form.",
+              "type": "string"
+            },
+            "confirm": {
+              "type": "boolean",
+              "default": false,
+              "description": "Delete the file; without it nothing is deleted and the output names what `confirm` deletes."
+            },
+            "file": {
+              "type": "string",
+              "description": "The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now."
+            },
+            "expectedFileSha256": {
+              "$ref": "../common.schema.json#/$defs/fileSha256",
+              "description": "The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name stored in the file of the saved filter."
+            },
+            "file": {
+              "type": "string",
+              "description": "Its file, relative to the workspace root."
+            },
+            "fileSha256": {
+              "$ref": "../common.schema.json#/$defs/fileSha256",
+              "description": "The SHA-256 of the file as read, for `expectedFileSha256`."
+            },
+            "deleted": {
+              "type": "boolean",
+              "description": "Whether the file was deleted: true only with `confirm`."
+            },
+            "files": {
+              "type": "array",
+              "description": "The deleted file, relative to the workspace root; empty when nothing was deleted.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "problems": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "file",
+            "fileSha256",
+            "deleted",
+            "files"
+          ]
+        }
+      },
+      {
         "name": "perspective.list",
         "title": "List perspectives",
         "summary": "Perspectives of the workspace, with their selection, grouping and sort.",
@@ -9646,6 +9771,108 @@
           "required": [
             "files",
             "renamed"
+          ]
+        }
+      },
+      {
+        "name": "perspective.delete",
+        "title": "Delete perspective",
+        "summary": "Delete a perspective after confirmation; without confirm the output names its name and file and nothing is deleted.",
+        "details": "Without `confirm` nothing is deleted: the output names the name stored in the file, the file and its fileSha256, which a call with `confirm` deletes. Every call checks everything again; nothing is kept between calls. Give `file` and `expectedFileSha256` from the call without `confirm`, so the confirmed call deletes only that file with those bytes. The folder stays, also when it is empty afterwards. When another file of the folder has the same name, it holds the name once the file is deleted: a warning in `problems`; remove such a file by hand when it is not wanted. file.faulty when only a faulty file holds the name (details.files); file.folder-missing when the repository of the perspectives folder is not on this machine (details.repository). Errors: input.invalid at `name` when no perspective has it; file.changed-on-disk when another file holds the name than `file`, when the file has other bytes than `expectedFileSha256`, or when it changed while the call ran; input.invalid with details.reason git-folder for a place in Git; file.read-only when the file or its folder is not writable. Nothing is deleted on these.",
+        "effect": "write-files",
+        "deletes": "saved-file",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while the tool refuses write commands (SR-011 AK3).",
+        "stage": 3,
+        "implements": [
+          "SR-217"
+        ],
+        "arguments": [
+          {
+            "field": "name",
+            "complete": "perspective"
+          },
+          {
+            "field": "confirm",
+            "complete": "boolean"
+          },
+          {
+            "field": "file",
+            "complete": "text",
+            "class": "path"
+          },
+          {
+            "field": "expectedFileSha256",
+            "complete": "text",
+            "class": "output"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The perspective to delete, by its name in any case or Unicode normal form.",
+              "type": "string"
+            },
+            "confirm": {
+              "type": "boolean",
+              "default": false,
+              "description": "Delete the file; without it nothing is deleted and the output names what `confirm` deletes."
+            },
+            "file": {
+              "type": "string",
+              "description": "The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now."
+            },
+            "expectedFileSha256": {
+              "$ref": "../common.schema.json#/$defs/fileSha256",
+              "description": "The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name stored in the file of the perspective."
+            },
+            "file": {
+              "type": "string",
+              "description": "Its file, relative to the workspace root."
+            },
+            "fileSha256": {
+              "$ref": "../common.schema.json#/$defs/fileSha256",
+              "description": "The SHA-256 of the file as read, for `expectedFileSha256`."
+            },
+            "deleted": {
+              "type": "boolean",
+              "description": "Whether the file was deleted: true only with `confirm`."
+            },
+            "files": {
+              "type": "array",
+              "description": "The deleted file, relative to the workspace root; empty when nothing was deleted.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "problems": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "file",
+            "fileSha256",
+            "deleted",
+            "files"
           ]
         }
       },
