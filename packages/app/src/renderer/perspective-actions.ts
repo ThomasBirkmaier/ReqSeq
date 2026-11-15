@@ -380,7 +380,7 @@ export const PERSPECTIVE_ACTIONS: readonly Action[] = [
     id: SAVE_SAVED_FILTER,
     title: "Save list as saved filter",
     description:
-      "Save the conditions of the shown list's filter steps and its chosen sort as a saved filter.",
+      "Save the conditions of the shown list's filter steps and its chosen or saved sort as a saved filter.",
     runs: [
       { where: "in the prompt", command: "filter.list" },
       { where: "in the list", command: "filter.save" },
