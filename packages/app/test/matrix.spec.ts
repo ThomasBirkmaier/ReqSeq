@@ -133,6 +133,9 @@ const requirements = async (window: Page): Promise<void> => {
   await runCommand(window, "Filter list");
   await answer(window, "Filter by", "Type");
   await answer(window, "Type", "System Requirement");
+  // "Take 1 type" adds the step (SR-124 AK7).
+  await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Take 1 type");
+  await window.keyboard.press("Enter");
   await expect(shownLayer(window).locator(".row")).toHaveCount(6);
 };
 

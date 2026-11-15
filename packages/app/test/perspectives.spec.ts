@@ -149,6 +149,11 @@ const filtered = async (window: Page, kind: string, value: string): Promise<void
   await window.keyboard.type(value);
   await expect(candidates(window).first()).toHaveText(value);
   await window.keyboard.press("Enter");
+  if (kind === "Type") {
+    // The type goes into the mark; "Take 1 type" adds the step (SR-124 AK7).
+    await expect(candidates(window).first()).toHaveText("Take 1 type");
+    await window.keyboard.press("Enter");
+  }
 };
 
 /** "Filter list" by a text search with `text`. */

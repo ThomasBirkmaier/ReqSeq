@@ -268,6 +268,11 @@ export interface Prompt {
    */
   readonly previous?: () => void;
   /**
+   * The first step of an action, also when it is asked again (the kinds of "Filter list" with the type mark,
+   * SR-124 AK7): Escape goes where it goes in the first prompt, and later prompts step back to this one.
+   */
+  readonly first?: boolean;
+  /**
    * Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments; in a prompt whose hits
    * only preview, also with a chosen one (the fields of a search, SR-216 AK6).
    */
@@ -1698,15 +1703,16 @@ export const ACTIONS: readonly Action[] = [
 /**
  * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
  * (`previous`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
- * `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
- * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
+ * `first` the first one closes (AK2); so does a prompt that is the first step asked again (`Prompt.first`). A prompt
+ * with its own `back` (catalog commands) is left as it is, and so is one that steps through hits, which Escape
+ * ends (`step`, SR-189 AK1).
  */
 const steppedContext = (context: ActionContext, first?: () => void): ActionContext => {
   let shown: Prompt | undefined;
   const ask = (prompt: Prompt): void => {
     const before = shown;
     const previous =
-      before === undefined
+      before === undefined || prompt.first === true
         ? first
         : (): void => {
             shown = before;

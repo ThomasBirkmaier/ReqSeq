@@ -270,6 +270,8 @@ describe("statuses folded in lists (SR-201)", () => {
     await runCommand("Filter list");
     await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter");
+    // "Take 1 type" (SR-124 AK7).
+    await keyDown(query("input"), "Enter");
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",
       expect.objectContaining({
