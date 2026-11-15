@@ -1,0 +1,76 @@
+{
+  "name": "perspective.rename",
+  "title": "Rename perspective",
+  "summary": "Give a perspective a new name; its file is renamed to match, and comments and description stay.",
+  "details": "The new name is checked as when saving and must not be another perspective's, in any case or Unicode normal form; changing only the case of the own name is allowed, and the same name writes nothing. The file is named as a new file for the new name would be, the own file not counted as taken; when that differs from its file name only in case, the file name stays. Errors: input.invalid at `name` when no perspective has it, at `newName` when another perspective has it (details.files); file.faulty when only a faulty file holds either name (details.files); file.folder-missing when the folder's repository is not on this machine; input.invalid with details.reason git-folder for a place in Git (D-036); file.changed-on-disk when the file changed since it was read. A write that fails after the rename names the changed file in details.written; the same call again finishes it.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "SR-217 AK7: renaming is refused while the tool refuses write commands (SR-011 AK3).",
+  "stage": 3,
+  "implements": ["SR-217"],
+  "arguments": [
+    {
+      "field": "name",
+      "complete": "perspective"
+    },
+    {
+      "field": "newName",
+      "complete": "text",
+      "class": "name"
+    }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "description": "The perspective to rename, by its name in any case or Unicode normal form.",
+        "type": "string"
+      },
+      "newName": {
+        "$ref": "../perspective.schema.json#/$defs/name",
+        "description": "The new name, checked as when saving; it must not be another perspective's. The file is renamed to match."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "newName"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root; a renamed file under its new path."
+        }
+      },
+      "renamed": {
+        "type": "array",
+        "description": "The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "The file before, relative to the workspace root."
+            },
+            "to": {
+              "type": "string",
+              "description": "The file afterwards, relative to the workspace root."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["from", "to"]
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files", "renamed"]
+  }
+}

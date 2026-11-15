@@ -7,7 +7,14 @@ import type { ParsedFile } from "./read.js";
 import { readElementFile, readYamlFile } from "./read.js";
 import { retry } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
-import { createFilesAtomic, isTempFile, removeCreatedFiles, writeFileAtomic } from "./write.js";
+import {
+  checkReplaceable,
+  createFilesAtomic,
+  isTempFile,
+  removeCreatedFiles,
+  renameFileAtomic,
+  writeFileAtomic,
+} from "./write.js";
 
 let root: string;
 
@@ -631,5 +638,94 @@ describe("removeCreatedFiles", () => {
     ).toEqual(["changed.png"]);
     await expect(fs.stat(abs("own.png"))).rejects.toThrow();
     expect(await text("changed.png")).toBe("changed since");
+  });
+});
+
+describe("renameFileAtomic and checkReplaceable (SR-217 AK2, AK7)", () => {
+  const YAML = { kind: "yaml" } as const;
+  const Y = "reqseq-filter: 1\nname: A\nwhere: { all: [] }\n";
+
+  it("renames an unchanged file, keeps its content and returns the snapshot under the new name", async () => {
+    await put("a.yaml", Y);
+    const before = await forge("a.yaml");
+    await checkReplaceable(root, "a.yaml", before, { kind: "yaml" });
+    const snapshot = await renameFileAtomic(root, "a.yaml", "b.yaml", before, { kind: "yaml" });
+    expect(snapshot).toEqual({ ...before, path: "b.yaml" });
+    expect(await fs.readdir(root)).toEqual(["b.yaml"]);
+    expect(await text("b.yaml")).toBe(Y);
+  });
+
+  it("refuses a changed or faulty file, a taken name and a snapshot of another file, and renames nothing", async () => {
+    await put("a.yaml", Y);
+    const before = await forge("a.yaml");
+    await put("c.yaml", "x");
+    await expect(renameFileAtomic(root, "a.yaml", "c.yaml", before, YAML)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+      message: "Not written: c.yaml already exists. Read it again first.",
+    });
+    await expect(renameFileAtomic(root, "c.yaml", "d.yaml", before, YAML)).rejects.toMatchObject({
+      code: "internal",
+    });
+    await put("a.yaml", `${Y}# changed\n`);
+    await expect(renameFileAtomic(root, "a.yaml", "b.yaml", before, YAML)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    await expect(checkReplaceable(root, "a.yaml", before)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    await put("a.yaml", "name: [\n");
+    const faulty = await forge("a.yaml");
+    await expect(checkReplaceable(root, "a.yaml", faulty, { kind: "yaml" })).rejects.toMatchObject({
+      code: "file.faulty",
+    });
+    await fs.rm(abs("a.yaml"));
+    await expect(checkReplaceable(root, "a.yaml", faulty)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    await expect(renameFileAtomic(root, "a.yaml", "b.yaml", faulty, YAML)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    expect(await fs.readdir(root)).toEqual(["c.yaml"]);
+  });
+
+  it("maps a refused rename to file.read-only, and an error looking at the target to internal", async () => {
+    await put("a.yaml", Y);
+    const before = await forge("a.yaml");
+    vi.spyOn(fs, "rename").mockRejectedValue(errno("EROFS"));
+    await expect(renameFileAtomic(root, "a.yaml", "b.yaml", before, YAML)).rejects.toMatchObject({
+      code: "file.read-only",
+      message: "Not written: the folder of a.yaml is not writable (EROFS)",
+    });
+    vi.spyOn(fs, "rename").mockRejectedValue(errno("EIO"));
+    await expect(renameFileAtomic(root, "a.yaml", "b.yaml", before, YAML)).rejects.toMatchObject({
+      code: "internal",
+      message: "Not written: a.yaml (EIO)",
+    });
+    const lstat = fs.lstat.bind(fs);
+    vi.spyOn(fs, "lstat").mockImplementation(async (file, ...rest) =>
+      String(file).endsWith("b.yaml") ? Promise.reject(errno("EIO")) : lstat(file, ...rest),
+    );
+    await expect(renameFileAtomic(root, "a.yaml", "b.yaml", before, YAML)).rejects.toMatchObject({
+      code: "internal",
+      message: "Not written: b.yaml (EIO)",
+    });
+    expect(await text("a.yaml")).toBe(Y);
+  });
+
+  it("refuses a target folder linked outside the root", async () => {
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
+    try {
+      await put("a.yaml", Y);
+      await fs.symlink(outside, abs("linked"), "junction");
+      await expect(
+        renameFileAtomic(root, "a.yaml", "linked/b.yaml", await forge("a.yaml"), YAML),
+      ).rejects.toMatchObject({
+        code: "input.invalid",
+        message: "Not written: the folder of linked/b.yaml is linked outside the workspace",
+      });
+      expect(await fs.readdir(outside)).toEqual([]);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
   });
 });

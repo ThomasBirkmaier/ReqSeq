@@ -6,7 +6,8 @@
 //   the folder of that name in the main repository (`settingLocation`). A file of the kind is a
 //   `*.yaml` file directly in that folder that matches the kind's schema, as the metamodel folder is
 //   read; a `.yml` file is reported and not read. These files are not elements (D-056: YAML files
-//   of the tool), so D-045 does not apply to them; ReqSeq never deletes, moves or renames one.
+//   of the tool), so D-045 does not apply to them; saving never deletes, moves or renames one,
+//   renaming (`perspective.rename`, `filter.rename`, saved-rename.ts) renames its file (SR-217 AK2).
 // - Read on every call, never kept: a handful of small files, and a file another person committed
 //   is there as soon as the working copy has it (SR-070 AK2, SR-213 AK2), also for a running server
 //   or the app.
@@ -75,6 +76,15 @@ export interface SavedFile<T> {
   readonly yaml: YamlFile;
 }
 
+/** A file of the folder that is no valid file of its kind. */
+export interface FaultyFile {
+  /** The file relative to its repository, `/` as separator. */
+  readonly path: string;
+  /** Its data when it reads as YAML; `readable` false when it does not. */
+  readonly data: unknown;
+  readonly readable: boolean;
+}
+
 /** The folder of a kind and what it holds. */
 export interface SavedFolder<T> {
   /** The location of the workspace file, or its default. */
@@ -89,10 +99,18 @@ export interface SavedFolder<T> {
   readonly saved: readonly SavedFile<T>[];
   /** Faulty and duplicate files, in file order. */
   readonly problems: readonly Problem[];
+  /** Valid files whose name an earlier file holds (the kind's duplicate code), in file order. */
+  readonly hidden: readonly SavedFile<T>[];
+  /** The files that are no valid file of the kind, in file order. */
+  readonly faulty: readonly FaultyFile[];
+  /** Whether the folder exists but cannot be listed (`file.unreadable`). */
+  readonly unreadable: boolean;
   /** The names (folded) of faulty files that could still be read, with their files (relative to the repository). */
   readonly faultyNames: ReadonlyMap<string, readonly string[]>;
   /** Every entry name of the folder, folded, for choosing a new file name. */
   readonly entries: ReadonlySet<string>;
+  /** Every entry name of the folder as listed. */
+  readonly listed: readonly string[];
   /** The repository of the folder is not on this machine: its files may exist (SR-006 AK2). */
   readonly incomplete: boolean;
 }
@@ -124,7 +142,14 @@ type Checked<T> =
       readonly data: T;
       readonly problems: readonly Problem[];
     }
-  | { readonly kind: "faulty"; readonly name: string | undefined; readonly problems: readonly Problem[] };
+  | {
+      readonly kind: "faulty";
+      readonly name: string | undefined;
+      /** The YAML data; undefined, with `readable` false, when the file does not read as YAML. */
+      readonly data: unknown;
+      readonly readable: boolean;
+      readonly problems: readonly Problem[];
+    };
 
 /** Reads one file and checks it against the schema of `kind`. */
 const checkFile = async <T>(
@@ -134,7 +159,13 @@ const checkFile = async <T>(
 ): Promise<Checked<T>> => {
   const read = await readYamlFile(repository.folder, file);
   if (read.kind === "problem") {
-    return { kind: "faulty", name: undefined, problems: [{ ...read.problem, repository: repository.name }] };
+    return {
+      kind: "faulty",
+      name: undefined,
+      data: undefined,
+      readable: false,
+      problems: [{ ...read.problem, repository: repository.name }],
+    };
   }
   const yaml = read.file;
   const problems: Problem[] = yaml.warnings.map((w) => ({ ...w, repository: repository.name }));
@@ -160,7 +191,13 @@ const checkFile = async <T>(
     );
   }
   const name = (yaml.data as { readonly name?: unknown } | null)?.name;
-  return { kind: "faulty", name: typeof name === "string" ? name : undefined, problems };
+  return {
+    kind: "faulty",
+    name: typeof name === "string" ? name : undefined,
+    data: yaml.data,
+    readable: true,
+    problems,
+  };
 };
 
 /** Reads the folder of `kind` (see the file comment). */
@@ -174,12 +211,22 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
   const none = {
     location,
     saved: [],
+    hidden: [],
+    faulty: [],
     problems: [],
     faultyNames: new Map<string, readonly string[]>(),
     entries: new Set<string>(),
+    listed: [],
   };
   if (repository === undefined || located.folder === undefined) {
-    return { ...none, repository, folder: "", exists: false, incomplete: repository !== undefined };
+    return {
+      ...none,
+      repository,
+      folder: "",
+      exists: false,
+      unreadable: false,
+      incomplete: repository !== undefined,
+    };
   }
   const folder = path.relative(repository.folder, located.folder).split(path.sep).join("/");
   const at = (name: string): string => path.posix.join(folder, name);
@@ -199,13 +246,23 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
             ),
           ];
     // An unreadable folder counts as missing: creating it then names what is in the way.
-    return { ...none, problems, repository, folder, exists: false, incomplete: false };
+    return {
+      ...none,
+      problems,
+      repository,
+      folder,
+      exists: false,
+      unreadable: listing.kind !== "missing",
+      incomplete: false,
+    };
   }
   const names = listing.names.filter(
     (name) => !(repository.main && folder === "" && name === WORKSPACE_FILE),
   );
   const problems: Problem[] = [];
   const saved: SavedFile<T>[] = [];
+  const hidden: SavedFile<T>[] = [];
+  const faulty: FaultyFile[] = [];
   const firstOf = new Map<string, SavedFile<T>>();
   const faultyNames = new Map<string, string[]>();
   for (const name of names) {
@@ -228,6 +285,7 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
     const checked = await checkFile<T>(kind, repository, file);
     problems.push(...checked.problems);
     if (checked.kind === "faulty") {
+      faulty.push({ path: file, data: checked.data, readable: checked.readable });
       if (checked.name !== undefined) {
         const faulty = fold(checked.name);
         faultyNames.set(faulty, [...(faultyNames.get(faulty) ?? []), file]);
@@ -237,7 +295,16 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
     const { yaml, data } = checked;
     const key = fold(data.name);
     const first = firstOf.get(key);
+    const entry: SavedFile<T> = {
+      name: data.name,
+      file: workspacePath(layout, repository, file),
+      repository,
+      path: file,
+      data,
+      yaml,
+    };
     if (first !== undefined) {
+      hidden.push(entry);
       problems.push(
         savedProblem(
           kind.duplicate,
@@ -250,14 +317,6 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
       );
       continue;
     }
-    const entry: SavedFile<T> = {
-      name: data.name,
-      file: workspacePath(layout, repository, file),
-      repository,
-      path: file,
-      data,
-      yaml,
-    };
     firstOf.set(key, entry);
     saved.push(entry);
   }
@@ -267,9 +326,13 @@ export const readSavedFolder = async <T extends { readonly name: string }>(
     folder,
     exists: true,
     saved,
+    hidden,
+    faulty,
+    unreadable: false,
     problems,
     faultyNames,
     entries: new Set(listing.entries.map(fold)),
+    listed: listing.entries,
     incomplete: false,
   };
 };

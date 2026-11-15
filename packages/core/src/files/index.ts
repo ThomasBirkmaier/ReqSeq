@@ -47,9 +47,11 @@ export { LOCK_STALE_MS, lockPrivateFile, processRuns } from "./lock.js";
 export type { PrivateLock } from "./lock.js";
 export { createPrivateFolder, removePrivateFile, writePrivateFile } from "./private.js";
 export {
+  checkReplaceable,
   createFilesAtomic,
   isTempFile,
   removeCreatedFiles,
+  renameFileAtomic,
   replaceRefusal,
   TEMP_FILE_PATTERN,
   writeFileAtomic,

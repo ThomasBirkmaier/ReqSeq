@@ -247,4 +247,4 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 { "name": "element_facets", "arguments": { "selection": { "where": { "type": ["system-requirement"] } } } }
 ```
 
-The reference has every option and condition of [element.search](/reference/commands/element-search/), [element.list](/reference/commands/element-list/), [filter.save](/reference/commands/filter-save/), [filter.list](/reference/commands/filter-list/) and [element.facets](/reference/commands/element-facets/); the file of a saved filter is in [Formats](/reference/formats/filter/).
+The reference has every option and condition of [element.search](/reference/commands/element-search/), [element.list](/reference/commands/element-list/), [filter.save](/reference/commands/filter-save/), [filter.rename](/reference/commands/filter-rename/), [filter.list](/reference/commands/filter-list/) and [element.facets](/reference/commands/element-facets/); a saved filter's file is in [Formats](/reference/formats/filter/).

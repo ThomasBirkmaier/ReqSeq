@@ -46,10 +46,20 @@ const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
       "utf8",
     ),
   },
+  "filter.rename": {
+    "filters/drafts.yaml": "reqseq-filter: 1\nname: Drafts\nwhere: { status: [draft] }\n",
+    "perspectives/mine.yaml": "reqseq-perspective: 1\nname: Mine\nfilter: Drafts\nwhere: { all: [] }\n",
+  },
+  "perspective.rename": {
+    "perspectives/drafts.yaml": "reqseq-perspective: 1\nname: Drafts\nwhere: { status: [draft] }\n",
+  },
   "variant.exclude": {
     "variants/VAR-cccccccccccc.md": `---\nid: ${VARIANT}\ntype: variant\nstatus: draft\ntitle: Coast\n---\n`,
   },
 };
+
+/** Commands that rename the file of a perspective or saved filter, which is no element (SR-217 AK2, D-056). */
+const RENAMES: ReadonlySet<string> = new Set(["filter.rename", "perspective.rename"]);
 
 /** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3; baseline.create, SR-050 AK7). */
 const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create", "data.store"]);
@@ -132,6 +142,17 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "drafts", where: { status: ["draft", "obsolete"] } },
     { name: "Unknown package", where: { package: "SR-ffffff" } },
   ],
+  // Renaming gives the file the new name (SR-217 AK2): the move check below allows exactly the
+  // renamed files the output names; perspectives that name the filter change in place.
+  "filter.rename": [
+    { name: "Drafts", newName: "Open drafts" },
+    { name: "Nope", newName: "Other" },
+  ],
+  "perspective.rename": [
+    { name: "Drafts", newName: "Open drafts" },
+    { name: "open drafts", newName: "Open Drafts" },
+    { name: "Nope", newName: "Other" },
+  ],
   // Saving under an existing name replaces the perspective in its own file; nothing is deleted.
   "perspective.save": [
     { name: "Drafts", description: "Open work", where: { status: ["draft"] }, group: "status" },
@@ -210,7 +231,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
   });
 
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
-    it(`[SR-099/AK-nbg9] ${name} never removes or moves a file`, async () => {
+    it(`[SR-099/AK-nbg9] ${name} never removes or moves a file${RENAMES.has(name) ? " but its own renamed one" : ""}`, async () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
         files: {
@@ -231,23 +252,35 @@ describe("no delete of an element (SR-099, D-045)", () => {
       const ids = async (): Promise<string[]> =>
         (await workspace.get(elementStoreState)).elements.map((e) => e.id).sort();
       const outcomes: string[] = [];
+      let moved = 0;
       for (const input of scenarios) {
         const filesBefore = filesBelow(fixture.root);
         const idsBefore = await ids();
+        let renamed: readonly { readonly from: string; readonly to: string }[] = [];
         try {
-          await runtime.invoke(name, await readFirstFor(name, input, { workspace }), { workspace });
+          const output = await runtime.invoke(name, await readFirstFor(name, input, { workspace }), {
+            workspace,
+          });
+          renamed = (output as { readonly renamed?: typeof renamed }).renamed ?? [];
           outcomes.push("output");
+          moved += renamed.length;
         } catch {
           outcomes.push("error");
         }
         const filesAfter = new Set(filesBelow(fixture.root));
-        expect(filesBefore.filter((file) => !filesAfter.has(file))).toEqual([]);
+        // Only a rename of a saved file moves one (SR-217, D-056: no element); none is removed.
+        expect(
+          renamed.every((r) => RENAMES.has(name) && filesAfter.has(r.to) && !r.from.endsWith(".md")),
+        ).toBe(true);
+        expect(filesBefore.filter((file) => !filesAfter.has(file))).toEqual(renamed.map((r) => r.from));
         const idsAfter = new Set(await ids());
         expect(idsBefore.filter((id) => !idsAfter.has(id))).toEqual([]);
       }
       // Each command both writes and fails at least once, so the check covers both paths.
       expect(outcomes).toContain("output");
       expect(outcomes).toContain("error");
+      // A rename command renames a file at least once, so the allowance above is shown to hold.
+      expect(moved > 0).toBe(RENAMES.has(name));
     });
   }
 

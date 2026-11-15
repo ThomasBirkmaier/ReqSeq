@@ -62,6 +62,8 @@ export const FILES: Readonly<Record<string, string>> = {
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
   "new/layout.png": "an image",
+  "filters/wind.yaml": "reqseq-filter: 1\nname: Wind\nwhere: { status: [draft] }\n",
+  "perspectives/wind.yaml": "reqseq-perspective: 1\nname: Wind\nfilter: Wind\nwhere: { all: [] }\n",
   [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
   "in/lieferung.reqif": delivery("lieferung.reqif"),
   "in/lieferung-2.reqif": delivery("lieferung.reqif").replace("Every 10 s.", "Every 5 s."),
@@ -235,7 +237,15 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "Retired", where: { status: ["retired"] } },
     { name: "Unknown", where: { package: "SR-ffffff" } },
   ],
+  "filter.rename": [
+    { name: "Wind", newName: "Wind speed" },
+    { name: "Nope", newName: "Other" },
+  ],
   "perspective.list": [{}, { extra: true }],
+  "perspective.rename": [
+    { name: "Wind", newName: "Wind speed" },
+    { name: "Nope", newName: "Other" },
+  ],
   "perspective.save": [
     { name: "Drafts", where: { status: ["draft"] }, group: "status", sort: [{ by: "status" }] },
     { name: "drafts", where: { any: [{ status: ["retired"] }, { invalid: true }] } },

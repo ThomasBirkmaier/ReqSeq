@@ -3525,6 +3525,40 @@ export interface FilterSaveOutput {
 }
 
 /**
+ * Input of `filter.rename` as `run` gets it: validated, properties with a `default` filled in. Give a saved filter a new name; its file is renamed to match, and the perspectives that use it are changed with it.
+ * Schema: `schemas/commands/filter.rename.json input`.
+ */
+export interface FilterRenameInput {
+  /** The saved filter to rename, by its name in any case or Unicode normal form. */
+  readonly name: string;
+  /** The new name, checked as when saving; it must not be another saved filter's. The file is renamed to match. */
+  readonly newName: FilterName;
+}
+
+/**
+ * Output of `filter.rename`. Give a saved filter a new name; its file is renamed to match, and the perspectives that use it are changed with it.
+ * Schema: `schemas/commands/filter.rename.json output`.
+ */
+export interface FilterRenameOutput {
+  readonly files: readonly string[];
+  /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
+  readonly renamed: readonly {
+    /** The file before, relative to the workspace root. */
+    readonly from: string;
+    /** The file afterwards, relative to the workspace root. */
+    readonly to: string;
+  }[];
+  /** The perspectives changed to name the new name, in file order. */
+  readonly perspectives: readonly {
+    /** The name of the perspective. */
+    readonly name: string;
+    /** Relative to the workspace root. */
+    readonly file: string;
+  }[];
+  readonly problems?: readonly Problem[];
+}
+
+/**
  * Input of `perspective.list` as `run` gets it: validated, properties with a `default` filled in. Perspectives of the workspace, with their selection, grouping and sort.
  * Schema: `schemas/commands/perspective.list.json input`.
  */
@@ -3577,6 +3611,33 @@ export interface PerspectiveSaveInput {
  */
 export interface PerspectiveSaveOutput {
   readonly files: readonly string[];
+  readonly problems?: readonly Problem[];
+}
+
+/**
+ * Input of `perspective.rename` as `run` gets it: validated, properties with a `default` filled in. Give a perspective a new name; its file is renamed to match, and comments and description stay.
+ * Schema: `schemas/commands/perspective.rename.json input`.
+ */
+export interface PerspectiveRenameInput {
+  /** The perspective to rename, by its name in any case or Unicode normal form. */
+  readonly name: string;
+  /** The new name, checked as when saving; it must not be another perspective's. The file is renamed to match. */
+  readonly newName: PerspectiveName;
+}
+
+/**
+ * Output of `perspective.rename`. Give a perspective a new name; its file is renamed to match, and comments and description stay.
+ * Schema: `schemas/commands/perspective.rename.json output`.
+ */
+export interface PerspectiveRenameOutput {
+  readonly files: readonly string[];
+  /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
+  readonly renamed: readonly {
+    /** The file before, relative to the workspace root. */
+    readonly from: string;
+    /** The file afterwards, relative to the workspace root. */
+    readonly to: string;
+  }[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4321,8 +4382,10 @@ export interface CommandTypes {
   readonly "element.searchFields": { readonly input: ElementSearchFieldsInput; readonly output: ElementSearchFieldsOutput };
   readonly "filter.list": { readonly input: FilterListInput; readonly output: FilterListOutput };
   readonly "filter.save": { readonly input: FilterSaveInput; readonly output: FilterSaveOutput };
+  readonly "filter.rename": { readonly input: FilterRenameInput; readonly output: FilterRenameOutput };
   readonly "perspective.list": { readonly input: PerspectiveListInput; readonly output: PerspectiveListOutput };
   readonly "perspective.save": { readonly input: PerspectiveSaveInput; readonly output: PerspectiveSaveOutput };
+  readonly "perspective.rename": { readonly input: PerspectiveRenameInput; readonly output: PerspectiveRenameOutput };
   readonly "evidence.list": { readonly input: EvidenceListInput; readonly output: EvidenceListOutput };
   readonly "evidence.record": { readonly input: EvidenceRecordInput; readonly output: EvidenceRecordOutput };
   readonly "evidence.enrichJunit": { readonly input: EvidenceEnrichJunitInput; readonly output: EvidenceEnrichJunitOutput };
