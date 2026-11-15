@@ -821,9 +821,12 @@ const helpKey = (event: React.KeyboardEvent, help: CommandHelpState, query: stri
 const PromptLine = ({
   prompt: given,
   onClose,
+  ahead,
 }: {
   readonly prompt: Prompt;
   readonly onClose: (cancelled: boolean) => void;
+  /** Enters pressed while an earlier Enter waited for its answer: each is the Enter of the prompt that follows (#1763). */
+  readonly ahead: React.RefObject<number>;
 }): React.JSX.Element => {
   const [query, setQuery] = useState(given.initial ?? "");
   // The marked row while none is chosen: the first row, or none at all while the hits only preview (SR-183).
@@ -932,6 +935,8 @@ const PromptLine = ({
   // the optional arguments of a catalog command; a choice without them is taken as with Enter.
   const choose = (choice: Choice, typed: string, more = false): void => {
     if (choice.inert === true) {
+      // The prompt stays open: no Enter typed ahead waits for a prompt to follow.
+      ahead.current = 0;
       return;
     }
     if (choice.complete !== undefined) {
@@ -982,7 +987,9 @@ const PromptLine = ({
   const takeFirst = (more: boolean): void => {
     const { text, ...result } = answer.current;
     const [first] = rowsFor(text, result);
-    if (first !== undefined) {
+    if (first === undefined) {
+      ahead.current = 0;
+    } else {
       choose(first.item, text, more);
     }
   };
@@ -990,6 +997,11 @@ const PromptLine = ({
   /** Enter or Ctrl/Cmd+Enter on stale hits: on the answer to the typed text, at once when it is in. */
   const awaitAnswer = (more: boolean): void => {
     if (taken.current === latest.current) {
+      return;
+    }
+    if (waiting.current !== 0 && waiting.current === latest.current) {
+      // An Enter awaits this answer already: this one is typed ahead, for the prompt that follows.
+      ahead.current += 1;
       return;
     }
     if (answered.current === latest.current) {
@@ -1011,6 +1023,7 @@ const PromptLine = ({
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
+    ahead.current = 0;
     early.current = undefined;
     setPending(false);
     if (seeker === undefined || value.trim() === "") {
@@ -1100,6 +1113,14 @@ const PromptLine = ({
     }
   }, [filled]);
 
+  useEffect(() => {
+    // An Enter typed ahead while the prompt before waited for its answer acts on this prompt (#1763).
+    if (ahead.current > 0) {
+      ahead.current -= 1;
+      enter();
+    }
+  }, []);
+
   // The modifier of the shortcuts: Cmd only under macOS (`matches`).
   const mac = isMac(navigator.platform);
   // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one argument back, catalog commands); never
@@ -1123,6 +1144,7 @@ const PromptLine = ({
       // As Escape: a prompt that waited for an answer is told it got none.
       prompt.cancel?.();
       waiting.current = 0;
+      ahead.current = 0;
       onClose(false);
       back();
     }
@@ -1133,6 +1155,7 @@ const PromptLine = ({
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
+    ahead.current = 0;
     onClose(true);
   };
   const cancelNow = useRef(cancel);
@@ -1379,6 +1402,13 @@ export const Minibuffer = ({
   // Whether the last press began on the idle line itself: a press that took a hit of the card and is
   // released over the line is no click on it.
   const pressed = useRef(false);
+  // Enters typed ahead for the next prompt; none are kept once no prompt is open (#1763).
+  const ahead = useRef(0);
+  useEffect(() => {
+    if (prompt === undefined) {
+      ahead.current = 0;
+    }
+  }, [prompt]);
   return (
     <div
       className="minibuffer"
@@ -1402,7 +1432,7 @@ export const Minibuffer = ({
           <div className="echo">{echo}</div>
         </>
       ) : (
-        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
+        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} ahead={ahead} />
       )}
     </div>
   );
