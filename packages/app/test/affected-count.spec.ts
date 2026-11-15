@@ -29,8 +29,8 @@ const open = async (window: Page, title: string): Promise<void> => {
 };
 
 /**
- * Records every message the minibuffer shows from now on, in order, so a message that a prompt covers soon
- * after is not missed.
+ * Records what the minibuffer line shows from now on, in order, the empty line included, so a message that
+ * a prompt covers soon after is not missed. A message set and replaced while a prompt is shown is not seen.
  */
 const recordEchoes = async (window: Page): Promise<() => Promise<string[]>> => {
   await window.getByLabel("Minibuffer").evaluate((line) => {
@@ -38,7 +38,8 @@ const recordEchoes = async (window: Page): Promise<() => Promise<string[]>> => {
     (globalThis as { __echoes?: string[] }).__echoes = seen;
     const note = (): void => {
       const text = line.querySelector(".echo")?.textContent ?? "";
-      if (text !== "" && text !== seen.at(-1)) {
+      // The empty line is recorded too, so the same message said a second time counts again.
+      if (text !== seen.at(-1)) {
         seen.push(text);
       }
     };
@@ -109,6 +110,8 @@ test.describe("affected elements after a save", () => {
     // The number is said once (AK2): by the save when the element is left, or by an autosave a slow runner
     // ran before it, after which the save of the rest has the same number and says nothing (#1753).
     await expect.poll(said).toContain(SAVED);
+    // Every save has answered before the count.
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified");
     expect((await said()).filter((line) => line === SAVED)).toHaveLength(1);
   });
 
