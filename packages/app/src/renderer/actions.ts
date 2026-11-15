@@ -293,7 +293,10 @@ export interface Prompt {
   readonly opening?: { readonly first: number; readonly last: Choice } | "as-given";
   /**
    * The parts that come later (a catalog argument's values): the prompt is open and takes keys while they
-   * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them.
+   * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them. In a
+   * prompt whose hits only preview, `text` and `more` belong to the given parts, not to `fill`: Enter and
+   * Ctrl/Cmd+Enter without a chosen hit take the typed text at once with the given ones, also while the parts
+   * load (`Minibuffer.tsx`, SR-183 AK5).
    */
   readonly fill?: Promise<PromptFill>;
 }

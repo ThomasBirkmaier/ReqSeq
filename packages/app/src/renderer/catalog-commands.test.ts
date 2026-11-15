@@ -3737,7 +3737,7 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     await choose(asked, "Type");
     expect((await last(asked)).label).toBe("New saved filter open · where · Type:");
     expect(await names(asked)).toContain("System Requirement | requirement");
-    await choose(asked, "System Requirement");
+    await choose(asked, "System Requirement", "Take 1 type");
     expect(await marks(asked)).toEqual(["type: requirement"]);
     // The hits keep their place: only the finishing hit changes.
     expect(await names(asked)).toEqual(["Next: sort", ...KINDS]);
@@ -3823,25 +3823,25 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
 
     const some = await atWhere();
-    await choose(some.asked, "Type", "Decision");
-    await choose(some.asked, "Type", "Package");
+    await choose(some.asked, "Type", "Decision", "Take 1 type");
+    await choose(some.asked, "Status", "Draft");
     expect((await last(some.asked)).items[0]?.name).toBe("Next: sort");
     // Ctrl/Cmd+Enter on any hit of this step takes the marks and offers the optional arguments.
     item((await last(some.asked)).items, "Status").more?.();
     const more = await last(some.asked);
     expect(more.label).toBe("New saved filter open · more arguments:");
-    expect(more.earlier).toEqual(["type: decision", "type: package"]);
+    expect(more.earlier).toEqual(["type: decision", "status: draft"]);
     await choose(some.asked, "Next: sort", "Save");
     expect(some.call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
-      where: { all: [{ type: ["decision"] }, { type: ["package"] }] },
+      where: { all: [{ type: ["decision"] }, { status: ["draft"] }] },
     });
   });
 
   it("[SR-215/AK-z4bq] text that starts with { is one condition in JSON as a mark; a refused condition is asked again with core's message and the marks back", async () => {
     const refusal = refusedWith("where.all[1]: must be an object", { errors: [{ field: "where.all[1]" }] });
     const { asked, call } = await atWhere({ "filter.save": () => refusal });
-    await choose(asked, "Type", "Decision");
+    await choose(asked, "Type", "Decision", "Take 1 type");
     const prompt = await last(asked);
     // No hit for other text: Enter does nothing.
     expect(prompt.literal?.("type")).toBeUndefined();
@@ -3873,14 +3873,14 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
 
   it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the kind is chosen; Escape keeps the marks, which stand again when the prompt returns to the argument", async () => {
     const { asked } = await atWhere();
-    await choose(asked, "Type", "Decision");
+    await choose(asked, "Type", "Decision", "Take 1 type");
     await choose(asked, "Status", "Draft");
-    await choose(asked, "Type", "Package");
+    await choose(asked, "Validity", "Core");
     const kinds = await last(asked);
     expect(kinds.unmark).toBe(true);
     // The × of the middle mark.
     kinds.marks?.[1]?.remove();
-    expect(await marks(asked)).toEqual(["type: decision", "type: package"]);
+    expect(await marks(asked)).toEqual(["type: decision", "validity: Core"]);
     // In a step of the values Backspace goes back to the kinds (`back`) and removes no mark; its × does.
     await choose(asked, "Status");
     const values = await last(asked);
@@ -3891,14 +3891,14 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     (await last(asked)).marks?.[0]?.remove();
     // A property's values go back to the properties, read anew for the marks left.
     expect((await last(asked)).label).toBe("New saved filter open · where · Property:");
-    expect(await marks(asked)).toEqual(["type: package"]);
+    expect(await marks(asked)).toEqual(["validity: Core"]);
     (await last(asked)).back?.();
     // Ctrl/Cmd+Enter takes the marks; Escape (back) from the optional arguments returns to the condition, marks and all.
     (await last(asked)).items[0]?.more?.();
     expect((await last(asked)).label).toBe("New saved filter open · more arguments:");
     (await last(asked)).back?.();
     expect((await last(asked)).label).toBe("New saved filter open · where:");
-    expect(await marks(asked)).toEqual(["type: package"]);
+    expect(await marks(asked)).toEqual(["validity: Core"]);
     // Without a mark, back goes to the step before.
     (await last(asked)).marks?.[0]?.remove();
     (await last(asked)).back?.();
@@ -3907,7 +3907,7 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
 
   it("[SR-215/AK-rx2z] Escape at the kinds keeps the marks: they stand again when the prompt returns to the condition, also after a refusal", async () => {
     const { asked } = await atWhere();
-    await choose(asked, "Type", "Decision");
+    await choose(asked, "Type", "Decision", "Take 1 type");
     (await last(asked)).back?.();
     expect((await last(asked)).label).toBe("New saved filter · name:");
     (await last(asked)).text?.("open");
@@ -3953,6 +3953,93 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
     });
   });
 
+  const TYPES = [
+    "Item | item",
+    "System Requirement | requirement",
+    "Software Requirement | software-requirement",
+    "Decision | decision",
+    "Package | package",
+  ];
+
+  it("[SR-215/AK-w8q6] a chosen type goes into one type mark and the step stays; Take N types comes first and takes the mark, which selects the elements of one of the types", async () => {
+    const { asked, call } = await atWhere();
+    await choose(asked, "Type");
+    // No type yet: the types alone, no hit that takes.
+    expect(await names(asked)).toEqual(TYPES);
+    expect(await marks(asked)).toEqual([]);
+    await choose(asked, "Decision");
+    const one = await last(asked);
+    expect(one.label).toBe("New saved filter open · where · Type:");
+    expect(await marks(asked)).toEqual(["type: decision"]);
+    // "Take 1 type" first, so it is the marked hit; the chosen type is no longer offered.
+    expect(await names(asked)).toEqual([
+      "Take 1 type",
+      ...TYPES.filter((name) => !name.startsWith("Decision")),
+    ]);
+    await choose(asked, "System Requirement");
+    expect(await marks(asked)).toEqual(["type: decision, requirement"]);
+    expect((await names(asked))[0]).toBe("Take 2 types");
+    expect(await names(asked)).not.toContain("System Requirement | requirement");
+    await choose(asked, "Take 2 types");
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
+    expect(await marks(asked)).toEqual(["type: decision, requirement"]);
+    // The other marks still all hold: the statuses are those of the elements of one of the types.
+    await choose(asked, "Status");
+    expect(call).toHaveBeenCalledWith("element.facets", {
+      selection: { where: { all: [{ type: ["decision", "requirement"] }] } },
+    });
+    await choose(asked, "Draft");
+    await choose(asked, "Next: sort", "Save");
+    expect(call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [{ type: ["decision", "requirement"] }, { status: ["draft"] }] },
+    });
+  });
+
+  it("[SR-215/AK-w8q6] a condition has one type mark: choosing Type again continues it in its place, without the types in it", async () => {
+    const { asked } = await atWhere();
+    await choose(asked, "Type", "Decision", "Take 1 type");
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Type");
+    expect(await marks(asked)).toEqual(["type: decision", "status: draft"]);
+    expect(await names(asked)).toEqual([
+      "Take 1 type",
+      ...TYPES.filter((name) => !name.startsWith("Decision")),
+    ]);
+    await choose(asked, "Package");
+    expect(await marks(asked)).toEqual(["type: decision, package", "status: draft"]);
+    await choose(asked, "Take 2 types");
+    expect(await marks(asked)).toEqual(["type: decision, package", "status: draft"]);
+  });
+
+  it("[SR-215/AK-w8q6] Escape and Backspace on an empty input go back to the kinds and the mark stays; its × removes it", async () => {
+    const { asked } = await atWhere();
+    await choose(asked, "Status", "Draft");
+    await choose(asked, "Type", "Decision");
+    const types = await last(asked);
+    // Backspace on an empty input does what Escape does here (`back`): it removes no mark.
+    expect(types.unmark).toBeUndefined();
+    types.back?.();
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
+    expect(await marks(asked)).toEqual(["status: draft", "type: decision"]);
+    // Back in the step, the × of the type mark removes it, and the step is asked again without it.
+    await choose(asked, "Type");
+    (await last(asked)).marks?.[1]?.remove();
+    expect((await last(asked)).label).toBe("New saved filter open · where · Type:");
+    expect(await marks(asked)).toEqual(["status: draft"]);
+    expect(await names(asked)).toEqual(TYPES);
+    // The × of another mark keeps the type mark.
+    await choose(asked, "Package");
+    (await last(asked)).marks?.[0]?.remove();
+    expect(await marks(asked)).toEqual(["type: package"]);
+    expect((await names(asked))[0]).toBe("Take 1 type");
+    // Without a type, Escape goes back to the kinds with no type mark.
+    (await last(asked)).marks?.[0]?.remove();
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
+    expect(await marks(asked)).toEqual([]);
+  });
+
   it("[SR-210/AK-t8sc] each step of a condition names the argument and the keys of the step: Enter, Backspace for the last mark where it removes one, and { for JSON", async () => {
     const { asked } = await atWhere();
     const first = (await last(asked)).explain;
@@ -3962,14 +4049,21 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, A
         .properties["where"]?.description,
       building: { enter: "takes the marked hit; all conditions must hold", unmark: false, json: true },
     });
-    await choose(asked, "Type");
+    await choose(asked, "Status");
     expect((await last(asked)).explain).toMatchObject({
       name: "where",
       more: false,
       building: { enter: "adds the condition", unmark: false, json: false },
     });
-    await choose(asked, "Decision");
+    await choose(asked, "Draft");
     expect((await last(asked)).explain?.building?.unmark).toBe(true);
+    await choose(asked, "Type");
+    expect((await last(asked)).explain).toMatchObject({
+      name: "where",
+      more: false,
+      building: { enter: "adds the type to the mark, or takes the mark", unmark: false, json: false },
+    });
+    (await last(asked)).back?.();
     await choose(asked, "Text search");
     expect((await last(asked)).explain?.building?.enter).toBe("adds the text search");
   });
@@ -4302,7 +4396,7 @@ describe("a grouping chosen from hits (SR-215 AK1, #1647)", () => {
     const run = setup([shown], { ...answers, ...extra });
     startBuilder(run.context, "perspective.save", CATALOG);
     (await last(run.asked)).text?.("rain");
-    await choose(run.asked, "Type", "Decision");
+    await choose(run.asked, "Type", "Decision", "Take 1 type");
     const before = facetCalls(run.call).length;
     beforeGroup();
     if (filter) {
@@ -4501,7 +4595,7 @@ describe("New perspective and New saved filter ask every step before they save (
     // The condition starts without a mark and without a hit for the shown list.
     expect((await last(run.asked)).label).toBe("New perspective Open work · where:");
     expect((await names(run.asked))[0]).toBe("No condition: all elements");
-    await choose(run.asked, "Type", "Decision");
+    await choose(run.asked, "Type", "Decision", "Take 1 type");
     expect((await names(run.asked))[0]).toBe("Next: grouping");
     await choose(run.asked, "Next: grouping");
     // The grouping, without Ctrl/Cmd+Enter: "No grouping" first, then the groupings.
@@ -4626,7 +4720,7 @@ describe("New perspective and New saved filter ask every step before they save (
   it("[SR-219/AK-pqry] Escape goes back a step with its answers and marks; each step shows the marks of the steps before without ×", async () => {
     const run = begin();
     (await last(run.asked)).text?.("rain");
-    await choose(run.asked, "Type", "Decision", "Next: grouping");
+    await choose(run.asked, "Type", "Decision", "Take 1 type", "Next: grouping");
     expect((await last(run.asked)).earlier).toEqual(["type: decision"]);
     await choose(run.asked, "Status", "Title", "ascending");
     const sort = await last(run.asked);
@@ -4704,7 +4798,17 @@ describe("New perspective and New saved filter ask every step before they save (
       "perspective.save": () => (refuse ? refusal : { files: ["perspectives/x.yaml"] }),
     });
     (await last(refused.asked)).text?.("x");
-    await choose(refused.asked, "Type", "Decision", "Next: grouping", "Status", "Title", "ascending", "Save");
+    await choose(
+      refused.asked,
+      "Type",
+      "Decision",
+      "Take 1 type",
+      "Next: grouping",
+      "Status",
+      "Title",
+      "ascending",
+      "Save",
+    );
     const name = await last(refused.asked);
     expect(name.label).toBe("name: too long · New perspective · name:");
     expect(name.initial).toBe("x");

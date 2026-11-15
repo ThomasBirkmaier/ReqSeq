@@ -487,14 +487,15 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     expect(perspectiveWhere([{ label: "any", selection: { where: { any: [] } } }])).toEqual({
       all: [{ any: [] }],
     });
-    // The marks of a perspective's stored parts carry the labels of their list filter steps, else JSON (also
-    // a `null` value, which the type does not allow but a hand-written file may hold).
+    // The marks of a perspective's stored parts carry the labels of their list filter steps, several types that
+    // of one type mark (SR-215 AK5), else JSON (also a `null` value, which the type does not allow but a hand-written file may hold).
     const parts = [
       { status: ["draft"] },
       { text: "rain" },
       { property: "component", op: "eq", value: "display" },
       { property: "component", op: "missing" },
       { type: ["need", "decision"] },
+      { type: ["need"], subtypes: false },
       { property: "component", op: "contains", value: "dis" },
       { property: "component", op: "eq", value: null },
     ] as unknown as readonly FilterCondition[];
@@ -507,7 +508,8 @@ describe("Save list as perspective (SR-214 AK5)", () => {
       "text: rain",
       "component: display",
       "component: (no value)",
-      '{"type":["need","decision"]}',
+      "type: need, decision",
+      '{"type":["need"],"subtypes":false}',
       '{"property":"component","op":"contains","value":"dis"}',
       '{"property":"component","op":"eq","value":null}',
     ]);

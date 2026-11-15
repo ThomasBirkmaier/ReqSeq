@@ -557,16 +557,15 @@ test.describe("perspectives in the app", () => {
     await answered(window, "Group list", "Group by", "Status");
     await answered(window, "Sort list", "Sort by", "Title");
     await answerOrder(window, "descending");
-    // The label and the count show before the rows of the grouped list, so the rows are awaited as the CLI
-    // lists them, not read once (#1764).
+    // The rows are read once they show the steps, the grouping and the sort, as `element list` lists them.
     const listed = await running.cli([
       "element",
       "list",
       "--input",
       JSON.stringify({
         selection: { where: { all: [{ type: ["system-requirement"] }, { text: "Measure" }] } },
-        sort: [{ by: "title", order: "desc" }],
         group: "status",
+        sort: [{ by: "title", order: "desc" }],
       }),
     ]);
     expect(listed.code, listed.stderr).toBe(0);
@@ -595,7 +594,7 @@ test.describe("perspectives in the app", () => {
     await expect(minibuffer(window)).toContainText("Saved filter Measured");
     // The list stays as it is.
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", heading ?? "");
-    await expect.poll(() => shownIds(window)).toEqual(ids);
+    expect(await shownIds(window)).toEqual(ids);
     await expect(window.getByRole("note", { name: "Explanation" })).toHaveCount(0);
     await expect
       .poll(() =>

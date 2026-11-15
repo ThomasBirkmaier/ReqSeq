@@ -5,6 +5,7 @@
 // mark `{ all: [] }` (AK10). Text that starts with "{" is one condition in JSON, as the command line takes
 // it; core checks it (ADR-0002: the app builds the input and decides nothing about what is allowed).
 //
+// The types are one type mark (AK5, `type-mark.ts`), which "Type" chosen again continues.
 // The kinds and their values are those of `condition-kinds.ts`; statuses and properties with their values
 // come from `element.facets` over the marks so far (without a mark the workspace).
 // `shownMarks` gives the conditions of a list's steps as marks: the parts "Save list as perspective" writes
@@ -15,7 +16,8 @@ import type { FilterStep } from "./buffers.js";
 import type { BuiltAsk } from "./catalog-entry.js";
 import type { ConditionKind, ConditionMark, KindHits, KindSource } from "./condition-kinds.js";
 import { CONDITION_KINDS, stepMark, textMark } from "./condition-kinds.js";
-import { missingStep, propertyStep, statusStep, textStep, typeStep } from "./list-filters.js";
+import { missingStep, propertyStep, statusStep, textStep, typesStep } from "./list-filters.js";
+import { askTypes, typeKeysOf, typeMark, typeMarkAt } from "./type-mark.js";
 
 export type { ConditionMark } from "./condition-kinds.js";
 
@@ -61,11 +63,11 @@ const stepOf = (part: Condition): FilterStep | undefined => {
   const keys = Object.keys(fields).sort().join(",");
   const one = (values: unknown): string | undefined =>
     Array.isArray(values) && values.length === 1 && typeof values[0] === "string" ? values[0] : undefined;
-  const { type, status, text, property, op, value } = fields;
-  const typeKey = one(type);
+  const { status, text, property, op, value } = fields;
+  const typeKeys = typeKeysOf(part);
   const statusKey = one(status);
-  if (keys === "type" && typeKey !== undefined) {
-    return typeStep(typeKey);
+  if (typeKeys !== undefined) {
+    return typesStep(typeKeys);
   }
   if (keys === "status" && statusKey !== undefined) {
     return statusStep(statusKey);
@@ -250,9 +252,45 @@ const askValues = (
   });
 };
 
+/**
+ * Asks the types of the type mark (AK5): that of `marks` where there is one, which keeps its place, else a new
+ * one after them. "Take <n> types", Escape and Backspace on an empty input go back to the kinds with the mark;
+ * an × removes a mark and asks the types again.
+ */
+const askTypeMark = (ask: ConditionAsk, marks: readonly ConditionMark[]): void => {
+  const at = typeMarkAt(marks);
+  const before = at === -1 ? marks : marks.slice(0, at);
+  const after = at === -1 ? [] : marks.slice(at + 1);
+  const all = (keys: readonly string[]): readonly ConditionMark[] => [
+    ...before,
+    ...(keys.length === 0 ? [] : [typeMark(keys)]),
+    ...after,
+  ];
+  const kinds = (keys: readonly string[]): void => {
+    askCondition(ask, all(keys));
+  };
+  askTypes({
+    ask: ask.context.ask,
+    call: ask.context.call,
+    label: `${ask.line} · Type:`,
+    keys: at === -1 ? [] : (typeKeysOf(marks[at]?.condition) ?? []),
+    marks: (keys) =>
+      promptMarks(all(keys), (next) => {
+        askTypeMark(ask, next);
+      }),
+    take: kinds,
+    back: kinds,
+    explain: ask.explain,
+  });
+};
+
 /** Asks the values of `kind`; a text search takes the typed words (an empty input asks again). */
 const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: ConditionKind): void => {
   const { hits } = kind;
+  if (kind.key === "type") {
+    askTypeMark(ask, marks);
+    return;
+  }
   if (hits !== undefined) {
     askValues(ask, marks, kind.name, (given) => hitsOf(ask, given, kind, hits));
     return;

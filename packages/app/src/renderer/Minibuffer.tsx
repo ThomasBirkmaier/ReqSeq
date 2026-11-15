@@ -1029,13 +1029,15 @@ const PromptLine = ({
     if (query === "" && prompt.empty !== undefined) {
       onClose(false);
       prompt.empty(false);
+    } else if (current === undefined && prompt.preview === true && prompt.text !== undefined) {
+      // No hit is chosen: the text is taken at once, whatever hits are on their way (SR-183 AK5), also while
+      // the parts of the prompt load (the saved names of a builder's name step): a held Enter would wait for
+      // hits it does not take, and a key typed meanwhile would cancel it.
+      onClose(false);
+      prompt.text(query);
     } else if (loading) {
       early.current = "enter";
       setPending(true);
-    } else if (current === undefined && prompt.preview === true && prompt.text !== undefined) {
-      // No hit is chosen: the text is taken at once, whatever hits are on their way (SR-183 AK5).
-      onClose(false);
-      prompt.text(query);
     } else if (current !== undefined && prompt.preview === true) {
       // The hit chosen is the one opened, even while newer hits are on their way (SR-183 AK4).
       choose(current.item, query);
@@ -1058,13 +1060,13 @@ const PromptLine = ({
       prompt.empty(true);
     } else if (current?.item.opens === true) {
       // "All commands…" is taken only by Enter or a click (SR-210 AK5), also while the parts load.
+    } else if (prompt.preview === true && prompt.more !== undefined) {
+      // The fields of the search, whatever hit is chosen (SR-216 AK6), also while the parts load, as Enter.
+      onClose(false);
+      prompt.more(query);
     } else if (loading) {
       early.current = "more";
       setPending(true);
-    } else if (prompt.preview === true && prompt.more !== undefined) {
-      // The fields of the search, whatever hit is chosen (SR-216 AK6).
-      onClose(false);
-      prompt.more(query);
     } else if (prompt.preview === true) {
       // A prompt whose hits only preview, without more: as Enter, which never waits there (SR-183 AK4, AK5).
       enter();
