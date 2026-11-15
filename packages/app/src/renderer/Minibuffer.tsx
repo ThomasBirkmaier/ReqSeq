@@ -295,7 +295,9 @@ const ArgumentLine = ({
           ...(building.unmark ? [{ key: BACKSPACE, does: "on an empty input removes the last mark" }] : []),
           ...(building.json ? [{ key: "{", does: "a condition in JSON" }] : []),
         ]),
-    ...(explain.more ? [{ key: shortcutLabel(MORE_SHORTCUT, mac), does: "more arguments" }] : []),
+    ...(explain.more
+      ? [{ key: shortcutLabel(MORE_SHORTCUT, mac), does: explain.moreDoes ?? "more arguments" }]
+      : []),
     ...(back ? [{ key: "Escape", does: "back" }] : []),
   ];
   return (

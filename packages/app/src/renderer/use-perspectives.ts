@@ -10,6 +10,7 @@ import {
   loadPerspectiveUse,
   perspectiveUseKey,
   rememberPerspective,
+  renamedPerspective,
   savePerspectiveUse,
 } from "./perspective-recent.js";
 
@@ -38,6 +39,13 @@ export const usePerspectiveUse = (storage: () => PerspectiveStorage): Perspectiv
         const { key, used } = kept.current;
         if (key !== undefined) {
           kept.current = { key, used: rememberPerspective(used, name) };
+          savePerspectiveUse(storage, key, kept.current.used);
+        }
+      },
+      renamed: (from, to) => {
+        const { key, used } = kept.current;
+        if (key !== undefined) {
+          kept.current = { key, used: renamedPerspective(used, from, to) };
           savePerspectiveUse(storage, key, kept.current.used);
         }
       },

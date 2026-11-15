@@ -184,6 +184,10 @@ describe("the command prompt", () => {
       "List all elements",
       "Open perspective",
       "Save list as perspective",
+      "Rename perspective",
+      "Delete perspective",
+      "Rename saved filter",
+      "Delete saved filter",
       "Filter list by type",
       "Filter list by status",
       "Filter list by property",
@@ -255,6 +259,10 @@ describe("the command prompt", () => {
       "Search elements",
       "List all elements",
       "Open perspective",
+      "Rename perspective",
+      "Delete perspective",
+      "Rename saved filter",
+      "Delete saved filter",
       "Close buffer",
       "Close all buffers",
       "Save element",
@@ -277,6 +285,10 @@ describe("the command prompt", () => {
       "Ctrl+Shift+F",
       "Ctrl+K L",
       "Ctrl+K V",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
       "Ctrl+K B",
       undefined,
       "Ctrl+S",
@@ -293,7 +305,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
     ]);
-    expect(commandPrompt({ ...element$.context, mac: true }).items[7]?.hint).toBe("⌘S");
+    expect(commandPrompt({ ...element$.context, mac: true }).items[11]?.hint).toBe("⌘S");
     // Not while the element has not loaded, and not on a list.
     expect(titles(setup([element]).context)).not.toContain("Save element");
     expect(
@@ -324,6 +336,10 @@ describe("the command prompt", () => {
       "Search elements",
       "List all elements",
       "Open perspective",
+      "Rename perspective",
+      "Delete perspective",
+      "Rename saved filter",
+      "Delete saved filter",
       "Show metamodel",
       "Toggle dark mode",
     ]);
@@ -337,6 +353,10 @@ describe("the command prompt", () => {
       "Ctrl+Shift+F",
       "Ctrl+K L",
       "Ctrl+K V",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
       undefined,
       "Ctrl+K F",
       undefined,

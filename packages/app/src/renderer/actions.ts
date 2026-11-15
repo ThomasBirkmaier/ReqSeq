@@ -173,6 +173,8 @@ export interface ArgumentExplanation {
   readonly skips: boolean;
   /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
   readonly more: boolean;
+  /** What the line says Ctrl/Cmd+Enter does, in place of "more arguments": "confirms" (SR-218 AK3). */
+  readonly moreDoes?: string;
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
    * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
@@ -514,6 +516,11 @@ export interface ActionContext {
   readonly views?: ViewControls;
   /** Which statuses fold to the end of lists (SR-201, `fold-statuses.ts`), where the window offers it. */
   readonly folds?: FoldControls;
+  /**
+   * Opens the command prompt the action was chosen in again (`runAction`'s `first`): Escape in a step an action
+   * asks again as its first (SR-134 AK1). Absent: the action was not chosen in the command prompt.
+   */
+  readonly reopen?: () => void;
   /** The perspectives opened last (SR-214 AK1, `perspective-recent.ts`), where the window keeps them. */
   readonly perspectives?: PerspectiveUse;
   /**
@@ -533,6 +540,8 @@ export interface PerspectiveUse {
   readonly used: () => readonly string[];
   /** The user opened the perspective of this name. */
   readonly opened: (name: string) => void;
+  /** The perspective `from` was renamed to `to` in the app (SR-218 AK4): it keeps its place in the order. */
+  readonly renamed?: (from: string, to: string) => void;
 }
 
 /** The statuses folded in lists (SR-201): display state of the app, kept for this user (AK4). */
@@ -1716,7 +1725,7 @@ const steppedContext = (context: ActionContext, first?: () => void): ActionConte
     shown = next;
     context.ask(next);
   };
-  return { ...context, ask };
+  return { ...context, ask, ...(first === undefined ? {} : { reopen: first }) };
 };
 
 /**

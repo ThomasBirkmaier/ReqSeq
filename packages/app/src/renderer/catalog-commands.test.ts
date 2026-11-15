@@ -2400,7 +2400,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
   /** The implemented write commands of the catalog. */
   const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
 
-  it("offers every implemented write command by its title, but element.update and element.addAttachment, which the element buffer does, and the two saves the builders run (SR-219 AK1)", () => {
+  it("offers every implemented write command by its title, but element.update and element.addAttachment, which the element buffer does, the two saves the builders run (SR-219 AK1), and the renames and deletes the app's actions run (SR-218)", () => {
     expect(writes.map((entry) => entry.name)).toEqual(
       expect.arrayContaining(["filter.save", "workspace.init", "relation.add", "hint.confirm"]),
     );
@@ -2416,8 +2416,17 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
       "element.update",
       "element.addAttachment",
       "filter.save",
+      "filter.rename",
+      "filter.delete",
       "perspective.save",
+      "perspective.rename",
+      "perspective.delete",
     ]);
+    // Renaming and deleting perspectives and saved filters are app actions under the commands' titles (SR-218).
+    for (const name of ["perspective.rename", "perspective.delete", "filter.rename", "filter.delete"]) {
+      const covering = ACTIONS.find((action) => action.covers?.includes(name) === true);
+      expect(covering?.title).toBe(CATALOG.find((entry) => entry.name === name)?.title);
+    }
   });
 
   it("asks every offered write command but hint.confirm for a required argument", () => {

@@ -80,7 +80,7 @@ import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-ite
 import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
-import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
+import type { ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
   bufferName,
@@ -111,6 +111,7 @@ import { rowName } from "./rows.js";
 import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
+import { unsavedBefore } from "./unsaved-before.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -869,25 +870,6 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
     ),
   );
   return Object.fromEntries(Object.entries(input).filter(([field]) => !replaced.has(field)));
-};
-
-/**
- * Saves the input of every open buffer before a write command runs, so the command neither loses it nor
- * takes its own write for a change on disk; resolves the first buffer whose input could not be saved.
- * Without `saveDraft` nothing is saved, as before autosave.
- */
-const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefined> => {
-  const { saveDraft } = context;
-  if (saveDraft !== undefined) {
-    // The shown buffer last, as a workspace switch saves (`switch.ts`): a failure before it leaves the
-    // shown editor as it is.
-    for (const buffer of [...context.buffers.slice(1), ...context.buffers.slice(0, 1)]) {
-      if (context.drafted(buffer.key) && !(await saveDraft(buffer.key))) {
-        return buffer;
-      }
-    }
-  }
-  return undefined;
 };
 
 /**
