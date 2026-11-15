@@ -271,7 +271,7 @@ export interface Prompt {
    */
   readonly explains?: boolean;
   /**
-   * Escape only: back to the prompt asked before in the same action (SR-134 AK1). Without it and `back`,
+   * Escape, and Backspace on an empty input: back to the prompt asked before in the same action (SR-134 AK1, AK4). Without it and `back`,
    * Escape ends the prompt (the first step, AK2).
    */
   readonly previous?: () => void;
@@ -1706,7 +1706,7 @@ export const ACTIONS: readonly Action[] = [
 ];
 
 /**
- * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
+ * The context of one run of an action: Escape, and Backspace on an empty input (AK4), in each prompt it asks goes back to the prompt it asked before
  * (`previous`, SR-134 AK1), in the first one, and in one asked again as the first (`restart`), to `first` (the
  * command prompt the action was chosen in); without `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
  * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
