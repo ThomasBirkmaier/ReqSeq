@@ -1097,8 +1097,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // action (the read is short: core answers at once, or the bridge gives none without a connection).
   const commands = useCallback(
     (shown = true, all = false, from?: ActionContext): Prompt => {
-      // Backspace before the first argument of a catalog command, and Escape in the first prompt of an action
-      // chosen here (SR-134 AK1), open the command prompt again, or the list of every command it was chosen in.
+      // Backspace on an empty input and Escape before the first argument of a catalog command or in the first
+      // prompt of an action chosen here (SR-134 AK1, AK4), open the command prompt again, or the list of every command it was chosen in.
       const reopen = (): void => {
         ask(commands(true, all));
       };
