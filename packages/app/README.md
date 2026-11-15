@@ -14,11 +14,11 @@ pnpm --filter @reqseq/app test:perf          # the same for the app's performanc
 
 The details are in the parts under [`docs/`](docs/), one file per topic. Read only the part you work on.
 
-- [Buffers and views](docs/buffers.md): start, buffers again after a restart, buffers, split window, switch in motion, variant difference, elements with a value, package page, variants and verification status, neighbourhood, traceability matrix, modeline, view, follow agent, what is not shown
+- [Buffers and views](docs/buffers.md): start, buffers again after a restart, buffers, renamed and deleted perspectives, split window, switch in motion, variant difference, elements with a value, package page, variants and verification status, neighbourhood, traceability matrix, modeline, view, follow agent, what is not shown
 - [Property boxes and title](docs/property-boxes.md): property boxes, choice and relation values, saving boxes, title
 - [Graph (SR-111)](docs/graph.md): the graph of an element
 - [Metamodel (SR-130)](docs/metamodel.md): the metamodel buffer
-- [Minibuffer and command prompt](docs/command-prompt.md): minibuffer, fuzzy matching, create element, open workspace, catalog commands, ranking
+- [Minibuffer and command prompt](docs/command-prompt.md): minibuffer, fuzzy matching, create element, open workspace, catalog commands, renaming and deleting perspectives and saved filters, ranking
 - [Context menu (SR-194)](docs/context-menu.md): the right-click menu, its places, opening, selection and closing
 - [Keys](docs/keys.md): every key of the main window
 - [Editor (SR-065)](docs/editor.md): the Markdown editor, saving, undo, drafts, changes from outside, slash menu, `[[` search, formulas

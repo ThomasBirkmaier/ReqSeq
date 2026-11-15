@@ -173,6 +173,8 @@ export interface ArgumentExplanation {
   readonly skips: boolean;
   /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
   readonly more: boolean;
+  /** What the line says Ctrl/Cmd+Enter does, in place of "more arguments": "confirms" (SR-218 AK3). */
+  readonly moreDoes?: string;
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
    * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
@@ -249,6 +251,12 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /**
+   * The first step of an action, asked again (SR-218: after a step back or a refusal): Escape does what it did the
+   * first time, back to the command prompt the action was chosen in or the end of the prompt, not back to the
+   * prompt asked before it (SR-134 AK1, AK2).
+   */
+  readonly restart?: true;
   /** The explanation line of a step of an action of its own, the search words (SR-216 AK9). */
   readonly explainStep?: StepExplanation;
   /** The marks of the steps before in a builder, without × (SR-219 AK6): before `marks`, which they never are. */
@@ -267,11 +275,6 @@ export interface Prompt {
    * Escape ends the prompt (the first step, AK2).
    */
   readonly previous?: () => void;
-  /**
-   * The first step of an action, also when it is asked again (the kinds of "Filter list" with the type mark,
-   * SR-124 AK7): Escape goes where it goes in the first prompt, and later prompts step back to this one.
-   */
-  readonly first?: boolean;
   /**
    * Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments; in a prompt whose hits
    * only preview, also with a chosen one (the fields of a search, SR-216 AK6).
@@ -541,6 +544,8 @@ export interface PerspectiveUse {
   readonly used: () => readonly string[];
   /** The user opened the perspective of this name. */
   readonly opened: (name: string) => void;
+  /** The perspective `from` was renamed to `to` in the app (SR-218 AK4): it keeps its place in the order. */
+  readonly renamed?: (from: string, to: string) => void;
 }
 
 /** The statuses folded in lists (SR-201): display state of the app, kept for this user (AK4). */
@@ -1702,17 +1707,16 @@ export const ACTIONS: readonly Action[] = [
 
 /**
  * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
- * (`previous`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
- * `first` the first one closes (AK2); so does a prompt that is the first step asked again (`Prompt.first`). A prompt
- * with its own `back` (catalog commands) is left as it is, and so is one that steps through hits, which Escape
- * ends (`step`, SR-189 AK1).
+ * (`previous`, SR-134 AK1), in the first one, and in one asked again as the first (`restart`), to `first` (the
+ * command prompt the action was chosen in); without `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
+ * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
  */
 const steppedContext = (context: ActionContext, first?: () => void): ActionContext => {
   let shown: Prompt | undefined;
   const ask = (prompt: Prompt): void => {
     const before = shown;
     const previous =
-      before === undefined || prompt.first === true
+      before === undefined || prompt.restart === true
         ? first
         : (): void => {
             shown = before;

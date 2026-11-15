@@ -31,6 +31,7 @@ import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
 import { QUERY_VIEWS, queryIn, supports } from "./list-query.js";
 import { PERSPECTIVE_ACTIONS } from "./perspective-actions.js";
+import { SAVED_FILE_ACTIONS } from "./saved-file-actions.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
 import { askTypes, typeMark } from "./type-mark.js";
 
@@ -416,14 +417,14 @@ const askTypeStep = (run: FilterRun, keys: readonly string[]): void => {
 /**
  * Asks the kind, with the type mark of `keys` while the types have one (SR-124 AK7): a value of another kind adds
  * its one step and the mark goes; × or Backspace on an empty input removes the mark (SR-215 AK9). Escape acts
- * as in the first step, which this is (`Prompt.first`): the list stays as it is.
+ * as in the first step, which this is (`Prompt.restart`): the list stays as it is.
  */
 const askKinds = (run: FilterRun, keys: readonly string[]): void => {
   const { context, target } = run;
   // No hint: the keys of the kinds are those of the condition in JSON, which "Filter list" does not take.
   context.ask({
     label: "Filter by",
-    first: true,
+    restart: true,
     items: run.kinds.map((kind) => ({
       id: `kind:${kind.key}`,
       name: kind.name,
@@ -494,8 +495,9 @@ export const LIST_ACTIONS: readonly Action[] = [
       });
     },
   },
-  // "Open perspective" (SR-214), next to "List all elements".
+  // "Open perspective" (SR-214), next to "List all elements", and renaming and deleting (SR-218).
   ...PERSPECTIVE_ACTIONS,
+  ...SAVED_FILE_ACTIONS,
   FILTER_ACTION,
   {
     id: "clear-filter",

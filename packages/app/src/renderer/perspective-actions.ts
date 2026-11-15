@@ -105,7 +105,7 @@ export const openPerspective = async (
   return found.name;
 };
 
-const inert = (id: string, name: string): Choice => ({
+export const inert = (id: string, name: string): Choice => ({
   id,
   name,
   inert: true,
@@ -117,12 +117,25 @@ const inert = (id: string, name: string): Choice => ({
 /**
  * The rows of the prompt: the perspectives in the order of use (AK1), then each file that could not be
  * read, with its file and reason (SR-213 AK8), and a note when a repository with perspectives is missing.
+ * `choose` is what Enter does with a perspective (default: open it); `first` stands first.
  */
 export const perspectiveChoices = (
   context: ActionContext,
   output: PerspectiveListOutput,
+  choose: (name: string) => void = (name) => {
+    void openPerspective(context, name);
+  },
+  first?: string,
 ): readonly Choice[] => {
-  const ordered = inOrderOfUse(output.perspectives, context.perspectives?.used() ?? []);
+  const used = inOrderOfUse(output.perspectives, context.perspectives?.used() ?? []);
+  // `first` (the perspective of the shown buffer, SR-218 AK1) stands before the others.
+  const ordered =
+    first === undefined
+      ? used
+      : [
+          ...used.filter((perspective) => fold(perspective.name) === fold(first)),
+          ...used.filter((perspective) => fold(perspective.name) !== fold(first)),
+        ];
   const problems = (output.problems ?? []).map((problem, at) =>
     inert(
       `perspective-problem:${String(at)}`,
@@ -137,7 +150,7 @@ export const perspectiveChoices = (
       id: `perspective:${perspective.name}`,
       name: perspective.name,
       run: () => {
-        void openPerspective(context, perspective.name);
+        choose(perspective.name);
       },
     })),
     ...problems,

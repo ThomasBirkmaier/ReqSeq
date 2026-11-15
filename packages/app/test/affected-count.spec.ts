@@ -28,6 +28,26 @@ const open = async (window: Page, title: string): Promise<void> => {
   await expect(shownLayer(window).locator('article [data-field="Text"] .cm-content')).toBeVisible();
 };
 
+/**
+ * Records what the minibuffer line shows from now on, in order, the empty line included, so a message that
+ * a prompt covers soon after is not missed. A message set and replaced while a prompt is shown is not seen.
+ */
+const recordEchoes = async (window: Page): Promise<() => Promise<string[]>> => {
+  await window.getByLabel("Minibuffer").evaluate((line) => {
+    const seen: string[] = [];
+    (globalThis as { __echoes?: string[] }).__echoes = seen;
+    const note = (): void => {
+      const text = line.querySelector(".echo")?.textContent ?? "";
+      // The empty line is recorded too, so the same message said a second time counts again.
+      if (text !== seen.at(-1)) {
+        seen.push(text);
+      }
+    };
+    new MutationObserver(note).observe(line, { childList: true, subtree: true, characterData: true });
+  });
+  return () => window.evaluate(() => [...((globalThis as { __echoes?: string[] }).__echoes ?? [])]);
+};
+
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
@@ -80,10 +100,19 @@ test.describe("affected elements after a save", () => {
 
   test("[SR-024/AK-mf7x] leaving the element saves its text at once and says the number", async () => {
     const { window } = running;
+    const said = await recordEchoes(window);
     await window.keyboard.press("Enter");
     await window.keyboard.type(" In knots.");
     await open(window, "Warn of storms");
-    await expect(window.getByLabel("Minibuffer")).toHaveText(SAVED);
+    await expect
+      .poll(async () => (await running.cli(["element", "get", SPEED])).stdout, { timeout: 5000 })
+      .toContain("In knots.");
+    // The number is said once (AK2): by the save when the element is left, or by an autosave a slow runner
+    // ran before it, after which the save of the rest has the same number and says nothing (#1753).
+    await expect.poll(said).toContain(SAVED);
+    // Every save has answered before the count.
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified");
+    expect((await said()).filter((line) => line === SAVED)).toHaveLength(1);
   });
 
   test("[SR-024/AK-jt0q] a change of only the title after a changed text shows no number", async () => {
