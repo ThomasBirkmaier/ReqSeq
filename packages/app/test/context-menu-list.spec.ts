@@ -57,7 +57,7 @@ test.describe("the context menu of a list", () => {
     await running.close();
   });
 
-  test("[SR-198/AK-qc75] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
+  test("[SR-198/AK-qc75] [SR-124/AK-zmfp] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await listAll(window);

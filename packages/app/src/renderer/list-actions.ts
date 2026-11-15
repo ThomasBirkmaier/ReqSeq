@@ -373,20 +373,21 @@ const FILTER_ACTION: Action = {
   available: canFilter,
   run: onTarget((context, target) => {
     const shownCall = context.shownCall ?? context.call;
-    const source: KindSource = {
-      call: context.call,
-      // The statuses and properties of the shown list, in the view of the window.
-      facets: () => facetsOf(shownCall, target),
-      schema: conditionSchema(context.catalog?.() ?? []),
-    };
     const kinds = hasSavedFilter(target.query.steps) ? FILTER_KINDS : [...FILTER_KINDS, SAVED_KIND];
+    // No hint: the keys of the kinds are those of the condition in JSON, which "Filter list" does not take.
     context.ask({
       label: "Filter by",
       items: kinds.map((kind) => ({
         id: `kind:${kind.key}`,
         name: kind.name,
-        hint: kind.key,
         run: () => {
+          // Read when the kind is chosen: the catalog is there by then.
+          const source: KindSource = {
+            call: context.call,
+            // The statuses and properties of the shown list, in the view of the window.
+            facets: () => facetsOf(shownCall, target),
+            schema: conditionSchema(context.catalog?.() ?? []),
+          };
           askKind(context, target, kind, source);
         },
       })),

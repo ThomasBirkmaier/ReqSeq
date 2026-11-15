@@ -207,6 +207,8 @@ describe("cascading list filters (SR-124)", () => {
     const prompt = await run("filter");
     expect(prompt.label).toBe("Filter by");
     expect(prompt.items.map((item) => item.name)).toEqual(KINDS);
+    // No hint: the keys of the kinds belong to the condition in JSON, which "Filter list" does not take.
+    expect(prompt.items.filter((item) => item.hint !== undefined)).toEqual([]);
     // One entry in the command prompt, none of the five it replaces.
     expect(titles(context).filter((title) => title.startsWith("Filter list"))).toEqual(["Filter list"]);
   });
