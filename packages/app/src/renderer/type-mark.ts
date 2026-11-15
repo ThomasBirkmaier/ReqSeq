@@ -78,7 +78,10 @@ export const askTypes = (step: TypeAsk): void => {
         ];
   step.ask({
     label: step.label,
-    items: take,
+    // "Take <n> types" comes with the types, not before them: a hit marked while the types load would take
+    // Enter only once they are there, and a key typed meanwhile cancels that Enter (SR-119), as in every step
+    // whose hits come later.
+    items: [],
     marks: step.marks(keys),
     ...(step.explain === undefined
       ? {}

@@ -84,7 +84,8 @@ describe("the type mark (SR-215 AK5)", () => {
     first.items[1]?.run();
     const second = await filled(asked[1]);
     expect(second.marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
-    expect(asked[1]?.items.map((choice) => choice.name)).toEqual(["Take 1 type"]);
+    // Nothing is marked before the types are read: "Take 1 type" comes with them.
+    expect(asked[1]?.items).toEqual([]);
     expect(second.items.map((choice) => choice.name)).toEqual(["Take 1 type", "Need", "Use"]);
     second.items[0]?.run();
     expect(take).toHaveBeenCalledWith(["decision"]);
