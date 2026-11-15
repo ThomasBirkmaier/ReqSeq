@@ -4623,9 +4623,19 @@ describe("New perspective and New saved filter ask every step before they save (
     const sort = await last(run.asked);
     expect(sort.earlier).toEqual(["type: decision", "grouped by Status"]);
     expect(sort.marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
-    // The sort's marks are its own; Escape goes back to the grouping, then to the condition with its marks.
+    // The sort's marks are its own; Escape goes back to the grouping, whose answer stands first and marked, so
+    // Enter keeps it.
     sort.back?.();
-    expect((await last(run.asked)).label).toBe("New perspective rain · group:");
+    const group = await last(run.asked);
+    expect(group.label).toBe("New perspective rain · group:");
+    expect((await names(run.asked)).slice(0, 2)).toEqual(["Status", "No grouping"]);
+    (await last(run.asked)).items[0]?.run();
+    await flush();
+    const sortAgain = await last(run.asked);
+    expect(sortAgain.earlier).toEqual(["type: decision", "grouped by Status"]);
+    expect(sortAgain.marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
+    // Back to the grouping, then to the condition with its marks.
+    sortAgain.back?.();
     (await last(run.asked)).back?.();
     const where = await last(run.asked);
     expect(where.label).toBe("New perspective rain · where:");
@@ -4658,6 +4668,19 @@ describe("New perspective and New saved filter ask every step before they save (
     expect(run.dispatched.at(-1)).toMatchObject({ type: "open", buffer: { perspective: { name: "Rain" } } });
     expect(opened).toEqual(["Rain"]);
     expect(run.echoed.at(-1)).toBe("Saved perspective Rain");
+    // Saved but not opened: it says so, and why.
+    let faulty = false;
+    const unopened = begin([shown], {
+      "perspective.list": () =>
+        faulty ? new Error("The perspectives are faulty") : answers["perspective.list"](),
+      "perspective.save": () => {
+        faulty = true;
+        return { files: ["perspectives/rain.yaml"] };
+      },
+    });
+    (await last(unopened.asked)).text?.("Rain");
+    await choose(unopened.asked, "No condition: all elements", "No grouping", "Save");
+    expect(unopened.echoed.at(-1)).toBe("Saved perspective Rain · The perspectives are faulty");
 
     const filter = begin([shown], {}, "filter.save");
     (await last(filter.asked)).text?.("Open");
@@ -4679,7 +4702,11 @@ describe("New perspective and New saved filter ask every step before they save (
     refuse = false;
     name.text?.("y");
     expect((await last(refused.asked)).marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
-    await choose(refused.asked, "Next: grouping", "Status");
+    await choose(refused.asked, "Next: grouping");
+    // The grouping given stands first and marked: Enter keeps it.
+    expect((await names(refused.asked))[0]).toBe("Status");
+    (await last(refused.asked)).items[0]?.run();
+    await flush();
     expect((await last(refused.asked)).marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
     await choose(refused.asked, "Save");
     expect(saves(refused.call).at(-1)).toEqual([

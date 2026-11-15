@@ -76,6 +76,11 @@ const WORDS = Object.fromEntries(ORDERS.map(([word, order]) => [order, word])) a
   Record<SortKey["order"], string>
 >;
 
+const FIXED_NAMES: Readonly<Record<string, string>> = Object.fromEntries(FIXED);
+
+/** The label of the mark of `key`: "Type ascending"; a key that is no fixed one by its key. */
+export const keyLabel = (key: SortKey): string => `${FIXED_NAMES[key.by] ?? key.by} ${WORDS[key.order]}`;
+
 /** The mark of `key` sorted in `order`: "Title descending"; the hierarchy by its name alone. */
 const markOf = (key: Key, order: SortKey["order"]): SortMark =>
   key.by === "hierarchy"

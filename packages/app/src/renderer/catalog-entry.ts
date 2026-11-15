@@ -68,6 +68,8 @@ export interface Entry {
   readonly again?: number;
   /** The marks of the condition or sort asked again (SR-215 AK6, AK9). */
   readonly marks?: readonly BuiltMark[];
+  /** The answer of the builder step asked again (SR-219 AK6, AK7): its hit stands first and marked. */
+  readonly previous?: { readonly field: string; readonly value: unknown };
   /**
    * The marks of a condition or sort left by going back before it was taken (Escape, SR-215 AK9): they stand
    * again when the prompt returns to its field.

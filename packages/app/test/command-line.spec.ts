@@ -913,9 +913,11 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await window.keyboard.press("Enter");
     // A condition in JSON that core refuses, with a message longer than the window is wide: the grouping says
     // so first, then "Save" does, and the mark stands again (SR-215 AK6, SR-219 AK7).
-    await window.keyboard.type('{"bogus":1}');
-    await window.keyboard.press("Enter");
     const marked = window.locator('.candidates [aria-selected="true"] .name');
+    await expect(marked).toHaveText("No condition: all elements");
+    await window.keyboard.type('{"bogus":1}');
+    await expect(marked).toHaveText("Add the condition in JSON");
+    await window.keyboard.press("Enter");
     await expect(marked).toHaveText("Next: grouping");
     await window.keyboard.press("Enter");
     await expect(window.locator(".minibuffer")).toContainText("Invalid input for element.facets");

@@ -229,6 +229,13 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     await expect(label(window)).toHaveText("New perspective Grouped · sort:");
     await expect(marked(window)).toHaveText("Save");
     await expect(marks(window)).toHaveText(["type: system-requirement", "grouped by Status"]);
+    // Escape goes back to the grouping, whose answer stands first and marked: Enter keeps it (SR-219 AK6).
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveText("New perspective Grouped · group:");
+    await expect(marked(window)).toHaveText("Status");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("New perspective Grouped · sort:");
+    await expect(marks(window)).toHaveText(["type: system-requirement", "grouped by Status"]);
     await window.screenshot({ path: path.join(SHOTS, "sr-219-sort-light.png") });
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveCount(0);
