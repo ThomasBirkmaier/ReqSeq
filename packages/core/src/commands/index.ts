@@ -34,8 +34,10 @@ import evidenceRecord from "./evidence/record.js";
 import evidenceStatus from "./evidence/status.js";
 import evidenceWithoutPassedTest from "./evidence/withoutPassedTest.js";
 import filterList from "./filter/list.js";
+import filterRename from "./filter/rename.js";
 import filterSave from "./filter/save.js";
 import perspectiveList from "./perspective/list.js";
+import perspectiveRename from "./perspective/rename.js";
 import perspectiveSave from "./perspective/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
@@ -89,12 +91,14 @@ export const commands: readonly AnyCommand[] = [
   evidenceStatus,
   evidenceWithoutPassedTest,
   filterList,
+  filterRename,
   filterSave,
   hintConfirm,
   hintList,
   metamodelGet,
   metamodelMermaid,
   perspectiveList,
+  perspectiveRename,
   perspectiveSave,
   relationAdd,
   relationOptions,

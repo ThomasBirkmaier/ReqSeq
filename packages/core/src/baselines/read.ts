@@ -92,6 +92,8 @@ export interface Baselines {
   readonly faulty: readonly string[];
   /** The repository of the folder is not on this machine: its baselines are not seen (SR-006 AK2). */
   readonly incomplete: boolean;
+  /** The folder exists but cannot be listed (`file.unreadable`). */
+  readonly unreadable: boolean;
 }
 
 /** What one file gave. */
@@ -307,7 +309,7 @@ export const readBaselines = async (
   const none = { location, baselines: [], problems: [], faulty: [] };
   if (repository === undefined || absolute === undefined) {
     kept.clear();
-    return { ...none, incomplete: repository !== undefined };
+    return { ...none, incomplete: repository !== undefined, unreadable: false };
   }
   const folder = path.relative(repository.folder, absolute).split(path.sep).join("/");
   const shown = folder === "" ? "." : folder;
@@ -326,7 +328,7 @@ export const readBaselines = async (
               message: `Cannot read the baselines folder ${shown}: ${listing.reason}`,
             },
           ];
-    return { ...none, problems, incomplete: false };
+    return { ...none, problems, incomplete: false, unreadable: listing.kind !== "missing" };
   }
   const baselines: Baseline[] = [];
   const problems: Problem[] = [];
@@ -365,7 +367,7 @@ export const readBaselines = async (
   for (const key of [...kept.keys()].filter((k) => !seen.has(k))) {
     kept.delete(key);
   }
-  return { location, baselines, problems, faulty, incomplete: false };
+  return { location, baselines, problems, faulty, incomplete: false, unreadable: false };
 };
 
 /**

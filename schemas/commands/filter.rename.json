@@ -1,0 +1,95 @@
+{
+  "name": "filter.rename",
+  "title": "Rename saved filter",
+  "summary": "Give a saved filter a new name; its file is renamed to match, and the perspectives that use it are changed with it.",
+  "details": "The new name is checked as when saving and must not be another saved filter's, in any case or Unicode normal form; changing only the case of the own name is allowed, and the same name writes nothing. The file is named as a new file for the new name would be, the own file not counted as taken; when the name part without a suffix is its file name in any case, the file name stays. Every perspective that names the filter, also one hidden by a file with the same name, gets the new name first (only its `filter` line), the filter last; `perspectives` lists them. A script that calls the filter by its old name no longer finds it. Errors: input.invalid at `name` when no saved filter has it, at `newName` when another one has it (details.files); input.invalid with details.reason referenced when a baseline file names the filter (details.files; ReqSeq never changes a baseline file); file.faulty when only a faulty file holds either name, or a faulty perspective or baseline file names the filter or a perspective or baseline file does not read as YAML (details.files); file.folder-missing when the repository of the filters, perspectives or baselines folder is not on this machine (details.repository); file.faulty when the perspectives or baselines folder cannot be listed; input.invalid with details.reason git-folder for a place in Git (D-036); file.changed-on-disk when a file changed since it was read. Nothing is written on these. A write that fails part-way names the files already changed in details.written (nothing is rolled back) and the same call again finishes the rename; the filter file is renamed back when its name cannot be written, and named in details.written only if that fails too.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "SR-217 AK7: renaming is refused while the tool refuses write commands (SR-011 AK3).",
+  "stage": 3,
+  "implements": ["SR-217"],
+  "arguments": [
+    {
+      "field": "name",
+      "complete": "filter"
+    },
+    {
+      "field": "newName",
+      "complete": "text",
+      "class": "name"
+    }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "description": "The saved filter to rename, by its name in any case or Unicode normal form.",
+        "type": "string"
+      },
+      "newName": {
+        "$ref": "../filter.schema.json#/$defs/name",
+        "description": "The new name, checked as when saving; it must not be another saved filter's. The file is renamed to match."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "newName"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root; a renamed file under its new path."
+        }
+      },
+      "renamed": {
+        "type": "array",
+        "description": "The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "The file before, relative to the workspace root."
+            },
+            "to": {
+              "type": "string",
+              "description": "The file afterwards, relative to the workspace root."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["from", "to"]
+        }
+      },
+      "perspectives": {
+        "type": "array",
+        "description": "The perspectives changed to name the new name, in file order.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the perspective."
+            },
+            "file": {
+              "type": "string",
+              "description": "Relative to the workspace root."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "file"]
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files", "renamed", "perspectives"]
+  }
+}

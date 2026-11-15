@@ -41,6 +41,8 @@ export {
   readPerspectives,
 } from "./perspectives.js";
 export type { SavedPerspective, SavedPerspectives } from "./perspectives.js";
+export { renameFilter, renamePerspective } from "./saved-rename.js";
+export type { SavedRename } from "./saved-rename.js";
 export { orderedGroups, orderedSelection } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
 export { checkGroupKey, groupUnavailable, groupingOf } from "./group.js";

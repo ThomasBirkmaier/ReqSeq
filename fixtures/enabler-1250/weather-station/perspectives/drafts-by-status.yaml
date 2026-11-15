@@ -1,0 +1,6 @@
+reqseq-perspective: 1
+name: Drafts by status
+description: Draft system requirements, by status.
+filter: Draft requirements
+where: { all: [] }
+group: status

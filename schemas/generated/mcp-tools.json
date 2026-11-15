@@ -8107,6 +8107,102 @@
       }
     },
     {
+      "name": "filter_rename",
+      "title": "Rename saved filter",
+      "description": "Give a saved filter a new name; its file is renamed to match, and the perspectives that use it are changed with it.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The saved filter to rename, by its name in any case or Unicode normal form.",
+            "type": "string"
+          },
+          "newName": {
+            "$ref": "#/$defs/filter/$defs/name",
+            "description": "The new name, checked as when saving; it must not be another saved filter's. The file is renamed to match."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "newName"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root; a renamed file under its new path."
+            }
+          },
+          "renamed": {
+            "type": "array",
+            "description": "The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "description": "The file before, relative to the workspace root."
+                },
+                "to": {
+                  "type": "string",
+                  "description": "The file afterwards, relative to the workspace root."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to"
+              ]
+            }
+          },
+          "perspectives": {
+            "type": "array",
+            "description": "The perspectives changed to name the new name, in file order.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the perspective."
+                },
+                "file": {
+                  "type": "string",
+                  "description": "Relative to the workspace root."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "file"
+              ]
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "files",
+          "renamed",
+          "perspectives"
+        ]
+      }
+    },
+    {
       "name": "perspective_list",
       "title": "List perspectives",
       "description": "Perspectives of the workspace, with their selection, grouping and sort.",
@@ -8247,6 +8343,79 @@
         "additionalProperties": false,
         "required": [
           "files"
+        ]
+      }
+    },
+    {
+      "name": "perspective_rename",
+      "title": "Rename perspective",
+      "description": "Give a perspective a new name; its file is renamed to match, and comments and description stay.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The perspective to rename, by its name in any case or Unicode normal form.",
+            "type": "string"
+          },
+          "newName": {
+            "$ref": "#/$defs/perspective/$defs/name",
+            "description": "The new name, checked as when saving; it must not be another perspective's. The file is renamed to match."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "newName"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root; a renamed file under its new path."
+            }
+          },
+          "renamed": {
+            "type": "array",
+            "description": "The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "description": "The file before, relative to the workspace root."
+                },
+                "to": {
+                  "type": "string",
+                  "description": "The file afterwards, relative to the workspace root."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to"
+              ]
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "files",
+          "renamed"
         ]
       }
     },

@@ -14,7 +14,8 @@
 //   removes it, and is not written to a new file. `filter`, `group` and `sort` left out are removed.
 //   Nothing changed: nothing is written. Refused: a name only a faulty file holds (`file.faulty`), a
 //   file changed on disk since it was read (`file.changed-on-disk`), a place in Git (D-036).
-// - Perspectives are not elements (D-056); nothing is ever deleted or renamed, no status is touched.
+// - Perspectives are not elements (D-056); saving deletes and renames nothing (renaming is
+//   perspective.rename), no status is touched.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { PerspectiveFile } from "../../generated/types.js";

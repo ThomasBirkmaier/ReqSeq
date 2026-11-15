@@ -389,6 +389,92 @@ export const writeFileAtomic = async (
   }
 };
 
+/**
+ * Refuses, as `writeFileAtomic` would before a replace, unless `relativePath` below `root` is a
+ * writable regular file whose bytes are still those of `expected` and still parse as `options.kind`:
+ * for a command that changes several files and refuses before it writes the first.
+ */
+export const checkReplaceable = async (
+  root: string,
+  relativePath: string,
+  expected: FileSnapshot,
+  options: WriteOptions = {},
+): Promise<void> => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  try {
+    await checkUnchanged(absolute, file, expected, options);
+  } catch (e) {
+    throw toCommandError(e, file, true);
+  }
+};
+
+/**
+ * Gives the file `from` below `root` the name `to` in the same root, for the saved files whose file
+ * name follows their name (`perspective.rename`, `filter.rename`, SR-217 AK2): only while its bytes
+ * are still those of `expected` and still parse as `options.kind`, and while `to` does not exist
+ * (`file.changed-on-disk` "already exists"); the content stays. Returns the snapshot of the file
+ * under its new name. Like a replace, the window between the check and the rename is a few system
+ * calls long. Refuses as `writeFileAtomic` does (links out of the root, read-only files, missing
+ * folders).
+ */
+export const renameFileAtomic = async (
+  root: string,
+  from: string,
+  to: string,
+  expected: FileSnapshot,
+  options: WriteOptions = {},
+): Promise<FileSnapshot> => {
+  const source = resolveInRoot(root, from);
+  const target = resolveInRoot(root, to);
+  if (expected.path !== source.file) {
+    throw new CommandError(
+      "internal",
+      `Not renamed: the snapshot belongs to ${expected.path}, not ${source.file}`,
+    );
+  }
+  // The file an error names: the source, unless looking at the target failed.
+  let current = source.file;
+  try {
+    for (const { absolute, file } of [source, target]) {
+      if (!(await linksStayInside(root, path.dirname(absolute)))) {
+        throw new CommandError(
+          "input.invalid",
+          `Not written: the folder of ${file} is linked outside the workspace`,
+        );
+      }
+    }
+    await retry(async () => {
+      await checkUnchanged(source.absolute, source.file, expected, options);
+      const taken = await fs.lstat(target.absolute).then(
+        () => true,
+        (e: unknown) => {
+          if (errorCode(e) === "ENOENT") {
+            return false;
+          }
+          current = target.file;
+          throw e;
+        },
+      );
+      if (taken) {
+        throw changedOnDisk(target.file, "already exists");
+      }
+      await fs.rename(source.absolute, target.absolute);
+    }, TRANSIENT_CODES).catch((e: unknown) => {
+      const code = String(errorCode(e));
+      throw NOT_WRITABLE.includes(code)
+        ? new CommandError(
+            "file.read-only",
+            `Not written: the folder of ${source.file} is not writable (${code})`,
+          )
+        : e;
+    });
+    await syncFolder(path.dirname(target.absolute));
+    return makeSnapshot(target.file, expected.size, expected.mtimeMs, expected.sha256);
+  } catch (e) {
+    throw toCommandError(e, current, true);
+  }
+};
+
 /** One file `createFilesAtomic` creates: its path below the root and its content (a string as UTF-8). */
 export interface NewFile {
   readonly path: string;

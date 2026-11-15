@@ -12,7 +12,8 @@
 //   `editYamlDocument`); a key the input leaves out (`description`, `view`, `sort`) is removed from
 //   the file. Nothing changed: nothing is written and `files` is empty. The file must be unchanged
 //   since it was read (`file.changed-on-disk`). A name only a faulty file holds is `file.faulty`.
-// - Filters are not elements (D-056); nothing is ever deleted or renamed, and no status is touched.
+// - Filters are not elements (D-056); saving deletes and renames nothing (renaming is filter.rename),
+//   and no status is touched.
 // - Never into Git, also when the workspace file places the filters folder there: the file to write
 //   is checked right before each write (`refuseGitPlace`, D-036, SR-083 AK4).
 import type { CommandOutput } from "../../catalog.js";
