@@ -557,9 +557,24 @@ test.describe("perspectives in the app", () => {
     await answered(window, "Group list", "Group by", "Status");
     await answered(window, "Sort list", "Sort by", "Title");
     await answerOrder(window, "descending");
-    const heading = await shownBuffer(window).getAttribute("aria-label");
-    const ids = await shownIds(window);
+    // The rows are read once they show the steps, the grouping and the sort, as `element list` lists them.
+    const listed = await running.cli([
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({
+        selection: { where: { all: [{ type: ["system-requirement"] }, { text: "Measure" }] } },
+        group: "status",
+        sort: [{ by: "title", order: "desc" }],
+      }),
+    ]);
+    expect(listed.code, listed.stderr).toBe(0);
+    const ids = (JSON.parse(listed.stdout) as { elements: { shortId: string }[] }).elements.map(
+      (element) => element.shortId,
+    );
     expect(ids.length).toBeGreaterThan(0);
+    await expect.poll(() => shownIds(window)).toEqual(ids);
+    const heading = await shownBuffer(window).getAttribute("aria-label");
     await command(window, "Save list as saved filter");
     await expect(window.locator("label.prompt-label")).toHaveText("Saved filter name");
     await expect(promptInput(window)).toHaveValue("");

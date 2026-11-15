@@ -145,6 +145,7 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     await pick(window, "New saved filter", "New saved filter");
     await window.keyboard.type("Needs and decisions");
     await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("New saved filter Needs and decisions · where:");
     await pick(window, "Type", "Type");
     // A chosen type goes into the mark and the step stays, "Take 1 type" first and marked.
     await pick(window, "Need", "Need");
@@ -192,6 +193,7 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     await pick(window, "New perspective", "New perspective");
     await window.keyboard.type("Sorted");
     await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("New perspective Sorted · where:");
     await pick(window, "", "No condition: all elements");
     await pick(window, "", "No grouping");
     await expect(label(window)).toHaveText("New perspective Sorted · sort:");
