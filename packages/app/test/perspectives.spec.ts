@@ -557,9 +557,25 @@ test.describe("perspectives in the app", () => {
     await answered(window, "Group list", "Group by", "Status");
     await answered(window, "Sort list", "Sort by", "Title");
     await answerOrder(window, "descending");
-    const heading = await shownBuffer(window).getAttribute("aria-label");
-    const ids = await shownIds(window);
+    // The label and the count show before the rows of the grouped list, so the rows are awaited as the CLI
+    // lists them, not read once (#1764).
+    const listed = await running.cli([
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({
+        selection: { where: { all: [{ type: ["system-requirement"] }, { text: "Measure" }] } },
+        sort: [{ by: "title", order: "desc" }],
+        group: "status",
+      }),
+    ]);
+    expect(listed.code, listed.stderr).toBe(0);
+    const ids = (JSON.parse(listed.stdout) as { elements: { shortId: string }[] }).elements.map(
+      (element) => element.shortId,
+    );
     expect(ids.length).toBeGreaterThan(0);
+    await expect.poll(() => shownIds(window)).toEqual(ids);
+    const heading = await shownBuffer(window).getAttribute("aria-label");
     await command(window, "Save list as saved filter");
     await expect(window.locator("label.prompt-label")).toHaveText("Saved filter name");
     await expect(promptInput(window)).toHaveValue("");
@@ -579,7 +595,7 @@ test.describe("perspectives in the app", () => {
     await expect(minibuffer(window)).toContainText("Saved filter Measured");
     // The list stays as it is.
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", heading ?? "");
-    expect(await shownIds(window)).toEqual(ids);
+    await expect.poll(() => shownIds(window)).toEqual(ids);
     await expect(window.getByRole("note", { name: "Explanation" })).toHaveCount(0);
     await expect
       .poll(() =>
