@@ -253,12 +253,14 @@ test.describe("Create element", () => {
     await window.keyboard.press("Enter");
     await pick(window, "Package", "Package");
     await pick(window, "Sensors", "Sensors");
-    await window.keyboard.press("Enter"); // ends the list
+    // The package is taken before Enter ends the list: an Enter while the hits for "Sensors" are on their
+    // way waits for them, and a second Enter then is lost (#1763).
     await expect(marks(window)).toHaveText([
       "verification-method: Test×",
       "rationale: Masts×",
       "packages: PKG-0000d1×",
     ]);
+    await window.keyboard.press("Enter"); // ends the list
     await expect(marked(window)).toHaveText("Take 3 properties");
     await fs.mkdir(SHOTS, { recursive: true });
     await window.emulateMedia({ colorScheme: "light" });
