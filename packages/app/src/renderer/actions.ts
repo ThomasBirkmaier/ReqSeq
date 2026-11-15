@@ -2,7 +2,7 @@
 // prompts they open. Only what applies to the shown buffer is offered. Every datum comes from a catalog
 // command, shown as it is (ADR-0002); filter and sort only build the input of `element.list`. Each filter
 // is a step that narrows the list the one before gave (SR-124 AK1, `list-filters.ts`): the conditions are
-// ANDed in the selection; the values of "Filter list by property" come from `element.facets`.
+// ANDed in the selection; the values of "Filter list" come from `element.facets`.
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.

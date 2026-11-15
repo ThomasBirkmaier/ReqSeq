@@ -49,7 +49,9 @@ export { createPrivateFolder, removePrivateFile, writePrivateFile } from "./priv
 export {
   checkReplaceable,
   createFilesAtomic,
+  deleteSavedFile,
   isTempFile,
+  notDeleted,
   removeCreatedFiles,
   renameFileAtomic,
   replaceRefusal,

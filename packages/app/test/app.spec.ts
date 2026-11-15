@@ -108,7 +108,8 @@ test.describe("on a fixture workspace", () => {
       (await window.reqseq.commands()).map((c) => c.name),
     );
     expect(names).toEqual(CATALOG_ORDER);
-    expect(names.filter((name) => /delete/i.test(name))).toEqual([]);
+    // Only the files of a saved filter and a perspective, which are no elements, are deleted (SR-217 AK5).
+    expect(names.filter((name) => /delete/i.test(name))).toEqual(["filter.delete", "perspective.delete"]);
     const refused = await invoke(running, "element.delete", { ref: "SR-e88fb3" });
     expect(refused).toEqual({
       ok: false,

@@ -33,9 +33,11 @@ import evidenceList from "./evidence/list.js";
 import evidenceRecord from "./evidence/record.js";
 import evidenceStatus from "./evidence/status.js";
 import evidenceWithoutPassedTest from "./evidence/withoutPassedTest.js";
+import filterDelete from "./filter/delete.js";
 import filterList from "./filter/list.js";
 import filterRename from "./filter/rename.js";
 import filterSave from "./filter/save.js";
+import perspectiveDelete from "./perspective/delete.js";
 import perspectiveList from "./perspective/list.js";
 import perspectiveRename from "./perspective/rename.js";
 import perspectiveSave from "./perspective/save.js";
@@ -90,6 +92,7 @@ export const commands: readonly AnyCommand[] = [
   evidenceRecord,
   evidenceStatus,
   evidenceWithoutPassedTest,
+  filterDelete,
   filterList,
   filterRename,
   filterSave,
@@ -97,6 +100,7 @@ export const commands: readonly AnyCommand[] = [
   hintList,
   metamodelGet,
   metamodelMermaid,
+  perspectiveDelete,
   perspectiveList,
   perspectiveRename,
   perspectiveSave,

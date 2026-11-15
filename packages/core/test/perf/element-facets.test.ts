@@ -1,6 +1,6 @@
 // `element.facets` (ThomasBirkmaier/ReqSeq-archive#425) in the performance suite (ADR-0011) on the generated workspace of N-036 with
 // 50,000 elements: the statuses and property values of all elements and of one type, as the app's
-// "Filter list by property" asks for them. One pass over the selection plus one over the store for
+// "Filter list" asks for them. One pass over the selection plus one over the store for
 // the free-text rule. It is a result like a filter, so it is held to the 500 ms of SR-082 AK4 without
 // carrying that tag (it is no acceptance criterion of it, enabler ThomasBirkmaier/ReqSeq-archive#425).
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";

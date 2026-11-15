@@ -8203,6 +8203,84 @@
       }
     },
     {
+      "name": "filter_delete",
+      "title": "Delete saved filter",
+      "description": "Delete a saved filter after confirmation; without confirm the output names its name and file and nothing is deleted. A filter a perspective or baseline names is not deleted.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The saved filter to delete, by its name in any case or Unicode normal form.",
+            "type": "string"
+          },
+          "confirm": {
+            "type": "boolean",
+            "default": false,
+            "description": "Delete the file; without it nothing is deleted and the output names what `confirm` deletes."
+          },
+          "file": {
+            "type": "string",
+            "description": "The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now."
+          },
+          "expectedFileSha256": {
+            "$ref": "#/$defs/common/$defs/fileSha256",
+            "description": "The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name stored in the file of the saved filter."
+          },
+          "file": {
+            "type": "string",
+            "description": "Its file, relative to the workspace root."
+          },
+          "fileSha256": {
+            "$ref": "#/$defs/common/$defs/fileSha256",
+            "description": "The SHA-256 of the file as read, for `expectedFileSha256`."
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether the file was deleted: true only with `confirm`."
+          },
+          "files": {
+            "type": "array",
+            "description": "The deleted file, relative to the workspace root; empty when nothing was deleted.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "file",
+          "fileSha256",
+          "deleted",
+          "files"
+        ]
+      }
+    },
+    {
       "name": "perspective_list",
       "title": "List perspectives",
       "description": "Perspectives of the workspace, with their selection, grouping and sort.",
@@ -8416,6 +8494,84 @@
         "required": [
           "files",
           "renamed"
+        ]
+      }
+    },
+    {
+      "name": "perspective_delete",
+      "title": "Delete perspective",
+      "description": "Delete a perspective after confirmation; without confirm the output names its name and file and nothing is deleted.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The perspective to delete, by its name in any case or Unicode normal form.",
+            "type": "string"
+          },
+          "confirm": {
+            "type": "boolean",
+            "default": false,
+            "description": "Delete the file; without it nothing is deleted and the output names what `confirm` deletes."
+          },
+          "file": {
+            "type": "string",
+            "description": "The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now."
+          },
+          "expectedFileSha256": {
+            "$ref": "#/$defs/common/$defs/fileSha256",
+            "description": "The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name stored in the file of the perspective."
+          },
+          "file": {
+            "type": "string",
+            "description": "Its file, relative to the workspace root."
+          },
+          "fileSha256": {
+            "$ref": "#/$defs/common/$defs/fileSha256",
+            "description": "The SHA-256 of the file as read, for `expectedFileSha256`."
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether the file was deleted: true only with `confirm`."
+          },
+          "files": {
+            "type": "array",
+            "description": "The deleted file, relative to the workspace root; empty when nothing was deleted.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "file",
+          "fileSha256",
+          "deleted",
+          "files"
         ]
       }
     },

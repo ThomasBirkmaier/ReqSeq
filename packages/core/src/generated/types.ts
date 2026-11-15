@@ -1806,18 +1806,20 @@ export interface CommandCatalog {
   readonly commands: readonly {
     /** group.action; CLI `reqseq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
     readonly name: string;
-    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045). */
+    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045). */
     readonly title: string;
     /** What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252). */
     readonly summary: string;
     /** What a user needs to know beyond the summary: rules, cases and limits of the command. Shown on the command's reference page below the summary, not in the index, `--help` or the MCP tool list (#1252). Implementation notes belong in the block files of `packages/core/docs/`. */
     readonly details?: string;
-    /** No command writes to Git (D-036). No command deletes elements (D-045). */
+    /** No command writes to Git (D-036). No command deletes elements (D-045); only entries with `deletes` delete a file. */
     readonly effect: "read" | "write-files";
     /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, ThomasBirkmaier/ReqSeq-archive#142). */
     readonly whileReadOnly?: "refuse" | "allow";
     /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
     readonly whileReadOnlyReason?: string;
+    /** The command deletes a file, the file of a perspective or saved filter, which is no element (D-056, SR-217 AK5): only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint` (ADR-0002 rule 5, ADR-0009). */
+    readonly deletes?: "saved-file";
     /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
@@ -3559,6 +3561,39 @@ export interface FilterRenameOutput {
 }
 
 /**
+ * Input of `filter.delete` as `run` gets it: validated, properties with a `default` filled in. Delete a saved filter after confirmation; without confirm the output names its name and file and nothing is deleted. A filter a perspective or baseline names is not deleted.
+ * Schema: `schemas/commands/filter.delete.json input`.
+ */
+export interface FilterDeleteInput {
+  /** The saved filter to delete, by its name in any case or Unicode normal form. */
+  readonly name: string;
+  /** Delete the file; without it nothing is deleted and the output names what `confirm` deletes. */
+  readonly confirm: boolean;
+  /** The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now. */
+  readonly file?: string;
+  /** The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now. */
+  readonly expectedFileSha256?: FileSha256;
+}
+
+/**
+ * Output of `filter.delete`. Delete a saved filter after confirmation; without confirm the output names its name and file and nothing is deleted. A filter a perspective or baseline names is not deleted.
+ * Schema: `schemas/commands/filter.delete.json output`.
+ */
+export interface FilterDeleteOutput {
+  /** The name stored in the file of the saved filter. */
+  readonly name: string;
+  /** Its file, relative to the workspace root. */
+  readonly file: string;
+  /** The SHA-256 of the file as read, for `expectedFileSha256`. */
+  readonly fileSha256: FileSha256;
+  /** Whether the file was deleted: true only with `confirm`. */
+  readonly deleted: boolean;
+  /** The deleted file, relative to the workspace root; empty when nothing was deleted. */
+  readonly files: readonly string[];
+  readonly problems?: readonly Problem[];
+}
+
+/**
  * Input of `perspective.list` as `run` gets it: validated, properties with a `default` filled in. Perspectives of the workspace, with their selection, grouping and sort.
  * Schema: `schemas/commands/perspective.list.json input`.
  */
@@ -3638,6 +3673,39 @@ export interface PerspectiveRenameOutput {
     /** The file afterwards, relative to the workspace root. */
     readonly to: string;
   }[];
+  readonly problems?: readonly Problem[];
+}
+
+/**
+ * Input of `perspective.delete` as `run` gets it: validated, properties with a `default` filled in. Delete a perspective after confirmation; without confirm the output names its name and file and nothing is deleted.
+ * Schema: `schemas/commands/perspective.delete.json input`.
+ */
+export interface PerspectiveDeleteInput {
+  /** The perspective to delete, by its name in any case or Unicode normal form. */
+  readonly name: string;
+  /** Delete the file; without it nothing is deleted and the output names what `confirm` deletes. */
+  readonly confirm: boolean;
+  /** The file the call without `confirm` named, relative to the workspace root: refused with file.changed-on-disk when another file holds the name now. */
+  readonly file?: string;
+  /** The fileSha256 the call without `confirm` gave: refused with file.changed-on-disk when the file has other bytes now. */
+  readonly expectedFileSha256?: FileSha256;
+}
+
+/**
+ * Output of `perspective.delete`. Delete a perspective after confirmation; without confirm the output names its name and file and nothing is deleted.
+ * Schema: `schemas/commands/perspective.delete.json output`.
+ */
+export interface PerspectiveDeleteOutput {
+  /** The name stored in the file of the perspective. */
+  readonly name: string;
+  /** Its file, relative to the workspace root. */
+  readonly file: string;
+  /** The SHA-256 of the file as read, for `expectedFileSha256`. */
+  readonly fileSha256: FileSha256;
+  /** Whether the file was deleted: true only with `confirm`. */
+  readonly deleted: boolean;
+  /** The deleted file, relative to the workspace root; empty when nothing was deleted. */
+  readonly files: readonly string[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4383,9 +4451,11 @@ export interface CommandTypes {
   readonly "filter.list": { readonly input: FilterListInput; readonly output: FilterListOutput };
   readonly "filter.save": { readonly input: FilterSaveInput; readonly output: FilterSaveOutput };
   readonly "filter.rename": { readonly input: FilterRenameInput; readonly output: FilterRenameOutput };
+  readonly "filter.delete": { readonly input: FilterDeleteInput; readonly output: FilterDeleteOutput };
   readonly "perspective.list": { readonly input: PerspectiveListInput; readonly output: PerspectiveListOutput };
   readonly "perspective.save": { readonly input: PerspectiveSaveInput; readonly output: PerspectiveSaveOutput };
   readonly "perspective.rename": { readonly input: PerspectiveRenameInput; readonly output: PerspectiveRenameOutput };
+  readonly "perspective.delete": { readonly input: PerspectiveDeleteInput; readonly output: PerspectiveDeleteOutput };
   readonly "evidence.list": { readonly input: EvidenceListInput; readonly output: EvidenceListOutput };
   readonly "evidence.record": { readonly input: EvidenceRecordInput; readonly output: EvidenceRecordOutput };
   readonly "evidence.enrichJunit": { readonly input: EvidenceEnrichJunitInput; readonly output: EvidenceEnrichJunitOutput };

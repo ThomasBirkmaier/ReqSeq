@@ -267,7 +267,8 @@ describe("statuses folded in lists (SR-201)", () => {
   it("[SR-201/AK-d03x] a filtered list folds within its filter, and a tree folds nothing", async () => {
     const fake = await open();
     await runCommand("List all elements");
-    await runCommand("Filter list by type");
+    await runCommand("Filter list");
+    await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter");
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",

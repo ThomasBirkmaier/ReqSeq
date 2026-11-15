@@ -249,11 +249,13 @@ test.describe.serial("the list of the elements with a value", () => {
     await caretIn(window, "topic");
     await listKey(window);
     await expectList(running, "topic: Timing", TIMING);
-    await runCommand(window, "filter list by type");
-    await answer(window, "Type", "system-requirement");
+    await runCommand(window, "filter list");
+    await answer(window, "Filter by", "Type");
+    await answer(window, "Type", "System Requirement");
     const type = { type: ["system-requirement"] };
     await expectList(running, "topic: Timing · type: system-requirement", { all: [TIMING, type] });
-    await runCommand(window, "filter list by status");
+    await runCommand(window, "filter list");
+    await answer(window, "Filter by", "Status");
     await answer(window, "Status", "draft");
     await expectList(running, "topic: Timing · type: system-requirement · status: draft", {
       all: [TIMING, type, { status: ["draft"] }],

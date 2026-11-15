@@ -142,9 +142,18 @@ const answerOrder = async (window: Page, order: string): Promise<void> => {
   await window.keyboard.press("Enter");
 };
 
-/** "Filter list by text search" with `text`. */
+/** "Filter list" with the kind `kind`, then `value` in its values (SR-124 AK5, AK6). */
+const filtered = async (window: Page, kind: string, value: string): Promise<void> => {
+  await answered(window, "Filter list", "Filter by", kind);
+  await expect(window.locator("label.prompt-label")).toHaveText(kind);
+  await window.keyboard.type(value);
+  await expect(candidates(window).first()).toHaveText(value);
+  await window.keyboard.press("Enter");
+};
+
+/** "Filter list" by a text search with `text`. */
 const textFilter = async (window: Page, text: string): Promise<void> => {
-  await command(window, "Filter list by text search");
+  await answered(window, "Filter list", "Filter by", "Text search");
   await expect(window.locator("label.prompt-label")).toHaveText("Text");
   await window.keyboard.type(text);
   await window.keyboard.press("Enter");
@@ -461,7 +470,7 @@ test.describe("perspectives in the app", () => {
     // sort is the one shown.
     await command(window, "List all elements");
     await textFilter(window, "Measure");
-    await answered(window, "Filter list by saved filter", "Filter", "Requirements");
+    await filtered(window, "Saved filter", "Requirements");
     await answered(window, "Group list", "Group by", "Status");
     await savePrompt(window);
     // Only the name: a plain list proposes none, and the perspectives there are show while typing.
@@ -492,7 +501,7 @@ test.describe("perspectives in the app", () => {
 
     // No sort chosen and no saved filter: the app's own default order is written, so the CLI gives it too.
     await command(window, "List all elements");
-    await answered(window, "Filter list by type", "Type", "system-requirement");
+    await filtered(window, "Type", "System Requirement");
     await expect.poll(() => shownIds(window)).toHaveLength(6);
     const shown = await shownIds(window);
     await saveAs(window, "Typed");
@@ -543,7 +552,7 @@ test.describe("perspectives in the app", () => {
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
     // A list with a type and a text step, grouped, and sorted with "Sort list".
     await command(window, "List all elements");
-    await answered(window, "Filter list by type", "Type", "system-requirement");
+    await filtered(window, "Type", "System Requirement");
     await textFilter(window, "Measure");
     await answered(window, "Group list", "Group by", "Status");
     await answered(window, "Sort list", "Sort by", "Title");
@@ -620,7 +629,7 @@ test.describe("perspectives in the app", () => {
     await open(window, "filtered");
     expect(await offersFilterSave(window)).toBe(false);
     await command(window, "List all elements");
-    await answered(window, "Filter list by saved filter", "Filter", "Requirements");
+    await filtered(window, "Saved filter", "Requirements");
     expect(await offersFilterSave(window)).toBe(false);
     await command(window, "List all elements");
     await command(window, "Show traceability matrix");

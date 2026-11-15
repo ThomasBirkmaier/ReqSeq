@@ -347,7 +347,9 @@ describe("the list actions on a perspective buffer", () => {
     expect(action("clear-filters").available(context)).toBe(false);
     expect(action("clear-filter").available(context)).toBe(false);
     // The saved filter of the perspective is its one saved filter (SR-101).
-    expect(action("filter-saved").available(context)).toBe(false);
+    const kinds: Prompt[] = [];
+    action("filter").run({ ...context, ask: (prompt) => kinds.push(prompt) });
+    expect(kinds[0]?.items.map((item) => item.name)).not.toContain("Saved filter");
     // In the matrix the grouping it keeps is not offered to ungroup.
     const matrix = start({}, [withMatrix(opened(), true)]);
     expect(action("ungroup").available(matrix.context)).toBe(false);
@@ -368,7 +370,7 @@ describe("the list actions on a perspective buffer", () => {
       [faulty],
     );
     // Neither the matrix, a filter, a sort nor a grouping: they would act on every element.
-    for (const id of ["matrix", "filter-type", "filter-text", "sort", "group", "clear-filters"]) {
+    for (const id of ["matrix", "filter", "sort", "group", "clear-filters"]) {
       expect(action(id).available(context)).toBe(false);
     }
     // Opening it again replaces it with the perspective as saved.

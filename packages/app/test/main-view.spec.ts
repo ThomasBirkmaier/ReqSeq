@@ -197,7 +197,10 @@ test.describe("the main view on a fixture workspace", () => {
   });
 
   test("filtering by type through the command prompt gives the list of the CLI for the same condition", async () => {
-    await runCommand(running.window, "filter list by type");
+    await runCommand(running.window, "filter list");
+    await expect(running.window.getByLabel("Minibuffer").locator("label")).toHaveText("Filter by");
+    await running.window.keyboard.type("Type");
+    await running.window.keyboard.press("Enter");
     await expect(running.window.getByLabel("Minibuffer").locator("label")).toHaveText("Type");
     await running.window.keyboard.type("need");
     await running.window.keyboard.press("Enter");
