@@ -132,10 +132,11 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
 
   test("[SR-215/AK-w8q6] on a filtered list Save perspective takes the list's conditions with Enter, Enter: the selection Save list as perspective saves", async () => {
     const { window } = running;
-    /** Runs the command prompt's `title`, then answers `prompt` with `value`, the hit it marks. */
-    const filtered = async (title: string, prompt: string, value: string, hit: string): Promise<void> => {
+    /** Runs "Filter list" with the kind `kind`, then answers `prompt` with `value`, the hit it marks. */
+    const filtered = async (kind: string, prompt: string, value: string, hit: string): Promise<void> => {
       await window.keyboard.press("ControlOrMeta+Shift+P");
-      await pick(window, title, title);
+      await pick(window, "Filter list", "Filter list");
+      await pick(window, kind, kind);
       await expect(label(window)).toHaveText(prompt);
       await window.keyboard.type(value);
       if (hit !== "") {
@@ -145,8 +146,8 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     };
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await pick(window, "List all elements", "List all elements");
-    await filtered("Filter list by type", "Type", "system-requirement", "system-requirement");
-    await filtered("Filter list by text search", "Text", "measure", "");
+    await filtered("Type", "Type", "System Requirement", "System Requirement");
+    await filtered("Text search", "Text", "measure", "");
     await expect(window.locator('[aria-label="Sheet"] [data-buffer]')).toHaveAttribute(
       "aria-label",
       "type: system-requirement · text: measure",

@@ -34,7 +34,7 @@ export const SHOWN_IN: Readonly<Record<string, string>> = {
   "workspace.activity": '"Follow agent"',
   "element.facets": "the filters of a list, the overview and the values of an element that open a list",
   "relation.options": '"Create relation", the traceability matrix and the relation kinds an argument offers',
-  "filter.list": '"Filter list by saved filter"',
+  "filter.list": '"Filter list"',
   "perspective.list": '"Open perspective", "Save list as perspective" and the overview',
 };
 

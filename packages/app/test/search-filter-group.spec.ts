@@ -1,6 +1,6 @@
 // The hits of a search filtered and grouped like any list (SR-124 AK4, SR-149 AK6) on the built app, on
 // fixtures/SR-069/filter: "the" finds 8 elements of three statuses in an order of relevance that is not
-// the store order. "Filter list by status" narrows the hits and they keep their order; "Group list" by
+// the store order. "Filter list" by status narrows the hits and they keep their order; "Group list" by
 // status shows them under headings, each group in that order. A light-theme screenshot goes to
 // `test-results/electron/screenshots/` (or REQSEQ_SCREENSHOTS) for the pull request.
 import fs from "node:fs/promises";
@@ -68,7 +68,11 @@ test.describe("search hits filtered and grouped", () => {
     const plain = await searched(running);
     await showFolded(window, await hitsOf(running));
     await expect(ids(window)).toHaveText(plain);
-    await command(window, "Filter list by status", "draft", "Status");
+    await command(window, "Filter list", "Status", "Filter by");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Status");
+    await window.keyboard.type("Draft");
+    await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText("Draft");
+    await window.keyboard.press("Enter");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", `Search: ${QUERY} · status: draft`);
     const filtered = await searched(running, { where: { status: ["draft"] } });
     expect(filtered.length).toBeGreaterThan(1);

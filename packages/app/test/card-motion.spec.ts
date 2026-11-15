@@ -250,9 +250,11 @@ test.describe("the card of the command line in motion", () => {
     await listed(window);
     // At once after the key that opens it, before the motion ends.
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("filter list by", { delay: 5 });
-    await expect(window.locator("#prompt-input")).toHaveValue("filter list by");
-    await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter list by");
+    await window.keyboard.type("list all elem", { delay: 5 });
+    await expect(window.locator("#prompt-input")).toHaveValue("list all elem");
+    await expect(window.locator('.candidates [role="option"] .name').first()).toContainText(
+      "List all elements",
+    );
   });
 
   test("[SR-182/AK-ggcp] the card does not rise again when the hits change, the prompt changes between elements and commands, or the command help comes or goes", async () => {
@@ -297,13 +299,13 @@ test.describe("the card of the command line in motion", () => {
     await window.keyboard.type("filter");
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("Filter");
     await window.keyboard.press("Backspace");
-    await window.keyboard.type("r list by st");
-    await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("status");
+    await window.keyboard.type("r list");
+    await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText("Filter list");
     await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);
     // The next argument of a command takes the card's place: it does not rise either.
     await window.keyboard.press("Enter");
-    await expect(window.locator("label.prompt-label")).toHaveText("Status");
+    await expect(window.locator("label.prompt-label")).toHaveText("Filter by");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
     await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);

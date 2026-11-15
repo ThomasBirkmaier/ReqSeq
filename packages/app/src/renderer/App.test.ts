@@ -599,19 +599,12 @@ describe("App", () => {
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    await type("fl");
-    // By match "Filter list by type" is first, then the other filters (by name, SR-133 AK1).
-    expect(options().slice(0, 4)).toEqual([
-      "Filter list by type",
-      "Filter list by property",
-      "Filter list by saved filter",
-      "Filter list by status",
-    ]);
-    await keyDown(query("input"), "ArrowDown");
-    await keyDown(query("input"), "ArrowDown");
+    await type("g");
+    // By match both are first, by name (SR-133 AK1).
+    expect(options().slice(0, 2)).toEqual(["Go to element or buffer", "Group list"]);
     await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
-    expect(query("label").textContent).toBe("Status");
+    expect(query("label").textContent).toBe("Group by");
     await keyDown(query("input"), "Escape");
     // The usage is in the storage of the app, never in a workspace file, and holds no title or text.
     const stored = JSON.parse(window.localStorage.getItem("reqseq.usage.v1") ?? "null") as {
@@ -619,10 +612,10 @@ describe("App", () => {
       queries: unknown[][];
     };
     expect(stored.queries).toEqual([
-      ["fl", "filter-status"],
+      ["g", "group"],
       ["list all elements", "list-all"],
     ]);
-    expect(stored.commands.map(([id]) => id)).toEqual(["filter-status", "list-all"]);
+    expect(stored.commands.map(([id]) => id)).toEqual(["group", "list-all"]);
     for (const restart of [0, 1]) {
       act(() => {
         root.unmount();
@@ -631,11 +624,11 @@ describe("App", () => {
       await render(fakeBridge(workspace()).bridge);
       await listAll();
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-      await type(restart === 0 ? "fl" : " FL ");
-      expect(options().slice(0, 2)).toEqual(["Filter list by status", "Filter list by type"]);
+      await type(restart === 0 ? "g" : " G ");
+      expect(options().slice(0, 2)).toEqual(["Group list", "Go to element or buffer"]);
     }
-    await type("flt");
-    expect(options()[0]).toBe("Filter list by type");
+    await type("got");
+    expect(options()[0]).toBe("Go to element or buffer");
   });
 
   it("[SR-108/AK-f6t5] [SR-134/AK-trng] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
@@ -646,40 +639,36 @@ describe("App", () => {
     await renderList(bridge);
     await clickLine();
     // Not among the first nine without use: from "All commands…".
-    expect(texts('[role="option"] .name')).not.toContain("Filter list by status");
+    expect(texts('[role="option"] .name')).not.toContain("Group list");
     await allCommands();
-    const status = [...shownAll('[role="option"]')].find(
-      (option) => option.textContent === "Filter list by status",
-    );
+    const group = [...shownAll('[role="option"]')].find((option) => option.textContent === "Group list");
     await act(async () => {
-      status?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      group?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
       await Promise.resolve();
     });
-    expect(query("label").textContent).toBe("Status");
+    expect(query("label").textContent).toBe("Group by");
     // Escape goes back to the list it was chosen in (SR-134 AK1), and there to the command prompt no more.
     await keyDown(query("input"), "Escape");
     expect(query("label").textContent).toBe("All commands");
     await keyDown(query("input"), "Escape");
     expect(shownOne("input")).toBeNull();
     await clickLine();
-    // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
-    expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
-      "Filter list by status",
-      "List all elements",
-    ]);
+    // "List all elements" was chosen before by typing, "Group list" later by a click: both are in use.
+    expect(texts('[role="option"] .name').slice(0, 2)).toEqual(["Group list", "List all elements"]);
   });
 
-  it("[SR-134/AK-trng] [SR-134/AK-ykbf] goes back one step on Escape in a later step, and closes in the first", async () => {
+  it("[SR-134/AK-trng] [SR-134/AK-ykbf] [SR-124/AK-y24h] goes back one step on Escape in a later step, and closes in the first", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
     const lists = calls(invoke, "element.list").length;
-    await runCommand("filter list by property");
-    expect(query("label").textContent).toBe("Property");
+    await runCommand("filter list");
+    expect(query("label").textContent).toBe("Filter by");
+    await type("Status");
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Status");
-    // The value: back to the property, then to the command; nothing filtered the list.
+    // The value: back to the kind, then to the command; nothing filtered the list.
     await keyDown(query("input"), "Escape");
-    expect(query("label").textContent).toBe("Property");
+    expect(query("label").textContent).toBe("Filter by");
     await keyDown(query("input"), "Escape");
     expect(query("label").textContent).toBe("Command");
     expect(calls(invoke, "element.list")).toHaveLength(lists);
@@ -830,7 +819,9 @@ describe("App", () => {
   it("filters the list by a type through the command prompt", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
-    await runCommand("filter list by type");
+    await runCommand("filter list");
+    expect(query("label").textContent).toBe("Filter by");
+    await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Type");
     await keyDown(query("input"), "Enter");
     expect(calls(invoke, "element.list").at(-1)).toEqual({
@@ -860,7 +851,8 @@ describe("App", () => {
     const { bridge, handlers } = fakeBridge(workspace());
     await renderList(bridge);
     handlers["metamodel.get"] = () => new Error("The metamodel is not valid");
-    await runCommand("filter list by type");
+    await runCommand("filter list");
+    await keyDown(query("input"), "Enter");
     expect(text("Minibuffer")).toBe("The metamodel is not valid");
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(text("Minibuffer")).toContain("Command");
@@ -951,7 +943,8 @@ describe("App", () => {
     await renderList(bridge);
     expect(text("Modeline")).toContain("3 elements");
     handlers["element.list"] = () => new Error("The metamodel is not valid");
-    await runCommand("filter list by type");
+    await runCommand("filter list");
+    await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter");
     expect(text("Modeline")).toBe("type: needWeather stationread-only");
   });
@@ -2984,7 +2977,9 @@ describe("App, the text editor", () => {
       await keyDown(query("article"), "Enter", { ctrlKey: true, shiftKey: true });
       await type("status");
       await keyDown(query("input"), "Enter");
-      await runCommand("Filter list by type");
+      await runCommand("Filter list");
+      await type("Type");
+      await keyDown(query("input"), "Enter");
       await type("need");
       await keyDown(query("input"), "Enter");
       expect(calls(invoke, "element.list").at(-1)).toMatchObject({

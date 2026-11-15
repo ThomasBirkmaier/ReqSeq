@@ -246,7 +246,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
       "L List all elements",
       "V Open perspective",
       "O Show overview",
-      "F Filter list by type",
+      "F Filter list",
       "S Sort list",
       "B Close buffer",
     ]);
@@ -306,6 +306,22 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(echo()).toBe("");
   });
 
+  it("[SR-124/AK-zmfp] Ctrl+K F on a list runs Filter list, which asks the kind first; Escape there closes it", async () => {
+    await render();
+    await runCommand("List all elements");
+    await ctrlK();
+    await press(window, { key: "f" });
+    expect(query("label").textContent).toBe("Filter by");
+    expect(
+      [...container.querySelectorAll('[role="option"] .name')].map((name) => name.textContent),
+    ).toContain("Text search");
+    expect(container.querySelector(".minibuffer input")).not.toBeNull();
+    // Not chosen in the command list: Escape in the kind step closes the prompt.
+    await press(query("input"), { key: "Escape" });
+    expect(container.querySelector(".minibuffer input")).toBeNull();
+    expect(shown()).toBe("All elements");
+  });
+
   it("[SR-109/AK-kwtg] the next key after the list runs its command and the list goes", async () => {
     await onElement();
     vi.useFakeTimers();
@@ -341,7 +357,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     // A bound letter whose command does not apply here says so.
     await ctrlK();
     await press(window, { key: "f" });
-    expect(echo()).toBe("Filter list by type is not available here");
+    expect(echo()).toBe("Filter list is not available here");
     expect(shown()).toBe("Overview");
 
     // A mouse press and leaving the window end it.

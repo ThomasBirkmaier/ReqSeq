@@ -32,22 +32,18 @@ test.describe("the command prompt", () => {
     let { window } = running;
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("fl");
-    // By match "Filter list by type" is first for "fl", then the other filters by name.
-    await expect(names(window).first()).toHaveText("Filter list by type");
+    await window.keyboard.type("go");
+    // By match "Go to element or buffer" is first for "go", then "Group list".
+    await expect(names(window).first()).toHaveText("Go to element or buffer");
     await window.keyboard.press("ArrowDown");
-    await window.keyboard.press("ArrowDown");
-    await window.keyboard.press("ArrowDown");
-    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
-      "Filter list by status",
-    );
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Group list");
     await window.keyboard.press("Enter");
-    await expect(window.locator("label.prompt-label")).toHaveText("Status");
+    await expect(window.locator("label.prompt-label")).toHaveText("Group by");
     await window.keyboard.press("Escape");
     // The same text now puts the chosen command first.
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("fl");
-    await expect(names(window).first()).toHaveText("Filter list by status");
+    await window.keyboard.type("go");
+    await expect(names(window).first()).toHaveText("Group list");
     await window.keyboard.press("Escape");
 
     const { kept } = running;
@@ -56,13 +52,13 @@ test.describe("the command prompt", () => {
     ({ window } = running);
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("fl");
-    await expect(names(window).first()).toHaveText("Filter list by status");
+    await window.keyboard.type("go");
+    await expect(names(window).first()).toHaveText("Group list");
     // Another text is not changed.
     await window.keyboard.press("Escape");
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("flt");
-    await expect(names(window).first()).toHaveText("Filter list by type");
+    await window.keyboard.type("gte");
+    await expect(names(window).first()).toHaveText("Go to element or buffer");
   });
 
   test('[SR-121/AK-yx6t] "lae", the initials of List all elements, puts it first, and Enter runs it', async () => {
@@ -332,7 +328,7 @@ test.describe("the command prompt", () => {
       "List all elements",
       "Open perspective",
       "Show overview",
-      "Filter list by type",
+      "Filter list",
       "Sort list",
       "Close buffer",
       "Go to element or buffer",
@@ -351,10 +347,10 @@ test.describe("the command prompt", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.locator('.candidates [role="option"]').filter({ hasText: "All commands…" }).click();
     await expect(label).toHaveText("All commands");
-    await window.keyboard.type("Filter list by status");
-    await expect(names(window).first()).toHaveText("Filter list by status");
+    await window.keyboard.type("Filter list");
+    await expect(names(window).first()).toHaveText("Filter list");
     await window.keyboard.press("Enter");
-    await expect(label).toHaveText("Status");
+    await expect(label).toHaveText("Filter by");
     await window.keyboard.press("Escape");
     await expect(label).toHaveText("All commands");
     await expect(window.locator(".prompt-input")).toHaveValue("");
@@ -628,10 +624,13 @@ test.describe("the command prompt", () => {
       const confirmed = async (): Promise<void> => {
         // The system requirements: a list with a selection (the list of all elements has none).
         await listAll(window);
-        await command(window, "Filter list by type");
+        await command(window, "Filter list");
+        await expect(label(window)).toHaveText("Filter by");
+        await window.keyboard.type("Type");
+        await window.keyboard.press("Enter");
         await expect(label(window)).toHaveText("Type");
-        await window.keyboard.type("system-requirement");
-        await expect(names(window).first()).toHaveText("system-requirement");
+        await window.keyboard.type("System Requirement");
+        await expect(names(window).first()).toHaveText("System Requirement");
         await window.keyboard.press("Enter");
         await expect(window.getByRole("listbox", { name: "type: system-requirement" })).toBeVisible();
         await command(window, "Bulk update elements");
@@ -706,7 +705,7 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
       "Show overview",
     ]);
     await expect(rows).toContainText("List all elements");
-    await expect(rows).not.toContainText("Filter list by type");
+    await expect(rows).not.toContainText("Filter list");
     await expect(rows.locator("li").filter({ hasText: "List all elements" }).locator(".key")).toHaveText("L");
     await window.keyboard.press("l");
     await expect(window.locator(".row").first()).toBeVisible();

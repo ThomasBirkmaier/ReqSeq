@@ -1,5 +1,5 @@
 // From a value of the shown element to the list of every element with that value (SR-132). The list is an
-// ordinary filtered list with one step, the step "Filter list by property" or "Filter list by status" would
+// ordinary filtered list with one step, the step "Filter list" would
 // add (SR-124), so it narrows further like any list (AK5). Which values can be listed is what
 // `element.facets` gives for the one element, the rule of filtering (SR-132's rationale: „Welche Properties
 // sich dafür eignen, gilt wie beim Filtern nach SR-124“): its status and type, each value of a choice or

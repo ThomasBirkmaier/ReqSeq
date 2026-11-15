@@ -17,9 +17,7 @@ const grouped = (hit: MenuHit): boolean =>
  * list filters" only on a filtered one.
  */
 export const LIST_MENU: readonly MenuEntry[] = [
-  { id: "filter-type" },
-  { id: "filter-status" },
-  { id: "filter-text" },
+  { id: "filter" },
   { id: "sort" },
   { id: "group", when: (hit) => !grouped(hit) },
   { id: "ungroup" },

@@ -1,6 +1,5 @@
 // The facets of a selection (`element.facets`, ThomasBirkmaier/ReqSeq-archive#425): which types, statuses and which values of which
-// properties the selected elements have, with counts, so a caller (the app's "Filter list by
-// property") can offer values that select something without counting them itself (ADR-0002).
+// properties the selected elements have, with counts, so a caller (the app's "Filter list") can offer values that select something without counting them itself (ADR-0002).
 //
 // - Counted exactly as the filter conditions read the elements (condition.ts, property.ts): the
 //   status as written; a property's values are `valuesOf` the frontmatter value of ANY element, of

@@ -24,7 +24,7 @@ export interface PrefixOptions {
   readonly mac: boolean;
   /** The entries of the command prompt now: what applies to the shown buffer, with what each runs. */
   readonly items: () => readonly Choice[];
-  /** The name of the entry `id` when it does not apply now ("Filter list by type"). */
+  /** The name of the entry `id` when it does not apply now ("Filter list"). */
   readonly nameOf: (id: string) => string | undefined;
   readonly setEcho: Dispatch<SetStateAction<string>>;
   /** The open buffers, the shown one first: a switch to another one ends the prefix. */
