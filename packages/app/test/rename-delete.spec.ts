@@ -32,8 +32,9 @@ const FILES = {
     "filter: Sensors",
     "where: { all: [] }",
   ]),
-  // A faulty file (SR-213 AK8): no `where`.
+  // Faulty files (SR-213 AK8): no `where`.
   "perspectives/broken.yaml": perspective(["name: Broken"]),
+  "filters/broken.yaml": ["reqseq-filter: 1", "name: Broken filter", ""].join("\n"),
 };
 
 const FIXTURE = { fixture: "SR-043/example", files: FILES };
@@ -158,7 +159,8 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     }
     for (const title of ["Rename saved filter", "Delete saved filter"]) {
       await start(window, title);
-      await expect(candidates(window)).toHaveText(["Sensors", "Unused"]);
+      await expect(candidates(window)).toHaveText(["Sensors", "Unused", /filters\/broken\.yaml/]);
+      await expect(disabled(window)).toHaveText([/filters\/broken\.yaml/]);
       await window.keyboard.press("Escape");
     }
     await running.close();
@@ -245,6 +247,12 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
     await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
     await shot(window, "sr-218-confirm-light.png");
+    // Ctrl/Cmd+Enter again (a second press, or a key that repeats) deletes nothing.
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
+    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
+    await expect(fs.stat(file)).resolves.toBeDefined();
     // "No" and Escape go back a step, and delete nothing.
     await window.locator('.candidates [role="option"]', { hasText: /^No$/ }).click();
     await expect(label(window)).toHaveText("Delete perspective Drafts:");

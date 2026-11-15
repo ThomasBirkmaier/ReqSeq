@@ -2,7 +2,7 @@
 // prompts of each step, the calls they send, what the command prompt says, and how the buffers follow a rename
 // or a delete. The actions run against a context that records what they dispatch, ask and echo.
 import { describe, expect, it, vi } from "vitest";
-import { ACTIONS } from "./actions.js";
+import { ACTIONS, runAction } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { Buffers, ListBuffer, SearchBuffer } from "./buffers.js";
 import {
@@ -412,6 +412,12 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     expect(confirm.label).toBe("Delete perspective Drafts · confirm:");
     expect(confirm.items.map((item) => item.name)).toEqual([YES_DELETE, NO]);
     expect(confirm.explain).toMatchObject({ name: "confirm", description: "Delete the file." });
+    // Ctrl/Cmd+Enter again, on either row, deletes nothing: it asks the confirmation again.
+    const asked = run.asked.length;
+    confirm.items[0]?.more?.();
+    confirm.items[1]?.more?.();
+    expect(run.asked.slice(asked).map((prompt) => prompt.label)).toEqual([confirm.label, confirm.label]);
+    expect(run.call).toHaveBeenCalledTimes(2);
     // No and Escape go back a step.
     choose(confirm, NO);
     expect(run.last().label).toBe("Delete perspective Drafts:");
@@ -500,6 +506,31 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
   });
 });
 
+describe("Escape in the first step (SR-134 AK1, AK2)", () => {
+  it("goes where it went the first time, also when the step is asked again after a step back", async () => {
+    const first = vi.fn();
+    const run = start({ "perspective.list": perspectives });
+    runAction(action("Rename perspective"), run.context, first);
+    await flush();
+    expect(run.last().previous).toBe(first);
+    choose(run.last(), "Drafts");
+    run.last().back?.();
+    await flush();
+    expect(run.last().label).toBe("Rename perspective · name:");
+    expect(run.last().previous).toBe(first);
+    // Not chosen in the command prompt: Escape ends the prompt, also after a step back.
+    const alone = start({ "perspective.list": perspectives });
+    runAction(action("Rename perspective"), alone.context);
+    await flush();
+    choose(alone.last(), "Drafts");
+    alone.last().back?.();
+    await flush();
+    expect(alone.last().label).toBe("Rename perspective · name:");
+    expect(alone.last().previous).toBeUndefined();
+    expect(alone.last().back).toBeUndefined();
+  });
+});
+
 describe("the buffers after a rename (SR-218 AK4, AK5)", () => {
   it("close another perspective's buffer under the new name, keep a case-only rename, and ignore unknown names", () => {
     const stale = perspectiveBuffer({ name: "Ready", error: "only a faulty file" });
@@ -509,6 +540,16 @@ describe("the buffers after a rename (SR-218 AK4, AK5)", () => {
     const cased = reduceBuffers(buffers, { type: "perspective-renamed", from: "Drafts", to: "DRAFTS" });
     expect(cased.map((buffer) => buffer.key)).toEqual(buffers.map((buffer) => buffer.key));
     expect(reduceBuffers(buffers, { type: "perspective-renamed", from: "Other", to: "X" })).toBe(buffers);
+    // Without an open buffer of the renamed perspective, the buffer under the new name closes all the same.
+    const notOpen: Buffers = [stale, overviewBuffer()];
+    expect(
+      reduceBuffers(notOpen, { type: "perspective-renamed", from: "Other", to: "Ready" }).map(
+        (buffer) => buffer.key,
+      ),
+    ).toEqual(["overview"]);
+    expect(reduceBuffers([overviewBuffer()], { type: "perspective-renamed", from: "a", to: "A" })).toEqual([
+      overviewBuffer(),
+    ]);
     expect(reduceBuffers(buffers, { type: "filter-renamed", from: "Other", to: "X" })).toBe(buffers);
   });
 

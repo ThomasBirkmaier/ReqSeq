@@ -251,6 +251,12 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /**
+   * The first step of an action, asked again (SR-218: after a step back or a refusal): Escape does what it did the
+   * first time, back to the command prompt the action was chosen in or the end of the prompt, not back to the
+   * prompt asked before it (SR-134 AK1, AK2).
+   */
+  readonly restart?: true;
   /** The explanation line of a step of an action of its own, the search words (SR-216 AK9). */
   readonly explainStep?: StepExplanation;
   /** The marks of the steps before in a builder, without × (SR-219 AK6): before `marks`, which they never are. */
@@ -516,11 +522,6 @@ export interface ActionContext {
   readonly views?: ViewControls;
   /** Which statuses fold to the end of lists (SR-201, `fold-statuses.ts`), where the window offers it. */
   readonly folds?: FoldControls;
-  /**
-   * Opens the command prompt the action was chosen in again (`runAction`'s `first`): Escape in a step an action
-   * asks again as its first (SR-134 AK1). Absent: the action was not chosen in the command prompt.
-   */
-  readonly reopen?: () => void;
   /** The perspectives opened last (SR-214 AK1, `perspective-recent.ts`), where the window keeps them. */
   readonly perspectives?: PerspectiveUse;
   /**
@@ -1703,8 +1704,8 @@ export const ACTIONS: readonly Action[] = [
 
 /**
  * The context of one run of an action: Escape in each prompt it asks goes back to the prompt it asked before
- * (`previous`, SR-134 AK1), in the first one to `first` (the command prompt the action was chosen in); without
- * `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
+ * (`previous`, SR-134 AK1), in the first one, and in one asked again as the first (`restart`), to `first` (the
+ * command prompt the action was chosen in); without `first` the first one closes (AK2). A prompt with its own `back` (catalog commands) is left as it is, and so
  * is one that steps through hits, which Escape ends (`step`, SR-189 AK1).
  */
 const steppedContext = (context: ActionContext, first?: () => void): ActionContext => {
@@ -1712,7 +1713,7 @@ const steppedContext = (context: ActionContext, first?: () => void): ActionConte
   const ask = (prompt: Prompt): void => {
     const before = shown;
     const previous =
-      before === undefined
+      before === undefined || prompt.restart === true
         ? first
         : (): void => {
             shown = before;
@@ -1725,7 +1726,7 @@ const steppedContext = (context: ActionContext, first?: () => void): ActionConte
     shown = next;
     context.ask(next);
   };
-  return { ...context, ask, ...(first === undefined ? {} : { reopen: first }) };
+  return { ...context, ask };
 };
 
 /**

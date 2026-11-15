@@ -136,13 +136,6 @@ const askSaved = (
 ): void => {
   const label = withError(error, `${title} · name:`);
   const explain = explanation(context, command, "name");
-  // Escape goes back to the command prompt, or ends the prompt, also when the step is asked again: every step
-  // has its own `back`, so none goes back to the prompt asked before it (SR-134 AK1, AK2).
-  const back =
-    context.reopen ??
-    ((): void => {
-      // The prompt ends.
-    });
   if (kind.perspective) {
     void context.call("perspective.list", {}).then((answer) => {
       if (!answer.ok) {
@@ -158,7 +151,7 @@ const askSaved = (
         label,
         items: perspectiveChoices(context, answer.output, choose, shownPerspective(context)),
         explain,
-        back,
+        restart: true,
       });
     });
     return;
@@ -194,7 +187,7 @@ const askSaved = (
       ),
       ...(incomplete === true ? [inert("filter-incomplete", INCOMPLETE)] : []),
     ];
-    context.ask({ label, items, explain, back });
+    context.ask({ label, items, explain, restart: true });
   });
 };
 
@@ -362,6 +355,11 @@ const askConfirm = (context: ActionContext, kind: Kind, output: Deleting): void 
   const back = (): void => {
     askDeleting(context, kind, output);
   };
+  // Ctrl/Cmd+Enter on a row, also a second one or a key that repeats, asks this step again: only Enter or a
+  // click takes an answer, so the key that offered the confirmation never deletes (SR-218 AK3).
+  const again = (): void => {
+    askConfirm(context, kind, output);
+  };
   context.ask({
     label: `${title} ${output.name} · confirm:`,
     items: [
@@ -371,8 +369,9 @@ const askConfirm = (context: ActionContext, kind: Kind, output: Deleting): void 
         run: () => {
           void confirmDelete(context, kind, output);
         },
+        more: again,
       },
-      { id: "confirm:no", name: NO, run: back },
+      { id: "confirm:no", name: NO, run: back, more: again },
     ],
     explain: explanation(context, kind.delete, "confirm"),
     back,

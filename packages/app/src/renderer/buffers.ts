@@ -869,6 +869,20 @@ const opened = (buffers: Buffers, shown: Buffer, replacing: string | undefined):
   return (moved === kept ? [buffer, ...kept] : moved).slice(0, MAX_BUFFERS);
 };
 
+/** The buffers without the one with `key`; the next most recent one is shown, or the overview when none is left. */
+const closed = (buffers: Buffers, key: string): Buffers => {
+  const rest = buffers.filter((buffer) => buffer.key !== key);
+  if (rest.length === buffers.length) {
+    return buffers;
+  }
+  if (rest.length > 0) {
+    return rest;
+  }
+  // The last buffer closed: the window shows the overview, never an empty sheet (SR-118). The lone
+  // overview stays as it is.
+  return onlyOverview(buffers) ? buffers : [overviewBuffer()];
+};
+
 /** What a list says it holds: the labels of its steps joined by " · ", or `label` without steps (`filteredList`). */
 const stepsLabel = (steps: readonly FilterStep[], label: string): string =>
   steps.length === 0 ? label : steps.map((step) => step.label).join(" · ");
@@ -882,7 +896,8 @@ const perspectiveRenamed = (buffers: Buffers, from: string, to: string): Buffers
   const key = perspectiveKey(from);
   const own = buffers.find((buffer) => buffer.key === key);
   if (own?.kind !== "list" || own.perspective === undefined) {
-    return buffers;
+    // Not open: a buffer of another perspective under the new name closes all the same.
+    return key === perspectiveKey(to) ? buffers : closed(buffers, perspectiveKey(to));
   }
   const perspective: PerspectiveOrigin = { ...own.perspective, name: to };
   const steps = own.steps.map((step) => (step.perspective === true ? perspectiveStep(perspective) : step));
@@ -953,20 +968,6 @@ const filterRenamed = (buffers: Buffers, from: string, to: string): Buffers => {
   };
   const next = buffers.map(renamedIn);
   return next.every((buffer, at) => buffer === buffers[at]) ? buffers : next;
-};
-
-/** The buffers without the one with `key`; the next most recent one is shown, or the overview when none is left. */
-const closed = (buffers: Buffers, key: string): Buffers => {
-  const rest = buffers.filter((buffer) => buffer.key !== key);
-  if (rest.length === buffers.length) {
-    return buffers;
-  }
-  if (rest.length > 0) {
-    return rest;
-  }
-  // The last buffer closed: the window shows the overview, never an empty sheet (SR-118). The lone
-  // overview stays as it is.
-  return onlyOverview(buffers) ? buffers : [overviewBuffer()];
 };
 
 export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers => {
