@@ -1,10 +1,9 @@
-// The grouping (`group` of "Save perspective", SR-215 AK1, AK5, #1647), offered as a closed list: the
+// The grouping (`group` of "New perspective", SR-215 AK1, SR-219 AK2, #1647), offered as a closed list: the
 // groupings "Group list" offers (`list-groups.ts`) of the elements the call's earlier `where`, `filter`,
-// `perspective` and shown selection select, from one `element.facets`; on a grouped list its grouping first.
+// `perspective` and shown selection select, from one `element.facets`; in a builder "No grouping" first.
 import type { CommandTypes } from "@reqseq/core";
-import type { ActionContext, Choice } from "./actions.js";
-import { listGroup, listing } from "./buffers.js";
-import type { Entry, Failed, Offer, Value } from "./catalog-entry.js";
+import type { ActionContext } from "./actions.js";
+import type { Failed, Offer } from "./catalog-entry.js";
 import { failed, listOf } from "./catalog-entry.js";
 import { groupings } from "./list-groups.js";
 
@@ -69,25 +68,5 @@ export const offerGroups = async (
   );
 };
 
-/** The first hit of the grouping of "Save perspective" on a grouped list (SR-215 AK5). */
-export const SHOWN_GROUP = "Grouping of the shown list";
-
-/**
- * The grouping of the shown list for the grouping of "Save perspective" (SR-215 AK5), the first hit: of a list,
- * not the matrix, the search hits or a package page, the grouping it is shown in, as "Save list as perspective"
- * saves it, by its name among the groupings offered (`values`), else by its key; none for a list without groups.
- */
-export const shownGroup = (
-  context: ActionContext,
-  entry: Entry,
-  values: readonly Value[],
-  take: (value: unknown, name: string) => Pick<Choice, "run" | "more">,
-): Choice[] => {
-  const list = context.buffers[0];
-  const group = entry.command.name === "perspective.save" && listing(list) ? listGroup(list) : undefined;
-  if (group === undefined) {
-    return [];
-  }
-  const name = values.find(({ value }) => value === group)?.name ?? group;
-  return [{ id: "shown", name: SHOWN_GROUP, hint: name, ...take(group, name) }];
-};
+/** The first hit of the grouping in "New perspective" (SR-219 AK2): it goes on without a grouping. */
+export const NO_GROUPING = "No grouping";

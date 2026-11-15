@@ -31,7 +31,7 @@ The app checks nothing: an input core refuses with `input.invalid` asks again, w
 
 ## Write commands
 
-The write commands are listed too ("Create relation", "Remove relation", "Confirm hints", "Set status", "Supersede element", "Bulk update elements", "Save filter", "Initialise workspace", ...), except "Update element", which the element buffer does ("Save element"); while the workspace is read-only, none that core refuses then, and while a folder without a workspace is open only "Initialise workspace". A write command without a required argument asks its first one (Confirm hints: the element), and an optional argument whose `of` names a given field is asked after the required ones (the hints of the element, the value of a bulk update's property); Enter on an empty input skips it. A value of an argument takes the place of the fields it `replaces` in the input: hints chosen in Confirm hints confirm only those, not every hint of the element, target or kind given before (#291).
+The write commands are listed too ("Create relation", "Remove relation", "Confirm hints", "Set status", "Supersede element", "Bulk update elements", "Initialise workspace", ...; `filter.save` and `perspective.save` through "New saved filter" and "New perspective", below), except "Update element", which the element buffer does ("Save element"); while the workspace is read-only, none that core refuses then, and while a folder without a workspace is open only "Initialise workspace". A write command without a required argument asks its first one (Confirm hints: the element), and an optional argument whose `of` names a given field is asked after the required ones (the hints of the element, the value of a bulk update's property); Enter on an empty input skips it. A value of an argument takes the place of the fields it `replaces` in the input: hints chosen in Confirm hints confirm only those, not every hint of the element, target or kind given before (#291).
 
 Before a write command runs, the input of every open buffer is saved, the shown one last; one that cannot be saved stops it. Its output opens a result buffer that is never asked again (that would write again); "Bulk update elements" writes only with `confirm` yes (Ctrl/Cmd+Enter), else it shows what it would change. A confirmation writes only what an open preview of the same input said (#836, ADR-0002 rule 3): it passes the `plan` of that preview; without one it opens the preview and writes nothing, and when the change is no longer the previewed one (`plan-changed`) it says so and opens the new preview.
 
@@ -60,15 +60,19 @@ A value the metamodel names (a type, status, property, relation kind or choice) 
 
 ### Condition
 
-A condition (`where` of "Save filter" and "Save perspective") is built from hits as marks (`condition-prompt.ts`, as ADR-0010 describes it: on a shown list its conditions first (`shownMarks`, the parts `perspectiveWhere` writes), the finishing hit and the kinds, then their values, "{" for JSON, the value `{ all: [<marks>] }`; Backspace and the × of a mark remove it, SR-215).
+A condition (`where` of "New saved filter" and "New perspective") is built from hits as marks (`condition-prompt.ts`, as ADR-0010 describes it: the finishing hit and the kinds, then their values, "{" for JSON, the value `{ all: [<marks>] }`; Backspace and the × of a mark remove it, SR-215).
 
 ### Sort
 
-A `sort` is built likewise (`sort-prompt.ts`: on a shown list its sort first, the finishing hit, the hierarchy before the first key, each key then "Order" as "Sort list" asks it, "Workspace order"; the value the keys of the marks in their order, SR-215 AK7).
+A `sort` is built likewise (`sort-prompt.ts`: the finishing hit, in a builder "Save", the hierarchy before the first key, each key then "Order" as "Sort list" asks it, "Workspace order"; the value the keys of the marks in their order, SR-215 AK7).
 
 ### Grouping
 
-A `group` offers the groupings of the elements the earlier `where`, `filter`, `perspective` and shown selection select (`group-prompt.ts`, one `element.facets`; on a grouped list "Grouping of the shown list" first for "Save perspective", SR-215 AK5).
+A `group` offers the groupings of the elements the earlier `where`, `filter`, `perspective` and shown selection select (`group-prompt.ts`, one `element.facets`; "No grouping" first in "New perspective", SR-219 AK2).
+
+### New perspective and New saved filter
+
+"New perspective" and "New saved filter" (`startBuilder` in `catalog-commands.ts`, the entry's `builder`) run `perspective.save` and `filter.save` step by step: name, condition, grouping (perspective only), sort, then "Save" (SR-219). Each step shows the marks of the steps before without × (`Prompt.earlier`); Ctrl/Cmd+Enter offers the optional arguments that are no step; a refusal asks the refused step again with every answer standing. ADR-0010 has the rules.
 
 ### Properties and relations
 

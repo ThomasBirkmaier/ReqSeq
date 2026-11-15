@@ -15,8 +15,8 @@ The search finds words in titles, texts, property values, type and status names 
 4. “Sort list” (Ctrl+K S) orders the list by a key, ascending or descending, or as derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter to open it. “Fold status in lists” chooses the statuses that fold on this computer.
-7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
-8. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P), name it, and pick each condition: kind, value; all must hold. On a list filtered without a saved filter, not search hits or the matrix, the first hit takes its steps. `{` starts JSON. Ctrl+Enter (⌘↩) offers a sort: key, order.
+7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort; **New perspective** in the [command prompt](/concepts/the-app/) asks name, condition, grouping and sort, then saves; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
+8. To save a filter, run **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P), name it, and pick each condition: kind, value; all must hold. `{` starts JSON. “Next: sort” asks the sort: key, order; “Save” saves.
 
 ## CLI
 

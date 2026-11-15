@@ -272,13 +272,17 @@ const ArgumentLine = ({
   explain,
   back,
   mac,
+  query,
 }: {
   readonly explain: ArgumentExplanation;
   readonly back: boolean;
   readonly mac: boolean;
+  /** The typed text, for the note of the step (SR-219 AK4). */
+  readonly query: string;
 }): React.JSX.Element => {
   const enter = enterLabel(mac);
   const { building } = explain;
+  const note = explain.note?.(query);
   const keys: { readonly key: string; readonly does: string }[] = [
     ...(building === undefined
       ? [
@@ -305,7 +309,7 @@ const ArgumentLine = ({
       lines={1}
       keys={
         <>
-          {building?.note === undefined ? null : `${building.note} · `}
+          {note === undefined ? null : `${note} · `}
           {keys.map(({ key, does }, at) => (
             <Fragment key={does}>
               {at === 0 ? null : " · "}
@@ -375,6 +379,7 @@ const explanationOf = (
   mac: boolean,
   onHelp: () => void,
   onMore: () => void,
+  query = "",
 ): { readonly line: React.JSX.Element | null; readonly said: boolean } => {
   if (prompt.explainStep !== undefined) {
     return {
@@ -391,7 +396,9 @@ const explanationOf = (
   }
   if (prompt.explain !== undefined) {
     return {
-      line: <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} />,
+      line: (
+        <ArgumentLine explain={prompt.explain} back={prompt.back !== undefined} mac={mac} query={query} />
+      ),
       said: true,
     };
   }
@@ -530,17 +537,25 @@ const HelpContent = ({
 /**
  * The marks of a value built from hits (SR-215 AK3), in the input before the typed text: each a box in greys
  * (D-062) with its label and an × that removes it (AK9). The × is a control of the command prompt, as the hits are;
- * the input keeps the focus.
+ * the input keeps the focus. Before them the marks of the steps before in a builder, the same boxes without × (SR-219
+ * AK6).
  */
 const Marks = ({
+  earlier = [],
   marks,
   onRemove,
 }: {
+  readonly earlier?: readonly string[] | undefined;
   readonly marks: readonly PromptMark[];
   readonly onRemove: (mark: PromptMark) => void;
 }): React.JSX.Element | null =>
-  marks.length === 0 ? null : (
+  marks.length === 0 && earlier.length === 0 ? null : (
     <span className="prompt-marks" role="list" aria-label="Marks">
+      {earlier.map((label, at) => (
+        <span key={`earlier ${String(at)} ${label}`} className="prompt-mark" role="listitem">
+          <span className="prompt-mark-label">{label}</span>
+        </span>
+      ))}
       {marks.map((mark, at) => (
         <span key={`${String(at)} ${mark.label}`} className="prompt-mark" role="listitem">
           <span className="prompt-mark-label">{mark.label}</span>
@@ -1209,7 +1224,7 @@ const PromptLine = ({
     }
   };
 
-  const explained = explanationOf(prompt, current?.item, mac, help.toggle, more);
+  const explained = explanationOf(prompt, current?.item, mac, help.toggle, more, query);
   const explanation = explained.line;
 
   return (
@@ -1218,6 +1233,7 @@ const PromptLine = ({
         {found.note === undefined ? prompt.label : `${found.note} · ${prompt.label}`}
       </label>
       <Marks
+        earlier={prompt.earlier}
         marks={prompt.marks ?? []}
         onRemove={(mark) => {
           prompt.cancel?.();

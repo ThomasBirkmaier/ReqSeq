@@ -39,9 +39,22 @@ export interface Given {
 /** A value as it is given; `appended` numbers it. */
 export type Giving = Omit<Given, "rank">;
 
+/**
+ * "New perspective" and "New saved filter" (SR-219 AK2, AK3): arguments asked in turn as steps, under the
+ * title of the app's command; the command runs only with "Save" in the last step.
+ */
+export interface Builder {
+  readonly title: string;
+  readonly steps: readonly string[];
+  /** The place in `steps` of the step answered last; -1 before the first. */
+  readonly done: number;
+}
+
 /** Where the argument entry of one command stands. */
 export interface Entry {
   readonly command: CommandListing;
+  /** The entry of a builder (SR-219): its steps in turn, nothing run before "Save". */
+  readonly builder?: Builder;
   readonly given: readonly Given[];
   /** The list field that takes more values (Enter on an empty input ends it). */
   readonly collecting?: string;
@@ -55,6 +68,8 @@ export interface Entry {
   readonly again?: number;
   /** The marks of the condition or sort asked again (SR-215 AK6, AK9). */
   readonly marks?: readonly BuiltMark[];
+  /** The answer of the builder step asked again (SR-219 AK6, AK7): its hit stands first and marked. */
+  readonly previous?: { readonly field: string; readonly value: unknown };
   /**
    * The marks of a condition or sort left by going back before it was taken (Escape, SR-215 AK9): they stand
    * again when the prompt returns to its field.
@@ -136,11 +151,15 @@ export const listOf = <T>(
 export const failed = (value: unknown): value is Failed =>
   typeof value === "object" && value !== null && "kind" in value && value.kind === "failed";
 
-/** "Create relation SR-1" : the title and the values given so far (a skipped property shows nothing). */
+/**
+ * "Create relation SR-1" : the title and the values given so far (a skipped property shows nothing). The steps of
+ * a builder after its name stand as marks before the input instead (SR-219 AK6).
+ */
 export const lineOf = (entry: Entry): string =>
   [
-    entry.command.title,
+    entry.builder?.title ?? entry.command.title,
     ...ordered(entry.given)
+      .filter((given) => entry.builder?.steps.slice(1).includes(given.field) !== true)
       .map((given) => given.label)
       .filter((label) => label !== ""),
   ].join(" ");
@@ -158,7 +177,7 @@ export const heldMarks = (entry: Entry, field: string): readonly BuiltMark[] =>
 /** What the steps of a value built from hits need from the argument entry: its marks are of kind `M`. */
 export interface BuiltAsk<M> {
   readonly context: ActionContext;
-  /** The command's line and the field, "Save filter open · where": the prompts' labels start with it. */
+  /** The command's line and the field, "New saved filter open · where": the prompts' labels start with it. */
   readonly line: string;
   /** Why core refused the value, said in the first step when it is asked again (SR-215 AK6). */
   readonly error?: string;

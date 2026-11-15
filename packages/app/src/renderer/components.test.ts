@@ -7336,8 +7336,8 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
     const removed: string[] = [];
     const back = vi.fn();
     const marked: Prompt = {
-      label: "Save filter open · where:",
-      items: [{ id: "take", name: "Take 2 conditions", run: vi.fn() }],
+      label: "New saved filter open · where:",
+      items: [{ id: "take", name: "Next: sort", run: vi.fn() }],
       marks: ["type: need", "status: draft"].map((label) => ({
         label,
         remove: () => {
@@ -7422,19 +7422,44 @@ describe("the marks of a value built from hits (SR-215 AK3, AK9)", () => {
     );
   });
 
-  it("[SR-215/AK-w8q6] the explanation line says why a hit is missing before the keys", async () => {
+  it("[SR-219/AK-vnsd] the explanation line says what the typed name replaces before the keys", async () => {
     const { marked } = prompt(false);
     const explain = marked.explain;
-    if (explain?.building === undefined) {
-      throw new Error("no building");
+    if (explain === undefined) {
+      throw new Error("no explanation");
     }
     await mount({
       ...marked,
       marks: [],
-      explain: { ...explain, building: { ...explain.building, note: "No conditions of the shown list" } },
+      explain: {
+        ...explain,
+        note: (text) => (text === "Rain" ? "Replaces the perspective Rain" : undefined),
+      },
     });
+    const keys =
+      "Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back";
+    expect(query("#prompt-explain .explain-keys").textContent).toBe(keys);
+    await type(queryInput(), "Rain");
     expect(query("#prompt-explain .explain-keys").textContent).toBe(
-      "No conditions of the shown list · Enter takes the marked hit; all conditions must hold · Ctrl+Enter more arguments · Escape back",
+      `Replaces the perspective Rain · ${keys}`,
     );
+  });
+
+  it("[SR-219/AK-pqry] the marks of the steps before stand first, without ×; Backspace removes only the step's own", async () => {
+    const { marked, removed, back } = prompt(true);
+    await mount({ ...marked, earlier: ["type: need", "grouped by Status"] });
+    expect(texts('[aria-label="Marks"] [role="listitem"]')).toEqual([
+      "type: need",
+      "grouped by Status",
+      "type: need×",
+      "status: draft×",
+    ]);
+    expect(document.querySelectorAll(".prompt-unmark")).toHaveLength(2);
+    await press(queryInput(), "Backspace");
+    expect(removed).toEqual(["status: draft"]);
+    // Without marks of its own, Backspace goes back a step.
+    await mount({ ...marked, marks: [], earlier: ["type: need"] });
+    await press(queryInput(), "Backspace");
+    expect(back).toHaveBeenCalledTimes(1);
   });
 });
