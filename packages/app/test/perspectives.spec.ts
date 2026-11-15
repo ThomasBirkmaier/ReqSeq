@@ -2,8 +2,9 @@
 // fixtures/SR-043/example (the „Beispielbestand“: six system requirements, the variant Coast VAR-0000c1)
 // with a saved filter and perspective files added. Ctrl/Cmd+K V or "Open perspective" lists them; Enter
 // opens one as a buffer of its own, which shows the elements, groups and order the CLI gives for
-// `element.list` with the perspective, in the window's view. "Save list as perspective" saves a list, and
-// the modeline says "modified" while a perspective buffer differs from what was saved.
+// `element.list` with the perspective, in the window's view. "Save list as perspective" saves a list,
+// "Save list as saved filter" saves its conditions and chosen sort (SR-219 AK8, AK9), and the modeline says
+// "modified" while a perspective buffer differs from what was saved.
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -192,6 +193,25 @@ const offersSave = async (window: Page): Promise<boolean> => {
   const names = await candidates(window).allTextContents();
   await window.keyboard.press("Escape");
   return names.includes("Save list as perspective");
+};
+
+/** Whether the command prompt offers "Save list as saved filter" for the shown buffer; "New saved filter" shows it ran. */
+const offersFilterSave = async (window: Page): Promise<boolean> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type("saved filter");
+  await expect(candidates(window).filter({ hasText: /^New saved filter$/ })).toHaveCount(1);
+  const names = await candidates(window).allTextContents();
+  await window.keyboard.press("Escape");
+  return names.includes("Save list as saved filter");
+};
+
+/** The file of the saved filter `name` in the workspace, as `filter list` names it through the CLI. */
+const filterFile = async (running: RunningApp, name: string): Promise<string> => {
+  const listed = await running.cli(["filter", "list"]);
+  const file = (JSON.parse(listed.stdout) as { filters: { name: string; file: string }[] }).filters.find(
+    (filter) => filter.name === name,
+  )?.file;
+  return file === undefined ? "" : fs.readFile(path.join(running.workspace?.root ?? "", file), "utf8");
 };
 
 /** Runs "Choose view" and takes the view whose name starts with `name`. */
@@ -515,6 +535,108 @@ test.describe("perspectives in the app", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator("article h1")).toHaveText("Sensors");
     expect(await offersSave(window)).toBe(false);
+  });
+
+  test("[SR-219/AK-zznw] [SR-219/AK-kj5g] Save list as saved filter asks only for the name, says what it replaces and that the grouping is not saved, and writes the file filter save writes", async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    // A list with a type and a text step, grouped, and sorted with "Sort list".
+    await command(window, "List all elements");
+    await answered(window, "Filter list by type", "Type", "system-requirement");
+    await textFilter(window, "Measure");
+    await answered(window, "Group list", "Group by", "Status");
+    await answered(window, "Sort list", "Sort by", "Title");
+    await answerOrder(window, "descending");
+    const heading = await shownBuffer(window).getAttribute("aria-label");
+    const ids = await shownIds(window);
+    expect(ids.length).toBeGreaterThan(0);
+    await command(window, "Save list as saved filter");
+    await expect(window.locator("label.prompt-label")).toHaveText("Saved filter name");
+    await expect(promptInput(window)).toHaveValue("");
+    const keys = window.getByRole("note", { name: "Explanation" }).locator(".explain-keys");
+    await expect(keys).toHaveText("The grouping does not belong to a saved filter");
+    // The saved filters show while typing, and the line says which one the name replaces.
+    await window.keyboard.type("requirements");
+    await expect(candidates(window)).toHaveText(["Requirements"]);
+    await expect(keys).toHaveText(
+      "Replaces the saved filter Requirements · The grouping does not belong to a saved filter",
+    );
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sr-219-save-list-as-saved-filter-light.png") });
+    await promptInput(window).fill("Measured");
+    await expect(keys).toHaveText("The grouping does not belong to a saved filter");
+    await window.keyboard.press("Enter");
+    await expect(minibuffer(window)).toContainText("Saved filter Measured");
+    // The list stays as it is.
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", heading ?? "");
+    expect(await shownIds(window)).toEqual(ids);
+    await expect(window.getByRole("note", { name: "Explanation" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        window.evaluate(() => document.getAnimations().filter((one) => one.playState === "running").length),
+      )
+      .toBe(0);
+    await window.screenshot({ path: path.join(OUT, "sr-219-saved-filter-list-light.png") });
+    // The conditions in their order under all and the chosen sort; no grouping and no view (AK8). `filter
+    // save` through the command line with that input writes the same file (AK9).
+    await expect.poll(() => filterFile(running, "Measured")).toContain("Measure");
+    const fromApp = await filterFile(running, "Measured");
+    expect(fromApp).not.toMatch(/^(group|view):/m);
+    const cli = await running.cli([
+      "filter",
+      "save",
+      "--input",
+      JSON.stringify({
+        name: "Measured",
+        where: { all: [{ type: ["system-requirement"] }, { text: "Measure" }] },
+        sort: [{ by: "title", order: "desc" }],
+      }),
+    ]);
+    expect(cli.code, cli.stderr).toBe(0);
+    expect(await filterFile(running, "Measured")).toBe(fromApp);
+
+    // No sort chosen nor saved with the perspective: none is saved, not the order the list is shown in.
+    await open(window, "plain");
+    await command(window, "Save list as saved filter");
+    await promptInput(window).fill("Typed");
+    await window.keyboard.press("Enter");
+    await expect(minibuffer(window)).toContainText("Saved filter Typed");
+    await expect.poll(() => filterFile(running, "Typed")).toContain("system-requirement");
+    expect(await filterFile(running, "Typed")).not.toMatch(/^sort:/m);
+    // The sort saved with the perspective of the list is saved.
+    await open(window, "By title");
+    await command(window, "Save list as saved filter");
+    await promptInput(window).fill("Titled");
+    await window.keyboard.press("Enter");
+    await expect(minibuffer(window)).toContainText("Saved filter Titled");
+    await expect
+      .poll(() => filterFile(running, "Titled"))
+      .toContain("sort:\n  - by: title\n    order: asc\n");
+
+    // Not offered on a list whose selection names a saved filter, in the matrix, in the hits of a search,
+    // nor on a package page.
+    expect(await offersFilterSave(window)).toBe(true);
+    await open(window, "filtered");
+    expect(await offersFilterSave(window)).toBe(false);
+    await command(window, "List all elements");
+    await answered(window, "Filter list by saved filter", "Filter", "Requirements");
+    expect(await offersFilterSave(window)).toBe(false);
+    await command(window, "List all elements");
+    await command(window, "Show traceability matrix");
+    await expect(window.locator(".matrix")).toBeVisible();
+    expect(await offersFilterSave(window)).toBe(false);
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("rain");
+    await window.keyboard.press("Enter");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", /^Search: rain/);
+    expect(await offersFilterSave(window)).toBe(false);
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Sensors");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Sensors");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+    expect(await offersFilterSave(window)).toBe(false);
   });
 
   test("[SR-213/AK-mfbk] saved again under its name with only a new grouping, a perspective keeps its bare where and the comments on it", async () => {

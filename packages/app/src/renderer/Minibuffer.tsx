@@ -309,7 +309,7 @@ const ArgumentLine = ({
       lines={1}
       keys={
         <>
-          {note === undefined ? null : `${note} · `}
+          {note === undefined ? null : keys.length === 0 ? note : `${note} · `}
           {keys.map(({ key, does }, at) => (
             <Fragment key={does}>
               {at === 0 ? null : " · "}

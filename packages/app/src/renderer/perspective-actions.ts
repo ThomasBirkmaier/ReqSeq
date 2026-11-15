@@ -6,7 +6,9 @@
 //
 // "Save list as perspective" (SR-214 AK5) writes the shown list through `perspective.save`: its filter
 // steps, its grouping and the sort it is shown in; the list then is the buffer of that perspective, as
-// saved. Only the input of the core is built (ADR-0002).
+// saved. "Save list as saved filter" (SR-219 AK8, AK9) writes it through `filter.save`: the conditions of its
+// steps under `all` and only a sort chosen or saved with its perspective, no view; the list stays as it is.
+// Only the input of the core is built (ADR-0002).
 import type { CommandTypes, ElementListOutput, ElementSelection, PerspectiveListOutput } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
 import type { Action, ActionContext, BuiltCommand, Choice } from "./actions.js";
@@ -146,6 +148,15 @@ export const perspectiveChoices = (
 /** What the command prompt says for a workspace without perspectives (AK1). */
 export const NONE = "The workspace has no perspectives.";
 
+/**
+ * What the explanation line says for a typed name that is that of a saved filter (SR-219 AK4, AK8): that it
+ * replaces it, as core compares names (ignoring case and Unicode normal form).
+ */
+export const replacesFilter = (names: readonly string[], text: string): string | undefined => {
+  const name = names.find((known) => fold(known) === fold(text.trim()));
+  return name === undefined ? undefined : `Replaces the saved filter ${name}`;
+};
+
 /** The ID of "Save list as perspective". */
 export const SAVE_PERSPECTIVE = "save-perspective";
 
@@ -231,6 +242,43 @@ const savableList = (context: ActionContext): ListBuffer | undefined => {
   return context.workspace && context.readOnly !== true && listing(shown) && !inMatrix(shown)
     ? shown
     : undefined;
+};
+
+/** The ID of "Save list as saved filter". */
+export const SAVE_SAVED_FILTER = "save-saved-filter";
+
+/** What the explanation line says on a grouped list (SR-219 AK8). */
+export const GROUPING_NOT_SAVED = "The grouping does not belong to a saved filter";
+
+/**
+ * The input of `filter.save` for the list shown in `list` under `name` (SR-219 AK8, AK9): the conditions of
+ * its steps in their order under `all` (`shownMarks`), and its sort only when one was chosen with "Sort list"
+ * or saved with its perspective (`list.sort`), not the default `listSort` gives, since a saved filter's sort
+ * takes the place of that of a perspective that names it (SR-213 AK5). No view and no `description`.
+ */
+export const savedFilterInput = (list: ListBuffer, name: string): CommandTypes["filter.save"]["input"] => ({
+  name,
+  where: conditionOf(shownMarks(list.steps)) as Condition,
+  ...(list.sort === undefined ? {} : { sort: [...list.sort] }),
+});
+
+/**
+ * The list "Save list as saved filter" saves: one "Save list as perspective" saves, unless its selection names
+ * a saved filter, which a saved filter cannot name (SR-219 rationale).
+ */
+const filterSavableList = (context: ActionContext): ListBuffer | undefined => {
+  const list = savableList(context);
+  return list === undefined || selectionOf(list.steps)?.filter !== undefined ? undefined : list;
+};
+
+/** Saves the shown `list` as the saved filter `name` (SR-219 AK8): the list stays as it is. */
+export const saveSavedFilter = async (
+  context: ActionContext,
+  list: ListBuffer,
+  name: string,
+): Promise<void> => {
+  const saved = await context.call("filter.save", savedFilterInput(list, name));
+  context.echo(saved.ok ? `Saved filter ${name}` : saved.message);
 };
 
 /**
@@ -324,6 +372,63 @@ export const PERSPECTIVE_ACTIONS: readonly Action[] = [
           text: save,
           preview: true,
           ...(list.perspective === undefined ? {} : { initial: list.perspective.name }),
+        });
+      });
+    },
+  },
+  {
+    id: SAVE_SAVED_FILTER,
+    title: "Save list as saved filter",
+    description:
+      "Save the conditions of the shown list's filter steps and its chosen sort as a saved filter.",
+    runs: [
+      { where: "in the prompt", command: "filter.list" },
+      { where: "in the list", command: "filter.save" },
+    ],
+    available: (context: ActionContext): boolean => filterSavableList(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const list = filterSavableList(context);
+      if (list === undefined) {
+        return;
+      }
+      void context.call("filter.list", {}).then((answer) => {
+        if (!answer.ok) {
+          context.echo(answer.message);
+          return;
+        }
+        const names = answer.output.filters.map((filter) => filter.name);
+        const save = (name: string): void => {
+          const given = name.trim();
+          if (given !== "") {
+            void saveSavedFilter(context, list, given);
+          }
+        };
+        const grouped = list.group === undefined ? [] : [GROUPING_NOT_SAVED];
+        // Only the name (AK8, as AK4): the saved filters there are while typing, and the line says which one
+        // the typed name replaces and, on a grouped list, that the grouping is not saved.
+        context.ask({
+          label: "Saved filter name",
+          items: names.map((name) => ({
+            id: `filter:${name}`,
+            name,
+            run: () => {
+              save(name);
+            },
+          })),
+          text: save,
+          preview: true,
+          explain: {
+            name: "name",
+            list: false,
+            ends: false,
+            skips: false,
+            more: false,
+            note: (text) => {
+              const replaced = replacesFilter(names, text);
+              const parts = [...(replaced === undefined ? [] : [replaced]), ...grouped];
+              return parts.length === 0 ? undefined : parts.join(" · ");
+            },
+          },
         });
       });
     },
