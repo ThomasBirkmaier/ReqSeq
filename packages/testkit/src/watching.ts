@@ -16,24 +16,31 @@ export interface ProbeOptions {
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Repeats `probe` until `seen` holds; rejects after `timeoutMs`. Polls `seen` every 10 ms. The error names
- * the probes made, the time waited and the slowest probe, so a lost watcher (many fast probes) can be told
- * from a slow disk (few slow ones) in a CI log (#1668).
+ * Repeats `probe` until `seen` holds; rejects after `timeoutMs`. Asks `seen` again 10 ms after each answer.
+ * The error names the probes made, the time waited, the slowest probe and the slowest `seen`, so a CI log
+ * shows whether the probes, the check or the watcher took the time (#1668).
  */
 export const untilWatching = async (options: ProbeOptions): Promise<void> => {
   const interval = options.intervalMs ?? 250;
   const start = performance.now();
   const deadline = start + (options.timeoutMs ?? 15_000);
   let probes = 0;
-  let slowest = 0;
-  for (let attempt = 1; performance.now() < deadline; attempt++) {
+  let slowestProbe = 0;
+  let slowestSeen = 0;
+  const timed = async <T>(run: () => Promise<T>): Promise<{ value: T; ms: number }> => {
     const before = performance.now();
-    await options.probe(attempt);
-    probes = attempt;
-    slowest = Math.max(slowest, performance.now() - before);
+    const value = await run();
+    return { value, ms: performance.now() - before };
+  };
+  while (performance.now() < deadline) {
+    probes += 1;
+    const attempt = probes;
+    slowestProbe = Math.max(slowestProbe, (await timed(() => options.probe(attempt))).ms);
     const next = Math.min(performance.now() + interval, deadline);
     while (performance.now() < next) {
-      if (await options.seen()) {
+      const seen = await timed(options.seen);
+      slowestSeen = Math.max(slowestSeen, seen.ms);
+      if (seen.value) {
         return;
       }
       await pause(10);
@@ -41,6 +48,6 @@ export const untilWatching = async (options: ProbeOptions): Promise<void> => {
   }
   const waited = Math.round(performance.now() - start);
   throw new Error(
-    `the watcher saw no probe change in time: ${String(probes)} probes in ${String(waited)} ms, the slowest took ${String(Math.round(slowest))} ms`,
+    `the watcher saw no probe change in time: ${String(probes)} probes in ${String(waited)} ms, the slowest probe took ${String(Math.round(slowestProbe))} ms, the slowest check ${String(Math.round(slowestSeen))} ms`,
   );
 };
