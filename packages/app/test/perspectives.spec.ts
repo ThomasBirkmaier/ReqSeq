@@ -183,12 +183,12 @@ const cliPerspective = async (running: RunningApp, name: string): Promise<Record
   return found as Record<string, unknown>;
 };
 
-/** Whether the command prompt offers `title` for the shown buffer; "Save perspective" (the catalog) shows it ran. */
+/** Whether the command prompt offers "Save list as perspective" for the shown buffer; "New perspective" shows it ran. */
 const offersSave = async (window: Page): Promise<boolean> => {
   await window.keyboard.press("ControlOrMeta+Shift+P");
-  // Both titles match the typed text; the catalog command is offered wherever a workspace is open.
-  await window.keyboard.type("save perspective");
-  await expect(candidates(window).filter({ hasText: /^Save perspective$/ })).toHaveCount(1);
+  // Both titles match the typed text; "New perspective" is offered wherever a workspace can be written.
+  await window.keyboard.type("perspective");
+  await expect(candidates(window).filter({ hasText: /^New perspective$/ })).toHaveCount(1);
   const names = await candidates(window).allTextContents();
   await window.keyboard.press("Escape");
   return names.includes("Save list as perspective");

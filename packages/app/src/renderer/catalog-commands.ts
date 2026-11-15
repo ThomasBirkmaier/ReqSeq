@@ -57,8 +57,9 @@
 //
 // This file walks the catalog: the state of the entry and the shape the values built from hits share are in
 // `catalog-entry.ts`. Each value built from hits is a module of its own with its steps and the value it gives
-// (`condition-prompt.ts`, `sort-prompt.ts`, `create-prompt.ts`), the condition and the sort with the shown
-// list's value first; the grouping's offer, with the shown list's grouping first, is `group-prompt.ts`.
+// (`condition-prompt.ts`, `sort-prompt.ts`, `create-prompt.ts`); the grouping's offer is `group-prompt.ts`.
+// "New perspective" and "New saved filter" ask the steps of `perspective.save` and `filter.save` in turn
+// (`startBuilder`, SR-219).
 import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
@@ -66,6 +67,7 @@ import type { CommandListing } from "../shared/protocol.js";
 import type {
   Action,
   ActionContext,
+  BuiltCommand,
   ArgumentExplanation,
   Choice,
   CommandExplanation,
@@ -79,7 +81,14 @@ import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveredCommand, coveringAction, shownIn } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
-import { bufferName, elementBufferOf, listing, resultBuffer } from "./buffers.js";
+import {
+  DEFAULT_SORT,
+  bufferName,
+  elementBufferOf,
+  listing,
+  perspectiveModified,
+  resultBuffer,
+} from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idOfName, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
@@ -87,15 +96,17 @@ import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
-import type { BuiltAsk, BuiltMark, Entry, Failed, Given, Offer, Value } from "./catalog-entry.js";
+import type { Builder, BuiltAsk, BuiltMark, Entry, Failed, Given, Offer, Value } from "./catalog-entry.js";
 import { appended, failed, heldMarks, lineOf, listOf, ordered, unheld } from "./catalog-entry.js";
 import type { ConditionAsk, ConditionMark } from "./condition-prompt.js";
-import { askCondition, conditionLabel, conditionOf, shownConditions } from "./condition-prompt.js";
-import type { SortMark } from "./sort-prompt.js";
+import { askCondition, conditionLabel, conditionOf } from "./condition-prompt.js";
+import type { SortAsk, SortMark } from "./sort-prompt.js";
 import type { BuildAsk, PropertyMark, RelationMark } from "./create-prompt.js";
 import { askProperties, askRelations, marksLabel, propertiesOf, relationsOf } from "./create-prompt.js";
-import { askSort, shownSort, sortMarksLabel, sortOf } from "./sort-prompt.js";
-import { offerGroups, shownGroup } from "./group-prompt.js";
+import { SAVE, askSort, sortMarksLabel, sortOf } from "./sort-prompt.js";
+import { NO_GROUPING, offerGroups } from "./group-prompt.js";
+import { fold } from "@reqseq/core/fold";
+import { openPerspective } from "./perspective-actions.js";
 import { rowName } from "./rows.js";
 import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
@@ -649,7 +660,7 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
             ),
         )
       : await asText(),
-  // The saved filters of the workspace by name (`filter.list`): "Save perspective" `filter`.
+  // The saved filters of the workspace by name (`filter.list`): "New perspective" `filter`.
   filter: async ({ context }) =>
     listOf(await context.call("filter.list", {}), (output) =>
       output.filters.map((saved) => ({ value: saved.name, name: saved.name })),
@@ -1010,7 +1021,15 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
   const answer = await (context.shownCall ?? context.call)(name, input);
-  if (answer.ok) {
+  if (entry.builder !== undefined) {
+    if (answer.ok) {
+      await saved(context, entry, String(input["name"]));
+    } else {
+      // The step of the refused argument with core's message, else the last; the answers stand (SR-219 AK7).
+      const at = answer.code === "input.invalid" ? refusedAt(entry, answer.details) : entry.given.length - 1;
+      askAgain(context, { ...entry, error: answer.message }, at);
+    }
+  } else if (answer.ok) {
     show(context, entry, input, answer.output, revision);
   } else if (confirming && planChanged(answer)) {
     await showPreview(
@@ -1118,6 +1137,15 @@ const readersOf = (args: readonly Argument[], field: string): ReadonlySet<string
  * are asked again after it. Before the first value, the command prompt.
  */
 const askAgain = (context: CatalogContext, answered: Entry, at: number): void => {
+  if (answered.builder === undefined) {
+    askCommandAgain(context, answered, at);
+  } else {
+    builderAgain(context, answered, answered.builder, at);
+  }
+};
+
+/** `askAgain` outside a builder. */
+const askCommandAgain = (context: CatalogContext, answered: Entry, at: number): void => {
   const again = answered.given[at];
   const readers =
     again === undefined ? new Set<string>() : readersOf(answered.command.arguments, again.field);
@@ -1182,7 +1210,12 @@ const firstOffered = (
  */
 const back = (context: CatalogContext, entry: Entry): void => {
   const { error: _error, ...rest } = entry;
-  askAgain(context, rest, rest.given.length - 1);
+  if (rest.builder === undefined) {
+    askAgain(context, rest, rest.given.length - 1);
+  } else {
+    // A builder shows the step answered last again, with its answer and marks (SR-219 AK6).
+    buildStep(context, rest, rest.builder, rest.builder.done);
+  }
 };
 
 /**
@@ -1383,22 +1416,25 @@ const builtAsk = <M extends BuiltMark>(
 
 /**
  * What the steps of a condition need (SR-215): its schema, the line, back with the marks held, the value the
- * marks give; `shown` the conditions of the shown list (AK5). Its back keeps the marks asked again in the
- * entry.
+ * marks give; in a builder the name of its take hit, "Next: <step>" (SR-219 AK2, AK3). Its back keeps the marks
+ * asked again in the entry.
  */
 const conditionAsk = (
   context: CatalogContext,
   entry: Entry,
   field: string,
   explain: ArgumentExplanation,
-): ConditionAsk => ({
-  ...builtAsk(context, entry, field, explain, conditionOf, conditionLabel),
-  schema: schemaOf(entry.command, field),
-  back: (marks) => {
-    back(context, { ...entry, held: { field, marks } });
-  },
-  shown: () => shownConditions(context, entry, (at) => conditionAsk(context, at, field, explain)),
-});
+): ConditionAsk => {
+  const next = nextStep(entry);
+  return {
+    ...builtAsk(context, entry, field, explain, conditionOf, conditionLabel),
+    schema: schemaOf(entry.command, field),
+    back: (marks) => {
+      back(context, { ...entry, held: { field, marks } });
+    },
+    ...(next === undefined ? {} : { next: `Next: ${next}` }),
+  };
+};
 
 /** Asks the properties or the relations of a new element of the type given from marks (SR-215 AK8). */
 const askBuilt = (
@@ -1463,10 +1499,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
   }
   if (arg.complete === "sort") {
     askSort(
-      {
-        ...builtAsk(context, entry, field, shared.explain, sortOf, sortMarksLabel),
-        shown: () => shownSort(context, entry),
-      },
+      sortAsk(context, entry, builtAsk(context, entry, field, shared.explain, sortOf, sortMarksLabel)),
       heldMarks(entry, field).filter((mark): mark is SortMark => "key" in mark),
     );
     return;
@@ -1499,12 +1532,13 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     items: [],
     fill: offerFor(context, entry, at, arg).then((offer): PromptFill => {
       if (offer.kind === "failed") {
-        return { label: `${offer.message} · ${label}` };
+        // A builder goes on without the groupings it could not read (SR-219 AK2).
+        return { label: `${offer.message} · ${label}`, items: noGrouping(context, entry, arg) };
       }
       if (offer.kind === "list") {
         return {
           items: [
-            ...(arg.complete === "group" ? shownGroup(context, entry, offer.values, take) : []),
+            ...noGrouping(context, entry, arg),
             ...offer.values.map(({ value, name, key, label: given, id, also, asks }) => ({
               id: id ?? JSON.stringify(value),
               name,
@@ -1785,7 +1819,8 @@ const offeredLater = (entry: Entry, arg: Argument): boolean =>
  */
 const argumentExplanation = (entry: Entry, arg: Argument): ArgumentExplanation => {
   const { description } = schemaOf(entry.command, arg.field);
-  const asked = askedOf(entry.command);
+  // A builder offers the optional arguments that are no step (SR-219 AK5).
+  const asked = entry.builder?.steps ?? askedOf(entry.command);
   const ends = entry.collecting === arg.field;
   return {
     name: arg.field,
@@ -1844,6 +1879,10 @@ const nextProperty = (entry: Entry): RequiredProperty | undefined =>
 const step = (context: CatalogContext, answered: Entry): void => {
   // The value asked again has its answer: the next one goes after the others.
   const { again: _again, marks: _marks, ...entry } = answered;
+  if (entry.builder !== undefined) {
+    builderStep(context, entry, entry.builder);
+    return;
+  }
   const { arguments: args } = entry.command;
   const asked = askedOf(entry.command);
   const open = (arg: Argument): boolean =>
@@ -1866,6 +1905,329 @@ const step = (context: CatalogContext, answered: Entry): void => {
   } else {
     void execute(context, entry);
   }
+};
+
+/**
+ * The steps of the builders (SR-219 AK2, AK3): "New perspective" asks name, condition, grouping and sort, "New
+ * saved filter" name, condition and sort. Their other optional arguments come with Ctrl/Cmd+Enter (AK5).
+ */
+const BUILT_STEPS: Readonly<Record<BuiltCommand, readonly string[]>> = {
+  "perspective.save": ["name", "where", "group", "sort"],
+  "filter.save": ["name", "where", "sort"],
+};
+
+/** How "Next: <step>" names a step of a builder (SR-219 AK2, AK3). */
+const STEP_NAMES: Readonly<Record<string, string>> = { where: "condition", group: "grouping", sort: "sort" };
+
+/** The step after the one a builder asks now, by its name in "Next: <step>"; none outside a builder. */
+const nextStep = (entry: Entry): string | undefined => {
+  const field = entry.builder?.steps[entry.builder.done + 2];
+  return field === undefined ? undefined : (STEP_NAMES[field] ?? field);
+};
+
+/**
+ * `context` whose prompts show the marks of the steps of the builder before step `at`, without × (SR-219 AK6):
+ * the marks of a condition or sort, and the grouping. A prompt that has them already keeps its own.
+ */
+const withEarlier = (context: CatalogContext, entry: Entry, at: number): CatalogContext => {
+  const earlier = (entry.builder?.steps ?? []).slice(1, at).flatMap((field) => {
+    const given = entry.given.find((value) => value.field === field && value.skipped !== true);
+    if (given === undefined) {
+      return [];
+    }
+    return given.marks === undefined ? [`grouped by ${given.label}`] : given.marks.map((mark) => mark.label);
+  });
+  return {
+    ...context,
+    ask: (prompt) => {
+      context.ask({ earlier, ...prompt });
+    },
+  };
+};
+
+/**
+ * Asks step `at` of a builder (SR-219): before the first, the command prompt; after the last, the command runs. A
+ * step that has an answer (after a refusal, AK7) is asked again with it and its marks, in its place.
+ */
+const buildStep = (context: CatalogContext, entry: Entry, builder: Builder, at: number): void => {
+  if (at < 0) {
+    context.reopen();
+    return;
+  }
+  const field = builder.steps[at];
+  const index = entry.command.arguments.findIndex((arg) => arg.field === field);
+  const arg = entry.command.arguments[index];
+  if (arg === undefined) {
+    void execute(context, { ...entry, builder });
+    return;
+  }
+  const answered = entry.given.find((given) => given.field === field);
+  const { again: _again, marks: _marks, ...rest } = entry;
+  const next: Entry = {
+    ...rest,
+    builder: { ...builder, done: at - 1 },
+    given: entry.given.filter((given) => given !== answered),
+    ...(answered === undefined ? {} : { again: answered.rank }),
+    ...(answered?.marks === undefined ? {} : { marks: answered.marks }),
+  };
+  if (at === 0) {
+    askName(withEarlier(context, next, at), next, arg, answered?.value);
+  } else {
+    ask(withEarlier(context, next, at), next, arg, index);
+  }
+};
+
+/**
+ * The step after an answer in a builder (SR-219 AK5): the next step, never the run before "Save"; after
+ * Ctrl/Cmd+Enter first the optional arguments that are no step (`builderMore`).
+ */
+const builderStep = (context: CatalogContext, entry: Entry, builder: Builder): void => {
+  const last = entry.given.at(-1);
+  const done =
+    last !== undefined && last.field === builder.steps[builder.done + 1] ? builder.done + 1 : builder.done;
+  const now = { ...builder, done };
+  const answered: Entry = { ...entry, more: false, builder: now };
+  if (entry.more) {
+    const shown = withEarlier(context, answered, done + 1);
+    shown.ask(builderMore(shown, answered, now));
+  } else {
+    buildStep(context, answered, now, done + 1);
+  }
+};
+
+/**
+ * The optional arguments of a builder that are no step (SR-219 AK5): "Next: <step>" first, after the last step
+ * "Save", then each one not given yet; an answer goes on with the next step. Escape shows the step answered last.
+ */
+const builderMore = (context: CatalogContext, entry: Entry, builder: Builder): Prompt => {
+  const next = nextStep({ ...entry, builder: { ...builder, done: builder.done - 1 } });
+  const go = (): void => {
+    buildStep(context, entry, builder, builder.done + 1);
+  };
+  return {
+    label: `${lineOf(entry)} · more arguments:`,
+    back: () => {
+      buildStep(context, entry, builder, builder.done);
+    },
+    items: [
+      { id: "next", name: next === undefined ? SAVE : `Next: ${next}`, run: go, more: go },
+      ...entry.command.arguments.flatMap((arg, at) =>
+        !builder.steps.includes(arg.field) && offeredLater(entry, arg)
+          ? [
+              {
+                id: arg.field,
+                name: arg.field,
+                run: () => {
+                  ask(context, entry, arg, at);
+                },
+              },
+            ]
+          : [],
+      ),
+    ],
+  };
+};
+
+/**
+ * Asks again what core refused in a builder (SR-219 AK7): the step of the value at `at` with core's message, its
+ * answer and marks there; an optional argument that is no step itself, and after it the last step. The other
+ * answers stay.
+ */
+const builderAgain = (context: CatalogContext, answered: Entry, builder: Builder, at: number): void => {
+  const again = answered.given[at];
+  const index = answered.command.arguments.findIndex((arg) => arg.field === again?.field);
+  const arg = answered.command.arguments[index];
+  const place = builder.steps.indexOf(arg?.field ?? "");
+  if (again === undefined || arg === undefined || place >= 0) {
+    buildStep(context, answered, builder, place >= 0 ? place : builder.steps.length - 1);
+    return;
+  }
+  const entry: Entry = {
+    ...answered,
+    given: answered.given.filter((_, value) => value !== at),
+    again: again.rank,
+    builder: { ...builder, done: builder.steps.length - 2 },
+  };
+  ask(withEarlier(context, entry, builder.steps.length - 1), entry, arg, index);
+};
+
+/** How the line names the sort a perspective saves without a key (SR-219 AK2): `DEFAULT_SORT`. */
+const DEFAULT_SORT_LABEL = "sort: Type ascending · ID ascending";
+
+/**
+ * What "Save" takes in the last step of a builder (SR-219 AK2, AK3): the marks; without one a perspective the
+ * sort by type and ID, as "Save list as perspective" saves a list sorted by nothing chosen (SR-214 AK5), and a
+ * saved filter no sort.
+ */
+const builderSort =
+  (
+    context: CatalogContext,
+    entry: Entry,
+    built: {
+      readonly take: (marks: readonly SortMark[], more: boolean) => void;
+      readonly skip: (more: boolean) => void;
+    },
+  ) =>
+  (marks: readonly SortMark[], more: boolean): void => {
+    if (marks.length > 0) {
+      built.take(marks, more);
+    } else if (entry.command.name === "perspective.save") {
+      give(context, unheld(entry, "sort"), "sort", [...DEFAULT_SORT], DEFAULT_SORT_LABEL, more, {
+        marks: [],
+      });
+    } else {
+      built.skip(more);
+    }
+  };
+
+/** In the grouping step of a builder every step goes on (SR-219 AK2): "No grouping" first, which skips it. */
+const noGrouping = (context: CatalogContext, entry: Entry, arg: Argument): readonly Choice[] =>
+  arg.complete === "group" && entry.builder !== undefined
+    ? [
+        {
+          id: "no-grouping",
+          name: NO_GROUPING,
+          run: () => {
+            skip(context, entry, arg.field, false);
+          },
+          more: () => {
+            skip(context, entry, arg.field, true);
+          },
+        },
+      ]
+    : [];
+
+/** The steps of a sort: in a builder the last step, which "Save" ends (SR-219 AK2, AK3). */
+const sortAsk = (context: CatalogContext, entry: Entry, built: SortAsk): SortAsk =>
+  entry.builder === undefined ? built : { ...built, save: true, take: builderSort(context, entry, built) };
+
+/** The names of the saved perspectives (`perspective.list`) or saved filters (`filter.list`). */
+const savedNames = async (
+  context: CatalogContext,
+  perspective: boolean,
+): Promise<readonly string[] | Failed> => {
+  if (perspective) {
+    const listed = await context.call("perspective.list", {});
+    return listed.ok
+      ? listed.output.perspectives.map((saved) => saved.name)
+      : { kind: "failed", message: listed.message };
+  }
+  const listed = await context.call("filter.list", {});
+  return listed.ok
+    ? listed.output.filters.map((saved) => saved.name)
+    : { kind: "failed", message: listed.message };
+};
+
+/**
+ * What the explanation line says for the typed name (SR-219 AK4): that it replaces the saved one of that name, as
+ * core compares names (ignoring case and Unicode normal form); for a perspective whose buffer shows "modified"
+ * (SR-214 AK6), that its changes are lost.
+ */
+const replacing = (
+  context: CatalogContext,
+  names: readonly string[],
+  text: string,
+  perspective: boolean,
+): string | undefined => {
+  const name = names.find((known) => fold(known) === fold(text.trim()));
+  if (name === undefined) {
+    return undefined;
+  }
+  if (!perspective) {
+    return `Replaces the saved filter ${name}`;
+  }
+  const modified = context.buffers.some(
+    (buffer) =>
+      buffer.kind === "list" &&
+      buffer.perspective !== undefined &&
+      fold(buffer.perspective.name) === fold(name) &&
+      perspectiveModified(buffer),
+  );
+  return `Replaces the perspective ${name}${modified ? "; the changes of its modified buffer are lost" : ""}`;
+};
+
+/**
+ * Asks the name, the first step of a builder (SR-219 AK4): the saved perspectives or saved filters are hits that
+ * only preview, and Enter takes the typed name unless one is chosen; an empty name is asked again. `initial` is
+ * the name given before, when the step is asked again.
+ */
+const askName = (context: CatalogContext, entry: Entry, arg: Argument, initial: unknown): void => {
+  const perspective = entry.command.name === "perspective.save";
+  const label = `${entry.error === undefined ? "" : `${entry.error} · `}${lineOf(entry)} · ${arg.field}:`;
+  const explain = argumentExplanation(entry, arg);
+  const take =
+    (more: boolean) =>
+    (text: string): void => {
+      const name = text.trim();
+      if (name === "") {
+        askName(context, entry, arg, initial);
+      } else {
+        give(context, entry, arg.field, name, name, more);
+      }
+    };
+  context.ask({
+    label,
+    items: [],
+    preview: true,
+    ...(typeof initial === "string" ? { initial } : {}),
+    explain,
+    back: () => {
+      back(context, entry);
+    },
+    text: take(false),
+    more: take(true),
+    fill: savedNames(context, perspective).then((names): PromptFill =>
+      failed(names)
+        ? { label: `${names.message} · ${label}` }
+        : {
+            items: names.map((name) => ({
+              id: `name:${name}`,
+              name,
+              run: () => {
+                take(false)(name);
+              },
+            })),
+            explain: {
+              ...explain,
+              note: (text) => replacing(context, names, text, perspective),
+            },
+          },
+    ),
+  });
+};
+
+/**
+ * After "Save" (SR-219 AK7): "New perspective" opens the perspective as saved in a buffer of its own, first in
+ * "Open perspective" then (`openPerspective`), and says "Saved perspective <name>"; "New saved filter" says "Saved
+ * filter <name>" and leaves the shown view as it is.
+ */
+const saved = async (context: CatalogContext, entry: Entry, name: string): Promise<void> => {
+  if (entry.command.name !== "perspective.save") {
+    context.echo(`Saved filter ${name}`);
+    return;
+  }
+  const opened = await openPerspective(context, name);
+  if (opened !== undefined) {
+    context.echo(`Saved perspective ${opened}`);
+  }
+};
+
+/**
+ * Starts "New perspective" (`perspective.save`) or "New saved filter" (`filter.save`), SR-219 AK2, AK3: empty, at
+ * its first step, under the title of the action that covers it.
+ */
+export const startBuilder = (
+  context: CatalogContext,
+  name: BuiltCommand,
+  catalog: readonly CommandListing[],
+): void => {
+  const command = catalog.find((listed) => listed.name === name);
+  if (command === undefined) {
+    context.echo(`The command catalog has no ${name}`);
+    return;
+  }
+  const title = coveringAction(command)?.title ?? command.title;
+  buildStep(context, { command, given: [], more: false }, { title, steps: BUILT_STEPS[name], done: -1 }, 0);
 };
 
 /**
