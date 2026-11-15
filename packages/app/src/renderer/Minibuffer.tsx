@@ -821,9 +821,15 @@ const helpKey = (event: React.KeyboardEvent, help: CommandHelpState, query: stri
 const PromptLine = ({
   prompt: given,
   onClose,
+  ahead,
 }: {
   readonly prompt: Prompt;
   readonly onClose: (cancelled: boolean) => void;
+  /**
+   * The Enter (`enter`) or Ctrl/Cmd+Enter (`more`) pressed while an earlier one waited for its answer: the
+   * key of the prompt that follows (#1763). One at most.
+   */
+  readonly ahead: React.RefObject<"enter" | "more" | undefined>;
 }): React.JSX.Element => {
   const [query, setQuery] = useState(given.initial ?? "");
   // The marked row while none is chosen: the first row, or none at all while the hits only preview (SR-183).
@@ -881,7 +887,11 @@ const PromptLine = ({
       }
     }
     return () => {
-      // A late answer must not open anything after the prompt closed.
+      // A late answer must not open anything after the prompt closed, nor the Enter typed ahead for it act on
+      // a prompt that replaced this one before the answer came (#1763).
+      if (waiting.current !== 0) {
+        ahead.current = undefined;
+      }
       waiting.current = 0;
     };
   }, []);
@@ -932,6 +942,8 @@ const PromptLine = ({
   // the optional arguments of a catalog command; a choice without them is taken as with Enter.
   const choose = (choice: Choice, typed: string, more = false): void => {
     if (choice.inert === true) {
+      // The prompt stays open: no Enter typed ahead waits for a prompt to follow.
+      ahead.current = undefined;
       return;
     }
     if (choice.complete !== undefined) {
@@ -982,7 +994,9 @@ const PromptLine = ({
   const takeFirst = (more: boolean): void => {
     const { text, ...result } = answer.current;
     const [first] = rowsFor(text, result);
-    if (first !== undefined) {
+    if (first === undefined) {
+      ahead.current = undefined;
+    } else {
       choose(first.item, text, more);
     }
   };
@@ -990,6 +1004,11 @@ const PromptLine = ({
   /** Enter or Ctrl/Cmd+Enter on stale hits: on the answer to the typed text, at once when it is in. */
   const awaitAnswer = (more: boolean): void => {
     if (taken.current === latest.current) {
+      return;
+    }
+    if (waiting.current !== 0 && waiting.current === latest.current) {
+      // An Enter awaits this answer already: this one is typed ahead, for the prompt that follows.
+      ahead.current = more ? "more" : "enter";
       return;
     }
     if (answered.current === latest.current) {
@@ -1011,6 +1030,7 @@ const PromptLine = ({
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
+    ahead.current = undefined;
     early.current = undefined;
     setPending(false);
     if (seeker === undefined || value.trim() === "") {
@@ -1100,6 +1120,17 @@ const PromptLine = ({
     }
   }, [filled]);
 
+  useEffect(() => {
+    // An Enter typed ahead while the prompt before waited for its answer acts on this prompt (#1763).
+    const key = ahead.current;
+    ahead.current = undefined;
+    if (key === "more") {
+      more();
+    } else if (key === "enter") {
+      enter();
+    }
+  }, []);
+
   // The modifier of the shortcuts: Cmd only under macOS (`matches`).
   const mac = isMac(navigator.platform);
   // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one argument back, catalog commands); never
@@ -1123,6 +1154,7 @@ const PromptLine = ({
       // As Escape: a prompt that waited for an answer is told it got none.
       prompt.cancel?.();
       waiting.current = 0;
+      ahead.current = undefined;
       onClose(false);
       back();
     }
@@ -1133,6 +1165,7 @@ const PromptLine = ({
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
+    ahead.current = undefined;
     onClose(true);
   };
   const cancelNow = useRef(cancel);
@@ -1379,6 +1412,13 @@ export const Minibuffer = ({
   // Whether the last press began on the idle line itself: a press that took a hit of the card and is
   // released over the line is no click on it.
   const pressed = useRef(false);
+  // The Enter typed ahead for the next prompt; none is kept once no prompt is open (#1763).
+  const ahead = useRef<"enter" | "more" | undefined>(undefined);
+  useEffect(() => {
+    if (prompt === undefined) {
+      ahead.current = undefined;
+    }
+  }, [prompt]);
   return (
     <div
       className="minibuffer"
@@ -1402,7 +1442,7 @@ export const Minibuffer = ({
           <div className="echo">{echo}</div>
         </>
       ) : (
-        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
+        <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} ahead={ahead} />
       )}
     </div>
   );

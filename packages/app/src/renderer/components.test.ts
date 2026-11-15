@@ -1379,6 +1379,129 @@ describe("Minibuffer", () => {
       expect(closed).toHaveBeenCalledTimes(1);
     });
 
+    it("gives an Enter typed while an earlier Enter waits to the prompt that follows: it ends the list there (#1763)", async () => {
+      const { find, answer } = deferred();
+      const ended = vi.fn();
+      const closed = vi.fn();
+      let ask: (serial: number) => void = () => undefined;
+      const hit = choice("pkg", "PKG-0000d1 Sensors", {
+        run: vi.fn(() => {
+          ask(2);
+        }),
+      });
+      // The value step of a list: its hit asks the step again, which ends on Enter in an empty input.
+      const next: Prompt = { label: "packages", items: [], find: () => Promise.resolve([]), empty: ended };
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : next },
+          onCommand: vi.fn(),
+          onClose: closed,
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sensors");
+      await press(input(), "Enter");
+      await press(input(), "Enter");
+      expect(hit.run).not.toHaveBeenCalled();
+      await answer("Sensors", [hit]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(ended).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops an Enter typed ahead once typing cancels the wait (#1763)", async () => {
+      const { find, answer } = deferred();
+      const ended = vi.fn();
+      let ask: (serial: number) => void = () => undefined;
+      const hit = choice("pkg", "PKG-0000d1 Sensors", {
+        run: vi.fn(() => {
+          ask(2);
+        }),
+      });
+      const next: Prompt = { label: "packages", items: [], find: () => Promise.resolve([]), empty: ended };
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : next },
+          onCommand: vi.fn(),
+          onClose: vi.fn(),
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sens");
+      await press(input(), "Enter");
+      await press(input(), "Enter");
+      // Typing cancels the waiting Enter and the one typed ahead.
+      await type(input(), "Sensors");
+      await press(input(), "Enter");
+      await answer("Sensors", [hit]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(ended).not.toHaveBeenCalled();
+    });
+
+    it("drops an Enter typed ahead when another prompt replaces the waiting one (#1763)", async () => {
+      const { find } = deferred();
+      const ended = vi.fn();
+      const other: Prompt = { label: "Commands", items: [], empty: ended, text: ended };
+      let ask: (serial: number) => void = () => undefined;
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : other },
+          onCommand: vi.fn(),
+          onClose: vi.fn(),
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sens");
+      await press(input(), "Enter");
+      await press(input(), "Enter");
+      await act(async () => {
+        ask(2);
+        await Promise.resolve();
+      });
+      await flush();
+      expect(ended).not.toHaveBeenCalled();
+    });
+
+    it("gives a Ctrl/Cmd+Enter typed ahead to the next prompt as Ctrl/Cmd+Enter (#1763)", async () => {
+      const { find, answer } = deferred();
+      const ended = vi.fn();
+      let ask: (serial: number) => void = () => undefined;
+      const hit = choice("pkg", "PKG-0000d1 Sensors", {
+        run: vi.fn(() => {
+          ask(2);
+        }),
+      });
+      const next: Prompt = { label: "packages", items: [], find: () => Promise.resolve([]), empty: ended };
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : next },
+          onCommand: vi.fn(),
+          onClose: vi.fn(),
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sensors");
+      await press(input(), "Enter");
+      await press(input(), "Enter", { ctrlKey: true, metaKey: true });
+      await answer("Sensors", [hit]);
+      expect(ended).toHaveBeenCalledExactlyOnceWith(true);
+    });
+
     it("waits for the hits of the typed text when the selected stale hit is also a buffer of the prompt (#195)", async () => {
       const { find, answer } = deferred();
       const recent = choice("sr-1", "SR-1 Old title");
