@@ -790,11 +790,15 @@ describe("list actions", () => {
     await flush();
     expect(call).toHaveBeenCalledWith("metamodel.get", {});
     expect(asked[1]?.label).toBe("Type");
-    expect(asked[1]?.items.map((item) => [item.name, item.hint])).toEqual([
+    const types = await asked[1]?.fill;
+    expect(types?.items?.map((item) => [item.name, item.hint])).toEqual([
       ["Need", "need"],
       ["System Requirement", "system-requirement"],
     ]);
-    asked[1]?.items[1]?.run();
+    types?.items?.[1]?.run();
+    // The type goes into the mark; "Take 1 type" adds the step (SR-124 AK7).
+    expect(dispatched).toEqual([]);
+    (await asked[2]?.fill)?.items?.[0]?.run();
     expect(dispatched).toEqual([
       {
         type: "open",

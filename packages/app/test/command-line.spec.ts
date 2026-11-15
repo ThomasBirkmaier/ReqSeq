@@ -632,6 +632,9 @@ test.describe("the command prompt", () => {
         await window.keyboard.type("System Requirement");
         await expect(names(window).first()).toHaveText("System Requirement");
         await window.keyboard.press("Enter");
+        // "Take 1 type" adds the step (SR-124 AK7).
+        await expect(names(window).first()).toHaveText("Take 1 type");
+        await window.keyboard.press("Enter");
         await expect(window.getByRole("listbox", { name: "type: system-requirement" })).toBeVisible();
         await command(window, "Bulk update elements");
         await window.keyboard.type("Rationale");

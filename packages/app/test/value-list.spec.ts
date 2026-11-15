@@ -252,6 +252,9 @@ test.describe.serial("the list of the elements with a value", () => {
     await runCommand(window, "filter list");
     await answer(window, "Filter by", "Type");
     await answer(window, "Type", "System Requirement");
+    // "Take 1 type" adds the step (SR-124 AK7).
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Take 1 type");
+    await window.keyboard.press("Enter");
     const type = { type: ["system-requirement"] };
     await expectList(running, "topic: Timing · type: system-requirement", { all: [TIMING, type] });
     await runCommand(window, "filter list");

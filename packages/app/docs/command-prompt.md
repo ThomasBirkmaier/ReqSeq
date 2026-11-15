@@ -60,7 +60,7 @@ A value the metamodel names (a type, status, property, relation kind or choice) 
 
 ### Condition
 
-A condition (`where` of "New saved filter" and "New perspective") is built from hits as marks (`condition-prompt.ts`, as ADR-0010 describes it: the finishing hit and the kinds, then their values, "{" for JSON, the value `{ all: [<marks>] }`; Backspace and the × of a mark remove it, SR-215). Its types go into one type mark (`type-mark.ts`, SR-215 AK5: `typeMark`, `typeKeysOf`, `typeMarkAt`, `takeTypesName` and the step `askTypes`), which "Filter list" is to share (SR-124 AK7).
+A condition (`where` of "New saved filter" and "New perspective") is built from hits as marks (`condition-prompt.ts`, as ADR-0010 describes it: the finishing hit and the kinds, then their values, "{" for JSON, the value `{ all: [<marks>] }`; Backspace and the × of a mark remove it, SR-215). Its types go into one type mark (`type-mark.ts`, SR-215 AK5: `typeMark`, `typeKeysOf`, `typeMarkAt`, `takeTypesName` and the step `askTypes`), which "Filter list" shares (SR-124 AK7, `askTypeStep` in `list-actions.ts`).
 
 ### Sort
 

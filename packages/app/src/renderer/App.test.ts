@@ -826,6 +826,9 @@ describe("App", () => {
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Type");
     await keyDown(query("input"), "Enter");
+    // The type goes into the mark; "Take 1 type" adds the step (SR-124 AK7).
+    expect(query("label").textContent).toBe("Type");
+    await keyDown(query("input"), "Enter");
     expect(calls(invoke, "element.list").at(-1)).toEqual({
       selection: { where: { type: ["need"] } },
       sort: DEFAULT_SORT,
@@ -852,13 +855,14 @@ describe("App", () => {
   it("clears the last message when a prompt opens", async () => {
     const { bridge, handlers } = fakeBridge(workspace());
     await renderList(bridge);
-    handlers["metamodel.get"] = () => new Error("The metamodel is not valid");
+    handlers["element.facets"] = () => new Error("The facets are not there");
     await runCommand("filter list");
+    await type("Status");
     await keyDown(query("input"), "Enter");
-    expect(text("Minibuffer")).toBe("The metamodel is not valid");
+    expect(text("Minibuffer")).toBe("The facets are not there");
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(text("Minibuffer")).toContain("Command");
-    expect(text("Minibuffer")).not.toContain("not valid");
+    expect(text("Minibuffer")).not.toContain("not there");
   });
 
   it("asks again for what it shows when files were written or the core process restarted", async () => {
@@ -947,6 +951,8 @@ describe("App", () => {
     handlers["element.list"] = () => new Error("The metamodel is not valid");
     await runCommand("filter list");
     await keyDown(query("input"), "Enter");
+    await keyDown(query("input"), "Enter");
+    // "Take 1 type" (SR-124 AK7).
     await keyDown(query("input"), "Enter");
     expect(text("Modeline")).toBe("type: needWeather stationread-only");
   });
@@ -2983,6 +2989,8 @@ describe("App, the text editor", () => {
       await type("Type");
       await keyDown(query("input"), "Enter");
       await type("need");
+      await keyDown(query("input"), "Enter");
+      // "Take 1 type" (SR-124 AK7).
       await keyDown(query("input"), "Enter");
       expect(calls(invoke, "element.list").at(-1)).toMatchObject({
         selection: { where: { all: [{ status: ["draft"] }, { type: ["need"] }] } },

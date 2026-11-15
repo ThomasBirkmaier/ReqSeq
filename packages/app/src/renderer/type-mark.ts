@@ -1,6 +1,6 @@
 // The type mark (SR-215 AK5): several types in one mark, which keeps the elements of one of them. The condition
 // of "New saved filter" and "New perspective" (`condition-prompt.ts`) asks it; "Filter list" (`list-actions.ts`,
-// SR-124 AK7) is to ask it the same way. Choosing a type adds it to the mark and stays in the step; the types in
+// SR-124 AK7) asks it the same way. Choosing a type adds it to the mark and stays in the step; the types in
 // the mark are no longer offered; "Take <n> types" comes first once the mark has a type and takes it; Escape and
 // Backspace on an empty input go back with the mark; an × is the asking prompt's (`TypeAsk.marks`). A condition
 // has at most one type mark: choosing "Type" again continues it (`typeMarkAt`). The types come from

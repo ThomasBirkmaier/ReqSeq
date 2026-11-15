@@ -89,13 +89,20 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
       ?.run();
   };
   /** "Filter list": the kind, then `value` among its values. */
-  const filterBy = async (kind: string, value: string): Promise<void> => {
+  /** Chooses `name` in the last prompt, with its parts filled in. */
+  const pick = async (name: string): Promise<void> => {
+    const prompt = asked.at(-1);
+    const items = (await prompt?.fill)?.items ?? prompt?.items ?? [];
+    items.find((item) => item.name === name)?.run();
+    await flush();
+  };
+  /** "Filter list" by `kind` and `values`; a type is then taken with "Take 1 type" (SR-124 AK7). */
+  const filterBy = async (kind: string, ...values: string[]): Promise<void> => {
     await choose("filter", kind);
     await flush();
-    asked
-      .at(-1)
-      ?.items.find((item) => item.name === value)
-      ?.run();
+    for (const value of values) {
+      await pick(value);
+    }
   };
   return { context, shown, asked, choose, filterBy };
 };
@@ -235,7 +242,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
           incomplete: false,
         },
       });
-      await filterBy("Type", "Need");
+      await filterBy("Type", "Need", "Take 1 type");
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(3);
       await filterBy("Status", "draft");
