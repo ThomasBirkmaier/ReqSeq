@@ -754,6 +754,8 @@ describe("App", () => {
     }
     expect(texts("article h2")).toEqual(["derives-from", "← supersedes"]);
     expect(texts('article [data-field="derives-from"] .relation [role="link"]')).toHaveLength(2);
+    // The ID of each target stands apart from its title, muted as in a list (#1758).
+    expect(texts('article [data-field="derives-from"] .relation [role="link"] .id')).toHaveLength(2);
   });
 
   it("shows the type key in the modeline when the metamodel cannot be read", async () => {

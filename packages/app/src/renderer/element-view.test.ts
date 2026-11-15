@@ -207,11 +207,19 @@ describe("rowOfRelation", () => {
   it("is the label, the target and the state of a relation as the buffer shows it", () => {
     expect(
       rowOfRelation(relation({ id: "n1", repository: "spec", shortId: "N-1", title: "Need" }), plain),
-    ).toEqual({ id: "n1", repository: "spec", label: "N-1 Need", state: "available", outdated: undefined });
+    ).toEqual({
+      id: "n1",
+      repository: "spec",
+      label: "N-1 Need",
+      parts: { id: "N-1", title: "Need" },
+      state: "available",
+      outdated: undefined,
+    });
     expect(rowOfRelation(relation({ id: "n2", targetState: "missing" }), plain)).toEqual({
       id: "n2",
       repository: "",
       label: "n2",
+      parts: { id: "n2", title: "" },
       state: "missing",
       outdated: undefined,
     });
