@@ -327,7 +327,10 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await command(window, "List all elements");
-    await command(window, "Filter list by saved filter");
+    await command(window, "Filter list");
+    await expect(label(window)).toHaveText("Filter by");
+    await take(window, "Saved filter");
+    await expect(label(window)).toHaveText("Saved filter");
     await take(window, "Sensors");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", /filter: Sensors/);
     const rows = await shownBuffer(window).locator(".row .id").allTextContents();

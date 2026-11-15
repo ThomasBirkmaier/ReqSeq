@@ -1684,7 +1684,7 @@ describe("the commands that fit the shown view", () => {
       "List all elements",
       "Open perspective",
       "Show overview",
-      "Filter list by type",
+      "Filter list",
       "Sort list",
       "Close buffer",
       "Go to element or buffer",
@@ -3482,7 +3482,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     const carrying = [
       ["Open workspace", "workspace.recent"],
       ["Follow agent", "workspace.activity"],
-      ["Filter list by saved filter", "filter.list"],
+      ["Filter list", "filter.list"],
       ["Open perspective", "perspective.list"],
       ["Save list as perspective", "perspective.list"],
     ] as const;
@@ -3505,7 +3505,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
 
   it("[SR-210/AK-r2d2] the actions that set what a shown list or graph shows name the catalog commands of each display", () => {
     const runsOf = (id: string) => ACTIONS.find((action) => action.id === id)?.runs;
-    expect(runsOf("filter-type")).toEqual([
+    expect(runsOf("filter")).toEqual([
       { where: "in the list", command: "element.list" },
       { where: "in the traceability matrix", command: "trace.matrix" },
       { where: "on the package page", command: "element.list" },

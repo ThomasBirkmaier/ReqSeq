@@ -8,7 +8,8 @@ import type {
 } from "@reqseq/core";
 import { criterionText } from "@reqseq/core/criterion-items";
 import { outdatedKey } from "./editor/references.js";
-import { refIdTitle } from "./id-title.js";
+import type { IdParts } from "./id-title.js";
+import { refIdParts, refIdTitle } from "./id-title.js";
 import type { OutdatedMark } from "./editor/references.js";
 import { OUTDATED_WORD, isOutdatedCode } from "./outdated-codes.js";
 
@@ -218,6 +219,8 @@ export interface RelationRow {
   /** The workspace name of the repository of the target; empty when the output names none. */
   readonly repository: string;
   readonly label: string;
+  /** The label in its parts, the ID shown apart from the title (#1758). */
+  readonly parts: IdParts;
   readonly state: DataExportRelation["targetState"];
   /** The mark of an outdated relation; undefined when it is not outdated. */
   readonly outdated: OutdatedMark | undefined;
@@ -231,6 +234,7 @@ export const rowOfRelation = (
   id: relation.id,
   repository: relation.repository ?? "",
   label: relationLabel(relation),
+  parts: refIdParts(relation),
   state: relation.targetState,
   outdated: outdatedRelation(element, relation),
 });

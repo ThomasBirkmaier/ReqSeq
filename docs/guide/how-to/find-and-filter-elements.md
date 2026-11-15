@@ -5,18 +5,18 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
-1. To open one element, press Ctrl+P (⌘P on macOS) for **Go to element or buffer**, type its short ID or title words, and press Enter.
-2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Ctrl+Enter (⌘↩) picks fields to search in. Open a hit with the arrows and Enter, or all hits with Enter alone.
-3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it step by step with “Filter list by type” (Ctrl+K F), “Filter list by status”, “Filter list by property”, “Filter list by text search” and “Filter list by saved filter”. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
+1. **Go to element or buffer** (Ctrl+P, ⌘P on macOS) finds an element by short ID or title words; Enter opens it.
+2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Ctrl+Enter (⌘↩) picks the fields. Open a hit with arrows and Enter, or all hits with Enter alone.
+3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it with “Filter list” (Ctrl+K F, ⌘K F): pick a kind, such as status or property, then a value; each value adds one step. Escape goes back a step. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
 4. “Sort list” (Ctrl+K S) orders the list by a key, ascending or descending, or as derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
-6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter to open it. “Fold status in lists” chooses the statuses that fold on this computer.
-7. Ctrl+K V (⌘K V) opens a perspective in its own buffer. “Save list as perspective” saves a list’s filter steps, grouping and sort; **New perspective** in the [command prompt](/concepts/the-app/) asks name, condition, grouping and sort, then saves; the modeline says “modified” once a step, sort or grouping of the perspective’s buffer changes.
-8. To save a filter, run **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P), name it, and pick each condition: kind, value; all must hold. `{` starts JSON. “Next: sort” asks the sort: key, order; “Save” saves.
+6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; Enter or a click on its head opens it. “Fold status in lists” chooses the statuses that fold on this computer.
+7. Ctrl+K V (⌘K V) opens a perspective. “Save list as perspective” saves a list’s steps, grouping and sort, “Save list as saved filter” its steps and a sort chosen or saved with the perspective; **New perspective** in the [command prompt](/concepts/the-app/) asks name, condition, grouping, sort; the modeline says “modified” once a step, sort or grouping of a perspective’s buffer changes.
+8. **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks a name, then each condition: kind, value; all must hold. `{` starts JSON. “Next: sort” asks the sort: key, order; “Save” saves.
 
 ## CLI
 

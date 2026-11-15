@@ -158,7 +158,8 @@ test.describe("the package page on a fixture workspace", () => {
       await window.keyboard.type(text);
       await window.keyboard.press("Enter");
     };
-    await command("Filter list by text search");
+    await command("Filter list");
+    await answer("Filter by", "Text search");
     await answer("Text", "rain");
     const rain = await listedBy(running, DEFAULT_SORT, {
       all: [{ package: "PKG-0000d1" }, { text: "rain" }],
@@ -170,7 +171,8 @@ test.describe("the package page on a fixture workspace", () => {
       rain.elements.map((element) => element.title),
     );
     // A second step narrows the elements further.
-    await command("Filter list by text search");
+    await command("Filter list");
+    await answer("Filter by", "Text search");
     await answer("Text", "calibrate");
     const both = await listedBy(running, DEFAULT_SORT, {
       all: [{ package: "PKG-0000d1" }, { text: "rain" }, { text: "calibrate" }],
@@ -187,7 +189,8 @@ test.describe("the package page on a fixture workspace", () => {
     await expect(shownLayer(window).locator(".members .row .title")).toHaveText(
       rain.elements.map((element) => element.title),
     );
-    await command("Filter list by text search");
+    await command("Filter list");
+    await answer("Filter by", "Text search");
     await answer("Text", "calibrate");
     await expect(shownLayer(window).locator(".members h2")).toContainText("calibrate");
     await command("Clear all list filters");
@@ -289,7 +292,10 @@ test.describe("the line under the title of a package page", () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("Filter list by text search");
+    await window.keyboard.type("Filter list");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Filter by");
+    await window.keyboard.type("Text search");
     await window.keyboard.press("Enter");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Text");
     await window.keyboard.type("Open reading");

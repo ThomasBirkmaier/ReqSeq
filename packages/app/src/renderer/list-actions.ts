@@ -24,14 +24,9 @@ import {
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import type { Shortcut } from "./keys.js";
-import {
-  hasSavedFilter,
-  propertyChoices,
-  savedStep,
-  statusStep,
-  textStep,
-  typeStep,
-} from "./list-filters.js";
+import type { ConditionKind, ConditionMark, KindSource, KindValue } from "./condition-kinds.js";
+import { CONDITION_KINDS, conditionSchema } from "./condition-kinds.js";
+import { hasSavedFilter, savedStep, textStep } from "./list-filters.js";
 import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
 import { QUERY_VIEWS, queryIn, supports } from "./list-query.js";
@@ -221,53 +216,10 @@ const sortChoices = (
     }),
   );
 
-/** The names a filter can be chosen from, or why there are none. */
-type Names =
-  { readonly ok: true; readonly names: readonly string[] } | { readonly ok: false; readonly message: string };
-
-interface FilterBy {
-  readonly id: string;
-  readonly title: string;
-  readonly description: string;
-  /** The label of the prompt. */
-  readonly label: string;
-  readonly nothing: string;
-  /** Without it, whenever a list is shown. */
-  readonly available?: (context: ActionContext) => boolean;
-  readonly names: (call: Call, target: QueryTarget) => Promise<Names>;
-  readonly step: (name: string) => FilterStep;
-}
-
 /** The list or page with one more step; the rest of its query stays. */
 const addStep = (target: QueryTarget, step: FilterStep): void => {
   target.apply({ steps: [...target.query.steps, step] });
 };
-
-const filterBy = (by: FilterBy): Action => ({
-  id: by.id,
-  title: by.title,
-  description: by.description,
-  runs: runsWhere("steps"),
-  available: by.available ?? canFilter,
-  run: onTarget((context, target) => {
-    void by.names(context.shownCall ?? context.call, target).then((found) => {
-      if (!found.ok) {
-        context.echo(found.message);
-      } else if (found.names.length === 0) {
-        context.echo(by.nothing);
-      } else {
-        context.ask({
-          label: by.label,
-          items: found.names.map((name) =>
-            choice(name, () => {
-              addStep(target, by.step(name));
-            }),
-          ),
-        });
-      }
-    });
-  }),
-});
 
 /** The facets of the shown list or page: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, target: QueryTarget): Promise<Answer<"element.facets">> =>
@@ -275,6 +227,174 @@ const facetsOf = (call: Call, target: QueryTarget): Promise<Answer<"element.face
     ...(target.selection === undefined ? {} : { selection: target.selection }),
     ...(target.search === undefined ? {} : { search: target.search }),
   });
+
+/** A value "Filter list" offers: choosing it adds `step`. */
+interface StepValue {
+  readonly name: string;
+  readonly key?: string;
+  readonly step: FilterStep;
+}
+
+/** A hit that asks its values next: a property. */
+interface StepChoice {
+  readonly name: string;
+  readonly key: string;
+  readonly values: readonly StepValue[];
+}
+
+type StepHits = readonly (StepValue | StepChoice)[] | { readonly failed: string };
+
+/** A kind "Filter list" asks first (SR-124 AK5): those of a condition, and "Saved filter". */
+interface FilterKind {
+  readonly key: string;
+  readonly name: string;
+  /** Without it, a text search: the typed words are the value. */
+  readonly hits?: (source: KindSource) => Promise<StepHits>;
+}
+
+/** What the prompt says when a kind has no values in the shown list (SR-124 AK6). */
+const NOTHING: Readonly<Record<string, string>> = {
+  type: "The metamodel has no types.",
+  status: "The elements of this list have no status.",
+  property: "No property of the elements in this list has values to choose from.",
+  filter: "The workspace has no saved filters.",
+};
+
+const nothingFor = (kind: FilterKind): string =>
+  NOTHING[kind.key] ?? `There is no ${kind.name.toLowerCase()} to choose from.`;
+
+/** The list filter step of a condition: its label, and the condition as the step's selection. */
+const conditionStep = (mark: ConditionMark): FilterStep => ({
+  label: mark.label,
+  selection: { where: mark.condition as NonNullable<ElementSelection["where"]> },
+});
+
+const stepValue = (value: KindValue): StepValue => ({
+  name: value.name,
+  ...(value.key === undefined ? {} : { key: value.key }),
+  step: conditionStep(value.mark),
+});
+
+/** A kind of a condition as "Filter list" offers it: each value one step, a property its values next. */
+const conditionKind = (kind: ConditionKind): FilterKind => {
+  const { hits } = kind;
+  return {
+    key: kind.key,
+    name: kind.name,
+    ...(hits === undefined
+      ? {}
+      : {
+          hits: async (source) => {
+            const found = await hits(source);
+            return "failed" in found
+              ? found
+              : found.map((hit) =>
+                  "values" in hit
+                    ? { name: hit.name, key: hit.key, values: hit.values.map(stepValue) }
+                    : stepValue(hit),
+                );
+          },
+        }),
+  };
+};
+
+/** "Saved filter": the saved filters of the workspace, each the step "filter: <name>". */
+const SAVED_KIND: FilterKind = {
+  key: "filter",
+  name: "Saved filter",
+  hits: async ({ call }) => {
+    const answer = await call("filter.list", {});
+    return answer.ok
+      ? answer.output.filters.map((filter) => ({ name: filter.name, step: savedStep(filter.name) }))
+      : { failed: answer.message };
+  },
+};
+
+const FILTER_KINDS: readonly FilterKind[] = CONDITION_KINDS.map(conditionKind);
+
+/** The choices of a step of values: a value adds its step, a property asks its values (`ask`). */
+const valueChoices = (
+  target: QueryTarget,
+  hits: readonly (StepValue | StepChoice)[],
+  ask: (prompt: Prompt) => void,
+): Choice[] =>
+  hits.map((hit, at) => ({
+    id: `${String(at)}:${hit.name}`,
+    name: hit.name,
+    ...(hit.key === undefined || hit.key === hit.name ? {} : { hint: hit.key }),
+    run: () => {
+      if ("values" in hit) {
+        ask({ label: hit.name, items: valueChoices(target, hit.values, ask) });
+      } else {
+        addStep(target, hit.step);
+      }
+    },
+  }));
+
+/**
+ * Asks the values of `kind` and adds the step of the one chosen (SR-124 AK6); a text search takes the typed
+ * words. A kind without values says so, and the list stays as it is. Escape goes back a step
+ * (`steppedContext`).
+ */
+const askKind = (context: ActionContext, target: QueryTarget, kind: FilterKind, source: KindSource): void => {
+  const { hits } = kind;
+  if (hits === undefined) {
+    context.ask({
+      label: "Text",
+      items: [],
+      text: (text) => {
+        const query = text.trim();
+        if (query !== "") {
+          addStep(target, textStep(query));
+        }
+      },
+    });
+    return;
+  }
+  void hits(source).then((found) => {
+    if ("failed" in found) {
+      context.echo(found.failed);
+    } else if (found.length === 0) {
+      context.echo(nothingFor(kind));
+    } else {
+      context.ask({ label: kind.name, items: valueChoices(target, found, context.ask) });
+    }
+  });
+};
+
+/**
+ * "Filter list" (SR-124 AK5, AK6, D-077): asks the kind first, then its values, and adds one step. "Saved
+ * filter" is left out while a step or the perspective's selection has one: a selection takes one (SR-101).
+ */
+const FILTER_ACTION: Action = {
+  id: "filter",
+  title: "Filter list",
+  description: "Keep only the elements of the shown list that meet one more condition, chosen by its kind.",
+  runs: runsWhere("steps"),
+  available: canFilter,
+  run: onTarget((context, target) => {
+    const shownCall = context.shownCall ?? context.call;
+    const kinds = hasSavedFilter(target.query.steps) ? FILTER_KINDS : [...FILTER_KINDS, SAVED_KIND];
+    // No hint: the keys of the kinds are those of the condition in JSON, which "Filter list" does not take.
+    context.ask({
+      label: "Filter by",
+      items: kinds.map((kind) => ({
+        id: `kind:${kind.key}`,
+        name: kind.name,
+        run: () => {
+          // Read when the kind is chosen: the catalog is there by then.
+          const source: KindSource = {
+            call: context.call,
+            // The statuses and properties of the shown list, in the view of the window.
+            facets: () => facetsOf(shownCall, target),
+            schema: conditionSchema(context.catalog?.() ?? []),
+          };
+          askKind(context, target, kind, source);
+        },
+      })),
+    });
+  }),
+};
 
 export const LIST_ACTIONS: readonly Action[] = [
   {
@@ -291,90 +411,7 @@ export const LIST_ACTIONS: readonly Action[] = [
   // "Open perspective" (SR-214), next to "List all elements", and renaming and deleting (SR-218).
   ...PERSPECTIVE_ACTIONS,
   ...SAVED_FILE_ACTIONS,
-  filterBy({
-    id: "filter-type",
-    title: "Filter list by type",
-    description: "Keep only the elements of one type in the shown list.",
-    label: "Type",
-    nothing: "The metamodel has no types.",
-    names: async (call: Call): Promise<Names> => {
-      const answer = await call("metamodel.get", {});
-      return answer.ok ? { ok: true, names: answer.output.types.map((type) => type.key) } : answer;
-    },
-    step: typeStep,
-  }),
-  filterBy({
-    id: "filter-status",
-    title: "Filter list by status",
-    description: "Keep only the elements in one status in the shown list.",
-    label: "Status",
-    nothing: "The elements of this list have no status.",
-    names: async (call: Call, target: QueryTarget): Promise<Names> => {
-      const answer = await facetsOf(call, target);
-      return answer.ok ? { ok: true, names: answer.output.statuses.map((status) => status.key) } : answer;
-    },
-    step: statusStep,
-  }),
-  {
-    id: "filter-property",
-    title: "Filter list by property",
-    description: "Keep only the elements with one value of a property in the shown list.",
-    available: canFilter,
-    run: onTarget((context, target) => {
-      void facetsOf(context.shownCall ?? context.call, target).then((answer) => {
-        if (!answer.ok) {
-          context.echo(answer.message);
-          return;
-        }
-        const items = propertyChoices(
-          answer.output,
-          (step) => {
-            addStep(target, step);
-          },
-          context.ask,
-        );
-        if (items.length === 0) {
-          context.echo("No property of the elements in this list has values to choose from.");
-        } else {
-          context.ask({ label: "Property", items });
-        }
-      });
-    }),
-  },
-  {
-    id: "filter-text",
-    title: "Filter list by text search",
-    description: "Keep only the elements of the shown list that a text search finds.",
-    available: canFilter,
-    run: onTarget((context, target) => {
-      context.ask({
-        label: "Text",
-        items: [],
-        text: (text) => {
-          const query = text.trim();
-          if (query !== "") {
-            addStep(target, textStep(query));
-          }
-        },
-      });
-    }),
-  },
-  filterBy({
-    id: "filter-saved",
-    title: "Filter list by saved filter",
-    description: "Keep only the elements of the shown list that a saved filter finds.",
-    label: "Filter",
-    nothing: "The workspace has no saved filters.",
-    available: (context) => {
-      const target = queryTarget(context);
-      return canFilter(context) && target !== undefined && !hasSavedFilter(target.query.steps);
-    },
-    names: async (call: Call): Promise<Names> => {
-      const answer = await call("filter.list", {});
-      return answer.ok ? { ok: true, names: answer.output.filters.map((filter) => filter.name) } : answer;
-    },
-    step: savedStep,
-  }),
+  FILTER_ACTION,
   {
     id: "clear-filter",
     title: "Clear list filter",

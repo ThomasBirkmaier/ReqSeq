@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { idOfName, idTitle, shownId, shownIdTitle } from "./id-title.js";
+import { idOfName, idTitle, nameParts, refIdParts, refIdTitle, shownId, shownIdTitle } from "./id-title.js";
 
 describe("shownId", () => {
   it("[SR-084/AK-c2s2] is the short ID with the identifier in brackets behind it, the short ID alone without one", () => {
@@ -30,5 +30,31 @@ describe("idTitle", () => {
     expect(idTitle("Später", "Später")).toBe("Später");
     expect(idTitle("N-1", "")).toBe("N-1");
     expect(idTitle("N-1")).toBe("N-1");
+  });
+});
+
+describe("refIdParts", () => {
+  it("parts the shown ID from the title, so it is shown muted next to it (#1758)", () => {
+    expect(refIdParts({ id: "u", shortId: "N-1a2b3c", identifier: "N-001", title: "Need" })).toEqual({
+      id: "N-1a2b3c (N-001)",
+      title: "Need",
+    });
+    expect(refIdParts({ id: "u", shortId: "PKG-1a2b3c", identifier: "Später", title: "Später" })).toEqual({
+      id: "PKG-1a2b3c (Später)",
+      title: "",
+    });
+    expect(refIdParts({ id: "u", identifier: "VAR-002", title: "Linux" })).toEqual({
+      id: "VAR-002",
+      title: "Linux",
+    });
+    expect(refIdParts({ id: "u" })).toEqual({ id: "u", title: "" });
+    expect(refIdTitle({ id: "u", shortId: "N-1a2b3c", title: " Need " })).toBe("N-1a2b3c Need");
+  });
+  it("parts a name the same way", () => {
+    expect(nameParts("SR-3c90b0 (SR-036) Show wind")).toEqual({
+      id: "SR-3c90b0 (SR-036)",
+      title: "Show wind",
+    });
+    expect(nameParts("y")).toEqual({ id: "y", title: "" });
   });
 });

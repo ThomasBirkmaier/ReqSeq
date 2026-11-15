@@ -807,9 +807,30 @@ describe("relation rows and locked boxes", () => {
     ]);
     const element = { relations, repository: "spec", problems: [] };
     expect(relationRows("uses", doc, element)).toEqual([
-      { id: "a", repository: "spec", label: "PKG-1 Stufe 3", state: "missing", outdated: undefined },
-      { id: "n", repository: "spec", label: "SR-9 New", state: "available", outdated: undefined },
-      { id: "a", repository: "other", label: "y", state: "available", outdated: undefined },
+      {
+        id: "a",
+        repository: "spec",
+        label: "PKG-1 Stufe 3",
+        parts: { id: "PKG-1", title: "Stufe 3" },
+        state: "missing",
+        outdated: undefined,
+      },
+      {
+        id: "n",
+        repository: "spec",
+        label: "SR-9 New",
+        parts: { id: "SR-9", title: "New" },
+        state: "available",
+        outdated: undefined,
+      },
+      {
+        id: "a",
+        repository: "other",
+        label: "y",
+        parts: { id: "y", title: "" },
+        state: "available",
+        outdated: undefined,
+      },
     ]);
     expect(relationRows("uses", "", element)).toEqual([]);
   });

@@ -254,7 +254,7 @@ describe("shortcutReference", () => {
       "List all elements",
       "Open perspective",
       "Show overview",
-      "Filter list by type",
+      "Filter list",
       "Sort list",
       "Close buffer",
     ]);

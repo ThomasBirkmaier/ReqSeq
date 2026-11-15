@@ -160,7 +160,7 @@ describe("the values of an element that open a list (SR-132)", () => {
     ]);
   });
 
-  it('[SR-132/AK-ymp3] each value opens the step that "Filter list by property", "by status" or the overview builds for it', () => {
+  it('[SR-132/AK-ymp3] each value opens the step that "Filter list" or the overview builds for it', () => {
     expect(named("status: approved").step).toEqual(statusStep("approved"));
     expect(named("type: system-requirement").step).toEqual(
       exactTypeStep("system-requirement", "System Requirement"),

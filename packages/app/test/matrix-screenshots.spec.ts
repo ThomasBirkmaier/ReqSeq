@@ -71,8 +71,12 @@ test("[SR-125/AK-mzzq] all system requirements of the package Editor as a matrix
     }
     await typed.press("Enter");
     await expect(window.locator(".row").first()).toBeVisible();
-    await typed.press("ControlOrMeta+Shift+P");
-    await typed.type("flp");
+    // "Filter list" by Ctrl/Cmd+K F, the kind "Property" (SR-124 AK5).
+    await typed.press("ControlOrMeta+K");
+    await typed.press("f");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Filter by");
+    await typed.type("pr");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Property");
     await typed.press("Enter");
     // The values come from a command: keys typed before the prompt is there would be lost, so the test waits.
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
@@ -88,8 +92,8 @@ test("[SR-125/AK-mzzq] all system requirements of the package Editor as a matrix
     const fromOverview = typed.count();
     expect(await titles(window)).toEqual(cli.rows.map((row) => row.title));
     test.info().annotations.push({ type: "keys from the overview", description: String(fromOverview) });
-    // Down ×(at+1) to the line "System Requirement" (none on the first line), Enter, Ctrl+Shift+P, flp,
-    // Enter, pa, Enter, edi, Enter, Ctrl+T.
+    // Down ×(at+1) to the line "System Requirement" (none on the first line), Enter, Ctrl+K, F, pr, Enter,
+    // pa, Enter, edi, Enter, Ctrl+T.
     expect(fromOverview).toBe(downs + 14);
 
     // The package page: Ctrl+P, the title, Enter, Ctrl+T.

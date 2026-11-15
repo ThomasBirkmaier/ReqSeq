@@ -88,7 +88,16 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
       ?.items.find((item) => item.name === name)
       ?.run();
   };
-  return { context, shown, asked, choose };
+  /** "Filter list": the kind, then `value` among its values. */
+  const filterBy = async (kind: string, value: string): Promise<void> => {
+    await choose("filter", kind);
+    await flush();
+    asked
+      .at(-1)
+      ?.items.find((item) => item.name === value)
+      ?.run();
+  };
+  return { context, shown, asked, choose, filterBy };
 };
 
 const titles = (context: ActionContext): string[] => commandPrompt(context).items.map((item) => item.name);
@@ -206,8 +215,8 @@ describe("the matrix as a mode of the list (SR-125)", () => {
     );
 
     it("[SR-125/AK-mzzq] filter by type, status, property and text and saved filter keep it", async () => {
-      const { shown, choose, asked, context } = start([base], {
-        "metamodel.get": { types: [{ key: "need" }] },
+      const { shown, choose, filterBy, asked } = start([base], {
+        "metamodel.get": { types: [{ key: "need", name: "Need" }], statuses: [] },
         "filter.list": { filters: [{ name: "open" }] },
         "element.facets": {
           total: 1,
@@ -226,21 +235,21 @@ describe("the matrix as a mode of the list (SR-125)", () => {
           incomplete: false,
         },
       });
-      await choose("filter-type", "need");
+      await filterBy("Type", "Need");
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(3);
-      await choose("filter-status", "draft");
+      await filterBy("Status", "draft");
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(4);
-      await choose("filter-property", "Topic");
+      await filterBy("Property", "Topic");
       asked.at(-1)?.items[0]?.run();
       expect(shown().matrix).toBe(true);
       expect(shown().steps).toHaveLength(5);
-      action("filter-text").run(context);
+      await choose("filter", "Text search");
       asked.at(-1)?.text?.("wind");
       expect(shown().matrix).toBe(true);
       expect(shown().steps.at(-1)).toEqual(textStep("wind"));
-      await choose("filter-saved", "open");
+      await filterBy("Saved filter", "open");
       expect(shown().matrix).toBe(true);
       expect(shown().steps.at(-1)).toEqual(savedStep("open"));
       expect(shown().sort).toEqual([{ by: "title", order: "asc" }]);

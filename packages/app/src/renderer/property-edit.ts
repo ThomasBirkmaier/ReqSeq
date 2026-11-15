@@ -12,6 +12,7 @@ import { criterionEntries, lineKeysOf } from "@reqseq/core/criterion-lines";
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@reqseq/core";
 import { criterionLines, isCriteriaInfo, keyedDoc } from "./criterion-doc.js";
 import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
+import { nameParts } from "./id-title.js";
 import {
   TITLE_FIELD,
   isPropertyTarget,
@@ -494,6 +495,7 @@ export const relationRows = (
     (target) =>
       stored.find((row) => row.id === target.id && row.repository === target.repository) ?? {
         ...target,
+        parts: nameParts(target.label),
         state: "available",
         outdated: undefined,
       },

@@ -106,7 +106,7 @@ import { askProperties, askRelations, marksLabel, propertiesOf, relationsOf } fr
 import { SAVE, askSort, keyLabel, sortMarksLabel, sortOf } from "./sort-prompt.js";
 import { NO_GROUPING, offerGroups } from "./group-prompt.js";
 import { fold } from "@reqseq/core/fold";
-import { openPerspective } from "./perspective-actions.js";
+import { openPerspective, replacesFilter } from "./perspective-actions.js";
 import { rowName } from "./rows.js";
 import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
@@ -2155,12 +2155,12 @@ const replacing = (
   text: string,
   perspective: boolean,
 ): string | undefined => {
+  if (!perspective) {
+    return replacesFilter(names, text);
+  }
   const name = names.find((known) => fold(known) === fold(text.trim()));
   if (name === undefined) {
     return undefined;
-  }
-  if (!perspective) {
-    return `Replaces the saved filter ${name}`;
   }
   const modified = context.buffers.some(
     (buffer) =>

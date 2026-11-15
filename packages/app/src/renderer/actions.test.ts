@@ -117,6 +117,15 @@ const action = (id: string) => {
   return found;
 };
 
+/** Runs "Filter list" and chooses `kind` in its first step (SR-124 AK5). */
+const filterBy = (context: ActionContext, asked: readonly Prompt[], kind: string): void => {
+  action("filter").run(context);
+  asked
+    .at(-1)
+    ?.items.find((item) => item.name === kind)
+    ?.run();
+};
+
 const list = listBuffer("All elements");
 const filtered = listBuffer("type: need", { where: { type: ["need"] } }, [{ by: "title", order: "asc" }]);
 const element = elementBuffer("u1", "spec", "SR-036 Title");
@@ -184,15 +193,12 @@ describe("the command prompt", () => {
       "List all elements",
       "Open perspective",
       "Save list as perspective",
+      "Save list as saved filter",
       "Rename perspective",
       "Delete perspective",
       "Rename saved filter",
       "Delete saved filter",
-      "Filter list by type",
-      "Filter list by status",
-      "Filter list by property",
-      "Filter list by text search",
-      "Filter list by saved filter",
+      "Filter list",
       "Sort list",
       "Group list",
       "Show traceability matrix",
@@ -211,7 +217,7 @@ describe("the command prompt", () => {
     const names = titles(setup([element, list]).context);
     expect(names).toContain("Show element ID and version");
     expect(names).not.toContain("Sort list");
-    expect(names).not.toContain("Filter list by type");
+    expect(names).not.toContain("Filter list");
   });
 
   it("offers editing the title on an element whose buffer gives it, by its name (ThomasBirkmaier/ReqSeq-archive#621, SR-073 AK2)", () => {
@@ -358,11 +364,8 @@ describe("the command prompt", () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       "Ctrl+K F",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
       "Ctrl+K S",
       undefined,
       "Ctrl+T",
@@ -776,16 +779,22 @@ describe("list actions", () => {
   it("filters by a type of the metamodel and keeps the sort", async () => {
     const { context, asked, dispatched, call } = setup([filtered], {
       "metamodel.get": {
-        types: [{ key: "need" }, { key: "system-requirement" }],
+        types: [
+          { key: "need", name: "Need" },
+          { key: "system-requirement", name: "System Requirement" },
+        ],
         statuses: [{ key: "draft" }],
       },
     });
-    action("filter-type").run(context);
+    filterBy(context, asked, "Type");
     await flush();
     expect(call).toHaveBeenCalledWith("metamodel.get", {});
-    expect(asked[0]?.label).toBe("Type");
-    expect(asked[0]?.items.map((item) => item.name)).toEqual(["need", "system-requirement"]);
-    asked[0]?.items[1]?.run();
+    expect(asked[1]?.label).toBe("Type");
+    expect(asked[1]?.items.map((item) => [item.name, item.hint])).toEqual([
+      ["Need", "need"],
+      ["System Requirement", "system-requirement"],
+    ]);
+    asked[1]?.items[1]?.run();
     expect(dispatched).toEqual([
       {
         type: "open",
@@ -806,12 +815,13 @@ describe("list actions", () => {
           { key: "accepted", count: 1 },
         ],
       },
+      "metamodel.get": { statuses: [{ key: "draft", name: "Draft" }] },
     });
-    action("filter-status").run(context);
+    filterBy(context, asked, "Status");
     await flush();
     expect(call).toHaveBeenCalledWith("element.facets", {});
-    expect(asked[0]?.items.map((item) => item.name)).toEqual(["draft", "accepted"]);
-    asked[0]?.items[0]?.run();
+    expect(asked[1]?.items.map((item) => item.name)).toEqual(["Draft", "accepted"]);
+    asked[1]?.items[0]?.run();
     expect(dispatched).toEqual([
       { type: "open", buffer: listBuffer("status: draft", { where: { status: ["draft"] } }) },
     ]);
@@ -821,10 +831,10 @@ describe("list actions", () => {
     const { context, asked, dispatched, call } = setup([list], {
       "filter.list": { filters: [{ name: "open-needs" }] },
     });
-    action("filter-saved").run(context);
+    filterBy(context, asked, "Saved filter");
     await flush();
     expect(call).toHaveBeenCalledWith("filter.list", {});
-    asked[0]?.items[0]?.run();
+    asked[1]?.items[0]?.run();
     expect(dispatched).toEqual([
       { type: "open", buffer: listBuffer("filter: open-needs", { filter: "open-needs" }) },
     ]);
@@ -832,18 +842,18 @@ describe("list actions", () => {
 
   it("says why there is nothing to choose from", async () => {
     const empty = setup([list], {
-      "metamodel.get": { types: [] },
+      "metamodel.get": { types: [], statuses: [] },
       "element.facets": { statuses: [] },
       "filter.list": { filters: [] },
     });
-    action("filter-type").run(empty.context);
-    action("filter-status").run(empty.context);
-    action("filter-saved").run(empty.context);
+    for (const kind of ["Type", "Status", "Saved filter"]) {
+      filterBy(empty.context, empty.asked, kind);
+    }
     await flush();
-    expect(empty.asked).toEqual([]);
-    expect(empty.echoed).toEqual([
-      "The metamodel has no types.",
+    expect(empty.asked.map((prompt) => prompt.label)).toEqual(["Filter by", "Filter by", "Filter by"]);
+    expect([...empty.echoed].sort()).toEqual([
       "The elements of this list have no status.",
+      "The metamodel has no types.",
       "The workspace has no saved filters.",
     ]);
     const failing = setup([list], {
@@ -851,11 +861,15 @@ describe("list actions", () => {
       "element.facets": new Error("The facets failed"),
       "filter.list": new Error("No filters"),
     });
-    action("filter-type").run(failing.context);
-    action("filter-status").run(failing.context);
-    action("filter-saved").run(failing.context);
+    for (const kind of ["Type", "Status", "Saved filter"]) {
+      filterBy(failing.context, failing.asked, kind);
+    }
     await flush();
-    expect(failing.echoed).toEqual(["The metamodel is not valid", "The facets failed", "No filters"]);
+    expect([...failing.echoed].sort()).toEqual([
+      "No filters",
+      "The facets failed",
+      "The metamodel is not valid",
+    ]);
   });
 
   it("clears the filter and keeps the sort", () => {
@@ -1112,17 +1126,13 @@ describe("list actions", () => {
       const onPage = setup([element, list], {}, true, { element: page }).context;
       expect(action("sort").available(onPage)).toBe(true);
       expect(titles(onPage)).toContain("Sort list");
-      for (const id of ["filter-type", "filter-status", "filter-property", "filter-text", "filter-saved"]) {
-        expect(action(id).available(onPage)).toBe(true);
-      }
+      expect(action("filter").available(onPage)).toBe(true);
       // Nothing to clear before a filter is chosen.
       expect(action("clear-filter").available(onPage)).toBe(false);
       expect(action("clear-filters").available(onPage)).toBe(false);
       const other = { ...page, members: false };
       expect(action("sort").available(setup([element], {}, true, { element: other }).context)).toBe(false);
-      expect(action("filter-status").available(setup([element], {}, true, { element: other }).context)).toBe(
-        false,
-      );
+      expect(action("filter").available(setup([element], {}, true, { element: other }).context)).toBe(false);
       expect(action("sort").available(setup([element]).context)).toBe(false);
       // The controls of an element that is no longer shown do not make a search a package page.
       expect(
@@ -1131,25 +1141,34 @@ describe("list actions", () => {
     });
 
     it("[SR-112/AK-vv6f] a filter on a package page narrows its elements step by step and keeps the element buffer", async () => {
-      const first = setup([element], { "element.facets": { statuses: [{ key: "draft", count: 2 }] } }, true, {
-        element: page,
-      });
-      action("filter-status").run(first.context);
+      const metamodel = { statuses: [] };
+      const first = setup(
+        [element],
+        { "element.facets": { statuses: [{ key: "draft", count: 2 }] }, "metamodel.get": metamodel },
+        true,
+        { element: page },
+      );
+      filterBy(first.context, first.asked, "Status");
       await flush();
       // The values are those of the package's elements.
       expect(first.call).toHaveBeenCalledWith("element.facets", { selection: { where: { package: "u1" } } });
-      first.asked[0]?.items[0]?.run();
+      first.asked[1]?.items[0]?.run();
       const once = { ...element, memberSteps: [statusStep("draft")], memberCursor: 0 };
       expect(first.dispatched).toEqual([{ type: "open", buffer: once }]);
       // A second step: the facets of the package and the first step together; the sort stays.
       const sorted = { ...once, memberSort: [{ by: "title" as const, order: "asc" as const }] };
-      const second = setup([sorted], { "element.facets": { statuses: [] } }, true, { element: page });
-      action("filter-text").run(second.context);
-      second.asked[0]?.text?.("wind");
+      const second = setup(
+        [sorted],
+        { "element.facets": { statuses: [] }, "metamodel.get": metamodel },
+        true,
+        { element: page },
+      );
+      filterBy(second.context, second.asked, "Text search");
+      second.asked[1]?.text?.("wind");
       expect(second.dispatched).toEqual([
         { type: "open", buffer: { ...sorted, memberSteps: [statusStep("draft"), textStep("wind")] } },
       ]);
-      action("filter-status").run(second.context);
+      filterBy(second.context, second.asked, "Status");
       await flush();
       expect(second.call).toHaveBeenCalledWith("element.facets", {
         selection: { where: { all: [{ package: "u1" }, { status: ["draft"] }] } },
@@ -1213,16 +1232,7 @@ describe("list actions", () => {
 
   it("do nothing when the shown buffer is no list", async () => {
     const { context, asked, dispatched, echoed, call } = setup([element]);
-    for (const id of [
-      "filter-type",
-      "filter-status",
-      "filter-property",
-      "filter-text",
-      "filter-saved",
-      "clear-filter",
-      "clear-filters",
-      "sort",
-    ]) {
+    for (const id of ["filter", "clear-filter", "clear-filters", "sort"]) {
       expect(action(id).available(context)).toBe(false);
       action(id).run(context);
     }

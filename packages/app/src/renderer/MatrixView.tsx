@@ -18,7 +18,8 @@ import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
-import { relationLabel } from "./element-view.js";
+import { refIdParts } from "./id-title.js";
+import { IdTitle } from "./IdTitle.js";
 import {
   cellGaps,
   columnCount,
@@ -111,7 +112,7 @@ const Link = ({
       onClick={onChoose}
       onContextMenu={onSelect}
     >
-      {relationLabel(relation)}
+      <IdTitle parts={refIdParts(relation)} />
     </span>
     {relation.targetState === "available" ? null : <span className="state"> {relation.targetState}</span>}
     {relation.outdated === true ? <span className="outdated"> {OUTDATED_WORD}</span> : null}

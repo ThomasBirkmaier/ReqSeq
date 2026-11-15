@@ -62,6 +62,17 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
+    name: 'the input "Save list as saved filter" gives: the conditions of the filter steps in their order under all and the chosen sort, the same file by every access (SR-219 AK9)',
+    tag: "[SR-219/AK-kj5g]",
+    fixture: SAVED,
+    input: {
+      name: "Measured drafts",
+      where: { all: [{ type: ["system-requirement"] }, { text: "measure" }, { status: ["draft"] }] },
+      sort: [{ by: "title", order: "desc" }],
+    },
+    expect: "output",
+  },
+  {
     name: "a condition that is wrong",
     fixture: SAVED,
     input: { name: "Wrong", where: { package: "SR-0000b1" } },

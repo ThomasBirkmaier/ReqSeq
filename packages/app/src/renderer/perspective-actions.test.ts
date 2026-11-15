@@ -1,5 +1,5 @@
-// "Open perspective" (SR-214 AK1–AK4, SR-213 AK6–AK8), "Save list as perspective" (SR-214 AK5) and the
-// perspective buffer: the prompts, the opening with its check, saving, "modified" (AK6) and the list
+// "Open perspective" (SR-214 AK1–AK4, SR-213 AK6–AK8), "Save list as perspective" (SR-214 AK5), "Save list
+// as saved filter" (SR-219 AK8) and the perspective buffer: the prompts, the opening with its check, saving, "modified" (AK6) and the list
 // actions on the buffer. The actions run against a context that records what
 // they dispatch, ask and echo.
 import { describe, expect, it, vi } from "vitest";
@@ -31,13 +31,17 @@ import type { FilterCondition } from "@reqseq/core";
 import { LIST_MENU } from "./list-menu.js";
 import { bufferView } from "./modeline.js";
 import {
+  GROUPING_NOT_SAVED,
   NONE,
   OPEN_PERSPECTIVE,
   SAVE_PERSPECTIVE,
+  SAVE_SAVED_FILTER,
   openPerspective,
   perspectiveInput,
   perspectiveWhere,
+  saveSavedFilter,
   savePerspective,
+  savedFilterInput,
 } from "./perspective-actions.js";
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -343,7 +347,9 @@ describe("the list actions on a perspective buffer", () => {
     expect(action("clear-filters").available(context)).toBe(false);
     expect(action("clear-filter").available(context)).toBe(false);
     // The saved filter of the perspective is its one saved filter (SR-101).
-    expect(action("filter-saved").available(context)).toBe(false);
+    const kinds: Prompt[] = [];
+    action("filter").run({ ...context, ask: (prompt) => kinds.push(prompt) });
+    expect(kinds[0]?.items.map((item) => item.name)).not.toContain("Saved filter");
     // In the matrix the grouping it keeps is not offered to ungroup.
     const matrix = start({}, [withMatrix(opened(), true)]);
     expect(action("ungroup").available(matrix.context)).toBe(false);
@@ -364,7 +370,7 @@ describe("the list actions on a perspective buffer", () => {
       [faulty],
     );
     // Neither the matrix, a filter, a sort nor a grouping: they would act on every element.
-    for (const id of ["matrix", "filter-type", "filter-text", "sort", "group", "clear-filters"]) {
+    for (const id of ["matrix", "filter", "sort", "group", "clear-filters"]) {
       expect(action(id).available(context)).toBe(false);
     }
     // Opening it again replaces it with the perspective as saved.
@@ -570,6 +576,145 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     await savePerspective(gone.context, list, "X");
     expect(gone.echoed).toEqual(["No perspective is named X"]);
     expect(gone.buffers().map((buffer) => buffer.key)).toEqual([LIST_KEY]);
+  });
+});
+
+describe("Save list as saved filter (SR-219 AK8)", () => {
+  const filters = (names: string[]) => () =>
+    ok({ filters: names.map((name) => ({ name, file: `filters/${name}.yaml`, where: { all: [] } })) });
+
+  it("[SR-219/AK-zznw] is offered on a list, not on the hits of a search, a package page, the matrix, nor a list whose selection names a saved filter", () => {
+    const offered = (shown: Buffers, more: Partial<ActionContext> = {}): boolean =>
+      action(SAVE_SAVED_FILTER).available({ ...start({}, shown).context, ...more });
+    expect(offered([listBuffer("All elements")])).toBe(true);
+    expect(offered([perspectiveBuffer({ name: "Plain", saved: { where: { type: ["need"] } } })])).toBe(true);
+    expect(offered([searchBuffer("rain")])).toBe(false);
+    expect(offered([elementBuffer("p1", "main", "PKG-1 Sensors")])).toBe(false);
+    expect(offered([withMatrix(listBuffer("All elements"), true)])).toBe(false);
+    expect(offered([withQuery(listBuffer("All elements"), { steps: [savedStep("Sensors")] })])).toBe(false);
+    // A perspective that names a saved filter.
+    expect(offered([perspectiveBuffer({ name: "Drafts", saved: SAVED })])).toBe(false);
+    expect(offered([perspectiveBuffer({ name: "Broken", error: "faulty" })])).toBe(false);
+    expect(offered([listBuffer("All elements")], { readOnly: true })).toBe(false);
+    const shown = start({}, [searchBuffer("rain")]);
+    action(SAVE_SAVED_FILTER).run(shown.context);
+    expect(shown.call).not.toHaveBeenCalled();
+  });
+
+  it("[SR-219/AK-zznw] asks only for the name, shows the saved filters, says which one the name replaces and, on a grouped list, that the grouping is not saved", async () => {
+    const grouped = withQuery(listBuffer("All elements"), { steps: [typeStep("need")], group: "status" });
+    const { context, asked } = start({ "filter.list": filters(["Sensors", "Drafts"]) }, [grouped]);
+    action(SAVE_SAVED_FILTER).run(context);
+    await flush();
+    const prompt = asked.at(-1);
+    expect(prompt?.label).toBe("Saved filter name");
+    expect(prompt?.initial).toBeUndefined();
+    expect(prompt?.preview).toBe(true);
+    expect(rows(asked)).toEqual(["Sensors", "Drafts"]);
+    expect(prompt?.explain?.more).toBe(false);
+    expect(prompt?.explain?.note?.("new")).toBe(GROUPING_NOT_SAVED);
+    expect(prompt?.explain?.note?.(" sensors ")).toBe(
+      `Replaces the saved filter Sensors · ${GROUPING_NOT_SAVED}`,
+    );
+  });
+
+  it("[SR-219/AK-zznw] on a list without grouping the line says only what the name replaces; without the names nothing is asked", async () => {
+    const plain = start({ "filter.list": filters(["Sensors"]) });
+    action(SAVE_SAVED_FILTER).run(plain.context);
+    await flush();
+    expect(plain.asked.at(-1)?.explain?.note?.("new")).toBeUndefined();
+    expect(plain.asked.at(-1)?.explain?.note?.("SENSORS")).toBe("Replaces the saved filter Sensors");
+    // Without the list of names, core's message is said and nothing is asked.
+    const failed = start({});
+    action(SAVE_SAVED_FILTER).run(failed.context);
+    await flush();
+    expect(failed.echoed).toEqual(["filter.list failed"]);
+    expect(failed.asked).toHaveLength(0);
+  });
+
+  it("[SR-219/AK-zznw] saves the conditions of the steps in their order under all, the sort only when chosen or saved with the perspective, and no view", () => {
+    const steps = [typeStep("need"), textStep("rain"), statusStep("draft")];
+    const unsorted = withQuery(listBuffer("All elements"), { steps, group: "status" });
+    // No sort chosen: none is written, not the default the list is shown in.
+    expect(listSort(unsorted)).toEqual(DEFAULT_SORT);
+    expect(savedFilterInput(unsorted, "Rain")).toEqual({
+      name: "Rain",
+      where: { all: [{ type: ["need"] }, { text: "rain" }, { status: ["draft"] }] },
+    });
+    expect(savedFilterInput(listBuffer("All elements"), "All")).toEqual({ name: "All", where: { all: [] } });
+    // Chosen with "Sort list", also the workspace order.
+    const sorted = withQuery(unsorted, { sort: [{ by: "title", order: "desc" }] });
+    expect(savedFilterInput(sorted, "Rain").sort).toEqual([{ by: "title", order: "desc" }]);
+    expect(savedFilterInput(withQuery(unsorted, { sort: [] }), "Rain").sort).toEqual([]);
+    // Saved with the perspective of the list: its sort, its stored conditions as parts, then the new steps.
+    const own = perspectiveBuffer({
+      name: "Needs",
+      saved: {
+        where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
+        sort: [{ by: "title", order: "asc" }],
+      },
+    });
+    expect(savedFilterInput(own, "Needs")).toEqual({
+      name: "Needs",
+      where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
+      sort: [{ by: "title", order: "asc" }],
+    });
+    expect(savedFilterInput(withQuery(own, { steps: [...own.steps, textStep("x")] }), "Needs").where).toEqual(
+      {
+        all: [{ type: ["need"] }, { status: ["draft"] }, { text: "x" }],
+      },
+    );
+    // A bare stored condition is under all too.
+    const bare = perspectiveBuffer({ name: "Bare", saved: { where: { not: { status: ["draft"] } } } });
+    expect(savedFilterInput(bare, "Bare")).toEqual({
+      name: "Bare",
+      where: { all: [{ not: { status: ["draft"] } }] },
+    });
+  });
+
+  it("[SR-219/AK-zznw] writes through filter.save, says Saved filter <name>, and the list stays as it is", async () => {
+    const list = {
+      ...withQuery(listBuffer("All elements"), { steps: [statusStep("draft")], group: "type" }),
+      cursor: 2,
+    };
+    const { context, call, asked, echoed, buffers } = start(
+      { "filter.list": filters([]), "filter.save": () => ok({ files: ["filters/drafts.yaml"] }) },
+      [list],
+    );
+    action(SAVE_SAVED_FILTER).run(context);
+    await flush();
+    asked.at(-1)?.text?.("  Drafts ");
+    await flush();
+    expect(call).toHaveBeenCalledWith("filter.save", {
+      name: "Drafts",
+      where: { all: [{ status: ["draft"] }] },
+    });
+    expect(echoed).toEqual(["Saved filter Drafts"]);
+    expect(buffers()).toEqual([list]);
+    // An empty name saves nothing.
+    asked.at(-1)?.text?.(" ");
+    await flush();
+    expect(call.mock.calls.filter(([name]) => name === "filter.save")).toHaveLength(1);
+    // Core's refusal is said, and the list stays.
+    const refused = start(
+      { "filter.save": () => ({ ok: false, code: "x", message: "the name is not allowed" }) },
+      [list],
+    );
+    await saveSavedFilter(refused.context, list, "X");
+    expect(refused.echoed).toEqual(["the name is not allowed"]);
+    expect(refused.buffers()).toEqual([list]);
+  });
+
+  it("a saved filter chosen among the hits is saved under its name", async () => {
+    const { context, call, asked } = start(
+      { "filter.list": filters(["Sensors"]), "filter.save": () => ok({ files: [] }) },
+      [listBuffer("All elements")],
+    );
+    action(SAVE_SAVED_FILTER).run(context);
+    await flush();
+    asked.at(-1)?.items[0]?.run();
+    await flush();
+    expect(call).toHaveBeenCalledWith("filter.save", { name: "Sensors", where: { all: [] } });
   });
 });
 

@@ -1,10 +1,17 @@
-// Cascading list filters (SR-124, ThomasBirkmaier/ReqSeq-archive#425) on the built app: each "Filter list by ..." narrows the list
+// Cascading list filters (SR-124, ThomasBirkmaier/ReqSeq-archive#425) on the built app: each "Filter list" narrows the list
 // the one before gave, and what the list shows is compared with what the CLI gives for the same
 // selection (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll, modifier } from "./support/app.js";
+
+const SHOTS =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const P = "69069069-0000-4000-8000-0000000000";
 /** The filter fixture plus two more draft requirements in the package Sensors, on the topics Timing and Wind, so that the topics are shared and the last step narrows. */
@@ -37,6 +44,12 @@ const answer = async (window: Page, label: string, text: string): Promise<void> 
   await window.keyboard.press("Enter");
 };
 
+/** "Filter list" with the kind `kind` (SR-124 AK5). */
+const filterList = async (window: Page, kind: string): Promise<void> => {
+  await runCommand(window, "Filter list");
+  await answer(window, "Filter by", kind);
+};
+
 const listedBy = async (running: RunningApp, where: unknown): Promise<Listed> => {
   const result = await running.cli([
     "element",
@@ -56,24 +69,25 @@ const TOPIC = { property: "topic", op: "eq", value: "Timing" };
 test.describe("cascading list filters on a fixture workspace", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
-    running = await launchApp(FIXTURE);
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
     await listAll(running.window);
   });
   test.afterEach(async () => {
     await running.close();
   });
 
-  /** Package, type, status and property by keyboard (the example of SR-124 AK1); "Filter list by property" is typed as its initials. */
+  /** Package, type, status and property by keyboard (the example of SR-124 AK1); "Filter list" is typed as its initials once. */
   const cascade = async (): Promise<void> => {
     const { window } = running;
-    await runCommand(window, "flp");
+    await runCommand(window, "fl");
+    await answer(window, "Filter by", "Property");
     await answer(window, "Property", "Package");
     await answer(window, "Package", "Sensors");
-    await runCommand(window, "filter list by type");
-    await answer(window, "Type", "system-requirement");
-    await runCommand(window, "filter list by status");
+    await filterList(window, "Type");
+    await answer(window, "Type", "System Requirement");
+    await filterList(window, "Status");
     await answer(window, "Status", "draft");
-    await runCommand(window, "flp");
+    await filterList(window, "Property");
     await answer(window, "Property", "Topic");
     await answer(window, "Topic", "Timing");
   };
@@ -101,27 +115,27 @@ test.describe("cascading list filters on a fixture workspace", () => {
     expect(listed.total).toBeGreaterThan(2);
   });
 
-  test("[SR-124/AK-hxcz] the property prompt offers topic, not the acceptance criteria", async () => {
+  test("[SR-124/AK-hxcz] the property prompt offers topic, not the acceptance criteria nor the status", async () => {
     const { window } = running;
-    await runCommand(window, "filter list by type");
-    await answer(window, "Type", "system-requirement");
-    await runCommand(window, "flp");
+    await filterList(window, "Type");
+    await answer(window, "Type", "System Requirement");
+    await filterList(window, "Property");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
     const names = await window.locator('.candidates [role="option"] .name').allTextContents();
-    // By display name, as the metamodel names them.
+    // By display name, as the metamodel names them; the status is a kind of its own (SR-124 AK2).
     expect(names).toContain("Topic");
-    expect(names).toContain("Status");
+    expect(names).not.toContain("Status");
     expect(names).toContain("Requirement Type");
     expect(names).not.toContain("Acceptance Criteria");
     expect(names).not.toContain("Title");
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-124/AK-mch4] filter list by text search narrows the current list", async () => {
+  test("[SR-124/AK-mch4] a text search narrows the current list", async () => {
     const { window } = running;
-    await runCommand(window, "filter list by type");
-    await answer(window, "Type", "system-requirement");
-    await runCommand(window, "filter list by text search");
+    await filterList(window, "Type");
+    await answer(window, "Type", "System Requirement");
+    await filterList(window, "Text search");
     await answer(window, "Text", "icing");
     const result = await running.cli([
       "element",
@@ -133,5 +147,47 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await expect(window.getByLabel("Modeline")).toContainText("type: system-requirement · text: icing");
     expect(await rowTitles(window)).toEqual(listed.elements.map((e) => e.title));
     expect(listed.elements.map((e) => e.title)).toContain("Survive icing");
+  });
+
+  test("[SR-124/AK-zmfp] [SR-124/AK-y24h] Filter list asks the kind first, one value adds one step, and Escape goes back a step", async () => {
+    const { window } = running;
+    const label = window.getByLabel("Minibuffer").locator("label");
+    const names = window.locator('.candidates [role="option"] .name');
+    await runCommand(window, "Filter list");
+    await expect(label).toHaveText("Filter by");
+    await expect(names).toHaveText([
+      "Type",
+      "Status",
+      "Property",
+      "Verification status",
+      "Validation status",
+      "Validity",
+      "Relation",
+      "Text search",
+      "Saved filter",
+    ]);
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-124-filter-kinds-light.png") });
+    // Escape: from the values to the kind, from the kind to the command list it was chosen in.
+    await answer(window, "Filter by", "Status");
+    await expect(label).toHaveText("Status");
+    await expect(names).toHaveText(["Draft", "Approved", "Obsolete"]);
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveText("Filter by");
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveText("Command");
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveCount(0);
+    await expect(window.getByLabel("Modeline")).toContainText("All elements");
+    // By Ctrl/Cmd+K F: one value, one step more, labelled with kind and value.
+    await window.keyboard.press(`${await modifier(window)}+K`);
+    await window.keyboard.press("f");
+    await answer(window, "Filter by", "Status");
+    await answer(window, "Status", "Draft");
+    await expect(window.getByLabel("Modeline")).toContainText("status: draft");
+    await expect(label).toHaveCount(0);
+    const listed = await listedBy(running, STATUS);
+    expect(await rowTitles(window)).toEqual(listed.elements.map((e) => e.title));
+    await window.screenshot({ path: path.join(SHOTS, "sr-124-filter-step-light.png") });
   });
 });

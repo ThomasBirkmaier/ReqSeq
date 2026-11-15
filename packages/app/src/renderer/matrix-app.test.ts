@@ -227,7 +227,9 @@ describe("the matrix in the app", () => {
     const fake = await open();
     await runCommand("List all elements");
     await keyDown(window, "t", { ctrlKey: true });
-    await runCommand("Filter list by status");
+    await runCommand("Filter list");
+    await type("Status");
+    await keyDown(query("input"), "Enter");
     await keyDown(query("input"), "Enter");
     expect(container.querySelector("table")).not.toBeNull();
     expect(modeline()).toContain("status: draft · matrix");

@@ -33,7 +33,7 @@ export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
   { key: "l", id: "list-all" },
   { key: "v", id: "open-perspective" },
   { key: "o", id: "overview" },
-  { key: "f", id: "filter-type" },
+  { key: "f", id: "filter" },
   { key: "s", id: "sort" },
   { key: "b", id: "close" },
 ];

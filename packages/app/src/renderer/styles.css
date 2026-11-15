@@ -1883,7 +1883,10 @@ mark {
   outline-offset: -1px;
 }
 
-.matrix .id {
+/* A short ID next to a title (#1758): in the first column and the relation cells of the matrix and in the
+   relation links of an element buffer, as in the rows of a list. */
+.matrix .id,
+.element .relation .id {
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;

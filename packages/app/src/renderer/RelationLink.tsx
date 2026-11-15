@@ -7,6 +7,7 @@ import { elementBuffer } from "./buffers.js";
 import type { RelationRow } from "./element-view.js";
 import { relationGroups, rowOfRelation } from "./element-view.js";
 import { FieldBox } from "./FieldBox.js";
+import { IdTitle } from "./IdTitle.js";
 
 export interface RelationLinkProps {
   readonly row: RelationRow;
@@ -38,11 +39,14 @@ export const RelationLink = ({ row, onOpenRelation }: RelationLinkProps): React.
             }
           }}
         >
-          {row.label}
+          <IdTitle parts={row.parts} />
         </span>
       ) : (
         <>
-          <span>{row.label}</span> <span className="state">{row.state}</span>
+          <span>
+            <IdTitle parts={row.parts} />
+          </span>{" "}
+          <span className="state">{row.state}</span>
         </>
       )}
       {row.outdated === undefined ? null : (
