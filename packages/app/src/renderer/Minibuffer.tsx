@@ -1102,7 +1102,7 @@ const PromptLine = ({
 
   // The modifier of the shortcuts: Cmd only under macOS (`matches`).
   const mac = isMac(navigator.platform);
-  // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one argument back, catalog commands); never
+  // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one step back); never
   // "Follow reference". Whether the key was taken.
   const argumentKey = (event: React.KeyboardEvent): boolean => {
     if (matches(event, MORE_SHORTCUT, mac)) {
@@ -1115,9 +1115,10 @@ const PromptLine = ({
       return false;
     }
     event.stopPropagation();
-    // The last mark goes first, where the step removes one (SR-215 AK9, SR-134 AK4).
+    // The last mark goes first, where the step removes one (SR-215 AK9), else one step back as Escape goes, in a
+    // catalog command (`back`) and in a later prompt of an app action (`previous`, SR-134 AK4).
     const mark = prompt.unmark === true ? prompt.marks?.at(-1) : undefined;
-    const back = mark === undefined ? prompt.back : mark.remove;
+    const back = mark === undefined ? (prompt.back ?? prompt.previous) : mark.remove;
     if (back !== undefined) {
       event.preventDefault();
       // As Escape: a prompt that waited for an answer is told it got none.

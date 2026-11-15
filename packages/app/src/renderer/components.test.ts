@@ -532,15 +532,22 @@ describe("Minibuffer", () => {
       expect(refines.run).not.toHaveBeenCalled();
     });
 
-    it("[SR-134/AK-trng] goes back to the prompt an action asked before on Escape, not on Backspace", async () => {
+    it("[SR-134/AK-trng] [SR-134/AK-fmf6] goes back to the prompt an action asked before on Escape, and on Backspace in an empty input", async () => {
       const previous = vi.fn();
       const { closed } = await mount({ label: "Text", items: [], text: vi.fn(), previous });
-      await press(input(), "Backspace");
-      expect(previous).not.toHaveBeenCalled();
-      expect(closed).not.toHaveBeenCalled();
       await press(input(), "Escape");
       expect(closed).toHaveBeenCalledWith(false);
       expect(previous).toHaveBeenCalledTimes(1);
+      const again = vi.fn();
+      const typed = await mount({ label: "Text", items: [], text: vi.fn(), previous: again });
+      await type(input(), "a");
+      await press(input(), "Backspace");
+      expect(again).not.toHaveBeenCalled();
+      expect(typed.closed).not.toHaveBeenCalled();
+      await type(input(), "");
+      await press(input(), "Backspace");
+      expect(again).toHaveBeenCalledTimes(1);
+      expect(typed.closed).toHaveBeenCalledWith(false);
     });
 
     it("takes the selected candidate, else the typed text, with Ctrl/Cmd+Enter for the optional arguments", async () => {
