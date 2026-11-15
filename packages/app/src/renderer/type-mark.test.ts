@@ -96,6 +96,9 @@ describe("the type mark (SR-215 AK5)", () => {
   it("says why the types cannot be read", async () => {
     const { asked, ask } = step(new Error("The metamodel is faulty"), { keys: ["need"] });
     askTypes(ask);
-    expect((await asked[0]?.fill)?.label).toBe("The metamodel is faulty · Type:");
+    const failed = await asked[0]?.fill;
+    expect(failed?.label).toBe("The metamodel is faulty · Type:");
+    // The mark can still be taken.
+    expect(failed?.items?.map((choice) => choice.name)).toEqual(["Take 1 type"]);
   });
 });

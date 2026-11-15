@@ -112,7 +112,7 @@ export const askTypes = (step: TypeAsk): void => {
                 })),
             ],
           }
-        : { label: `${answer.message} · ${step.label}` },
+        : { label: `${answer.message} · ${step.label}`, items: take },
     ),
   });
 };
