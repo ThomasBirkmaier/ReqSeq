@@ -88,6 +88,9 @@ test.describe("lists in the quiet column", () => {
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Type");
     await window.keyboard.type("System Requirement");
     await window.keyboard.press("Enter");
+    // "Take 1 type" adds the step (SR-124 AK7).
+    await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Take 1 type");
+    await window.keyboard.press("Enter");
     await expect(shownBuffer(window).locator("h1")).toHaveText(/^type: system-requirement \d+$/);
     const filtered = await column(window);
     await window.keyboard.press("ControlOrMeta+Shift+F");

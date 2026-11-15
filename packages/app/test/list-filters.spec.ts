@@ -44,6 +44,15 @@ const answer = async (window: Page, label: string, text: string): Promise<void> 
   await window.keyboard.press("Enter");
 };
 
+const marked = (window: Page) => window.locator('.candidates [aria-selected="true"] .name');
+const marks = (window: Page) => window.getByRole("list", { name: "Marks" }).getByRole("listitem");
+
+/** Takes the type mark with "Take <n> types", the first hit once one is chosen (SR-124 AK7). */
+const takeTypes = async (window: Page, name: string): Promise<void> => {
+  await expect(marked(window)).toHaveText(name);
+  await window.keyboard.press("Enter");
+};
+
 /** "Filter list" with the kind `kind` (SR-124 AK5). */
 const filterList = async (window: Page, kind: string): Promise<void> => {
   await runCommand(window, "Filter list");
@@ -85,6 +94,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await answer(window, "Package", "Sensors");
     await filterList(window, "Type");
     await answer(window, "Type", "System Requirement");
+    await takeTypes(window, "Take 1 type");
     await filterList(window, "Status");
     await answer(window, "Status", "draft");
     await filterList(window, "Property");
@@ -119,6 +129,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     const { window } = running;
     await filterList(window, "Type");
     await answer(window, "Type", "System Requirement");
+    await takeTypes(window, "Take 1 type");
     await filterList(window, "Property");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
     const names = await window.locator('.candidates [role="option"] .name').allTextContents();
@@ -135,6 +146,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
     const { window } = running;
     await filterList(window, "Type");
     await answer(window, "Type", "System Requirement");
+    await takeTypes(window, "Take 1 type");
     await filterList(window, "Text search");
     await answer(window, "Text", "icing");
     const result = await running.cli([
@@ -189,5 +201,61 @@ test.describe("cascading list filters on a fixture workspace", () => {
     const listed = await listedBy(running, STATUS);
     expect(await rowTitles(window)).toEqual(listed.elements.map((e) => e.title));
     await window.screenshot({ path: path.join(SHOTS, "sr-124-filter-step-light.png") });
+  });
+
+  test("[SR-124/AK-qcw4] Filter list takes several types into one mark and adds one step of the types, the list of the CLI", async () => {
+    const { window } = running;
+    const label = window.getByLabel("Minibuffer").locator("label");
+    const names = window.locator('.candidates [role="option"] .name');
+    const before = await rowTitles(window);
+    await filterList(window, "Type");
+    await expect(label).toHaveText("Type");
+    // Without a mark the hits are the types alone.
+    await expect(names.filter({ hasText: /^Take / })).toHaveCount(0);
+    await answer(window, "Type", "Need");
+    await expect(label).toHaveText("Type");
+    await expect(marks(window)).toHaveText(["type: need×"]);
+    await expect(marked(window)).toHaveText("Take 1 type");
+    await answer(window, "Type", "Decision");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await expect(marked(window)).toHaveText("Take 2 types");
+    await expect(names.filter({ hasText: /^(Need|Decision)$/ })).toHaveCount(0);
+    // Escape and Backspace go back to the kinds with the mark; the list stays as it is.
+    await window.keyboard.press("Escape");
+    await expect(label).toHaveText("Filter by");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-124-filter-type-mark-light.png") });
+    expect(await rowTitles(window)).toEqual(before);
+    await answer(window, "Filter by", "Type");
+    await expect(marked(window)).toHaveText("Take 2 types");
+    await window.keyboard.press("Backspace");
+    await expect(label).toHaveText("Filter by");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await answer(window, "Filter by", "Type");
+    await takeTypes(window, "Take 2 types");
+    await expect(label).toHaveCount(0);
+    await expect(window.getByLabel("Modeline")).toContainText("type: need, decision");
+    const listed = await listedBy(running, { type: ["need", "decision"] });
+    expect(listed.total).toBe(3);
+    expect(await rowTitles(window)).toEqual(listed.elements.map((e) => e.title));
+    await window.screenshot({ path: path.join(SHOTS, "sr-124-filter-types-step-light.png") });
+  });
+
+  test("[SR-215/AK-rx2z] in Filter list, Backspace at the kinds removes the type mark, and a value of another kind adds only its step", async () => {
+    const { window } = running;
+    await filterList(window, "Type");
+    await answer(window, "Type", "Need");
+    await window.keyboard.press("Escape");
+    await expect(marks(window)).toHaveText(["type: need×"]);
+    await window.keyboard.press("Backspace");
+    await expect(marks(window)).toHaveCount(0);
+    await answer(window, "Filter by", "Type");
+    await answer(window, "Type", "Need");
+    await window.keyboard.press("Escape");
+    await answer(window, "Filter by", "Status");
+    await answer(window, "Status", "Draft");
+    await expect(window.getByLabel("Modeline")).toContainText("status: draft");
+    await expect(window.getByLabel("Modeline")).not.toContainText("type:");
   });
 });

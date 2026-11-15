@@ -204,6 +204,11 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(running.window.getByLabel("Minibuffer").locator("label")).toHaveText("Type");
     await running.window.keyboard.type("need");
     await running.window.keyboard.press("Enter");
+    // "Take 1 type" adds the step (SR-124 AK7).
+    await expect(running.window.locator('.candidates [aria-selected="true"] .name')).toHaveText(
+      "Take 1 type",
+    );
+    await running.window.keyboard.press("Enter");
     const listed = await cliJson<Listed>(running, [
       "element",
       "list",

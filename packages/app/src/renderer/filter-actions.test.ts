@@ -127,23 +127,32 @@ const start = (list: ListBuffer | SearchBuffer, answers: Record<string, unknown>
     }
     item.run();
   };
-  const pick = (prompt: Prompt | undefined, name: string): void => {
-    const item = prompt?.items.find((candidate) => candidate.name === name);
+  /** The prompt with its parts filled in, as the command prompt shows them once they are read. */
+  const filled = async (prompt: Prompt | undefined): Promise<Prompt> => {
+    if (prompt === undefined) {
+      throw new Error("nothing asked");
+    }
+    return { ...prompt, ...(await prompt.fill) };
+  };
+  const pick = async (prompt: Prompt | undefined, name: string): Promise<void> => {
+    const shownPrompt = await filled(prompt);
+    const item = shownPrompt.items.find((candidate) => candidate.name === name);
     if (item === undefined) {
-      throw new Error(`no choice ${name} in ${prompt?.label ?? "no prompt"}`);
+      throw new Error(`no choice ${name} in ${shownPrompt.label}`);
     }
     item.run();
+    await flush();
   };
   /** "Filter list": the kind, then each value in the prompt asked after the one before. */
   const filter = async (kind: string, ...values: string[]): Promise<void> => {
-    pick(await run("filter"), kind);
+    await pick(await run("filter"), kind);
     await flush();
     for (const value of values) {
-      pick(asked.at(-1), value);
+      await pick(asked.at(-1), value);
       await flush();
     }
   };
-  return { context, shown, asked, echoed, call, run, choose, filter };
+  return { context, shown, asked, echoed, call, run, choose, filter, filled, pick };
 };
 
 const titles = (context: ActionContext): string[] => commandPrompt(context).items.map((item) => item.name);
@@ -154,7 +163,7 @@ describe("cascading list filters (SR-124)", () => {
       "metamodel.get": METAMODEL,
       "element.facets": FACETS,
     });
-    await filter("Type", "System Requirement");
+    await filter("Type", "System Requirement", "Take 1 type");
     await filter("Status", "draft");
     expect(call).toHaveBeenLastCalledWith("metamodel.get", {});
     expect(call).toHaveBeenCalledWith("element.facets", {
@@ -350,6 +359,107 @@ describe("cascading list filters (SR-124)", () => {
     runAction(action, context);
     expect(last().label).toBe("Filter by");
     expect(last().previous).toBeUndefined();
+  });
+
+  /** "Filter list" run as from the command list (`runAction`), with the last prompt filled in. */
+  const types = () => {
+    const started = start(filteredList([statusStep("draft")]), {
+      "element.facets": FACETS,
+      "metamodel.get": {
+        ...METAMODEL,
+        types: [
+          { key: "need", name: "Need" },
+          { key: "decision", name: "Decision" },
+          { key: "system-requirement", name: "System Requirement" },
+        ],
+      },
+    });
+    const action = ACTIONS.find((candidate) => candidate.id === "filter");
+    if (action === undefined) {
+      throw new Error("no action filter");
+    }
+    const commandList = vi.fn();
+    runAction(action, started.context, commandList);
+    const last = (): Promise<Prompt> => started.filled(started.asked.at(-1));
+    const names = async (): Promise<string[]> => (await last()).items.map((item) => item.name);
+    const marks = async (): Promise<string[]> => ((await last()).marks ?? []).map((mark) => mark.label);
+    return { ...started, commandList, last, names, marks };
+  };
+
+  it("[SR-124/AK-qcw4] types go into one mark and the step stays; Take N types adds one step type: <keys>", async () => {
+    const { context, last, names, marks, pick, shown } = types();
+    await pick(await last(), "Type");
+    expect((await last()).label).toBe("Type");
+    // Without a mark the hits are the types alone (AK6: no hit that finishes without a value).
+    expect(await names()).toEqual(["Need", "Decision", "System Requirement"]);
+    expect(await marks()).toEqual([]);
+    await pick(await last(), "Need");
+    expect((await last()).label).toBe("Type");
+    expect(await names()).toEqual(["Take 1 type", "Decision", "System Requirement"]);
+    expect(await marks()).toEqual(["type: need"]);
+    await pick(await last(), "Decision");
+    expect(await names()).toEqual(["Take 2 types", "System Requirement"]);
+    expect(await marks()).toEqual(["type: need, decision"]);
+    // Nothing changed the list so far.
+    expect(shown().steps).toEqual([statusStep("draft")]);
+    await pick(await last(), "Take 2 types");
+    expect(shown().steps).toEqual([
+      statusStep("draft"),
+      { label: "type: need, decision", selection: { where: { type: ["need", "decision"] } } },
+    ]);
+    expect(shown().label).toBe("status: draft · type: need, decision");
+    // "Clear list filter" takes back the whole step with all its types.
+    ACTIONS.find((candidate) => candidate.id === "clear-filter")?.run(context);
+    expect(shown().steps).toEqual([statusStep("draft")]);
+  });
+
+  it("[SR-124/AK-qcw4] Escape and Backspace go back to the kinds with the mark; it stays until Filter list ends", async () => {
+    const { last, names, marks, pick, shown, commandList } = types();
+    await pick(await last(), "Type");
+    await pick(await last(), "Need");
+    // Escape and Backspace on an empty input: back to the kinds, the mark kept.
+    (await last()).back?.();
+    expect((await last()).label).toBe("Filter by");
+    expect(await marks()).toEqual(["type: need"]);
+    expect(shown().steps).toEqual([statusStep("draft")]);
+    // "Type" again continues the mark.
+    await pick(await last(), "Type");
+    expect(await names()).toEqual(["Take 1 type", "Decision", "System Requirement"]);
+    (await last()).back?.();
+    // Another kind: its values, from which Escape goes back to the kinds with the mark.
+    await pick(await last(), "Status");
+    expect((await last()).label).toBe("Status");
+    (await last()).previous?.();
+    expect((await last()).label).toBe("Filter by");
+    expect(await marks()).toEqual(["type: need"]);
+    // Escape at the kinds ends "Filter list" as in its first step: to the command list, the list as it is.
+    (await last()).previous?.();
+    expect(commandList).toHaveBeenCalledOnce();
+    expect(shown().steps).toEqual([statusStep("draft")]);
+    // A value of another kind adds its one step; the mark goes with "Filter list".
+    await pick(await last(), "Status");
+    await pick(await last(), "draft");
+    expect(shown().steps).toEqual([statusStep("draft"), statusStep("draft")]);
+  });
+
+  it("[SR-215/AK-rx2z] in Filter list, the × of the type mark and Backspace at the kinds remove it", async () => {
+    const { last, names, marks, pick } = types();
+    await pick(await last(), "Type");
+    await pick(await last(), "Need");
+    await pick(await last(), "Decision");
+    // The × in the types: they are asked again without the mark.
+    (await last()).marks?.[0]?.remove();
+    expect((await last()).label).toBe("Type");
+    expect(await marks()).toEqual([]);
+    expect(await names()).toEqual(["Need", "Decision", "System Requirement"]);
+    await pick(await last(), "Need");
+    (await last()).back?.();
+    // At the kinds Backspace on an empty input removes the last mark (`unmark`), as its × does.
+    const kinds = await last();
+    expect(kinds.unmark).toBe(true);
+    kinds.marks?.at(-1)?.remove();
+    expect((await last()).label).toBe("Filter by");
+    expect((await last()).marks).toBeUndefined();
   });
 
   it("[SR-124/AK-mch4] narrows by text search within the list: the typed query is the value; empty text does nothing", async () => {

@@ -4,7 +4,7 @@
 // the target's view does not show is not offered (a search is not sorted). Only the input of
 // `element.list` and `element.search` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { Action, ActionContext, Choice, CommandIn, Prompt } from "./actions.js";
+import type { Action, ActionContext, Choice, CommandIn, Prompt, PromptMark } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -26,13 +26,14 @@ import type { Answer, Call } from "./call.js";
 import type { Shortcut } from "./keys.js";
 import type { ConditionKind, ConditionMark, KindSource, KindValue } from "./condition-kinds.js";
 import { CONDITION_KINDS, conditionSchema } from "./condition-kinds.js";
-import { hasSavedFilter, savedStep, textStep } from "./list-filters.js";
+import { hasSavedFilter, savedStep, textStep, typesStep } from "./list-filters.js";
 import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
 import { QUERY_VIEWS, queryIn, supports } from "./list-query.js";
 import { PERSPECTIVE_ACTIONS } from "./perspective-actions.js";
 import { SAVED_FILE_ACTIONS } from "./saved-file-actions.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
+import { askTypes, typeMark } from "./type-mark.js";
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
 export const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
@@ -334,9 +335,15 @@ const valueChoices = (
 /**
  * Asks the values of `kind` and adds the step of the one chosen (SR-124 AK6); a text search takes the typed
  * words. A kind without values says so, and the list stays as it is. Escape goes back a step
- * (`steppedContext`).
+ * (`steppedContext`). `values` asks the values in place of the step of them (the types, AK7).
  */
-const askKind = (context: ActionContext, target: QueryTarget, kind: FilterKind, source: KindSource): void => {
+const askKind = (
+  context: ActionContext,
+  target: QueryTarget,
+  kind: FilterKind,
+  source: KindSource,
+  values?: () => void,
+): void => {
   const { hits } = kind;
   if (hits === undefined) {
     context.ask({
@@ -356,15 +363,99 @@ const askKind = (context: ActionContext, target: QueryTarget, kind: FilterKind, 
       context.echo(found.failed);
     } else if (found.length === 0) {
       context.echo(nothingFor(kind));
-    } else {
+    } else if (values === undefined) {
       context.ask({ label: kind.name, items: valueChoices(target, found, context.ask) });
+    } else {
+      values();
     }
   });
 };
 
+/** One run of "Filter list": the target, the kinds it offers and where their values are read. */
+interface FilterRun {
+  readonly context: ActionContext;
+  readonly target: QueryTarget;
+  readonly kinds: readonly FilterKind[];
+  readonly source: () => KindSource;
+}
+
+/** The type mark of `keys` as the prompt shows it (none while empty); its × asks `again` without it (SR-215 AK9). */
+const typeMarks = (keys: readonly string[], again: () => void): readonly PromptMark[] =>
+  keys.length === 0
+    ? []
+    : [
+        {
+          label: typeMark(keys).label,
+          remove: again,
+        },
+      ];
+
 /**
- * "Filter list" (SR-124 AK5, AK6, D-077): asks the kind first, then its values, and adds one step. "Saved
- * filter" is left out while a step or the perspective's selection has one: a selection takes one (SR-101).
+ * Asks the types into the type mark of `keys` (SR-124 AK7, SR-215 AK5): "Take <n> types" adds the one step
+ * "type: <keys>"; Escape and Backspace on an empty input go back to the kinds with the mark, and its × asks the
+ * types again without it. The list changes only with "Take <n> types".
+ */
+const askTypeStep = (run: FilterRun, keys: readonly string[]): void => {
+  askTypes({
+    ask: run.context.ask,
+    call: run.context.call,
+    label: "Type",
+    keys,
+    marks: (given) =>
+      typeMarks(given, () => {
+        askTypeStep(run, []);
+      }),
+    take: (given) => {
+      addStep(run.target, typesStep(given));
+    },
+    back: (given) => {
+      askKinds(run, given);
+    },
+  });
+};
+
+/**
+ * Asks the kind, with the type mark of `keys` while the types have one (SR-124 AK7): a value of another kind adds
+ * its one step and the mark goes; × or Backspace on an empty input removes the mark (SR-215 AK9). Escape acts
+ * as in the first step, which this is (`Prompt.restart`): the list stays as it is.
+ */
+const askKinds = (run: FilterRun, keys: readonly string[]): void => {
+  const { context, target } = run;
+  // No hint: the keys of the kinds are those of the condition in JSON, which "Filter list" does not take.
+  context.ask({
+    label: "Filter by",
+    restart: true,
+    items: run.kinds.map((kind) => ({
+      id: `kind:${kind.key}`,
+      name: kind.name,
+      run: () => {
+        if (kind.key !== "type") {
+          askKind(context, target, kind, run.source());
+        } else if (keys.length > 0) {
+          askTypeStep(run, keys);
+        } else {
+          // The first type: a metamodel without types, or one that fails, says so (AK6).
+          askKind(context, target, kind, run.source(), () => {
+            askTypeStep(run, []);
+          });
+        }
+      },
+    })),
+    ...(keys.length === 0
+      ? {}
+      : {
+          marks: typeMarks(keys, () => {
+            askKinds(run, []);
+          }),
+          unmark: true,
+        }),
+  });
+};
+
+/**
+ * "Filter list" (SR-124 AK5, AK6, AK7, D-077): asks the kind first, then its values, and adds one step; the types
+ * go into one mark first. "Saved filter" is left out while a step or the perspective's selection has one: a
+ * selection takes one (SR-101).
  */
 const FILTER_ACTION: Action = {
   id: "filter",
@@ -374,25 +465,21 @@ const FILTER_ACTION: Action = {
   available: canFilter,
   run: onTarget((context, target) => {
     const shownCall = context.shownCall ?? context.call;
-    const kinds = hasSavedFilter(target.query.steps) ? FILTER_KINDS : [...FILTER_KINDS, SAVED_KIND];
-    // No hint: the keys of the kinds are those of the condition in JSON, which "Filter list" does not take.
-    context.ask({
-      label: "Filter by",
-      items: kinds.map((kind) => ({
-        id: `kind:${kind.key}`,
-        name: kind.name,
-        run: () => {
-          // Read when the kind is chosen: the catalog is there by then.
-          const source: KindSource = {
-            call: context.call,
-            // The statuses and properties of the shown list, in the view of the window.
-            facets: () => facetsOf(shownCall, target),
-            schema: conditionSchema(context.catalog?.() ?? []),
-          };
-          askKind(context, target, kind, source);
-        },
-      })),
-    });
+    askKinds(
+      {
+        context,
+        target,
+        kinds: hasSavedFilter(target.query.steps) ? FILTER_KINDS : [...FILTER_KINDS, SAVED_KIND],
+        // Read when the kind is chosen: the catalog is there by then.
+        source: () => ({
+          call: context.call,
+          // The statuses and properties of the shown list, in the view of the window.
+          facets: () => facetsOf(shownCall, target),
+          schema: conditionSchema(context.catalog?.() ?? []),
+        }),
+      },
+      [],
+    );
   }),
 };
 
