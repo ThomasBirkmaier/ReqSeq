@@ -51,6 +51,7 @@ export {
   createFilesAtomic,
   deleteSavedFile,
   isTempFile,
+  notDeleted,
   removeCreatedFiles,
   renameFileAtomic,
   replaceRefusal,

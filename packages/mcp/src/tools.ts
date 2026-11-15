@@ -6,7 +6,7 @@ import { SCHEMA_BASE } from "@reqseq/core";
 
 export interface McpToolAnnotations {
   readonly readOnlyHint: boolean;
-  /** True only for a command that deletes a file (`deletes`, SR-217 AK5); relation.remove deletes no file. */
+  /** True for the commands with `deletes` in the catalog (SR-217 AK5, ADR-0009). */
   readonly destructiveHint: boolean;
   readonly openWorldHint: false;
 }

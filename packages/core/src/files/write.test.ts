@@ -807,13 +807,25 @@ describe("deleteSavedFile (SR-217 AK5, AK7)", () => {
   it("waits a moment for a name that stays listed after the unlink, as on Windows, and then returns", async () => {
     await put("a.yaml", Y);
     const unlink = fs.unlink.bind(fs);
-    // Marked for deletion: the name goes a moment after the unlink returns.
+    const lstat = fs.lstat.bind(fs);
+    // Marked for deletion, as on Windows: the name stays listed a moment after the unlink returns,
+    // and looking at it fails with EPERM until it goes.
+    let pending = false;
     vi.spyOn(fs, "unlink").mockImplementationOnce((file) => {
-      setTimeout(() => void unlink(file), 30);
+      pending = true;
+      setTimeout(() => {
+        void unlink(file).then(() => {
+          pending = false;
+        });
+      }, 60);
       return Promise.resolve();
     });
+    vi.spyOn(fs, "lstat").mockImplementation((file, ...rest) =>
+      pending && String(file).endsWith("a.yaml") ? Promise.reject(errno("EPERM")) : lstat(file, ...rest),
+    );
     await deleteSavedFile(root, "a.yaml", await forge("a.yaml"));
     expect(await fs.readdir(root)).toEqual([]);
+    vi.mocked(fs.lstat).mockRestore();
     await put("b.yaml", Y);
     // A name that never goes: the call still returns after a bounded wait.
     vi.spyOn(fs, "unlink").mockResolvedValueOnce(undefined);

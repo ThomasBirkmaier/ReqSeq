@@ -205,7 +205,7 @@ describe("the MCP server offers no delete (SR-099)", () => {
       expect(
         tools.map((t) => t.name).filter((name) => DELETE_LIKE.test(name.slice(name.indexOf("_") + 1))),
       ).toEqual(ALLOWED.map(toolName));
-      // Only the tools that delete a file say so (SR-217 AK5); relation.remove deletes no file.
+      // Only the tools with `deletes` in the catalog are destructive (SR-217 AK5).
       expect(tools.filter((t) => t.annotations?.destructiveHint === true).map((t) => t.name)).toEqual(
         SAVED_DELETES.map(toolName),
       );

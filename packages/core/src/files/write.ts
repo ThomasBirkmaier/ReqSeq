@@ -486,30 +486,35 @@ export const renameFileAtomic = async (
 /** How long `deleteSavedFile` waits for a deleted name to leave its folder (Windows, below). */
 const GONE_ATTEMPTS = 10;
 
-/** Resolves once `absolute` is no longer there, or after `GONE_ATTEMPTS` looks; never throws. */
+/**
+ * Resolves once `absolute` is gone (`lstat` gives `ENOENT`), or after `GONE_ATTEMPTS` looks; never
+ * throws. On Windows a name whose delete is still pending stays listed, and `lstat` of it fails with
+ * `EPERM` or `EACCES`, so only `ENOENT` counts as gone.
+ */
 const waitGone = async (absolute: string): Promise<void> => {
-  for (let attempt = 1; attempt <= GONE_ATTEMPTS; attempt++) {
-    const there = await fs.lstat(absolute).then(
-      () => true,
+  for (let attempt = 1; ; attempt++) {
+    const gone = await fs.lstat(absolute).then(
       () => false,
+      (e: unknown) => errorCode(e) === "ENOENT",
     );
-    if (!there) {
+    if (gone || attempt === GONE_ATTEMPTS) {
       return;
     }
     await sleep(20 * attempt);
   }
 };
 
-/** A refusal of `deleteSavedFile` says "Not deleted", not "Not written", and keeps its code and details. */
-const notDeleted = (error: CommandError): CommandError =>
-  error.message.startsWith("Not written: ")
+/**
+ * A refusal of a delete (`deleteSavedFile`, and the checks `saved-delete.ts` shares with writes) says
+ * "Not deleted", not "Not written", and keeps its code and details; any other error stays as it is.
+ */
+export const notDeleted = (error: unknown): unknown =>
+  error instanceof CommandError && error.message.startsWith("Not written: ")
     ? new CommandError(
         error.code,
         `Not deleted: ${error.message.slice("Not written: ".length)}`,
         error.details,
-        {
-          cause: error,
-        },
+        { cause: error },
       )
     : error;
 

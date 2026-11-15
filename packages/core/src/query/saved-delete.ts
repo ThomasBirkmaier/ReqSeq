@@ -20,7 +20,8 @@
 //   `problems`, also without `confirm`.
 import { CommandError } from "../catalog.js";
 import type { CommandName } from "../catalog.js";
-import { deleteSavedFile } from "../files/index.js";
+import path from "node:path";
+import { deleteSavedFile, notDeleted } from "../files/index.js";
 import type { Problem } from "../generated/types.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -52,17 +53,6 @@ export interface SavedDelete {
   readonly problems: Problem[];
 }
 
-/** A refusal that comes from the shared write checks says "Not deleted", with its code and details. */
-const asDelete = (error: unknown): unknown =>
-  error instanceof CommandError && error.message.startsWith("Not written: ")
-    ? new CommandError(
-        error.code,
-        `Not deleted: ${error.message.slice("Not written: ".length)}`,
-        error.details,
-        { cause: error },
-      )
-    : error;
-
 /** The valid file of `name`, else the refusal (see the file comment). */
 const ownFile = (
   kind: SavedKind,
@@ -83,13 +73,16 @@ const ownFile = (
   return found.saved;
 };
 
+/** `file` as outputs name a file: `/` as separator, without a leading `./` (`filters\\a.yaml` is `filters/a.yaml`). */
+const shownFile = (file: string): string => path.posix.normalize(file.replaceAll("\\", "/"));
+
 /** Refuses unless `saved` is the file and has the bytes the caller read (see the file comment). */
 const refuseUnexpected = (
   kind: SavedKind,
   saved: SavedFile<unknown>,
   expected: SavedDeleteExpected,
 ): void => {
-  if (expected.file !== undefined && expected.file !== saved.file) {
+  if (expected.file !== undefined && shownFile(expected.file) !== saved.file) {
     throw new CommandError(
       "file.changed-on-disk",
       `Not deleted: the ${kind.label} ${JSON.stringify(saved.name)} is in ${saved.file} now, not in ${expected.file}. Read it again first.`,
@@ -152,7 +145,7 @@ const finish = async (
       await deleteSavedFile(saved.repository.folder, saved.path, saved.yaml.snapshot);
     }
   } catch (error) {
-    throw asDelete(error);
+    throw notDeleted(error);
   }
   return {
     name: saved.name,

@@ -186,7 +186,7 @@ const mcp = {
       description: cmd.summary,
       annotations: {
         readOnlyHint: cmd.effect === "read",
-        // Only a command that deletes a file (`deletes`, SR-217 AK5); relation.remove deletes no file.
+        // True for the commands with `deletes` in the catalog (SR-217 AK5, ADR-0009).
         destructiveHint: cmd.deletes !== undefined,
         openWorldHint: false,
       },

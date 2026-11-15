@@ -55,6 +55,10 @@ describe("perspective.delete (SR-217)", () => {
       files: [],
     });
     expect(await fs.readFile(fixture.path("perspectives/drafts.yaml"), "utf8")).toBe(DRAFTS);
+    // The file given back in another spelling of the same path is that file.
+    for (const file of ["perspectives\\drafts.yaml", "./perspectives/drafts.yaml"]) {
+      expect((await remove(workspace, { name: "Drafts", file })).file).toBe("perspectives/drafts.yaml");
+    }
     const out = await remove(workspace, {
       name: "drafts",
       confirm: true,

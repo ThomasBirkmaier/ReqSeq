@@ -29,7 +29,7 @@ describe("catalogTools", () => {
     expect(list.$defs).toEqual(file["$defs"]);
   });
 
-  it("marks only the commands that delete a file as destructive (SR-217 AK5); relation.remove deletes no file", () => {
+  it("marks exactly the commands with deletes as destructive (SR-217 AK5)", () => {
     const tools = catalogTools(loadContracts()).tools;
     expect(tools.filter((t) => t.annotations.destructiveHint).map((t) => t.name)).toEqual([
       "filter_delete",
