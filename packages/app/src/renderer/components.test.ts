@@ -1276,6 +1276,39 @@ describe("Minibuffer", () => {
       expect(hit.run).toHaveBeenCalledTimes(1);
     });
 
+    it("takes the typed text at once in a prompt whose hits only preview, while its parts still load", async () => {
+      const text = vi.fn();
+      const { closed } = await mount({
+        label: "Name",
+        items: [],
+        preview: true,
+        text,
+        fill: new Promise<PromptFill>(() => undefined),
+      });
+      await type(input(), "Drafts");
+      await press(input(), "Enter");
+      // Nothing waits, so a key typed next cannot cancel it.
+      expect(text).toHaveBeenCalledWith("Drafts");
+      expect(closed).toHaveBeenCalledTimes(1);
+      expect(container.querySelector('[role="status"]')).toBeNull();
+    });
+
+    it("takes the typed text with Ctrl/Cmd+Enter at once in a prompt whose hits only preview, while its parts still load", async () => {
+      const more = vi.fn();
+      const { closed } = await mount({
+        label: "Name",
+        items: [],
+        preview: true,
+        text: vi.fn(),
+        more,
+        fill: new Promise<PromptFill>(() => undefined),
+      });
+      await type(input(), "Open");
+      await press(input(), "Enter", { ctrlKey: true, metaKey: true });
+      expect(more).toHaveBeenCalledWith("Open");
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
     it("[SR-119/AK-mb64] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
       const asked: ((choices: Choice[]) => void)[] = [];
       const find = (): Promise<Choice[]> =>

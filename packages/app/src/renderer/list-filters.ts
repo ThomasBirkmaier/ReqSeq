@@ -8,11 +8,17 @@ import { shownIdTitle } from "./id-title.js";
 export type Facet = ElementFacetsOutput["properties"][number];
 export type FacetValue = NonNullable<Facet["values"]>[number];
 
-/** The step for a type; its label is the text before the name in the list's label ("type: need"). */
-export const typeStep = (key: string): FilterStep => ({
-  label: `type: ${key}`,
-  selection: { where: { type: [key] } },
+/**
+ * The step for the types `keys`, which keeps the elements of one of them (SR-215 AK5); its label is the text
+ * before the name in the list's label, the keys separated by commas ("type: need, decision").
+ */
+export const typesStep = (keys: readonly string[]): FilterStep => ({
+  label: `type: ${keys.join(", ")}`,
+  selection: { where: { type: [...keys] } },
 });
+
+/** The step for one type ("type: need"). */
+export const typeStep = (key: string): FilterStep => typesStep([key]);
 
 /**
  * The step of a type line of the overview (SR-118 AK2): the elements of exactly this type, as the count of
