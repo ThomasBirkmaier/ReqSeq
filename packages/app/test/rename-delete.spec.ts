@@ -234,7 +234,7 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     await expect(explanation(window)).toContainText(
       "Deletes the perspective Drafts, file perspectives/drafts.yaml; a file Git does not track does not come back; the changes of its modified buffer are lost",
     );
-    const enter = process.platform === "darwin" ? "⌘Enter" : "Ctrl+Enter";
+    const enter = process.platform === "darwin" ? "⌘↩" : "Ctrl+Enter";
     await expect(explanation(window)).toContainText(`${enter} confirms`);
     await shot(window, "sr-218-delete-light.png");
     // Enter without the confirmation deletes nothing.
@@ -323,6 +323,9 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     expect(await cliNames(running, "perspective")).toContain("Ready → Sensors");
   });
 
+  /** The system requirements of the fixture, all drafts: what the saved filter Sensors and Drafts list. */
+  const SENSORS = ["SR-0000a1", "SR-0000a2", "SR-0000a3", "SR-0000a4", "SR-0000b1", "SR-0000b2"];
+
   test("[SR-218/AK-xmdn] a renamed saved filter is named in the filter steps of open lists and the selection of perspective buffers, none modified", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
@@ -333,10 +336,10 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     await expect(label(window)).toHaveText("Saved filter");
     await take(window, "Sensors");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", /filter: Sensors/);
-    const rows = await shownBuffer(window).locator(".row .id").allTextContents();
-    expect(rows).toHaveLength(6);
+    // The step shows in the label before the list answers, so the rows are awaited, not read once.
+    await expect(shownBuffer(window).locator(".row .id")).toHaveText(SENSORS);
     await open(window, "Drafts");
-    const drafts = await shownBuffer(window).locator(".row .id").allTextContents();
+    await expect(shownBuffer(window).locator(".row .id")).toHaveText(SENSORS);
     await start(window, "Rename saved filter");
     await take(window, "Sensors");
     await input(window).fill("Sensor set");
@@ -344,12 +347,12 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     await expect(minibuffer(window)).toContainText("Renamed saved filter Sensors to Sensor set");
     // The perspective buffer lists the same elements by the new name and is not modified.
     await expect(modeline(window)).not.toContainText(["modified"]);
-    await expect.poll(() => shownBuffer(window).locator(".row .id").allTextContents()).toEqual(drafts);
+    await expect(shownBuffer(window).locator(".row .id")).toHaveText(SENSORS);
     // The list names the new name in its step and still lists the elements.
     await window.keyboard.press("Alt+KeyP");
     await slideSettled(window);
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", /filter: Sensor set/);
-    await expect.poll(() => shownBuffer(window).locator(".row .id").allTextContents()).toEqual(rows);
+    await expect(shownBuffer(window).locator(".row .id")).toHaveText(SENSORS);
     await expect(modeline(window).first()).toHaveText(/filter: Sensor set/);
   });
 
