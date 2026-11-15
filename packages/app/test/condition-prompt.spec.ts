@@ -59,6 +59,7 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     await pick(window, "Type", "Type");
     await expect(label(window)).toHaveText("New saved filter Drafts · where · Type:");
     await pick(window, "System Requirement", "System Requirement");
+    await pick(window, "", "Take 1 type");
     await pick(window, "Status", "Status");
     await pick(window, "Draft", "Draft");
     await expect(marks(window)).toHaveText(["type: system-requirement×", "status: draft×"]);
@@ -134,6 +135,53 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     ]);
     expect(cli.code).toBe(0);
     expect(await saved()).toBe(fromApp);
+  });
+
+  test("[SR-215/AK-w8q6] several types go into one type mark that keeps the elements of one of them; Type continues it, Escape and Backspace keep it", async () => {
+    const { window } = running;
+    await fsp.mkdir(SHOTS, { recursive: true });
+    const hits = window.locator('.candidates [role="option"] .name');
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await pick(window, "New saved filter", "New saved filter");
+    await window.keyboard.type("Needs and decisions");
+    await window.keyboard.press("Enter");
+    await pick(window, "Type", "Type");
+    // A chosen type goes into the mark and the step stays, "Take 1 type" first and marked.
+    await pick(window, "Need", "Need");
+    await expect(label(window)).toHaveText("New saved filter Needs and decisions · where · Type:");
+    await expect(marks(window)).toHaveText(["type: need×"]);
+    await expect(marked(window)).toHaveText("Take 1 type");
+    await pick(window, "Decision", "Decision");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await expect(marked(window)).toHaveText("Take 2 types");
+    // The chosen types are no longer offered.
+    await expect(hits.filter({ hasText: /^(Need|Decision)$/ })).toHaveCount(0);
+    await expect(hits.filter({ hasText: /^System Requirement$/ })).toHaveCount(1);
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-type-mark-light.png") });
+    // Escape goes back to the kinds; the mark stays.
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toHaveText("New saved filter Needs and decisions · where:");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    // Type again continues the mark; Backspace on the empty input goes back to the kinds and keeps it.
+    await pick(window, "Type", "Type");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await expect(marked(window)).toHaveText("Take 2 types");
+    await window.keyboard.press("Backspace");
+    await expect(label(window)).toHaveText("New saved filter Needs and decisions · where:");
+    await expect(marks(window)).toHaveText(["type: need, decision×"]);
+    await window.screenshot({ path: path.join(SHOTS, "sr-215-type-mark-kinds-light.png") });
+    await pick(window, "", "Next: sort");
+    await pick(window, "", "Save");
+    await expect(window.locator(".minibuffer .echo")).toHaveText("Saved filter Needs and decisions");
+    // The saved filter keeps the elements of one of the types: the two needs and the decision.
+    await expect
+      .poll(async () => {
+        const listed = await running.cli(["element", "list", "--filter", "Needs and decisions"]);
+        return (JSON.parse(listed.stdout) as { elements?: { type: string }[] }).elements
+          ?.map((element) => element.type)
+          .sort();
+      })
+      .toEqual(["decision", "need", "need"]);
   });
 
   test("[SR-215/AK-q4fs] [SR-215/AK-fm4s] [SR-215/AK-rx2z] [SR-134/AK-fmf6] [SR-210/AK-t8sc] [SR-215/AK-hnzf] New perspective asks the sort last, a key asks Order, and the file is the one the command line writes", async () => {
@@ -212,6 +260,7 @@ test.describe("a condition built from hits in the command prompt (SR-215)", () =
     await expect(marked(window)).toHaveText("No condition: all elements");
     await pick(window, "Type", "Type");
     await pick(window, "System Requirement", "System Requirement");
+    await pick(window, "", "Take 1 type");
     await expect(marked(window)).toHaveText("Next: grouping");
     await window.screenshot({ path: path.join(SHOTS, "sr-219-where-light.png") });
     await window.keyboard.press("Enter");
