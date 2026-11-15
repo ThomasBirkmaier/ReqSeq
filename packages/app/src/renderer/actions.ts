@@ -176,15 +176,18 @@ export interface ArgumentExplanation {
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
    * empty input removes the last mark, and whether "{" starts a condition in JSON (SR-210 AK2). It takes the
-   * place of the keys of `list`, `ends` and `skips`. `note` says, before the keys, why a hit is missing
-   * (SR-215 AK5: "Save filter" on a list with a saved filter).
+   * place of the keys of `list`, `ends` and `skips`.
    */
   readonly building?: {
     readonly enter: string;
     readonly unmark: boolean;
     readonly json: boolean;
-    readonly note?: string;
   };
+  /**
+   * What the line says before the keys for the typed text, if anything: that the name of a builder replaces a
+   * saved perspective or saved filter (SR-219 AK4).
+   */
+  readonly note?: (text: string) => string | undefined;
 }
 
 /**
@@ -248,6 +251,8 @@ export interface Prompt {
   readonly explain?: ArgumentExplanation;
   /** The explanation line of a step of an action of its own, the search words (SR-216 AK9). */
   readonly explainStep?: StepExplanation;
+  /** The marks of the steps before in a builder, without × (SR-219 AK6): before `marks`, which they never are. */
+  readonly earlier?: readonly string[];
   /** The marks in the input before the typed text (SR-215 AK3). */
   readonly marks?: readonly PromptMark[];
   /** Backspace in an empty input removes the last mark, while there is one, before it goes back (SR-215 AK9). */
@@ -296,7 +301,7 @@ export interface Found {
 
 /** The parts of a prompt that can come later. */
 export type PromptFill = Partial<
-  Pick<Prompt, "label" | "items" | "find" | "seek" | "text" | "more" | "literal">
+  Pick<Prompt, "label" | "items" | "find" | "seek" | "text" | "more" | "literal" | "explain">
 >;
 
 /** How `ElementControls.text` runs its command. */
@@ -511,7 +516,16 @@ export interface ActionContext {
   readonly folds?: FoldControls;
   /** The perspectives opened last (SR-214 AK1, `perspective-recent.ts`), where the window keeps them. */
   readonly perspectives?: PerspectiveUse;
+  /**
+   * Starts the builder of a perspective or a saved filter in the command prompt (SR-219 AK2, AK3,
+   * `startBuilder` in `catalog-commands.ts`) in `context`, the one the action runs in, where the window has the
+   * catalog.
+   */
+  readonly build?: (command: BuiltCommand, context: ActionContext) => void;
 }
+
+/** The catalog commands a builder runs (SR-219 AK1): "New perspective" and "New saved filter". */
+export type BuiltCommand = "perspective.save" | "filter.save";
 
 /** The order of use of the perspectives: display state of the app, never in the workspace (SR-214 AK1). */
 export interface PerspectiveUse {
@@ -566,6 +580,11 @@ export interface Action {
    */
   readonly inPrompt?: true;
   readonly available: (context: ActionContext) => boolean;
+  /**
+   * Whether it fits the shown view (SR-133 AK1) where it is available; absent, it fits wherever it is available
+   * ("New perspective" fits only the overview and a list, SR-219 AK1).
+   */
+  readonly fits?: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
 
@@ -1788,7 +1807,7 @@ export const commandPrompt = (
       id: action.id,
       name: action.title,
       ...hintOf(action, context.mac),
-      fits: true,
+      fits: action.fits?.(context) ?? true,
       run: () => {
         runAction(action, context, reopen);
       },

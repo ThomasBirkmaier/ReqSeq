@@ -17,19 +17,21 @@ import {
   perspectiveBuffer,
   readOnlyBuffer,
   resultBuffer,
-  withGroup,
   withQuery,
 } from "./buffers.js";
-import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
-import { perspectiveInput } from "./perspective-actions.js";
+import { savedStep, typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import { NO_SHOWN_FILTER } from "./condition-prompt.js";
-import { SHOWN_GROUP } from "./group-prompt.js";
-import { NO_SHOWN_SORT } from "./sort-prompt.js";
-import { catalogItems, contextField, fits, refusedOf, withExplanations } from "./catalog-commands.js";
+import {
+  catalogItems,
+  contextField,
+  fits,
+  refusedOf,
+  startBuilder,
+  withExplanations,
+} from "./catalog-commands.js";
 import { coveredCommand, SHOWN_IN, shownIn } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";
@@ -2398,7 +2400,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
   /** The implemented write commands of the catalog. */
   const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
 
-  it("offers every implemented write command by its title, but element.update and element.addAttachment, which the element buffer does", () => {
+  it("offers every implemented write command by its title, but element.update and element.addAttachment, which the element buffer does, and the two saves the builders run (SR-219 AK1)", () => {
     expect(writes.map((entry) => entry.name)).toEqual(
       expect.arrayContaining(["filter.save", "workspace.init", "relation.add", "hint.confirm"]),
     );
@@ -2413,6 +2415,8 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(writes.filter((entry) => !offered.includes(entry.title)).map((entry) => entry.name)).toEqual([
       "element.update",
       "element.addAttachment",
+      "filter.save",
+      "perspective.save",
     ]);
   });
 
@@ -2456,12 +2460,15 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
 
   it("saves a filter by its name, with its condition built from hits (#1645)", async () => {
     const { context, asked, call } = setup([list], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "filter.list": () => ({ filters: [] }),
       "filter.save": () => ({ files: ["filters/open.yaml"] }),
     });
-    start(context, "filter.save");
+    startBuilder(context, "filter.save", CATALOG);
     (await last(asked)).text?.("open");
     (await last(asked)).literal?.('{"status":["draft"]}')?.run();
-    item((await last(asked)).items, "Take 1 condition").run();
+    item((await last(asked)).items, "Next: sort").run();
+    item((await last(asked)).items, "Save").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
@@ -3651,7 +3658,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
   });
 });
 
-describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, AK9, AK10, #1645)", () => {
+describe("a condition built step by step from hits (SR-215 AK3, AK4, AK6, AK9, AK10, #1645)", () => {
   const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const FACETS = {
     total: 3,
@@ -3673,16 +3680,14 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
   const answers = {
     "metamodel.get": () => FIXTURE_METAMODEL,
     "element.facets": () => FACETS,
+    "filter.list": () => ({ filters: [] }),
     "filter.save": () => ({ files: ["filters/open.yaml"] }),
   };
 
-  /** "Save filter" asked up to its condition: the name given. */
-  const atWhere = async (
-    more = false,
-    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
-  ) => {
+  /** "New saved filter" asked up to its condition: the name given. */
+  const atWhere = async (extra: Record<string, (input: Record<string, unknown>) => Answer> = {}) => {
     const run = setup([shown], { ...answers, ...extra });
-    start(run.context, "filter.save", more);
+    startBuilder(run.context, "filter.save", CATALOG);
     (await last(run.asked)).text?.("open");
     return run;
   };
@@ -3717,16 +3722,16 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
   it("[SR-215/AK-dt5s] offers the kinds, then their values; each chosen condition is a mark with the label of its list filter step, and the hits keep their place", async () => {
     const { asked, call } = await atWhere();
     const first = await last(asked);
-    expect(first.label).toBe("Save filter open · where:");
+    expect(first.label).toBe("New saved filter open · where:");
     expect(await names(asked)).toEqual(["No condition: all elements", ...KINDS]);
     // Types by their name in the metamodel, the key beside; the mark is the list's "type: <key>".
     await choose(asked, "Type");
-    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+    expect((await last(asked)).label).toBe("New saved filter open · where · Type:");
     expect(await names(asked)).toContain("System Requirement | requirement");
     await choose(asked, "System Requirement");
     expect(await marks(asked)).toEqual(["type: requirement"]);
-    // The hits keep their place: only the finishing hit says what it takes.
-    expect(await names(asked)).toEqual(["Take 1 condition", ...KINDS]);
+    // The hits keep their place: only the finishing hit changes.
+    expect(await names(asked)).toEqual(["Next: sort", ...KINDS]);
     // Statuses of the elements the marks select, by their name in the metamodel.
     await choose(asked, "Status");
     expect(call).toHaveBeenCalledWith("element.facets", {
@@ -3766,7 +3771,7 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     // A text search takes the typed words; an empty input asks again.
     await choose(asked, "Text search");
     (await last(asked)).text?.("  ");
-    expect((await last(asked)).label).toBe("Save filter open · where · Text search:");
+    expect((await last(asked)).label).toBe("New saved filter open · where · Text search:");
     (await last(asked)).text?.("brake");
     expect(await marks(asked)).toEqual([
       "type: requirement",
@@ -3778,9 +3783,8 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
       "relation: without child",
       "text: brake",
     ]);
-    expect(await names(asked)).toEqual(["Take 8 conditions", ...KINDS]);
-    item((await last(asked)).items, "Take 8 conditions").run();
-    await flush();
+    expect(await names(asked)).toEqual(["Next: sort", ...KINDS]);
+    await choose(asked, "Next: sort", "Save");
     expect(call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: {
@@ -3798,23 +3802,27 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     });
   });
 
-  it("[SR-215/AK-fm4s] the finishing hit is marked first: without a mark it takes no condition, with marks all of them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+  it("[SR-215/AK-fm4s] [SR-219/AK-kv63] the finishing hit is marked first: without a mark it goes on with no condition, with marks it is Next: sort; Ctrl/Cmd+Enter offers the optional arguments", async () => {
     const none = await atWhere();
     expect((await last(none.asked)).items[0]?.name).toBe("No condition: all elements");
     (await last(none.asked)).items[0]?.run();
     await flush();
+    // It goes on to the sort and saves nothing yet.
+    expect((await last(none.asked)).label).toBe("New saved filter open · sort:");
+    expect(none.call.mock.calls.some(([name]) => name === "filter.save")).toBe(false);
+    await choose(none.asked, "Save");
     expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
 
     const some = await atWhere();
     await choose(some.asked, "Type", "Decision");
     await choose(some.asked, "Type", "Package");
-    expect((await last(some.asked)).items[0]?.name).toBe("Take 2 conditions");
+    expect((await last(some.asked)).items[0]?.name).toBe("Next: sort");
     // Ctrl/Cmd+Enter on any hit of this step takes the marks and offers the optional arguments.
     item((await last(some.asked)).items, "Status").more?.();
     const more = await last(some.asked);
-    expect(more.label).toBe("Save filter open type: decision · type: package · more arguments:");
-    item(more.items, "Run").run();
-    await flush();
+    expect(more.label).toBe("New saved filter open · more arguments:");
+    expect(more.earlier).toEqual(["type: decision", "type: package"]);
+    await choose(some.asked, "Next: sort", "Save");
     expect(some.call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: { all: [{ type: ["decision"] }, { type: ["package"] }] },
@@ -3823,7 +3831,7 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
 
   it("[SR-215/AK-z4bq] text that starts with { is one condition in JSON as a mark; a refused condition is asked again with core's message and the marks back", async () => {
     const refusal = refusedWith("where.all[1]: must be an object", { errors: [{ field: "where.all[1]" }] });
-    const { asked, call } = await atWhere(false, { "filter.save": () => refusal });
+    const { asked, call } = await atWhere({ "filter.save": () => refusal });
     await choose(asked, "Type", "Decision");
     const prompt = await last(asked);
     // No hit for other text: Enter does nothing.
@@ -3839,8 +3847,7 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     // Text that is no JSON goes in as it is: core says what is wrong with it.
     (await last(asked)).literal?.("{a")?.run();
     expect(await marks(asked)).toContain("{a");
-    item((await last(asked)).items, "Take 3 conditions").run();
-    await flush();
+    await choose(asked, "Next: sort", "Save");
     expect(call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: {
@@ -3848,15 +3855,15 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
       },
     });
     const again = await last(asked);
-    expect(again.label).toBe("where.all[1]: must be an object · Save filter open · where:");
+    expect(again.label).toBe("where.all[1]: must be an object · New saved filter open · where:");
     expect(await marks(asked)).toHaveLength(3);
     // The message is said once: the next step has the plain label.
     await choose(asked, "Type");
-    expect((await last(asked)).label).toBe("Save filter open · where · Type:");
+    expect((await last(asked)).label).toBe("New saved filter open · where · Type:");
   });
 
   it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the kind is chosen; Escape keeps the marks, which stand again when the prompt returns to the argument", async () => {
-    const { asked } = await atWhere(true);
+    const { asked } = await atWhere();
     await choose(asked, "Type", "Decision");
     await choose(asked, "Status", "Draft");
     await choose(asked, "Type", "Package");
@@ -3870,68 +3877,67 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     const values = await last(asked);
     expect(values.unmark).toBeUndefined();
     values.back?.();
-    expect((await last(asked)).label).toBe("Save filter open · where:");
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
     await choose(asked, "Property", "Component");
     (await last(asked)).marks?.[0]?.remove();
     // A property's values go back to the properties, read anew for the marks left.
-    expect((await last(asked)).label).toBe("Save filter open · where · Property:");
+    expect((await last(asked)).label).toBe("New saved filter open · where · Property:");
     expect(await marks(asked)).toEqual(["type: package"]);
     (await last(asked)).back?.();
     // Ctrl/Cmd+Enter takes the marks; Escape (back) from the optional arguments returns to the condition, marks and all.
     (await last(asked)).items[0]?.more?.();
-    expect((await last(asked)).label).toBe("Save filter open type: package · more arguments:");
+    expect((await last(asked)).label).toBe("New saved filter open · more arguments:");
     (await last(asked)).back?.();
-    expect((await last(asked)).label).toBe("Save filter open · where:");
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
     expect(await marks(asked)).toEqual(["type: package"]);
-    // Without a mark, back goes to the argument before.
+    // Without a mark, back goes to the step before.
     (await last(asked)).marks?.[0]?.remove();
     (await last(asked)).back?.();
-    expect((await last(asked)).label).toBe("Save filter · name:");
+    expect((await last(asked)).label).toBe("New saved filter · name:");
   });
 
   it("[SR-215/AK-rx2z] Escape at the kinds keeps the marks: they stand again when the prompt returns to the condition, also after a refusal", async () => {
     const { asked } = await atWhere();
     await choose(asked, "Type", "Decision");
     (await last(asked)).back?.();
-    expect((await last(asked)).label).toBe("Save filter · name:");
+    expect((await last(asked)).label).toBe("New saved filter · name:");
     (await last(asked)).text?.("open");
     expect(await marks(asked)).toEqual(["type: decision"]);
 
     const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
-    const refused = await atWhere(false, { "filter.save": () => refusal });
+    const refused = await atWhere({ "filter.save": () => refusal });
     (await last(refused.asked)).literal?.("{a")?.run();
-    await choose(refused.asked, "Take 1 condition");
+    await choose(refused.asked, "Next: sort", "Save");
     expect(await marks(refused.asked)).toEqual(["{a"]);
     (await last(refused.asked)).back?.();
     (await last(refused.asked)).text?.("open");
-    expect((await last(refused.asked)).label).toBe("Save filter open · where:");
+    expect((await last(refused.asked)).label).toBe("New saved filter open · where:");
     expect(await marks(refused.asked)).toEqual(["{a"]);
   });
 
-  it("[SR-134/AK-trng] Escape after a refused condition goes back one argument without core's message, which names the condition", async () => {
+  it("[SR-134/AK-trng] Escape after a refused condition goes back one step without core's message, which names the condition", async () => {
     const refusal = refusedWith("where.all[0]: must be an object", { errors: [{ field: "where.all[0]" }] });
-    const { asked, call } = await atWhere(false, { "filter.save": () => refusal });
+    const { asked, call } = await atWhere({ "filter.save": () => refusal });
     (await last(asked)).literal?.("{a")?.run();
-    item((await last(asked)).items, "Take 1 condition").more?.();
-    await choose(asked, "sort", "No sort", "Run");
-    expect((await last(asked)).label).toBe("where.all[0]: must be an object · Save filter open · where:");
+    await choose(asked, "Next: sort", "Save");
+    expect((await last(asked)).label).toBe(
+      "where.all[0]: must be an object · New saved filter open · where:",
+    );
     const saves = () => call.mock.calls.filter(([name]) => name === "filter.save").length;
     const saved = saves();
-    // Escape goes back to the sort, the argument given before; the message names the condition, not it.
+    // Escape goes back to the name, the step before, with the plain label and the name given.
     (await last(asked)).back?.();
-    const sort = await last(asked);
-    expect(sort.label).toBe("Save filter open · sort:");
+    const name = await last(asked);
+    expect(name.label).toBe("New saved filter · name:");
+    expect(name.initial).toBe("open");
     expect(saves()).toBe(saved);
-    // Further back as well: the name has the plain label.
-    sort.back?.();
-    expect((await last(asked)).label).toBe("Save filter · name:");
   });
 
   it("[SR-215/AK-hnzf] the input is the marks in their order under all, as the command line takes it", async () => {
     const { asked, call } = await atWhere();
     await choose(asked, "Status", "Draft");
     await choose(asked, "Property", "Component", "Display");
-    await choose(asked, "Take 2 conditions");
+    await choose(asked, "Next: sort", "Save");
     expect(call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: { all: [{ status: ["draft"] }, { property: "component", op: "eq", value: "display" }] },
@@ -3959,157 +3965,44 @@ describe("a condition built step by step from hits (SR-215 AK3, AK4, AK5, AK6, A
     expect((await last(asked)).explain?.building?.enter).toBe("adds the text search");
   });
 
-  it("[SR-215/AK-w8q6] without a mark the conditions of the shown list are the first hit: Enter takes each filter step as a mark with its label", async () => {
-    const list = filteredList([typeStep("need"), statusStep("draft")]);
-    const run = setup([list], answers);
-    start(run.context, "filter.save");
-    (await last(run.asked)).text?.("open");
-    expect(await names(run.asked)).toEqual([
-      "Conditions of the shown list | type: need · status: draft",
-      "No condition: all elements",
-      ...KINDS,
-    ]);
-    await choose(run.asked, "Conditions of the shown list");
-    expect(await marks(run.asked)).toEqual(["type: need", "status: draft"]);
-    // With marks the hit is gone and the finishing hit is first: Enter, Enter.
-    expect(await names(run.asked)).toEqual(["Take 2 conditions", ...KINDS]);
-    await choose(run.asked, "Take 2 conditions");
-    expect(run.call).toHaveBeenLastCalledWith("filter.save", {
-      name: "open",
-      where: { all: [{ type: ["need"] }, { status: ["draft"] }] },
-    });
-    // Taken once, it is not offered again when × removes every mark.
-    const again = setup([list], answers);
-    start(again.context, "filter.save");
-    (await last(again.asked)).text?.("open");
-    await choose(again.asked, "Conditions of the shown list");
-    (await last(again.asked)).marks?.[1]?.remove();
-    (await last(again.asked)).marks?.[0]?.remove();
-    expect((await last(again.asked)).items[0]?.name).toBe("No condition: all elements");
-    // Ctrl/Cmd+Enter on it takes them and offers the optional arguments.
-    const more = setup([list], answers);
-    start(more.context, "filter.save");
-    (await last(more.asked)).text?.("open");
-    item((await last(more.asked)).items, "Conditions of the shown list").more?.();
-    expect((await last(more.asked)).label).toBe(
-      "Save filter open type: need · status: draft · more arguments:",
-    );
-  });
-
-  it("[SR-215/AK-w8q6] Save filter has no such hit for a list with a saved filter and says why; the matrix, a search and a list without steps have none", async () => {
-    const saved = setup([filteredList([savedStep("Sensors"), typeStep("need")])], answers);
-    start(saved.context, "filter.save");
-    (await last(saved.asked)).text?.("open");
-    const prompt = await last(saved.asked);
-    expect(prompt.items[0]?.name).toBe("No condition: all elements");
-    expect(prompt.explain?.building?.note).toBe(NO_SHOWN_FILTER);
-    // With a mark the note is gone.
-    await choose(saved.asked, "Type", "Decision");
-    expect((await last(saved.asked)).explain?.building?.note).toBeUndefined();
-    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
-    for (const shown of [filteredList([typeStep("need")], undefined, true), filteredList([]), search]) {
-      const run = setup([shown], answers);
-      start(run.context, "filter.save");
-      (await last(run.asked)).text?.("open");
-      expect((await last(run.asked)).items[0]?.name).toBe("No condition: all elements");
-      expect((await last(run.asked)).explain?.building?.note).toBeUndefined();
-    }
-  });
-
-  it("[SR-215/AK-w8q6] Save perspective takes a perspective's selection as the marks of its conditions and its saved filter as filter: the selection Save list as perspective saves", async () => {
-    const origin = {
-      name: "Drafts",
-      saved: { where: { all: [{ type: ["need"] }, { not: { status: ["draft"] } }] }, filter: "Sensors" },
-    };
-    const perspective = perspectiveBuffer(origin);
-    const list = withQuery(perspective, { steps: [...perspective.steps, textStep("x")] });
-    const run = setup([list], {
-      ...answers,
-      "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
-    });
-    start(run.context, "perspective.save");
-    (await last(run.asked)).text?.("Rain");
-    expect(await names(run.asked)).toContain("Conditions of the shown list | perspective: Drafts · text: x");
-    await choose(run.asked, "Conditions of the shown list");
-    // A stored condition with a list filter step has its label; or and not are JSON.
-    expect(await marks(run.asked)).toEqual(["type: need", '{"not":{"status":["draft"]}}', "text: x"]);
-    // The saved filter is given to `filter`, before the condition, and the line says so.
-    expect((await last(run.asked)).label).toBe("Save perspective Rain filter: Sensors · where:");
-    await choose(run.asked, "Take 3 conditions");
-    const { where, filter } = perspectiveInput(list, "Rain");
-    expect(run.call).toHaveBeenLastCalledWith("perspective.save", { name: "Rain", where, filter });
-  });
-
-  it("[SR-215/AK-w8q6] Enter on the hit moves on when the list gives no condition: a saved filter alone goes to filter", async () => {
-    const save = { ...answers, "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }) };
-    // A list filtered only by a saved filter, and a perspective that stores only a filter.
-    for (const shown of [
-      filteredList([savedStep("Sensors")]),
-      perspectiveBuffer({ name: "Only", saved: { where: { all: [] }, filter: "Sensors" } }),
-    ]) {
-      const run = setup([shown], save);
-      start(run.context, "perspective.save");
-      (await last(run.asked)).text?.("Rain");
-      await choose(run.asked, "Conditions of the shown list");
-      expect(await marks(run.asked)).toEqual([]);
-      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
-      await choose(run.asked, "No condition: all elements");
-      expect(run.call).toHaveBeenLastCalledWith("perspective.save", {
-        name: "Rain",
-        filter: "Sensors",
-        where: { all: [] },
-      });
-    }
-    // A perspective without a condition or a filter gives no hit, to either command.
-    const empty = perspectiveBuffer({ name: "All", saved: { where: { all: [] } } });
-    for (const name of ["perspective.save", "filter.save"]) {
-      const run = setup([empty], save);
-      start(run.context, name);
-      (await last(run.asked)).text?.("Rain");
-      expect(await names(run.asked)).toEqual(["No condition: all elements", ...KINDS]);
-    }
-  });
-
   it("says why the values of a kind cannot be read", async () => {
     const failing = new Error("The metamodel is faulty");
-    const { asked } = await atWhere(false, {
+    const { asked } = await atWhere({
       "metamodel.get": () => failing,
       "element.facets": () => failing,
     });
     for (const kind of ["Type", "Status", "Property", "Validity", "Relation"]) {
       await choose(asked, kind);
-      expect((await last(asked)).label).toBe(`The metamodel is faulty · Save filter open · where · ${kind}:`);
+      expect((await last(asked)).label).toBe(
+        `The metamodel is faulty · New saved filter open · where · ${kind}:`,
+      );
       (await last(asked)).back?.();
     }
     // Statuses need the names of the metamodel too.
-    const named = await atWhere(false, { "metamodel.get": () => failing });
+    const named = await atWhere({ "metamodel.get": () => failing });
     await choose(named.asked, "Status");
     expect((await last(named.asked)).label).toBe(
-      "The metamodel is faulty · Save filter open · where · Status:",
+      "The metamodel is faulty · New saved filter open · where · Status:",
     );
   });
 });
 
-describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, #1646)", () => {
+describe("a sort built step by step from hits (SR-215 AK4, AK7, AK9, AK10, #1646)", () => {
   const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const answers = {
     "metamodel.get": () => FIXTURE_METAMODEL,
     "element.facets": () => ({ total: 0, types: [], statuses: [], properties: [] }),
+    "element.list": () => ({ elements: [], total: 0 }),
+    "filter.list": () => ({ filters: [] }),
     "filter.save": () => ({ files: ["filters/open.yaml"] }),
-    "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
   };
 
-  /** "Save filter open" with no condition, asked up to its sort through Ctrl/Cmd+Enter, over `buffers`. */
-  const atSort = async (
-    buffers: Buffers = [shown],
-    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
-    name = "filter.save",
-  ) => {
-    const run = setup(buffers, { ...answers, ...extra });
-    start(run.context, name, true);
+  /** "New saved filter open" with no condition, asked up to its sort, the last step. */
+  const atSort = async (extra: Record<string, (input: Record<string, unknown>) => Answer> = {}) => {
+    const run = setup([shown], { ...answers, ...extra });
+    startBuilder(run.context, "filter.save", CATALOG);
     (await last(run.asked)).text?.("open");
-    item((await last(run.asked)).items, "No condition: all elements").more?.();
-    item((await last(run.asked)).items, "sort").run();
+    item((await last(run.asked)).items, "No condition: all elements").run();
     return run;
   };
 
@@ -4140,17 +4033,12 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     "Severity | severity",
   ];
 
-  const LINE = "Save filter open all elements · sort";
+  const LINE = "New saved filter open · sort";
 
   it("[SR-215/AK-q4fs] [SR-215/AK-hnzf] a key asks Order and is a mark with its direction; the keys sort in their order, a key chosen again replaces its mark", async () => {
     const { asked, call } = await atSort();
     expect((await last(asked)).label).toBe(`${LINE}:`);
-    expect(await names(asked)).toEqual([
-      "No sort",
-      "Hierarchy (tree) | hierarchy",
-      ...KEYS,
-      "Workspace order",
-    ]);
+    expect(await names(asked)).toEqual(["Save", "Hierarchy (tree) | hierarchy", ...KEYS, "Workspace order"]);
     await choose(asked, "Title");
     const order = await last(asked);
     expect(order.label).toBe(`${LINE} · Title · Order:`);
@@ -4158,17 +4046,13 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     await choose(asked, "descending");
     expect(await marks(asked)).toEqual(["Title descending"]);
     // With a mark the hierarchy is gone; the other hits keep their place.
-    expect(await names(asked)).toEqual(["Take 1 sort key", ...KEYS, "Workspace order"]);
+    expect(await names(asked)).toEqual(["Save", ...KEYS, "Workspace order"]);
     await choose(asked, "Component", "ascending");
     await choose(asked, "ID", "descending");
     // The same key again replaces its mark in its place.
     await choose(asked, "Title", "ascending");
     expect(await marks(asked)).toEqual(["Title ascending", "Component ascending", "ID descending"]);
-    await choose(asked, "Take 3 sort keys");
-    expect((await last(asked)).label).toBe(
-      "Save filter open all elements sort: Title ascending · Component ascending · ID descending · more arguments:",
-    );
-    await choose(asked, "Run");
+    await choose(asked, "Save");
     expect(call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: { all: [] },
@@ -4180,12 +4064,12 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     });
   });
 
-  it("[SR-215/AK-q4fs] [SR-215/AK-hnzf] the hierarchy only comes first and sorts ascending; Workspace order takes the empty sort", async () => {
+  it("[SR-215/AK-q4fs] [SR-215/AK-hnzf] [SR-219/AK-tbwz] the hierarchy only comes first and sorts ascending; Workspace order is a mark of the empty sort in place of the keys", async () => {
     const tree = await atSort();
     await choose(tree.asked, "Hierarchy (tree)");
     expect(await marks(tree.asked)).toEqual(["Hierarchy (tree)"]);
     expect(await names(tree.asked)).not.toContain("Hierarchy (tree) | hierarchy");
-    await choose(tree.asked, "Short ID", "descending", "Take 2 sort keys", "Run");
+    await choose(tree.asked, "Short ID", "descending", "Save");
     expect(tree.call).toHaveBeenLastCalledWith("filter.save", {
       name: "open",
       where: { all: [] },
@@ -4194,40 +4078,70 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
         { by: "id", order: "desc" },
       ],
     });
+    // Workspace order sets a mark and stays in the step; a key takes its place, and it takes theirs.
     const none = await atSort();
-    await choose(none.asked, "Workspace order");
-    expect((await last(none.asked)).label).toBe(
-      "Save filter open all elements sort: workspace order · more arguments:",
-    );
-    await choose(none.asked, "Run");
+    await choose(none.asked, "Title", "ascending", "Workspace order");
+    expect((await last(none.asked)).label).toBe(`${LINE}:`);
+    expect(await marks(none.asked)).toEqual(["Workspace order"]);
+    await choose(none.asked, "Status", "descending");
+    expect(await marks(none.asked)).toEqual(["Status descending"]);
+    await choose(none.asked, "Workspace order", "Save");
     expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] }, sort: [] });
   });
 
-  it("[SR-215/AK-fm4s] [SR-215/AK-hnzf] the finishing hit is marked first: without a mark it skips the sort, with marks it takes them; Ctrl/Cmd+Enter offers the optional arguments", async () => {
+  it("[SR-215/AK-fm4s] [SR-219/AK-kv63] Save is marked first: without a mark a saved filter saves no sort, with marks their keys; Ctrl/Cmd+Enter offers the optional arguments, Save first", async () => {
     const none = await atSort();
-    expect((await last(none.asked)).items[0]?.name).toBe("No sort");
-    await choose(none.asked, "No sort", "Run");
+    expect((await last(none.asked)).items[0]?.name).toBe("Save");
+    await choose(none.asked, "Save");
     expect(none.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
 
     const skipped = await atSort();
-    item((await last(skipped.asked)).items, "No sort").more?.();
-    expect((await last(skipped.asked)).label).toBe("Save filter open all elements · more arguments:");
+    item((await last(skipped.asked)).items, "Save").more?.();
+    const more = await last(skipped.asked);
+    expect(more.label).toBe("New saved filter open · more arguments:");
+    expect(more.items.map((choice) => choice.name)).toEqual(["Save", "description", "view"]);
+    await choose(skipped.asked, "Save");
+    expect(skipped.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
 
-    // Ctrl/Cmd+Enter on a key without a mark skips the sort as well; it takes no empty sort.
+    // Ctrl/Cmd+Enter on a key without a mark takes no empty sort either.
     const key = await atSort();
     item((await last(key.asked)).items, "Title").more?.();
-    expect((await last(key.asked)).label).toBe("Save filter open all elements · more arguments:");
-    await choose(key.asked, "Run");
+    await choose(key.asked, "Save");
     expect(key.call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { all: [] } });
 
     const some = await atSort();
     await choose(some.asked, "Type", "ascending");
-    expect((await last(some.asked)).items[0]?.name).toBe("Take 1 sort key");
+    expect((await last(some.asked)).items[0]?.name).toBe("Save");
     // Ctrl/Cmd+Enter on any hit of this step takes the marks.
     item((await last(some.asked)).items, "Status").more?.();
-    expect((await last(some.asked)).label).toBe(
-      "Save filter open all elements sort: Type ascending · more arguments:",
-    );
+    await choose(some.asked, "Save");
+    expect(some.call).toHaveBeenLastCalledWith("filter.save", {
+      name: "open",
+      where: { all: [] },
+      sort: [{ by: "type", order: "asc" }],
+    });
+  });
+
+  it("[SR-215/AK-fm4s] outside a builder the finishing hit skips the sort without a mark and takes the marks with one; Workspace order takes the empty sort at once", async () => {
+    const listed: CommandListing = { ...command("element.list"), title: "Ask it" };
+    const atListSort = async () => {
+      const run = setup([shown], answers);
+      catalogItems(run.context, [listed], [])[0]?.more?.();
+      await choose(run.asked, "sort");
+      return run;
+    };
+    const none = await atListSort();
+    expect((await names(none.asked))[0]).toBe("No sort");
+    await choose(none.asked, "No sort", "Run");
+    expect(none.call).toHaveBeenLastCalledWith("element.list", {});
+    const some = await atListSort();
+    await choose(some.asked, "Title", "ascending");
+    expect((await names(some.asked))[0]).toBe("Take 1 sort key");
+    await choose(some.asked, "Take 1 sort key", "Run");
+    expect(some.call).toHaveBeenLastCalledWith("element.list", { sort: [{ by: "title", order: "asc" }] });
+    const workspace = await atListSort();
+    await choose(workspace.asked, "Workspace order", "Run");
+    expect(workspace.call).toHaveBeenLastCalledWith("element.list", { sort: [] });
   });
 
   it("[SR-215/AK-rx2z] [SR-134/AK-fmf6] an × removes its mark; Backspace removes the last mark only where the key is chosen; Escape keeps the marks, which stand again when the prompt returns to the sort", async () => {
@@ -4249,14 +4163,13 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     (await last(asked)).back?.();
     expect((await last(asked)).label).toBe(`${LINE}:`);
     expect(await marks(asked)).toEqual(["ID ascending"]);
-    // Escape at the keys goes back an argument and keeps the marks: they stand again at the sort.
+    // Escape at the keys goes back a step and keeps the marks: they stand again at the sort.
     (await last(asked)).back?.();
-    expect((await last(asked)).label).toBe("Save filter open · where:");
-    item((await last(asked)).items, "No condition: all elements").more?.();
-    await choose(asked, "sort");
+    expect((await last(asked)).label).toBe("New saved filter open · where:");
+    await choose(asked, "No condition: all elements");
     expect(await marks(asked)).toEqual(["ID ascending"]);
-    // Taken, then asked again by going back from the optional arguments: the marks stand again.
-    await choose(asked, "Take 1 sort key");
+    // Taken with Ctrl/Cmd+Enter, then asked again by going back from the optional arguments: the marks stand again.
+    item((await last(asked)).items, "Save").more?.();
     (await last(asked)).back?.();
     expect((await last(asked)).label).toBe(`${LINE}:`);
     expect(await marks(asked)).toEqual(["ID ascending"]);
@@ -4264,8 +4177,8 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
 
   it("[SR-215/AK-rx2z] a sort core refuses is asked again with its message and the marks back", async () => {
     const refusal = refusedWith("sort[0].by: no such property", { errors: [{ field: "sort[0].by" }] });
-    const { asked } = await atSort([shown], { "filter.save": () => refusal });
-    await choose(asked, "Rationale", "ascending", "Take 1 sort key", "Run");
+    const { asked } = await atSort({ "filter.save": () => refusal });
+    await choose(asked, "Rationale", "ascending", "Save");
     expect((await last(asked)).label).toBe(`sort[0].by: no such property · ${LINE}:`);
     expect(await marks(asked)).toEqual(["Rationale ascending"]);
     // The message is said once.
@@ -4279,7 +4192,11 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
       name: "sort",
       description: (command("filter.save").input as { properties: Record<string, { description?: unknown }> })
         .properties["sort"]?.description,
-      building: { enter: "takes the marked hit; the keys sort in their order", unmark: false, json: false },
+      building: {
+        enter: "takes the marked hit; Save saves with the keys in their order",
+        unmark: false,
+        json: false,
+      },
     });
     await choose(asked, "Title");
     expect((await last(asked)).explain).toMatchObject({
@@ -4289,67 +4206,6 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
     });
     await choose(asked, "ascending");
     expect((await last(asked)).explain?.building?.unmark).toBe(true);
-  });
-
-  it("[SR-215/AK-w8q6] without a mark the sort of the shown list is the first hit: Enter takes its keys as marks, the default as two", async () => {
-    const sorted = await atSort([
-      filteredList(
-        [typeStep("need")],
-        [
-          { by: "component", order: "desc" },
-          { by: "hierarchy", order: "asc" },
-        ],
-      ),
-    ]);
-    expect((await names(sorted.asked)).slice(0, 2)).toEqual([
-      "Sort of the shown list | Component descending · Hierarchy (tree)",
-      "No sort",
-    ]);
-    await choose(sorted.asked, "Sort of the shown list");
-    expect(await marks(sorted.asked)).toEqual(["Component descending", "Hierarchy (tree)"]);
-    expect((await last(sorted.asked)).items[0]?.name).toBe("Take 2 sort keys");
-    // A list with no sort chosen is shown in the default, type then ID.
-    const plain = await atSort([listBuffer("All elements")]);
-    expect((await last(plain.asked)).items[0]?.hint).toBe("Type ascending · ID ascending");
-    // The workspace order is taken at once; Ctrl/Cmd+Enter takes the keys and offers the optional arguments.
-    const workspace = await atSort([filteredList([], [])]);
-    await choose(workspace.asked, "Sort of the shown list", "Run");
-    expect(workspace.call).toHaveBeenLastCalledWith("filter.save", {
-      name: "open",
-      where: { all: [] },
-      sort: [],
-    });
-    const more = await atSort([listBuffer("All elements")]);
-    item((await last(more.asked)).items, "Sort of the shown list").more?.();
-    expect((await last(more.asked)).label).toBe(
-      "Save filter open all elements sort: Type ascending · ID ascending · more arguments:",
-    );
-  });
-
-  it("[SR-215/AK-w8q6] Save perspective takes the sort Save list as perspective saves; Save filter has none for a list with a saved filter and says why; the matrix and a search have none", async () => {
-    const list = filteredList([textStep("x")], [{ by: "title", order: "desc" }]);
-    const run = await atSort([list], {}, "perspective.save");
-    await choose(run.asked, "Sort of the shown list", "Take 1 sort key", "Run");
-    expect(run.call).toHaveBeenLastCalledWith("perspective.save", {
-      name: "open",
-      where: { all: [] },
-      sort: perspectiveInput(list, "open").sort,
-    });
-    // A saved filter's own sort holds where none is chosen: no hit, to Save perspective too.
-    const filtered = await atSort([filteredList([savedStep("Sensors")])], {}, "perspective.save");
-    expect((await last(filtered.asked)).items[0]?.name).toBe("No sort");
-    const saved = await atSort([filteredList([savedStep("Sensors")], [{ by: "title", order: "asc" }])]);
-    const prompt = await last(saved.asked);
-    expect(prompt.items[0]?.name).toBe("No sort");
-    expect(prompt.explain?.building?.note).toBe(NO_SHOWN_SORT);
-    await choose(saved.asked, "Title", "ascending");
-    expect((await last(saved.asked)).explain?.building?.note).toBeUndefined();
-    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
-    for (const other of [filteredList([typeStep("need")], undefined, true), search]) {
-      const elsewhere = await atSort([other]);
-      expect((await last(elsewhere.asked)).items[0]?.name).toBe("No sort");
-      expect((await last(elsewhere.asked)).explain?.building?.note).toBeUndefined();
-    }
   });
 
   it("reads the keys once for the argument, not again in each step", async () => {
@@ -4362,10 +4218,10 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
   });
 
   it("offers the fixed keys and says why when the metamodel cannot be read", async () => {
-    const { asked } = await atSort([shown], { "metamodel.get": () => new Error("The metamodel is faulty") });
+    const { asked } = await atSort({ "metamodel.get": () => new Error("The metamodel is faulty") });
     expect((await last(asked)).label).toBe(`The metamodel is faulty · ${LINE}:`);
     expect(await names(asked)).toEqual([
-      "No sort",
+      "Save",
       "Hierarchy (tree) | hierarchy",
       ...KEYS.slice(0, 5),
       "Workspace order",
@@ -4373,7 +4229,7 @@ describe("a sort built step by step from hits (SR-215 AK4, AK5, AK7, AK9, AK10, 
   });
 });
 
-describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
+describe("a grouping chosen from hits (SR-215 AK1, #1647)", () => {
   const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
   const FACETS = {
     total: 3,
@@ -4405,6 +4261,7 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
   const answers = {
     "metamodel.get": () => FIXTURE_METAMODEL,
     "element.facets": () => FACETS,
+    "element.list": () => ({ elements: [], total: 0 }),
     "filter.list": () => ({ filters: [{ name: "open needs", file: "f.yaml", where: {} }], problems: [] }),
     "perspective.list": () => ({
       perspectives: [PERSPECTIVE, { ...PERSPECTIVE, name: "Other", filter: "x" }],
@@ -4427,58 +4284,58 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
   const facetCalls = (call: ReturnType<typeof setup>["call"]): unknown[] =>
     call.mock.calls.filter(([name]) => name === "element.facets").map(([, input]) => input);
 
-  /** "Save perspective rain" with the condition type Decision, asked up to its grouping, `filter` given first. */
+  /** "New perspective rain" with the condition type Decision, asked up to its grouping, `filter` given before. */
   const atGroup = async (
-    buffers: Buffers = [shown],
     extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
     filter = false,
     beforeGroup = (): void => undefined,
   ) => {
-    const run = setup(buffers, { ...answers, ...extra });
-    start(run.context, "perspective.save", true);
+    const run = setup([shown], { ...answers, ...extra });
+    startBuilder(run.context, "perspective.save", CATALOG);
     (await last(run.asked)).text?.("rain");
     await choose(run.asked, "Type", "Decision");
-    item((await last(run.asked)).items, "Take 1 condition").more?.();
-    if (filter) {
-      await choose(run.asked, "filter");
-      item((await last(run.asked)).items, "open needs").more?.();
-    }
     const before = facetCalls(run.call).length;
     beforeGroup();
-    await choose(run.asked, "group");
+    if (filter) {
+      item((await last(run.asked)).items, "Next: grouping").more?.();
+      await choose(run.asked, "filter", "open needs");
+    } else {
+      await choose(run.asked, "Next: grouping");
+    }
     return { ...run, before };
   };
 
+  const KEYS = ["Type | type", "Status | status", "Package | package", "Component | component"];
+
   it("[SR-215/AK-fj75] offers type, status, package and the properties with values of the elements where and filter select, by name with the key beside, from one element.facets", async () => {
-    const { asked, call, before } = await atGroup([shown], {}, true);
-    expect((await last(asked)).label).toBe("Save perspective rain type: decision open needs · group:");
-    // Not the property of the packages, which "Package" groups by, nor free text.
-    expect(await names(asked)).toEqual([
-      "Type | type",
-      "Status | status",
-      "Package | package",
-      "Component | component",
-    ]);
+    const { asked, call, before } = await atGroup({}, true);
+    expect((await last(asked)).label).toBe("New perspective rain open needs · group:");
+    // "No grouping" first (SR-219 AK2); not the property of the packages, which "Package" groups by, nor free text.
+    expect(await names(asked)).toEqual(["No grouping", ...KEYS]);
     const facets = facetCalls(call).slice(before);
     expect(facets).toHaveLength(1);
-    await choose(asked, "Component", "Run");
-    const [name, saved] = call.mock.calls.at(-1) ?? [];
+    await choose(asked, "Component", "Save");
+    const [name, saved] = call.mock.calls.filter(([called]) => called === "perspective.save").at(-1) ?? [];
     expect(name).toBe("perspective.save");
     expect(saved).toMatchObject({ name: "rain", filter: "open needs", group: "component" });
     expect(facets[0]).toEqual({ selection: { where: saved?.["where"], filter: "open needs" } });
   });
 
-  it("[SR-215/AK-fj75] a refused where drops the grouping read from it; a filter, which reads nothing, stays", async () => {
+  it("[SR-215/AK-fj75] after a refused where the grouping is offered again for the new condition, and the other answers stand", async () => {
     const refusal = refusedWith("where: unknown type", { errors: [{ field: "where" }] });
-    const { asked, call } = await atGroup([shown], { "perspective.save": () => refusal }, true);
-    await choose(asked, "Status", "Run");
+    const { asked, call } = await atGroup({ "perspective.save": () => refusal }, true);
+    await choose(asked, "Status", "Save");
     expect(call).toHaveBeenLastCalledWith("perspective.save", expect.objectContaining({ group: "status" }));
-    expect((await last(asked)).label).toBe("where: unknown type · Save perspective rain open needs · where:");
-    item((await last(asked)).items, "Take 1 condition").run();
-    await flush();
-    const more = (await last(asked)).items.map((choice) => choice.name);
-    expect(more).toContain("group");
-    expect(more).not.toContain("filter");
+    expect((await last(asked)).label).toBe("where: unknown type · New perspective rain open needs · where:");
+    const before = facetCalls(call).length;
+    await choose(asked, "Next: grouping");
+    expect((await last(asked)).label).toBe("New perspective rain open needs · group:");
+    expect(facetCalls(call)).toHaveLength(before + 1);
+    await choose(asked, "Status", "Save");
+    expect(call).toHaveBeenLastCalledWith(
+      "perspective.save",
+      expect.objectContaining({ filter: "open needs", group: "status" }),
+    );
   });
 
   it("[SR-215/AK-fj75] of a list command, the groupings of the shown selection and the perspective's, whose saved filter counts where the list has none", async () => {
@@ -4501,6 +4358,8 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
     catalogItems(bare.context, [listed], [])[0]?.more?.();
     await choose(bare.asked, "group");
     expect(facetCalls(bare.call).at(-1)).toEqual({});
+    // Outside a builder there is no "No grouping".
+    expect(await names(bare.asked)).toEqual(KEYS);
   });
 
   it("says why when the perspective or the facets cannot be read, and offers no Package without a property of the packages", async () => {
@@ -4518,13 +4377,12 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
     await choose(run.asked, "group");
     expect((await last(run.asked)).label).toBe("The perspectives are faulty · Ask it Mine · group:");
 
-    const faulty = await atGroup([shown], { "element.facets": () => new Error("The facets failed") });
-    expect((await last(faulty.asked)).label).toBe(
-      "The facets failed · Save perspective rain type: decision · group:",
-    );
+    const faulty = await atGroup({ "element.facets": () => new Error("The facets failed") });
+    expect((await last(faulty.asked)).label).toBe("The facets failed · New perspective rain · group:");
+    // The builder goes on without them.
+    expect(await names(faulty.asked)).toEqual(["No grouping"]);
     let broken = false;
     const bare = await atGroup(
-      [shown],
       { "metamodel.get": () => (broken ? new Error("faulty") : FIXTURE_METAMODEL) },
       false,
       () => {
@@ -4532,34 +4390,350 @@ describe("a grouping chosen from hits (SR-215 AK1, AK5, #1647)", () => {
       },
     );
     expect(await names(bare.asked)).toEqual([
+      "No grouping",
       "Type | type",
       "Status | status",
       "Component | component",
       "Packages | packages",
     ]);
   });
+});
 
-  it("[SR-215/AK-w8q6] on a grouped list the grouping of the shown list is the first hit, and Enter takes the grouping Save list as perspective saves; the matrix, a search and a list without groups have none", async () => {
-    const list = withGroup(filteredList([typeStep("need")]), "component");
-    const grouped = await atGroup([list]);
-    expect((await names(grouped.asked))[0]).toBe(`${SHOWN_GROUP} | Component`);
-    await choose(grouped.asked, SHOWN_GROUP);
-    expect((await last(grouped.asked)).label).toBe(
-      "Save perspective rain type: decision Component · more arguments:",
-    );
-    await choose(grouped.asked, "Run");
-    expect(grouped.call).toHaveBeenLastCalledWith(
-      "perspective.save",
-      expect.objectContaining({ group: perspectiveInput(list, "rain").group }),
-    );
-    // A grouping no hit names is shown by its key.
-    const free = await atGroup([withGroup(filteredList([]), "rationale")]);
-    expect((await names(free.asked))[0]).toBe(`${SHOWN_GROUP} | rationale`);
-    const search = resultBuffer("element.search", { query: "brake" }, "search: brake", { hits: [] }, 1);
-    const matrix = { ...filteredList([typeStep("need")], undefined, true), group: "status" };
-    for (const other of [filteredList([typeStep("need")]), matrix, search]) {
-      expect((await names((await atGroup([other])).asked))[0]).toBe("Type | type");
+describe("New perspective and New saved filter ask every step before they save (SR-219, #1746)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1");
+  const FACETS = { total: 1, types: [], statuses: [{ key: "draft", count: 1 }], properties: [] };
+  const RAIN = { name: "Rain", file: "perspectives/rain.yaml", where: { all: [] } };
+  const answers = {
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.facets": () => FACETS,
+    "element.list": () => ({ elements: [], total: 0 }),
+    "perspective.list": () => ({ perspectives: [RAIN] }),
+    "filter.list": () => ({ filters: [{ name: "Open needs", file: "filters/open-needs.yaml", where: {} }] }),
+    "perspective.save": () => ({ files: ["perspectives/rain.yaml"] }),
+    "filter.save": () => ({ files: ["filters/open.yaml"] }),
+  };
+
+  const choose = async (asked: readonly Prompt[], ...path: readonly string[]): Promise<void> => {
+    for (const name of path) {
+      item((await last(asked)).items, name).run();
     }
+    await flush();
+  };
+
+  const names = async (asked: readonly Prompt[]): Promise<string[]> =>
+    (await last(asked)).items.map((choice) => choice.name);
+
+  const saves = (call: ReturnType<typeof setup>["call"], name = "perspective.save") =>
+    call.mock.calls.filter(([called]) => called === name);
+
+  /** "New perspective" (or `name`) started over `buffers`. */
+  const begin = (
+    buffers: Buffers = [shown],
+    extra: Record<string, (input: Record<string, unknown>) => Answer> = {},
+    name: "perspective.save" | "filter.save" = "perspective.save",
+  ) => {
+    const run = setup(buffers, { ...answers, ...extra });
+    startBuilder(run.context, name, CATALOG);
+    return run;
+  };
+
+  it("[SR-219/AK-v80n] the command prompt has New perspective and New saved filter, which run perspective.save and filter.save, and no Save perspective or Save filter; they fit the overview and a list", () => {
+    const context = { ...setup([shown]).context, build: () => undefined };
+    const entries = (buffers: Buffers) =>
+      withExplanations(
+        commandPrompt(
+          { ...context, buffers },
+          undefined,
+          catalogItems({ ...context, buffers }, CATALOG, ACTIONS),
+        ),
+        CATALOG,
+      ).items;
+    for (const buffers of [[shown], [listBuffer("All elements")]] as Buffers[]) {
+      const titles = entries(buffers).map((entry) => entry.name);
+      expect(titles).toContain("New perspective");
+      expect(titles).toContain("New saved filter");
+      expect(titles).not.toContain("Save perspective");
+      expect(titles).not.toContain("Save filter");
+    }
+    const builders = ACTIONS.filter((action) =>
+      ["New perspective", "New saved filter"].includes(action.title),
+    );
+    expect(builders.map((action) => coveredCommand(action, CATALOG)?.name)).toEqual([
+      "perspective.save",
+      "filter.save",
+    ]);
+    // Their explanation line is the summary of the command they run (SR-210 AK5).
+    const newPerspective = entries([shown]).find((entry) => entry.name === "New perspective");
+    expect(newPerspective?.explain?.summary).toBe(command("perspective.save").summary);
+    // They fit the overview and a list, not an element.
+    const fitting = (buffers: Buffers) =>
+      entries(buffers)
+        .filter((entry) => entry.name.startsWith("New "))
+        .map((entry) => entry.fits);
+    expect(fitting([shown])).toEqual([false, false]);
+    expect(fitting([listBuffer("All elements")])).toEqual([true, true]);
+    expect(fitting([overviewBuffer()])).toEqual([true, true]);
+    // Not in a read-only workspace, and not where the window cannot start them.
+    const readOnly = { ...context, readOnly: true };
+    expect(builders.some((action) => action.available(readOnly))).toBe(false);
+    const { build: _build, ...without } = context;
+    expect(builders.some((action) => action.available(without))).toBe(false);
+    // The action hands its context to the window.
+    const started: unknown[] = [];
+    builders[0]?.run({ ...context, build: (name, from) => started.push([name, from.buffers]) });
+    expect(started).toEqual([["perspective.save", [shown]]]);
+  });
+
+  it("[SR-219/AK-tbwz] New perspective asks name, condition, grouping and sort in turn, the first hit marked, and saves only with Save, without keys sorted by type and ID", async () => {
+    const run = begin();
+    const name = await last(run.asked);
+    expect(name.label).toBe("New perspective · name:");
+    name.text?.("Open work");
+    // The condition starts without a mark and without a hit for the shown list.
+    expect((await last(run.asked)).label).toBe("New perspective Open work · where:");
+    expect((await names(run.asked))[0]).toBe("No condition: all elements");
+    await choose(run.asked, "Type", "Decision");
+    expect((await names(run.asked))[0]).toBe("Next: grouping");
+    await choose(run.asked, "Next: grouping");
+    // The grouping, without Ctrl/Cmd+Enter: "No grouping" first, then the groupings.
+    expect((await last(run.asked)).label).toBe("New perspective Open work · group:");
+    expect((await names(run.asked)).slice(0, 2)).toEqual(["No grouping", "Type"]);
+    await choose(run.asked, "Status");
+    // The sort: "Save" first.
+    expect((await last(run.asked)).label).toBe("New perspective Open work · sort:");
+    expect((await names(run.asked))[0]).toBe("Save");
+    expect(saves(run.call)).toHaveLength(0);
+    await choose(run.asked, "Save");
+    expect(saves(run.call)).toEqual([
+      [
+        "perspective.save",
+        {
+          name: "Open work",
+          where: { all: [{ type: ["decision"] }] },
+          group: "status",
+          sort: [
+            { by: "type", order: "asc" },
+            { by: "identifier", order: "asc" },
+          ],
+        },
+      ],
+    ]);
+    // "No condition: all elements" and "No grouping" go on as well; chosen keys are saved as chosen.
+    const plain = begin();
+    (await last(plain.asked)).text?.("All");
+    await choose(plain.asked, "No condition: all elements", "No grouping", "Title", "descending", "Save");
+    expect(saves(plain.call).at(-1)).toEqual([
+      "perspective.save",
+      { name: "All", where: { all: [] }, sort: [{ by: "title", order: "desc" }] },
+    ]);
+  });
+
+  it("[SR-219/AK-kv63] New saved filter asks name, condition and sort; its take hit is Next: sort, and Save without keys saves no sort", async () => {
+    const run = begin([shown], {}, "filter.save");
+    (await last(run.asked)).text?.("Drafts");
+    await choose(run.asked, "Status", "Draft");
+    expect((await names(run.asked))[0]).toBe("Next: sort");
+    await choose(run.asked, "Next: sort");
+    expect((await last(run.asked)).label).toBe("New saved filter Drafts · sort:");
+    await choose(run.asked, "Save");
+    expect(saves(run.call, "filter.save")).toEqual([
+      ["filter.save", { name: "Drafts", where: { all: [{ status: ["draft"] }] } }],
+    ]);
+  });
+
+  it("[SR-219/AK-vnsd] the name step shows the saved ones as hits and says when the typed name replaces one, and that a modified buffer loses its changes", async () => {
+    const run = begin();
+    const name = await last(run.asked);
+    expect(name.preview).toBe(true);
+    expect(name.items.map((choice) => choice.name)).toEqual(["Rain"]);
+    expect(name.explain?.note?.("Sun")).toBeUndefined();
+    // Ignoring case and Unicode normal form, as core compares names.
+    expect(name.explain?.note?.(" rain ")).toBe("Replaces the perspective Rain");
+    const perspective = perspectiveBuffer({ name: "Rain", saved: { where: { all: [] } } });
+    const modified = withQuery(perspective, { steps: [...perspective.steps, typeStep("need")] });
+    const changed = begin([modified]);
+    expect((await last(changed.asked)).explain?.note?.("RAIN")).toBe(
+      "Replaces the perspective Rain; the changes of its modified buffer are lost",
+    );
+    // A hit chosen takes its name.
+    (await last(run.asked)).items[0]?.run();
+    expect((await last(run.asked)).label).toBe("New perspective Rain · where:");
+    // The saved filters for a saved filter; "Café" is "Café".
+    const filter = begin(
+      [shown],
+      { "filter.list": () => ({ filters: [{ name: "Café", file: "f.yaml" }] }) },
+      "filter.save",
+    );
+    expect((await last(filter.asked)).explain?.note?.("café")).toBe("Replaces the saved filter Café");
+    // An empty name is asked again; a list that cannot be read says why.
+    (await last(filter.asked)).text?.("  ");
+    expect((await last(filter.asked)).label).toBe("New saved filter · name:");
+    const failing = begin([shown], { "perspective.list": () => new Error("The perspectives are faulty") });
+    expect((await last(failing.asked)).label).toBe("The perspectives are faulty · New perspective · name:");
+  });
+
+  it("[SR-219/AK-wsw0] Ctrl/Cmd+Enter in a step saves nothing, offers the optional arguments that are no step, then goes on with the next step", async () => {
+    const run = begin();
+    (await last(run.asked)).more?.("rain");
+    const more = await last(run.asked);
+    expect(more.label).toBe("New perspective rain · more arguments:");
+    expect(more.items.map((choice) => choice.name)).toEqual(["Next: condition", "description", "filter"]);
+    await choose(run.asked, "description");
+    (await last(run.asked)).text?.("For the review");
+    // After the optional argument, the next step.
+    expect((await last(run.asked)).label).toBe("New perspective rain For the review · where:");
+    item((await last(run.asked)).items, "No condition: all elements").more?.();
+    expect(await names(run.asked)).toEqual(["Next: grouping", "filter"]);
+    await choose(run.asked, "filter", "Open needs");
+    expect((await last(run.asked)).label).toBe("New perspective rain For the review Open needs · group:");
+    item((await last(run.asked)).items, "No grouping").more?.();
+    expect(await names(run.asked)).toEqual(["Next: sort"]);
+    await choose(run.asked, "Next: sort");
+    expect(saves(run.call)).toHaveLength(0);
+    // In the last step Ctrl/Cmd+Enter offers them with Save first.
+    item((await last(run.asked)).items, "Save").more?.();
+    expect(await names(run.asked)).toEqual(["Save"]);
+    await choose(run.asked, "Save");
+    expect(saves(run.call)).toEqual([
+      [
+        "perspective.save",
+        {
+          name: "rain",
+          description: "For the review",
+          filter: "Open needs",
+          where: { all: [] },
+          sort: [
+            { by: "type", order: "asc" },
+            { by: "identifier", order: "asc" },
+          ],
+        },
+      ],
+    ]);
+    // The explanation line names Ctrl/Cmd+Enter while such an argument is left.
+    const filter = begin([shown], {}, "filter.save");
+    expect((await last(filter.asked)).explain?.more).toBe(true);
+  });
+
+  it("[SR-219/AK-pqry] Escape goes back a step with its answers and marks; each step shows the marks of the steps before without ×", async () => {
+    const run = begin();
+    (await last(run.asked)).text?.("rain");
+    await choose(run.asked, "Type", "Decision", "Next: grouping");
+    expect((await last(run.asked)).earlier).toEqual(["type: decision"]);
+    await choose(run.asked, "Status", "Title", "ascending");
+    const sort = await last(run.asked);
+    expect(sort.earlier).toEqual(["type: decision", "grouped by Status"]);
+    expect(sort.marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
+    // The sort's marks are its own; Escape goes back to the grouping, whose answer stands first and marked, so
+    // Enter keeps it.
+    sort.back?.();
+    const group = await last(run.asked);
+    expect(group.label).toBe("New perspective rain · group:");
+    expect((await names(run.asked)).slice(0, 2)).toEqual(["Status", "No grouping"]);
+    (await last(run.asked)).items[0]?.run();
+    await flush();
+    const sortAgain = await last(run.asked);
+    expect(sortAgain.earlier).toEqual(["type: decision", "grouped by Status"]);
+    expect(sortAgain.marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
+    // Back to the grouping, then to the condition with its marks.
+    sortAgain.back?.();
+    (await last(run.asked)).back?.();
+    const where = await last(run.asked);
+    expect(where.label).toBe("New perspective rain · where:");
+    expect(where.marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
+    expect(where.earlier).toEqual([]);
+    // Forward again: the sort's marks stand again.
+    await choose(run.asked, "Next: grouping", "No grouping");
+    expect((await last(run.asked)).marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
+    expect((await last(run.asked)).earlier).toEqual(["type: decision"]);
+    // Back to the name, which stands again, and before it the command prompt.
+    const back = begin();
+    (await last(back.asked)).text?.("rain");
+    (await last(back.asked)).back?.();
+    expect((await last(back.asked)).initial).toBe("rain");
+    (await last(back.asked)).back?.();
+    expect(back.reopened()).toBe(1);
+    expect(saves(run.call)).toHaveLength(0);
+  });
+
+  it("[SR-219/AK-k5p2] after Save New perspective opens the perspective as saved and says so, New saved filter only says so; a refusal shows its step with the message and every answer again", async () => {
+    const opened: string[] = [];
+    const run = setup([shown], answers);
+    const context = {
+      ...run.context,
+      perspectives: { used: () => [], opened: (name: string) => opened.push(name) },
+    };
+    startBuilder(context, "perspective.save", CATALOG);
+    (await last(run.asked)).text?.("Rain");
+    await choose(run.asked, "No condition: all elements", "No grouping", "Save");
+    expect(run.dispatched.at(-1)).toMatchObject({ type: "open", buffer: { perspective: { name: "Rain" } } });
+    expect(opened).toEqual(["Rain"]);
+    expect(run.echoed.at(-1)).toBe("Saved perspective Rain");
+    // Saved but not opened: it says so, and why.
+    let faulty = false;
+    const unopened = begin([shown], {
+      "perspective.list": () =>
+        faulty ? new Error("The perspectives are faulty") : answers["perspective.list"](),
+      "perspective.save": () => {
+        faulty = true;
+        return { files: ["perspectives/rain.yaml"] };
+      },
+    });
+    (await last(unopened.asked)).text?.("Rain");
+    await choose(unopened.asked, "No condition: all elements", "No grouping", "Save");
+    expect(unopened.echoed.at(-1)).toBe("Saved perspective Rain · The perspectives are faulty");
+
+    const filter = begin([shown], {}, "filter.save");
+    (await last(filter.asked)).text?.("Open");
+    await choose(filter.asked, "No condition: all elements", "Save");
+    expect(filter.echoed.at(-1)).toBe("Saved filter Open");
+    expect(filter.dispatched).toEqual([]);
+
+    // A refused name: the name step with core's message, then every answer again, until Save.
+    const refusal = refusedWith("name: too long", { errors: [{ field: "name" }] });
+    let refuse = true;
+    const refused = begin([shown], {
+      "perspective.save": () => (refuse ? refusal : { files: ["perspectives/x.yaml"] }),
+    });
+    (await last(refused.asked)).text?.("x");
+    await choose(refused.asked, "Type", "Decision", "Next: grouping", "Status", "Title", "ascending", "Save");
+    const name = await last(refused.asked);
+    expect(name.label).toBe("name: too long · New perspective · name:");
+    expect(name.initial).toBe("x");
+    refuse = false;
+    name.text?.("y");
+    expect((await last(refused.asked)).marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
+    await choose(refused.asked, "Next: grouping");
+    // The grouping given stands first and marked: Enter keeps it.
+    expect((await names(refused.asked))[0]).toBe("Status");
+    (await last(refused.asked)).items[0]?.run();
+    await flush();
+    expect((await last(refused.asked)).marks?.map((mark) => mark.label)).toEqual(["Title ascending"]);
+    await choose(refused.asked, "Save");
+    expect(saves(refused.call).at(-1)).toEqual([
+      "perspective.save",
+      {
+        name: "y",
+        where: { all: [{ type: ["decision"] }] },
+        group: "status",
+        sort: [{ by: "title", order: "asc" }],
+      },
+    ]);
+    // A refusal that names no step shows the last step; one of an optional argument asks that again first.
+    const other = begin([shown], { "perspective.save": () => new Error("The workspace is read-only") });
+    (await last(other.asked)).text?.("z");
+    await choose(other.asked, "No condition: all elements", "No grouping", "Save");
+    expect((await last(other.asked)).label).toBe("The workspace is read-only · New perspective z · sort:");
+    const described = refusedWith("description: too long", { errors: [{ field: "description" }] });
+    const optional = begin([shown], { "perspective.save": () => described });
+    (await last(optional.asked)).more?.("z");
+    await choose(optional.asked, "description");
+    (await last(optional.asked)).text?.("long");
+    await choose(optional.asked, "No condition: all elements", "No grouping", "Save");
+    expect((await last(optional.asked)).label).toBe(
+      "description: too long · New perspective z · description:",
+    );
+    (await last(optional.asked)).text?.("short");
+    expect((await last(optional.asked)).label).toBe("New perspective z short · sort:");
   });
 });
 

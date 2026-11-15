@@ -9,7 +9,7 @@
 // saved. Only the input of the core is built (ADR-0002).
 import type { CommandTypes, ElementListOutput, ElementSelection, PerspectiveListOutput } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
-import type { Action, ActionContext, Choice } from "./actions.js";
+import type { Action, ActionContext, BuiltCommand, Choice } from "./actions.js";
 import type { FilterStep, ListBuffer, ListedPerspective } from "./buffers.js";
 import { inMatrix, listSort, listing, perspectiveBuffer, savedOf, selectionOf } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
@@ -66,32 +66,41 @@ export const perspectiveNamed = (
 /**
  * Opens the perspective `name` as it is saved (SR-214 AK2, AK4), in the view of the window, and records
  * the opening for the order of the prompt (AK1). Every opening by the user goes through here: the prompt,
- * and the row of the overview (SR-118 AK7, #1620). An open buffer of the perspective is replaced by it.
+ * and the row of the overview (SR-118 AK7, #1620), and "New perspective" after it saved (SR-219 AK7). An open
+ * buffer of the perspective is replaced by it. `say` says why it did not open, or the warning it opened with
+ * (the minibuffer, unless given). Resolves the name as saved once it opened, else undefined.
  */
-export const openPerspective = async (context: ActionContext, name: string): Promise<void> => {
+export const openPerspective = async (
+  context: ActionContext,
+  name: string,
+  say: (message: string) => void = (message) => {
+    context.echo(message);
+  },
+): Promise<string | undefined> => {
   const call = context.shownCall ?? context.call;
   const [listed, check] = await Promise.all([call("perspective.list", {}), checkPerspective(call, name)]);
   if (!check.ok) {
     // Core names the perspective and, for its saved filter, the filter too (SR-213 AK6).
-    context.echo(check.message);
-    return;
+    say(check.message);
+    return undefined;
   }
   if (!listed.ok) {
-    context.echo(listed.message);
-    return;
+    say(listed.message);
+    return undefined;
   }
   const found = perspectiveNamed(listed.output.perspectives, name);
   if (found === undefined) {
     // Removed between the two reads.
-    context.echo(`No perspective is named ${name}`);
-    return;
+    say(`No perspective is named ${name}`);
+    return undefined;
   }
   const checked = checkedBuffer(found, check.output);
   context.dispatch({ type: "open", buffer: checked.buffer });
   context.perspectives?.opened(found.name);
   if (checked.warning !== undefined) {
-    context.echo(checked.warning);
+    say(checked.warning);
   }
+  return found.name;
 };
 
 const inert = (id: string, name: string): Choice => ({
@@ -147,9 +156,7 @@ type Condition = NonNullable<ElementSelection["where"]>;
  * of its buffer, with no further condition stays as stored, so saving it again under its name changes no line
  * of it (SR-213 AK3). Otherwise always under one `all`, in the order of the steps, none as `{ all: [] }` (a text
  * step is its `text` condition, SR-068), the perspective's stored `all` giving its parts, a stored condition of
- * another kind one part: the marks the condition of "Save perspective" takes from the shown list
- * (`shownMarks`, SR-215 AK5), so for a list without an unchanged perspective selection both ways write the
- * same file (SR-214 AK5).
+ * another kind one part: the conditions of the steps as marks (`shownMarks`, SR-214 AK5).
  */
 export const perspectiveWhere = (steps: readonly FilterStep[]): Condition => {
   const [first, ...rest] = steps;
@@ -226,7 +233,32 @@ const savableList = (context: ActionContext): ListBuffer | undefined => {
     : undefined;
 };
 
+/**
+ * A builder (SR-219 AK1): available while the workspace can be written, fitting only the overview and a list of
+ * elements (SR-133 AK1). It runs `command` through the window (`ActionContext.build`), which asks its steps.
+ */
+const builder = (id: string, title: string, command: BuiltCommand): Action => ({
+  id,
+  title,
+  covers: [command],
+  available: (context: ActionContext): boolean =>
+    context.workspace && context.readOnly !== true && context.build !== undefined,
+  fits: (context: ActionContext): boolean => {
+    const shown = context.buffers[0];
+    return shown?.kind === "overview" || shown?.kind === "list";
+  },
+  run: (context: ActionContext): void => {
+    context.build?.(command, context);
+  },
+});
+
+/** The IDs of "New perspective" and "New saved filter". */
+export const NEW_PERSPECTIVE = "new-perspective";
+export const NEW_SAVED_FILTER = "new-saved-filter";
+
 export const PERSPECTIVE_ACTIONS: readonly Action[] = [
+  builder(NEW_PERSPECTIVE, "New perspective", "perspective.save"),
+  builder(NEW_SAVED_FILTER, "New saved filter", "filter.save"),
   {
     id: OPEN_PERSPECTIVE,
     title: "Open perspective",

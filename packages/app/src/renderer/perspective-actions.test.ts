@@ -459,7 +459,7 @@ describe("Save list as perspective (SR-214 AK5)", () => {
       where: { all: [{ type: ["need"] }, { text: "x" }] },
       sort: [{ by: "title", order: "desc" }],
     });
-    // Else always under one `all` (SR-215 AK5: the marks "Save perspective" takes from the shown list), the
+    // Else always under one `all` (`shownMarks`, the marks of the conditions of the steps), the
     // parts of a perspective's stored `all` first, a stored condition of another kind as one part.
     expect(perspectiveWhere([typeStep("need")])).toEqual({ all: [{ type: ["need"] }] });
     const stored = perspectiveBuffer({ name: "One", saved: { where: { all: [{ type: ["need"] }] } } });

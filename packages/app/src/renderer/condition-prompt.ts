@@ -1,5 +1,5 @@
-// A condition (`where` of "Save filter" and "Save perspective") built step by step from hits (SR-215 AK3,
-// AK4, AK5, AK6, AK9). The first step offers the finishing hit and the kinds; choosing a kind asks its values,
+// A condition (`where` of "New saved filter" and "New perspective", SR-219) built step by step from hits (SR-215
+// AK3, AK4, AK6, AK9). The first step offers the finishing hit and the kinds; choosing a kind asks its values,
 // and each value chosen is a mark in the input with the label of the same list filter step (`list-filters.ts`)
 // where a list has one. All marks hold together: the value is `{ all: [<marks in their order>] }`, without a
 // mark `{ all: [] }` (AK10). Text that starts with "{" is one condition in JSON, as the command line takes
@@ -7,22 +7,12 @@
 //
 // The kinds and their values are those of `condition-kinds.ts`; statuses and properties with their values
 // come from `element.facets` over the marks so far (without a mark the workspace).
-// Without a mark, the conditions of the shown list come first (AK5, `shownMarks`): the same parts that "Save
-// list as perspective" writes under `all` (`perspectiveWhere`), which keeps only an unchanged perspective
-// selection as stored (SR-213 AK3).
+// `shownMarks` gives the conditions of a list's steps as marks: the parts "Save list as perspective" writes
+// under `all` (`perspectiveWhere`), which keeps only an unchanged perspective selection as stored (SR-213 AK3).
 import type { ElementSelection } from "@reqseq/core";
-import type {
-  ActionContext,
-  ArgumentExplanation,
-  Choice,
-  Prompt,
-  PromptFill,
-  PromptMark,
-} from "./actions.js";
+import type { ArgumentExplanation, Choice, Prompt, PromptFill, PromptMark } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
-import { listing, selectionOf } from "./buffers.js";
-import type { BuiltAsk, Entry } from "./catalog-entry.js";
-import { appended } from "./catalog-entry.js";
+import type { BuiltAsk } from "./catalog-entry.js";
 import type { ConditionKind, ConditionMark, KindHits, KindSource } from "./condition-kinds.js";
 import { CONDITION_KINDS, stepMark, textMark } from "./condition-kinds.js";
 import { missingStep, propertyStep, statusStep, textStep, typeStep } from "./list-filters.js";
@@ -41,20 +31,11 @@ export interface ConditionAsk extends BuiltAsk<ConditionMark> {
    */
   readonly back: (marks: readonly ConditionMark[]) => void;
   /**
-   * The conditions of the shown list, the first hit without a mark (AK5), or why there is none; worked out
-   * only when no mark is set.
+   * The name of the hit that takes the marks in a builder ("Next: grouping", SR-219 AK2, AK3), for "Take <n>
+   * conditions"; there it goes on to the next step.
    */
-  readonly shown?: () => ShownConditions | undefined;
+  readonly next?: string;
 }
-
-/**
- * The first hit without a mark (AK5): the marks of the shown list's conditions, `key` what it shows of them
- * (its step labels), and `ask` the argument entry that goes on with them (a saved filter given as `filter`).
- * Or `note`, which the explanation line says in place of the hit.
- */
-export type ShownConditions =
-  | { readonly marks: readonly ConditionMark[]; readonly key: string; readonly ask: () => ConditionAsk }
-  | { readonly note: string };
 
 /** The value the marks give (AK10): all of them, in their order. */
 export const conditionOf = (marks: readonly ConditionMark[]): { readonly all: readonly unknown[] } => ({
@@ -64,9 +45,6 @@ export const conditionOf = (marks: readonly ConditionMark[]): { readonly all: re
 /** How the prompt's line and the result buffer name the value given. */
 export const conditionLabel = (marks: readonly ConditionMark[]): string =>
   marks.length === 0 ? "all elements" : marks.map((mark) => mark.label).join(" · ");
-
-/** The first hit without a mark on a shown list (AK5): Enter takes its conditions as marks. */
-export const SHOWN_CONDITIONS = "Conditions of the shown list";
 
 /** The finishing hit without a mark (AK4). */
 export const NO_CONDITION = "No condition: all elements";
@@ -108,11 +86,11 @@ const stepOf = (part: Condition): FilterStep | undefined => {
     : undefined;
 };
 
-/** The label of a stored condition: that of its list filter step, else its JSON (or, not, AK5 and AK6). */
+/** The label of a stored condition: that of its list filter step, else its JSON (or, not, AK6). */
 const partLabel = (part: Condition): string => stepOf(part)?.label ?? JSON.stringify(part);
 
 /**
- * The marks of the conditions of a list's steps (AK5): each filter step with its label, the selection of a
+ * The marks of the conditions of a list's steps: each filter step with its label, the selection of a
  * perspective (its first step) as one mark per condition of it, with the label of its list filter step, else
  * in JSON; a saved filter gives none (it is the argument `filter`).
  */
@@ -301,43 +279,23 @@ const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: Condi
 };
 
 /**
- * Asks the condition with `marks` given (AK3, AK4): without a mark the shown list's conditions first (AK5,
- * `shown`), then the finishing hit, "Take <n> conditions" with marks, else "No condition: all elements", then
- * the kinds; text starting with "{" is taken as one condition in JSON (AK6). Ctrl/Cmd+Enter takes the marks
- * and offers the optional arguments. Backspace on an empty input removes the last mark, without one it goes
- * back an argument, as Escape does (AK9, SR-134 AK4).
+ * Asks the condition with `marks` given (AK3, AK4): the finishing hit, "Take <n> conditions" with marks (in a
+ * builder `next`, SR-219 AK2, AK3), else "No condition: all elements", then the kinds; text starting with "{" is
+ * taken as one condition in JSON (AK6). Ctrl/Cmd+Enter takes the marks and offers the optional arguments.
+ * Backspace on an empty input removes the last mark, without one it goes back an argument, as Escape does (AK9,
+ * SR-134 AK4).
  */
 export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[]): void => {
   const ask = plain(given);
   const take = (taken: readonly ConditionMark[], more: boolean) => (): void => {
     given.take(taken, more);
   };
-  const shown = marks.length === 0 ? given.shown?.() : undefined;
-  const first: readonly Choice[] =
-    shown !== undefined && "marks" in shown
-      ? [
-          {
-            id: "shown",
-            name: SHOWN_CONDITIONS,
-            hint: shown.key,
-            run: () => {
-              // Taken once: the step goes on without the hit, also when the list gave no mark (a saved filter).
-              const { shown: _taken, ...next } = shown.ask();
-              askCondition(next, shown.marks);
-            },
-            more: () => {
-              shown.ask().take(shown.marks, true);
-            },
-          },
-        ]
-      : [];
   const prompt: Prompt = {
     label: `${given.error === undefined ? "" : `${given.error} · `}${given.line}:`,
     items: [
-      ...first,
       {
         id: "take",
-        name: marks.length === 0 ? NO_CONDITION : `Take ${plural(marks.length, "condition")}`,
+        name: marks.length === 0 ? NO_CONDITION : (given.next ?? `Take ${plural(marks.length, "condition")}`),
         run: take(marks, false),
         more: take(marks, true),
       },
@@ -375,7 +333,6 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
         enter: "takes the marked hit; all conditions must hold",
         unmark: marks.length > 0,
         json: true,
-        ...(shown !== undefined && "note" in shown ? { note: shown.note } : {}),
       },
     },
     back: () => {
@@ -383,54 +340,4 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
     },
   };
   given.context.ask(prompt);
-};
-
-/** Why "Save filter" offers no conditions of a shown list with a saved filter (SR-215 AK5). */
-export const NO_SHOWN_FILTER = "No conditions of the shown list: a filter cannot hold its saved filter";
-
-/**
- * The conditions of the shown list for the condition of "Save filter" and "Save perspective" (SR-215 AK5): a
- * list, not the matrix, the search hits or a package page, whose steps give a condition or a saved filter.
- * Its saved filter goes to `filter` of "Save perspective"; "Save filter" has none for such a list, and says
- * why. `ask` goes on with the argument entry that has it.
- */
-export const shownConditions = (
-  context: ActionContext,
-  entry: Entry,
-  ask: (at: Entry) => ConditionAsk,
-): ShownConditions | undefined => {
-  const list = context.buffers[0];
-  const perspective = entry.command.name === "perspective.save";
-  if (
-    (!perspective && entry.command.name !== "filter.save") ||
-    !listing(list) ||
-    list.matrix === true ||
-    list.steps.length === 0
-  ) {
-    return undefined;
-  }
-  const filter = selectionOf(list.steps)?.filter;
-  if (filter !== undefined && !perspective) {
-    return { note: NO_SHOWN_FILTER };
-  }
-  const marks = shownMarks(list.steps);
-  if (marks.length === 0 && filter === undefined) {
-    return undefined;
-  }
-  // The saved filter goes in first, labelled so the line says it is saved with the condition.
-  const at =
-    filter === undefined
-      ? entry
-      : {
-          ...entry,
-          given: appended(
-            { ...entry, given: entry.given.filter((given) => given.field !== "filter") },
-            { field: "filter", value: filter, label: `filter: ${filter}` },
-          ),
-        };
-  return {
-    marks,
-    key: list.steps.map((step) => step.label).join(" · "),
-    ask: () => ask(at),
-  };
 };

@@ -905,16 +905,25 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
       window.locator(".sheet").evaluate((sheet) => sheet.getBoundingClientRect().width);
     const before = await sheetWidth();
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("Save perspective");
-    await expect(names(window).first()).toHaveText("Save perspective");
+    await window.keyboard.type("New perspective");
+    await expect(names(window).first()).toHaveText("New perspective");
     await window.keyboard.press("Enter");
     await window.keyboard.type("SR - S: ID - G: Pgk");
     await window.keyboard.press("Enter");
-    // A condition in JSON that core refuses, with a message longer than the window is wide; the mark stands
-    // again (SR-215 AK6).
+    // A condition in JSON that core refuses, with a message longer than the window is wide: the grouping says
+    // so first, then "Save" does, and the mark stands again (SR-215 AK6, SR-219 AK7).
+    const marked = window.locator('.candidates [aria-selected="true"] .name');
+    await expect(marked).toHaveText("No condition: all elements");
     await window.keyboard.type('{"bogus":1}');
+    await expect(marked).toHaveText("Add the condition in JSON");
     await window.keyboard.press("Enter");
+    await expect(marked).toHaveText("Next: grouping");
     await window.keyboard.press("Enter");
+    await expect(window.locator(".minibuffer")).toContainText("Invalid input for element.facets");
+    for (const hit of ["No grouping", "Save"]) {
+      await expect(marked).toHaveText(hit);
+      await window.keyboard.press("Enter");
+    }
     await expect(window.locator(".minibuffer")).toContainText("Invalid input for perspective.save");
     await expect(window.getByRole("list", { name: "Marks" }).getByRole("listitem")).toHaveText([
       '{"bogus":1}×',

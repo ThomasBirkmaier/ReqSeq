@@ -17,7 +17,7 @@ import { flushSync } from "react-dom";
 import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
-import type { ActionContext, ElementControls, Prompt } from "./actions.js";
+import type { ActionContext, BuiltCommand, ElementControls, Prompt } from "./actions.js";
 import {
   ACTIONS,
   actionFor,
@@ -34,7 +34,7 @@ import {
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
-import { catalogItems, withExplanations } from "./catalog-commands.js";
+import { catalogItems, startBuilder, withExplanations } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
@@ -812,6 +812,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const marked = markedElement(current, loaded);
   // The catalog, read once (it is the same for every workspace).
   const catalog = useRef<readonly CommandListing[]>([]);
+  // "New perspective" and "New saved filter" (SR-219): set below, where the command prompt it goes back to is.
+  const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
@@ -900,6 +902,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     graphChoices,
     catalog: () => catalog.current,
+    build: (command, from) => {
+      builder.current(command, from);
+    },
     follow: follow.controls,
     // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
     layout: {
@@ -1135,6 +1140,20 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     [ask],
   );
+  // Escape in the first step of a builder opens the command prompt again, as before a catalog command's first argument.
+  builder.current = (command, from) => {
+    startBuilder(
+      {
+        ...from,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands(true));
+        },
+      },
+      command,
+      catalog.current,
+    );
+  };
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
     mac: context.mac,
