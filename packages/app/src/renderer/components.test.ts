@@ -1445,6 +1445,63 @@ describe("Minibuffer", () => {
       expect(ended).not.toHaveBeenCalled();
     });
 
+    it("drops an Enter typed ahead when another prompt replaces the waiting one (#1763)", async () => {
+      const { find } = deferred();
+      const ended = vi.fn();
+      const other: Prompt = { label: "Commands", items: [], empty: ended, text: ended };
+      let ask: (serial: number) => void = () => undefined;
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : other },
+          onCommand: vi.fn(),
+          onClose: vi.fn(),
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sens");
+      await press(input(), "Enter");
+      await press(input(), "Enter");
+      await act(async () => {
+        ask(2);
+        await Promise.resolve();
+      });
+      await flush();
+      expect(ended).not.toHaveBeenCalled();
+    });
+
+    it("gives a Ctrl/Cmd+Enter typed ahead to the next prompt as Ctrl/Cmd+Enter (#1763)", async () => {
+      const { find, answer } = deferred();
+      const ended = vi.fn();
+      let ask: (serial: number) => void = () => undefined;
+      const hit = choice("pkg", "PKG-0000d1 Sensors", {
+        run: vi.fn(() => {
+          ask(2);
+        }),
+      });
+      const next: Prompt = { label: "packages", items: [], find: () => Promise.resolve([]), empty: ended };
+      const Harness = (): React.ReactElement => {
+        const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+        ask = setSerial;
+        const first: Prompt = { label: "packages", items: [], find };
+        return createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial, prompt: serial === 1 ? first : next },
+          onCommand: vi.fn(),
+          onClose: vi.fn(),
+        });
+      };
+      await render(createElement(Harness));
+      await type(input(), "Sensors");
+      await press(input(), "Enter");
+      await press(input(), "Enter", { ctrlKey: true, metaKey: true });
+      await answer("Sensors", [hit]);
+      expect(ended).toHaveBeenCalledExactlyOnceWith(true);
+    });
+
     it("waits for the hits of the typed text when the selected stale hit is also a buffer of the prompt (#195)", async () => {
       const { find, answer } = deferred();
       const recent = choice("sr-1", "SR-1 Old title");

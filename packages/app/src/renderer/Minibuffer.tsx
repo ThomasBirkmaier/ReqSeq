@@ -825,8 +825,11 @@ const PromptLine = ({
 }: {
   readonly prompt: Prompt;
   readonly onClose: (cancelled: boolean) => void;
-  /** Enters pressed while an earlier Enter waited for its answer: each is the Enter of the prompt that follows (#1763). */
-  readonly ahead: React.RefObject<number>;
+  /**
+   * The Enter (`enter`) or Ctrl/Cmd+Enter (`more`) pressed while an earlier one waited for its answer: the
+   * key of the prompt that follows (#1763). One at most.
+   */
+  readonly ahead: React.RefObject<"enter" | "more" | undefined>;
 }): React.JSX.Element => {
   const [query, setQuery] = useState(given.initial ?? "");
   // The marked row while none is chosen: the first row, or none at all while the hits only preview (SR-183).
@@ -884,7 +887,11 @@ const PromptLine = ({
       }
     }
     return () => {
-      // A late answer must not open anything after the prompt closed.
+      // A late answer must not open anything after the prompt closed, nor the Enter typed ahead for it act on
+      // a prompt that replaced this one before the answer came (#1763).
+      if (waiting.current !== 0) {
+        ahead.current = undefined;
+      }
       waiting.current = 0;
     };
   }, []);
@@ -936,7 +943,7 @@ const PromptLine = ({
   const choose = (choice: Choice, typed: string, more = false): void => {
     if (choice.inert === true) {
       // The prompt stays open: no Enter typed ahead waits for a prompt to follow.
-      ahead.current = 0;
+      ahead.current = undefined;
       return;
     }
     if (choice.complete !== undefined) {
@@ -988,7 +995,7 @@ const PromptLine = ({
     const { text, ...result } = answer.current;
     const [first] = rowsFor(text, result);
     if (first === undefined) {
-      ahead.current = 0;
+      ahead.current = undefined;
     } else {
       choose(first.item, text, more);
     }
@@ -1001,7 +1008,7 @@ const PromptLine = ({
     }
     if (waiting.current !== 0 && waiting.current === latest.current) {
       // An Enter awaits this answer already: this one is typed ahead, for the prompt that follows.
-      ahead.current += 1;
+      ahead.current = more ? "more" : "enter";
       return;
     }
     if (answered.current === latest.current) {
@@ -1023,7 +1030,7 @@ const PromptLine = ({
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
-    ahead.current = 0;
+    ahead.current = undefined;
     early.current = undefined;
     setPending(false);
     if (seeker === undefined || value.trim() === "") {
@@ -1115,8 +1122,11 @@ const PromptLine = ({
 
   useEffect(() => {
     // An Enter typed ahead while the prompt before waited for its answer acts on this prompt (#1763).
-    if (ahead.current > 0) {
-      ahead.current -= 1;
+    const key = ahead.current;
+    ahead.current = undefined;
+    if (key === "more") {
+      more();
+    } else if (key === "enter") {
       enter();
     }
   }, []);
@@ -1144,7 +1154,7 @@ const PromptLine = ({
       // As Escape: a prompt that waited for an answer is told it got none.
       prompt.cancel?.();
       waiting.current = 0;
-      ahead.current = 0;
+      ahead.current = undefined;
       onClose(false);
       back();
     }
@@ -1155,7 +1165,7 @@ const PromptLine = ({
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
-    ahead.current = 0;
+    ahead.current = undefined;
     onClose(true);
   };
   const cancelNow = useRef(cancel);
@@ -1402,11 +1412,11 @@ export const Minibuffer = ({
   // Whether the last press began on the idle line itself: a press that took a hit of the card and is
   // released over the line is no click on it.
   const pressed = useRef(false);
-  // Enters typed ahead for the next prompt; none are kept once no prompt is open (#1763).
-  const ahead = useRef(0);
+  // The Enter typed ahead for the next prompt; none is kept once no prompt is open (#1763).
+  const ahead = useRef<"enter" | "more" | undefined>(undefined);
   useEffect(() => {
     if (prompt === undefined) {
-      ahead.current = 0;
+      ahead.current = undefined;
     }
   }, [prompt]);
   return (
