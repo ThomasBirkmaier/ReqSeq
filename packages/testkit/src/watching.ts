@@ -15,12 +15,22 @@ export interface ProbeOptions {
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Repeats `probe` until `seen` holds; rejects after `timeoutMs`. Polls `seen` every 10 ms. */
+/**
+ * Repeats `probe` until `seen` holds; rejects after `timeoutMs`. Polls `seen` every 10 ms. The error names
+ * the probes made, the time waited and the slowest probe, so a lost watcher (many fast probes) can be told
+ * from a slow disk (few slow ones) in a CI log (#1668).
+ */
 export const untilWatching = async (options: ProbeOptions): Promise<void> => {
   const interval = options.intervalMs ?? 250;
-  const deadline = performance.now() + (options.timeoutMs ?? 15_000);
+  const start = performance.now();
+  const deadline = start + (options.timeoutMs ?? 15_000);
+  let probes = 0;
+  let slowest = 0;
   for (let attempt = 1; performance.now() < deadline; attempt++) {
+    const before = performance.now();
     await options.probe(attempt);
+    probes = attempt;
+    slowest = Math.max(slowest, performance.now() - before);
     const next = Math.min(performance.now() + interval, deadline);
     while (performance.now() < next) {
       if (await options.seen()) {
@@ -29,5 +39,8 @@ export const untilWatching = async (options: ProbeOptions): Promise<void> => {
       await pause(10);
     }
   }
-  throw new Error("the watcher saw no probe change in time");
+  const waited = Math.round(performance.now() - start);
+  throw new Error(
+    `the watcher saw no probe change in time: ${String(probes)} probes in ${String(waited)} ms, the slowest took ${String(Math.round(slowest))} ms`,
+  );
 };

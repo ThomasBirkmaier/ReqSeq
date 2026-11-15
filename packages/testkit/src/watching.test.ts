@@ -18,6 +18,8 @@ describe("untilWatching", () => {
   it("gives up after the timeout", async () => {
     await expect(
       untilWatching({ probe: () => Promise.resolve(), seen: () => Promise.resolve(false), timeoutMs: 50 }),
-    ).rejects.toThrow("the watcher saw no probe change in time");
+    ).rejects.toThrow(
+      /^the watcher saw no probe change in time: \d+ probes in \d+ ms, the slowest took \d+ ms$/,
+    );
   });
 });
