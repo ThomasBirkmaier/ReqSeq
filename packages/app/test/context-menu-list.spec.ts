@@ -1,5 +1,5 @@
 // The context menu of a list outside its rows (SR-198) on the built app: on the heading of a list, of a group,
-// of a search and of the elements of a package page it offers to filter, sort and group the list, "Ungroup
+// of a search and of the elements of a package page it offers "Filter list", "Sort list" and "Group list", "Ungroup
 // list" in place of "Group list" on a grouped list and "Clear all list filters" on a filtered one (AK1), also
 // by key (Shift+F10) on a list with no row to select.
 // Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a person's
@@ -13,7 +13,7 @@ import { goTo, launchApp, listAll, shownLayer } from "./support/app.js";
 /** 14 elements: 6 draft, 7 approved, 1 obsolete (fixtures/README.md); the package Sensors holds two. */
 const FIXTURE = { fixture: "SR-069/filter" };
 
-const FILTERS = ["Filter list by type", "Filter list by status", "Filter list by text search"];
+const FILTERS = ["Filter list"];
 const ALL = "All commands…";
 
 const menu = (window: Page): Locator => window.getByRole("menu", { name: "Context menu" });
@@ -57,7 +57,7 @@ test.describe("the context menu of a list", () => {
     await running.close();
   });
 
-  test("[SR-198/AK-qc75] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
+  test("[SR-198/AK-qc75] [SR-124/AK-zmfp] outside the rows a list offers to filter, sort and group, to ungroup when grouped and to clear its filters when filtered", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     await listAll(window);
@@ -79,7 +79,15 @@ test.describe("the context menu of a list", () => {
     await expect(groups).toHaveCount(0);
 
     // Filtered from the menu, by one step: "Clear all list filters" too, which gives the whole list again.
-    await fromMenu(heading, "Filter list by status", "Status", "draft");
+    await rightClick(heading);
+    await entries(window).filter({ hasText: "Filter list" }).first().click();
+    await expect(window.locator("label.prompt-label")).toHaveText("Filter by");
+    await window.keyboard.type("Status");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("label.prompt-label")).toHaveText("Status");
+    await window.keyboard.type("Draft");
+    await expect(candidates(window).first()).toHaveText("Draft");
+    await window.keyboard.press("Enter");
     await expect(rows).toHaveCount(6);
     expect(await menuOf(heading)).toEqual([
       ...FILTERS,
@@ -98,7 +106,10 @@ test.describe("the context menu of a list", () => {
     // macOS has no key that sends a `contextmenu` (Chromium maps neither Shift+F10 nor a Menu key there), so
     // there the test sends the `contextmenu` without a press that such a key gives, at the focused buffer.
     await rightClick(heading);
-    await entries(window).filter({ hasText: "Filter list by text search" }).click();
+    await entries(window).filter({ hasText: "Filter list" }).first().click();
+    await expect(window.locator("label.prompt-label")).toHaveText("Filter by");
+    await window.keyboard.type("Text search");
+    await window.keyboard.press("Enter");
     await expect(window.locator("label.prompt-label")).toHaveText("Text");
     await window.keyboard.type("no such text anywhere");
     await window.keyboard.press("Enter");

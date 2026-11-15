@@ -81,9 +81,12 @@ test.describe("lists in the quiet column", () => {
     await listAll(window);
     await expect(shownBuffer(window).locator("h1")).toHaveText("All elements 14");
     const all = await column(window);
-    await command(window, "Filter list by type");
+    await command(window, "Filter list");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Filter by");
+    await window.keyboard.type("Type");
+    await window.keyboard.press("Enter");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Type");
-    await window.keyboard.type("system-requirement");
+    await window.keyboard.type("System Requirement");
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window).locator("h1")).toHaveText(/^type: system-requirement \d+$/);
     const filtered = await column(window);

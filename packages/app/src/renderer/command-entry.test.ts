@@ -40,7 +40,7 @@ describe("appCommandEntry", () => {
     expect(appCommandEntry({ name: "filter.list", title: "List saved filters" }, false)).toEqual({
       name: "List saved filters",
       action: false,
-      shownIn: '"Filter list by saved filter"',
+      shownIn: '"Filter list"',
     });
     expect(Object.keys(SHOWN_IN)).toHaveLength(7);
     expect(shownIn({ name: "element.get", title: "Show element" })).toBeUndefined();

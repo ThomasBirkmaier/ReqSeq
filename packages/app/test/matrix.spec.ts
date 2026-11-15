@@ -130,8 +130,9 @@ const answer = async (window: Page, label: string, text: string): Promise<void> 
 
 /** The list of the system requirements as the matrix of the task "alle System Requirements". */
 const requirements = async (window: Page): Promise<void> => {
-  await runCommand(window, "Filter list by type");
-  await answer(window, "Type", "system-requirement");
+  await runCommand(window, "Filter list");
+  await answer(window, "Filter by", "Type");
+  await answer(window, "Type", "System Requirement");
   await expect(shownLayer(window).locator(".row")).toHaveCount(6);
 };
 
@@ -310,8 +311,9 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(await shown(window)).toEqual(expected(byPackage));
     // The saved filter "Stage SRs": the list of all elements, the filter, Ctrl+T; its own sort holds.
     await listAll(window);
-    await runCommand(window, "Filter list by saved filter");
-    await answer(window, "Filter", "Stage SRs");
+    await runCommand(window, "Filter list");
+    await answer(window, "Filter by", "Saved filter");
+    await answer(window, "Saved filter", "Stage SRs");
     await expect(shownLayer(window).locator(".row")).toHaveCount(5);
     await matrixOpen(window, 5);
     const bySaved = await matrixBy(running, { selection: { filter: "Stage SRs" } });
@@ -333,7 +335,8 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
-    await runCommand(window, "Filter list by text search");
+    await runCommand(window, "Filter list");
+    await answer(window, "Filter by", "Text search");
     await answer(window, "Text", "wind");
     await expect(shownLayer(window).locator("tbody tr")).not.toHaveCount(6);
     const cli = await matrixBy(running, {

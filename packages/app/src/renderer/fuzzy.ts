@@ -40,8 +40,8 @@ interface Match {
 /**
  * The character ranges of `name` in which `needle` (one word, lower case) matches as the beginnings
  * of words (SR-121 AK1): it falls into pieces, each the beginning of a later word than the piece
- * before, the first one of the first word; words may be skipped ("flp" finds "Filter list by
- * property", "lae" "List all elements", "crel" "Create relation"), unless `skip` is false: then each
+ * before, the first one of the first word; words may be skipped ("caf" finds "Clear
+ * all list filters", "lae" "List all elements", "crel" "Create relation"), unless `skip` is false: then each
  * piece begins the word right after the one before ("sm" finds "Show metamodel", not "Show
  * traceability matrix"). Undefined when it does not.
  */

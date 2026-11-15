@@ -59,8 +59,9 @@ test.describe("the mark emergent in the app", () => {
   test("[SR-035/AK-k81y] a saved filter with the condition emergent true shows in the app the elements the CLI lists for it", async () => {
     const { window } = running;
     await listAll(window);
-    await runCommand(window, "Filter list by saved filter");
-    await answer(window, "Filter", "emergent");
+    await runCommand(window, "Filter list");
+    await answer(window, "Filter by", "Saved filter");
+    await answer(window, "Saved filter", "emergent");
     await expect(window.getByLabel("Modeline")).toContainText("filter: emergent");
     const result = await running.cli([
       "element",

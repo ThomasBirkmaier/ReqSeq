@@ -148,11 +148,11 @@ test.describe("the command line by mouse", () => {
     const unfiltered = await window.locator(".row").count();
     // A command that asks an argument: by Enter, then by a click, the same question.
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
-    await window.keyboard.type("Filter list by status");
-    await expect(options(window).first().locator(".name")).toHaveText("Filter list by status");
+    await window.keyboard.type("Filter list");
+    await expect(options(window).first().locator(".name")).toHaveText("Filter list");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Status");
-    const statuses = await names(window);
+    await expect(label(window)).toHaveText("Filter by");
+    const kinds = await names(window);
     // Escape goes back to the commands (SR-134 AK1), a second one closes.
     await window.keyboard.press("Escape");
     await expect(label(window)).toHaveText("Command");
@@ -161,19 +161,24 @@ test.describe("the command line by mouse", () => {
     const line = await boxOf(minibuffer(window));
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
     await options(window)
-      .filter({ hasText: /^Filter list by status/ })
+      .filter({ hasText: /^Filter list/ })
+      .click();
+    await expect(label(window)).toHaveText("Filter by");
+    await expect(options(window).locator(".name")).toHaveText(kinds);
+    await expect(input(window)).toBeFocused();
+    // A kind and then a value taken by a click: the list is filtered as Enter on them filters it.
+    await options(window)
+      .filter({ hasText: /^Status/ })
       .click();
     await expect(label(window)).toHaveText("Status");
-    await expect(options(window).locator(".name")).toHaveText(statuses);
-    await expect(input(window)).toBeFocused();
-    // A hit of that question taken by a click: the list is filtered as Enter on it filters it.
+    const statuses = await names(window);
     await options(window)
       .filter({ hasText: statuses[0] ?? "" })
       .first()
       .click();
     await expect(input(window)).toHaveCount(0);
-    // The status narrows the list, so the snapshot is of the filtered list.
-    await expect(modeline).toContainText(`status: ${statuses[0] ?? ""}`);
+    // The status narrows the list, so the snapshot is of the filtered list; the step names the status by its key.
+    await expect(modeline).toContainText(`status: ${(statuses[0] ?? "").toLowerCase()}`);
     await expect.poll(() => window.locator(".row").count()).toBeLessThan(unfiltered);
     await expect.poll(() => window.locator(".row").count()).toBeGreaterThan(0);
     const clicked = {
@@ -182,8 +187,11 @@ test.describe("the command line by mouse", () => {
     };
     await listAll(window);
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
-    await window.keyboard.type("Filter list by status");
-    await expect(options(window).first().locator(".name")).toHaveText("Filter list by status");
+    await window.keyboard.type("Filter list");
+    await expect(options(window).first().locator(".name")).toHaveText("Filter list");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Filter by");
+    await window.keyboard.type("Status");
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("Status");
     await window.keyboard.press("Enter");

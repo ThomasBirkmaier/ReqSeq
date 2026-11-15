@@ -5,12 +5,9 @@ const ACTIONS = [
   "Go to element or buffer",
   "Search elements",
   "List all elements",
-  "Filter list by type",
-  "Filter list by status",
-  "Filter list by property",
-  "Filter list by text search",
-  "Filter list by saved filter",
+  "Filter list",
   "Clear list filter",
+  "Clear all list filters",
   "Create relation",
   "Sort list",
   "Close buffer",
@@ -37,36 +34,24 @@ describe("rank", () => {
 
   it("finds words that are separated by a space", () => {
     expect(names("go el")[0]).toBe("Go to element or buffer");
-    expect(names("fl by ty")[0]).toBe("Filter list by type");
+    expect(names("fi li")[0]).toBe("Filter list");
   });
 
   it("finds a word with one slip when nothing matches in order (a typo)", () => {
-    expect(
-      names("filtre")
-        .slice(0, 3)
-        .every((name) => name.startsWith("Filter")),
-    ).toBe(true);
+    expect(names("filtre")[0]).toBe("Filter list");
     expect(names("sotr")[0]).toBe("Sort list");
   });
 
   it("[SR-121/AK-yx6t] finds an action by the beginnings of its words, skipping words", () => {
     expect(names("lae")[0]).toBe("List all elements");
-    expect(names("flp")).toEqual(["Filter list by property"]);
+    expect(names("caf")).toEqual(["Clear all list filters"]);
     expect(names("crel")).toEqual(["Create relation"]);
-    expect(names("fls")).toEqual([
-      "Filter list by status",
-      "Filter list by text search",
-      "Filter list by saved filter",
-    ]);
+    expect(names("clf")).toEqual(["Clear list filter", "Clear all list filters"]);
     // The beginnings of words in the given order come before the other matches.
-    expect(names("fil").slice(0, 3)).toEqual([
-      "Filter list by type",
-      "Filter list by status",
-      "Filter list by property",
-    ]);
-    expect(rank(ACTIONS, (name) => name, "flp")[0]?.ranges).toEqual([
+    expect(names("fil")[0]).toBe("Filter list");
+    expect(rank(ACTIONS, (name) => name, "caf")[0]?.ranges).toEqual([
       [0, 1],
-      [7, 8],
+      [6, 7],
       [15, 16],
     ]);
   });

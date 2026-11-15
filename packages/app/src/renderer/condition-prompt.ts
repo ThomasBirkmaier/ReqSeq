@@ -5,36 +5,21 @@
 // mark `{ all: [] }` (AK10). Text that starts with "{" is one condition in JSON, as the command line takes
 // it; core checks it (ADR-0002: the app builds the input and decides nothing about what is allowed).
 //
-// The values come from read commands: types and relation kinds from `metamodel.get`; statuses and properties
-// with their values from `element.facets` over the marks so far (without a mark the workspace), the statuses
-// by their name in `metamodel.get`, the properties by SR-124 AK2 and AK3 (`choosableProperties`); verification
-// and validation statuses from the condition's schema in the catalog; the views of validity from `viewsOf`.
+// The kinds and their values are those of `condition-kinds.ts`; statuses and properties with their values
+// come from `element.facets` over the marks so far (without a mark the workspace).
 // `shownMarks` gives the conditions of a list's steps as marks: the parts "Save list as perspective" writes
 // under `all` (`perspectiveWhere`), which keeps only an unchanged perspective selection as stored (SR-213 AK3).
-import type { ElementFacetsOutput, ElementSelection } from "@reqseq/core";
+import type { ElementSelection } from "@reqseq/core";
 import type { ArgumentExplanation, Choice, Prompt, PromptFill, PromptMark } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 import type { BuiltAsk } from "./catalog-entry.js";
-import type { Facet } from "./list-filters.js";
-import { viewName, viewsOf } from "./views.js";
-import {
-  choosableProperties,
-  facetValueStep,
-  missingStep,
-  propertyStep,
-  statusStep,
-  textStep,
-  typeStep,
-  valueName,
-} from "./list-filters.js";
+import type { ConditionKind, ConditionMark, KindHits, KindSource } from "./condition-kinds.js";
+import { CONDITION_KINDS, stepMark, textMark } from "./condition-kinds.js";
+import { missingStep, propertyStep, statusStep, textStep, typeStep } from "./list-filters.js";
+
+export type { ConditionMark } from "./condition-kinds.js";
 
 type Condition = NonNullable<ElementSelection["where"]>;
-
-/** One condition of the value, with the label its mark shows. */
-export interface ConditionMark {
-  readonly label: string;
-  readonly condition: unknown;
-}
 
 /** What the steps of a condition need from the argument entry (`catalog-commands.ts`). */
 export interface ConditionAsk extends BuiltAsk<ConditionMark> {
@@ -65,11 +50,6 @@ export const conditionLabel = (marks: readonly ConditionMark[]): string =>
 export const NO_CONDITION = "No condition: all elements";
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
-
-const stepMark = (step: FilterStep): ConditionMark => ({
-  label: step.label,
-  condition: step.selection.where,
-});
 
 /** The parts of `condition` under one `all`: those of an `all`, else the condition itself. */
 const allParts = (condition: Condition): readonly Condition[] =>
@@ -145,196 +125,51 @@ interface Hit {
 
 type Hits = readonly Hit[] | { readonly failed: string };
 
-/** A kind of condition (AK3) and the hits of its values. */
-interface Kind {
-  readonly key: string;
-  readonly name: string;
-  /** `self` is the kind, to which the step after a hit goes back (a property's values). */
-  readonly hits?: (ask: ConditionAsk, marks: readonly ConditionMark[], self: Kind) => Promise<Hits>;
-}
+/** What the kinds read their values from: the facets of the elements the marks select, without a mark of the workspace (AK3). */
+const sourceOf = (ask: ConditionAsk, marks: readonly ConditionMark[]): KindSource => ({
+  call: ask.context.call,
+  facets: () =>
+    ask.context.call(
+      "element.facets",
+      // A mark in JSON is what was typed; core checks it.
+      marks.length === 0 ? {} : { selection: { where: conditionOf(marks) as Condition } },
+    ),
+  schema: ask.schema,
+});
 
-/** The facets of the elements the marks select, without a mark of the workspace (AK3). */
-const facetsOf = (
+/**
+ * The hits of `kind` with `marks` given: a value adds its mark, a property asks its values next, from which
+ * Escape goes back to the properties.
+ */
+const hitsOf = async (
   ask: ConditionAsk,
   marks: readonly ConditionMark[],
-): Promise<
-  | { readonly ok: true; readonly output: ElementFacetsOutput }
-  | { readonly ok: false; readonly message: string }
-> =>
-  ask.context.call(
-    "element.facets",
-    // A mark in JSON is what was typed; core checks it.
-    marks.length === 0 ? {} : { selection: { where: conditionOf(marks) as Condition } },
-  );
-
-/** The values of a property among the elements the marks select, as "Filter list by property" offers them. */
-const valueHits = (facet: Facet): Hit[] => [
-  ...(facet.values ?? []).map((value) => {
-    const name = value.name ?? valueName(facet, value);
-    const key = String(value.value);
-    return {
-      name,
-      ...(facet.kind === "choice" && key !== name ? { key } : {}),
-      mark: stepMark(facetValueStep(facet, value)),
-    };
-  }),
-  ...(facet.missing > 0 ? [{ name: "(no value)", mark: stepMark(missingStep(facet.key)) }] : []),
-];
-
-/** The values of `field` in a branch of the condition's schema: its enum, or its items' enum. */
-const enumOf = (schema: unknown, field: string): readonly string[] => {
-  const branches = (schema as { readonly oneOf?: readonly unknown[] } | undefined)?.oneOf ?? [];
-  for (const branch of branches) {
-    const part = (
-      branch as {
-        readonly properties?: Readonly<
-          Record<
-            string,
-            { readonly enum?: readonly unknown[]; readonly items?: { readonly enum?: readonly unknown[] } }
-          >
-        >;
-      }
-    ).properties?.[field];
-    const values = part?.items?.enum ?? part?.enum;
-    if (values !== undefined) {
-      return values.map(String);
-    }
-  }
-  return [];
+  kind: ConditionKind,
+  hits: NonNullable<ConditionKind["hits"]>,
+): Promise<Hits> => {
+  const found: KindHits = await hits(sourceOf(ask, marks));
+  return "failed" in found
+    ? found
+    : found.map((hit) =>
+        "values" in hit
+          ? {
+              name: hit.name,
+              key: hit.key,
+              next: () => {
+                askValues(
+                  ask,
+                  marks,
+                  hit.name,
+                  () => Promise.resolve(hit.values),
+                  (kept) => {
+                    askKind(ask, kept, kind);
+                  },
+                );
+              },
+            }
+          : hit,
+      );
 };
-
-/** A kind whose values are the enum of its field in the schema: "verification: failed". */
-const enumKind = (key: string, name: string, label: string): Kind => ({
-  key,
-  name,
-  hits: (ask) =>
-    Promise.resolve(
-      enumOf(ask.schema, key).map((value) => ({
-        name: value,
-        mark: { label: `${label}: ${value}`, condition: { [key]: [value] } },
-      })),
-    ),
-});
-
-const relationHit = (
-  name: string,
-  relation: Readonly<Record<string, string>>,
-  exists: boolean,
-  key?: string,
-): Hit => ({
-  name,
-  ...(key === undefined ? {} : { key }),
-  mark: { label: `relation: ${name}`, condition: { relation, exists } },
-});
-
-/** Parent and child are the ends of a derivation (glossary); evidence is a direction of its own. */
-const RELATION_ENDS: readonly (readonly [string, Readonly<Record<string, string>>])[] = [
-  ["child", { meaning: "derivation", direction: "down" }],
-  ["parent", { meaning: "derivation", direction: "up" }],
-  ["evidence", { direction: "evidence" }],
-];
-
-const KINDS: readonly Kind[] = [
-  {
-    key: "type",
-    name: "Type",
-    hits: async (ask) => {
-      const answer = await ask.context.call("metamodel.get", {});
-      return answer.ok
-        ? answer.output.types.map((type) => ({
-            name: type.name,
-            key: type.key,
-            mark: stepMark(typeStep(type.key)),
-          }))
-        : { failed: answer.message };
-    },
-  },
-  {
-    key: "status",
-    name: "Status",
-    hits: async (ask, marks) => {
-      const [facets, metamodel] = await Promise.all([
-        facetsOf(ask, marks),
-        ask.context.call("metamodel.get", {}),
-      ]);
-      if (!facets.ok) {
-        return { failed: facets.message };
-      }
-      if (!metamodel.ok) {
-        return { failed: metamodel.message };
-      }
-      return facets.output.statuses.map(({ key }) => {
-        const name = metamodel.output.statuses.find((status) => status.key === key)?.name ?? key;
-        return { name, ...(name === key ? {} : { key }), mark: stepMark(statusStep(key)) };
-      });
-    },
-  },
-  {
-    key: "property",
-    name: "Property",
-    hits: async (ask, marks, self) => {
-      const facets = await facetsOf(ask, marks);
-      return facets.ok
-        ? choosableProperties(facets.output).map(({ facet }) => ({
-            name: facet.name,
-            key: facet.key,
-            next: () => {
-              askValues(
-                ask,
-                marks,
-                facet.name,
-                () => Promise.resolve(valueHits(facet)),
-                (kept) => {
-                  askKind(ask, kept, self);
-                },
-              );
-            },
-          }))
-        : { failed: facets.message };
-    },
-  },
-  enumKind("verification", "Verification status", "verification"),
-  enumKind("validation", "Validation status", "validation"),
-  {
-    key: "validFor",
-    name: "Validity",
-    hits: async (ask) => {
-      const views = await viewsOf(ask.context.call);
-      return views.ok
-        ? views.views.map((shown) => ({
-            name: viewName(shown),
-            key: shown.view,
-            mark: { label: `validity: ${viewName(shown)}`, condition: { validFor: shown.view } },
-          }))
-        : { failed: views.message };
-    },
-  },
-  {
-    key: "relation",
-    name: "Relation",
-    hits: async (ask) => {
-      const answer = await ask.context.call("metamodel.get", {});
-      if (!answer.ok) {
-        return { failed: answer.message };
-      }
-      const kinds = [
-        ...answer.output.relations.map((kind) => ({ key: kind.key, name: kind.name })),
-        ...answer.output.properties.filter((property) => property.kind === "relation"),
-      ];
-      return [
-        ...RELATION_ENDS.flatMap(([end, relation]) => [
-          relationHit(`without ${end}`, relation, false),
-          relationHit(`with ${end}`, relation, true),
-        ]),
-        ...kinds.flatMap(({ key, name }) => [
-          relationHit(`without ${name}`, { kind: key }, false, key),
-          relationHit(`with ${name}`, { kind: key }, true, key),
-        ]),
-      ];
-    },
-  },
-  { key: "text", name: "Text search" },
-];
 
 /** The marks as the command prompt shows them, each with its × (AK9): `again` asks the step again without it. */
 const promptMarks = (
@@ -416,10 +251,10 @@ const askValues = (
 };
 
 /** Asks the values of `kind`; a text search takes the typed words (an empty input asks again). */
-const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: Kind): void => {
+const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: ConditionKind): void => {
   const { hits } = kind;
   if (hits !== undefined) {
-    askValues(ask, marks, kind.name, (given) => hits(ask, given, kind));
+    askValues(ask, marks, kind.name, (given) => hitsOf(ask, given, kind, hits));
     return;
   }
   ask.context.ask({
@@ -437,7 +272,7 @@ const askKind = (ask: ConditionAsk, marks: readonly ConditionMark[], kind: Kind)
       if (query === "") {
         askKind(ask, marks, kind);
       } else {
-        askCondition(ask, [...marks, stepMark(textStep(query))]);
+        askCondition(ask, [...marks, textMark(query)]);
       }
     },
   });
@@ -464,7 +299,7 @@ export const askCondition = (given: ConditionAsk, marks: readonly ConditionMark[
         run: take(marks, false),
         more: take(marks, true),
       },
-      ...KINDS.map((kind): Choice => ({
+      ...CONDITION_KINDS.map((kind): Choice => ({
         id: `kind:${kind.key}`,
         name: kind.name,
         hint: kind.key,
