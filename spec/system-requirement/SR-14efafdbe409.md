@@ -1,7 +1,7 @@
 ---
 id: f163b2f7-43b0-4066-a981-14efafdbe409
 type: system-requirement
-status: draft
+status: approved
 title: Perspektiven und gespeicherte Filter in der App aus einer Liste speichern und neu aufbauen
 spec-id: SR-219
 rationale: Auf einer Liste soll gespeichert werden, was sie zeigt; neu aufgebaut wird ohne Liste, zum Beispiel über mehrere Typen. Enter auf dem übernehmenden Treffer schloss den Befehl nach der Bedingung ab, Gruppierung und Sortierung waren nur über Ctrl+Enter zu erreichen, und „Save perspective“ stand bei der Suche vor „Save list as perspective“; so entstanden Perspektiven ohne die gewählten Bedingungen, Gruppierung und Sortierung. Deshalb heißen die Befehle nach dem, woher ihr Inhalt kommt, und der Aufbau fragt alle Schritte. Über Kommandozeile, API und MCP-Server bleiben `perspective save` und `filter save` (D-029); dieselbe Eingabe schreibt dieselbe Datei (SR-215 AK10). Ein gespeicherter Filter nennt keinen anderen und hat keine Gruppierung (AK8). Ohne Sortierschlüssel speichert eine neue Perspektive die Standardsortierung wie „Save list as perspective“ (SR-214 AK5), damit alle Zugänge dieselbe Reihenfolge liefern (SR-213 AK4); ein gespeicherter Filter speichert eine Sortierung nur, wenn sie gewählt ist, weil sie sonst die Sortierung einer Perspektive ersetzen würde, die ihn nennt (SR-213 AK5). Dieselben Listen wie bei „Save list as perspective“ sind ausgenommen, damit beide Befehle auf denselben Listen stehen.
