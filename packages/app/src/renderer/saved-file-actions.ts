@@ -9,22 +9,23 @@
 // - "Rename …" asks the new name with the old one in the input; for a saved filter the perspectives that name it
 //   are rows that cannot be chosen, their count in the first (AK2). Enter renames; the command prompt says the
 //   result, or core's refusal, which asks the step again.
-// - "Delete …" first calls the command without `confirm`: the explanation line names the name and the file core
-//   gives, that a file Git does not track does not come back, and for a "modified" buffer that its changes are lost.
-//   Ctrl/Cmd+Enter offers "Yes, delete" and "No"; "Yes, delete" calls the command with `confirm` and the `file` and
-//   `expectedFileSha256` of the first call, so only the file shown is deleted (ADR-0002 rule 3, #1738). Enter
-//   without the confirmation deletes nothing (AK3).
+// - "Delete …" first calls the command without `confirm`; a refusal asks the first step again with its reason
+//   (SR-217 AK6). Otherwise the next step is the confirmation (`confirmation.ts`): "No" first and marked, then "Yes,
+//   delete"; the explanation line names the name and the file core gives, that a file Git does not track does not
+//   come back, for a "modified" buffer that its changes are lost, and that Ctrl/Cmd+Enter deletes. "Yes, delete"
+//   (Enter, a click) and Ctrl/Cmd+Enter on either hit call the command with `confirm` and the `file` and
+//   `expectedFileSha256` of the first call, so only the file shown is deleted (ADR-0002 rule 3, #1738); "No" and
+//   Escape go back to the choice (AK3).
 // - After a rename the buffers follow (`perspective-renamed`, `filter-renamed` in `buffers.ts`, AK4, AK5); after a
 //   delete the perspective's buffer closes as "Close buffer" closes it (AK6).
 import type { CommandTypes } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
-import type { Action, ActionContext, ArgumentExplanation, Choice, Prompt } from "./actions.js";
+import type { Action, ActionContext, ArgumentExplanation, Choice } from "./actions.js";
 import { bufferName, perspectiveKey, perspectiveModified } from "./buffers.js";
 import { unsavedBefore } from "./unsaved-before.js";
 import { NONE, inert, perspectiveChoices } from "./perspective-actions.js";
-import { shortcutLabel } from "./keys.js";
 import { INCOMPLETE } from "./modeline.js";
-import { MORE_SHORTCUT } from "./prompt-keys.js";
+import { confirmationPrompt, yesLabel } from "./confirmation.js";
 
 /** The two kinds of saved file the actions rename and delete. */
 interface Kind {
@@ -51,9 +52,8 @@ const FILTER: Kind = {
 /** What the command prompt says for a workspace without saved filters (SR-218 AK1). */
 export const NO_FILTERS = "The workspace has no saved filters.";
 
-/** The answers the explanation lines name. */
-export const YES_DELETE = "Yes, delete";
-export const NO = "No";
+/** The hit of the confirmation that deletes (SR-218 AK3). */
+export const YES_DELETE = yesLabel("delete");
 
 /** The title of a catalog command, as the action has it. */
 const TITLES: Readonly<Record<Kind["rename"] | Kind["delete"], string>> = {
@@ -349,76 +349,39 @@ const confirmDelete = async (context: ActionContext, kind: Kind, output: Deletin
   );
 };
 
-/** The confirmation (SR-218 AK3): "Yes, delete" deletes, "No" and Escape go back to the step before. */
+/**
+ * The confirmation, the step right after the choice (SR-218 AK3, `confirmation.ts`): "No" first and marked, then
+ * "Yes, delete", which deletes, as Ctrl/Cmd+Enter does on either; "No" and Escape go back to the choice.
+ */
 const askConfirm = (context: ActionContext, kind: Kind, output: Deleting): void => {
-  const title = TITLES[kind.delete];
-  const back = (): void => {
-    askDeleting(context, kind, output);
-  };
-  // Ctrl/Cmd+Enter on a row, also a second one or a key that repeats, asks this step again: only Enter or a
-  // click takes an answer, so the key that offered the confirmation never deletes (SR-218 AK3).
-  const again = (): void => {
-    askConfirm(context, kind, output);
-  };
-  context.ask({
-    label: `${title} ${output.name} · confirm:`,
-    items: [
-      {
-        id: "confirm:yes",
-        name: YES_DELETE,
-        run: () => {
-          void confirmDelete(context, kind, output);
-        },
-        more: again,
-      },
-      { id: "confirm:no", name: NO, run: back, more: again },
-    ],
-    explain: explanation(context, kind.delete, "confirm"),
-    back,
-  });
-};
-
-/** The step before the confirmation (SR-218 AK3): what is deleted; Ctrl/Cmd+Enter confirms, Enter deletes nothing. */
-const askDeleting = (context: ActionContext, kind: Kind, output: Deleting, error?: string): void => {
-  const title = TITLES[kind.delete];
-  const prompt: Prompt = {
-    label: withError(error, `${title} ${output.name}:`),
-    items: [],
-    explain: {
+  context.ask(
+    confirmationPrompt({
+      label: `${TITLES[kind.delete]} ${output.name} · confirm:`,
+      verb: "delete",
+      does: "deletes",
       name: "confirm",
-      description: deletingText(context, kind, output),
-      list: false,
-      ends: false,
-      skips: false,
-      more: true,
-      moreDoes: "confirms",
-    },
-    back: () => {
-      start(context, kind, false);
-    },
-    text: () => {
-      askDeleting(
-        context,
-        kind,
-        output,
-        `Nothing was deleted: ${shortcutLabel(MORE_SHORTCUT, context.mac)} offers ${YES_DELETE}`,
-      );
-    },
-    more: () => {
-      askConfirm(context, kind, output);
-    },
-  };
-  context.ask(prompt);
+      text: deletingText(context, kind, output),
+      yes: () => {
+        void confirmDelete(context, kind, output);
+      },
+      back: () => {
+        start(context, kind, false);
+      },
+    }),
+  );
 };
 
-/** The call without `confirm` for the chosen name: what would be deleted, or core's refusal at the first step. */
+/**
+ * The call without `confirm` for the chosen name: what would be deleted, asked as the confirmation, or core's refusal
+ * at the first step in place of it (SR-217 AK6).
+ */
 const deleting = async (context: ActionContext, kind: Kind, name: string): Promise<void> => {
   const answer = await context.call(kind.delete, { name });
   if (!answer.ok) {
     start(context, kind, false, answer.message);
     return;
   }
-  askDeleting(context, kind, answer.output);
+  askConfirm(context, kind, answer.output);
 };
 
 /** Starts "Rename …" (`rename`) or "Delete …" at the first step, with why it is asked again. */

@@ -874,6 +874,22 @@ const PromptLine = ({
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
+  // When a confirmation step was shown (`performance.now()`, SR-218 AK3): a key press or a click that began
+  // before it does nothing on it; none yet while it is not shown.
+  const shownAt = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    // Effects run once the prompt is painted.
+    shownAt.current = performance.now();
+  }, []);
+  /**
+   * On a confirmation step, whether `event` does nothing (SR-218 AK3): it began before the step was shown, it is a
+   * key that only repeats because it is held, or it is the second click of a double click.
+   */
+  const guarded = (event: React.KeyboardEvent | React.MouseEvent): boolean =>
+    given.confirm !== undefined &&
+    (shownAt.current === undefined ||
+      event.timeStamp < shownAt.current ||
+      ("repeat" in event ? event.repeat : event.detail > 1));
 
   useEffect(() => {
     // The text the input starts with is searched as if typed (the search words kept from the field choice,
@@ -1075,7 +1091,12 @@ const PromptLine = ({
   // like Enter. A candidate without optional arguments, or a prompt without them, works as Enter. On an
   // empty input it ends a list argument, as Enter does, and offers the optional arguments.
   const more = (): void => {
-    if (query === "" && prompt.empty !== undefined) {
+    if (prompt.confirm !== undefined) {
+      // A confirmation step: Ctrl/Cmd+Enter confirms, whichever hit is marked, and offers no optional arguments
+      // (SR-218 AK3, an exception to SR-108 AK6).
+      onClose(false);
+      prompt.confirm();
+    } else if (query === "" && prompt.empty !== undefined) {
       onClose(false);
       prompt.empty(true);
     } else if (current?.item.opens === true) {
@@ -1121,9 +1142,13 @@ const PromptLine = ({
   }, [filled]);
 
   useEffect(() => {
-    // An Enter typed ahead while the prompt before waited for its answer acts on this prompt (#1763).
+    // An Enter typed ahead while the prompt before waited for its answer acts on this prompt (#1763), except on a
+    // confirmation step, where a key pressed before it was shown does nothing (SR-218 AK3).
     const key = ahead.current;
     ahead.current = undefined;
+    if (given.confirm !== undefined) {
+      return;
+    }
     if (key === "more") {
       more();
     } else if (key === "enter") {
@@ -1205,6 +1230,11 @@ const PromptLine = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
+    if (guarded(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     // The open command help takes the keys of the list first (SR-210 AK4).
     if (helpKey(event, help, query)) {
       return;
@@ -1347,6 +1377,9 @@ const PromptLine = ({
                 }}
                 onMouseDown={(event) => {
                   event.preventDefault();
+                  if (guarded(event)) {
+                    return;
+                  }
                   // A click on a dimmed hit only closes the command help (SR-210 AK4, SR-202 AK3).
                   if (helpOpen) {
                     help.close();

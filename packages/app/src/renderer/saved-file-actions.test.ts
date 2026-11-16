@@ -20,7 +20,8 @@ import type { CommandListing } from "../shared/protocol.js";
 import { savedStep, statusStep } from "./list-filters.js";
 import { NONE } from "./perspective-actions.js";
 import { renamedPerspective } from "./perspective-recent.js";
-import { NO, NO_FILTERS, YES_DELETE } from "./saved-file-actions.js";
+import { NO } from "./confirmation.js";
+import { NO_FILTERS, YES_DELETE } from "./saved-file-actions.js";
 import { reduceWindow } from "./window-layout.js";
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -371,7 +372,7 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     files: [],
   };
 
-  it("names name and file, Ctrl+Enter offers Yes, delete and No; Yes deletes only that file and closes the buffer", async () => {
+  it("asks the confirmation at once, No first: it names name and file, No and Escape go back, Yes and Ctrl+Enter delete only that file", async () => {
     const drafts = withQuery(draftsBuffer(), { steps: [...draftsBuffer().steps, statusStep("draft")] });
     const run = start(
       {
@@ -392,40 +393,30 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     choose(run.last(), "Drafts");
     await flush();
     expect(run.call).toHaveBeenLastCalledWith("perspective.delete", { name: "Drafts" });
-    const before = run.last();
-    expect(before.label).toBe("Delete perspective Drafts:");
-    expect(before.explain).toMatchObject({
+    const confirm = run.last();
+    expect(confirm.label).toBe("Delete perspective Drafts · confirm:");
+    expect(confirm.items.map((item) => item.name)).toEqual([NO, YES_DELETE]);
+    expect(confirm.explain).toMatchObject({
       name: "confirm",
       description:
         "Deletes the perspective Drafts, file perspectives/drafts.yaml; a file Git does not track does not come back; the changes of its modified buffer are lost · another file has the name",
       more: true,
-      moreDoes: "confirms",
+      moreDoes: "deletes",
     });
-    // Enter without the confirmation deletes nothing.
-    before.text?.("");
-    expect(run.last().label).toBe(
-      "Nothing was deleted: Ctrl+Enter offers Yes, delete · Delete perspective Drafts:",
-    );
-    expect(run.call).toHaveBeenCalledTimes(2);
-    run.last().more?.("");
-    const confirm = run.last();
-    expect(confirm.label).toBe("Delete perspective Drafts · confirm:");
-    expect(confirm.items.map((item) => item.name)).toEqual([YES_DELETE, NO]);
-    expect(confirm.explain).toMatchObject({ name: "confirm", description: "Delete the file." });
-    // Ctrl/Cmd+Enter again, on either row, deletes nothing: it asks the confirmation again.
-    const asked = run.asked.length;
-    confirm.items[0]?.more?.();
-    confirm.items[1]?.more?.();
-    expect(run.asked.slice(asked).map((prompt) => prompt.label)).toEqual([confirm.label, confirm.label]);
-    expect(run.call).toHaveBeenCalledTimes(2);
-    // No and Escape go back a step.
+    // No and Escape go back to the choice, and delete nothing.
     choose(confirm, NO);
-    expect(run.last().label).toBe("Delete perspective Drafts:");
-    run.last().more?.("");
+    await flush();
+    expect(run.last().label).toBe("Delete perspective · name:");
+    choose(run.last(), "Drafts");
+    await flush();
     run.last().back?.();
-    expect(run.last().label).toBe("Delete perspective Drafts:");
-    run.last().more?.("");
-    choose(run.last(), YES_DELETE);
+    await flush();
+    expect(run.last().label).toBe("Delete perspective · name:");
+    expect(run.call.mock.calls.filter(([, input]) => input["confirm"] === true)).toEqual([]);
+    // Ctrl/Cmd+Enter confirms, whichever hit is marked.
+    choose(run.last(), "Drafts");
+    await flush();
+    run.last().confirm?.();
     await flush();
     expect(run.call).toHaveBeenLastCalledWith("perspective.delete", {
       name: "Drafts",
@@ -436,11 +427,6 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     expect(run.discarded).toEqual([perspectiveKey("Drafts")]);
     expect(run.buffers().map((buffer) => buffer.key)).toEqual(["overview"]);
     expect(run.echoed).toEqual(["Deleted perspective Drafts (perspectives/drafts.yaml)"]);
-    // Escape before the confirmation goes back to the first step.
-    run.last().back?.();
-    run.last().back?.();
-    await flush();
-    expect(run.last().label).toBe("Delete perspective · name:");
   });
 
   it("shows a refusal at the first step, and says the refusal of the confirmed call", async () => {
@@ -464,7 +450,6 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     expect(run.last().explain?.description).toBe(
       "Deletes the saved filter Old, file filters/old.yaml; a file Git does not track does not come back",
     );
-    run.last().more?.("");
     choose(run.last(), YES_DELETE);
     await flush();
     expect(run.echoed).toEqual(["changed since"]);
@@ -485,7 +470,6 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     await flush();
     choose(run.last(), "Drafts");
     await flush();
-    run.last().more?.("");
     choose(run.last(), YES_DELETE);
     await flush();
     expect(run.discarded).toEqual([]);
@@ -499,7 +483,6 @@ describe("Delete perspective and Delete saved filter (SR-218 AK3, AK6)", () => {
     await flush();
     choose(unsaved.last(), "Drafts");
     await flush();
-    unsaved.last().more?.("");
     choose(unsaved.last(), YES_DELETE);
     await flush();
     expect(unsaved.echoed).toEqual(["Overview could not be saved: Delete perspective did not run"]);

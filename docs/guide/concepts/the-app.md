@@ -23,7 +23,7 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ## Messages and the modeline
 
-The command prompt also shows the last message, and a command needing input asks there, argument by argument, with the candidates above it. Enter answers; Ctrl+Enter offers optional arguments, or before deleting **Yes, delete**.
+The command prompt also shows the last message, and a command needing input asks there, argument by argument, with the candidates above it. Enter answers; Ctrl+Enter offers optional arguments or confirms a delete.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 

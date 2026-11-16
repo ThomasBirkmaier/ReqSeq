@@ -173,7 +173,7 @@ export interface ArgumentExplanation {
   readonly skips: boolean;
   /** Ctrl/Cmd+Enter offers optional arguments the command still has. */
   readonly more: boolean;
-  /** What the line says Ctrl/Cmd+Enter does, in place of "more arguments": "confirms" (SR-218 AK3). */
+  /** What the line says Ctrl/Cmd+Enter does, in place of "more arguments": "deletes" (SR-218 AK3). */
   readonly moreDoes?: string;
   /**
    * A step of a value built from hits (SR-215): what Enter does with the marked hit, whether Backspace on an
@@ -251,6 +251,12 @@ export interface Prompt {
   readonly back?: () => void;
   /** The explanation line of the argument asked (SR-210 AK2). */
   readonly explain?: ArgumentExplanation;
+  /**
+   * A confirmation step (`confirmation.ts`, SR-218 AK3): Ctrl/Cmd+Enter confirms, whichever hit is marked, and a key
+   * press that began before the step was shown, a key that repeats and the second click of a double click do
+   * nothing on it.
+   */
+  readonly confirm?: () => void;
   /**
    * The first step of an action, asked again (SR-218: after a step back or a refusal): Escape does what it did the
    * first time, back to the command prompt the action was chosen in or the end of the prompt, not back to the

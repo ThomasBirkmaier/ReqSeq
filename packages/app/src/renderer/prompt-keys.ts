@@ -54,7 +54,7 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ shortcut: MORE_SHORTCUT }],
-    does: "Take the answer, then offer the optional arguments of the command",
+    does: "Take the answer, then offer the optional arguments of the command; on a confirmation such as “Yes, delete”: confirm, whichever hit is marked",
   },
   {
     keys: [{ press: press("Enter") }, { press: { ...press("Enter"), shiftKey: true } }],
