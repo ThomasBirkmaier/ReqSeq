@@ -1,6 +1,7 @@
 // workspace.status (SR-004, SR-011, SR-018; SR-006 extends it): the repositories of the workspace,
 // which are available and writable, where the metamodel lies, whether it is valid and whether the
-// workspace is read-only. `variantIndependent` shows the mark of the workspace file (SR-173).
+// workspace is read-only. An available repository also gives its absolute folder (`absolutePath`, #1793),
+// since a configured path such as `.` does not tell which copy is open. `variantIndependent` shows the mark of the workspace file (SR-173).
 // `evidence` lists the evidence locations of the workspace file with whether the evidence walk reads
 // each (#625); `workspace.check` says why not. Its `folder` is in the form evidence.record takes (refused while the repository is not on this machine).
 import type { CommandOutput, Problem } from "../../catalog.js";
@@ -39,6 +40,7 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
       name: repository.name,
       available: true,
       path: repository.path,
+      absolutePath: repository.folder,
       ...marked,
       ...(commit === undefined ? {} : { commit }),
       ...(writable === undefined ? {} : { readOnly: !writable }),

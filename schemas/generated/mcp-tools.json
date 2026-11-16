@@ -3634,6 +3634,11 @@
                   "description": "Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file.",
                   "type": "string"
                 },
+                "absolutePath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`). Only for available repositories."
+                },
                 "commit": {
                   "$ref": "#/$defs/common/$defs/commit"
                 },
