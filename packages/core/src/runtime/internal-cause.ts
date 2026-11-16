@@ -17,7 +17,7 @@ export interface InternalCause {
   readonly name: string;
   /** Node's `code` of the error (`ENOENT`, `ERR_STRING_TOO_LONG`), when it has one of that form. */
   readonly code?: string;
-  /** The first line of the error's message, absolute paths replaced, at most MAX_MESSAGE characters. */
+  /** The first line of the error's message, absolute paths replaced, at most MAX_CAUSE_MESSAGE characters. */
   readonly message?: string;
 }
 
@@ -29,7 +29,7 @@ export interface InternalCauseOptions {
 }
 
 /** Characters of the cause message, counted in code points; a longer one is cut and ends with `…`. */
-export const MAX_MESSAGE = 160;
+export const MAX_CAUSE_MESSAGE = 160;
 
 /** How much of a message is searched for the end of its first line. */
 const HEAD = 4096;
@@ -50,6 +50,11 @@ const URL_FORM = String.raw`(?<url>(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9+.-]*://[^\
 const QUOTED = String.raw`(?<quote>['"\x60])(?<quoted>${START}(?:(?!\k<quote>).)*)\k<quote>`;
 /** Any other path runs to the next blank or quote. */
 const BARE = String.raw`(?<bare>${START}[^\s'"\x60]*)`;
+/** Punctuation at the end of a bare path that belongs to the sentence: `(at /x/y)`, `/x/y, then`. */
+const TRAILING = /[),.;:]+$/;
+/** Where an exact path of the error may start and end: a quote, a blank, or the edge of the line. */
+const EDGE_BEFORE = String.raw`(?<=^|[\s'"\x60])`;
+const EDGE_AFTER = String.raw`(?=$|[\s'"\x60])`;
 const ABSOLUTE = new RegExp(`^${START}`);
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, (c) => `\\${c}`);
@@ -110,16 +115,23 @@ const placed = (path: string, prepared: Prepared): string => {
     const head = plain.slice(0, root.length);
     const same = prepared.folds ? fold(head) === fold(root) : head === root;
     if (same && (plain.length === root.length || plain[root.length] === "/")) {
-      return `<workspace>${slashed(plain.slice(root.length), true)}`;
+      const rest = slashed(plain.slice(root.length), true);
+      // `/ws/../home/x` lies outside the root.
+      return rest.split("/").includes("..") ? "<path>" : `<workspace>${rest}`;
     }
   }
   return "<path>";
 };
 
-/** A `file:` URL as its path, placed; any other URL without the user and password before its host. */
+/**
+ * A `file:` URL as its path, placed; any other URL without the user and password before its host and without
+ * its query and fragment, which may hold a token.
+ */
 const urlShown = (url: string, prepared: Prepared): string => {
   if (!/^file:/i.test(url)) {
-    return url.replace(/^([^:]+:\/\/)[^/@]*@/, (_whole, scheme: string) => scheme);
+    return url
+      .replace(/^([^:]+:\/\/)[^/@]*@/, (_whole, scheme: string) => scheme)
+      .replace(/[?#].*$/, () => "");
   }
   const local = url
     .slice("file:".length)
@@ -134,32 +146,49 @@ const urlShown = (url: string, prepared: Prepared): string => {
   return placed(decoded, prepared);
 };
 
-/** The named groups of the pattern in `masked`. */
+/** The named groups of `PATTERN`. */
 interface Groups {
-  readonly exact?: string;
   readonly url?: string;
   readonly quote?: string;
   readonly quoted?: string;
   readonly bare?: string;
 }
 
-/** `line` with every absolute path replaced: first `exact` (the error's own paths), then the forms above. */
-const masked = (line: string, exact: readonly string[], prepared: Prepared): string => {
-  const known = exact.length === 0 ? "" : `(?<exact>${exact.map(escaped).join("|")})|`;
-  const pattern = new RegExp(`${known}${URL_FORM}|${QUOTED}|${BARE}`, "g");
-  return line.replace(pattern, (...args: unknown[]) => {
+const PATTERN = new RegExp(`${URL_FORM}|${QUOTED}|${BARE}`, "g");
+
+/** `text` with every absolute path of the forms above replaced. */
+const maskedForms = (text: string, prepared: Prepared): string =>
+  text.replace(PATTERN, (...args: unknown[]) => {
     // Exactly one alternative matched; `quoted` comes with `quote`.
-    const { exact: own, url, quote, quoted, bare } = args.at(-1) as Groups;
-    if (own !== undefined) {
-      return placed(own, prepared);
-    }
+    const { url, quote, quoted, bare } = args.at(-1) as Groups;
     if (url !== undefined) {
       return urlShown(url, prepared);
     }
-    return quote === undefined
-      ? placed(String(bare), prepared)
-      : `${quote}${placed(String(quoted), prepared)}${quote}`;
+    if (quote !== undefined) {
+      return `${quote}${placed(String(quoted), prepared)}${quote}`;
+    }
+    const path = String(bare);
+    const trailing = TRAILING.exec(path)?.[0] ?? "";
+    return `${placed(path.slice(0, path.length - trailing.length), prepared)}${trailing}`;
   });
+
+/**
+ * `line` with every absolute path replaced: first `exact` (the error's own paths, which may hold blanks and
+ * quotes) where one stands between quotes, blanks or the edges of the line, in a pass of its own; then the
+ * forms above in the text between them, so that no quote inside an exact path ends a quoted one.
+ */
+const masked = (line: string, exact: readonly string[], prepared: Prepared): string => {
+  if (exact.length === 0) {
+    return maskedForms(line, prepared);
+  }
+  const own = new RegExp(`${EDGE_BEFORE}(?:${exact.map(escaped).join("|")})${EDGE_AFTER}`, "g");
+  let shown = "";
+  let from = 0;
+  for (const match of line.matchAll(own)) {
+    shown += maskedForms(line.slice(from, match.index), prepared) + placed(match[0], prepared);
+    from = match.index + match[0].length;
+  }
+  return shown + maskedForms(line.slice(from), prepared);
 };
 
 /** The absolute paths the error names itself (`path`, `dest` of a Node file system error), longest first. */
@@ -170,10 +199,10 @@ const pathsOf = (error: object): string[] =>
     .filter((value) => ABSOLUTE.test(value))
     .sort((a, b) => b.length - a.length);
 
-/** At most MAX_MESSAGE code points; a longer text keeps MAX_MESSAGE - 1 and ends with `…`. */
+/** At most MAX_CAUSE_MESSAGE code points; a longer text keeps MAX_CAUSE_MESSAGE - 1 and ends with `…`. */
 const cut = (text: string): string => {
   const points = Array.from(text);
-  return points.length <= MAX_MESSAGE ? text : `${points.slice(0, MAX_MESSAGE - 1).join("")}…`;
+  return points.length <= MAX_CAUSE_MESSAGE ? text : `${points.slice(0, MAX_CAUSE_MESSAGE - 1).join("")}…`;
 };
 
 const causeOf = (error: unknown, options: InternalCauseOptions): InternalCause => {
@@ -210,28 +239,23 @@ export function internalCause(error: unknown, options: InternalCauseOptions = {}
 /** The real form of the workspace root, once it is known; filled in by `learnWorkspaceRoots`. */
 interface RealRoot {
   real: string | undefined;
-  settled: Promise<void>;
 }
 
-const realRootState = defineWorkspaceState<RealRoot>("real workspace root", (workspace) => {
-  const value: RealRoot = { real: undefined, settled: Promise.resolve() };
-  value.settled = fs.realpath(workspace.root).then(
-    (real) => {
-      value.real = real;
-    },
-    // A root that does not exist yet (workspace.init) has no other form.
-    () => undefined,
-  );
-  return value;
-});
+const realRootState = defineWorkspaceState<RealRoot>("real workspace root", () => ({ real: undefined }));
 
 /**
- * Reads the real form of the workspace root once per workspace (symbolic links resolved, the long names of
- * Windows), so that `workspaceRoots` has it without touching the file system. `invoke` waits for it before a
- * command runs.
+ * Reads the real form of the workspace root (symbolic links resolved, the long names of Windows) until it
+ * is known, so that `workspaceRoots` has it without touching the file system. A root that does not exist
+ * yet is read again on the next call (`workspace.init` creates it). `invoke` waits for it before a command
+ * runs; on a closed workspace it does nothing, and the command fails as it did before.
  */
-export const learnWorkspaceRoots = (workspace: Workspace): Promise<void> =>
-  workspace.get(realRootState).settled;
+export const learnWorkspaceRoots = async (workspace: Workspace): Promise<void> => {
+  if (workspace.closed) {
+    return;
+  }
+  const known = workspace.get(realRootState);
+  known.real ??= await fs.realpath(workspace.root).catch(() => undefined);
+};
 
 /** The workspace root as given and, once `learnWorkspaceRoots` found it, its real form. */
 export const workspaceRoots = (workspace: Workspace): readonly string[] => {

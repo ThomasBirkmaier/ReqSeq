@@ -310,4 +310,4 @@ errors:
     remedy: Use a later ReqSeq version.
   internal:
     cause: An error inside ReqSeq, or a call that its caller aborted.
-    remedy: Repeat the call; if it fails again, report it with the message and `details.cause`, which names the error inside ReqSeq.
+    remedy: Repeat the call; if it fails again, report it with the message and `details.cause` when there is one.

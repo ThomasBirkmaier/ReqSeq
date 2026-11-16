@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CommandError } from "../catalog.js";
 import {
-  MAX_MESSAGE,
+  MAX_CAUSE_MESSAGE,
   internalCause,
   internalError,
   learnWorkspaceRoots,
@@ -91,14 +91,16 @@ describe("internalCause: the message", () => {
 
   it("looks for the end of the first line in the first 4 KB only", () => {
     const long = `${"a".repeat(5000)}\nsecond`;
-    expect(internalCause(new Error(long)).message).toBe(`${"a".repeat(MAX_MESSAGE - 1)}…`);
+    expect(internalCause(new Error(long)).message).toBe(`${"a".repeat(MAX_CAUSE_MESSAGE - 1)}…`);
   });
 
   it("cuts after 160 code points with …, never inside a surrogate pair", () => {
-    expect(internalCause(new Error("a".repeat(MAX_MESSAGE))).message).toBe("a".repeat(MAX_MESSAGE));
-    const cut = internalCause(new Error("😀".repeat(MAX_MESSAGE + 1))).message ?? "";
-    expect(Array.from(cut)).toHaveLength(MAX_MESSAGE);
-    expect(cut).toBe(`${"😀".repeat(MAX_MESSAGE - 1)}…`);
+    expect(internalCause(new Error("a".repeat(MAX_CAUSE_MESSAGE))).message).toBe(
+      "a".repeat(MAX_CAUSE_MESSAGE),
+    );
+    const cut = internalCause(new Error("😀".repeat(MAX_CAUSE_MESSAGE + 1))).message ?? "";
+    expect(Array.from(cut)).toHaveLength(MAX_CAUSE_MESSAGE);
+    expect(cut).toBe(`${"😀".repeat(MAX_CAUSE_MESSAGE - 1)}…`);
   });
 
   it("drops control characters, format characters and lone surrogates", () => {
@@ -129,6 +131,32 @@ describe("internalCause: paths", () => {
     expect(said("/ws")).toBe("<workspace>");
   });
 
+  it("shows a path that leaves the root through .. as <path>", () => {
+    expect(said("open /ws/../home/x")).toBe("open <path>");
+    expect(said("open C:\\Users\\me\\ws\\..\\other", windows)).toBe("open <path>");
+    expect(said("open /ws/a..b/x")).toBe("open <workspace>/a..b/x");
+  });
+
+  it("hides the error's own path with a quote inside it", () => {
+    const tom = "/home/me/Tom's projects/other/secret-plan.yaml";
+    const posixError = fsError("ENOENT", `ENOENT: no such file or directory, open '${tom}'`, { path: tom });
+    expect(internalCause(posixError, posix).message).toBe("ENOENT: no such file or directory, open '<path>'");
+    const brien = "C:\\Users\\O'Brien\\other\\x.yaml";
+    const windowsError = fsError("ENOENT", `ENOENT: no such file or directory, open '${brien}'`, {
+      path: brien,
+    });
+    expect(internalCause(windowsError, windows).message).toBe(
+      "ENOENT: no such file or directory, open '<path>'",
+    );
+    const inside = "C:\\Users\\me\\ws\\O'Brien\\x.yaml";
+    const insideError = fsError("EPERM", `EPERM: operation not permitted, open '${inside}'`, {
+      path: inside,
+    });
+    expect(internalCause(insideError, windows).message).toBe(
+      "EPERM: operation not permitted, open '<workspace>/O'Brien/x.yaml'",
+    );
+  });
+
   it("matches a root only on a folder boundary, the longest root first", () => {
     expect(said("read /ws2/x")).toBe("read <path>");
     expect(said("read /ws/a/x", { roots: ["/ws", "/ws/a"], platform: "linux" })).toBe("read <workspace>/x");
@@ -155,6 +183,13 @@ describe("internalCause: paths", () => {
     expect(internalCause(special, posix).message).toBe(
       "EISDIR: illegal operation, open <workspace>/a (1).[b]+",
     );
+    // An exact path counts only between quotes, blanks or the edges of the line: /ws/a is not in /ws/ab/x.
+    const prefix = fsError("ENOENT", "ENOENT: open /ws/a then /ws/ab/secret", { path: "/ws/a" });
+    expect(internalCause(prefix, posix).message).toBe(
+      "ENOENT: open <workspace>/a then <workspace>/ab/secret",
+    );
+    const outside = fsError("ENOENT", "ENOENT: open /etc/a then /etc/ab/secret", { path: "/etc/a" });
+    expect(internalCause(outside, posix).message).toBe("ENOENT: open <path> then <path>");
     // A relative path of the error is no path to hide, and never replaces text inside a word.
     const relative = fsError("ENOENT", "ENOENT: no such file, open 'a'", { path: "a" });
     expect(internalCause(relative, posix).message).toBe("ENOENT: no such file, open 'a'");
@@ -165,7 +200,8 @@ describe("internalCause: paths", () => {
     expect(said("open `/x y` now")).toBe("open `<path>` now");
     expect(said("open '/x it's' now")).toBe("open '<path>'s' now");
     expect(said("open '/x y now")).toBe("open '<path> y now");
-    expect(said("open /x/y, then")).toBe("open <path> then");
+    expect(said("open /x/y, then")).toBe("open <path>, then");
+    expect(said("failed (at /x/y)")).toBe("failed (at <path>)");
   });
 
   it("leaves slashes inside words and relative paths alone", () => {
@@ -205,6 +241,7 @@ describe("internalCause: paths", () => {
       "fetch https://example.org/r.git failed",
     );
     expect(said("fetch https://example.org/r.git")).toBe("fetch https://example.org/r.git");
+    expect(said("fetch https://example.org/r?token=abc#x done")).toBe("fetch https://example.org/r done");
   });
 
   it("uses the platform of the process by default", () => {
@@ -232,9 +269,8 @@ describe("internalError and the roots of a workspace", () => {
     });
   });
 
-  it("names the root as given and in its real form, the temporary folders of macOS and Windows too", async () => {
-    // os.tmpdir() is a symbolic link on macOS (/var -> /private/var) and may be a short 8.3 name on Windows;
-    // the root is a link (a junction on Windows) to a folder beside it, so its real form differs everywhere.
+  it("names the root as given and in its real form", async () => {
+    // The root is a link (a junction on Windows) to a folder beside it, so its real form differs everywhere.
     const base = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cause-"));
     await fs.mkdir(path.join(base, "target"));
     const given = path.join(base, "link");
@@ -244,8 +280,9 @@ describe("internalError and the roots of a workspace", () => {
     try {
       expect(workspaceRoots(workspace)).toEqual([given]);
       await learnWorkspaceRoots(workspace);
+      await learnWorkspaceRoots(workspace);
       expect(workspaceRoots(workspace)).toEqual([given, real]);
-      for (const root of [given, real, await fs.realpath(base).then((b) => path.join(b, "link"))]) {
+      for (const root of [given, real]) {
         const error = fsError(
           "ENOENT",
           `ENOENT: no such file or directory, open '${path.join(root, "a", "b.md")}'`,
@@ -262,13 +299,43 @@ describe("internalError and the roots of a workspace", () => {
     }
   });
 
-  it("keeps the given root alone when it has no other form", async () => {
-    const workspace = new Workspace(path.join(os.tmpdir(), "reqseq-cause-missing", "ws"));
+  it("names a root under the temporary folder in its real form (a link on macOS, maybe a short name on Windows)", async () => {
+    const given = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cause-"));
+    const workspace = new Workspace(given);
     try {
       await learnWorkspaceRoots(workspace);
-      expect(workspaceRoots(workspace)).toEqual([workspace.root]);
+      const error = new Error(`failed at ${path.join(await fs.realpath(given), "x.md")}`);
+      expect(internalError("Internal error in x", error, { workspace }).details?.["cause"]).toEqual({
+        name: "Error",
+        message: "failed at <workspace>/x.md",
+      });
     } finally {
       await workspace.close();
+      await fs.rm(given, { recursive: true, force: true });
     }
+  });
+
+  it("learns the real form of a root created after the first call (workspace.init)", async () => {
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cause-"));
+    await fs.mkdir(path.join(base, "target"));
+    const given = path.join(base, "link");
+    const workspace = new Workspace(given);
+    try {
+      await learnWorkspaceRoots(workspace);
+      expect(workspaceRoots(workspace)).toEqual([given]);
+      await fs.symlink(path.join(base, "target"), given, "junction");
+      await learnWorkspaceRoots(workspace);
+      expect(workspaceRoots(workspace)).toEqual([given, await fs.realpath(given)]);
+    } finally {
+      await workspace.close();
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it("does nothing on a closed workspace", async () => {
+    const workspace = new Workspace(os.tmpdir());
+    await workspace.close();
+    await expect(learnWorkspaceRoots(workspace)).resolves.toBeUndefined();
+    expect(workspaceRoots(workspace)).toEqual([workspace.root]);
   });
 });

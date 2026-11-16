@@ -34,7 +34,7 @@ The exit code:
 - `0`: done, without a problem of severity error.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 - `2`: not run: wrong usage or input, something missing, a conflict, or not available.
-- `3`: an internal error. When an error inside ReqSeq caused it, a second line `cause:` names that error and the first line of its text, absolute paths shown as `<workspace>/…` or `<path>`; with `--json` it is `details.cause`. Report it with the message.
+- `3`: an internal error. When an unexpected error caused it (one that ReqSeq does not report as an error of its own), a second line `cause:` names that error and the first line of its text, absolute paths shown as `<workspace>/…` or `<path>`; with `--json` it is `details.cause`. Report it with the message.
 - `4`: a given Git revision is not available locally (fetch it or deepen the clone).
 - `130`: a command stopped with Ctrl-C (`serve api` and `mcp` then end with 0).
 

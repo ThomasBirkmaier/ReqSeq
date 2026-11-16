@@ -470,7 +470,7 @@ export interface CommandErrorObject {
     | "internal";
   /** What went wrong, for people. */
   readonly message: string;
-  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause`, the error inside ReqSeq behind any other failure, with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
