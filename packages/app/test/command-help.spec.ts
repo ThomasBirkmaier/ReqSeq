@@ -279,19 +279,38 @@ const help = (window: Page) => window.getByRole("region", { name: "Command help"
 const drawer = (window: Page) => window.locator("#command-help");
 const markedName = (window: Page) => window.locator('.candidates [aria-selected="true"] .name');
 
-/** The transitions of the panel that move it, with their times (ms): the slide in or out. */
-const slides = (window: Page): Promise<{ duration: number; delay: number }[]> =>
-  drawer(window).evaluate((element) =>
-    element
-      .getAnimations()
-      .filter(
-        (one): one is CSSTransition => one instanceof CSSTransition && one.transitionProperty === "transform",
-      )
-      .map((one) => {
+/** A transition of the panel that moves it, with its times (ms): the slide in or out. */
+interface Slide {
+  readonly duration: number;
+  readonly delay: number;
+}
+
+/**
+ * Records the transitions of the panel that move it from now on, and returns them once read. Each one is taken
+ * when the panel opens or closes (its `data-open` changes), not after the help is visible: on a slow runner the
+ * 180 ms slide has ended by then, and an ended transition is no longer among the element's animations (#1774).
+ */
+const recordSlides = async (window: Page): Promise<() => Promise<Slide[]>> => {
+  await drawer(window).evaluate((element) => {
+    const taken: CSSTransition[] = [];
+    Object.assign(element, { reqseqSlides: taken });
+    // `getAnimations` brings the style up to date, so it makes the transition in the task that changed the panel.
+    new MutationObserver(() => {
+      for (const one of element.getAnimations()) {
+        if (one instanceof CSSTransition && one.transitionProperty === "transform" && !taken.includes(one)) {
+          taken.push(one);
+        }
+      }
+    }).observe(element, { attributes: true, attributeFilter: ["data-open"] });
+  });
+  return () =>
+    drawer(window).evaluate((element) =>
+      (element as unknown as { reqseqSlides: CSSTransition[] }).reqseqSlides.map((one) => {
         const timing = one.effect?.getComputedTiming();
         return { duration: Number(timing?.duration ?? 0), delay: timing?.delay ?? 0 };
       }),
-  );
+    );
+};
 
 /** The panel and the hits once they stand: their boxes, the font sizes and how the hits are shown. */
 const layout = (window: Page) =>
@@ -376,12 +395,13 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     await fsp.mkdir(SHOTS, { recursive: true });
     await mark(window, "List hints", "List hints");
     await cardSettled(window);
+    const slides = await recordSlides(window);
     // The physical Ctrl key, also on macOS.
     await window.keyboard.press("Control+H");
     const shown = help(window);
     await expect(shown).toBeVisible();
     // It slides in, done within 200 ms.
-    const slideIn = await slides(window);
+    const slideIn = await slides();
     expect(slideIn.length).toBe(1);
     expect((slideIn[0]?.duration ?? 0) + (slideIn[0]?.delay ?? 0)).toBeLessThanOrEqual(200);
     expect(slideIn[0]?.duration ?? 0).toBeGreaterThan(0);
@@ -532,11 +552,12 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
       .toContain(userText(catalog("hint.list").summary).slice(0, 30));
     // Escape slides it out, shorter than it came in, and only it: the prompt stays open with its mark.
     const slideIn = 180;
+    const slides = await recordSlides(window);
     await window.keyboard.press("Escape");
-    const slideOut = await slides(window);
+    await expect(help(window)).toHaveCount(0);
+    const slideOut = await slides();
     expect(slideOut.length).toBe(1);
     expect(slideOut[0]?.duration ?? slideIn).toBeLessThan(slideIn);
-    await expect(help(window)).toHaveCount(0);
     await expect(label(window)).toHaveText("Command");
     await expect(markedName(window)).toHaveText("List hints");
     await expect(window.locator("#prompt-input")).toBeFocused();
