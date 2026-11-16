@@ -599,22 +599,25 @@ describe("reqseq <group> <action>", () => {
     }
   });
 
-  it("maps internal errors to exit code 3 without their original text", async () => {
+  it("maps internal errors to exit code 3 with their cause, without absolute paths (#1794)", async () => {
     const human = await run(["test", "fail", "crash"]);
     expect(human).toEqual({
       code: EXIT.internal,
       stdout: "",
-      stderr: "error internal: Internal error in test.fail\n",
+      stderr: "error internal: Internal error in test.fail\ncause: Error: crash with <path>\n",
     });
     const json = await run(["test", "fail", "crash", "--json"]);
     expect(JSON.parse(json.stderr)).toEqual({
       code: "internal",
       message: "Internal error in test.fail",
-      details: { command: "test.fail" },
+      details: { command: "test.fail", cause: { name: "Error", message: "crash with <path>" } },
     });
+    expect(json.stderr).not.toContain("secret");
     const closing = await run(["test", "close-fails"]);
     expect(closing.code).toBe(EXIT.internal);
-    expect(closing.stderr).toBe("error internal: Internal error in the command line\n");
+    expect(closing.stderr).toBe(
+      "error internal: Internal error in the command line\ncause: AggregateError: disposing workspace state failed\n",
+    );
     expect(closing.stderr).not.toContain("secret");
   });
 
@@ -633,7 +636,7 @@ describe("reqseq <group> <action>", () => {
     expect(result).toEqual({
       code: EXIT.internal,
       stdout: "",
-      stderr: "error internal: Internal error in the command line\n",
+      stderr: "error internal: Internal error in the command line\ncause: Error: boom <path>\n",
     });
   });
 
@@ -653,7 +656,9 @@ describe("reqseq <group> <action>", () => {
       runtime,
     });
     expect(code).toBe(EXIT.internal);
-    expect(stderr.text).toBe("error internal: Internal error in the command line\n");
+    expect(stderr.text).toBe(
+      "error internal: Internal error in the command line\ncause: Error: EPIPE <path>\n",
+    );
     const silent = await runCli({
       argv: ["other", "ping"],
       cwd: (await fixture()).root,
@@ -663,6 +668,26 @@ describe("reqseq <group> <action>", () => {
       runtime,
     });
     expect(silent).toBe(EXIT.internal);
+  });
+
+  it("names the cause of a failure while the output is written, e.g. a RangeError (#1794)", async () => {
+    const stderr = new Sink();
+    const code = await runCli({
+      argv: ["other", "ping"],
+      cwd: (await fixture()).root,
+      stdin: Readable.from([]),
+      stdout: {
+        write: (): never => {
+          throw new RangeError("Invalid string length");
+        },
+      },
+      stderr,
+      runtime,
+    });
+    expect([code, stderr.text]).toEqual([
+      EXIT.internal,
+      "error internal: Internal error in the command line\ncause: RangeError: Invalid string length\n",
+    ]);
   });
 
   it("uses the runtime of the process by default", async () => {

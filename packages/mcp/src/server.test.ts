@@ -480,17 +480,25 @@ describe("an output larger than the text bound (#277)", () => {
 
 describe("callTool", () => {
   it("answers internal without the error text when the runtime fails outside of a CommandError", async () => {
-    const broken: CommandRuntime = { ...runtime, invoke: () => Promise.reject(new Error("/secret/path")) };
+    const broken: CommandRuntime = {
+      ...runtime,
+      invoke: () => Promise.reject(new TypeError(`bad ${path.join(workspace.root, "a.md")} /secret/path`)),
+    };
     const result = await callTool(broken, workspace, "test.echo", {}, new AbortController().signal);
     expect(result).toEqual({
       isError: true,
       content: [
         {
           type: "text",
-          text: JSON.stringify({ code: "internal", message: "Internal error in the MCP server" }),
+          text: JSON.stringify({
+            code: "internal",
+            message: "Internal error in the MCP server",
+            details: { cause: { name: "TypeError", message: "bad <workspace>/a.md <path>" } },
+          }),
         },
       ],
     });
+    expect(JSON.stringify(result)).not.toContain("secret");
   });
 
   it("runs on the runtime of the process by default", async () => {

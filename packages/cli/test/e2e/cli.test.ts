@@ -536,7 +536,7 @@ describe("reqseq with test commands", () => {
     );
   });
 
-  it("exits 3 for internal errors without their original text", async () => {
+  it("exits 3 for internal errors with their cause, without absolute paths (#1794)", async () => {
     const ws = await workspace();
     const result = await reqseq(["metamodel", "get", "--json"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(3);
@@ -544,7 +544,7 @@ describe("reqseq with test commands", () => {
     expect(JSON.parse(result.stderr)).toEqual({
       code: "internal",
       message: "Internal error in metamodel.get",
-      details: { command: "metamodel.get" },
+      details: { command: "metamodel.get", cause: { name: "Error", message: "internal detail at <path>" } },
     });
     expect(result.stderr).not.toContain("secret");
   });

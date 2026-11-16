@@ -156,7 +156,10 @@ describe("filter.rename that stops part-way (SR-217)", () => {
     fail.write = undefined;
     fail.rename = true;
     const other = (await rename(workspace).catch((e: unknown) => e)) as CommandError;
-    expect([other.code, other.details]).toEqual(["internal", { command: "filter.rename" }]);
+    expect([other.code, other.details]).toEqual([
+      "internal",
+      { command: "filter.rename", cause: { name: "Error", message: "not a command error" } },
+    ]);
   });
 
   it("[SR-217/AK-q14p] refuses before the first write when a folder to write into is not writable", async () => {

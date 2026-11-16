@@ -10,6 +10,7 @@ import {
   errorClass,
   findWorkspaceRoot,
   getCommandRuntime,
+  internalError,
   jsonLines,
   warmWorkspace,
   watchWorkspace,
@@ -150,10 +151,9 @@ export interface RunCliOptions {
 const workspaceRoot = async (option: string | undefined, cwd: string): Promise<string> =>
   option === undefined ? ((await findWorkspaceRoot(cwd)) ?? cwd) : path.resolve(cwd, option);
 
+/** `error`, or the `internal` error for it with its cause named without absolute paths (#1794). */
 const asCommandError = (error: unknown): CommandError =>
-  error instanceof CommandError
-    ? error
-    : new CommandError("internal", "Internal error in the command line", undefined, { cause: error });
+  error instanceof CommandError ? error : internalError("Internal error in the command line", error);
 
 type Settled =
   { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly error: unknown };
@@ -365,7 +365,7 @@ export async function runCli(options: RunCliOptions): Promise<ExitCode> {
       // Help and version end with 0; every parse error (unknown command or option, missing group action) is usage.
       return error.exitCode === 0 ? EXIT.ok : EXIT.usage;
     }
-    // A failure outside any command, e.g. writing the output failed. Its text may name paths: not shown.
+    // A failure outside any command, e.g. writing the output failed: its cause without absolute paths.
     try {
       options.stderr.write(renderError(asCommandError(error), false));
     } catch {

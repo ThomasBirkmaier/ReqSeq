@@ -184,18 +184,29 @@ describe("createCoreHost: catalog calls", () => {
     other.close();
   });
 
-  it("maps a failure that is no CommandError to internal", async () => {
+  it("maps a failure that is no CommandError to internal, its cause without absolute paths (#1794)", async () => {
+    let root = "";
     const failing: CommandRuntime = {
       ...runtime,
-      invoke: () => Promise.reject(new Error("secret /home/me/file")),
+      invoke: () => Promise.reject(new Error(`failed at ${path.join(root, "x.md")} and /home/me/secret`)),
     };
-    const { connect } = await setup({ runtime: failing });
+    const { connect, workspace } = await setup({ runtime: failing });
+    root = workspace.root;
     const window = connect();
     window.send({ id: 1, kind: "invoke", name: "workspace.status", input: {} });
-    expect(await window.answer(1)).toEqual({
+    const answer = await window.answer(1);
+    expect(answer).toEqual({
       id: 1,
-      result: { ok: false, error: { code: "internal", message: "Internal error in the app" } },
+      result: {
+        ok: false,
+        error: {
+          code: "internal",
+          message: "Internal error in the app",
+          details: { cause: { name: "Error", message: "failed at <workspace>/x.md and <path>" } },
+        },
+      },
     });
+    expect(JSON.stringify(answer)).not.toContain("secret");
     window.close();
   });
 

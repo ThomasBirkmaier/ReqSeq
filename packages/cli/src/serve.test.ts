@@ -340,12 +340,15 @@ describe("reqseq mcp", () => {
     await client.close();
   });
 
-  it("exits 3 when the workspace cannot be closed, without the error text", async () => {
+  it("exits 3 when the workspace cannot be closed, with its cause and without absolute paths", async () => {
     const { client, exit, end, stderr } = await session();
     await client.callTool({ name: "test_closeFails", arguments: {} });
     end();
     expect(await exit).toBe(EXIT.internal);
-    expect(stderr.text).toBe("error internal: Internal error in the command line\n");
+    expect(stderr.text).toBe(
+      "error internal: Internal error in the command line\ncause: AggregateError: disposing workspace state failed\n",
+    );
+    expect(stderr.text).not.toContain("secret");
     await client.close();
   });
 });
@@ -354,7 +357,9 @@ describe("server commands and the catalog", () => {
   it("refuses a catalog group named like a server command", async () => {
     const opts = options(["--help"], { runtime: runtimeFor(["serve.files"]) });
     expect(await runCli(opts)).toBe(EXIT.internal);
-    expect(opts.err.text).toBe("error internal: Internal error in the command line\n");
+    expect(opts.err.text).toBe(
+      "error internal: Internal error in the command line\ncause: Error: catalog group serve clashes with a command of the CLI\n",
+    );
   });
 
   it("reports a server that cannot start on stderr (port in use: exit 2)", async () => {

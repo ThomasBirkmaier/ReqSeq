@@ -114,7 +114,7 @@ flowchart TB
       docs[docs-site<br/>offline documentation: request to file, CSP]
     end
     subgraph shared[shared, imported almost everywhere, edges not drawn]
-      state[runtime: workspace, settled, contracts, input-errors<br/>Workspace object, schemas]
+      state[runtime: workspace, settled, contracts, input-errors, internal-cause<br/>Workspace object, schemas, error causes]
       catalog[catalog.ts, product.ts, build-info.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
@@ -154,7 +154,7 @@ An arrow means that at least one module of the source imports a value (a functio
 | `model` | files, git, metamodel, runtime state, version, workspace | |
 | `metamodel` | files, runtime state, workspace | |
 | `workspace` | files, git, runtime state | |
-| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`) | no other block | |
+| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`, `internal-cause`) | no other block | |
 
 `workspace` imports `git` for one question: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456); the layout is the workspace block's, and `git` is a lower layer.
 

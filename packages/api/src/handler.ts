@@ -5,7 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@reqseq/core";
 import type { CatalogEntry } from "@reqseq/core";
-import { CommandError, errorClass, jsonChunks, jsonLines } from "@reqseq/core";
+import { CommandError, errorClass, internalError, jsonChunks, jsonLines } from "@reqseq/core";
 import { loopbackHost } from "./loopback.js";
 
 /** HTTP status of each error class (ADR-0009 "Errors"); documented in schemas/generated/openapi.json. */
@@ -195,9 +195,11 @@ const answerAndClose = (response: ServerResponse, answer: Answer, ended: Promise
   void ended.then(() => response.end());
 };
 
-const sendError = (response: ServerResponse, error: unknown): Promise<void> => {
+const sendError = (response: ServerResponse, error: unknown, workspace: Workspace): Promise<void> => {
   const commandError =
-    error instanceof CommandError ? error : new CommandError("internal", "Internal error in the local API");
+    error instanceof CommandError
+      ? error
+      : internalError("Internal error in the local API", error, { workspace });
   return send(response, HTTP_STATUS_BY_CLASS[errorClass(commandError.code)], commandError.toJSON());
 };
 
@@ -299,7 +301,7 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
         ? sendChunks(response, 200, jsonLines(output, form.spec), LINES_HEADERS)
         : send(response, 200, output ?? null));
     } catch (error) {
-      await sendError(response, error);
+      await sendError(response, error, options.workspace);
     }
   };
 
@@ -387,6 +389,6 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
   };
 
   return (request, response) => {
-    route(request, response).catch((error: unknown) => sendError(response, error));
+    route(request, response).catch((error: unknown) => sendError(response, error, options.workspace));
   };
 }

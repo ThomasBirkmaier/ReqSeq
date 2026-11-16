@@ -23,8 +23,16 @@ import {
   createBridge,
   createCoreHost,
 } from "@reqseq/app";
-import type { CatalogEntry, CommandName } from "@reqseq/core";
-import { CommandError, Workspace, createCommandRuntime, jsonChunks, jsonLines } from "@reqseq/core";
+import type { CatalogEntry, CommandName, CommandRuntime } from "@reqseq/core";
+import {
+  CommandError,
+  Workspace,
+  createCommandRuntime,
+  defineTestCommand,
+  jsonChunks,
+  jsonLines,
+  loadContracts,
+} from "@reqseq/core";
 import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -80,10 +88,15 @@ const expectWholeText = (name: string, output: unknown): void => {
   expect([name, [...yamlPieces(output)].join("")]).toEqual([name, stringify(output, YAML_OPTIONS)]);
 };
 
-const viaCore = async (root: string, entry: CatalogEntry, input: object): Promise<Outcome> => {
+const viaCore = async (
+  root: string,
+  entry: CatalogEntry,
+  input: object,
+  rt: CommandRuntime = runtime,
+): Promise<Outcome> => {
   const workspace = new Workspace(root);
   try {
-    const output = await runtime.invoke(entry.name, input, { workspace });
+    const output = await rt.invoke(entry.name, input, { workspace });
     expectWholeText(entry.name, output);
     return { output };
   } catch (error) {
@@ -105,19 +118,26 @@ const viaCli = async (
   root: string,
   entry: CatalogEntry,
   input: Record<string, unknown>,
+  rt: CommandRuntime = runtime,
 ): Promise<Outcome> => {
   const stdout = new Sink();
   const stderr = new Sink();
-  const argv = [...argvFor(entry, input, runtime.contracts.schemas), "--json", "--workspace", root];
-  const code = await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime });
+  const argv = [...argvFor(entry, input, rt.contracts.schemas), "--json", "--workspace", root];
+  const code = await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime: rt });
   return code === EXIT.ok || code === EXIT.findings
     ? { output: JSON.parse(stdout.text) as unknown }
     : { error: JSON.parse(stderr.text) as unknown };
 };
 
-const viaApi = async (root: string, entry: CatalogEntry, input: object, cache: string): Promise<Outcome> => {
+const viaApi = async (
+  root: string,
+  entry: CatalogEntry,
+  input: object,
+  cache: string,
+  rt: CommandRuntime = runtime,
+): Promise<Outcome> => {
   const workspace = new Workspace(root);
-  const server = await startApiServer({ workspace, runtime, cacheFolder: cache });
+  const server = await startApiServer({ workspace, runtime: rt, cacheFolder: cache });
   try {
     const { token } = JSON.parse(await fs.readFile(server.endpointFile, "utf8")) as { token: string };
     const reply = await new Promise<{ status: number | undefined; body: unknown }>((resolve, reject) => {
@@ -151,12 +171,13 @@ const viaMcp = async (
   root: string,
   entry: CatalogEntry,
   input: Record<string, unknown>,
+  rt: CommandRuntime = runtime,
 ): Promise<Outcome> => {
   const workspace = new Workspace(root);
   const toServer = new PassThrough();
   const toClient = new PassThrough();
   const served = serveMcp({
-    runtime,
+    runtime: rt,
     workspace,
     input: toServer,
     output: { write: (t) => toClient.write(t) },
@@ -201,8 +222,9 @@ const nodeChannel = (port: MessagePort): Channel => ({
  */
 const connectApp = (
   workspace: Workspace,
+  rt: CommandRuntime = runtime,
 ): { bridge: ReturnType<typeof createBridge>; close: () => Promise<void> } => {
-  const host = createCoreHost({ runtime, workspace });
+  const host = createCoreHost({ runtime: rt, workspace });
   const { port1, port2 } = new MessageChannel();
   host.connect(nodeChannel(port1));
   let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
@@ -222,8 +244,13 @@ const connectApp = (
   return { bridge, close: () => host.close() };
 };
 
-const viaApp = async (root: string, entry: CatalogEntry, input: object): Promise<Outcome> => {
-  const app = connectApp(new Workspace(root));
+const viaApp = async (
+  root: string,
+  entry: CatalogEntry,
+  input: object,
+  rt: CommandRuntime = runtime,
+): Promise<Outcome> => {
+  const app = connectApp(new Workspace(root), rt);
   try {
     const result = await app.bridge.invoke(entry.name, input);
     return result.ok ? { output: result.output } : { error: result.error };
@@ -819,6 +846,78 @@ describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_
       const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
       expect(needs.filter((id) => !file.includes(id))).toEqual([]);
     }
+  });
+});
+
+/** A runtime with one test command that fails with an error that is no CommandError, as `fs` throws it. */
+const crashing = createCommandRuntime({
+  contracts: loadContracts({
+    catalog: {
+      "reqseq-catalog": 1,
+      commands: [
+        {
+          name: "test.crash",
+          title: "Test command",
+          summary: "Fails with a file system error (test only).",
+          effect: "read",
+          stage: 1,
+          implements: ["SR-080"],
+          arguments: [],
+          input: { type: "object", additionalProperties: false },
+          output: { type: "object" },
+        },
+      ],
+    },
+  }),
+  commands: [
+    defineTestCommand<Record<string, never>, unknown>({
+      name: "test.crash",
+      run: (ctx) => {
+        const missing = path.join(ctx.workspace.root, "gone", "file.yaml");
+        return Promise.reject(
+          Object.assign(new Error(`ENOENT: no such file or directory, open '${missing}'\n    at open`), {
+            code: "ENOENT",
+            path: missing,
+          }),
+        );
+      },
+    }),
+  ],
+});
+
+describe("cross-access: the cause of an internal error (#1794)", { timeout: TEST_TIMEOUT }, () => {
+  it("is the same error object through core, CLI, API, MCP and the app, without absolute paths", async () => {
+    const { root } = await copy(DEFAULT);
+    const [entry] = crashing.contracts.commands;
+    if (entry === undefined) {
+      throw new Error("no test command");
+    }
+    const outcomes = {
+      core: await viaCore(root, entry, {}, crashing),
+      cli: await viaCli(root, entry, {}, crashing),
+      api: await viaApi(root, entry, {}, cache, crashing),
+      mcp: await viaMcp(root, entry, {}, crashing),
+      app: await viaApp(root, entry, {}, crashing),
+    };
+    const error = {
+      code: "internal",
+      message: "Internal error in test.crash",
+      details: {
+        command: "test.crash",
+        cause: {
+          name: "Error",
+          code: "ENOENT",
+          message: "ENOENT: no such file or directory, open '<workspace>/gone/file.yaml'",
+        },
+      },
+    };
+    expect(outcomes).toEqual({
+      core: { error },
+      cli: { error },
+      api: { error },
+      mcp: { error },
+      app: { error },
+    });
   });
 });
 

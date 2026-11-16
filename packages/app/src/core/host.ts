@@ -9,7 +9,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { AccessName, CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@reqseq/core";
-import { CommandError } from "@reqseq/core";
+import { CommandError, internalError } from "@reqseq/core";
 import type {
   AgentActivity,
   ChangeScope,
@@ -128,8 +128,11 @@ const fileOf = (url: string): { readonly repository: string; readonly relative: 
 };
 
 /** The error object of a failed call; `invoke` gives a CommandError for every failure. */
-const errorObject = (error: unknown): CommandErrorObject =>
-  error instanceof CommandError ? error.toJSON() : { code: "internal", message: "Internal error in the app" };
+const errorObject = (error: unknown, workspace: Workspace): CommandErrorObject =>
+  (error instanceof CommandError
+    ? error
+    : internalError("Internal error in the app", error, { workspace })
+  ).toJSON();
 
 /** The access of every call of the app (ADR-0002 rule 4); core does not record it (SR-117). */
 const ACCESS: AccessName = "app";
@@ -197,7 +200,7 @@ export const createCoreHost = ({ runtime, workspace, activity, changes }: CoreHo
     try {
       return { ok: true, output: await runtime.invoke(name, input, context) };
     } catch (error) {
-      return { ok: false, error: errorObject(error) };
+      return { ok: false, error: errorObject(error, workspace) };
     }
   };
 
