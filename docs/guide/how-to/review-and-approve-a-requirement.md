@@ -12,7 +12,7 @@ ReqSeq never deletes an element. You supersede an approved one: it gets an inval
 ## App
 
 1. Open the element and run **Set status** (Ctrl+K T, ⌘K T on macOS). It offers the shown element first; add more elements one per Enter, end the list with an empty Enter, and choose Approved. A right-click on the status in the modeline offers it too.
-2. To set another property for every element of a list, open the command prompt on the list (Ctrl+Shift+P, ⌘⇧P) and run **Bulk update elements**. It shows what it would change; run it again with Ctrl+Enter (⌘↩) and `confirm` yes to write it.
+2. To set another property for every element of a list, open the command prompt on the list (Ctrl+Shift+P, ⌘⇧P) and run **Bulk update elements**. It then shows what it would change and asks to confirm, “No” marked, naming how many elements it writes and skips. “Yes, apply” or Ctrl+Enter (⌘↩) writes what the preview shows; “No” or Escape goes back.
 3. Before you change an element, **Show affected elements** lists the elements that trace to it.
 4. After the change, each requirement that derives from the need shows "link outdated" next to the need. **List hints** lists all such hints. Review each requirement and set it back to Draft with **Set status** if it needs more work. Then run **Confirm hints** (Ctrl+K H, ⌘K H) on it, which clears the mark; the app confirms one requirement at a time.
 5. To supersede an element, create its successor with **Create element** (Ctrl+K E, ⌘K E). Then run **Supersede element** on the old one and choose Obsolete; with Ctrl+Enter (⌘↩) you can name the successor.

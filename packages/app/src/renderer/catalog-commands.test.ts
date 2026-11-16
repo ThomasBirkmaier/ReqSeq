@@ -25,6 +25,7 @@ import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
 import {
+  askable,
   catalogItems,
   contextField,
   fits,
@@ -3168,9 +3169,9 @@ describe("a view the window shows (SR-043 AK1)", () => {
   });
 });
 
-// #836: a confirmation of a bulk update writes only the plan of the
-// open preview of the same input.
-describe("a bulk update confirms the plan of an open preview of the same input (#836)", () => {
+// SR-071 AK5: after the last argument of a bulk update the prompt shows the preview and asks the confirmation; it
+// writes the plan of the shown preview (AK2, #158).
+describe("a bulk update shows its preview and asks the confirmation next (SR-071 AK5)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
   const PLAN = `p1:${"a".repeat(64)}`;
   const PREVIEW = {
@@ -3179,104 +3180,215 @@ describe("a bulk update confirms the plan of an open preview of the same input (
     operation: "set",
     value: "Why",
   };
+  const skipped = { id: "uuid-9", shortId: "SR-9", reason: "not-a-property", message: "no rationale" };
   const preview = {
     applied: false,
     count: 2,
     affected: [],
     unchanged: 0,
-    skipped: [],
+    skipped: [skipped],
     files: [],
     problems: [],
     plan: PLAN,
   };
+  const written = { ...preview, applied: true, files: ["a.md", "b.md"] };
+  const answers = (bulkUpdate: (input: Record<string, unknown>) => Answer) => ({
+    "metamodel.get": () => FIXTURE_METAMODEL,
+    "element.bulkUpdate": bulkUpdate,
+  });
+  const bulkCalls = (call: ReturnType<typeof setup>["call"]) =>
+    call.mock.calls.filter(([name]) => name === "element.bulkUpdate").map(([, input]) => input);
 
-  /** Runs "Bulk update elements" rationale set "Why" with confirm yes. */
-  const confirm = async (
+  /** Runs "Bulk update elements" rationale set "Why" up to the step after the last argument. */
+  const answer = async (
     context: ActionContext & CatalogContext,
     asked: readonly Prompt[],
-  ): Promise<void> => {
+  ): Promise<Prompt> => {
     start(context, "element.bulkUpdate");
     item((await last(asked)).items, "Rationale").run();
     item((await last(asked)).items, "set").run();
-    (await last(asked)).more?.("Why");
-    item((await last(asked)).items, "confirm").run();
-    item((await last(asked)).items, "yes").more?.();
-    item((await last(asked)).items, "Run").run();
-    await flush();
+    (await last(asked)).text?.("Why");
+    return last(asked);
   };
 
-  it("opens the preview first and writes nothing when no preview of the same input is open", async () => {
-    const { context, asked, call, dispatched, echoed } = setup([list], {
-      "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": () => preview,
-    });
-    await confirm(context, asked);
-    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", PREVIEW);
-    expect(call.mock.calls.filter(([name]) => name === "element.bulkUpdate")).toHaveLength(1);
+  it("opens the preview, then asks No first and Yes, apply, with the counts and that Ctrl+Enter writes", async () => {
+    const { context, asked, call, dispatched, echoed } = setup(
+      [list],
+      answers(() => preview),
+    );
+    const confirm = await answer(context, asked);
+    expect(bulkCalls(call)).toEqual([PREVIEW]);
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
       buffer: { command: "element.bulkUpdate", input: PREVIEW, output: preview, written: true },
     });
-    expect(echoed.at(-1)).toBe(
-      "Bulk update elements: nothing was written; confirm again to write what the preview shows",
-    );
+    expect(confirm.label).toBe("Bulk update elements Rationale set Why · confirm:");
+    expect(confirm.items.map((hit) => hit.name)).toEqual(["No", "Yes, apply"]);
+    expect(confirm.explain).toMatchObject({
+      name: "confirm",
+      description: "Writes 2 elements, skips 1 element",
+      more: true,
+      moreDoes: "writes",
+    });
+    expect(confirm.confirm).toBeDefined();
+    expect(echoed).toEqual([]);
   });
 
-  it("passes the plan of the open preview, and opens the new preview when core refuses it", async () => {
-    const shownPreview = resultBuffer(
-      "element.bulkUpdate",
-      PREVIEW,
-      "Bulk update elements",
-      preview,
-      3,
-      true,
+  it("goes back to the last argument on No and Escape, keeps the preview, and writes nothing", async () => {
+    const { context, asked, call, dispatched } = setup(
+      [list],
+      answers(() => preview),
     );
-    const written = { ...preview, applied: true };
-    const { context, asked, call, dispatched } = setup([list, shownPreview], {
-      "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": (input) => (input["confirm"] === true ? written : preview),
-    });
-    await confirm(context, asked);
-    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", { ...PREVIEW, confirm: true, plan: PLAN });
-    expect(dispatched.at(-1)).toMatchObject({ buffer: { output: written } });
-    const changed = { ...preview, count: 3, plan: `p1:${"b".repeat(64)}` };
-    const refused = setup([list, shownPreview], {
-      "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": (input) =>
-        input["confirm"] === true
-          ? refusedWith("plan: the change now writes other elements", { count: 3, reason: "plan-changed" })
-          : changed,
-    });
-    await confirm(refused.context, refused.asked);
-    expect(refused.call).toHaveBeenLastCalledWith("element.bulkUpdate", PREVIEW);
-    expect(refused.dispatched.at(-1)).toMatchObject({ buffer: { input: PREVIEW, output: changed } });
-    expect(refused.echoed.at(-1)).toBe(
-      "Bulk update elements: something changed since the preview, so nothing was written; the new preview is shown",
+    const confirm = await answer(context, asked);
+    const opened = dispatched.length;
+    item(confirm.items, "No").run();
+    const back = await last(asked);
+    expect(back.label).toBe("Bulk update elements Rationale set · value:");
+    back.text?.("Why");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Bulk update elements Rationale set · value:");
+    expect(bulkCalls(call).filter((input) => input["confirm"] === true)).toEqual([]);
+    // The preview buffer stays: nothing closes it, only the new previews open.
+    expect(dispatched.slice(opened).map((action) => action.type)).toEqual(["open"]);
+  });
+
+  it("writes the plan of the shown preview on Yes, apply and on Ctrl/Cmd+Enter", async () => {
+    const yes = setup(
+      [list],
+      answers((input) => (input["confirm"] === true ? written : preview)),
     );
-    // Another refusal of a confirmation with the plan (`count-changed`) asks again, as any refused input.
-    const count = setup([list, shownPreview], {
-      "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": (input) =>
-        input["confirm"] === true
-          ? refusedWith("expected: the change now affects 3 elements", { reason: "count-changed" })
-          : changed,
-    });
-    await confirm(count.context, count.asked);
-    expect(count.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+    item((await answer(yes.context, yes.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(yes.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
       ...PREVIEW,
       confirm: true,
       plan: PLAN,
     });
-    expect(count.dispatched).toEqual([]);
-    expect((await last(count.asked)).label).toContain("expected: the change now affects 3 elements");
-    // A failing preview says why.
-    const other = setup([list], {
-      "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": () =>
-        Object.assign(new Error("Workspace is read-only"), { name: "workspace.read-only" }),
+    expect(yes.dispatched.at(-1)).toMatchObject({ buffer: { output: written } });
+    const more = setup(
+      [list],
+      answers((input) => (input["confirm"] === true ? written : preview)),
+    );
+    (await answer(more.context, more.asked)).confirm?.();
+    await flush();
+    expect(bulkCalls(more.call)).toEqual([PREVIEW, { ...PREVIEW, confirm: true, plan: PLAN }]);
+  });
+
+  it("shows the new preview and asks again when core refuses the plan, and says another refusal", async () => {
+    const changed = { ...preview, count: 3, skipped: [], plan: `p1:${"b".repeat(64)}` };
+    let previews = 0;
+    const refused = setup(
+      [list],
+      answers((input) => {
+        if (input["confirm"] === true) {
+          return input["plan"] === PLAN
+            ? refusedWith("plan: the change now writes other elements", { reason: "plan-changed" })
+            : written;
+        }
+        previews += 1;
+        return previews === 1 ? preview : changed;
+      }),
+    );
+    item((await answer(refused.context, refused.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(refused.dispatched.at(-1)).toMatchObject({ buffer: { input: PREVIEW, output: changed } });
+    const again = await last(refused.asked);
+    expect(again.label).toBe(
+      "Something changed since the preview, so nothing was written; this is the new preview · Bulk update elements Rationale set Why · confirm:",
+    );
+    expect(again.explain?.description).toBe("Writes 3 elements, skips 0 elements");
+    item(again.items, "Yes, apply").run();
+    await flush();
+    expect(refused.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      ...PREVIEW,
+      confirm: true,
+      plan: changed.plan,
     });
-    await confirm(other.context, other.asked);
-    expect(other.echoed.at(-1)).toBe("Workspace is read-only");
+    // A failing new preview, and another refusal of the confirmed call, are said.
+    const failing = setup(
+      [list],
+      answers((input) => {
+        if (input["confirm"] === true) {
+          return refusedWith("plan: changed", { reason: "plan-changed" });
+        }
+        previews += 1;
+        return previews === 3 ? preview : Object.assign(new Error("Workspace is read-only"), { name: "x" });
+      }),
+    );
+    item((await answer(failing.context, failing.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(failing.echoed.at(-1)).toBe("Workspace is read-only");
+    const other = setup(
+      [list],
+      answers((input) =>
+        input["confirm"] === true
+          ? Object.assign(new Error("a.md is read-only"), { name: "file.read-only" })
+          : preview,
+      ),
+    );
+    item((await answer(other.context, other.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(other.echoed.at(-1)).toBe("a.md is read-only");
+  });
+
+  it("does not ask when the change writes no element, and says so", async () => {
+    const none = { ...preview, count: 0 };
+    const { context, asked, call, dispatched, echoed } = setup(
+      [list],
+      answers(() => none),
+    );
+    const after = await answer(context, asked);
+    expect(after.label).toBe("Bulk update elements Rationale set · value:");
+    expect(bulkCalls(call)).toEqual([PREVIEW]);
+    expect(dispatched.at(-1)).toMatchObject({ buffer: { output: none } });
+    expect(echoed).toEqual([
+      "Bulk update elements writes no element (skips 1 element), so there is nothing to confirm",
+    ]);
+  });
+
+  it("asks a refused argument of the preview again, and does not write when a buffer cannot be saved", async () => {
+    const { context, asked } = setup(
+      [list],
+      answers(() => refusedWith("value: not a text", { errors: [{ field: "value" }] })),
+    );
+    const again = await answer(context, asked);
+    expect(again.label).toContain("value: not a text");
+    let saves = 0;
+    const stopped = setup(
+      [list],
+      answers(() => preview),
+    );
+    const saving = {
+      ...stopped.context,
+      drafted: () => true,
+      saveDraft: () => {
+        saves += 1;
+        return Promise.resolve(saves === 1);
+      },
+    };
+    item((await answer(saving, stopped.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(bulkCalls(stopped.call)).toEqual([PREVIEW]);
+    expect(stopped.echoed.at(-1)).toBe("type: need could not be saved: Bulk update elements did not run");
+  });
+
+  it("[SR-215/AK-qpq7] asks no confirm, plan or expected: Ctrl/Cmd+Enter offers only Run after the value", async () => {
+    const { context, asked } = setup(
+      [list],
+      answers(() => preview),
+    );
+    start(context, "element.bulkUpdate");
+    item((await last(asked)).items, "Rationale").run();
+    item((await last(asked)).items, "set").run();
+    const value = await last(asked);
+    expect(value.explain?.more).toBe(false);
+    value.more?.("Why");
+    expect((await last(asked)).items.map((hit) => hit.name)).toEqual(["Run"]);
+    expect(askable(command("element.bulkUpdate")).map((arg) => arg.field)).toEqual([
+      "property",
+      "operation",
+      "value",
+    ]);
   });
 });
 
@@ -4916,7 +5028,7 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
   /** Every argument the prompt asks that AK2 does not allow, as `<command> <field>`. */
   const outside = (catalog: readonly CommandListing[]): string[] =>
     prompted(catalog).flatMap((command) =>
-      command.arguments.flatMap((arg) => {
+      askable(command).flatMap((arg) => {
         const asked = ASKED[arg.complete];
         const allowed =
           asked === "text"
