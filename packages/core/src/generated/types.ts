@@ -1949,7 +1949,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
     readonly path?: string;
-    /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`). Only for available repositories. */
+    /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
     readonly absolutePath?: string;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
