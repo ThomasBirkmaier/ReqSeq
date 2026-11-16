@@ -54,13 +54,25 @@ export const sha256Hex = (data: Uint8Array | string): string =>
   createHash("sha256").update(data).digest("hex");
 
 /**
+ * `line` without its trailing spaces and tabs. A scan from the end, because `/[ \t]+$/` backtracks
+ * quadratically on a long run of blanks that is not at the end of the line (#1785).
+ */
+const withoutTrailingBlanks = (line: string): string => {
+  let end = line.length;
+  while (end > 0 && (line[end - 1] === " " || line[end - 1] === "\t")) {
+    end--;
+  }
+  return line.slice(0, end);
+};
+
+/**
  * Normal form of a text (D-027): CRLF and CR become LF, trailing spaces and tabs are removed from every line,
  * runs of blank lines become one, leading and trailing blank lines are removed. Nothing else changes.
  */
 export function normalizeText(text: string): string {
   const out: string[] = [];
   for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
-    const line = raw.replace(/[ \t]+$/, "");
+    const line = withoutTrailingBlanks(raw);
     if (line !== "" || (out.length > 0 && out[out.length - 1] !== "")) {
       out.push(line);
     }

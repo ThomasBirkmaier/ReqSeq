@@ -1,7 +1,8 @@
 // The Markdown language of the editor: CommonMark with the GitHub extensions (tables, strikethrough, task
 // lists, autolinks), as D-061 and SR-065 AK2 require. Its keymap continues a list on Enter and removes
 // list and quote markup with Backspace, on the tree of the whole text (`parsed.ts`). Code blocks get no
-// language data (`codeLanguages: []`): nothing is loaded at runtime, the editor is offline.
+// language data (`codeLanguages: []`): nothing is loaded at runtime, the editor is offline. Hard line breaks
+// come from `hard-break.ts`, in linear time.
 import {
   deleteMarkupBackward,
   insertNewlineContinueMarkup,
@@ -11,6 +12,7 @@ import {
 import { Prec } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import { linearHardBreak } from "./hard-break.js";
 import { parsedFirst } from "./parsed.js";
 import type { EditorPlugins } from "./plugins.js";
 
@@ -30,7 +32,7 @@ export const markdownSupport = (plugins: EditorPlugins): Extension => [
     base: markdownLanguage,
     codeLanguages: [],
     addKeymap: false,
-    ...(plugins.markdown === undefined ? {} : { extensions: [...plugins.markdown] }),
+    extensions: [linearHardBreak, ...(plugins.markdown ?? [])],
   }),
   markdownKeys,
 ];

@@ -231,6 +231,13 @@ describe("version (ADR-0005, normal form n1)", () => {
       expect(normalizeText("\r\n \n# A  \r\rB\t\n\n \n\t\nC\r\n\r\n")).toBe("# A\n\nB\n\nC");
     });
 
+    it("cuts trailing blanks in linear time, also after a long run of blanks inside a line (#1785)", () => {
+      const blanks = " \t".repeat(100_000);
+      const start = performance.now();
+      expect(normalizeText(`a${blanks}b${blanks}\n${blanks}`)).toBe(`a${blanks}b`);
+      expect(performance.now() - start).toBeLessThan(1000);
+    });
+
     it("keeps leading spaces, inner spaces and Unicode unchanged", () => {
       expect(normalizeText("  - a  b\né")).toBe("  - a  b\né");
       expect(normalizeText("é")).not.toBe(normalizeText("é"));
