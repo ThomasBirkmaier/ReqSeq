@@ -2,7 +2,7 @@
 // function works on, the same for every function that takes one and on every access (D-029).
 //
 // - Every part given must hold (SR-101 AK2: "nur Elemente, die beide Bedingungen erfüllen"):
-//   - `ids`: exactly the elements named (AK3), each resolved with `resolveRef` (any case, ThomasBirkmaier/ReqSeq-archive#309;
+//   - `ids`: exactly the elements named (AK3), each resolved with `resolveListRef` (any case, ThomasBirkmaier/ReqSeq-archive#309;
 //     `ref.unknown`, `ref.ambiguous`); an element named twice is selected once.
 //   - `where`: the condition (condition.ts, SR-069).
 //   - `package`: the elements assigned to the package (SR-112 AK1), as the condition `package`.
@@ -47,7 +47,7 @@ import type { ElementSelection } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
-import { elementStoreState, resolveRef, shortIdState } from "../model/index.js";
+import { elementStoreState, resolveListRef, shortIdState } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import { resolveView, viewRuleOf } from "../variants/index.js";
@@ -244,7 +244,7 @@ export const resolveSelection = async (
   const named =
     selection.ids === undefined
       ? undefined
-      : new Set(selection.ids.map((ref) => resolveRef(store, shortIds, ref)));
+      : new Set(selection.ids.map((ref) => resolveListRef(store, shortIds, ref)));
   const candidates = named === undefined ? store.elements : store.elements.filter((e) => named.has(e));
   const elements = candidates.filter((e) => tests.every((test) => test(e)));
   return {

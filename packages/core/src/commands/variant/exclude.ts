@@ -32,6 +32,7 @@ import {
   relationStateOf,
   removalEdits,
   removalMatch,
+  resolveListRef,
   resolveRef,
   writeSourceEdits,
 } from "../../model/index.js";
@@ -90,7 +91,7 @@ const exclude = async (workspace: Workspace, input: Input): Promise<Output> => {
   // Once per element, by repository and UUID, with the ref that named it first.
   const targets = new Map<string, { readonly ref: string; readonly target: ElementRecord }>();
   for (const ref of input.refs) {
-    const target = resolveRef(store, shortIds, ref);
+    const target = resolveListRef(store, shortIds, ref);
     const key = `${target.repository}\0${target.id}`;
     if (!targets.has(key)) {
       targets.set(key, { ref, target });

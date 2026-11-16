@@ -435,6 +435,26 @@ describe("hint.confirm (SR-027)", () => {
     });
   });
 
+  it("says that a comma does not separate hint IDs (#1790)", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    // Also an ID that starts with a since-baseline code, which gets that refusal.
+    const sinceBaseline = `variant.core-changed-since-baseline/x,${DERIVES}`;
+    const out = await confirm(open(ws.root), [`${DERIVES},${LINK}`, sinceBaseline]);
+    expect(out.confirmed).toEqual([]);
+    const note =
+      /; a comma does not separate values: give each value on its own \(on the command line, the option once per value\)$/;
+    expect(out.problems?.map((p) => [p.code, p.hintId, p.message])).toEqual([
+      ["hint.not-confirmable", `${DERIVES},${LINK}`, expect.stringMatching(note) as unknown],
+      [
+        "hint.not-confirmable",
+        sinceBaseline,
+        expect.stringMatching(/is settled only by a new baseline of its variant/) as unknown,
+      ],
+    ]);
+    expect(out.problems?.[1]?.message).toMatch(note);
+  });
+
   it("[SR-027/AK-q47h] writes nothing when one of the files changed on disk since it was read", async () => {
     const ws = await fixture({
       files: { [B_FILE]: fromFixture(B_FILE).replace(A_VERSION, OLD) },

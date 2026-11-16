@@ -98,6 +98,16 @@ const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
     ? ""
     : "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
 
+/**
+ * The note for an item of a list input that holds a comma and names nothing (#1790): a list takes one
+ * value per item, and a comma separates nothing. "" for a value without a comma. Only for list items:
+ * a single reference gets no advice to repeat an option.
+ */
+export const oneValueNote = (value: string): string =>
+  value.includes(",")
+    ? "; a comma does not separate values: give each value on its own (on the command line, the option once per value)"
+    : "";
+
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>
   isUuid(canonical) ? "UUID" : isShortIdForm(canonical) ? "short ID or identifier" : "identifier";
@@ -151,13 +161,15 @@ const asWhat = (byName: Named | undefined): string => {
  * lists. With `copy`, only the elements `ref` names in that repository and/or file count; when it
  * fits none of them, `ref.unknown` lists them as `details.candidates`. `copy` never finds an element
  * `ref` does not name. A UUID, short ID or identifier in any case names the same element
- * (`normalizeRef`, ThomasBirkmaier/ReqSeq-archive#309); messages show `ref` as given.
+ * (`normalizeRef`, ThomasBirkmaier/ReqSeq-archive#309); messages show `ref` as given. `listItem`: `ref`
+ * is one item of a list input, so `ref.unknown` adds `oneValueNote` (#1790; `resolveListRef`).
  */
 export const resolveRef = (
   store: ElementStore,
   shortIds: ShortIds,
   ref: string,
   copy: ElementCopy = {},
+  listItem = false,
 ): ElementRecord => {
   const canonical = normalizeRef(ref);
   const byName = isUuid(canonical) ? undefined : named(shortIds, canonical);
@@ -168,7 +180,7 @@ export const resolveRef = (
     case "unknown":
       throw new CommandError(
         "ref.unknown",
-        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}${faultyMetamodel(shortIds, canonical)}`,
+        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}${faultyMetamodel(shortIds, canonical)}${listItem ? oneValueNote(ref) : ""}`,
         {
           ref,
         },
@@ -202,3 +214,7 @@ export const resolveRef = (
       );
   }
 };
+
+/** `resolveRef` of one item of a list input (`refs`, `selection.ids`): see `oneValueNote` (#1790). */
+export const resolveListRef = (store: ElementStore, shortIds: ShortIds, ref: string): ElementRecord =>
+  resolveRef(store, shortIds, ref, {}, true);

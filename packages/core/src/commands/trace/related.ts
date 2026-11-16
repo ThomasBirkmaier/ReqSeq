@@ -8,7 +8,7 @@
 // (`viewIncomplete`).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { listElements, resolveRef, shortIdState } from "../../model/index.js";
+import { listElements, resolveListRef, shortIdState } from "../../model/index.js";
 import { derivationGraph, relatedElements, traceContext } from "../../trace/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 
@@ -18,7 +18,7 @@ export default defineCommand({
     const graph = derivationGraph(await traceContext(ctx.workspace), "trace.related");
     const { layout, metamodel, store } = graph;
     const shortIds = await ctx.workspace.get(shortIdState);
-    const selection = input.refs.map((ref) => resolveRef(store, shortIds, ref));
+    const selection = input.refs.map((ref) => resolveListRef(store, shortIds, ref));
     const view =
       input.view === undefined
         ? undefined
