@@ -14,6 +14,8 @@ acceptance-criteria:
     text: Gegeben ein Element der Auswahl lässt die Property nach dem Metamodell nicht zu oder hat einen Typ, den das Metamodell nicht kennt, wenn geändert wird, dann lässt das Tool es aus und nennt es.
   - key: f00k
     text: "Gegeben eine Mehrfachänderung soll ID, Typ oder Status setzen, ergänzen oder entfernen (App, CLI, API, MCP: `element.bulkUpdate`), dann lehnt das Tool das ab und schreibt nichts; den Status mehrerer Elemente setzt `element.setStatus` in einem Schritt."
+  - key: j9gx
+    text: "Gegeben die Mehrfachänderung in der Befehlszeile der App, wenn das letzte Argument beantwortet ist, dann zeigt die App die Vorschau in einem Buffer und fragt als nächsten Schritt die Bestätigung mit den Treffern „No“, zuerst und markiert, und „Yes, apply“; die Zeile aus SR-210 nennt die Zahl der Elemente, die die Änderung schreiben würde, die Zahl der ausgelassenen (AK3) und dass Ctrl+Enter schreibt. Enter oder ein Klick auf „Yes, apply“ schreibt, was die gezeigte Vorschau nennt (AK2); Ctrl+Enter (unter macOS Cmd+Enter) schreibt ebenso, gleich welcher Treffer markiert ist (abweichend von SR-108 AK6). Enter auf „No“ und Escape führen einen Schritt zurück, die Vorschau bleibt offen. Lehnt das Tool die Bestätigung ab, weil sich die Änderung seit der Vorschau geändert hat, zeigt die App die neue Vorschau und fragt neu. Würde die Änderung kein Element schreiben, fragt die Befehlszeile nicht und meldet das. Für Tastendrücke und Klicks auf der Bestätigung gilt der letzte Satz von SR-218 AK3."
 verification-method: test
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
