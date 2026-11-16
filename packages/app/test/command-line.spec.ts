@@ -595,7 +595,8 @@ test.describe("the command prompt", () => {
       await window.keyboard.press("Enter");
       // The preview (no confirm) of every element, as the CLI gives it for the empty selection.
       await expect(window.locator(".result")).toBeVisible();
-      await expect(window.locator(".minibuffer .echo")).not.toContainText("selection is required");
+      // Not refused: the confirmation of the preview is asked (SR-071 AK5).
+      await expect(label(window)).toHaveText("Bulk update elements Rationale set Every element · confirm:");
       const cli = await running.cli([
         "element",
         "bulk-update",
@@ -612,30 +613,23 @@ test.describe("the command prompt", () => {
       }
     });
 
-    test("Bulk update with confirm yes writes only after its preview was shown, with its plan (#836)", async () => {
-      running = await launchApp(FIXTURE);
+    test("[SR-071/AK-j9gx] Bulk update shows its preview, then asks No first and Yes, apply with the counts; Enter on No keeps the preview; Ctrl+Enter writes; 0 elements ask nothing", async () => {
+      running = await launchApp(FIXTURE, { colorScheme: "light" });
       const { window } = running;
+      const value = "Confirmed in one step";
+      const enter = process.platform === "darwin" ? "⌘↩" : "Ctrl+Enter";
+      const confirm = `Bulk update elements Rationale set ${value} · confirm:`;
+      const explanation = window.locator("#prompt-explain");
+      const marked = window.locator('.candidates [role="option"][aria-selected="true"] .name');
       const rationale = async (): Promise<unknown> =>
         (
           JSON.parse((await running.cli(["element", "get", "SR-0000b1"])).stdout) as {
             readonly element: { readonly properties: Readonly<Record<string, unknown>> };
           }
         ).element.properties["rationale"];
-      const confirmed = async (): Promise<void> => {
-        // The system requirements: a list with a selection (the list of all elements has none).
+      /** Bulk update elements on every element: Rationale, set, then the value step. */
+      const toValue = async (): Promise<void> => {
         await listAll(window);
-        await command(window, "Filter list");
-        await expect(label(window)).toHaveText("Filter by");
-        await window.keyboard.type("Type");
-        await window.keyboard.press("Enter");
-        await expect(label(window)).toHaveText("Type");
-        await window.keyboard.type("System Requirement");
-        await expect(names(window).first()).toHaveText("System Requirement");
-        await window.keyboard.press("Enter");
-        // "Take 1 type" adds the step (SR-124 AK7).
-        await expect(names(window).first()).toHaveText("Take 1 type");
-        await window.keyboard.press("Enter");
-        await expect(window.getByRole("listbox", { name: "type: system-requirement" })).toBeVisible();
         await command(window, "Bulk update elements");
         await window.keyboard.type("Rationale");
         await expect(names(window).first()).toHaveText("Rationale");
@@ -644,29 +638,54 @@ test.describe("the command prompt", () => {
         await expect(names(window).first()).toHaveText("set");
         await window.keyboard.press("Enter");
         await expect(label(window)).toHaveText("Bulk update elements Rationale set · value:");
-        await window.keyboard.type("Previewed first");
-        await window.keyboard.press("ControlOrMeta+Enter");
-        await expect(label(window)).toContainText("more arguments:");
-        await window.keyboard.type("confirm");
-        await expect(names(window).first()).toHaveText("confirm");
-        await window.keyboard.press("Enter");
-        await window.keyboard.type("yes");
-        await expect(names(window).first()).toHaveText("yes");
-        await window.keyboard.press("Enter");
-        await expect(names(window).first()).toHaveText("Run");
-        await window.keyboard.press("Enter");
       };
-      await confirmed();
-      // No preview was shown: the preview is, and nothing is written.
-      await expect(window.locator(".minibuffer .echo")).toHaveText(
-        "Bulk update elements: nothing was written; confirm again to write what the preview shows",
-      );
-      await expect(window.locator(".result")).toContainText("plan");
+      await toValue();
+      await window.keyboard.type(value);
+      // Enter held on the last argument: its first press shows the preview and the confirmation, and its repeats
+      // write nothing there.
+      await window.keyboard.down("Enter");
+      await expect(label(window)).toHaveText(confirm);
+      await window.keyboard.down("Enter");
+      await window.keyboard.down("Enter");
+      await window.keyboard.up("Enter");
+      await expect(label(window)).toHaveText(confirm);
       expect(await rationale()).toBeUndefined();
-      // The same change again, with its preview open: written.
-      await confirmed();
+      // The preview in a buffer; "No" first and marked, then "Yes, apply"; the line names the 10 elements written,
+      // the 4 whose type has no Rationale skipped (AK3), and that Ctrl+Enter writes.
+      await expect(window.locator(".result")).toContainText("SR-0000b1");
+      await expect(names(window)).toHaveText(["No", "Yes, apply"]);
+      await expect(marked).toHaveText("No");
+      await expect(explanation).toContainText("Writes 10 elements, skips 4 elements");
+      await expect(explanation).toContainText(`${enter} writes`);
+      await fs.mkdir(SHOTS, { recursive: true });
+      await window.screenshot({ path: path.join(SHOTS, "sr-071-confirm-light.png") });
+      // Enter on "No" and Escape go back to the value, and the preview stays open.
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Bulk update elements Rationale set · value:");
+      await expect(window.locator(".result")).toContainText("SR-0000b1");
+      await window.locator("#prompt-input").fill(value);
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText(confirm);
+      await window.keyboard.press("Escape");
+      await expect(label(window)).toHaveText("Bulk update elements Rationale set · value:");
+      await expect(window.locator(".result")).toContainText("SR-0000b1");
+      expect(await rationale()).toBeUndefined();
+      // Ctrl/Cmd+Enter writes, with "No" marked.
+      await window.locator("#prompt-input").fill(value);
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText(confirm);
+      await expect(marked).toHaveText("No");
+      await window.keyboard.press("ControlOrMeta+Enter");
+      await expect.poll(rationale).toBe(value);
       await expect(window.locator(".result")).toContainText("applied");
-      await expect.poll(rationale).toBe("Previewed first");
+      // The same change again writes no element: the prompt asks nothing and says so.
+      await toValue();
+      await window.keyboard.type(value);
+      await window.keyboard.press("Enter");
+      await expect(window.locator(".minibuffer .echo")).toHaveText(
+        "Bulk update elements writes no element (skips 4 elements), so there is nothing to confirm",
+      );
+      await expect(label(window)).toHaveCount(0);
     });
   });
 });

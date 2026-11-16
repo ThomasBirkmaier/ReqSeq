@@ -42,6 +42,7 @@ import { Minibuffer } from "./Minibuffer.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import type { CommandListing } from "../shared/protocol.js";
 import { catalogItems } from "./catalog-commands.js";
+import { confirmationPrompt } from "./confirmation.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import type { Draft, ShownFile } from "./drafts.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
@@ -1507,6 +1508,96 @@ describe("Minibuffer", () => {
       await press(input(), "Enter", { ctrlKey: true, metaKey: true });
       await answer("Sensors", [hit]);
       expect(ended).toHaveBeenCalledExactlyOnceWith(true);
+    });
+
+    describe("a confirmation step (SR-218 AK3, SR-071 AK5)", () => {
+      /** A confirmation whose answers the test counts. */
+      const confirmation = () => {
+        const yes = vi.fn();
+        const back = vi.fn();
+        const prompt = confirmationPrompt({
+          label: "Bulk update elements · confirm:",
+          verb: "apply",
+          does: "writes",
+          name: "confirm",
+          text: "Writes 2 elements, skips 0 elements",
+          yes,
+          back,
+        });
+        return { prompt, yes, back };
+      };
+      /** A keydown whose press began at `timeStamp`. */
+      const pressedAt = async (
+        key: string,
+        timeStamp: number,
+        init: KeyboardEventInit = {},
+      ): Promise<void> => {
+        const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+        Object.defineProperty(event, "timeStamp", { value: timeStamp });
+        await act(async () => {
+          input().dispatchEvent(event);
+          await Promise.resolve();
+        });
+        await flush();
+      };
+
+      it("does nothing on a key that began before the step was shown, or that repeats", async () => {
+        const { prompt, yes, back } = confirmation();
+        const { closed } = await mount(prompt);
+        await pressedAt("Enter", 1);
+        await pressedAt("Enter", 1, { ctrlKey: true, metaKey: true });
+        await press(input(), "Enter", { repeat: true });
+        await press(input(), "Enter", { ctrlKey: true, metaKey: true, repeat: true });
+        expect(yes).not.toHaveBeenCalled();
+        expect(back).not.toHaveBeenCalled();
+        expect(closed).not.toHaveBeenCalled();
+        // A key pressed now takes the marked hit, "No".
+        await pressedAt("Enter", performance.now() + 1);
+        expect(back).toHaveBeenCalledTimes(1);
+        expect(yes).not.toHaveBeenCalled();
+      });
+
+      it("takes no Enter or Ctrl/Cmd+Enter typed ahead while the prompt before waited (#1763)", async () => {
+        for (const ahead of [{}, { ctrlKey: true, metaKey: true }]) {
+          const { find, answer } = deferred();
+          const { prompt, yes, back } = confirmation();
+          let ask: (serial: number) => void = () => undefined;
+          const hit = choice("value", "Why", {
+            run: vi.fn(() => {
+              ask(2);
+            }),
+          });
+          const Harness = (): React.ReactElement => {
+            const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+            ask = setSerial;
+            const first: Prompt = { label: "value", items: [], find };
+            return createElement(Minibuffer, {
+              echo: "",
+              prompt: { serial, prompt: serial === 1 ? first : prompt },
+              onCommand: vi.fn(),
+              onClose: vi.fn(),
+            });
+          };
+          await render(createElement(Harness));
+          await type(input(), "Why");
+          await press(input(), "Enter");
+          await press(input(), "Enter", ahead);
+          await answer("Why", [hit]);
+          expect(hit.run).toHaveBeenCalledTimes(1);
+          expect(query(".prompt-label").textContent).toBe("Bulk update elements · confirm:");
+          expect(yes).not.toHaveBeenCalled();
+          expect(back).not.toHaveBeenCalled();
+        }
+      });
+
+      it("opens no command help, so Ctrl/Cmd+Enter after Ctrl+H still confirms (SR-210 AK4)", async () => {
+        const { prompt, yes } = confirmation();
+        await mount(prompt);
+        await press(input(), "h", { ctrlKey: true });
+        expect(container.querySelector('[aria-label="Command help"]')).toBeNull();
+        await press(input(), "Enter", { ctrlKey: true, metaKey: true });
+        expect(yes).toHaveBeenCalledTimes(1);
+      });
     });
 
     it("waits for the hits of the typed text when the selected stale hit is also a buffer of the prompt (#195)", async () => {

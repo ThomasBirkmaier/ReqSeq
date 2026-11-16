@@ -29,10 +29,10 @@
 // given in this run is asked after the required ones (`hintIds` of `ref`, `value` of `property`); Enter on
 // an empty input skips it. Before it runs, the input of every open buffer is saved; when one cannot be
 // saved, it does not run. Its output opens a result buffer that is not asked again (that would write
-// again). `element.bulkUpdate` writes only with `confirm` yes, given with Ctrl/Cmd+Enter; without it, it
-// shows what it would change. A confirmation writes only the plan of an open preview of the same input
-// (#836): it passes that preview's `plan`; without one it opens the preview and writes nothing,
-// and when core refuses the plan (`plan-changed`) it shows the new preview.
+// again). `element.bulkUpdate` asks no `confirm`, `plan` or `expected` (SR-215 AK2): after its last argument
+// it shows the preview in a result buffer and asks the confirmation as the next step (`confirmation.ts`,
+// SR-071 AK5); confirming sends the shown preview's `plan`, and when core refuses the plan (`plan-changed`)
+// it shows the new preview and asks again.
 //
 // The arguments a command expects are completed with the values the metamodel allows (SR-108 AK4), each
 // source from one read command: `status` the statuses of the element's type (`element.get`,
@@ -112,6 +112,7 @@ import { offeredFields } from "./search-fields.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
 import { unsavedBefore } from "./unsaved-before.js";
+import { confirmationPrompt } from "./confirmation.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -221,9 +222,29 @@ const follows = (entry: Entry, arg: Argument): boolean =>
 const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
 
-/** The arguments the prompt can ask: all but a `selection`, which the shown list or page gives (`shownSelection`). */
-const askable = (command: CommandListing): readonly Argument[] =>
-  command.arguments.filter((arg) => arg.complete !== "selection");
+/**
+ * The one command with a flow of its own (SR-071 AK5; an exception to ADR-0002 rule 3): after the last argument of
+ * `element.bulkUpdate` the app runs the preview (the call without `confirm`), shows it in a result buffer and asks the
+ * confirmation (`confirmation.ts`); confirming sends the shown preview's `plan` with `confirm` (SR-071 AK2, #158).
+ * The app passes the plan through and handles the refusal; core decides. The prompt asks none of `CONFIRMING`
+ * itself (SR-215 AK2); CLI, API and MCP take them as the catalog has them.
+ */
+type Input = Readonly<Record<string, unknown>>;
+const PREVIEWED: keyof CommandTypes = "element.bulkUpdate";
+/** The fields of the confirmed call that the preview does not have, which the prompt never asks. */
+const CONFIRMING = new Set(["confirm", "plan", "expected"]);
+type Preview = CommandTypes[typeof PREVIEWED]["output"];
+
+/** Whether the prompt asks `arg` of `command`: never a `selection`, nor a field of the confirmation step. */
+const promptable = (command: CommandListing, arg: Argument): boolean =>
+  arg.complete !== "selection" && !(command.name === PREVIEWED && CONFIRMING.has(arg.field));
+
+/**
+ * The arguments the prompt can ask: all but a `selection`, which the shown list or page gives (`shownSelection`), and
+ * the fields of the confirmation of a bulk update, which is a step of its own (`promptable`, SR-215 AK2).
+ */
+export const askable = (command: CommandListing): readonly Argument[] =>
+  command.arguments.filter((arg) => promptable(command, arg));
 
 /**
  * The explanation line of the entry of `command` while it is marked (SR-210 AK1): its summary and the number of
@@ -872,75 +893,51 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   return Object.fromEntries(Object.entries(input).filter(([field]) => !replaced.has(field)));
 };
 
+/** "1 element", "2 elements". */
+const elements = (count: number): string => `${String(count)} ${count === 1 ? "element" : "elements"}`;
+
 /**
- * The one command with a flow of its own (#836; an exception to
- * ADR-0002 rule 3): a confirmation of `element.bulkUpdate` writes only the plan of an open preview of the
- * same input (#158). The app passes the preview's `plan` through and handles the refusal; core decides.
+ * Shows the preview of a bulk update in a result buffer and asks the confirmation as the next step (SR-071 AK5):
+ * "No", first and marked, and "Yes, apply"; the explanation line names the elements it writes and those it skips
+ * (AK3). "Yes, apply" and Ctrl/Cmd+Enter write the plan of this preview; "No" and Escape go back to the last
+ * argument, and the preview stays open. A preview that writes no element is not asked: the prompt says so.
+ * `why` says why it is asked again (`plan-changed`).
  */
-type Input = Readonly<Record<string, unknown>>;
-const PREVIEWED: keyof CommandTypes = "element.bulkUpdate";
-/** The fields of a confirmation that its preview does not have. */
-const CONFIRMING = new Set(["confirm", "plan", "expected"]);
-
-/** The input of the preview of a confirmation: without `confirm`, `plan` and `expected`. */
-const previewOf = (input: Input): Input =>
-  Object.fromEntries(Object.entries(input).filter(([field]) => !CONFIRMING.has(field)));
-
-/** The `plan` of an open preview of the same input (a result buffer of it), if any. */
-const shownPlan = (context: CatalogContext, preview: Input): string | undefined => {
-  const wanted = JSON.stringify(preview);
-  for (const buffer of context.buffers) {
-    if (buffer.kind === "result" && buffer.command === PREVIEWED && JSON.stringify(buffer.input) === wanted) {
-      const output = buffer.output as { readonly applied?: unknown; readonly plan?: unknown } | undefined;
-      if (output?.applied === false && typeof output.plan === "string") {
-        return output.plan;
-      }
-    }
-  }
-  return undefined;
-};
-
-/** Runs the preview of a confirmation and shows it; `why` says why nothing was written. */
-const showPreview = async (
+const previewed = (
   context: CatalogContext,
   entry: Entry,
-  preview: Input,
-  why: string,
-): Promise<void> => {
-  const revision = context.revision();
-  const answer = await (context.shownCall ?? context.call)(PREVIEWED, preview);
-  if (!answer.ok) {
-    context.echo(answer.message);
-    return;
-  }
-  const line = lineOf({ ...entry, given: entry.given.filter((given) => !CONFIRMING.has(given.field)) });
+  input: Input,
+  preview: Preview,
+  revision: number,
+  why?: string,
+): void => {
   context.dispatch({
     type: "open",
-    buffer: resultBuffer(PREVIEWED, preview, line, answer.output, revision, true),
+    buffer: resultBuffer(PREVIEWED, input, lineOf(entry), preview, revision, true),
   });
-  context.echo(why);
-};
-
-/** Whether the run is a confirmation of a bulk update without a `plan` of its own. */
-const isConfirmation = (name: keyof CommandTypes, input: Input): boolean =>
-  name === PREVIEWED && input["confirm"] === true && input["plan"] === undefined;
-
-/**
- * The input a confirmation of a bulk update sends: with the plan of an open preview of the same input
- * (#836); without one, the preview is opened first, nothing is written, and the result is undefined.
- */
-const planned = async (context: CatalogContext, entry: Entry, given: Input): Promise<Input | undefined> => {
-  const plan = shownPlan(context, previewOf(given));
-  if (plan === undefined) {
-    await showPreview(
-      context,
-      entry,
-      previewOf(given),
-      `${entry.command.title}: nothing was written; confirm again to write what the preview shows`,
+  const skipped = `skips ${elements(preview.skipped.length)}`;
+  const withWhy = (text: string): string => (why === undefined ? text : `${why} · ${text}`);
+  if (preview.count === 0) {
+    context.echo(
+      withWhy(`${entry.command.title} writes no element (${skipped}), so there is nothing to confirm`),
     );
-    return undefined;
+    return;
   }
-  return { ...given, plan };
+  context.ask(
+    confirmationPrompt({
+      label: withWhy(`${lineOf(entry)} · confirm:`),
+      verb: "apply",
+      does: "writes",
+      name: "confirm",
+      text: `Writes ${elements(preview.count)}, ${skipped}`,
+      yes: () => {
+        void apply(context, entry, input, preview.plan);
+      },
+      back: () => {
+        back(context, entry);
+      },
+    }),
+  );
 };
 
 /** Whether core refused a confirmation because the change is no longer the one of its plan (#158). */
@@ -952,6 +949,60 @@ const planChanged = (answer: {
   !answer.ok &&
   answer.code === "input.invalid" &&
   (answer.details as { readonly reason?: unknown } | undefined)?.reason === "plan-changed";
+
+/**
+ * The confirmed bulk update: the preview's input with `confirm` and its `plan` (SR-071 AK2). When core refuses the
+ * plan (`plan-changed`), the new preview is shown and asked again (AK5); another refusal is said.
+ */
+const apply = async (context: CatalogContext, entry: Entry, input: Input, plan: string): Promise<void> => {
+  if (drafted(context) && (await notSaved(context, entry))) {
+    return;
+  }
+  const confirmed = { ...input, confirm: true, plan };
+  const revision = context.revision();
+  const call = context.shownCall ?? context.call;
+  const answer = await call(PREVIEWED, confirmed);
+  if (answer.ok) {
+    show(context, entry, confirmed, answer.output, revision);
+    return;
+  }
+  if (!planChanged(answer)) {
+    context.echo(answer.message);
+    return;
+  }
+  const again = context.revision();
+  const preview = await call(PREVIEWED, input);
+  if (preview.ok) {
+    previewed(
+      context,
+      entry,
+      input,
+      preview.output,
+      again,
+      "Something changed since the preview, so nothing was written; this is the new preview",
+    );
+  } else {
+    context.echo(preview.message);
+  }
+};
+
+/** Whether an open buffer has input to save before a write command runs. */
+const drafted = (context: CatalogContext): boolean =>
+  context.buffers.some((buffer) => context.drafted(buffer.key));
+
+/**
+ * Saves the input of every open buffer before a write command; whether one could not be saved, so the command does
+ * not run, which the prompt says. Called only when there is input to save (`drafted`): the command is sent at once
+ * otherwise.
+ */
+const notSaved = async (context: CatalogContext, entry: Entry): Promise<boolean> => {
+  const buffer = await unsavedBefore(context);
+  if (buffer === undefined) {
+    return false;
+  }
+  context.echo(`${bufferName(buffer)} could not be saved: ${titleOf(entry)} did not run`);
+  return true;
+};
 
 /**
  * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
@@ -985,19 +1036,8 @@ const show = (
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
   const name = entry.command.name as keyof CommandTypes;
-  const given = inputOf(context, entry);
-  const confirming = isConfirmation(name, given);
-  // Awaited only for a confirmation, so every other command is sent as before.
-  const input = confirming ? await planned(context, entry, given) : given;
-  if (input === undefined) {
-    return;
-  }
-  const write = isWrite(entry.command);
-  // Only when there is input to save: the command is sent at once otherwise.
-  const drafted = write && context.buffers.some((buffer) => context.drafted(buffer.key));
-  const unsaved = drafted ? await unsavedBefore(context) : undefined;
-  if (unsaved !== undefined) {
-    context.echo(`${bufferName(unsaved)} could not be saved: ${titleOf(entry)} did not run`);
+  const input = inputOf(context, entry);
+  if (isWrite(entry.command) && drafted(context) && (await notSaved(context, entry))) {
     return;
   }
   // The revision the command reads: a change while it runs makes the result view ask again.
@@ -1005,15 +1045,10 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   const answer = await (context.shownCall ?? context.call)(name, input);
   if (entry.builder !== undefined) {
     await builderAnswered(context, entry, input, answer);
+  } else if (answer.ok && name === PREVIEWED) {
+    previewed(context, entry, input, answer.output as Preview, revision);
   } else if (answer.ok) {
     show(context, entry, input, answer.output, revision);
-  } else if (confirming && planChanged(answer)) {
-    await showPreview(
-      context,
-      entry,
-      previewOf(input),
-      `${entry.command.title}: something changed since the preview, so nothing was written; the new preview is shown`,
-    );
   } else if (answer.code === "input.invalid" && entry.given.length > 0) {
     // The prompt asks the value core refused again, else the one given last, with core's message.
     askAgain(context, { ...entry, error: answer.message }, refusedAt(entry, answer.details));
@@ -1808,7 +1843,7 @@ const pathFill = (
  * of a new element also after its required ones were asked (SR-215 AK8), until they are built from marks.
  */
 const offeredLater = (entry: Entry, arg: Argument): boolean =>
-  arg.complete !== "selection" &&
+  promptable(entry.command, arg) &&
   !entry.given.some(
     (given) => given.field === arg.field && given.skipped !== true && given.property === undefined,
   );
@@ -1888,7 +1923,7 @@ const step = (context: CatalogContext, answered: Entry): void => {
   const { arguments: args } = entry.command;
   const asked = askedOf(entry.command);
   const open = (arg: Argument): boolean =>
-    arg.complete !== "selection" && !entry.given.some((given) => given.field === arg.field);
+    promptable(entry.command, arg) && !entry.given.some((given) => given.field === arg.field);
   const required = args.findIndex((arg) => open(arg) && asked.includes(arg.field));
   const next =
     entry.collecting === undefined
