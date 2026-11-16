@@ -183,7 +183,7 @@ export {
   shortIdsBuiltFrom,
 } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
-export { resolveRef } from "./resolve.js";
+export { resolveListRef, resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";
 export { isKnownVersion, isOutdatedVersion, isVersion } from "./is-version.js";
 export {

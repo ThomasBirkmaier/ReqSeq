@@ -16,7 +16,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
-import { resolveRef } from "./resolve.js";
+import { resolveListRef } from "./resolve.js";
 import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
 import { invalidStatuses, supersededTargetProblems } from "./superseded.js";
@@ -142,7 +142,7 @@ export const setElementStatus = async (
   const shortIds = await workspace.get(shortIdState);
   const records = new Map<string, ElementRecord>();
   for (const ref of input.refs) {
-    const record = resolveRef(store, shortIds, ref);
+    const record = resolveListRef(store, shortIds, ref);
     const type = assertElementWritable(metamodel, record);
     if (status === undefined) {
       assertStatusOptional(metamodel, type, ref);
