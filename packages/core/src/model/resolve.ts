@@ -98,6 +98,15 @@ const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
     ? ""
     : "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
 
+/**
+ * The note for a value that holds a comma and names nothing (#1790): a list field takes one value per
+ * item, and a comma separates nothing. "" for a value without a comma.
+ */
+export const oneValueNote = (value: string): string =>
+  value.includes(",")
+    ? "; a comma does not separate values: give each value on its own (on the command line, the option once per value)"
+    : "";
+
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>
   isUuid(canonical) ? "UUID" : isShortIdForm(canonical) ? "short ID or identifier" : "identifier";
@@ -168,7 +177,7 @@ export const resolveRef = (
     case "unknown":
       throw new CommandError(
         "ref.unknown",
-        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}${faultyMetamodel(shortIds, canonical)}`,
+        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}${faultyMetamodel(shortIds, canonical)}${oneValueNote(ref)}`,
         {
           ref,
         },

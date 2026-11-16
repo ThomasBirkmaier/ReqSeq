@@ -82,6 +82,7 @@ import {
 } from "../model/index.js";
 import { currentVersions } from "../model/current-versions.js";
 import { inlineReferences } from "../model/references.js";
+import { oneValueNote } from "../model/resolve.js";
 import type { ElementFileWrite, UnchangedElement } from "../model/write.js";
 import { readUnchanged, writeElementFiles } from "../model/write.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -135,7 +136,7 @@ const NOT_CONFIRMABLE =
 
 const notConfirmable = (
   id: string,
-  reason = `${id} is no ID of a hint that can be confirmed: ${NOT_CONFIRMABLE}`,
+  reason = `${id} is no ID of a hint that can be confirmed: ${NOT_CONFIRMABLE}${oneValueNote(id)}`,
 ): Problem => ({
   code: "hint.not-confirmable",
   severity: "error",

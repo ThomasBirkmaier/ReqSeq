@@ -435,6 +435,21 @@ describe("hint.confirm (SR-027)", () => {
     });
   });
 
+  it("says that a comma does not separate hint IDs (#1790)", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const out = await confirm(open(ws.root), [`${DERIVES},${LINK}`]);
+    expect(out.confirmed).toEqual([]);
+    expect(out.problems?.map((p) => [p.code, p.message])).toEqual([
+      [
+        "hint.not-confirmable",
+        expect.stringMatching(
+          /; a comma does not separate values: give each value on its own \(on the command line, the option once per value\)$/,
+        ) as unknown,
+      ],
+    ]);
+  });
+
   it("[SR-027/AK-q47h] writes nothing when one of the files changed on disk since it was read", async () => {
     const ws = await fixture({
       files: { [B_FILE]: fromFixture(B_FILE).replace(A_VERSION, OLD) },

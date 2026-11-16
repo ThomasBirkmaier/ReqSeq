@@ -103,6 +103,16 @@ describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)
     expect(uuid.message).toBe('No element has the UUID "30500000-0000-4000-8000-0000000f0000"');
   });
 
+  it("says that a comma does not separate references (#1790)", async () => {
+    const opened = await open();
+    expect((await failure(opened, "element.get", { ref: "SR-036,SR-099" })).toJSON()).toEqual({
+      code: "ref.unknown",
+      message:
+        'No element has the identifier "SR-036,SR-099"; a comma does not separate values: give each value on its own (on the command line, the option once per value)',
+      details: { ref: "SR-036,SR-099" },
+    });
+  });
+
   it("names a faulty metamodel as a cause when no element has a short ID or identifier (#399)", async () => {
     const model = await readFile(
       new URL("../../../../fixtures/enabler-305/identifiers/metamodel/model.yaml", import.meta.url),
