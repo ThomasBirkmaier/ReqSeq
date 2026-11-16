@@ -220,50 +220,61 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     expect(await cliNames(running, "perspective")).toContain("Drafts → Sensor set");
   });
 
-  test("[SR-218/AK-r1kx] Delete names name and file and the lost changes; Ctrl+Enter offers Yes, delete and No; only Yes deletes", async () => {
+  test("[SR-218/AK-r1kx] Delete asks the confirmation at once, No first and marked, naming name, file and the lost changes; Enter on No and Escape go back; Ctrl+Enter deletes; a held key and a double click do nothing", async () => {
     running = await launchApp(FIXTURE, { colorScheme: "light" });
     const { window } = running;
     const root = running.workspace?.root ?? "";
     const file = path.join(root, "perspectives", "drafts.yaml");
+    const enter = process.platform === "darwin" ? "⌘↩" : "Ctrl+Enter";
     await open(window, "Drafts");
     await sortById(window);
     await expect(modeline(window)).toContainText(["modified"]);
     await start(window, "Delete perspective");
-    await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Delete perspective Drafts:");
+    // Ctrl/Cmd+Enter held on the choice: its first press chooses, and while it repeats on the confirmation it
+    // deletes nothing.
+    await window.keyboard.down("ControlOrMeta");
+    await window.keyboard.down("Enter");
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
+    await window.keyboard.down("Enter");
+    await window.keyboard.down("Enter");
+    await window.keyboard.up("Enter");
+    await window.keyboard.up("ControlOrMeta");
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
+    await expect(fs.stat(file)).resolves.toBeDefined();
+    // "No" first and marked, then "Yes, delete"; the line names name, file, Git, the lost changes and Ctrl+Enter.
+    await expect(candidates(window)).toHaveText(["No", "Yes, delete"]);
+    await expect(window.locator('.candidates [role="option"][aria-selected="true"] .name')).toHaveText("No");
     await expect(explanation(window)).toContainText(
       "Deletes the perspective Drafts, file perspectives/drafts.yaml; a file Git does not track does not come back; the changes of its modified buffer are lost",
     );
-    const enter = process.platform === "darwin" ? "⌘↩" : "Ctrl+Enter";
-    await expect(explanation(window)).toContainText(`${enter} confirms`);
-    await shot(window, "sr-218-delete-light.png");
-    // Enter without the confirmation deletes nothing.
-    await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText(
-      `Nothing was deleted: ${enter} offers Yes, delete · Delete perspective Drafts:`,
-    );
-    await expect(fs.stat(file)).resolves.toBeDefined();
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
-    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
+    await expect(explanation(window)).toContainText(`${enter} deletes`);
     await shot(window, "sr-218-confirm-light.png");
-    // Ctrl/Cmd+Enter again (a second press, or a key that repeats) deletes nothing.
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await window.keyboard.press("ControlOrMeta+Enter");
+    // The second click of a double click on "Yes, delete" does nothing.
+    const yes = window.locator('.candidates [role="option"]', { hasText: "Yes, delete" });
+    const box = await yes.boundingBox();
+    if (box === null) {
+      throw new Error("Yes, delete is not shown");
+    }
+    await window.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await window.mouse.down({ clickCount: 2 });
+    await window.mouse.up({ clickCount: 2 });
     await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
-    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
     await expect(fs.stat(file)).resolves.toBeDefined();
-    // "No" and Escape go back a step, and delete nothing.
-    await window.locator('.candidates [role="option"]', { hasText: /^No$/ }).click();
-    await expect(label(window)).toHaveText("Delete perspective Drafts:");
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
+    // Enter on "No" and Escape go back a step, to the choice, and delete nothing.
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Delete perspective · name:");
+    await candidates(window).first().waitFor();
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
     await window.keyboard.press("Escape");
-    await expect(label(window)).toHaveText("Delete perspective Drafts:");
+    await expect(label(window)).toHaveText("Delete perspective · name:");
     await expect(fs.stat(file)).resolves.toBeDefined();
-    // A click on "Yes, delete" deletes the file.
+    // A new press of Ctrl/Cmd+Enter deletes, with "No" marked.
+    await candidates(window).first().waitFor();
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
+    await expect(window.locator('.candidates [role="option"][aria-selected="true"] .name')).toHaveText("No");
     await window.keyboard.press("ControlOrMeta+Enter");
-    await window.locator('.candidates [role="option"]', { hasText: "Yes, delete" }).click();
     await expect(minibuffer(window)).toContainText("Deleted perspective Drafts (perspectives/drafts.yaml)");
     await expect(fs.stat(file)).rejects.toThrow();
     // A saved filter a perspective names is refused already before the confirmation, with core's reason.
@@ -364,10 +375,13 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     await open(window, "Drafts");
     await start(window, "Delete perspective");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Delete perspective Drafts:");
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
-    // Enter on the marked "Yes, delete" deletes.
+    await expect(label(window)).toHaveText("Delete perspective Drafts · confirm:");
+    await expect(candidates(window)).toHaveText(["No", "Yes, delete"]);
+    // Enter on "Yes, delete" deletes.
+    await window.keyboard.press("ArrowDown");
+    await expect(window.locator('.candidates [role="option"][aria-selected="true"] .name')).toHaveText(
+      "Yes, delete",
+    );
     await window.keyboard.press("Enter");
     await expect(minibuffer(window)).toContainText("Deleted perspective Drafts (perspectives/drafts.yaml)");
     // As with "Close buffer": the next buffer is shown, and no buffer of Drafts is left.
@@ -380,10 +394,10 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
     // A saved filter no perspective names is deleted too.
     await start(window, "Delete saved filter");
     await take(window, "Unused");
-    await expect(label(window)).toHaveText("Delete saved filter Unused:");
-    await window.keyboard.press("ControlOrMeta+Enter");
-    await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
-    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText("Delete saved filter Unused · confirm:");
+    await expect(candidates(window)).toHaveText(["No", "Yes, delete"]);
+    // A click on "Yes, delete" deletes.
+    await window.locator('.candidates [role="option"]', { hasText: "Yes, delete" }).click();
     await expect(minibuffer(window)).toContainText("Deleted saved filter Unused (filters/unused.yaml)");
     expect(await cliNames(running, "filter")).toEqual(["Sensors"]);
     const { kept } = running;
@@ -414,12 +428,11 @@ test.describe("renaming and deleting perspectives and saved filters", () => {
       await sortById(window);
       await start(window, "Delete perspective");
       await window.keyboard.press("Enter");
+      await expect(candidates(window)).toHaveText(["No", "Yes, delete"]);
       await expect(explanation(window)).toContainText("Deletes the perspective Drafts");
-      await shot(window, `sr-218-steps-delete-${scheme}.png`);
-      await window.keyboard.press("ControlOrMeta+Enter");
-      await expect(candidates(window)).toHaveText(["Yes, delete", "No"]);
       await shot(window, `sr-218-steps-confirm-${scheme}.png`);
       await window.keyboard.press("Escape");
+      await expect(label(window)).toHaveText("Delete perspective · name:");
       await window.keyboard.press("Escape");
     });
   }
