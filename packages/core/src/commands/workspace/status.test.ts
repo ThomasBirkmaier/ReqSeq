@@ -65,11 +65,19 @@ describe("workspace.status", () => {
     expect(out).toEqual({
       name: "Weather station",
       repositories: [
-        { name: "system", available: true, path: ".", commit: await ws.head("system"), ...writable },
+        {
+          name: "system",
+          available: true,
+          path: ".",
+          absolutePath: ws.path("system"),
+          commit: await ws.head("system"),
+          ...writable,
+        },
         {
           name: "product",
           available: true,
           path: "../product",
+          absolutePath: ws.path("product"),
           commit: await ws.head("product"),
           ...writable,
         },
@@ -77,6 +85,7 @@ describe("workspace.status", () => {
           name: "sensor",
           available: true,
           path: "../sensor",
+          absolutePath: ws.path("sensor"),
           commit: await ws.head("sensor"),
           ...writable,
         },
@@ -94,7 +103,16 @@ describe("workspace.status", () => {
     const out = await status(workspace);
     expect(out).toEqual({
       name: "Weather station",
-      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
+      repositories: [
+        {
+          name: "system",
+          available: true,
+          path: ".",
+          absolutePath: ws.root,
+          commit: await ws.head(),
+          ...writable,
+        },
+      ],
       metamodel: { repository: "system", path: "metamodel", valid: true },
       evidence: [],
       readOnly: false,
@@ -128,7 +146,9 @@ describe("workspace.status", () => {
       },
     });
     const out = await status(open(ws.root));
-    expect(out.repositories).toEqual([{ name: "solo", available: true, path: ".", ...writable }]);
+    expect(out.repositories).toEqual([
+      { name: "solo", available: true, path: ".", absolutePath: ws.root, ...writable },
+    ]);
     expect(out.metamodel.valid).toBe(true);
     expect(out.problems).toEqual([]);
   });
@@ -138,13 +158,22 @@ describe("workspace.status", () => {
     await fs.rm(ws.path("product"), { recursive: true });
     const workspace = open(ws.path("system"));
     const out = await status(workspace);
+    // A repository that is not on this machine has no absolute path (#1793).
     expect(out.repositories).toEqual([
-      { name: "system", available: true, path: ".", commit: await ws.head("system"), ...writable },
+      {
+        name: "system",
+        available: true,
+        path: ".",
+        absolutePath: ws.path("system"),
+        commit: await ws.head("system"),
+        ...writable,
+      },
       { name: "product", available: false, path: "../product" },
       {
         name: "sensor",
         available: true,
         path: "../sensor",
+        absolutePath: ws.path("sensor"),
         commit: await ws.head("sensor"),
         ...writable,
       },
@@ -233,6 +262,7 @@ describe("workspace.status", () => {
       name: "sensor",
       available: true,
       path: "../sensor",
+      absolutePath: ws.path("sensor"),
       ...writable,
     });
   });
@@ -244,7 +274,14 @@ describe("workspace.status", () => {
     await outer.commit();
     const out = await status(open(ws.root));
     expect(out.repositories).toEqual([
-      { name: "system", available: true, path: ".", commit: await outer.head(), ...writable },
+      {
+        name: "system",
+        available: true,
+        path: ".",
+        absolutePath: ws.root,
+        commit: await outer.head(),
+        ...writable,
+      },
     ]);
   });
 
@@ -253,7 +290,9 @@ describe("workspace.status", () => {
     const outer = await fixture({ files: { "top.md": "top\n", ".gitignore": "*/\n" }, git: true });
     const ws = await fixture({ fixture: "SR-001/two-elements", tempDir: outer.root });
     const out = await status(open(ws.root));
-    expect(out.repositories).toEqual([{ name: "system", available: true, path: ".", ...writable }]);
+    expect(out.repositories).toEqual([
+      { name: "system", available: true, path: ".", absolutePath: ws.root, ...writable },
+    ]);
     expect(out.problems).toEqual([]);
   });
 
@@ -346,7 +385,16 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     const out = await status(open(ws.root));
     expect(out).toEqual({
       name: "Weather station",
-      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
+      repositories: [
+        {
+          name: "system",
+          available: true,
+          path: ".",
+          absolutePath: ws.root,
+          commit: await ws.head(),
+          ...writable,
+        },
+      ],
       metamodel: { repository: "system", path: "model", valid: true },
       evidence: [],
       readOnly: false,

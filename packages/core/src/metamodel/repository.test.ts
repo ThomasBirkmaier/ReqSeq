@@ -115,8 +115,22 @@ describe("metamodel in its own repository (SR-018)", () => {
     expect(await status(workspace)).toEqual({
       name: "Weather station",
       repositories: [
-        { name: "system", available: true, path: ".", commit: await ws.head("system"), ...writable },
-        { name: "models", available: true, path: "../models", commit: await ws.head("models"), ...writable },
+        {
+          name: "system",
+          available: true,
+          path: ".",
+          absolutePath: ws.path("system"),
+          commit: await ws.head("system"),
+          ...writable,
+        },
+        {
+          name: "models",
+          available: true,
+          path: "../models",
+          absolutePath: ws.path("models"),
+          commit: await ws.head("models"),
+          ...writable,
+        },
       ],
       metamodel: { repository: "models", path: "model", valid: true },
       evidence: [],
