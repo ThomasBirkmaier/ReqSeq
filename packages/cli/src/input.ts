@@ -112,13 +112,15 @@ const listOf = (value: unknown): readonly unknown[] =>
  * derives-from=N-2` gives both targets (#1791).
  */
 const entriesOf = (field: InputField, items: readonly string[]): Record<string, unknown> => {
-  const entries: Record<string, unknown> = {};
+  // A Map, so a key such as `__proto__` stays an entry that core sees (and refuses), as Object.fromEntries keeps it.
+  const entries = new Map<string, unknown>();
   for (const [key, value] of items.map((item) => entryOf(field, item))) {
-    const before = entries[key];
-    entries[key] =
-      field.entryLists && Object.hasOwn(entries, key) ? [...listOf(before), ...listOf(value)] : value;
+    entries.set(
+      key,
+      field.entryLists && entries.has(key) ? [...listOf(entries.get(key)), ...listOf(value)] : value,
+    );
   }
-  return entries;
+  return Object.fromEntries(entries);
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

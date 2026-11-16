@@ -367,6 +367,18 @@ describe("buildInput", () => {
     expect(
       await buildInput(invocation({ flags: [{ field: set, value: ["a=1", "a=2"] }] }), fixture.root, noStdin),
     ).toEqual({ set: { a: 2 } });
+    // `__proto__` stays an own entry, so core sees the key and refuses it; it never sets a prototype.
+    const proto = await buildInput(
+      invocation({ flags: [{ field: set, value: ["__proto__=x"] }] }),
+      fixture.root,
+      noStdin,
+    );
+    const given = proto["set"] as Record<string, unknown>;
+    expect([Object.keys(given), Object.getPrototypeOf(given) === Object.prototype]).toEqual([
+      ["__proto__"],
+      true,
+    ]);
+    expect(Object.getOwnPropertyDescriptor(given, "__proto__")?.value).toBe("x");
   });
 
   it("gives an entries flag as key=value, the value as JSON when it parses, key by key over --input (#171)", async () => {
