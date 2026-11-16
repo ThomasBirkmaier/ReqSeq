@@ -70,6 +70,11 @@ export interface InputField {
    */
   readonly entries: boolean;
   /**
+   * Relations by kind (`common.schema.json#/$defs/relationRefs`), each a target or a list of targets:
+   * a kind given again adds its targets instead of replacing them (#1791).
+   */
+  readonly entryLists: boolean;
+  /**
    * A string with `contentMediaType` (a Markdown text): the flag also takes `@file` and `-`, read like
    * `--input` (#171).
    */
@@ -84,6 +89,8 @@ export const LOCAL_PATH_REF = `${SCHEMA_BASE}common.schema.json#/$defs/localPath
 export const SELECTION_REF = `${SCHEMA_BASE}common.schema.json#/$defs/selection`;
 export const CONDITION_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/condition`;
 export const SORT_KEY_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/sortKey`;
+/** `$ref` target of relations by kind, each a target or a list of them (#1791). */
+export const RELATION_REFS_REF = `${SCHEMA_BASE}common.schema.json#/$defs/relationRefs`;
 /** The values of a key condition (`{ type: [...] }`). */
 const KEYS_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/keys`;
 
@@ -111,6 +118,7 @@ const NO_SHAPE = {
   localPath: false,
   nullable: false,
   entries: false,
+  entryLists: false,
   textFile: false,
   parts: [],
 } as const;
@@ -168,7 +176,7 @@ const scalarOrComplex = (kind: Kind): ScalarKind | "complex" =>
 
 type Shape = Pick<
   InputField,
-  "kind" | "array" | "choices" | "localPath" | "nullable" | "entries" | "textFile" | "parts"
+  "kind" | "array" | "choices" | "localPath" | "nullable" | "entries" | "entryLists" | "textFile" | "parts"
 >;
 
 const describe = (schema: JsonSchema): string | undefined =>
@@ -288,6 +296,7 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located, flag:
       // A scalar whose kind does not hold once `null` counts as a kind of its own allows `null`.
       nullable: kind !== "complex" && kindOf(field, 0, true) !== kind,
       entries: isEntries(located),
+      entryLists: leadsTo(field, RELATION_REFS_REF),
       textFile: strings && typeof located?.schema["contentMediaType"] === "string",
       parts: [],
     };

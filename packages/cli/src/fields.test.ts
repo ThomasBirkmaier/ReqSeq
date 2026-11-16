@@ -264,6 +264,7 @@ describe("inputFields", () => {
       "string:flag:false:true",
       "string:flag:false:false",
     ]);
+    expect(Object.values(f).map((x) => x.entryLists)).toEqual([false, false, false, false, false]);
     const create = getCommandRuntime().contracts.entry("element.create");
     expect(create && inputFields(create).map((x) => `${x.name}:--${x.flag}:${x.use}`)).toEqual([
       "type:--type:positional",
@@ -273,6 +274,14 @@ describe("inputFields", () => {
       "relations:--relations:flag",
       "repository:--repository:flag",
       "folder:--folder:flag",
+    ]);
+    const update = getCommandRuntime().contracts.entry("element.update");
+    const listed = [...(create ? inputFields(create) : []), ...(update ? inputFields(update) : [])];
+    // Only relations by kind add the targets of a kind given again (#1791); --set keeps the last value.
+    expect(listed.filter((x) => x.entryLists).map((x) => x.name)).toEqual([
+      "relations",
+      "addRelations",
+      "removeRelations",
     ]);
   });
 
