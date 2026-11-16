@@ -113,7 +113,13 @@ describe("readInputOption", () => {
 const field = (
   name: string,
   kind: InputField["kind"],
-  options: { array?: boolean; localPath?: boolean; entries?: boolean; textFile?: boolean } = {},
+  options: {
+    array?: boolean;
+    localPath?: boolean;
+    entries?: boolean;
+    entryLists?: boolean;
+    textFile?: boolean;
+  } = {},
 ): InputField => ({
   name,
   flag: name,
@@ -127,6 +133,7 @@ const field = (
   localPath: options.localPath ?? false,
   nullable: false,
   entries: options.entries ?? false,
+  entryLists: options.entryLists ?? false,
   textFile: options.textFile ?? false,
   parts: [],
 });
@@ -334,6 +341,44 @@ describe("buildInput", () => {
       odd: 7,
       name: "plain",
     });
+  });
+
+  it("adds the targets of a relation kind given again, and keeps the last value of another key (#1791)", async () => {
+    const relations = field("relations", "complex", { entries: true, entryLists: true });
+    const values = [
+      "derives-from=N-001",
+      'derives-from=["N-002","N-003"]',
+      "derives-from=N-004",
+      "based-on=D-1",
+    ];
+    expect(
+      await buildInput(
+        invocation({
+          input: '{"relations":{"derives-from":"N-000","refines":"SR-1"}}',
+          flags: [{ field: relations, value: values }],
+        }),
+        fixture.root,
+        noStdin,
+      ),
+    ).toEqual({
+      relations: { "derives-from": ["N-001", "N-002", "N-003", "N-004"], refines: "SR-1", "based-on": "D-1" },
+    });
+    const set = field("set", "complex", { entries: true });
+    expect(
+      await buildInput(invocation({ flags: [{ field: set, value: ["a=1", "a=2"] }] }), fixture.root, noStdin),
+    ).toEqual({ set: { a: 2 } });
+    // `__proto__` stays an own entry, so core sees the key and refuses it; it never sets a prototype.
+    const proto = await buildInput(
+      invocation({ flags: [{ field: set, value: ["__proto__=x"] }] }),
+      fixture.root,
+      noStdin,
+    );
+    const given = proto["set"] as Record<string, unknown>;
+    expect([Object.keys(given), Object.getPrototypeOf(given) === Object.prototype]).toEqual([
+      ["__proto__"],
+      true,
+    ]);
+    expect(Object.getOwnPropertyDescriptor(given, "__proto__")?.value).toBe("x");
   });
 
   it("gives an entries flag as key=value, the value as JSON when it parses, key by key over --input (#171)", async () => {

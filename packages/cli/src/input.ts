@@ -103,6 +103,26 @@ const entryOf = (field: InputField, item: string): [string, unknown] => {
   }
 };
 
+const listOf = (value: unknown): readonly unknown[] =>
+  Array.isArray(value) ? (value as readonly unknown[]) : [value];
+
+/**
+ * The entries of the values of an entries flag: a key given again replaces its value, or, for relations
+ * by kind (`entryLists`), adds its targets, so `--add-relations derives-from=N-1 --add-relations
+ * derives-from=N-2` gives both targets (#1791).
+ */
+const entriesOf = (field: InputField, items: readonly string[]): Record<string, unknown> => {
+  // A Map, so a key such as `__proto__` stays an entry that core sees (and refuses), as Object.fromEntries keeps it.
+  const entries = new Map<string, unknown>();
+  for (const [key, value] of items.map((item) => entryOf(field, item))) {
+    entries.set(
+      key,
+      field.entryLists && entries.has(key) ? [...listOf(entries.get(key)), ...listOf(value)] : value,
+    );
+  }
+  return Object.fromEntries(entries);
+};
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -156,7 +176,7 @@ const flagValue = async (
   if (field.entries && Array.isArray(value)) {
     return {
       ...(isObject(given) ? given : {}),
-      ...Object.fromEntries(value.map((item: string) => entryOf(field, item))),
+      ...entriesOf(field, value as string[]),
     };
   }
   if (field.textFile && typeof value === "string" && (value === "-" || value.startsWith("@"))) {
