@@ -56,6 +56,18 @@ const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 
 
 type Answer = unknown;
 
+/** A preview of `element.bulkUpdate` that writes no element, as its output schema has it. */
+const BULK_PREVIEW = {
+  applied: false,
+  count: 0,
+  affected: [],
+  unchanged: 0,
+  skipped: [],
+  files: [],
+  problems: [],
+  plan: `p1:${"0".repeat(64)}`,
+};
+
 /** A context over `buffers` whose commands answer with `answers[name](input)`; an Error is a failure. */
 const setup = (
   buffers: Buffers,
@@ -67,7 +79,10 @@ const setup = (
   let reopened = 0;
   let revision = 3;
   const call = vi.fn((name: string, input: Record<string, unknown>) => {
-    const output = answers[name]?.(input);
+    // A bulk update answers with a preview unless the test gives its own (SR-071 AK5 reads its counts).
+    const output = (answers[name] ?? (name === "element.bulkUpdate" ? () => BULK_PREVIEW : undefined))?.(
+      input,
+    );
     return Promise.resolve(
       output instanceof Error
         ? {
@@ -2731,7 +2746,7 @@ describe("the arguments a command expects, completed with the values of the meta
     const { context, asked, call } = setup([list], {
       "metamodel.get": () => FIXTURE_METAMODEL,
       "element.search": () => ({ hits: [hit(5)], total: 1 }),
-      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+      "element.bulkUpdate": () => BULK_PREVIEW,
     });
     catalogItems(context, CATALOG, ACTIONS)
       .find((choice) => choice.name === "Bulk update elements")
@@ -2786,7 +2801,7 @@ describe("the arguments a command expects, completed with the values of the meta
   it("gives a bulk update on the list of all elements outside a view every element, the empty selection (#856)", async () => {
     const all = setup([listBuffer("All elements")], {
       "metamodel.get": () => FIXTURE_METAMODEL,
-      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+      "element.bulkUpdate": () => BULK_PREVIEW,
       "baseline.create": () => ({ files: [] }),
       "evidence.coverage": () => ({ total: 0 }),
     });
@@ -2855,7 +2870,7 @@ describe("the arguments a command expects, completed with the values of the meta
     // A relation property without target types: any element, the shown one first, as a relation target.
     const related = setup([shown], {
       "metamodel.get": () => CREATE_METAMODEL,
-      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+      "element.bulkUpdate": () => BULK_PREVIEW,
     });
     catalogItems(related.context, [valueOf], [])[0]?.run();
     (await last(related.asked)).text?.("related");
@@ -3140,7 +3155,7 @@ describe("a view the window shows (SR-043 AK1)", () => {
   });
 
   it("gives the selection of the shown list the view, unless it names a view or ids (B2)", async () => {
-    const answers = { "element.bulkUpdate": () => ({ total: 0, changes: [] }) };
+    const answers = { "element.bulkUpdate": () => BULK_PREVIEW };
     const bulk = {
       ...command("element.bulkUpdate"),
       arguments: [{ field: "selection", complete: "selection" as const }],
@@ -3304,6 +3319,22 @@ describe("a bulk update shows its preview and asks the confirmation next (SR-071
       confirm: true,
       plan: changed.plan,
     });
+    // A new preview that writes no element asks nothing and says why it was made.
+    const emptied = setup(
+      [list],
+      answers((input) =>
+        input["confirm"] === true
+          ? refusedWith("plan: changed", { reason: "plan-changed" })
+          : bulkCalls(emptied.call).length === 1
+            ? preview
+            : { ...preview, count: 0 },
+      ),
+    );
+    item((await answer(emptied.context, emptied.asked)).items, "Yes, apply").run();
+    await flush();
+    expect(emptied.echoed.at(-1)).toBe(
+      "Something changed since the preview, so nothing was written; this is the new preview · Bulk update elements writes no element (skips 1 element), so there is nothing to confirm",
+    );
     // A failing new preview, and another refusal of the confirmed call, are said.
     const failing = setup(
       [list],

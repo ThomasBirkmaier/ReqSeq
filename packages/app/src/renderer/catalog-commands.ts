@@ -916,14 +916,16 @@ const previewed = (
     buffer: resultBuffer(PREVIEWED, input, lineOf(entry), preview, revision, true),
   });
   const skipped = `skips ${elements(preview.skipped.length)}`;
+  const withWhy = (text: string): string => (why === undefined ? text : `${why} · ${text}`);
   if (preview.count === 0) {
-    context.echo(`${entry.command.title} writes no element (${skipped}), so there is nothing to confirm`);
+    context.echo(
+      withWhy(`${entry.command.title} writes no element (${skipped}), so there is nothing to confirm`),
+    );
     return;
   }
-  const label = `${lineOf(entry)} · confirm:`;
   context.ask(
     confirmationPrompt({
-      label: why === undefined ? label : `${why} · ${label}`,
+      label: withWhy(`${lineOf(entry)} · confirm:`),
       verb: "apply",
       does: "writes",
       name: "confirm",
