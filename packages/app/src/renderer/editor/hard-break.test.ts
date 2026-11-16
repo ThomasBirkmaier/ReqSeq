@@ -33,6 +33,8 @@ describe("hard line breaks (#1785)", () => {
       "*a*  \n`b`   \nc",
       "- a  \n  b",
       "> a   \n> b",
+      "a \t  \nb",
+      "| a  |\n| - |\n| b   |",
     ];
     for (const doc of docs) {
       expect(tree(doc, editor), doc).toEqual(tree(doc, lezer));

@@ -2,7 +2,8 @@
 // end). @lezer/markdown 1.8.0 scans the spaces after every space of a run, which takes quadratic time on a long
 // run of spaces inside a line and froze the window for seconds (#1785). This parser replaces it by name and
 // gives the same breaks: it scans a run only from its first space, since every later space of the run reaches
-// the same character after it.
+// the same character after it. That holds while no inline parser of the editor ends right after a space;
+// a plugin that does would need the full scan back.
 import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
 
 const NEWLINE = 10;
