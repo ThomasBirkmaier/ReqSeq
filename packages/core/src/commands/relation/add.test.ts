@@ -221,11 +221,33 @@ describe("relation.add stores UUID and current version of the target in the sour
     ]);
   });
 
-  it("keeps a relation the source already has with its stored version and writes nothing", async () => {
+  it("keeps a relation the source already has with its stored version, writes nothing and names hint.confirm when it is outdated (#1792)", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     const out = await add(opened, { source: "SR-4a5b6c", kind: "derives-from", target: "SR-e88fb3" });
-    expect(out).toEqual({ files: [], problems: [] });
+    // The fixture stores a made-up version for WIND: the hint hint.list gives, with its ID to confirm.
+    const listed = (await invoke(
+      "hint.list",
+      { kind: ["relation.outdated"], ref: GUSTS.id },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"hint.list">;
+    const [hint] = listed.hints;
+    expect(hint?.hintId).toMatch(/^relation\.outdated\//);
+    expect(out).toEqual({
+      files: [],
+      problems: [
+        expect.objectContaining({
+          code: "relation.outdated",
+          severity: "warning",
+          hintId: hint?.hintId,
+          targetId: WIND.id,
+          line: 12,
+          message: expect.stringMatching(
+            /points to an older version of System Requirement SR-e88fb3; relation\.add keeps the relation it has and writes nothing: to store the current version, confirm the hint \(hint\.confirm with its hintId, or with ref SR-4a5b6c and target SR-e88fb3\)$/,
+          ) as unknown,
+        }),
+      ],
+    });
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
@@ -431,7 +453,11 @@ describe("relation.add gives a stored target without a valid version its current
     );
     const before = await read(opened, MIGRATED.file);
     const out = await add(opened, { source: MIGRATED.id, kind: "derives-from", target: NEED.id });
-    expect(out).toEqual({ files: [], problems: [] });
+    // Its made-up version is outdated: the hint of that entry, not of the one without a version (#1792).
+    expect(out).toMatchObject({
+      files: [],
+      problems: [{ code: "relation.outdated", storedVersion: "n1:0000000000000000", line: 8 }],
+    });
     expect(await read(opened, MIGRATED.file)).toBe(before);
   });
 
