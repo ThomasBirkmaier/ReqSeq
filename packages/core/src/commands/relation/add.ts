@@ -77,7 +77,7 @@ const keptOutdated = async (
           path,
           problem: {
             ...problem,
-            message: `${problem.message}; relation.add keeps the relation it has and writes nothing: to store the current version, confirm the hint (hint.confirm with its hintId, or with ref ${input.source} and target ${input.target})`,
+            message: `${problem.message}; relation.add keeps the relation it has and writes nothing: hint.confirm with its hintId stores the current version (with ref ${input.source} and target ${input.target} it confirms every outdated hint of ${input.source} that points at ${input.target}, inline references too)`,
           },
         });
       }

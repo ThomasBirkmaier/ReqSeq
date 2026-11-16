@@ -243,7 +243,7 @@ describe("relation.add stores UUID and current version of the target in the sour
           targetId: WIND.id,
           line: 12,
           message: expect.stringMatching(
-            /points to an older version of System Requirement SR-e88fb3; relation\.add keeps the relation it has and writes nothing: to store the current version, confirm the hint \(hint\.confirm with its hintId, or with ref SR-4a5b6c and target SR-e88fb3\)$/,
+            /points to an older version of System Requirement SR-e88fb3; relation\.add keeps the relation it has and writes nothing: hint\.confirm with its hintId stores the current version \(with ref SR-4a5b6c and target SR-e88fb3 it confirms every outdated hint of SR-4a5b6c that points at SR-e88fb3, inline references too\)$/,
           ) as unknown,
         }),
       ],
