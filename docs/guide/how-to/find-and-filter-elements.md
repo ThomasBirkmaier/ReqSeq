@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first; words in quotes match only as a phrase. When the metamodel gives properties the meanings synonyms and translation (D-059), a search for a designation of an element (its title, a synonym or its translation) also finds the elements in which one of its other designations stands (SR-220 AK1); these hits come after the hits found by the words themselves and before those found only through a type or status name (SR-220 AK2). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; quoted words match only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
@@ -14,9 +14,9 @@ The search finds words in titles, texts, property values, type and status names 
 3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it with “Filter list” (Ctrl+K F, ⌘K F): pick a kind, then a value, adding one step; “Type” takes several, matching any, until “Take N types”. Escape goes back a step. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
 4. “Sort list” (Ctrl+K S) orders the list by a key, ascending or descending, or as derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups and keep their order. A right-click outside the rows offers most of these.
 5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click).
-6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; Enter or a click on its head opens it. “Fold status in lists” chooses the statuses that fold on this computer.
+6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; “Fold status in lists” chooses the statuses that fold on this computer.
 7. Ctrl+K V (⌘K V) opens a perspective. “Save list as perspective” saves a list’s steps, grouping and sort, “Save list as saved filter” its steps and a sort chosen or saved with the perspective; **New perspective** in the [command prompt](/concepts/the-app/) asks name, condition, grouping, sort; the modeline says “modified” once a step, sort or grouping of a perspective’s buffer changes.
-8. **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks a name, then conditions, all holding; “Type” takes several types, matching any. `{` starts JSON. Then “Next: sort” and “Save”.
+8. **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks a name, then conditions, all holding; `{` starts JSON. Then “Next: sort” and “Save”.
 
 ## CLI
 
