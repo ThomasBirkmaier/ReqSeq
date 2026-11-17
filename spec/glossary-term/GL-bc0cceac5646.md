@@ -6,4 +6,4 @@ area: fachlich
 english-term: exclude
 ---
 
-Eine Variante schließt ein Kern-Requirement aus, indem sie es mit der Beziehungsart Excludes nennt ([D-059](reqseq:6adc78d3-0812-43dc-94fe-7af63b9acd96?version=n2:bb11050375857ccd)). Das Kern-Requirement steht dann nicht in der Sicht der Variante und bleibt im Kern.
+Eine Variante schließt ein Kern-Requirement aus, indem sie es mit der Beziehungsart Excludes nennt ([D-059](reqseq:6adc78d3-0812-43dc-94fe-7af63b9acd96?version=n2:1113c0f4b5aa5043)). Das Kern-Requirement steht dann nicht in der Sicht der Variante und bleibt im Kern.
