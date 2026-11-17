@@ -122,6 +122,9 @@ describe("other designations (SR-220)", () => {
     // Only consecutive words outside quotes: a phrase between them separates them.
     expect(found(index, 'released "bleibt" version')).toEqual([]);
     expect(found(index, 'released "bleibt"')).toEqual(["c4"]);
+    // A quoted ID is part of the rest of the query and must still be found.
+    expect(found(index, 'paket "SR-0000000000c6"')).toEqual([]);
+    expect(found(index, 'paket "REQ-3"')).toEqual(["c3", "c8"]);
     // A phrase is never expanded.
     expect(found(index, '"package"')).toEqual(["c3", "d1"]);
     // Words without a letter or digit inside a run are left out, as the search leaves them out.
@@ -214,6 +217,20 @@ describe("other designations (SR-220)", () => {
       "c3 late",
       "c9 late",
     ]);
+    // Also when another designation stands only in the type name: "requirement" is the English term
+    // of "Anforderung", and only the type name of the system requirements holds it.
+    expect(ranked(index, "anforderung")).toEqual([
+      "d3",
+      "c5",
+      "c1 late",
+      "c2 late",
+      "c4 late",
+      "c6 late",
+      "c7 late",
+      "c8 late",
+      "c3 late",
+      "c9 late",
+    ]);
     // A hit through another designation comes first when a word matches its ID (REQ-3 of c3).
     expect(await order(workspace, "paket REQ-3")).toEqual(["c3", "c8"]);
     expect(ranked(index, "paket REQ-3")).toEqual(["c3 other", "c8"]);
@@ -234,6 +251,20 @@ describe("other designations (SR-220)", () => {
     expect(await order(workspace, "package", { limit: 3 })).toEqual(["c3", "d1", "c1"]);
     const grouped = await search(workspace, "package", { group: "type" });
     expect(grouped.hits.map((hit) => hit.id.slice(-2))).toEqual(["d1", "c3", "c1", "c7", "c9", "c2", "c8"]);
+  });
+
+  it("[SR-220/AK-z3ht] makes a hit late only when every other designation that found it stands only in a type or status name", async () => {
+    const { workspace } = await open({
+      "terms/GT-0000000000d3.md": term("d3", [
+        "title: Anforderung",
+        "synonyms: [Spec]",
+        "english-term: Requirement",
+      ]),
+      "requirements/SR-0000000000e1.md": requirement("e1", ["title: Gilt"], "Die Spec gilt.\n"),
+    });
+    const index = await searchIndex(workspace);
+    // e1 holds "Spec" in its text and "requirement" only in its type name: through another designation.
+    expect(ranked(index, "anforderung").slice(0, 4)).toEqual(["d3", "c5", "e1 other", "c1 late"]);
   });
 
   it("[SR-220/AK-vh5r] marks the place of another designation as a whole, in the snippet at the first place and in the title; a hit only in the title has no snippet", async () => {

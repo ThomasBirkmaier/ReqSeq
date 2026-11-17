@@ -374,6 +374,28 @@ scenariosOf("element.search", [
   },
   {
     tag: "[SR-220/AK-z3ht]",
+    name: "another designation only in the type name: those hits come last, as hits through a type name",
+    fixture: DESIGNATIONS,
+    input: { query: "anforderung" },
+    expect: "output",
+    check: (results) => {
+      // "requirement", the English term of "Anforderung", stands only in the type name of SR-0000c1 to c9.
+      expect(ranked(results).map((hit) => hit.split(" ")[0])).toEqual([
+        "GT-0000d3",
+        "SR-0000c5",
+        "SR-0000c1",
+        "SR-0000c2",
+        "SR-0000c4",
+        "SR-0000c6",
+        "SR-0000c7",
+        "SR-0000c8",
+        "SR-0000c3",
+        "SR-0000c9",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-z3ht]",
     name: "an ID match first, also when it is found through another designation",
     fixture: DESIGNATIONS,
     input: { query: "paket REQ-3" },

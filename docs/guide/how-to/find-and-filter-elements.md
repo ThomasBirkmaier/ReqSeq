@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first; words in quotes match only as a phrase. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first; words in quotes match only as a phrase. When the metamodel gives properties the meanings synonyms and translation (D-059), a search for a designation of an element (its title, a synonym or its translation) also finds the elements in which one of its other designations stands (SR-220 AK1); these hits come after the hits found by the words themselves and before those found only through a type or status name (SR-220 AK2). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 

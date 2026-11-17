@@ -1700,19 +1700,20 @@ const unite = (a: Map<string, Found>, b: ReadonlyMap<string, Found>): Map<string
 /**
  * The documents in which one of the designations `others` stands (SR-220 AK1): as whole words in
  * order, without a typo, in any case, the last word also as a word start, within one unit of one
- * field searched (`phraseFound`); the designations of one word searched as one query.
+ * field searched (`phraseFound`); one of one word as a word search without a typo, its word as a word
+ * start.
  */
 const othersFound = (search: Search, others: readonly SearchPhrase[]): Map<string, Found> => {
   const scoring: ScoringOptions = { ...search.scoring, fuzzy: () => false, prefix: () => true };
-  const single = others.filter((phrase) => phrase.words.length === 1).map((phrase) => phrase.words.join(""));
-  const found =
-    single.length === 0
-      ? new Map<string, Found>()
-      : byKey(wordsFound({ ...search, scoring, options: searchOptionsOf(scoring) }, single, false));
+  const words: Search = { ...search, scoring, options: searchOptionsOf(scoring) };
+  const found = new Map<string, Found>();
+  // Each one on its own: they are alternatives of one part, so a document is late only when every
+  // designation that found it found it late (`unite`), not when one did.
   for (const phrase of others) {
-    if (phrase.words.length > 1) {
-      unite(found, phraseFound(search, phrase));
-    }
+    unite(
+      found,
+      phrase.words.length === 1 ? byKey(wordsFound(words, phrase.words, true)) : phraseFound(search, phrase),
+    );
   }
   return found;
 };
@@ -1798,7 +1799,13 @@ const foundBy = (
   if (first === undefined) {
     return literal;
   }
-  const restWords = { ...wordsOfQuery(index, rest, fields, searched), phrases: split.phrases };
+  // The rest of the query: its words outside the runs, and its phrases, those that may be IDs too.
+  const restOutside = wordsOfQuery(index, rest, fields, searched);
+  const restWords = {
+    ...restOutside,
+    special: [...restOutside.special, ...split.special.filter((one) => one.phrase !== undefined)],
+    phrases: split.phrases,
+  };
   return withOthers(literal, expandedFound(search, restWords, first, more, and));
 };
 

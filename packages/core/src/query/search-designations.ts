@@ -180,7 +180,10 @@ const runsIn = (
     const words: string[] = [];
     for (const [offset, item] of counted.slice(start).entries()) {
       words.push(...item.words);
-      const found = words.length > table.longest ? undefined : table.others.get(words.join(" "));
+      if (words.length > table.longest) {
+        break;
+      }
+      const found = table.others.get(words.join(" "));
       if (found !== undefined) {
         length = offset + 1;
         others = found;
