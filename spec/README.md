@@ -7,7 +7,7 @@ The ReqSeq specification, a ReqSeq workspace (enabler ThomasBirkmaier/ReqSeq-arc
 ## Layout
 
 - `reqseq-workspace.yaml`: the workspace, one repository `spec` (this folder).
-- `metamodel/spec-model.yaml`: the standard model (D-037) with the deviations its header lists (D-060): property `spec-id` (meaning `identifier`), statuses per type, the glossary term.
+- `metamodel/spec-model.yaml`: the standard model (D-037) with the deviations its header lists (D-060): property `spec-id` (meaning `identifier`), the glossary properties `synonyms` and `english-term` (meanings `synonyms` and `translation`), statuses per type, the glossary term.
 - One Markdown file per element (D-015), named by D-056 (`SR-5a8b253c90b0.md`), in a folder named like its type key, which is where `element create` puts new elements: `need/`, `system-requirement/`, `decision/`, `glossary-term/`, `package/`, `variant/`.
 - `package/`: one package per topic (D-040), for example `Ablage`, `Metamodell`, `Traceability`, `Nachweis`, `Editor`, `App`. Every system requirement and need names its topic package in `packages`. Packages give the structure, not the schedule; the schedule is the milestone of the issues. The stage packages `Stufe-1` to `Stufe-6`, `Querschnitt`, `v0.9` and `Später` are obsolete.
 - `variant/`: the variants Windows, Linux and macOS (`VAR-001` to `VAR-003`, #361); a requirement that holds only on one system names it in `validity`.

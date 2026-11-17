@@ -2,6 +2,8 @@
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own deviations, listed below (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
 # - property spec-id with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305): SR-036, D-047, N-001, Editor;
+# - properties synonyms and english-term of the glossary term with the meanings synonyms and translation (D-059),
+#   so a search also finds the other designations of a term (SR-220, #1805);
 # - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq), and english-term,
