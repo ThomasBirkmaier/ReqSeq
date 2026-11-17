@@ -190,7 +190,7 @@ describe("standard model", () => {
     expect(markdownKeysOf(metamodel)).toEqual(new Set(["rationale", "acceptance-criteria"]));
   });
 
-  it("[SR-014/AK-bxbx] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
+  it("[SR-014/AK-bxbx] assigns every meaning of D-059 to a key, each type and property meaning to exactly one, except identifier, synonyms and translation", async () => {
     const metamodel = await standardModel();
     // Open question ThomasBirkmaier/ReqSeq-archive#150, option 1 (assumption): a relation meaning may have several relation kinds
     // (D-012: "Jede Beziehungsart ist entweder eine Parent-Child-Beziehung ..."); the standard
@@ -211,19 +211,22 @@ describe("standard model", () => {
       "import-date": ["import-date"],
       delivery: ["delivery"],
       "import-version": ["import-version"],
-      // Not a meaning of D-012 (ThomasBirkmaier/ReqSeq-archive#305): the spec defines no property for IDs from other sources yet,
-      // so the standard model has none; a workspace adds one with `meaning: identifier`.
+      // D-059: the standard model assigns the identifier, the synonyms and the translation to no
+      // key; a workspace adds one with `meaning: identifier`, `synonyms` or `translation`.
       identifier: [],
       "acceptance-criteria": ["acceptance-criteria"],
+      synonyms: [],
+      translation: [],
       derivation: ["refines", "derives-from"],
       replacement: ["replaces"],
       succession: ["supersedes"],
       exclusion: ["excludes"],
     };
     expect(metamodel.meanings).toEqual(expected);
-    // Every meaning of D-012 the tool knows (MEANINGS follows metamodel.schema.json) has a key.
+    // Every other meaning of D-059 the tool knows (MEANINGS follows metamodel.schema.json) has a key.
+    const unmapped: readonly string[] = ["identifier", "synonyms", "translation"];
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
-      if (meaning === "identifier") {
+      if (unmapped.includes(meaning)) {
         continue;
       }
       if (MEANINGS[meaning as Meaning] === "relations") {

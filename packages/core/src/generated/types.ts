@@ -1423,7 +1423,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element that mean the same as its title, D-059; kind `text` with `many`, otherwise a warning: a single value still counts, another kind gives no designations) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning and no designation); the designations of an element are its title, its synonyms and its translation (SR-220).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1439,7 +1439,9 @@ export type MetamodelPropertyMeaning =
   | "delivery"
   | "import-version"
   | "identifier"
-  | "acceptance-criteria";
+  | "acceptance-criteria"
+  | "synonyms"
+  | "translation";
 
 /**
  * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).

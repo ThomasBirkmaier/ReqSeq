@@ -2,7 +2,8 @@
 // metamodel assigns them to its own keys with `meaning` on a type, a property or a relation kind.
 // Functions never look for a key such as `derives-from` or `validity`; they ask for the keys with
 // a meaning (the chain for `derivation`, the variant view for `validity`, ...), and report which
-// assignment is missing when there is none (SR-013 AK3).
+// assignment is missing when there is none (SR-013 AK3). A function that gives its result without
+// the meaning reports nothing: search without identifier, synonyms or translation (SR-220 AK5).
 //
 // A type or property meaning belongs to one key only (metamodel.schema.json); a second key is a
 // metamodel error with file and line, so the workspace opens read-only (open question ThomasBirkmaier/ReqSeq-archive#141). Only
@@ -65,6 +66,8 @@ export const MEANINGS: { readonly [M in Meaning]: MeaningList<M> } = {
   "import-version": "properties",
   identifier: "properties",
   "acceptance-criteria": "properties",
+  synonyms: "properties",
+  translation: "properties",
   derivation: "relations",
   replacement: "relations",
   succession: "relations",
@@ -232,6 +235,17 @@ export const acceptanceCriteriaProblem = (
 };
 
 /**
+ * Why a property with the meaning `synonyms` or `translation` gives no designations of its element
+ * (D-059, SR-220), and the key whose line names it; undefined when its values are designations. Both
+ * hold texts; a property of another kind gives none. A `synonyms` property without `many` still gives
+ * its one value (`meaningKindProblems` warns about it).
+ */
+export const designationKindProblem = (
+  property: MetamodelProperty,
+): { readonly reason: string; readonly at: string } | undefined =>
+  property.kind === "text" ? undefined : { reason: `kind ${property.kind}`, at: "kind" };
+
+/**
  * The problems of a property whose meaning needs another value kind, each with the file and the line
  * of its `kind` (or `many`, `choices`):
  * - errors for the meaning `identifier` (ThomasBirkmaier/ReqSeq-archive#305): it names an element by one text, so its property is
@@ -242,7 +256,11 @@ export const acceptanceCriteriaProblem = (
  *   aber nichts.“), the metamodel stays valid and the workspace writable;
  * - warnings for the meaning `acceptance-criteria` (D-072, #960): the criteria are a property of kind
  *   `text` with `many`. Otherwise no element has criteria, and every number a record names is
- *   unknown (`evidence.unknown-criterion`); the metamodel stays valid, as for `emergent`.
+ *   unknown (`evidence.unknown-criterion`); the metamodel stays valid, as for `emergent`;
+ * - warnings for the meanings `synonyms` and `translation` (D-059: texts, the synonyms several): a
+ *   property of another kind gives no designations (`designationKindProblem`); `synonyms` without
+ *   `many` still gives its one value. The metamodel stays valid, as for `emergent`. `translation`
+ *   with `many` is not checked, since D-059 names only its value kind.
  */
 export const meaningKindProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
   properties.flatMap(({ definition, file, lineOf }): Problem[] => {
@@ -279,6 +297,9 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
         ),
       ];
     }
+    if (meaning === "synonyms" || meaning === "translation") {
+      return designationProblems(definition, file, lineOf);
+    }
     const emergent = meaning === "emergent" ? emergentProblem(definition) : undefined;
     if (emergent === undefined) {
       return [];
@@ -292,6 +313,37 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
       ),
     ];
   });
+
+/** The warning of a property with the meaning `synonyms` or `translation` whose values do not fit (D-059). */
+const designationProblems = (
+  definition: MetamodelProperty,
+  file: string,
+  lineOf: Located<MetamodelProperty>["lineOf"],
+): Problem[] => {
+  const { key, many, meaning } = definition;
+  const wrongKind = designationKindProblem(definition);
+  if (wrongKind !== undefined) {
+    return [
+      problemAt(
+        file,
+        lineOf([wrongKind.at]),
+        `Property ${key} has the meaning ${String(meaning)}, which needs kind text, not ${wrongKind.reason}; it gives no designations`,
+        "warning",
+      ),
+    ];
+  }
+  if (meaning !== "synonyms" || many === true) {
+    return [];
+  }
+  return [
+    problemAt(
+      file,
+      lineOf(["many"]),
+      `Property ${key} has the meaning synonyms, which needs kind text with many (several texts), not a single value`,
+      "warning",
+    ),
+  ];
+};
 
 /** The value kind each further property meaning needs (#141); `target` names the type meaning of a relation's targets. */
 const MEANING_SHAPES: Readonly<
@@ -356,8 +408,8 @@ const shapeMisfit = (
  * an error like the other metamodel errors), with the line of its
  * `meaning`: title, statement, source, source identifier and delivery are one text, the import date
  * a date, the verification method a choice, validity and packages relations with many values to
- * types with the meaning variant or package (D-020, D-040). Import version, identifier and emergent
- * are `meaningKindProblems`. `typeOf` gives the resolved type of a key (its meaning own or
+ * types with the meaning variant or package (D-020, D-040). Import version, identifier, emergent,
+ * acceptance criteria, synonyms and translation are `meaningKindProblems`. `typeOf` gives the resolved type of a key (its meaning own or
  * inherited); a target key without a type is not checked here.
  */
 export const meaningShapeProblems = (
