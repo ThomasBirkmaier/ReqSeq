@@ -299,3 +299,29 @@ export const replaceOnce = (text: string, from: string | RegExp, to: string): st
   }
   return replaced;
 };
+
+/**
+ * Glossary terms with synonyms and an English term (the meanings synonyms and translation), one of
+ * them obsolete (an invalid status), and requirements that use the terms (SR-220); with a saved
+ * filter and a perspective that search for `package`.
+ */
+export const DESIGNATIONS: FixtureOptions = {
+  fixture: "SR-220/designations",
+  files: {
+    "filters/parcels.yaml": "reqseq-filter: 1\nname: Parcels\nwhere: { text: package }\n",
+    "perspectives/parcels.yaml": "reqseq-perspective: 1\nname: Parcels\nwhere: { text: package }\n",
+  },
+};
+
+/** DESIGNATIONS without the meanings synonyms and translation in its metamodel (SR-220 AK5). */
+export const NO_DESIGNATIONS: FixtureOptions = {
+  fixture: "SR-220/designations",
+  files: {
+    "metamodel/model.yaml": readFileSync(
+      new URL("../../../../fixtures/SR-220/designations/metamodel/model.yaml", import.meta.url),
+      "utf8",
+    )
+      .replace(", meaning: synonyms }", " }")
+      .replace(", meaning: translation }", " }"),
+  },
+};

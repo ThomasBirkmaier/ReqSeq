@@ -418,6 +418,102 @@ export const scoreWords = (
   };
 };
 
+/** One derived word of a term in one field, as `addField` scores it (`scoreDocuments`). */
+interface Part {
+  readonly fieldId: number;
+  readonly frequencies: ReadonlyMap<number, number>;
+  readonly idf: number;
+  readonly weight: number;
+  readonly average: number;
+}
+
+/** The parts of each term of each word of `specs` (`Part`), in the order `scoreTerm` adds them. */
+const partsOf = (
+  inner: Internals,
+  specs: readonly (readonly Spec[])[],
+  options: ScoringOptions,
+): Part[][][] =>
+  specs.map((terms) =>
+    terms.map((spec) =>
+      spec.derived.flatMap((derived) =>
+        options.fields.flatMap((field): Part[] => {
+          const fieldId = Number(inner._fieldIds[field]);
+          const frequencies = derived.data.get(fieldId);
+          if (frequencies === undefined) {
+            return [];
+          }
+          const matching = frequencies.size;
+          const idf = Math.log(1 + (inner._documentCount - matching + 0.5) / (matching + 0.5));
+          const weight = derived.weight * Number(options.boost[field]);
+          return [{ fieldId, frequencies, idf, weight, average: Number(inner._avgFieldLength[fieldId]) }];
+        }),
+      ),
+    ),
+  );
+
+/** The score of the document `doc` for `parts` (`partsOf`), as `scoreWords` adds it up. */
+const scoreOf = (parts: readonly (readonly (readonly Part[])[])[], lengths: Lengths, doc: number): number => {
+  let sum = 0;
+  parts.forEach((terms, w) => {
+    let word = 0;
+    terms.forEach((derived, t) => {
+      let term = 0;
+      let found = false;
+      for (const { fieldId, frequencies, idf, weight, average } of derived) {
+        const frequency = frequencies.get(doc);
+        if (frequency !== undefined) {
+          const length = Number(lengths.lengths[doc * lengths.fields + fieldId]);
+          const raw = idf * (D + (frequency * (K + 1)) / (frequency + K * (1 - B + (B * length) / average)));
+          term = found ? term + weight * raw : weight * raw;
+          found = true;
+        }
+      }
+      word = t === 0 ? term : word + term;
+    });
+    sum = w === 0 ? word : sum + word;
+  });
+  return sum;
+};
+
+/**
+ * The scores `scoreWords` gives the documents `docs` of `mini` for `words`, in the order of `docs`
+ * (the same terms, arithmetic and order of additions, so the same to the bit). Each of `docs` must
+ * match every word (the places of a phrase, SR-068 AK4, or of another designation, SR-220).
+ * `options.named` is not read. When the documents are few against the documents of the words, each
+ * is scored on its own (`scoreOf`): `scoreWords` would read every document of each word, which for
+ * a phrase of common words with a few places costs more than the places (SR-098).
+ */
+export const scoreDocuments = (
+  mini: MiniSearch,
+  generation: number,
+  words: readonly string[],
+  options: ScoringOptions,
+  docs: readonly number[],
+): Float64Array => {
+  const inner = internals(mini);
+  const specs = specsOf(inner, words, options);
+  const parts = partsOf(inner, specs, options);
+  const flat = parts.flat(2);
+  const scores = new Float64Array(docs.length);
+  if (docs.length * flat.length < flat.reduce((sum, part) => sum + part.frequencies.size, 0)) {
+    const lengths = lengthsOf(mini, generation);
+    const quality = new Set(specs.flat().map((spec) => spec.term)).size;
+    docs.forEach((doc, at) => {
+      scores[at] = scoreOf(parts, lengths, doc) * quality;
+    });
+    return scores;
+  }
+  const scored = scoreWords(mini, generation, words, options);
+  const byDoc = new Float64Array(inner._nextId);
+  scored.docs.forEach((doc, at) => {
+    byDoc[doc] = Number(scored.scores[at]);
+  });
+  docs.forEach((doc, at) => {
+    scores[at] = Number(byDoc[doc]);
+  });
+  return scores;
+};
+
 /** MiniSearch's `match` of the document `doc` for the query terms `specs` (see the file comment). */
 const matchOf = (
   inner: Internals,

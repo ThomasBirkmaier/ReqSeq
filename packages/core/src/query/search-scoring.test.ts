@@ -11,6 +11,7 @@ import {
   documentKeys,
   nextShortId,
   phraseCandidates,
+  scoreDocuments,
   scoreWords,
   searchOptionsOf,
 } from "./search-scoring.js";
@@ -299,5 +300,31 @@ describe("phraseCandidates", () => {
     // One word, open: every document with a word it begins.
     expect(of(["stat"], true, "text").sort()).toEqual(["r\0doc-0.md", "r\0doc-1.md", "r\0doc-4.md"]);
     expect(of(["zz"], true, "text")).toEqual([]);
+  });
+});
+
+describe("scoreDocuments", () => {
+  it("scores some documents as scoreWords does, to the bit, a few on their own and many through scoreWords", () => {
+    const mini = engine();
+    for (const words of QUERIES) {
+      for (const scoring of [
+        options(),
+        options({ fields: ["text"], boost: { text: 1 }, fuzzy: () => false, prefix: () => false }),
+      ]) {
+        const scored = scoreWords(mini, 0, words, scoring);
+        // Every document found, and each one alone (few against the documents of the words).
+        for (const docs of [scored.docs, ...scored.docs.map((doc) => [doc])]) {
+          const scores = scoreDocuments(mini, 0, words, scoring, docs);
+          docs.forEach((doc, at) => {
+            const want = scored.scores[scored.docs.indexOf(doc)];
+            expect(Object.is(scores[at], want), `${JSON.stringify(words)} ${String(doc)}`).toBe(true);
+          });
+        }
+      }
+    }
+    // A document that does not hold a word scores what the words it holds add up to.
+    const [only] = scoreDocuments(mini, 0, ["wind", "nowhere"], options(), [0]);
+    const [wind] = scoreDocuments(mini, 0, ["wind"], options(), [0]);
+    expect(only).toBeCloseTo(Number(wind) * 2);
   });
 });

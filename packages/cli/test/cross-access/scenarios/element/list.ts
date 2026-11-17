@@ -6,7 +6,15 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { EMERGENT, EXPORT, FILTER, PERSPECTIVES, SAVED, VARIANT_VIEWS } from "../../fixtures.js";
+import {
+  DESIGNATIONS,
+  EMERGENT,
+  EXPORT,
+  FILTER,
+  PERSPECTIVES,
+  SAVED,
+  VARIANT_VIEWS,
+} from "../../fixtures.js";
 
 /**
  * SR-069/filter with a topic shared by a single value and a list, so that a value of a list property selects
@@ -529,4 +537,31 @@ scenariosOf("element.list", [
     input: { selection: { where: { property: "title", op: "matches", value: "(" } } },
     expect: "error",
   },
+  ...[
+    { name: "the condition text", input: { selection: { where: { text: "package" } } } },
+    { name: "the condition text of a saved filter", input: { selection: { filter: "Parcels" } } },
+    { name: "the condition text of a perspective", input: { perspective: "Parcels" } },
+  ].map(({ name, input }) => ({
+    tag: "[SR-220/AK-dt3r]",
+    name: `${name} selects what element.search finds, through other designations too`,
+    fixture: DESIGNATIONS,
+    input,
+    expect: "output" as const,
+    check: (results: Readonly<Record<string, Result>>) => {
+      const [first] = Object.values(results);
+      const outcome = first?.outcome;
+      const output = (outcome !== undefined && "output" in outcome ? outcome.output : {}) as {
+        elements: { shortId: string }[];
+      };
+      expect(output.elements.map((element) => element.shortId).sort()).toEqual([
+        "GT-0000d1",
+        "SR-0000c1",
+        "SR-0000c2",
+        "SR-0000c3",
+        "SR-0000c7",
+        "SR-0000c8",
+        "SR-0000c9",
+      ]);
+    },
+  })),
 ]);

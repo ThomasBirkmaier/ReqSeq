@@ -2,7 +2,7 @@
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { FILTER } from "../../fixtures.js";
+import { DESIGNATIONS, FILTER } from "../../fixtures.js";
 
 /** A text property, acceptance criteria and a relation kind (SR-216). */
 const FIELDS: FixtureOptions = { fixture: "SR-216/fields" };
@@ -46,5 +46,19 @@ scenariosOf("element.facets", [
     fixture: FIELDS,
     input: { search: { query: "gust", fields: ["derives-from"] } },
     expect: "error",
+  },
+  {
+    tag: "[SR-220/AK-dt3r]",
+    name: "the hits of a search through other designations, as element.search finds them",
+    fixture: DESIGNATIONS,
+    input: { search: { query: "package" } },
+    expect: "output",
+    check: (results) => {
+      const totals = Object.values(results).map(
+        (result) => (result.outcome as { readonly output: { readonly total: number } }).output.total,
+      );
+      expect(totals.length).toBeGreaterThan(0);
+      expect(new Set(totals)).toEqual(new Set([7]));
+    },
   },
 ]);

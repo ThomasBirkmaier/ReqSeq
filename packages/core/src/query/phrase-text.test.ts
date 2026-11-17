@@ -29,10 +29,12 @@ describe("parseQuery", () => {
   it("splits the words outside quotes at white space and takes the phrases with their words", () => {
     expect(parseQuery('wind "Filter list" speed')).toEqual({
       words: ["wind", "speed"],
+      segments: [["wind"], ["speed"]],
       phrases: [{ content: "Filter list", words: ["filter", "list"], open: false }],
     });
     expect(parseQuery("„Größe-der Anzeige“\t”a”")).toEqual({
       words: [],
+      segments: [[], [], []],
       phrases: [
         { content: "Größe-der Anzeige", words: ["größe", "der", "anzeige"], open: false },
         { content: "a", words: ["a"], open: false },
@@ -41,18 +43,25 @@ describe("parseQuery", () => {
     // Only at the start or after white space; after a closing quote the query goes on outside.
     expect(parseQuery('x"a b" "c"d')).toEqual({
       words: ['x"a', 'b"', "d"],
+      // A run of designations never spans a phrase (SR-220 AK1).
+      segments: [['x"a', 'b"'], ["d"]],
       phrases: [{ content: "c", words: ["c"], open: false }],
     });
     // Without a closing quote the phrase is open; without a word it has none.
     expect(parseQuery('"" "filter li')).toEqual({
       words: [],
+      segments: [[], [], []],
       phrases: [
         { content: "", words: [], open: false },
         { content: "filter li", words: ["filter", "li"], open: true },
       ],
     });
-    expect(parseQuery('"')).toEqual({ words: [], phrases: [{ content: "", words: [], open: true }] });
-    expect(parseQuery("")).toEqual({ words: [], phrases: [] });
+    expect(parseQuery('"')).toEqual({
+      words: [],
+      segments: [[], []],
+      phrases: [{ content: "", words: [], open: true }],
+    });
+    expect(parseQuery("")).toEqual({ words: [], segments: [[]], phrases: [] });
   });
 });
 

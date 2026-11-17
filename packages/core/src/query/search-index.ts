@@ -54,6 +54,15 @@
 // field (`phraseFound`): the title, the text the engine keeps (`SearchEngine.documents`), or one
 // value of a property as `properties` holds it. The indexed texts stay as they are (SR-216 AK4).
 //
+// Other designations (SR-220, `search-designations.ts`): a run of words outside quotes that is a
+// designation of an element (its title, a synonym or its translation) is also found where one of its
+// other designations stands, as an open phrase in the fields searched (`othersFound`). What the
+// query finds by its words stays as it is, scores and all (AK5: without the meanings in the
+// metamodel nothing else happens); the hits found only through the runs are added, as `other`, after
+// the literal ones and before the late ones (AK2, `withOthers`). The table of designations is built
+// per index, from the records of its store (`designationsIn`). The `[[` link search (SR-066) is
+// expanded too, in the title.
+//
 // Built once per store and metamodel, in the calling thread, in slices with a turn of the event
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
 // the documents of the changed files are replaced in the same MiniSearch object (see
@@ -66,12 +75,22 @@ import { readElementBodySync } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, RepositoryContents } from "../model/index.js";
-import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
+import { classifyFile, relationKey, titleKeyOf } from "../model/index.js";
 import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
 import { PatchedMap } from "../model/patched-map.js";
 import type { StoreUpdate } from "../model/store.js";
-import type { QueryPhrase, SearchPhrase } from "./phrase-text.js";
-import { WORD_SEPARATOR, findPhrase, inLine, normalizeWord, parseQuery } from "./phrase-text.js";
+import type { ParsedQuery, QueryPhrase, SearchPhrase } from "./phrase-text.js";
+import {
+  WORD_SEPARATOR,
+  findPhrase,
+  inLine,
+  normalizeWord,
+  parseQuery,
+  visibleText,
+  wordsOf,
+} from "./phrase-text.js";
+import type { DesignationRun, DesignationTable, QueryRuns } from "./search-designations.js";
+import { designationRuns, designationTable } from "./search-designations.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
   carryLengths,
@@ -79,6 +98,7 @@ import {
   lengthsOf,
   nextShortId,
   phraseCandidates,
+  scoreDocuments,
   scoreWords,
   searchOptionsOf,
   shortIdOfDocument,
@@ -188,7 +208,7 @@ const extractField = (document: SearchDocument, field: string): string => {
   }
 };
 
-export { WORD_SEPARATOR, normalizeWord };
+export { WORD_SEPARATOR, normalizeWord, visibleText };
 
 const words = (text: string): string[] => text.split(WORD_SEPARATOR);
 
@@ -356,24 +376,6 @@ const propertyParts = (
 
 /** The text of the `properties` field of `document` (see the file comment). */
 export const propertiesText = (document: SearchDocument): string => propertiesOf(document.parts);
-
-/**
- * `text` without the destinations of its links and images (see the file comment), each replaced by
- * `instead`: the snippet (SR-174) parses its lines with `x` there, which keeps a link with a title one.
- */
-export const visibleText = (text: string, instead = ""): string => {
-  // Every inline link and image has `](` (`markdownLinks`): most texts have none.
-  if (!text.includes("](")) {
-    return text;
-  }
-  let out = "";
-  let at = 0;
-  for (const { start, end } of markdownLinks(text)) {
-    out += text.slice(at, start) + instead;
-    at = end;
-  }
-  return out + text.slice(at);
-};
 
 /**
  * The document of `record` whose text is `text` as the document holds it (`visibleText`): the cache
@@ -832,6 +834,23 @@ const carryIdentified = (
   identified.set(carried, PatchedMap.patch(known, changes));
 };
 
+/** The table of other designations of every index (SR-220), built on first use; null for none. */
+const designationTables = new WeakMap<SearchIndex, DesignationTable | null>();
+
+/**
+ * The table of other designations of `index` (`designationTable` of `search-designations.ts`): of the
+ * records of its store, so a carried index, which has the store after a save or a watcher batch,
+ * has its own (SR-220 AK4); undefined when its metamodel maps no designations or none has another.
+ */
+const designationsIn = (index: SearchIndex): DesignationTable | undefined => {
+  let table = designationTables.get(index);
+  if (table === undefined) {
+    table = designationTable(index.store.elements, index.metamodel) ?? null;
+    designationTables.set(index, table);
+  }
+  return table ?? undefined;
+};
+
 /** How one word of a query matches IDs (`idMatcher`). */
 interface IdMatch {
   /** Whether it matches a record of the index's store. */
@@ -908,6 +927,11 @@ interface Found {
    * (SR-068 AK5): it comes after the hits without (`before`). Each source of a match sets it.
    */
   late: boolean;
+  /**
+   * Whether a part of the query found it only through another designation (SR-220 AK2,
+   * `withOthers`): it comes after the hits found by every word itself, before the late ones.
+   */
+  readonly other: boolean;
 }
 
 /** One search: the index, which records count, and MiniSearch's options. */
@@ -1037,12 +1061,14 @@ const carryArrays = (
 
 /**
  * Builds what the first search of `index` builds otherwise: the arrays of its documents
- * (`documentsOf`, `lengthsOf`) and the records by identifier (`identifiedIn`), so that it costs no
+ * (`documentsOf`, `lengthsOf`), the records by identifier (`identifiedIn`) and the table of other
+ * designations (`designationsIn`), so that it costs no
  * more than the next ones (SR-098: 165 to 320 ms instead of 45 ms at N-036). A server does it at the
  * end of its background build (`warmSearchIndex`), a carry at its end; returns `index`.
  */
 export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
   identifiedIn(index);
+  designationsIn(index);
   documentsOf(index);
   lengthsOf(index.engine.mini, index.engine.generation);
   return index;
@@ -1076,6 +1102,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
           phrases: [],
           ids: 0,
           late: scored.late(doc),
+          other: false,
         });
       }
     }
@@ -1109,6 +1136,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
         phrases: [],
         ids: 0,
         late: late[Number(shortIdOfDocument(mini, key))] === 1,
+        other: false,
       });
     }
   }
@@ -1116,7 +1144,8 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
 };
 
 /** `found` by key. */
-const byKey = (found: readonly Found[]): Map<string, Found> => new Map(found.map((one) => [one.key, one]));
+const byKey = (found: Iterable<Found>): Map<string, Found> =>
+  new Map(Array.from(found, (one) => [one.key, one]));
 
 /**
  * Marks in `found` (and adds to it) every record of the index that `ids` matches: its word is found
@@ -1137,6 +1166,7 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
           phrases: [],
           ids: 1,
           late: false,
+          other: false,
         });
       } else {
         known.ids = 1;
@@ -1165,6 +1195,7 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
         phrases: [...found.phrases, ...other.phrases],
         ids: found.ids + other.ids,
         late: found.late || other.late,
+        other: found.other || other.other,
       });
     } else if (!and) {
       out.set(key, found);
@@ -1225,7 +1256,8 @@ const SCORE_DIGITS = 6;
 
 /**
  * Whether `a` comes before `b` on the pages: more words matched its ID, else it is not late and `b`
- * is (a word found only through the name of the type or status, SR-068 AK5), else a higher score,
+ * is (a word found only through the name of the type or status, SR-068 AK5), else it was found by
+ * every word itself and `b` was not (`Found.other`, SR-220 AK2), else a higher score,
  * else it comes first in the store (by repository, then path: no position of every record is
  * needed, #215). A strict total order (no two hits share a repository and file), so any way of
  * finding the first hits gives the same page.
@@ -1235,11 +1267,13 @@ const before = (a: Found, b: Found): boolean =>
     ? a.ids > b.ids
     : a.late !== b.late
       ? b.late
-      : a.score !== b.score
-        ? a.score > b.score
-        : a.place !== b.place
-          ? a.place < b.place
-          : a.element.file < b.element.file;
+      : a.other !== b.other
+        ? b.other
+        : a.score !== b.score
+          ? a.score > b.score
+          : a.place !== b.place
+            ? a.place < b.place
+            : a.element.file < b.element.file;
 
 const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
 
@@ -1293,7 +1327,7 @@ export type RankedHit = Readonly<Found>;
 
 /**
  * Every hit of `query` in the order of `searchElements` (ID matches, then hits not found only through
- * a type or status name, then score, then store order), the
+ * a type or status name, then those found by every word itself, then score, then store order), the
  * scores rounded first as there, without describing them: a grouped search (element.search `group`,
  * SR-149 AK6) deals them into groups and describes only its page (`describeHit`).
  */
@@ -1341,7 +1375,35 @@ interface QueryWords {
 }
 
 /**
- * The words of `query` (`parseQuery`): the words outside quotes searched as words only (`plain`),
+ * The words `words` of a query outside quotes as `queryWords` takes them, and whether one of them can
+ * match nothing in the fields searched (`void`).
+ */
+const wordsOfQuery = (
+  index: SearchIndex,
+  words: readonly string[],
+  fields: ReadonlySet<SearchField>,
+  searched: readonly string[],
+): { readonly plain: string[]; readonly special: SpecialWord[]; readonly void: boolean } => {
+  const plain: string[] = [];
+  const special: SpecialWord[] = [];
+  let found = false;
+  for (const word of words) {
+    const hasWord = wordsOf(word).length > 0;
+    const text = searched.length > 0 && hasWord;
+    const ids = fields.has("id") ? idMatcher(word, index) : undefined;
+    if (ids !== undefined) {
+      special.push({ word, text, ids });
+    } else if (text) {
+      plain.push(word);
+    } else {
+      found ||= hasWord;
+    }
+  }
+  return { plain, special, void: found };
+};
+
+/**
+ * The words of `parsed` (`parseQuery`): the words outside quotes searched as words only (`plain`),
  * the phrases (SR-068 AK4), and the words and phrases that may be IDs (`special`: a phrase that is
  * an ID as a whole); undefined when a word or phrase can match nothing in the fields searched (one
  * with letters or digits, but no field of words and no ID form) and every word must match (SR-216
@@ -1351,26 +1413,15 @@ interface QueryWords {
  */
 const queryWords = (
   index: SearchIndex,
-  query: string,
+  parsed: ParsedQuery,
   fields: ReadonlySet<SearchField>,
   searched: readonly string[],
   options: { readonly and: boolean; readonly prefix: boolean },
 ): QueryWords | undefined => {
   const { and } = options;
-  const parsed = parseQuery(query);
-  const plain: string[] = [];
-  const special: SpecialWord[] = [];
-  for (const word of parsed.words) {
-    const hasWord = words(word).some((w) => normalizeWord(w) !== undefined);
-    const text = searched.length > 0 && hasWord;
-    const ids = fields.has("id") ? idMatcher(word, index) : undefined;
-    if (ids !== undefined) {
-      special.push({ word, text, ids });
-    } else if (text) {
-      plain.push(word);
-    } else if (hasWord && and) {
-      return undefined;
-    }
+  const { plain, special, void: none } = wordsOfQuery(index, parsed.words, fields, searched);
+  if (none && and) {
+    return undefined;
   }
   const phrases = queryPhrases(index, parsed.phrases, { ...options, fields, searched }, special);
   return phrases === undefined ? undefined : { plain, special, phrases };
@@ -1560,14 +1611,16 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
     if (docs.length === 0) {
       continue;
     }
-    const scored = scoreWords(mini, generation, [phrase.words.join(" ")], phraseScoring(field, phrase));
-    const scores = new Float64Array(nextShortId(mini));
-    scored.docs.forEach((doc, at) => {
-      scores[doc] = Number(scored.scores[at]);
-    });
+    const scores = scoreDocuments(
+      mini,
+      generation,
+      [phrase.words.join(" ")],
+      phraseScoring(field, phrase),
+      docs,
+    );
     for (const [at, element] of elements.entries()) {
       const doc = Number(docs[at]);
-      const score = Number(scores[doc]);
+      const score = Number(scores[at]);
       const known = hits[doc];
       if (known === undefined) {
         const key = String(documents.keys[doc]);
@@ -1580,6 +1633,7 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
           phrases: [{ phrase, fields: [field] }],
           ids: 0,
           late: named[at] === true,
+          other: false,
         };
         hits[doc] = hit;
         found.set(key, hit);
@@ -1595,6 +1649,131 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
   return found;
 };
 
+/** The documents the words and phrases `split` find, each once; none when it has none. */
+const splitFound = (search: Search, split: QueryWords, and: boolean): Iterable<Found> => {
+  const { plain, special, phrases } = split;
+  const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
+  if (special.length === 0 && phrases.length === 0) {
+    return byWords ?? [];
+  }
+  // The parts in this order, each combined with those before (special and phrases: at least one).
+  const parts = byWords === undefined ? [] : [byKey(byWords)];
+  for (const { word, text, ids, phrase } of special) {
+    const matched = !text
+      ? new Map<string, Found>()
+      : phrase === undefined
+        ? byKey(wordsFound(search, [word], true))
+        : phraseFound(search, phrase);
+    idsFound(search, ids, matched);
+    parts.push(matched);
+  }
+  for (const phrase of phrases) {
+    parts.push(phraseFound(search, phrase));
+  }
+  return parts.reduce((found, part) => combine(found, part, and)).values();
+};
+
+/**
+ * `a` and `b` united: the documents of either; scores add up, and a document is late only when every
+ * side that found it found it late (SR-068 AK5: a word is late when it is found in no other field).
+ */
+const unite = (a: Map<string, Found>, b: ReadonlyMap<string, Found>): Map<string, Found> => {
+  for (const [key, one] of b) {
+    const known = a.get(key);
+    a.set(
+      key,
+      known === undefined
+        ? one
+        : {
+            ...known,
+            score: known.score + one.score,
+            matches: [...known.matches, ...one.matches],
+            phrases: [...known.phrases, ...one.phrases],
+            ids: known.ids + one.ids,
+            late: known.late && one.late,
+          },
+    );
+  }
+  return a;
+};
+
+/**
+ * The documents in which one of the designations `others` stands (SR-220 AK1): as whole words in
+ * order, without a typo, in any case, the last word also as a word start, within one unit of one
+ * field searched (`phraseFound`); one of one word as a word search without a typo, its word as a word
+ * start.
+ */
+const othersFound = (search: Search, others: readonly SearchPhrase[]): Map<string, Found> => {
+  const scoring: ScoringOptions = { ...search.scoring, fuzzy: () => false, prefix: () => true };
+  const words: Search = { ...search, scoring, options: searchOptionsOf(scoring) };
+  const found = new Map<string, Found>();
+  // Each one on its own: they are alternatives of one part, so a document is late only when every
+  // designation that found it found it late (`unite`), not when one did.
+  for (const phrase of others) {
+    unite(
+      found,
+      phrase.words.length === 1 ? byKey(wordsFound(words, phrase.words, true)) : phraseFound(search, phrase),
+    );
+  }
+  return found;
+};
+
+/** A run of other designations of a query (`DesignationRun`) with its words as the query takes them. */
+interface RunWords {
+  readonly run: DesignationRun;
+  readonly words: QueryWords;
+}
+
+/**
+ * The documents the query finds when each of its runs (`first`, `more`) is also found through its
+ * other designations (SR-220 AK1): per run, its words or one of its other designations, and with
+ * them the rest of the query (`rest`), combined with `and` or not.
+ */
+const expandedFound = (
+  search: Search,
+  rest: QueryWords,
+  first: RunWords,
+  more: readonly RunWords[],
+  and: boolean,
+): Map<string, Found> => {
+  const part = ({ run, words }: RunWords): Map<string, Found> =>
+    unite(byKey(splitFound(search, words, and)), othersFound(search, run.others));
+  let found = part(first);
+  for (const run of more) {
+    found = combine(found, part(run), and);
+  }
+  const whole = rest.plain.length === 0 && rest.special.length === 0 && rest.phrases.length === 0;
+  return whole ? found : combine(byKey(splitFound(search, rest, and)), found, and);
+};
+
+/**
+ * The hits of `literal` (what the query finds by its words) with those of `expanded` (what it finds
+ * through other designations as well, SR-220): a document found by every word itself and not late
+ * keeps its hit; one found only through another designation, or late before and no longer late
+ * through it, is `other` (AK2). Every hit holds the places of the other designations found in it, to
+ * mark them (AK3).
+ */
+const withOthers = (literal: Iterable<Found>, expanded: ReadonlyMap<string, Found>): Iterable<Found> => {
+  const out = byKey(literal);
+  for (const [key, one] of expanded) {
+    const known = out.get(key);
+    out.set(
+      key,
+      known === undefined || (known.late && !one.late)
+        ? { ...one, other: true }
+        : {
+            ...known,
+            matches: [...known.matches, ...one.matches],
+            phrases: [...known.phrases, ...one.phrases],
+          },
+    );
+  }
+  return out.values();
+};
+
+/** A query without runs of other designations. */
+const NO_RUNS: QueryRuns = { runs: [], rest: [] };
+
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (
   index: SearchIndex,
@@ -1603,31 +1782,31 @@ const foundBy = (
 ): Iterable<Found> | undefined => {
   const { fields, searched } = fieldsOf(options);
   const and = options.combineWith !== "or";
-  const split = queryWords(index, query, fields, searched, { and, prefix: options.prefix ?? true });
+  const parsed = parseQuery(query);
+  const split = queryWords(index, parsed, fields, searched, { and, prefix: options.prefix ?? true });
   if (split === undefined) {
     return undefined;
   }
-  const { plain, special, phrases } = split;
   const search = searchOf(index, searched, options);
-  const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
-  if (special.length === 0 && phrases.length === 0) {
-    return byWords;
+  const literal = splitFound(search, split, and);
+  // Other designations only in fields of words (SR-220); without a table the search is SR-068's (AK5).
+  const table = searched.length === 0 ? undefined : designationsIn(index);
+  const { runs, rest } = table === undefined ? NO_RUNS : designationRuns(table, parsed.segments);
+  const [first, ...more] = runs.map((run): RunWords => ({
+    run,
+    words: { ...wordsOfQuery(index, run.words, fields, searched), phrases: [] },
+  }));
+  if (first === undefined) {
+    return literal;
   }
-  let found = byWords === undefined ? undefined : byKey(byWords);
-  for (const { word, text, ids, phrase } of special) {
-    const matched = !text
-      ? new Map<string, Found>()
-      : phrase === undefined
-        ? byKey(wordsFound(search, [word], true))
-        : phraseFound(search, phrase);
-    idsFound(search, ids, matched);
-    found = found === undefined ? matched : combine(found, matched, and);
-  }
-  for (const phrase of phrases) {
-    const matched = phraseFound(search, phrase);
-    found = found === undefined ? matched : combine(found, matched, and);
-  }
-  return found?.values();
+  // The rest of the query: its words outside the runs, and its phrases, those that may be IDs too.
+  const restOutside = wordsOfQuery(index, rest, fields, searched);
+  const restWords = {
+    ...restOutside,
+    special: [...restOutside.special, ...split.special.filter((one) => one.phrase !== undefined)],
+    phrases: split.phrases,
+  };
+  return withOthers(literal, expandedFound(search, restWords, first, more, and));
 };
 
 /**

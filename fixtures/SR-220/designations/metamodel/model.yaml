@@ -1,0 +1,29 @@
+# SR-220: other designations. Glossary terms with synonyms and an English term (the meanings
+# synonyms and translation, D-059); the status obsolete is invalid (D-044), so the designations of
+# an obsolete term are none.
+reqseq-metamodel: 1
+types:
+  - key: glossary-term
+    name: Glossary Term
+    prefix: GT
+    properties: [title, synonyms, english-term]
+    required: [title]
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, identifier, notes]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: identifier, name: Identifier, kind: text, meaning: identifier }
+  - { key: notes, name: Notes, kind: text }
+  - { key: synonyms, name: Synonyms, kind: text, many: true, meaning: synonyms }
+  - { key: english-term, name: English Term, kind: text, meaning: translation }
+relations:
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: succession }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
+  - { key: obsolete, name: Obsolete, invalid: true }
