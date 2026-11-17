@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { Workspace, getCommandRuntime } from "@reqseq/core";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   ACTIONS,
   NEXT_BUFFER_SHORTCUT,
@@ -534,6 +536,29 @@ describe("the action of a shortcut", () => {
 const resolvedElement = { id: "u1", repository: "spec", shortId: "SR-000001", title: "Wind" };
 
 describe("go to element or buffer", () => {
+  it("[SR-220/AK-bfrh] offers the elements whose title holds another designation, as core finds and marks them", async () => {
+    // fixtures/SR-220/designations: "package" is the English term of the glossary term "Paket".
+    const fixture = await createFixtureWorkspace({ fixture: "SR-220/designations" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const runtime = getCommandRuntime();
+    const call = (async (name: string, input: unknown) => ({
+      ok: true,
+      output: await runtime.invoke(name, input, { workspace, access: "app" }),
+    })) as unknown as Call;
+    const { context, asked } = setup([list], {}, true, { call });
+    action("go-to").run(context);
+    const found = await asked[0]?.find?.("package");
+    expect(found?.map((choice) => [choice.name, choice.marks])).toEqual([
+      ["SR-0000c3 (REQ-3) Package export", [[18, 25]]],
+      ["GT-0000d1 Paket", [[10, 15]]],
+      ["SR-0000c1 Paket laden", [[10, 15]]],
+      ["SR-0000c7 Altes Paket", [[16, 21]]],
+      ["SR-0000c2 Pakete zeigen", [[10, 16]]],
+    ]);
+  });
+
   it("lists the open buffers but the shown one, recent first; Enter switches", () => {
     const search = searchBuffer("wind");
     const { context, dispatched } = setup([element, search, list]);

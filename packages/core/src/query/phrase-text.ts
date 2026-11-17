@@ -28,7 +28,7 @@
 //   read only for the others. A phrase of ASCII words is one regular expression over the text as it
 //   is (most phrases: no copy of the text, no expression per word); any other is compared word by
 //   word as the index splits the text.
-import { markdownBlocks } from "../model/index.js";
+import { markdownBlocks, markdownLinks } from "../model/index.js";
 
 /** Splits text into words: at every character that is not a letter, a mark or a digit. */
 export const WORD_SEPARATOR = /[^\p{L}\p{M}\p{N}]+/u;
@@ -42,6 +42,25 @@ export const normalizeWord = (word: string): string | undefined => {
 /** The words of `text` as the index has them (`WORD_SEPARATOR`, `normalizeWord`). */
 export const wordsOf = (text: string): string[] =>
   text.split(WORD_SEPARATOR).flatMap((word) => normalizeWord(word) ?? []);
+
+/**
+ * `text` without the destinations of its links and images (the index's texts, `search-index.ts`),
+ * each replaced by `instead`: the snippet (SR-174) parses its lines with `x` there, which keeps a
+ * link with a title one.
+ */
+export const visibleText = (text: string, instead = ""): string => {
+  // Every inline link and image has `](` (`markdownLinks`): most texts have none.
+  if (!text.includes("](")) {
+    return text;
+  }
+  let out = "";
+  let at = 0;
+  for (const { start, end } of markdownLinks(text)) {
+    out += text.slice(at, start) + instead;
+    at = end;
+  }
+  return out + text.slice(at);
+};
 
 /** The characters that open and close a phrase (SR-068 AK4). */
 const QUOTES: ReadonlySet<string> = new Set(['"', "„", "“", "”"]);
@@ -58,13 +77,20 @@ export interface QueryPhrase {
 /** A query split into its words outside quotes (split at white space, as written) and its phrases. */
 export interface ParsedQuery {
   readonly words: readonly string[];
+  /**
+   * The same words in the stretches between the phrases, in order: words of two stretches never
+   * stand next to each other (SR-220 AK1: a designation is matched within one stretch).
+   */
+  readonly segments: readonly (readonly string[])[];
   readonly phrases: readonly QueryPhrase[];
 }
 
 /** The words and phrases of `query` (see the file comment). */
 export const parseQuery = (query: string): ParsedQuery => {
   const phrases: QueryPhrase[] = [];
-  let outside = "";
+  // The texts outside quotes before each phrase, and the one after the last (`current`).
+  const outside: string[] = [];
+  let current = "";
   let at = 0;
   while (at < query.length) {
     const char = query.charAt(at);
@@ -76,14 +102,17 @@ export const parseQuery = (query: string): ParsedQuery => {
       const content = query.slice(at + 1, end);
       phrases.push({ content, words: wordsOf(content), open: end >= query.length });
       // The phrase separates what stands before and after it.
-      outside += " ";
+      outside.push(current);
+      current = "";
       at = end + 1;
     } else {
-      outside += char;
+      current += char;
       at++;
     }
   }
-  return { words: outside.split(/\s+/u).filter((word) => word !== ""), phrases };
+  outside.push(current);
+  const segments = outside.map((text) => text.split(/\s+/u).filter((word) => word !== ""));
+  return { words: segments.flat(), segments, phrases };
 };
 
 /** A phrase as it is matched: its words, and whether the last one also matches the words it begins. */

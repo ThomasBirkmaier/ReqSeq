@@ -2465,7 +2465,7 @@
               "properties": {
                 "text": {
                   "type": "string",
-                  "description": "Elements that element.search finds for this query: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, and words in quotes as a phrase. A query without a word matches none."
+                  "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, words in quotes as a phrase, and words that are a designation of an element also through its other designations. A query without a word matches none."
                 }
               },
               "additionalProperties": false
@@ -7713,7 +7713,7 @@
         "properties": {
           "query": {
             "type": "string",
-            "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A hit with a word found only in its type or status name, and in no other searched field, comes after the hits without one. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
+            "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself, then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
           },
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
@@ -7730,7 +7730,7 @@
           },
           "group": {
             "$ref": "#/$defs/common/$defs/groupKey",
-            "description": "Group the hits by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits without a word found only in the type or status name, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
+            "description": "Group the hits by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
           },
           "withVerification": {
             "type": "boolean",
@@ -7757,7 +7757,7 @@
       },
       "outputSchema": {
         "type": "object",
-        "description": "One page of the hits, the best first: ID matches, then hits without a word found only in the type or status name, then relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet.",
+        "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet.",
         "properties": {
           "hits": {
             "type": "array",
@@ -7793,7 +7793,7 @@
                 "score": {
                   "type": "number",
                   "minimum": 0,
-                  "description": "Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only. A hit with a word found only in its type or status name comes after the others whatever its score."
+                  "description": "Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
                 },
                 "fields": {
                   "type": "array",
@@ -7810,17 +7810,17 @@
                 },
                 "terms": {
                   "type": "array",
-                  "description": "The words of the element that matched the words of the query outside quotes or a phrase of one word, in lower case, for highlighting; none for an ID or a phrase of two or more words.",
+                  "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, for highlighting; none for an ID, a phrase or another designation of two or more words.",
                   "items": {
                     "type": "string"
                   }
                 },
                 "titleMarks": {
                   "$ref": "#/$defs/common/$defs/textMarks",
-                  "description": "The matched words in `title`, a phrase as a whole; only when a word or phrase was found in the title."
+                  "description": "The matched words in `title`, a phrase or another designation of several words as a whole; only when a word, phrase or designation was found in the title."
                 },
                 "snippet": {
-                  "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, a phrase as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+                  "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
                   "oneOf": [
                     {
                       "type": "object",

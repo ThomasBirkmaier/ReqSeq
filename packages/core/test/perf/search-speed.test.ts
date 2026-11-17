@@ -27,6 +27,14 @@
 // Its rows search that word with a page of 50 and of 500 hits (the app's list asks for up to 500),
 // against the same 300 ms.
 //
+// Other designations (SR-220): the metamodel maps `synonyms` and `translation` (`withDesignations`),
+// and every `DESIGNATED_EVERY`th element (1,000 of 50,000, a glossary's worth) has the noun of its
+// title as a synonym and a German word for it as its translation. Each of these designations is so
+// shared by about 100 elements, whose titles are among its other designations: every row runs with
+// the table, the topic rows ("temperature", "battery level") are expanded by about 100 titles of six
+// words, and a row of their own expands a German word of three words and searches a designation
+// with a word.
+//
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
 // scores of `scoreWords` with those of MiniSearch's `search` for every term, on this workspace
 // (search-scoring.ts).
@@ -46,6 +54,7 @@ import type { Metamodel } from "../../src/metamodel/index.js";
 import { findType, metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../../src/model/index.js";
 import { elementStoreState } from "../../src/model/index.js";
+import { designationTable } from "../../src/query/search-designations.js";
 import { WORD_FIELDS, scoringOf } from "../../src/query/search-index.js";
 import { documentKeys, scoreWords, searchOptionsOf } from "../../src/query/search-scoring.js";
 import { searchIndex } from "../../src/query/search-state.js";
@@ -115,6 +124,52 @@ const withLongTexts = (tree: GeneratedWorkspace): GeneratedWorkspace => {
   return { ...tree, files };
 };
 
+/** Every this many elements has designations (SR-220, see the file comment). */
+const DESIGNATED_EVERY = 50;
+
+/** The nouns of the generated titles and a German word for each, the translation of the elements with designations. */
+const GERMAN: readonly (readonly [string, string])[] = [
+  ["wind speed", "Windgeschwindigkeit"],
+  ["wind direction", "Windrichtung"],
+  ["gusts", "Böen"],
+  ["air pressure", "Luftdruck"],
+  ["temperature", "Lufttemperatur"],
+  ["humidity", "Luftfeuchte"],
+  ["rainfall", "Niederschlag"],
+  ["battery level", "Ladestand der Batterie"],
+  ["sensor state", "Sensorzustand"],
+  ["solar radiation", "Sonneneinstrahlung"],
+];
+
+const METAMODEL_FILE = "system/metamodel/standard-model.yaml";
+const TOP_PROPERTIES = "\nproperties:\n";
+
+/**
+ * `tree` with the properties `synonyms` and `translation` (the meanings of SR-220) in its metamodel,
+ * for every type, and with designations in every `DESIGNATED_EVERY`th element (see the file comment).
+ */
+const withDesignations = (tree: GeneratedWorkspace): GeneratedWorkspace => {
+  const files = new Map(tree.files);
+  const model = String(files.get(METAMODEL_FILE));
+  const at = model.indexOf(TOP_PROPERTIES);
+  expect(at).toBeGreaterThan(0);
+  const types = model.slice(0, at).replace(/(\bproperties:\s*\[\s*)/gu, "$1synonyms, translation, ");
+  files.set(
+    METAMODEL_FILE,
+    `${types}${TOP_PROPERTIES}  - { key: synonyms, name: Synonyms, kind: text, many: true, meaning: synonyms }\n  - { key: translation, name: Translation, kind: text, meaning: translation }\n${model.slice(at + TOP_PROPERTIES.length)}`,
+  );
+  tree.elements.forEach((element, n) => {
+    const file = `${element.repository}/${element.file}`;
+    const content = files.get(file);
+    const noun = GERMAN.find(([english]) => element.title.toLowerCase().includes(english));
+    if (n % DESIGNATED_EVERY === DESIGNATED_EVERY / 5 && content !== undefined && noun !== undefined) {
+      const [english, german] = noun;
+      files.set(file, content.replace(/^---\n/u, `---\nsynonyms: [${english}]\ntranslation: ${german}\n`));
+    }
+  });
+  return { ...tree, files };
+};
+
 describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", () => {
   let tree: GeneratedWorkspace;
   let fixture: LargeFixtureWorkspace | undefined;
@@ -123,12 +178,14 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
   let metamodel: Metamodel;
 
   beforeAll(async () => {
-    tree = withLongTexts(
-      generateLargeWorkspace({
-        version: versionOf(await standardModel()),
-        elements: ELEMENTS,
-        relations: RELATIONS,
-      }),
+    tree = withDesignations(
+      withLongTexts(
+        generateLargeWorkspace({
+          version: versionOf(await standardModel()),
+          elements: ELEMENTS,
+          relations: RELATIONS,
+        }),
+      ),
     );
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
@@ -394,6 +451,51 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
         ),
       ),
     ).toBe(true);
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
+  it("[SR-098/AK-pqx4] shows the first hits of a search through other designations within 300 ms (SR-220, median of 7 runs)", async () => {
+    // A designation of about 100 elements is expanded by their titles, of six words each, and a German
+    // word of three words by them and its English noun (see the file comment); with a word, and the
+    // title of one of the elements, whose other designations are the noun and the German word.
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const designated = store.elements.find((record) => Array.isArray(record.data["synonyms"]));
+    const title = String(designated?.data["title"]);
+    const measurements = [];
+    for (const [name, term] of [
+      ["a German word of three words, of about 100 elements", "Ladestand der Batterie"],
+      ["a German word of one word, of about 100 elements", "Lufttemperatur"],
+      ["a designation of about 100 elements and a word", "battery level display"],
+      ["the title of an element with designations", title],
+    ] as const) {
+      const { result, measurement } = await measureMedian(
+        `element.search through other designations: ${name} (${JSON.stringify(term)}), the first 50 hits`,
+        () => search(term),
+        { basis, thresholdMs: SEARCH_MS, runs: RUNS },
+      );
+      expect(result.total, term).toBeGreaterThan(0);
+      measurements.push(measurement);
+    }
+    // The table is built with the index, after a carry, and on the first search of a one-shot process
+    // that loaded the index from the cache (search-index.ts `designationsIn`): recorded.
+    const started = performance.now();
+    const table = designationTable(store.elements, metamodel);
+    await recordValue(
+      "designation table of 50,000 elements, 1,000 of them with designations (SR-220)",
+      performance.now() - started,
+      {
+        basis:
+          "SR-098 AK1 (recorded: built with the index, after a carry, or by the first search of a one-shot process)",
+      },
+    );
+    expect(table?.others.get("battery level")?.length).toBeGreaterThan(50);
+    // The German word finds every element whose title holds the noun, though none holds the word.
+    const german = await search("Ladestand der Batterie");
+    expect(german.total).toBe((await search('"battery level"')).total);
     for (const measurement of measurements) {
       expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
     }

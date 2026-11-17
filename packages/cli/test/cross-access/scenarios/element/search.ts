@@ -3,13 +3,24 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { FILTER, IDENTIFIERS, SAVED } from "../../fixtures.js";
+import { DESIGNATIONS, FILTER, IDENTIFIERS, NO_DESIGNATIONS, SAVED } from "../../fixtures.js";
 
 /** A Markdown text, a list property, a choice and spec IDs (SR-174). */
 const SNIPPETS: FixtureOptions = { fixture: "SR-174/snippets" };
 
 /** A text property, acceptance criteria and a relation kind (SR-216). */
 const FIELDS: FixtureOptions = { fixture: "SR-216/fields" };
+
+/** The hits of the first access as `short ID score`; every access gave the same (compared before). */
+const ranked = (results: Readonly<Record<string, Result>>): string[] => {
+  const [first] = Object.values(results);
+  const outcome = first?.outcome;
+  const hits =
+    outcome !== undefined && "output" in outcome
+      ? (outcome.output as { hits: { shortId: string; score: number }[] }).hits
+      : [];
+  return hits.map((hit) => `${hit.shortId} ${String(hit.score)}`);
+};
 
 /** The snippets of the hits of the first access, by short ID; every access gave the same (compared before). */
 const snippets = (results: Readonly<Record<string, Result>>): Record<string, unknown> => {
@@ -312,6 +323,141 @@ scenariosOf("element.search", [
         "PKG-0000a3 0.882281",
       ]);
       expect(output.total).toBe(8);
+    },
+  },
+  {
+    tag: "[SR-220/AK-bfrh]",
+    name: "a designation finds the elements in which another designation of its element stands, inflected too",
+    fixture: DESIGNATIONS,
+    input: { query: "package" },
+    expect: "output",
+    check: (results) => {
+      expect(
+        ranked(results)
+          .map((hit) => hit.split(" ")[0])
+          .sort(),
+      ).toEqual(["GT-0000d1", "SR-0000c1", "SR-0000c2", "SR-0000c3", "SR-0000c7", "SR-0000c8", "SR-0000c9"]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-bfrh]",
+    name: "the longest designation at a place, its other designation as whole words, and the other words still needed",
+    fixture: DESIGNATIONS,
+    input: { query: "released version" },
+    expect: "output",
+    check: (results) => {
+      expect(ranked(results).map((hit) => hit.split(" ")[0])).toEqual(["GT-0000d2", "SR-0000c4"]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-z3ht]",
+    name: "literal hits first, then hits through another designation, then those through a type name",
+    fixture: DESIGNATIONS,
+    input: { query: "requirement" },
+    expect: "output",
+    check: (results) => {
+      // SR-0000c5 holds "Anforderung", whose English term is "Requirement": not late, though "requirement"
+      // is in the type name of every system requirement.
+      expect(ranked(results)).toEqual([
+        "GT-0000d3 0.535012",
+        "SR-0000c5 3.51394",
+        "SR-0000c1 0.572651",
+        "SR-0000c2 0.572651",
+        "SR-0000c4 0.572651",
+        "SR-0000c6 0.572651",
+        "SR-0000c7 0.572651",
+        "SR-0000c8 0.572651",
+        "SR-0000c3 0.503933",
+        "SR-0000c9 0.436457",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-z3ht]",
+    name: "an ID match first, also when it is found through another designation",
+    fixture: DESIGNATIONS,
+    input: { query: "paket REQ-3" },
+    expect: "output",
+    check: (results) => {
+      expect(ranked(results).map((hit) => hit.split(" ")[0])).toEqual(["SR-0000c3", "SR-0000c8"]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-vh5r]",
+    name: "another designation of several words marked whole in the snippet and the title",
+    fixture: DESIGNATIONS,
+    input: { query: "released version" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "GT-0000d2": [
+          {
+            field: "properties",
+            property: "english-term",
+            propertyName: "English Term",
+            text: "Released version",
+            marks: [
+              { start: 0, end: 8 },
+              { start: 9, end: 16 },
+            ],
+          },
+          [{ start: 0, end: 20 }],
+        ],
+        "SR-0000c4": [
+          {
+            field: "text",
+            text: "Die freigegebene Fassung bleibt gespeichert.",
+            marks: [{ start: 4, end: 24 }],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-220/AK-vh5r]",
+    name: "another designation of one word marked in the title and the snippet; a title-only hit has no snippet",
+    fixture: DESIGNATIONS,
+    input: { query: "package", fields: ["title", "text"] },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000c3": [
+          { field: "text", text: "Exports a package as a file.", marks: [{ start: 10, end: 17 }] },
+          [{ start: 0, end: 7 }],
+        ],
+        "GT-0000d1": [undefined, [{ start: 0, end: 5 }]],
+        "SR-0000c1": [
+          { field: "text", text: "Das Tool lädt ein Paket aus dem Ordner.", marks: [{ start: 18, end: 23 }] },
+          [{ start: 0, end: 5 }],
+        ],
+        "SR-0000c7": [undefined, [{ start: 6, end: 11 }]],
+        "SR-0000c2": [undefined, [{ start: 0, end: 6 }]],
+        "SR-0000c8": [
+          { field: "text", text: "Siehe REQ-3 für das Paket.", marks: [{ start: 20, end: 25 }] },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-220/AK-ps8z]",
+    name: "the designations of an element with an invalid status do not count; the element itself is found",
+    fixture: DESIGNATIONS,
+    input: { query: "timestamp" },
+    expect: "output",
+    check: (results) => {
+      expect(ranked(results).map((hit) => hit.split(" ")[0])).toEqual(["GT-0000d4"]);
+    },
+  },
+  {
+    tag: "[SR-220/AK-zgz1]",
+    name: "without the meanings in the metamodel: the search of SR-068, no other designations",
+    fixture: NO_DESIGNATIONS,
+    input: { query: "package" },
+    expect: "output",
+    check: (results) => {
+      expect(ranked(results)).toEqual(["SR-0000c3 9.14371", "GT-0000d1 3.25324"]);
     },
   },
 ]);
