@@ -167,6 +167,7 @@ properties:
     name: Synonyms
     kind: text
     many: true
+    meaning: synonyms
     description: "Ein Synonym ist ein gleichbedeutendes Wort für den Begriff; es darf in der Spec stehen, aber nur in dieser Bedeutung."
   - key: do-not-use
     name: Do not use
@@ -178,6 +179,7 @@ properties:
   - key: english-term
     name: English Term
     kind: text
+    meaning: translation
     description: "Das englische Wort oder die feste Wendung für den Begriff in Oberfläche, Befehlen, Meldungen und Dokumentation; kein anderer Begriff trägt denselben Wert. Eine Kurzform ist das letzte Wort der Wendung und nur erlaubt, wenn dieses Wort nicht der Wert eines anderen Begriffs ist."
 
 relations:
