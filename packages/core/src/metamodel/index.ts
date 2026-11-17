@@ -31,6 +31,7 @@ export {
   MEANINGS,
   ORIGIN_MEANINGS,
   acceptanceCriteriaProblem,
+  designationKindProblem,
   emergentProblem,
   meaningUnassigned,
   meaningUnassignedMessage,

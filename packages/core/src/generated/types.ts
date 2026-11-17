@@ -1307,7 +1307,7 @@ export interface FilterSortKeyWithDefaults {
 }
 
 /**
- * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
+ * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (ThomasBirkmaier/ReqSeq-archive#141); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
  * Schema: `schemas/metamodel.schema.json#`.
  */
 export interface MetamodelFile {
@@ -1411,7 +1411,7 @@ export interface MetamodelProperty {
   readonly many?: boolean;
   /** Allowed choice keys, for kind `choice`. */
   readonly choices?: readonly MetamodelNamed[];
-  /** Allowed target types, for kind `relation`: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
+  /** Allowed target types, for kind `relation`: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2). */
   readonly "target-types"?: readonly MetamodelKey[];
   /** Part of the content and therefore of the version (D-013). Title and status are never content. */
   readonly content?: boolean;
@@ -1423,7 +1423,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning, D-059; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation (SR-220).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1439,7 +1439,9 @@ export type MetamodelPropertyMeaning =
   | "delivery"
   | "import-version"
   | "identifier"
-  | "acceptance-criteria";
+  | "acceptance-criteria"
+  | "synonyms"
+  | "translation";
 
 /**
  * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
@@ -1453,9 +1455,9 @@ export interface MetamodelRelationKind {
   readonly description?: string;
   /** Name shown at the target, e.g. Derived by. */
   readonly "inverse-name"?: string;
-  /** Allowed source types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
+  /** Allowed source types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2). */
   readonly "source-types"?: readonly MetamodelKey[];
-  /** Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
+  /** Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2). */
   readonly "target-types"?: readonly MetamodelKey[];
   /** How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type. */
   readonly limits?: readonly MetamodelRelationLimit[];
@@ -1499,7 +1501,7 @@ export interface MetamodelStatus {
   readonly name: string;
   /** What it means, for people. */
   readonly description?: string;
-  /** Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains (D-044). */
+  /** Elements with this status do not count for coverage and indirect verification, but stay visible in chains (D-044). */
   readonly invalid?: boolean;
   /** Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, ThomasBirkmaier/ReqSeq-archive#350); a type without status or with only invalid statuses gives them none (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). */
   readonly initial?: boolean;

@@ -2,7 +2,8 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { CommandError, errorClass } from "../catalog.js";
-import type { CommandName, Problem } from "../catalog.js";
+import type { CommandName, CommandOutput, Problem } from "../catalog.js";
+import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { MetamodelProperty, MetamodelRelationKind, MetamodelType } from "../generated/types.js";
 import { SCHEMA_BASE, loadContracts } from "../runtime/contracts.js";
@@ -17,6 +18,7 @@ import type {
 } from "./index.js";
 import {
   assignMeanings,
+  designationKindProblem,
   markdownProblems,
   meaningKindProblems,
   meaningShapeProblems,
@@ -173,6 +175,30 @@ describe("built-in meanings", () => {
     expect(typesWithMeaning(metamodel, "requirement")).toEqual([]);
   });
 
+  it("[SR-013/AK-bh0d] reports nothing about synonyms or translation when no key has them, and search finds without them", async () => {
+    // SR-220 AK5: search gives its result without the mapping, so no function asks for it.
+    const ws = await createFixtureWorkspace({ fixture: "SR-001/two-elements" });
+    onTestFinished(() => ws.cleanup());
+    const workspace = open(ws.root);
+    const metamodel = await workspace.get(metamodelState);
+    expect(metamodel).toMatchObject({ valid: true, problems: [] });
+    expect(metamodel.meanings.identifier).toEqual([]);
+    expect(metamodel.meanings.synonyms).toEqual([]);
+    expect(metamodel.meanings.translation).toEqual([]);
+    const get = (await invoke("metamodel.get", {}, { workspace })) as CommandOutput<"metamodel.get">;
+    expect(get.meanings).toMatchObject({ synonyms: [], translation: [] });
+    const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    const names = /synonyms|translation|meaning-unassigned/u;
+    expect(check.problems.filter((p) => names.test(`${p.code} ${p.message}`))).toEqual([]);
+    const search = (await invoke(
+      "element.search",
+      { query: "wind speed" },
+      { workspace },
+    )) as CommandOutput<"element.search">;
+    expect(search.hits.map((hit) => hit.title)).toEqual(["Show wind speed"]);
+    expect(search.incomplete).toBe(false);
+  });
+
   it("lists every built-in meaning with the keys that declare it, in metamodel order", async () => {
     const metamodel = await load();
     expect(Object.keys(metamodel.meanings)).toEqual(Object.keys(MEANINGS));
@@ -194,6 +220,8 @@ describe("built-in meanings", () => {
       "import-version": [],
       identifier: [],
       "acceptance-criteria": [],
+      synonyms: [],
+      translation: [],
       derivation: ["satisfies"],
       replacement: [],
       succession: [],
@@ -220,6 +248,8 @@ describe("built-in meanings", () => {
       "import-version": "properties",
       identifier: "properties",
       "acceptance-criteria": "properties",
+      synonyms: "properties",
+      translation: "properties",
       derivation: "relations",
       replacement: "relations",
       succession: "relations",
@@ -686,6 +716,95 @@ describe("built-in meanings", () => {
     expect(standard.meanings["acceptance-criteria"]).toEqual(["acceptance-criteria"]);
   });
 
+  it("D-059: the meanings synonyms and translation want kind text, synonyms with many, else a warning", async () => {
+    const lines: Readonly<Record<string, number>> = { kind: 4, many: 5 };
+    const at = (definition: MetamodelProperty, known = true): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => (known ? lines[String(path[0])] : undefined),
+    });
+    const warning = (message: string, line?: number): Problem => ({
+      code: "metamodel.invalid",
+      severity: "warning",
+      message,
+      file: "model/properties.yaml",
+      ...(line === undefined ? {} : { line }),
+    });
+    const noDesignations = (key: string, meaning: string, kind: string): string =>
+      `Property ${key} has the meaning ${meaning}, which needs kind text, not kind ${kind}; it gives no designations`;
+    expect(
+      meaningKindProblems([
+        at({ key: "a", name: "A", kind: "text", many: true, meaning: "synonyms" }),
+        at({ key: "b", name: "B", kind: "text", meaning: "synonyms" }),
+        at({ key: "c", name: "C", kind: "choice", many: true, meaning: "synonyms" }),
+        at({ key: "d", name: "D", kind: "text", meaning: "translation" }),
+        // D-059 names only the value kind of the translation; `many` is not checked.
+        at({ key: "e", name: "E", kind: "text", many: true, meaning: "translation" }),
+        at({ key: "f", name: "F", kind: "date", meaning: "translation" }),
+        at({ key: "g", name: "G", kind: "number", meaning: "synonyms" }, false),
+      ]),
+    ).toEqual([
+      warning(
+        "Property b has the meaning synonyms, which needs kind text with many (several texts), not a single value",
+        5,
+      ),
+      warning(noDesignations("c", "synonyms", "choice"), 4),
+      warning(noDesignations("f", "translation", "date"), 4),
+      warning(noDesignations("g", "synonyms", "number")),
+    ]);
+    // Only another kind gives no designations; a single synonym still counts.
+    expect(designationKindProblem({ key: "b", name: "B", kind: "text" })).toBeUndefined();
+    expect(designationKindProblem({ key: "c", name: "C", kind: "relation" })).toEqual({
+      reason: "kind relation",
+      at: "kind",
+    });
+    // A warning leaves the metamodel valid and the workspace writable.
+    const metamodel = await load({
+      files: {
+        "model/properties.yaml":
+          "reqseq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text, meaning: title }\n  - { key: aka, name: Also known as, kind: text, meaning: synonyms }\n  - { key: english, name: English, kind: date, meaning: translation }\n",
+      },
+    });
+    expect(metamodel.valid).toBe(true);
+    expect(metamodel.meanings).toMatchObject({ synonyms: ["aka"], translation: ["english"] });
+    const designations = metamodel.problems.filter((p) => p.file?.endsWith("properties.yaml") === true);
+    expect(designations.map((p) => [p.severity, p.line])).toEqual([
+      ["warning", 4],
+      ["warning", 5],
+    ]);
+  });
+
+  it("D-059: a second key with the meaning synonyms or translation is an error", () => {
+    const located = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: () => undefined,
+    });
+    const { meanings, problems } = assignMeanings({
+      types: [],
+      effectiveTypes: [],
+      properties: [
+        located({ key: "aka", name: "Aka", kind: "text", many: true, meaning: "synonyms" }),
+        located({ key: "also", name: "Also", kind: "text", many: true, meaning: "synonyms" }),
+        located({ key: "en", name: "En", kind: "text", meaning: "translation" }),
+        located({ key: "fr", name: "Fr", kind: "text", meaning: "translation" }),
+      ],
+      relations: [],
+    });
+    expect(meanings.synonyms).toEqual(["aka", "also"]);
+    expect(meanings.translation).toEqual(["en", "fr"]);
+    expect(problems.map((p) => [p.severity, p.message])).toEqual([
+      [
+        "error",
+        "Property also has the meaning synonyms, which property aka already has; a property meaning belongs to one key only",
+      ],
+      [
+        "error",
+        "Property fr has the meaning translation, which property en already has; a property meaning belongs to one key only",
+      ],
+    ]);
+  });
+
   it("[SR-127/AK-mdr7] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {
     const at = (definition: MetamodelProperty, line?: number): Located<MetamodelProperty> => ({
       definition,
@@ -747,8 +866,9 @@ describe("built-in meanings", () => {
     const metamodel = await open(ws.root).get(metamodelState);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
-      // `identifier` (ThomasBirkmaier/ReqSeq-archive#305) is no meaning of D-012; the standard model has no property with it.
-      const expected = meaning === "derivation" ? 2 : meaning === "identifier" ? 0 : 1;
+      // D-059: the standard model assigns the identifier, the synonyms and the translation to no key.
+      const unmapped = ["identifier", "synonyms", "translation"].includes(meaning);
+      const expected = meaning === "derivation" ? 2 : unmapped ? 0 : 1;
       expect(keys, meaning).toHaveLength(expected);
     }
   });

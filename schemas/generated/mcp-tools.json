@@ -2870,7 +2870,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read).",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation.",
           "enum": [
             "title",
             "validity",
@@ -2884,7 +2884,9 @@
             "delivery",
             "import-version",
             "identifier",
-            "acceptance-criteria"
+            "acceptance-criteria",
+            "synonyms",
+            "translation"
           ]
         },
         "relationKind": {
@@ -2992,7 +2994,7 @@
             "invalid": {
               "type": "boolean",
               "default": false,
-              "description": "Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains."
+              "description": "Elements with this status do not count for coverage and indirect verification, but stay visible in chains."
             },
             "initial": {
               "type": "boolean",
