@@ -1140,6 +1140,7 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
         });
       } else {
         known.ids = 1;
+        // Only this word's own matches are in `found`; `combine` adds the late flags of the others after.
         known.late = false;
       }
     }
@@ -1477,7 +1478,7 @@ const phraseInProperties = (
 };
 
 /** `elsewhere` when `found`, else `none`. */
-const placeOf = (found: boolean): PhrasePlace => (found ? "elsewhere" : "none");
+const phrasePlace = (found: boolean): PhrasePlace => (found ? "elsewhere" : "none");
 
 /**
  * Where `phrase` stands in `field` of `record` (see the file comment): in the title, in the text by
@@ -1491,10 +1492,10 @@ const phraseIn = (
   phrase: SearchPhrase,
 ): PhrasePlace => {
   if (field === "title") {
-    return placeOf(findPhrase(document.title, phrase) !== undefined);
+    return phrasePlace(findPhrase(document.title, phrase) !== undefined);
   }
   if (field === "text") {
-    return placeOf(findPhrase(document.text, phrase, true) !== undefined);
+    return phrasePlace(findPhrase(document.text, phrase, true) !== undefined);
   }
   return phraseInProperties(
     keys,

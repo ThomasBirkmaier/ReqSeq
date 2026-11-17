@@ -246,7 +246,10 @@ interface Run {
   readonly term: Float64Array;
   readonly word: Float64Array;
   readonly total: Float64Array;
-  /** Index of the last term found elsewhere than only through `ScoringOptions.named`; -1 none. */
+  /**
+   * Index of the last term found elsewhere than only through `ScoringOptions.named`; -1 none. Empty,
+   * as `late`, when the scoring has no `named` field in the index (`namedIn` -1).
+   */
   readonly elsewhere: Int32Array;
   /** 1 for a document a term found only through `ScoringOptions.named`. */
   readonly late: Uint8Array;
@@ -301,7 +304,7 @@ const addField = (run: Run, at: number, derived: Derived, field: string, met: nu
   for (const [doc, frequency] of frequencies) {
     const reached = run.reached[doc];
     if (reached === at - 1 || reached === at) {
-      if (named === undefined || frequency > namedFrequency(named, doc)) {
+      if (run.namedIn >= 0 && (named === undefined || frequency > namedFrequency(named, doc))) {
         run.elsewhere[doc] = at;
       }
       const length = Number(lengths[doc * fields + fieldId]);
@@ -361,6 +364,9 @@ export const scoreWords = (
   const specs = specsOf(inner, words, options);
   const size = inner._nextId;
   const fieldIdOf = (field: string): number => inner._fieldIds[field] ?? -1;
+  const namedIn = options.named === undefined ? -1 : fieldIdOf(options.named.in);
+  // Only a scoring with `named` tells late documents; the others (a phrase per field) pay nothing for it.
+  const tracked = namedIn >= 0 ? size : 0;
   const run: Run = {
     options,
     inner,
@@ -369,9 +375,9 @@ export const scoreWords = (
     term: new Float64Array(size),
     word: new Float64Array(size),
     total: new Float64Array(size),
-    elsewhere: new Int32Array(size).fill(-1),
-    late: new Uint8Array(size),
-    namedIn: options.named === undefined ? -1 : fieldIdOf(options.named.in),
+    elsewhere: new Int32Array(tracked).fill(-1),
+    late: new Uint8Array(tracked),
+    namedIn,
     namedFields: (options.named?.fields ?? []).map(fieldIdOf).filter((id) => id >= 0),
   };
   let found: number[] = [];
@@ -384,7 +390,7 @@ export const scoreWords = (
       // elsewhere when each of its terms is (SR-068 AK5).
       for (const doc of met) {
         run.word[doc] = t === 0 ? Number(run.term[doc]) : Number(run.word[doc]) + Number(run.term[doc]);
-        if (run.elsewhere[doc] !== at) {
+        if (namedIn >= 0 && run.elsewhere[doc] !== at) {
           run.late[doc] = 1;
         }
       }
