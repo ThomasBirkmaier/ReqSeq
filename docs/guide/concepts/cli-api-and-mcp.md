@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-The command line, the local API and the MCP server run the commands of the app's command prompt, with the same input and the same output. The [command reference](/reference/commands/) shows each command in all four; this page says what they share.
+The command line, the local API and the MCP server run the commands of the app's command prompt, with the same input and output. The [command reference](/reference/commands/) shows each command in all four; this page says what they share.
 
 ## The workspace
 
@@ -27,14 +27,14 @@ files:
 No problems.
 ```
 
-The element gets the text of the flag. `--json` prints the output of the command, as the API and MCP give it, for scripts. Problems go to standard output, errors to standard error.
+`--json` prints the output, as the API and MCP give it, for scripts. Problems go to standard output, errors to standard error.
 
 The exit code:
 
 - `0`: done, without a problem of severity error.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 - `2`: not run: wrong usage or input, something missing, a conflict, or not available.
-- `3`: an internal error.
+- `3`: an internal error. A second line `cause:` (with `--json`, `details.cause`) names the unexpected error behind it, without absolute paths.
 - `4`: a given Git revision is not available locally (fetch it or deepen the clone).
 - `130`: a command stopped with Ctrl-C (`serve api` and `mcp` then end with 0).
 
@@ -51,7 +51,7 @@ Authorization: Bearer <token>
 { "ref": "N-7fe707" }
 ```
 
-The answer is the output of the command, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with a status such as 400 for wrong input, 404 for something missing, 409 for a conflict, 500 for an internal error, 401 for a wrong token and 403 for a request with an `Origin` header ([error codes](/reference/problem-codes/#error-codes)).
+The answer is the output, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with a status such as 400 for wrong input, 404 for something missing, 409 for a conflict, 500 for an internal error, 401 for a wrong token and 403 for a request with an `Origin` header ([error codes](/reference/problem-codes/#error-codes)).
 
 ## MCP
 

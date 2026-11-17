@@ -254,6 +254,27 @@ describe("renderError", () => {
   it("prints the error object with --json", () => {
     expect(JSON.parse(renderError(error, true))).toEqual(error.toJSON());
   });
+
+  it("prints the cause of an internal error on a line of its own, the code only when the message lacks it (#1794)", () => {
+    const internal = (cause: unknown): string =>
+      renderError(new CommandError("internal", "Internal error in x.y", { command: "x.y", cause }), false);
+    const first = "error internal: Internal error in x.y\n";
+    expect(internal({ name: "RangeError", message: "Invalid array length" })).toBe(
+      `${first}cause: RangeError: Invalid array length\n`,
+    );
+    expect(internal({ name: "Error", code: "ENOENT", message: "ENOENT: no such file, open '<path>'" })).toBe(
+      `${first}cause: Error: ENOENT: no such file, open '<path>'\n`,
+    );
+    expect(internal({ name: "Error", code: "EACCES", message: "denied" })).toBe(
+      `${first}cause: Error: EACCES: denied\n`,
+    );
+    expect(internal({ name: "Error", code: "EPERM" })).toBe(`${first}cause: Error: EPERM\n`);
+    expect(internal({ name: "string" })).toBe(`${first}cause: string\n`);
+    expect(internal("odd")).toBe(first);
+    expect(
+      renderError(new CommandError("element.not-found", "No element", { cause: { name: "Error" } }), false),
+    ).toBe("error element.not-found: No element\n");
+  });
 });
 
 describe("outcomeExitCode", () => {

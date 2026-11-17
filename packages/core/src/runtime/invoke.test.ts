@@ -97,7 +97,7 @@ const echo = defineTestCommand<EchoInput, unknown>({
       return Promise.reject(new CommandError("element.not-found", "No element " + input.ref));
     }
     if (input.fail === "error") {
-      return Promise.reject(new Error("boom"));
+      return Promise.reject(new RangeError(`boom in ${path.join(ctx.workspace.root, "x.md")}\nsecond line`));
     }
     if (input.fail === "abort") {
       return Promise.reject(new DOMException("The operation was aborted", "AbortError"));
@@ -262,14 +262,55 @@ describe("invoke", () => {
     expect(err.toJSON()).toEqual({
       code: "internal",
       message: "Internal error in test.echo",
-      details: { command: "test.echo" },
+      details: { command: "test.echo", cause: { name: "RangeError", message: "boom in <workspace>/x.md" } },
     });
     expect(err.cause).toBeInstanceOf(Error);
     const plain = await rejection(
       runtime().invoke("test.echo", { ref: "SR-825b7146fb54", fail: "string" }, ctx),
     );
-    expect(plain.message).toBe("Internal error in test.echo");
+    expect(plain.toJSON()).toEqual({
+      code: "internal",
+      message: "Internal error in test.echo",
+      details: { command: "test.echo", cause: { name: "string" } },
+    });
     expect(plain.cause).toBe("plain string");
+  });
+
+  it("names the cause of an internal error with the workspace root in its real form too (#1794)", async () => {
+    const base = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reqseq-invoke-cause-"));
+    onTestFinished(() => fs.promises.rm(base, { recursive: true, force: true }));
+    await fs.promises.mkdir(path.join(base, "target"));
+    const given = path.join(base, "link");
+    await fs.promises.symlink(path.join(base, "target"), given, "junction");
+    const real = await fs.promises.realpath(given);
+    const missing = path.join(real, "requirements", "SR-1.md");
+    const crash = defineTestCommand<EchoInput, unknown>({
+      name: "test.echo",
+      run: () =>
+        Promise.reject(
+          Object.assign(new Error(`ENOENT: no such file or directory, open '${missing}'\n    at stack`), {
+            code: "ENOENT",
+            path: missing,
+          }),
+        ),
+    });
+    const linked = new Workspace(given);
+    onTestFinished(() => linked.close());
+    const err = await rejection(
+      createCommandRuntime({ contracts, commands: [crash] }).invoke(
+        "test.echo",
+        { ref: "SR-825b7146fb54" },
+        { workspace: linked },
+      ),
+    );
+    expect(err.details).toEqual({
+      command: "test.echo",
+      cause: {
+        name: "Error",
+        code: "ENOENT",
+        message: "ENOENT: no such file or directory, open '<workspace>/requirements/SR-1.md'",
+      },
+    });
   });
 
   it("maps an abort to internal with details.aborted", async () => {

@@ -15,6 +15,7 @@ import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from
 import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
+import { internalError, learnWorkspaceRoots } from "./internal-cause.js";
 import type { LocalPathField } from "./local-path-fields.js";
 import { localPathFields, localPathUses, replaceLocalPaths } from "./local-path-fields.js";
 import { OPEN_LOCAL_PATHS, appLocalPaths, confinedLocalPaths } from "../workspace/local-paths.js";
@@ -81,12 +82,18 @@ export interface CommandRuntime {
 }
 
 /**
- * Any failure that is not a CommandError becomes `internal`. Its text stays only in `cause`
- * (logs, debugging): it may contain paths or content that adapters must not send.
- * An abort (the signal fired, or an `AbortError`) is `internal` too, with `details.aborted`;
- * the caller has gone away, so nobody acts on the code (ADR-0009).
+ * Any failure that is not a CommandError becomes `internal`, with `details.cause` naming the original
+ * error: its name, its Node code and the first line of its message without absolute paths
+ * (`internalCause`, #1794). The whole error, its stack included, stays only in `cause`.
+ * An abort (the signal fired, or an `AbortError`) is `internal` too, with `details.aborted` and no
+ * cause; the caller has gone away, so nobody acts on the code (ADR-0009).
  */
-const toCommandError = (name: string, error: unknown, signal: AbortSignal): CommandError => {
+const toCommandError = (
+  name: string,
+  error: unknown,
+  signal: AbortSignal,
+  workspace: Workspace,
+): CommandError => {
   if (error instanceof CommandError) {
     return error;
   }
@@ -98,7 +105,7 @@ const toCommandError = (name: string, error: unknown, signal: AbortSignal): Comm
       { cause: error },
     );
   }
-  return new CommandError("internal", `Internal error in ${name}`, { command: name }, { cause: error });
+  return internalError(`Internal error in ${name}`, error, { workspace, command: name });
 };
 
 /**
@@ -209,6 +216,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       // Background work of the workspace (the search index) waits while the command runs.
       output = await ctx.workspace.runCommand(
         async () => {
+          // Read now, so that an internal error can name the root in its real form too (#1794).
+          await learnWorkspaceRoots(ctx.workspace);
           if (confined) {
             // Before anything else: a refused path is neither read nor written (SR-142 AK1).
             await localPaths.check(localPathUses(checked, pathFields.get(name)));
@@ -239,7 +248,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         { writes: writers.has(name) },
       );
     } catch (error) {
-      throw toCommandError(name, error, signal);
+      throw toCommandError(name, error, signal, ctx.workspace);
     }
     if (validateOutput) {
       const validOutput = contracts.validator(name, "output");

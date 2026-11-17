@@ -1177,8 +1177,13 @@ describe("commands", () => {
     const crash = await request({ path: "/v1/commands/test.crash" });
     expect([crash.status, crash.body]).toEqual([
       500,
-      { code: "internal", message: "Internal error in test.crash", details: { command: "test.crash" } },
+      {
+        code: "internal",
+        message: "Internal error in test.crash",
+        details: { command: "test.crash", cause: { name: "Error", message: "crash at <path>" } },
+      },
     ]);
+    expect(JSON.stringify(crash.body)).not.toContain("secret");
   });
 
   it("sends null for no output and internal for an output that is not JSON", async () => {
@@ -1186,7 +1191,11 @@ describe("commands", () => {
     const circular = await request({ path: "/v1/commands/test.circular" });
     expect([circular.status, circular.body]).toEqual([
       500,
-      { code: "internal", message: "Internal error in the local API" },
+      {
+        code: "internal",
+        message: "Internal error in the local API",
+        details: { cause: { name: "TypeError", message: "Converting circular structure to JSON" } },
+      },
     ]);
   });
 
@@ -1242,14 +1251,19 @@ describe("commands", () => {
 });
 
 describe("a runtime that fails outside of a CommandError", () => {
-  it("answers internal without the error text", async () => {
+  it("answers internal with its cause, without absolute paths (#1794)", async () => {
     const broken: CommandRuntime = { ...runtime, invoke: () => Promise.reject(new Error("/secret/path")) };
     await start(0, broken);
     const reply = await request();
     expect([reply.status, reply.body]).toEqual([
       500,
-      { code: "internal", message: "Internal error in the local API" },
+      {
+        code: "internal",
+        message: "Internal error in the local API",
+        details: { cause: { name: "Error", message: "<path>" } },
+      },
     ]);
+    expect(JSON.stringify(reply.body)).not.toContain("secret");
   });
 });
 

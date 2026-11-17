@@ -8,6 +8,7 @@ import {
   PRODUCT_VERSION,
   agentInstructions,
   getCommandRuntime,
+  internalError,
   jsonByteLength,
 } from "@reqseq/core";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/server";
@@ -69,7 +70,9 @@ export async function callTool(
     return { content: [{ type: "text", text }], structuredContent: structured };
   } catch (error) {
     const object = (
-      error instanceof CommandError ? error : new CommandError("internal", "Internal error in the MCP server")
+      error instanceof CommandError
+        ? error
+        : internalError("Internal error in the MCP server", error, { workspace })
     ).toJSON();
     // Text only: `structuredContent` is always the command output (its schema is in mcp-tools.json).
     return { isError: true, content: [{ type: "text", text: JSON.stringify(object) }] };

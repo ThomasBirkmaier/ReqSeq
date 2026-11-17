@@ -214,11 +214,27 @@ export const spelledMessage = (error: CommandError, entry: CatalogEntry): string
 };
 
 /**
+ * The line `cause: <name>: <message>` of an `internal` error with `details.cause` (#1794), else "". The code
+ * stands before the message when the message does not start with it (`cause: Error: EACCES: ...`).
+ */
+const causeLine = (error: CommandError): string => {
+  const cause = error.details?.["cause"];
+  if (error.code !== "internal" || !isRecord(cause)) {
+    return "";
+  }
+  const code = text(cause["code"]);
+  const message = text(cause["message"]);
+  const parts = [text(cause["name"]), message.startsWith(code) ? "" : code, message].filter((p) => p !== "");
+  return `cause: ${parts.join(": ")}\n`;
+};
+
+/**
  * An error for stderr: the error object as JSON with `--json`, else `error <code>: <message>`, where
- * `message` is the text for people (default the error's own; see `spelledMessage`).
+ * `message` is the text for people (default the error's own; see `spelledMessage`), and for an `internal`
+ * error the line with its cause.
  */
 export const renderError = (error: CommandError, json: boolean, message = error.message): string =>
-  json ? `${JSON.stringify(error.toJSON())}\n` : `error ${error.code}: ${message}\n`;
+  json ? `${JSON.stringify(error.toJSON())}\n` : `error ${error.code}: ${message}\n${causeLine(error)}`;
 
 /** Exit code 1 when the output has an error finding or reports `ok: false` (ADR-0009), else 0. */
 export const outcomeExitCode = (output: unknown): 0 | 1 => {
