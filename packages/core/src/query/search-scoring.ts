@@ -22,6 +22,13 @@
 // - the same matched words and fields (`matchOf`): MiniSearch merges the matches of the query terms
 //   with `Object.assign`, so a word is listed where it first matched, with the fields it is in.
 //
+// Besides, it tells which documents a query word found only through the names of their type or
+// status (`Scored.late`, SR-068 AK5): `properties` holds these names among the other values, and
+// the fields `type` and `status` hold them again (`ScoringOptions.named`), never scored or matched.
+// A term is found elsewhere in a document when a word it matches is there in another searched
+// field, or in `properties` more often than in `type` and `status` together (the same tokenizer, so
+// the counts are exact).
+//
 // It reads MiniSearch's index, which its types declare protected (`Internals`): the version is
 // pinned (packages/core/package.json), and the test above fails when another version scores
 // differently. The index never holds words of discarded documents: a carry removes every document
@@ -86,6 +93,12 @@ export interface ScoringOptions {
   /** Per term: no fuzzy match (false or 0), a share of its length (below 1) or an edit distance. */
   readonly fuzzy: (term: string, i: number, terms: string[]) => number | false;
   readonly prefix: (term: string, i: number, terms: string[]) => boolean;
+  /**
+   * The field `in` holds the texts of the fields `fields` among others (`properties` the type and
+   * status names): a term found in `in` no more often than in those fields together is found only
+   * through them (`Scored.late`). Those fields are never scored or matched; none: nothing is late.
+   */
+  readonly named?: { readonly in: string; readonly fields: readonly string[] };
 }
 
 /** The scoring options are MiniSearch search options. */
@@ -209,6 +222,11 @@ export interface Scored {
   readonly scores: Float64Array;
   /** MiniSearch's `match` of the document with short ID `doc`: each word that matched, with its fields. */
   readonly matchOf: (doc: number) => MatchInfo;
+  /**
+   * Whether a term of the query found the document `doc` (one of `docs`) only through the fields of
+   * `ScoringOptions.named` (see the file comment): SR-068 AK5.
+   */
+  readonly late: (doc: number) => boolean;
 }
 
 /** One term of the query: the derived words it matches. */
@@ -228,7 +246,38 @@ interface Run {
   readonly term: Float64Array;
   readonly word: Float64Array;
   readonly total: Float64Array;
+  /** Index of the last term found elsewhere than only through `ScoringOptions.named`; -1 none. */
+  readonly elsewhere: Int32Array;
+  /** 1 for a document a term found only through `ScoringOptions.named`. */
+  readonly late: Uint8Array;
+  /** The field ID of `ScoringOptions.named.in` (-1 none), and those of its fields (`namedOf`). */
+  readonly namedIn: number;
+  readonly namedFields: readonly number[];
 }
+
+/**
+ * The frequencies of `derived` per document in the fields of `ScoringOptions.named`, or undefined
+ * when it is in none of them: then every document it is in `named.in` holds it elsewhere.
+ */
+const namedOf = (run: Run, derived: Derived): ReadonlyMap<number, number>[] | undefined => {
+  let out: ReadonlyMap<number, number>[] | undefined;
+  for (const field of run.namedFields) {
+    const frequencies = derived.data.get(field);
+    if (frequencies !== undefined) {
+      (out ??= []).push(frequencies);
+    }
+  }
+  return out;
+};
+
+/** How often the fields of `named` (`namedOf`) hold the word in the document `doc`. */
+const namedFrequency = (named: readonly ReadonlyMap<number, number>[], doc: number): number => {
+  let sum = 0;
+  for (const frequencies of named) {
+    sum += frequencies.get(doc) ?? 0;
+  }
+  return sum;
+};
 
 /**
  * Adds the scores of `derived` in the field `field` (MiniSearch's `termResults`) for term `at` to
@@ -248,9 +297,13 @@ const addField = (run: Run, at: number, derived: Derived, field: string, met: nu
   const idf = Math.log(1 + (total - matching + 0.5) / (matching + 0.5));
   // Term boost and document boost are 1 (MiniSearch: termWeight * termBoost * fieldBoost * docBoost * raw).
   const weight = derived.weight * Number(run.options.boost[field]);
+  const named = fieldId === run.namedIn ? namedOf(run, derived) : undefined;
   for (const [doc, frequency] of frequencies) {
     const reached = run.reached[doc];
     if (reached === at - 1 || reached === at) {
+      if (named === undefined || frequency > namedFrequency(named, doc)) {
+        run.elsewhere[doc] = at;
+      }
       const length = Number(lengths[doc * fields + fieldId]);
       const raw = idf * (D + (frequency * (K + 1)) / (frequency + K * (1 - B + (B * length) / average)));
       if (reached === at) {
@@ -307,6 +360,7 @@ export const scoreWords = (
   const inner = internals(mini);
   const specs = specsOf(inner, words, options);
   const size = inner._nextId;
+  const fieldIdOf = (field: string): number => inner._fieldIds[field] ?? -1;
   const run: Run = {
     options,
     inner,
@@ -315,6 +369,10 @@ export const scoreWords = (
     term: new Float64Array(size),
     word: new Float64Array(size),
     total: new Float64Array(size),
+    elsewhere: new Int32Array(size).fill(-1),
+    late: new Uint8Array(size),
+    namedIn: options.named === undefined ? -1 : fieldIdOf(options.named.in),
+    namedFields: (options.named?.fields ?? []).map(fieldIdOf).filter((id) => id >= 0),
   };
   let found: number[] = [];
   let at = 0;
@@ -322,9 +380,13 @@ export const scoreWords = (
     found = [];
     for (const [t, spec] of terms.entries()) {
       const met = scoreTerm(run, at, spec);
-      // A word's score: its terms added up in order (MiniSearch's `AND` combinator).
+      // A word's score: its terms added up in order (MiniSearch's `AND` combinator). A word is found
+      // elsewhere when each of its terms is (SR-068 AK5).
       for (const doc of met) {
         run.word[doc] = t === 0 ? Number(run.term[doc]) : Number(run.word[doc]) + Number(run.term[doc]);
+        if (run.elsewhere[doc] !== at) {
+          run.late[doc] = 1;
+        }
       }
       found = met;
       at += 1;
@@ -342,7 +404,12 @@ export const scoreWords = (
   for (let i = 0; i < found.length; i++) {
     scores[i] = Number(run.total[Number(found[i])]) * quality;
   }
-  return { docs: found, scores, matchOf: (doc) => matchOf(inner, specs.flat(), options, doc) };
+  return {
+    docs: found,
+    scores,
+    matchOf: (doc) => matchOf(inner, specs.flat(), options, doc),
+    late: (doc) => run.late[doc] === 1,
+  };
 };
 
 /** MiniSearch's `match` of the document `doc` for the query terms `specs` (see the file comment). */

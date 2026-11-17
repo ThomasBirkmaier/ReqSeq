@@ -287,4 +287,31 @@ scenariosOf("element.search", [
       expect(output.hits.map((hit) => hit.shortId)).toEqual(["SR-0000b1", "SR-0000b3"]);
     },
   },
+  {
+    tag: "[SR-068/AK-rbwp]",
+    name: "a word only in the type name of some hits: they come after all others, each group by relevance",
+    fixture: { fixture: "SR-068/late" },
+    input: { query: "package" },
+    expect: "output",
+    check: (results) => {
+      const [first] = Object.values(results);
+      const outcome = first?.outcome;
+      const output = (outcome !== undefined && "output" in outcome ? outcome.output : {}) as {
+        hits: { shortId: string; score: number }[];
+        total: number;
+      };
+      // The packages a1 to a3 hold "package" only in their type name, yet score above SR-0000b1.
+      expect(output.hits.map((hit) => `${hit.shortId} ${String(hit.score)}`)).toEqual([
+        "PKG-0000a4 6.60802",
+        "PKG-0000a5 3.09078",
+        "SR-0000b3 2.23633",
+        "SR-0000b2 1.82767",
+        "SR-0000b1 0.559403",
+        "PKG-0000a1 0.882281",
+        "PKG-0000a2 0.882281",
+        "PKG-0000a3 0.882281",
+      ]);
+      expect(output.total).toBe(8);
+    },
+  },
 ]);

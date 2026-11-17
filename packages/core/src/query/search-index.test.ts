@@ -267,7 +267,7 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       const text = propertiesText(document);
       expect(text).toBe(flat(record(data).data));
       // The same lengths of title, text and properties as a document with that text, and a length of
-      // the empty text for a property it does not hold (never none).
+      // the empty text for a property it does not hold (never none), and for type and status (SR-068 AK5).
       const mini = new MiniSearch<SearchDocument>(engineOptions(metamodel));
       mini.add(document);
       const plain = new MiniSearch({
@@ -281,7 +281,7 @@ describe("search index documents (ADR-0008, SR-068)", () => {
         ...((m as unknown as { _fieldLength: Map<number, number[]> })._fieldLength.get(0) ?? []),
       ];
       expect(lengths(mini).slice(0, 3)).toEqual(lengths(plain as MiniSearch<never>));
-      expect(lengths(mini)).toHaveLength(4);
+      expect(lengths(mini)).toHaveLength(6);
     }
   });
 });

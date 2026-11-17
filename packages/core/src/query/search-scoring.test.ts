@@ -235,6 +235,58 @@ describe("scoreWords", () => {
   });
 });
 
+describe("late documents (SR-068 AK5)", () => {
+  /** Documents with type and status names in `properties` and again in the fields `type` and `status`. */
+  const named = (): MiniSearch<SearchDocument> => {
+    const mini = new MiniSearch<SearchDocument>(engineOptionsFor(KEYS));
+    const document = (key: string, title: string, parts: string[]): SearchDocument => ({
+      key,
+      title,
+      text: "",
+      parts,
+    });
+    mini.addAll([
+      document("only-names", "Sensors", ["type", "Package", "status", "In review"]),
+      document("in-title", "Package tools", ["type", "Package", "status", "Draft"]),
+      document("in-value", "Readings", ["p0", "a package", "type", "Package", "status", "Draft"]),
+      document("typo", "Pakage list", ["type", "Package", "status", "Draft"]),
+      document("two-names", "Gauges", ["type", "Review", "status", "In review"]),
+    ]);
+    return mini;
+  };
+
+  /** The keys of the documents `words` finds, each with " late" when it is late. */
+  const lateOf = (mini: MiniSearch, words: string[], scoring: ScoringOptions): string[] => {
+    const scored = scoreWords(mini, 0, words, scoring);
+    const keys = documentKeys(mini);
+    return scored.docs.map((doc) => `${String(keys.get(doc))}${scored.late(doc) ? " late" : ""}`).sort();
+  };
+
+  const NAMED = { in: "properties", fields: ["type", "status"] };
+
+  it("[SR-068/AK-rbwp] marks a document late when a term found it only through the named fields, scores unchanged", () => {
+    const mini = named();
+    const scoring = options({ named: NAMED });
+    expect(lateOf(mini, ["package"], scoring)).toEqual(["in-title", "in-value", "only-names late", "typo"]);
+    // Every term of a word: "in" is in a value of in-value only, "review" in a status name.
+    expect(lateOf(mini, ["sensors", "in-review"], scoring)).toEqual(["only-names late"]);
+    // The type and the status name together, and no more often in `properties`: only through them.
+    expect(lateOf(mini, ["review"], scoring)).toEqual(["only-names late", "two-names late"]);
+    // Without `named`, or with fields the index does not have, or `properties` not searched: none.
+    expect(lateOf(mini, ["package"], options())).not.toContain("only-names late");
+    expect(lateOf(mini, ["package"], options({ named: { in: "nowhere", fields: ["none"] } }))).not.toContain(
+      "only-names late",
+    );
+    expect(lateOf(mini, ["package"], options({ named: NAMED, fields: ["title"] }))).toEqual([
+      "in-title",
+      "typo",
+    ]);
+    for (const words of [["package"], ["review"], ["sensors", "in-review"], ["pakage"]]) {
+      same(mini, words, scoring);
+    }
+  });
+});
+
 describe("phraseCandidates", () => {
   it("finds the documents that hold every word of a phrase in a field, the last one as a word start when open", () => {
     const mini = engine();

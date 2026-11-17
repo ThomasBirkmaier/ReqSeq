@@ -28,6 +28,10 @@
 //   in all fields scores as before these fields existed (SR-216 AK4). A search restricted to
 //   fields scores only the words of those fields (SR-216 AK1); a hit found in `property:<key>`
 //   names `properties`;
+// - `type` and `status`, after them: the names of the type and the status again, as `properties`
+//   holds them (the empty text for a document without one), never searched, scored or matched. They
+//   tell a word found only through these names from one found elsewhere (SR-068 AK5,
+//   `ScoringOptions.named`): such a hit comes after the others (`before`);
 // - `id`: the UUID, the short ID (D-017) and the identifier (ThomasBirkmaier/ReqSeq-archive#305), compared with the records of the
 //   store, not indexed (150,000 random tokens would cost about 110 MB and 1 s at N-036): a word that
 //   is a short ID as written (`SR-46fb54`, also with the 12 digits of the file name) finds the
@@ -109,6 +113,12 @@ const PROPERTY_FIELD = "property:";
 /** The MiniSearch field of the property `key` (see the file comment). */
 const propertyField = (key: string): string => `${PROPERTY_FIELD}${key}`;
 
+/** The MiniSearch fields of the type and status names (see the file comment), after every other one. */
+const NAMED_FIELDS: readonly string[] = ["type", "status"];
+
+/** `properties` holds the names of `NAMED_FIELDS` among its other texts (`ScoringOptions.named`). */
+const NAMED = { in: "properties", fields: NAMED_FIELDS } as const;
+
 /**
  * Keys that never get a field of their own: those of the fixed fields, which always mean the fixed
  * field, and type and status, which are found in `properties` by their names.
@@ -170,6 +180,9 @@ const extractField = (document: SearchDocument, field: string): string => {
       return document.text;
     case "properties":
       return propertiesOf(document.parts);
+    case "type":
+    case "status":
+      return partOf(document.parts, field);
     default:
       return partOf(document.parts, field.slice(PROPERTY_FIELD.length));
   }
@@ -190,7 +203,7 @@ const words = (text: string): string[] => text.split(WORD_SEPARATOR);
  */
 export const engineOptionsFor = (propertyKeys: readonly string[]): Options<SearchDocument> => ({
   idField: "key",
-  fields: [...WORD_FIELDS, ...propertyKeys.map(propertyField)],
+  fields: [...WORD_FIELDS, ...propertyKeys.map(propertyField), ...NAMED_FIELDS],
   extractField,
   tokenize: words,
   processTerm: normalizeWord,
@@ -876,7 +889,7 @@ interface PhraseFound {
   readonly fields: string[];
 }
 
-/** A document found: its record, the score of its words and what found it. */
+/** A document found: its record, the score of its words, what found it and whether it comes late. */
 interface Found {
   /** Its `recordKey`. */
   readonly key: string;
@@ -890,6 +903,11 @@ interface Found {
   readonly phrases: readonly PhraseFound[];
   /** Words of the query that matched the ID. */
   ids: number;
+  /**
+   * Whether a word or phrase of the query found it only through the name of its type or status
+   * (SR-068 AK5): it comes after the hits without (`before`). Each source of a match sets it.
+   */
+  late: boolean;
 }
 
 /** One search: the index, which records count, and MiniSearch's options. */
@@ -912,6 +930,7 @@ export const scoringOf = (searched: readonly string[], fuzzy: number, prefix: bo
   boost: Object.fromEntries(searched.map((field) => [field, boostOf(field)])),
   fuzzy: (term) => term.length >= MIN_FUZZY && !DIGIT.test(term) && fuzzy,
   prefix: (term) => term.length >= MIN_PREFIX && prefix,
+  named: NAMED,
 });
 
 /** The search of `options` in `searched` (the MiniSearch fields). */
@@ -1056,6 +1075,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
           matches: [{ scored, doc }],
           phrases: [],
           ids: 0,
+          late: scored.late(doc),
         });
       }
     }
@@ -1065,7 +1085,18 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
     queries: queries.map((word) => ({ queries: [word], combineWith: "AND" })),
     combineWith: "OR",
   };
-  for (const result of index.engine.mini.search(query, search.options)) {
+  const { mini, generation } = index.engine;
+  // Late when a word that found it found it late (SR-068 AK5): each word scored on its own.
+  const late = new Uint8Array(nextShortId(mini));
+  for (const word of queries) {
+    const scored = scoreWords(mini, generation, [word], search.scoring);
+    for (const doc of scored.docs) {
+      if (scored.late(doc)) {
+        late[doc] = 1;
+      }
+    }
+  }
+  for (const result of mini.search(query, search.options)) {
     const key = String(result.id);
     const element = index.records.get(key);
     if (search.admit(element, key)) {
@@ -1077,6 +1108,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
         matches: [result],
         phrases: [],
         ids: 0,
+        late: late[Number(shortIdOfDocument(mini, key))] === 1,
       });
     }
   }
@@ -1086,7 +1118,10 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
 /** `found` by key. */
 const byKey = (found: readonly Found[]): Map<string, Found> => new Map(found.map((one) => [one.key, one]));
 
-/** Marks in `found` (and adds to it) every record of the index that `ids` matches. */
+/**
+ * Marks in `found` (and adds to it) every record of the index that `ids` matches: its word is found
+ * in an ID, so not late (SR-068 AK5).
+ */
 const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void => {
   for (const record of ids.among ?? search.index.store.elements) {
     const key = ids.test(record) ? recordKey(record) : undefined;
@@ -1101,15 +1136,20 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
           matches: [],
           phrases: [],
           ids: 1,
+          late: false,
         });
       } else {
         known.ids = 1;
+        known.late = false;
       }
     }
   }
 };
 
-/** `a` and `b` combined: the documents of both (`and`) or of either (`or`); scores add up. */
+/**
+ * `a` and `b` combined: the documents of both (`and`) or of either (`or`); scores add up, and a
+ * document is late when it is late on a side that found it.
+ */
 const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: boolean): Map<string, Found> => {
   const out = new Map<string, Found>();
   for (const [key, found] of a) {
@@ -1123,6 +1163,7 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
         matches: [...found.matches, ...other.matches],
         phrases: [...found.phrases, ...other.phrases],
         ids: found.ids + other.ids,
+        late: found.late || other.late,
       });
     } else if (!and) {
       out.set(key, found);
@@ -1182,19 +1223,22 @@ const roundScore = (score: number): number => Number(score.toPrecision(SCORE_DIG
 const SCORE_DIGITS = 6;
 
 /**
- * Whether `a` comes before `b` on the pages: more words matched its ID, else a higher score, else
- * it comes first in the store (by repository, then path: no position of every record is needed,
- * #215). A strict total order (no two hits share a repository and file), so any way of finding the
- * first hits gives the same page.
+ * Whether `a` comes before `b` on the pages: more words matched its ID, else it is not late and `b`
+ * is (a word found only through the name of the type or status, SR-068 AK5), else a higher score,
+ * else it comes first in the store (by repository, then path: no position of every record is
+ * needed, #215). A strict total order (no two hits share a repository and file), so any way of
+ * finding the first hits gives the same page.
  */
 const before = (a: Found, b: Found): boolean =>
   a.ids !== b.ids
     ? a.ids > b.ids
-    : a.score !== b.score
-      ? a.score > b.score
-      : a.place !== b.place
-        ? a.place < b.place
-        : a.element.file < b.element.file;
+    : a.late !== b.late
+      ? b.late
+      : a.score !== b.score
+        ? a.score > b.score
+        : a.place !== b.place
+          ? a.place < b.place
+          : a.element.file < b.element.file;
 
 const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
 
@@ -1247,7 +1291,8 @@ const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchR
 export type RankedHit = Readonly<Found>;
 
 /**
- * Every hit of `query` in the order of `searchElements` (ID matches, then score, then store order), the
+ * Every hit of `query` in the order of `searchElements` (ID matches, then hits not found only through
+ * a type or status name, then score, then store order), the
  * scores rounded first as there, without describing them: a grouped search (element.search `group`,
  * SR-149 AK6) deals them into groups and describes only its page (`describeHit`).
  */
@@ -1375,11 +1420,18 @@ interface PhraseKeys {
 }
 
 /**
- * Whether `phrase` stands in one value of the properties of `record` (`properties`, or the one
+ * Where a phrase stands in a field of a document (`phraseIn`): nowhere, only in the name of its type
+ * or status (SR-068 AK5), or elsewhere.
+ */
+type PhrasePlace = "none" | "named" | "elsewhere";
+
+/**
+ * Where `phrase` stands in one value of the properties of `record` (`properties`, or the one
  * property `only`), as the index holds them (`keyTexts`), a Markdown one by units and without its
  * link destinations (`visibleText`). The text of a key in `document` (`SearchDocument.parts`, its
  * values one per line) is looked at first: a place in it within one line (`inLine`) is one in a
- * value; only for another one are the values of the key read (SR-098).
+ * value; only for another one are the values of the key read (SR-098). A place in the type or
+ * status name counts as `named` only when there is none in another key.
  */
 const phraseInProperties = (
   keys: PhraseKeys,
@@ -1387,11 +1439,13 @@ const phraseInProperties = (
   document: SearchDocument,
   only: string | undefined,
   phrase: SearchPhrase,
-): boolean => {
+): PhrasePlace => {
   const { metamodel, titleKey, markdownKeys } = keys;
   const { parts } = document;
+  let named = false;
   for (let at = 0; at < parts.length; at += 2) {
     const key = String(parts[at]);
+    const isNamed = NAMED_FIELDS.includes(key);
     if (only !== undefined && key !== only) {
       continue;
     }
@@ -1413,15 +1467,21 @@ const phraseInProperties = (
           (text) => findPhrase(markdown ? visibleText(text) : text, phrase, markdown) !== undefined,
         ))
     ) {
-      return true;
+      if (!isNamed) {
+        return "elsewhere";
+      }
+      named = true;
     }
   }
-  return false;
+  return named ? "named" : "none";
 };
 
+/** `elsewhere` when `found`, else `none`. */
+const placeOf = (found: boolean): PhrasePlace => (found ? "elsewhere" : "none");
+
 /**
- * Whether `phrase` stands in `field` of `record` (see the file comment): in the title, in the text
- * by units (`findPhrase`), or in one value of the properties.
+ * Where `phrase` stands in `field` of `record` (see the file comment): in the title, in the text by
+ * units (`findPhrase`), or in one value of the properties (`phraseInProperties`).
  */
 const phraseIn = (
   keys: PhraseKeys,
@@ -1429,12 +1489,12 @@ const phraseIn = (
   document: SearchDocument,
   field: string,
   phrase: SearchPhrase,
-): boolean => {
+): PhrasePlace => {
   if (field === "title") {
-    return findPhrase(document.title, phrase) !== undefined;
+    return placeOf(findPhrase(document.title, phrase) !== undefined);
   }
   if (field === "text") {
-    return findPhrase(document.text, phrase, true) !== undefined;
+    return placeOf(findPhrase(document.text, phrase, true) !== undefined);
   }
   return phraseInProperties(
     keys,
@@ -1463,7 +1523,8 @@ const NO_MATCHES: readonly WordsMatch[] = [];
  * The documents `phrase` stands in (SR-068 AK4), by key: per field searched the documents that hold
  * its words there (`phraseCandidates`), checked against their texts (`phraseIn`). A document is
  * scored per field the phrase stands in, as its words in that field are (`scoreWords`), and these
- * scores add up; its hit names only these fields (SR-174 AK6, SR-216 AK1).
+ * scores add up; its hit names only these fields (SR-174 AK6, SR-216 AK1). It is late when the
+ * phrase stands only in the name of its type or status (SR-068 AK5).
  */
 const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> => {
   if (phrase.words.length === 1) {
@@ -1482,16 +1543,17 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
   for (const field of search.scoring.fields) {
     const docs: number[] = [];
     const elements: ElementRecord[] = [];
+    const named: boolean[] = [];
     for (const doc of phraseCandidates(mini, phrase, field)) {
       const element = documents.records[doc];
       const document = documents.documents[doc];
-      if (
-        search.admit(element, String(documents.keys[doc])) &&
-        document !== undefined &&
-        phraseIn(keys, element, document, field, phrase)
-      ) {
-        docs.push(doc);
-        elements.push(element);
+      if (search.admit(element, String(documents.keys[doc])) && document !== undefined) {
+        const place = phraseIn(keys, element, document, field, phrase);
+        if (place !== "none") {
+          docs.push(doc);
+          elements.push(element);
+          named.push(place === "named");
+        }
       }
     }
     if (docs.length === 0) {
@@ -1516,11 +1578,13 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
           matches: NO_MATCHES,
           phrases: [{ phrase, fields: [field] }],
           ids: 0,
+          late: named[at] === true,
         };
         hits[doc] = hit;
         found.set(key, hit);
       } else {
         known.score += score;
+        known.late &&= named[at] === true;
         for (const one of known.phrases) {
           one.fields.push(field);
         }
@@ -1569,7 +1633,8 @@ const foundBy = (
  * The elements of `index` that `query` finds, the best first: each word of the query (split at
  * white space) is searched in the words of the fields (fuzzy, prefix) and compared with the IDs;
  * the words are combined with `options.combineWith`. Elements whose ID a word matched come first
- * (by the number of such words), then by score; equal ones keep store order. A word without a
+ * (by the number of such words), then those without a word found only through the name of their
+ * type or status (SR-068 AK5), then by score; equal ones keep store order. A word without a
  * letter or digit is left out; a word with one that can match nothing in the fields searched (no
  * ID form with only `id`) finds nothing with `and` and is left out with `or`; a query without a
  * word finds nothing. Only the page (`offset`, `limit`) is described (`fields`, `terms`).
