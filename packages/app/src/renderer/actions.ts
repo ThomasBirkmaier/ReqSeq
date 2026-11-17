@@ -84,9 +84,7 @@ export interface Choice {
   readonly hint?: string;
   /** The title of an element hit, without its ID: the one whose title is the typed text comes first (#195). */
   readonly title?: string;
-  /** Lower case words of `name` to mark (element hits). */
-  readonly terms?: readonly string[];
-  /** The parts of `name` to mark, as core marked them (a hit of the search prompt, SR-183 AK3). */
+  /** The parts of `name` to mark, as core marked them (an element hit, SR-183 AK3). */
   readonly marks?: readonly Range[];
   /** Shown under the name: where a hit was found and one line around it (SR-174, SR-183 AK3). */
   readonly snippet?: Snippet;
@@ -798,10 +796,8 @@ export const findElements =
       id: row.open.key,
       name: rowName(row),
       title: row.title,
-      terms: [
-        ...row.terms,
-        ...labelMarks(row, query).map(([start, end]) => row.label.slice(start, end).toLowerCase()),
-      ],
+      // As the search prompt marks them: a phrase whole (SR-174 AK6), never its words elsewhere.
+      marks: nameMarks(row, query),
       run: () => {
         run(row);
       },

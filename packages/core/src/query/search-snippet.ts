@@ -7,6 +7,12 @@
 //   `WORD_SEPARATOR`, `normalizeWord`). Only the fields the hit was found in are read (`fields`, which
 //   holds only searched ones): the `[[` search (title and IDs) reads no file. A search restricted to
 //   single properties (SR-216 AK5) reads only those, in the order below.
+// - Phrases (`SearchHit.phrases`, SR-174 AK6): only a place where a phrase stands whole counts. It
+//   is found raw as the index finds it (`findPhrase` within `phraseUnits`, the link destinations as
+//   spaces, so the offsets stay), the lines from its first word to its last are read, and in their
+//   visible text the phrase is one mark from its first word to its last, within one block
+//   (`Visible.bounds`; a hard line break is none). Its words are marked elsewhere only as words of
+//   `terms`; overlapping phrases are one mark.
 // - Where (AK3): the text first, then the property values one by one in reading order: the properties
 //   of the type in metamodel order (its effective `properties`), then the other keys in file order;
 //   file order alone when the metamodel is not valid. Each item of a list and each value of a
@@ -47,10 +53,24 @@ import { gfm } from "micromark-extension-gfm";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
 import type { ElementRecord, MarkdownBlock } from "../model/index.js";
-import { markdownBlocks, markdownDefinitions, relationKey, titleKeyOf } from "../model/index.js";
+import {
+  markdownBlocks,
+  markdownDefinitions,
+  markdownLinks,
+  relationKey,
+  titleKeyOf,
+} from "../model/index.js";
 import { identifierKeyOf } from "../model/identifier-index.js";
+import type { PhraseSpan, SearchPhrase } from "./phrase-text.js";
+import {
+  QUOTE_MARKERS,
+  TABLE_DELIMITER,
+  findPhrase,
+  normalizeWord,
+  phraseWordMatches,
+} from "./phrase-text.js";
 import type { SearchField, SearchHit, SearchIndex } from "./search-index.js";
-import { elementNow, normalizeWord, valueTexts, visibleText } from "./search-index.js";
+import { elementNow, valueTexts, visibleText } from "./search-index.js";
 
 /** A matched word in a text: UTF-16 offsets, end exclusive. */
 export interface TextMark {
@@ -88,12 +108,8 @@ const MARKDOWN_SYNTAX = /[\\`*_~[\]<>&#|=+!:-]|^ {0,3}\d{1,9}[.)]|^(?: {4}|\t)/m
 /** A `]` that may close a reference-style link: not followed by `(`. */
 const REFERENCE = /\](?!\()/u;
 const ELLIPSIS = "…";
-/** Block quote markers in front of a line. */
-const QUOTE = /^(?: {0,3}> ?)*/u;
 /** The first line of an HTML block (CommonMark, roughly): it runs to the next blank line. */
 const HTML_START = /^(?: {0,3}> ?)* {0,3}<[A-Za-z!?/]/u;
-/** The delimiter row of a GFM table, the second line of its block. */
-const TABLE_DELIMITER = /^(?: {0,3}> ?)* {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/u;
 
 /** The mdast options, created once. */
 const PARSE = { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] };
@@ -105,10 +121,15 @@ const PARSE = { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] };
  */
 const GFM_SYNTAX = /[|~]|\[\^|\[[ xX]\]/u;
 
-/** Text as a line shows it, with the runs words are split in (`[start, end]` pairs). */
+/**
+ * Text as a line shows it, with the runs words are split in (`[start, end]` pairs) and, in order,
+ * the offsets where a block begins or ends (a paragraph, a list item, a table cell): a phrase never
+ * spans one (SR-068 AK4), a line break inside a paragraph is none.
+ */
 interface Visible {
   text: string;
   readonly runs: number[];
+  readonly bounds: number[];
 }
 
 const run = (visible: Visible, value: string): void => {
@@ -128,6 +149,12 @@ const gap = (visible: Visible): void => {
   }
 };
 
+/** A gap that ends a block (`Visible.bounds`). */
+const bound = (visible: Visible): void => {
+  gap(visible);
+  visible.bounds.push(visible.text.length);
+};
+
 /** Inline nodes whose children read on in the same line. */
 const INLINE = new Set(["emphasis", "strong", "delete", "link", "linkReference"]);
 
@@ -136,26 +163,29 @@ const visit = (node: Nodes, visible: Visible): void => {
   if (node.type === "text" || node.type === "inlineCode") {
     run(visible, node.value);
   } else if (node.type === "code") {
-    gap(visible);
+    bound(visible);
     run(visible, node.value);
-    gap(visible);
+    bound(visible);
   } else if (node.type === "image" || node.type === "imageReference") {
     // `join` gives "" for an alt text that is null or undefined, which the mdast types allow.
     run(visible, [node.alt].join(""));
   } else if ("children" in node) {
     const block = !INLINE.has(node.type);
     if (block) {
-      gap(visible);
+      bound(visible);
     }
     for (const child of node.children) {
       visit(child, visible);
     }
     if (block) {
-      gap(visible);
+      bound(visible);
     }
-  } else {
-    // HTML, a break, a thematic break, a definition, a footnote reference: nothing to read.
+  } else if (node.type === "break") {
+    // A hard line break inside a paragraph: a space, no end of a block.
     gap(visible);
+  } else {
+    // HTML, a thematic break, a definition, a footnote reference: nothing to read.
+    bound(visible);
   }
 };
 
@@ -164,7 +194,7 @@ const visit = (node: Nodes, visible: Visible): void => {
  * references). Of a table only the row `row` counts (0 the head, -1 the last), when given.
  */
 const visibleMarkdown = (markdown: string, length: number, row?: number): Visible => {
-  const visible: Visible = { text: "", runs: [] };
+  const visible: Visible = { text: "", runs: [], bounds: [] };
   const root = GFM_SYNTAX.test(markdown) ? fromMarkdown(markdown, PARSE) : fromMarkdown(markdown);
   for (const child of root.children) {
     // Every node fromMarkdown gives has a position.
@@ -186,31 +216,99 @@ const visibleMarkdown = (markdown: string, length: number, row?: number): Visibl
 
 /** `value` as one line, one run. */
 const visiblePlain = (value: string): Visible => {
-  const visible: Visible = { text: "", runs: [] };
+  const visible: Visible = { text: "", runs: [], bounds: [] };
   run(visible, value);
   return visible;
 };
 
-/** The words of `visible` (within its runs) that match `terms`, in order. */
-const matchesIn = (visible: Visible, terms: ReadonlySet<string>): TextMark[] => {
-  const { text, runs } = visible;
-  const marks: TextMark[] = [];
+/** A word of a visible text: its offsets, as the index compares it, and the number of block bounds before it. */
+interface Token {
+  readonly start: number;
+  readonly end: number;
+  readonly term: string;
+  readonly block: number;
+}
+
+/** The words of `visible`, within its runs, in order. */
+const tokensIn = (visible: Visible): Token[] => {
+  const { text, runs, bounds } = visible;
+  const tokens: Token[] = [];
+  let block = 0;
   for (let at = 0; at < runs.length; at += 2) {
     const start = Number(runs[at]);
     const end = Number(runs[at + 1]);
     WORD.lastIndex = start;
     for (let found = WORD.exec(text); found !== null && found.index < end; found = WORD.exec(text)) {
       const wordEnd = Math.min(found.index + found[0].length, end);
-      const term = normalizeWord(text.slice(found.index, wordEnd));
-      if (term !== undefined && terms.has(term)) {
-        marks.push({ start: found.index, end: wordEnd });
+      while (block < bounds.length && Number(bounds[block]) <= found.index) {
+        block++;
       }
+      tokens.push({
+        start: found.index,
+        end: wordEnd,
+        term: String(normalizeWord(text.slice(found.index, wordEnd))),
+        block,
+      });
       if (wordEnd === end) {
         break;
       }
     }
   }
-  return marks;
+  return tokens;
+};
+
+/** The words of `visible` (within its runs) that match `terms`, in order. */
+const matchesIn = (visible: Visible, terms: ReadonlySet<string>): TextMark[] =>
+  tokensIn(visible)
+    .filter((token) => terms.has(token.term))
+    .map((token) => ({ start: token.start, end: token.end }));
+
+/** The places of `phrases` in `visible`, each from its first word to its last, inside one block, merged where they overlap. */
+const phraseMarksIn = (visible: Visible, phrases: readonly SearchPhrase[]): TextMark[] => {
+  const tokens = tokensIn(visible);
+  const found: TextMark[] = [];
+  for (const { words, prefix } of phrases) {
+    const last = words.length - 1;
+    for (let at = 0; at + last < tokens.length; at++) {
+      const first = tokens[at];
+      const end = tokens[at + last];
+      if (
+        first?.block === end?.block &&
+        words.every((word, n) => phraseWordMatches(String(tokens[at + n]?.term), word, n === last && prefix))
+      ) {
+        found.push({ start: Number(first?.start), end: Number(end?.end) });
+      }
+    }
+  }
+  const merged: { start: number; end: number }[] = [];
+  for (const mark of found.sort((a, b) => a.start - b.start)) {
+    const before = merged.at(-1);
+    if (before !== undefined && mark.start < before.end) {
+      before.end = Math.max(before.end, mark.end);
+    } else {
+      merged.push({ ...mark });
+    }
+  }
+  return merged;
+};
+
+/**
+ * The marks of `visible`: every place of a phrase (SR-174 AK6), and every word that matches `terms`
+ * outside them, in order.
+ */
+const marksIn = (
+  visible: Visible,
+  terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
+): TextMark[] => {
+  if (phrases.length === 0) {
+    return matchesIn(visible, terms);
+  }
+  const whole = phraseMarksIn(visible, phrases);
+  const words = matchesIn(visible, terms).filter(
+    (mark) => !whole.some((phrase) => mark.start < phrase.end && phrase.start < mark.end),
+  );
+  return [...whole, ...words].sort((a, b) => a.start - b.start);
 };
 
 const isHigh = (code: number): boolean => code >= 0xd800 && code <= 0xdbff;
@@ -343,9 +441,13 @@ const windowOf = (visible: Visible, first: TextMark, matches: readonly TextMark[
     : lineIn(text, toWords(text, grown(text, first, matched), first), matches);
 };
 
-/** The snippet line of `visible`, undefined when no word of it matches `terms`. */
-const lineOf = (visible: Visible, terms: ReadonlySet<string>): Line | undefined => {
-  const matches = matchesIn(visible, terms);
+/** The snippet line of `visible`, undefined when no word of it matches `terms` and no phrase stands in it. */
+const lineOf = (
+  visible: Visible,
+  terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
+): Line | undefined => {
+  const matches = marksIn(visible, terms, phrases);
   const first = matches[0];
   return first === undefined ? undefined : windowOf(visible, first, matches);
 };
@@ -481,13 +583,21 @@ const tableUnit = (value: string, first: Span, line: Span): Unit | undefined => 
   return { kind: "markdown", source: rows.join("\n"), end: line.end, row: body ? -1 : 0 };
 };
 
-const unitOf = (value: string, block: MarkdownBlock, at: number): Unit => {
-  const line = lineAround(value, at);
+/**
+ * The unit of a raw match `match` in `block` (see the file comment): of the lines from the one of
+ * its start to the one of its end (a phrase may span a line break, SR-068 AK4).
+ */
+const unitOf = (value: string, block: MarkdownBlock, match: PhraseSpan): Unit => {
+  const { start: at } = match;
+  const line = {
+    start: lineAround(value, at).start,
+    end: lineAround(value, Math.max(at, match.end - 1)).end,
+  };
   const first = lineAround(value, block.start);
   if (block.fence) {
     // A word in a fence line is its info string; a closing fence holds none.
     const kind = line.start === first.start ? "none" : "code";
-    return { kind, source: value.slice(line.start, line.end).replace(QUOTE, ""), end: line.end };
+    return { kind, source: value.slice(line.start, line.end).replace(QUOTE_MARKERS, ""), end: line.end };
   }
   if (HTML_START.test(value.slice(first.start, first.end))) {
     return line.end - block.start > MAX_LINE * 4
@@ -501,7 +611,7 @@ const unitOf = (value: string, block: MarkdownBlock, at: number): Unit => {
   if (line.end - line.start > MAX_LINE) {
     // A long line, cut around the match; the scan goes on after the cut.
     const start = Math.max(line.start, at - MAX_LINE / 2);
-    const end = Math.min(line.end, start + MAX_LINE);
+    const end = Math.min(line.end, Math.max(start + MAX_LINE, match.end));
     return { kind: "markdown", source: value.slice(start, end), end };
   }
   const span = wrapped(value, block, line);
@@ -521,11 +631,51 @@ const visibleOf = (unit: Unit, definitions: () => string): Visible | undefined =
   return visibleMarkdown(`${source}\n\n${references}`, source.length, unit.row);
 };
 
+/** `value` with the destinations of its links and images as spaces: the visible words at the offsets of `value`. */
+const withoutDestinations = (value: string): string => {
+  let out = "";
+  let at = 0;
+  for (const { start, end } of markdownLinks(value)) {
+    out += value.slice(at, start) + " ".repeat(end - start);
+    at = end;
+  }
+  return out + value.slice(at);
+};
+
+/**
+ * Finds the first raw match in `value` at or after an offset (a line end): a word that matches
+ * `terms` (`rawMatcher`) or a place of a phrase inside one unit (`findPhrase`, `phraseUnits`, as
+ * the index looks for it, without the link destinations), whichever comes first.
+ */
+const rawLocator = (
+  value: string,
+  terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
+): ((from: number) => PhraseSpan | undefined) => {
+  const rawMatch = terms.size === 0 ? (): number => -1 : rawMatcher(value, terms);
+  const text = phrases.length === 0 ? value : withoutDestinations(value);
+  return (from) => {
+    const at = rawMatch(from);
+    let first = at < 0 ? undefined : { start: at, end: at + 1 };
+    for (const phrase of phrases) {
+      const place = findPhrase(text, phrase, true, from);
+      if (place !== undefined && (first === undefined || place.start < first.start)) {
+        first = place;
+      }
+    }
+    return first;
+  };
+};
+
 /** The snippet line of the Markdown `value` (see the file comment). */
-const markdownLine = (value: string, terms: ReadonlySet<string>): Line | undefined => {
-  const rawMatch = rawMatcher(value, terms);
-  let at = rawMatch(0);
-  if (at < 0) {
+const markdownLine = (
+  value: string,
+  terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
+): Line | undefined => {
+  const locate = rawLocator(value, terms, phrases);
+  let match = locate(0);
+  if (match === undefined) {
     return undefined;
   }
   const blocks = markdownBlocks(value);
@@ -535,20 +685,20 @@ const markdownLine = (value: string, terms: ReadonlySet<string>): Line | undefin
     (known ??= markdownDefinitions(value)
       .map((label) => `[${label}]: x`)
       .join("\n"));
-  while (at >= 0) {
-    const found = at;
-    const block = blocks.find((one) => one.end > found);
+  while (match !== undefined) {
+    const { start } = match;
+    const block = blocks.find((one) => one.end > start);
     /* v8 ignore next 3 -- a word stands in a line that is not blank, which a block holds. */
     if (block === undefined) {
       return undefined;
     }
-    const unit = unitOf(value, block, at);
+    const unit = unitOf(value, block, match);
     const visible = visibleOf(unit, definitions);
-    const line = visible === undefined ? undefined : lineOf(visible, terms);
+    const line = visible === undefined ? undefined : lineOf(visible, terms, phrases);
     if (line !== undefined) {
       return line;
     }
-    at = rawMatch(unit.end);
+    match = locate(unit.end);
   }
   return undefined;
 };
@@ -589,16 +739,21 @@ const propertyName = (metamodel: Metamodel, key: string): string => {
 };
 
 /** The snippet line of a property value: a choice found by its key shows its name, marked whole (AK2). */
-const valueLine = (value: Value, markdown: boolean, terms: ReadonlySet<string>): Line | undefined => {
+const valueLine = (
+  value: Value,
+  markdown: boolean,
+  terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
+): Line | undefined => {
   if (markdown) {
-    return markdownLine(value.shown, terms);
+    return markdownLine(value.shown, terms, phrases);
   }
   const visible = visiblePlain(value.shown);
-  const line = lineOf(visible, terms);
+  const line = lineOf(visible, terms, phrases);
   if (
     line !== undefined ||
     value.key === undefined ||
-    matchesIn(visiblePlain(value.key), terms).length === 0
+    marksIn(visiblePlain(value.key), terms, phrases).length === 0
   ) {
     return line;
   }
@@ -606,18 +761,19 @@ const valueLine = (value: Value, markdown: boolean, terms: ReadonlySet<string>):
   return windowOf(visible, whole, [whole]);
 };
 
-/** The snippet of the first value of `element` that matches `terms`, of the properties `propertyKeys` (all when undefined). */
+/** The snippet of the first value of `element` that matches `terms` or holds a phrase, of the properties `propertyKeys` (all when undefined). */
 const propertySnippet = (
   metamodel: Metamodel,
   element: ElementRecord,
   terms: ReadonlySet<string>,
+  phrases: readonly SearchPhrase[],
   propertyKeys: readonly string[] | undefined,
 ): SearchSnippet | undefined => {
   const markdown = markdownKeysOf(metamodel);
   const chosen = propertyKeys === undefined ? undefined : new Set(propertyKeys);
   for (const { key, values } of propertyValues(element, metamodel)) {
     for (const value of chosen === undefined || chosen.has(key) ? values : []) {
-      const line = valueLine(value, markdown.has(key), terms);
+      const line = valueLine(value, markdown.has(key), terms, phrases);
       if (line !== undefined) {
         return { field: "properties", property: key, propertyName: propertyName(metamodel, key), ...line };
       }
@@ -633,12 +789,13 @@ const propertySnippet = (
  */
 export const searchSnippet = (
   index: SearchIndex,
-  hit: Pick<SearchHit, "element" | "fields" | "terms">,
+  hit: Pick<SearchHit, "element" | "fields" | "terms" | "phrases">,
   propertyKeys?: readonly string[],
 ): SearchSnippet | undefined => {
   const fields = new Set<SearchField>(hit.fields);
   const terms = new Set(hit.terms);
-  if (terms.size === 0 || (!fields.has("text") && !fields.has("properties"))) {
+  const { phrases } = hit;
+  if ((terms.size === 0 && phrases.length === 0) || (!fields.has("text") && !fields.has("properties"))) {
     return undefined;
   }
   const { metamodel } = index;
@@ -646,7 +803,7 @@ export const searchSnippet = (
   if (fields.has("text")) {
     // A file that no longer holds the element: its properties as the index read them.
     const now = elementNow(index.layout, hit.element);
-    const line = now === undefined ? undefined : markdownLine(now.body, terms);
+    const line = now === undefined ? undefined : markdownLine(now.body, terms, phrases);
     if (line !== undefined) {
       return { field: "text", ...line };
     }
@@ -655,9 +812,15 @@ export const searchSnippet = (
   if (!fields.has("properties")) {
     return undefined;
   }
-  return propertySnippet(metamodel, element, terms, propertyKeys);
+  return propertySnippet(metamodel, element, terms, phrases, propertyKeys);
 };
 
-/** The words of `title` that match `terms` (`SearchHit.terms`), for highlighting the title (SR-174 AK4). */
-export const titleMarks = (title: string, terms: readonly string[]): TextMark[] =>
-  matchesIn({ text: title, runs: [0, title.length] }, new Set(terms));
+/**
+ * The marks of `title` for highlighting it (SR-174 AK4): the places of `phrases` (`SearchHit.phrases`)
+ * as a whole (AK6) and the words that match `terms` (`SearchHit.terms`) outside them.
+ */
+export const titleMarks = (
+  title: string,
+  terms: readonly string[],
+  phrases: readonly SearchPhrase[] = [],
+): TextMark[] => marksIn({ text: title, runs: [0, title.length], bounds: [] }, new Set(terms), phrases);

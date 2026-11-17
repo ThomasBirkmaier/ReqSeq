@@ -350,6 +350,50 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
+  it("[SR-098/AK-pqx4] shows the first hits of a phrase within 300 ms (SR-068 AK4, median of 7 runs)", async () => {
+    // A phrase is found by its words, then checked against the texts (search-index.ts `phraseFound`):
+    // the costliest phrases check every text. Three words of every text in this order; two words of
+    // every text that never stand together (every text checked, none found); a phrase across bold in
+    // the texts of 5 KB, also hard-wrapped; and an open phrase while it is typed (its last word a
+    // word start, of every element).
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const open = workspace;
+    const measurements = [];
+    for (const [name, term, found] of [
+      ["three words of every text in this order", '"the station shall"', true],
+      ["two words of every text, never next to each other", '"shall the"', false],
+      ["three words across bold in the texts of 5 KB", '"of the station log"', true],
+      ["an open phrase while it is typed", '"th', true],
+      ["an open phrase while it is typed", '"the s', true],
+      ["an open phrase while it is typed", '"the st', true],
+      ["an open phrase while it is typed", '"the station sh', true],
+      ["a phrase and a word", '"the station shall" wind', true],
+    ] as const) {
+      const { result, measurement } = await measureMedian(
+        `element.search: a phrase, ${name} (${JSON.stringify(term)}), the first 50 hits`,
+        async () => (await invoke("element.search", { query: term }, { workspace: open })) as Search,
+        { basis, thresholdMs: SEARCH_MS, runs: RUNS },
+      );
+      expect(result.total > 0, term).toBe(found);
+      measurements.push(measurement);
+    }
+    // Every hit of the phrase of every text shows it whole.
+    const station = await search('"the station shall"');
+    expect(station.total).toBe(ELEMENTS);
+    expect(
+      station.hits.every((hit) =>
+        (hit.snippet?.marks ?? []).some(
+          (mark) => hit.snippet?.text.slice(mark.start, mark.end).toLowerCase() === "the station shall",
+        ),
+      ),
+    ).toBe(true);
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
   it("scores every term of the suite to the bit as MiniSearch's search does (search-scoring.ts)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");
@@ -369,10 +413,9 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
         mini.search(query, searchOptionsOf(scoring)).map((result) => [String(result.id), result.score]),
       );
       const scored = scoreWords(mini, generation, words, scoring);
-      expect(scored, term).toBeDefined();
-      expect(scored?.docs.length, term).toBe(expected.size);
-      const differing = (scored?.docs ?? []).filter(
-        (doc, at) => !Object.is(scored?.scores[at], expected.get(String(keys.get(doc)))),
+      expect(scored.docs.length, term).toBe(expected.size);
+      const differing = scored.docs.filter(
+        (doc, at) => !Object.is(scored.scores[at], expected.get(String(keys.get(doc)))),
       );
       expect(differing, term).toHaveLength(0);
       compared += expected.size;

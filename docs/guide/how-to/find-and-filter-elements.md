@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first; words in quotes match only as a phrase. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
@@ -59,7 +59,7 @@ SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
 
-The search finds the word despite a typo, with the line around it:
+The search finds the word despite a typo, with its line:
 
 ```sh
 reqseq element search temprature
@@ -102,7 +102,18 @@ hits:
 total: 2
 ```
 
-`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: the system requirements without a parent:
+```sh
+reqseq element search '"show the wind"'   # a phrase, in single quotes for the shell
+```
+
+```text title="Output"
+hits:
+  SR-c67baa  draft  Show the wind speed
+    text: The station must show the wind speed in knots.
+total: 1
+```
+
+`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: system requirements without a parent:
 
 ```sh
 reqseq element list --where-type system-requirement --where '{"relation":{"meaning":"derivation","direction":"up"},"exists":false}'
@@ -114,7 +125,7 @@ elements:
 total: 1
 ```
 
-A filter saved by name is a file in `filters/`; `--sort` sets the order its lists take:
+A saved filter is a file in `filters/`; `--sort` sets the order of its lists:
 
 ```sh
 reqseq filter save "Wind requirements" --where-type system-requirement --where '{"property":"topic","op":"eq","value":"wind"}' --sort title
@@ -184,7 +195,7 @@ total: 4
 
 ## API
 
-With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
+With the workspace's [local API](/concepts/cli-api-and-mcp/#api) running, and its token:
 
 ```http
 POST /v1/commands/filter.save
@@ -218,7 +229,7 @@ POST /v1/commands/element.facets
 
 ## MCP
 
-An agent connected to `reqseq mcp` calls the same commands as tools:
+Over `reqseq mcp`, an agent calls the same commands as tools:
 
 ```json
 {

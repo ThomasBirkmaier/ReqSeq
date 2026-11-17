@@ -44,32 +44,3 @@ export const trimLead = (
   const shift = cut - 1;
   return { text: `…${text.slice(cut)}`, ranges: ranges.map(([start, end]) => [start - shift, end - shift]) };
 };
-
-const isWordChar = (char: string | undefined): boolean => char !== undefined && /[\p{L}\p{N}]/u.test(char);
-
-/**
- * `text` with the places marked where one of `terms` (lower case, as `element.search` gives them as
- * `terms`) begins a word of it, in any case.
- */
-export const highlightTerms = (text: string, terms: readonly string[]): Part[] => {
-  const lower = text.toLowerCase();
-  const marked: [number, number][] = [];
-  for (const term of terms) {
-    for (let from = lower.indexOf(term); term !== "" && from >= 0; from = lower.indexOf(term, from + 1)) {
-      if (!isWordChar(lower[from - 1])) {
-        marked.push([from, from + term.length]);
-      }
-    }
-  }
-  marked.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
-  const merged: [number, number][] = [];
-  for (const range of marked) {
-    const last = merged.at(-1);
-    if (last !== undefined && range[0] <= last[1]) {
-      last[1] = Math.max(last[1], range[1]);
-    } else {
-      merged.push([range[0], range[1]]);
-    }
-  }
-  return highlightRanges(text, merged);
-};

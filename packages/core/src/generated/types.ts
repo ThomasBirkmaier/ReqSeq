@@ -1232,7 +1232,7 @@ export type FilterCondition =
     readonly source: string;
   }
   | {
-    /** Elements that element.search finds for this query (SR-068): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case. A query without a word matches none. */
+    /** Elements that element.search finds for this query (SR-068): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, and words in quotes as a phrase (SR-068 AK4). A query without a word matches none. */
     readonly text: string;
   }
   | FilterPropertyCondition
@@ -3382,11 +3382,11 @@ export interface HintConfirmOutput {
 }
 
 /**
- * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search of the elements of a selection in all fields or only in chosen ones (title, text, IDs, all properties or single properties), typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
+ * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
-  /** Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing. */
+  /** Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Words in quotes (`"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '"Filter list"'`. A query without a word finds nothing. */
   readonly query: string;
   /** Search only within it (SR-068 AK3): a view, a filter, a package or IDs. */
   readonly selection?: ElementSelection;
@@ -3403,7 +3403,7 @@ export interface ElementSearchInput {
 }
 
 /**
- * Output of `element.search`. Full-text search of the elements of a selection in all fields or only in chosen ones (title, text, IDs, all properties or single properties), typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
+ * Output of `element.search`. Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
@@ -3422,13 +3422,13 @@ export interface ElementSearchOutput {
     readonly title: string;
     /** Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only. */
     readonly score: number;
-    /** What a word of the query was found in, among the fields searched; a single property is `properties`. */
+    /** What a word of the query was found in, among the fields searched, for a phrase only where it stands whole; a single property is `properties`. */
     readonly fields: readonly ("title" | "text" | "properties" | "id")[];
-    /** The words of the element that matched, in lower case, for highlighting; none for an ID. */
+    /** The words of the element that matched the words of the query outside quotes or a phrase of one word, in lower case, for highlighting; none for an ID or a phrase of two or more words. */
     readonly terms: readonly string[];
-    /** The matched words in `title` (SR-174 AK4); only when a word was found in the title. */
+    /** The matched words in `title` (SR-174 AK4), a phrase as a whole (AK6); only when a word or phrase was found in the title. */
     readonly titleMarks?: TextMarks;
-    /** Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
+    /** Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, a phrase as a whole and none of its words elsewhere (SR-174 AK6). A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
     readonly snippet?:
       | {
         readonly field: "text";

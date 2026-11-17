@@ -45,6 +45,11 @@
 // with a digit (a number, a version, a part of an ID: one edit makes it another). The rule is about
 // the word searched for: `sensorx` still finds `Sensor1`, one edit away.
 //
+// Words in quotes are a phrase (SR-068 AK4, `phrase-text.ts`): the index keeps no word positions,
+// so the documents that hold its words in a field searched are checked against the texts of that
+// field (`phraseFound`): the title, the text the engine keeps (`SearchEngine.documents`), or one
+// value of a property as `properties` holds it. The indexed texts stay as they are (SR-216 AK4).
+//
 // Built once per store and metamodel, in the calling thread, in slices with a turn of the event
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
 // the documents of the changed files are replaced in the same MiniSearch object (see
@@ -55,18 +60,21 @@ import MiniSearch from "minisearch";
 import type { Options, Query, SearchOptions, SearchResult } from "minisearch";
 import { readElementBodySync } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition } from "../metamodel/index.js";
+import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, RepositoryContents } from "../model/index.js";
 import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
 import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
 import { PatchedMap } from "../model/patched-map.js";
 import type { StoreUpdate } from "../model/store.js";
+import type { QueryPhrase, SearchPhrase } from "./phrase-text.js";
+import { WORD_SEPARATOR, findPhrase, inLine, normalizeWord, parseQuery } from "./phrase-text.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
   carryLengths,
   documentKeys,
   lengthsOf,
   nextShortId,
+  phraseCandidates,
   scoreWords,
   searchOptionsOf,
   shortIdOfDocument,
@@ -167,14 +175,7 @@ const extractField = (document: SearchDocument, field: string): string => {
   }
 };
 
-/** Splits text into words: at every character that is not a letter, a mark or a digit. */
-export const WORD_SEPARATOR = /[^\p{L}\p{M}\p{N}]+/u;
-
-/** A word as it is indexed and searched: NFC, lower case; undefined for none. */
-export const normalizeWord = (word: string): string | undefined => {
-  const term = word.normalize("NFC").toLowerCase();
-  return term === "" ? undefined : term;
-};
+export { WORD_SEPARATOR, normalizeWord };
 
 const words = (text: string): string[] => text.split(WORD_SEPARATOR);
 
@@ -215,11 +216,11 @@ export const engineOptions = (metamodel: Metamodel): Options<SearchDocument> => 
 export interface SearchEngine {
   readonly mini: MiniSearch<SearchDocument>;
   /**
-   * The documents in `mini` by key, as they were added, so that a carry can remove them exactly
-   * (`MiniSearch.remove`); undefined for an object loaded from the cache, whose documents a carry
-   * discards (MiniSearch then drops their words as searches meet them).
+   * The documents in `mini` by key, as they were added: a carry removes them exactly
+   * (`MiniSearch.remove`), and a phrase is looked for in their texts (SR-068 AK4). An object loaded
+   * from the cache has them too (`search-cache.ts`).
    */
-  readonly documents: Map<string, SearchDocument> | undefined;
+  readonly documents: Map<string, SearchDocument>;
   /** Counts the changes of `mini`; a save of the cache is skipped when it changed meanwhile. */
   generation: number;
 }
@@ -298,6 +299,29 @@ const choiceNames = (metamodel: Metamodel, key: string, value: unknown): readonl
 };
 
 /**
+ * The texts the `properties` field holds of the key `key` with `value` (see the file comment), one
+ * per value; none for the title, `id` and the keys that hold relations.
+ */
+const keyTexts = (
+  metamodel: Metamodel,
+  titleKey: string | undefined,
+  key: string,
+  value: unknown,
+): string[] => {
+  const out: string[] = [];
+  if (key === titleKey || key === "id" || relationKey(metamodel, key) !== undefined) {
+    return out;
+  }
+  if (key === "type" || key === "status") {
+    valueTexts(structuralName(metamodel, key, value) ?? value, out);
+  } else {
+    valueTexts(value, out);
+    out.push(...choiceNames(metamodel, key, value));
+  }
+  return out;
+};
+
+/**
  * The parts of the `properties` field of `record` (`SearchDocument.parts`, see the file comment):
  * per key its texts, one per line; a key without a text adds none, so the field is the texts of
  * every key one per line, as before it had parts.
@@ -309,16 +333,7 @@ const propertyParts = (
 ): string[] => {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(record.data)) {
-    if (key === titleKey || key === "id" || relationKey(metamodel, key) !== undefined) {
-      continue;
-    }
-    const out: string[] = [];
-    if (key === "type" || key === "status") {
-      valueTexts(structuralName(metamodel, key, value) ?? value, out);
-    } else {
-      valueTexts(value, out);
-      out.push(...choiceNames(metamodel, key, value));
-    }
+    const out = keyTexts(metamodel, titleKey, key, value);
     if (out.length > 0) {
       parts.push(key, out.join("\n"));
     }
@@ -334,6 +349,10 @@ export const propertiesText = (document: SearchDocument): string => propertiesOf
  * `instead`: the snippet (SR-174) parses its lines with `x` there, which keeps a link with a title one.
  */
 export const visibleText = (text: string, instead = ""): string => {
+  // Every inline link and image has `](` (`markdownLinks`): most texts have none.
+  if (!text.includes("](")) {
+    return text;
+  }
   let out = "";
   let at = 0;
   for (const { start, end } of markdownLinks(text)) {
@@ -343,17 +362,28 @@ export const visibleText = (text: string, instead = ""): string => {
   return out + text.slice(at);
 };
 
-/** The document of `record` with the Markdown text `text`. */
-export const documentOf = (record: ElementRecord, text: string, metamodel: Metamodel): SearchDocument => {
+/**
+ * The document of `record` whose text is `text` as the document holds it (`visibleText`): the cache
+ * keeps only that text (`search-cache.ts`).
+ */
+export const documentWithText = (
+  record: ElementRecord,
+  text: string,
+  metamodel: Metamodel,
+): SearchDocument => {
   const titleKey = titleKeyOf(metamodel);
   const title = titleKey === undefined ? undefined : record.data[titleKey];
   return {
     key: recordKey(record),
     title: typeof title === "string" ? title : "",
-    text: visibleText(text),
+    text,
     parts: propertyParts(record, metamodel, titleKey),
   };
 };
+
+/** The document of `record` with the Markdown text `text`. */
+export const documentOf = (record: ElementRecord, text: string, metamodel: Metamodel): SearchDocument =>
+  documentWithText(record, visibleText(text), metamodel);
 
 /** An element as its file holds it now, with its Markdown text (`elementNow`). */
 export interface ElementNow {
@@ -486,15 +516,15 @@ export interface BuiltSearchIndex {
 }
 
 /**
- * The index of `store` around `mini`, a MiniSearch object that holds exactly its documents, which
- * `documents` gives by key when they are known (see `SearchEngine.documents`).
+ * The index of `store` around `mini`, a MiniSearch object that holds exactly `documents`, by key as
+ * they were added (see `SearchEngine.documents`).
  */
 export const searchIndexOf = (
   store: ElementStore,
   layout: WorkspaceLayout,
   metamodel: Metamodel,
   mini: MiniSearch<SearchDocument>,
-  documents?: Map<string, SearchDocument>,
+  documents: Map<string, SearchDocument>,
 ): SearchIndex => ({
   store,
   layout,
@@ -546,11 +576,9 @@ const recordIn = (
  * is changed in one synchronous step, so a search sees it before or after the change, never in
  * between; carries of one workspace run one after the other (`searchIndexState`).
  *
- * The old documents are removed exactly (`MiniSearch.remove`, with the documents the engine kept),
- * so hits, fields, words and scores are those of a fresh build. An object loaded from the cache
- * knows no documents: there they are discarded, and until a search has met every word of them,
- * scores may be a little lower than a fresh build's, as if they still counted. `control` pauses
- * and cancels the reading as for a build.
+ * The old documents are removed exactly (`MiniSearch.remove`, with the documents the engine kept,
+ * also one loaded from the cache), so hits, fields, words and scores are those of a fresh build.
+ * `control` pauses and cancels the reading as for a build.
  */
 export const carrySearchIndex = async (
   index: SearchIndex,
@@ -590,21 +618,16 @@ export const carrySearchIndex = async (
   const removed: number[] = [];
   try {
     for (const key of gone) {
-      const doc = shortIdOfDocument(mini, key);
-      if (doc !== undefined) {
-        removed.push(doc);
-      }
-      const old = kept?.get(key);
+      const old = kept.get(key);
       if (old !== undefined) {
+        removed.push(Number(shortIdOfDocument(mini, key)));
         mini.remove(old);
-        kept?.delete(key);
-      } else if (mini.has(key)) {
-        mini.discard(key);
+        kept.delete(key);
       }
     }
     mini.addAll(documents);
     for (const document of documents) {
-      kept?.set(document.key, document);
+      kept.set(document.key, document);
     }
   } finally {
     // Also after a throw halfway: the caches of the arrays (`documentsOf`, `lengthsOf`) must not
@@ -661,8 +684,13 @@ export interface SearchHit {
   readonly score: number;
   /** The fields a word of the query was found in, in the order of `SEARCH_FIELDS`. */
   readonly fields: readonly SearchField[];
-  /** The words of the element that matched (lower case, NFC), for highlighting; none for an ID. */
+  /**
+   * The words of the element that matched words of the query outside quotes (lower case, NFC), for
+   * highlighting; none for an ID.
+   */
   readonly terms: readonly string[];
+  /** The phrases of the query found in the element (SR-068 AK4), to mark them whole (SR-174 AK6). */
+  readonly phrases: readonly SearchPhrase[];
 }
 
 /** The hits of a query: how many there are, and one page of them (`offset`, `limit`). */
@@ -842,6 +870,12 @@ const placeIn = (layout: WorkspaceLayout): ((record: Pick<ElementRecord, "reposi
 /** What found the words of a document: a result of MiniSearch, or a document of a scoring (`scoreWords`). */
 type WordsMatch = Pick<SearchResult, "match"> | { readonly scored: Scored; readonly doc: number };
 
+/** A phrase of a query found in a document, and the fields (MiniSearch's) it stands in, in the order searched. */
+interface PhraseFound {
+  readonly phrase: SearchPhrase;
+  readonly fields: string[];
+}
+
 /** A document found: its record, the score of its words and what found it. */
 interface Found {
   /** Its `recordKey`. */
@@ -852,6 +886,8 @@ interface Found {
   score: number;
   /** What found its words; none for an ID only. Described for the page only (`hitOf`). */
   readonly matches: readonly WordsMatch[];
+  /** The phrases found in it (`phraseFound`). */
+  readonly phrases: readonly PhraseFound[];
   /** Words of the query that matched the ID. */
   ids: number;
 }
@@ -897,6 +933,8 @@ interface Documents {
   readonly records: readonly (ElementRecord | undefined)[];
   readonly keys: readonly (string | undefined)[];
   readonly places: Int32Array;
+  /** The documents the engine keeps (`SearchEngine.documents`), for a phrase (`phraseFound`). */
+  readonly documents: readonly (SearchDocument | undefined)[];
 }
 
 const documentsCache = new WeakMap<SearchIndex, Documents>();
@@ -915,6 +953,7 @@ const documentsOf = (index: SearchIndex): Documents => {
   const placeOf = placeIn(index.layout);
   const records: (ElementRecord | undefined)[] = [];
   const keys: (string | undefined)[] = [];
+  const documents: (SearchDocument | undefined)[] = [];
   const places = new Int32Array(nextShortId(mini));
   for (const [doc, key] of documentKeys(mini)) {
     const record = index.records.get(String(key));
@@ -922,9 +961,10 @@ const documentsOf = (index: SearchIndex): Documents => {
       records[doc] = record;
       keys[doc] = String(key);
       places[doc] = placeOf(record);
+      documents[doc] = index.engine.documents.get(String(key));
     }
   }
-  const built = { generation, records, keys, places };
+  const built = { generation, records, keys, places, documents };
   documentsCache.set(index, built);
   return built;
 };
@@ -950,6 +990,7 @@ const carryArrays = (
   }
   const records = [...known.records];
   const keys = [...known.keys];
+  const documents = [...known.documents];
   const places = new Int32Array(nextShortId(mini));
   places.set(known.places);
   const placeOf = placeIn(carried.layout);
@@ -959,18 +1000,20 @@ const carryArrays = (
   for (const doc of removed) {
     records[doc] = undefined;
     keys[doc] = undefined;
+    documents[doc] = undefined;
   }
   for (const doc of added) {
     const key = String(documentKeys(mini).get(doc));
     const record = carried.records.get(key);
     records[doc] = record;
     keys[doc] = key;
+    documents[doc] = carried.engine.documents.get(key);
     /* v8 ignore else -- an added document holds the record of its key (`carrySearchIndex`). */
     if (record !== undefined) {
       places[doc] = placeOf(record);
     }
   }
-  documentsCache.set(carried, { generation, records, keys, places });
+  documentsCache.set(carried, { generation, records, keys, places, documents });
 };
 
 /**
@@ -991,17 +1034,14 @@ export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
  * `v1.2`), combined with `and` or not. A document whose record is not in this index's store (a
  * carried index shares its MiniSearch object with the next store's, `carrySearchIndex`) is no hit
  * of this index. With `and` the words are scored as MiniSearch scores them, but in arrays
- * (`scoreWords`, SR-098); MiniSearch searches itself with `or` and when its index holds words of
- * discarded documents. A list, not a map by key: a query whose words cannot be IDs needs no
- * combination.
+ * (`scoreWords`, SR-098); MiniSearch searches itself with `or`. A list, not a map by key: a query
+ * whose words cannot be IDs needs no combination.
  */
 const wordsFound = (search: Search, queries: readonly string[], and: boolean): Found[] => {
   const { index } = search;
-  const scored = and
-    ? scoreWords(index.engine.mini, index.engine.generation, queries, search.scoring)
-    : undefined;
   const found: Found[] = [];
-  if (scored !== undefined) {
+  if (and) {
+    const scored = scoreWords(index.engine.mini, index.engine.generation, queries, search.scoring);
     const documents = documentsOf(index);
     for (let at = 0; at < scored.docs.length; at++) {
       const doc = Number(scored.docs[at]);
@@ -1014,6 +1054,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
           place: Number(documents.places[doc]),
           score: Number(scored.scores[at]),
           matches: [{ scored, doc }],
+          phrases: [],
           ids: 0,
         });
       }
@@ -1022,7 +1063,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
   }
   const query: Query = {
     queries: queries.map((word) => ({ queries: [word], combineWith: "AND" })),
-    combineWith: and ? "AND" : "OR",
+    combineWith: "OR",
   };
   for (const result of index.engine.mini.search(query, search.options)) {
     const key = String(result.id);
@@ -1034,6 +1075,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
         place: search.placeOf(element),
         score: result.score,
         matches: [result],
+        phrases: [],
         ids: 0,
       });
     }
@@ -1057,6 +1099,7 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
           place: search.placeOf(record),
           score: 0,
           matches: [],
+          phrases: [],
           ids: 1,
         });
       } else {
@@ -1078,6 +1121,7 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
         place: found.place,
         score: found.score + other.score,
         matches: [...found.matches, ...other.matches],
+        phrases: [...found.phrases, ...other.phrases],
         ids: found.ids + other.ids,
       });
     } else if (!and) {
@@ -1094,8 +1138,14 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
   return out;
 };
 
-/** The hit of one document: fields in the order of `SEARCH_FIELDS`, the words that matched. */
-const hitOf = ({ element, score, matches, ids }: Found): SearchHit => {
+/** The field of a hit that the MiniSearch field `field` is (`SearchHit.fields`). */
+const hitField = (field: string): string => (field.startsWith(PROPERTY_FIELD) ? "properties" : field);
+
+/**
+ * The hit of one document: fields in the order of `SEARCH_FIELDS` (of a phrase only those it
+ * stands in, SR-174 AK6), the words that matched, the phrases found.
+ */
+const hitOf = ({ element, score, matches, phrases, ids }: Found): SearchHit => {
   const fields = new Set<string>(ids > 0 ? ["id"] : []);
   const terms = new Set<string>();
   for (const words of matches) {
@@ -1103,11 +1153,22 @@ const hitOf = ({ element, score, matches, ids }: Found): SearchHit => {
     for (const [term, found] of Object.entries(match)) {
       terms.add(term);
       for (const field of found) {
-        fields.add(field.startsWith(PROPERTY_FIELD) ? "properties" : field);
+        fields.add(hitField(field));
       }
     }
   }
-  return { element, score, fields: SEARCH_FIELDS.filter((field) => fields.has(field)), terms: [...terms] };
+  for (const found of phrases) {
+    for (const field of found.fields) {
+      fields.add(hitField(field));
+    }
+  }
+  return {
+    element,
+    score,
+    fields: SEARCH_FIELDS.filter((field) => fields.has(field)),
+    terms: [...terms],
+    phrases: [...new Set(phrases.map((found) => found.phrase))],
+  };
 };
 
 /**
@@ -1215,29 +1276,45 @@ const fieldsOf = (
   };
 };
 
-/** A word of a query that may be an ID: whether it is also searched as words, and how it matches IDs. */
+/**
+ * A word or phrase of a query that may be an ID: whether it is also searched in the fields of words,
+ * and how it matches IDs; a phrase is searched as one (`phraseFound`).
+ */
 interface SpecialWord {
   readonly word: string;
   readonly text: boolean;
   readonly ids: IdMatch;
+  readonly phrase?: SearchPhrase;
+}
+
+/** The words and phrases of a query (`queryWords`). */
+interface QueryWords {
+  readonly plain: readonly string[];
+  readonly special: readonly SpecialWord[];
+  readonly phrases: readonly SearchPhrase[];
 }
 
 /**
- * The words of `query`: those searched as words only (`plain`) and those that may be IDs (`special`);
- * undefined when a word can match nothing in the fields searched (one with letters or digits, but
- * no field of words and no ID form) and every word must match (SR-216 AK1). A word without a
- * letter or digit, or one that can match nothing while any word is enough, is left out.
+ * The words of `query` (`parseQuery`): the words outside quotes searched as words only (`plain`),
+ * the phrases (SR-068 AK4), and the words and phrases that may be IDs (`special`: a phrase that is
+ * an ID as a whole); undefined when a word or phrase can match nothing in the fields searched (one
+ * with letters or digits, but no field of words and no ID form) and every word must match (SR-216
+ * AK1). A word or phrase without a letter or digit, or one that can match nothing while any word
+ * is enough, is left out. The last word of a phrase without a closing quote also matches the words
+ * it begins when `prefix` is on, whatever its length (SR-068 AK4 names no minimum).
  */
 const queryWords = (
   index: SearchIndex,
   query: string,
   fields: ReadonlySet<SearchField>,
   searched: readonly string[],
-  and: boolean,
-): { readonly plain: readonly string[]; readonly special: readonly SpecialWord[] } | undefined => {
+  options: { readonly and: boolean; readonly prefix: boolean },
+): QueryWords | undefined => {
+  const { and } = options;
+  const parsed = parseQuery(query);
   const plain: string[] = [];
   const special: SpecialWord[] = [];
-  for (const word of query.split(/\s+/u)) {
+  for (const word of parsed.words) {
     const hasWord = words(word).some((w) => normalizeWord(w) !== undefined);
     const text = searched.length > 0 && hasWord;
     const ids = fields.has("id") ? idMatcher(word, index) : undefined;
@@ -1249,7 +1326,208 @@ const queryWords = (
       return undefined;
     }
   }
-  return { plain, special };
+  const phrases = queryPhrases(index, parsed.phrases, { ...options, fields, searched }, special);
+  return phrases === undefined ? undefined : { plain, special, phrases };
+};
+
+/**
+ * The phrases of a query as `queryWords` takes them: those that may be IDs added to `special`, the
+ * others given; undefined when one can match nothing and every one must match.
+ */
+const queryPhrases = (
+  index: SearchIndex,
+  parsed: readonly QueryPhrase[],
+  options: {
+    readonly and: boolean;
+    readonly prefix: boolean;
+    readonly fields: ReadonlySet<SearchField>;
+    readonly searched: readonly string[];
+  },
+  special: SpecialWord[],
+): SearchPhrase[] | undefined => {
+  const phrases: SearchPhrase[] = [];
+  for (const { content, words: inQuotes, open } of parsed) {
+    if (inQuotes.length === 0) {
+      continue;
+    }
+    const phrase: SearchPhrase = {
+      words: inQuotes,
+      prefix: open && options.prefix,
+    };
+    const text = options.searched.length > 0;
+    const ids = options.fields.has("id") ? idMatcher(content.trim(), index) : undefined;
+    if (ids !== undefined) {
+      special.push({ word: content, text, ids, phrase });
+    } else if (text) {
+      phrases.push(phrase);
+    } else if (options.and) {
+      return undefined;
+    }
+  }
+  return phrases;
+};
+
+/** What the check of a phrase in the properties takes from the metamodel, looked up once per phrase. */
+interface PhraseKeys {
+  readonly metamodel: Metamodel;
+  readonly titleKey: string | undefined;
+  readonly markdownKeys: ReadonlySet<string>;
+}
+
+/**
+ * Whether `phrase` stands in one value of the properties of `record` (`properties`, or the one
+ * property `only`), as the index holds them (`keyTexts`), a Markdown one by units and without its
+ * link destinations (`visibleText`). The text of a key in `document` (`SearchDocument.parts`, its
+ * values one per line) is looked at first: a place in it within one line (`inLine`) is one in a
+ * value; only for another one are the values of the key read (SR-098).
+ */
+const phraseInProperties = (
+  keys: PhraseKeys,
+  record: ElementRecord,
+  document: SearchDocument,
+  only: string | undefined,
+  phrase: SearchPhrase,
+): boolean => {
+  const { metamodel, titleKey, markdownKeys } = keys;
+  const { parts } = document;
+  for (let at = 0; at < parts.length; at += 2) {
+    const key = String(parts[at]);
+    if (only !== undefined && key !== only) {
+      continue;
+    }
+    const markdown = markdownKeys.has(key);
+    const part = String(parts[at + 1]);
+    // Before the first link of a Markdown value (its `](`), its text is the visible one: a place
+    // that ends there is one in the visible text (`visibleText`), which is read only for another.
+    const link = markdown ? part.indexOf("](") : -1;
+    let joined = part;
+    let place = findPhrase(part, phrase);
+    if (link >= 0 && (place === undefined || link < place.end)) {
+      joined = visibleText(part);
+      place = findPhrase(joined, phrase);
+    }
+    if (
+      place !== undefined &&
+      (inLine(joined, place) ||
+        keyTexts(metamodel, titleKey, key, record.data[key]).some(
+          (text) => findPhrase(markdown ? visibleText(text) : text, phrase, markdown) !== undefined,
+        ))
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Whether `phrase` stands in `field` of `record` (see the file comment): in the title, in the text
+ * by units (`findPhrase`), or in one value of the properties.
+ */
+const phraseIn = (
+  keys: PhraseKeys,
+  record: ElementRecord,
+  document: SearchDocument,
+  field: string,
+  phrase: SearchPhrase,
+): boolean => {
+  if (field === "title") {
+    return findPhrase(document.title, phrase) !== undefined;
+  }
+  if (field === "text") {
+    return findPhrase(document.text, phrase, true) !== undefined;
+  }
+  return phraseInProperties(
+    keys,
+    record,
+    document,
+    field === "properties" ? undefined : field.slice(PROPERTY_FIELD.length),
+    phrase,
+  );
+};
+
+/**
+ * The scoring of a phrase in one field: its words without a typo, the last also as a word start
+ * when the phrase is open (`SearchPhrase.prefix`).
+ */
+const phraseScoring = (field: string, phrase: SearchPhrase): ScoringOptions => ({
+  fields: [field],
+  boost: { [field]: boostOf(field) },
+  fuzzy: () => false,
+  prefix: (_term, i, terms) => phrase.prefix && i === terms.length - 1,
+});
+
+/** The word matches of a hit that only a phrase found: none. */
+const NO_MATCHES: readonly WordsMatch[] = [];
+
+/**
+ * The documents `phrase` stands in (SR-068 AK4), by key: per field searched the documents that hold
+ * its words there (`phraseCandidates`), checked against their texts (`phraseIn`). A document is
+ * scored per field the phrase stands in, as its words in that field are (`scoreWords`), and these
+ * scores add up; its hit names only these fields (SR-174 AK6, SR-216 AK1).
+ */
+const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> => {
+  if (phrase.words.length === 1) {
+    // One word stands wherever the index holds it as a word: a word search without a typo.
+    const scoring = { ...search.scoring, fuzzy: () => false as const, prefix: () => phrase.prefix };
+    return byKey(wordsFound({ ...search, scoring }, phrase.words, true));
+  }
+  const { index } = search;
+  const { mini, generation } = index.engine;
+  const documents = documentsOf(index);
+  const { metamodel } = index;
+  const keys = { metamodel, titleKey: titleKeyOf(metamodel), markdownKeys: markdownKeysOf(metamodel) };
+  // By short ID, not by key, while the fields are gone through (SR-098): each hit and its fields.
+  const found = new Map<string, Found>();
+  const hits = new Array<Found | undefined>(nextShortId(mini));
+  for (const field of search.scoring.fields) {
+    const docs: number[] = [];
+    const elements: ElementRecord[] = [];
+    for (const doc of phraseCandidates(mini, phrase, field)) {
+      const element = documents.records[doc];
+      const document = documents.documents[doc];
+      if (
+        search.admit(element, String(documents.keys[doc])) &&
+        document !== undefined &&
+        phraseIn(keys, element, document, field, phrase)
+      ) {
+        docs.push(doc);
+        elements.push(element);
+      }
+    }
+    if (docs.length === 0) {
+      continue;
+    }
+    const scored = scoreWords(mini, generation, [phrase.words.join(" ")], phraseScoring(field, phrase));
+    const scores = new Float64Array(nextShortId(mini));
+    scored.docs.forEach((doc, at) => {
+      scores[doc] = Number(scored.scores[at]);
+    });
+    for (const [at, element] of elements.entries()) {
+      const doc = Number(docs[at]);
+      const score = Number(scores[doc]);
+      const known = hits[doc];
+      if (known === undefined) {
+        const key = String(documents.keys[doc]);
+        const hit: Found = {
+          key,
+          element,
+          place: Number(documents.places[doc]),
+          score,
+          matches: NO_MATCHES,
+          phrases: [{ phrase, fields: [field] }],
+          ids: 0,
+        };
+        hits[doc] = hit;
+        found.set(key, hit);
+      } else {
+        known.score += score;
+        for (const one of known.phrases) {
+          one.fields.push(field);
+        }
+      }
+    }
+  }
+  return found;
 };
 
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
@@ -1260,20 +1538,28 @@ const foundBy = (
 ): Iterable<Found> | undefined => {
   const { fields, searched } = fieldsOf(options);
   const and = options.combineWith !== "or";
-  const split = queryWords(index, query, fields, searched, and);
+  const split = queryWords(index, query, fields, searched, { and, prefix: options.prefix ?? true });
   if (split === undefined) {
     return undefined;
   }
-  const { plain, special } = split;
+  const { plain, special, phrases } = split;
   const search = searchOf(index, searched, options);
   const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
-  if (special.length === 0) {
+  if (special.length === 0 && phrases.length === 0) {
     return byWords;
   }
   let found = byWords === undefined ? undefined : byKey(byWords);
-  for (const { word, text, ids } of special) {
-    const matched = text ? byKey(wordsFound(search, [word], true)) : new Map<string, Found>();
+  for (const { word, text, ids, phrase } of special) {
+    const matched = !text
+      ? new Map<string, Found>()
+      : phrase === undefined
+        ? byKey(wordsFound(search, [word], true))
+        : phraseFound(search, phrase);
     idsFound(search, ids, matched);
+    found = found === undefined ? matched : combine(found, matched, and);
+  }
+  for (const phrase of phrases) {
+    const matched = phraseFound(search, phrase);
     found = found === undefined ? matched : combine(found, matched, and);
   }
   return found?.values();

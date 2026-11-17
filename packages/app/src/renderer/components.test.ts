@@ -1095,8 +1095,8 @@ describe("Minibuffer", () => {
   it("adds the elements that core finds, after the matching buffers, without the buffers twice", async () => {
     const find = vi.fn((text: string) =>
       Promise.resolve([
-        choice("element:spec:1", "SR-036 Wind", { terms: ["wind", "sr-036"] }),
-        choice("element:spec:2", "SR-037 Windy", { terms: ["windy"] }),
+        choice("element:spec:1", "SR-036 Wind", { marks: [[7, 11]] }),
+        choice("element:spec:2", "SR-037 Windy", { marks: [[7, 12]] }),
         choice("element:spec:3", `Hit for ${text}`),
       ]),
     );
@@ -1125,8 +1125,8 @@ describe("Minibuffer", () => {
     const recents = [choice("element:spec:2", "SR-037 Wind direction")];
     const find = vi.fn(() =>
       Promise.resolve([
-        choice("element:spec:1", "SR-036 Wind speed", { terms: ["wind"] }),
-        choice("element:spec:9", "SR-099 Windmill", { terms: ["windmill"] }),
+        choice("element:spec:1", "SR-036 Wind speed", { marks: [[7, 11]] }),
+        choice("element:spec:9", "SR-099 Windmill", { marks: [[7, 15]] }),
       ]),
     );
     const { closed } = await mount({
@@ -1166,7 +1166,15 @@ describe("Minibuffer", () => {
     await mount({
       label: "Go to",
       items: [],
-      find: () => Promise.resolve([choice("e1", "SR-036 Windy day", { terms: ["sr-036", "windy"] })]),
+      find: () =>
+        Promise.resolve([
+          choice("e1", "SR-036 Windy day", {
+            marks: [
+              [0, 6],
+              [7, 12],
+            ],
+          }),
+        ]),
     });
     await type(input(), "windy");
     expect(texts("mark")).toEqual(["SR-036", "Windy"]);

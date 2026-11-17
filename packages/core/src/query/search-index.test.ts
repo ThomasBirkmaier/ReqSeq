@@ -443,6 +443,28 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     expect(searchElements(index, "copied", { limit: 1 })).toEqual({ total: 2, hits: [copied.hits[0]] });
   });
 
+  it("[SR-068/AK-p5h7] combines phrases with the words and IDs of the query, every one or any one, within a selection", async () => {
+    const { workspace } = await open();
+    const index = await searchIndex(workspace);
+    expect(ids(index, '"read the temperature"')).toEqual([U1]);
+    expect(ids(index, '"the temperature" "air pressure"')).toEqual([]);
+    expect(ids(index, '"the temperature" "air pressure"', { combineWith: "or" })).toEqual([S1, S2, U1]);
+    expect(ids(index, '"the temperature" thermometers')).toEqual([U1]);
+    expect(ids(index, '"the temperature"', { within: [recordOf(index.store, S2)] })).toEqual([S2]);
+    // A phrase that can match nothing in the fields searched finds nothing, unless any word is enough.
+    expect(ids(index, '"the temperature" 379da2', { fields: ["id"] })).toEqual([]);
+    expect(ids(index, '"the temperature" 379da2', { fields: ["id"], combineWith: "or" })).toEqual([N1]);
+    // The words and phrases of a hit: those outside quotes as terms, the phrases on their own.
+    const [hit] = searchElements(index, '"read the" temperature').hits;
+    expect(hit?.terms).toContain("temperature");
+    expect(hit?.terms).not.toContain("read");
+    expect(hit?.phrases).toEqual([{ words: ["read", "the"], prefix: false }]);
+    expect(searchElements(index, '"read th').hits[0]?.phrases).toEqual([
+      { words: ["read", "th"], prefix: true },
+    ]);
+    expect(searchElements(index, '"read th', { prefix: false }).total).toBe(0);
+  });
+
   it("[SR-216/AK-wf2k] finds in the chosen fields only, ranks by them only, and puts ID matches first only with the IDs", async () => {
     // b-rationale: "vane" in its rationale only; a-title: in its title and rationale, so ahead of it
     // in all fields, and after it (store order, equal scores) in the rationale alone. The text of
@@ -553,11 +575,12 @@ describe("searchElements (ADR-0008, SR-068)", () => {
 });
 
 describe("carried search index (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184)", () => {
-  /** Every word, short ID and UUID tail of the store, to compare two indexes by their answers. */
+  /** Every word, whole title as a phrase, short ID and UUID tail of the store, to compare two indexes by their answers. */
   const queries = (store: ElementStore): string[] => [
     ...new Set(
       store.elements.flatMap((r) => [
         ...(typeof r.data["title"] === "string" ? r.data["title"] : "").toLowerCase().split(/\W+/u),
+        `"${String(r.data["title"])}"`,
         r.id.slice(-6),
         "temprature",
         "the",
@@ -598,7 +621,7 @@ describe("carried search index (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184)", 
     expect(carried.engine.mini.documentCount).toBe(store.elements.length);
     // The replaced documents were removed, not discarded: nothing is left to vacuum.
     expect(carried.engine.mini.dirtCount).toBe(0);
-    expect([...(carried.engine.documents?.keys() ?? [])].sort()).toEqual([...carried.records.keys()].sort());
+    expect([...carried.engine.documents.keys()].sort()).toEqual([...carried.records.keys()].sort());
     const { layout, metamodel } = await parts(workspace);
     const built = (await buildSearchIndex(store, layout, metamodel)).index;
     expect(answers(carried)).toEqual(answers(built));

@@ -24,12 +24,12 @@
 //
 // It reads MiniSearch's index, which its types declare protected (`Internals`): the version is
 // pinned (packages/core/package.json), and the test above fails when another version scores
-// differently. When the index holds words of discarded documents (an object loaded from the cache
-// and carried, `carrySearchIndex`), MiniSearch cleans them up while it searches and counts them
-// out of the document frequencies on the way; `scoreWords` leaves such an index to MiniSearch
-// (undefined), so that both effects stay MiniSearch's.
+// differently. The index never holds words of discarded documents: a carry removes every document
+// it replaces with the document it added (`carrySearchIndex`), also in an index loaded from the
+// cache, so every document a word names is one of MiniSearch's.
 import type MiniSearch from "minisearch";
 import type { MatchInfo, SearchOptions } from "minisearch";
+import type { SearchPhrase } from "./phrase-text.js";
 
 /** Term frequencies of one word: by field ID, by document ID (MiniSearch's `FieldTermData`). */
 type TermData = ReadonlyMap<number, ReadonlyMap<number, number>>;
@@ -57,7 +57,6 @@ interface Internals {
   readonly _fieldLength: FieldLengths;
   readonly _avgFieldLength: readonly number[];
   readonly _nextId: number;
-  readonly _dirtCount: number;
   readonly _options: {
     readonly tokenize: (text: string) => string[];
     readonly processTerm: (term: string) => string | null | undefined | false;
@@ -136,13 +135,12 @@ const derivedTerms = (tree: WordTree, term: string, prefix: boolean, fuzzy: numb
   return out;
 };
 
-/** Field lengths by short ID and field, and which short IDs are documents: per MiniSearch object and change. */
+/** Field lengths by short ID and field: per MiniSearch object and change. */
 interface Lengths {
   readonly generation: number;
   readonly fields: number;
   /** Whole numbers (MiniSearch counts the distinct words of a field). */
   readonly lengths: Uint32Array;
-  readonly live: Uint8Array;
 }
 
 const lengthsCache = new WeakMap<MiniSearch, Lengths>();
@@ -156,16 +154,12 @@ export const lengthsOf = (mini: MiniSearch, generation: number): Lengths => {
   const inner = internals(mini);
   const fields = Object.keys(inner._fieldIds).length;
   const lengths = new Uint32Array(inner._nextId * fields);
-  const live = new Uint8Array(inner._nextId);
   for (const [doc, perField] of inner._fieldLength) {
     for (const [field, length] of perField.entries()) {
       lengths[doc * fields + field] = length;
     }
   }
-  for (const doc of inner._documentIds.keys()) {
-    live[doc] = 1;
-  }
-  const built = { generation, fields, lengths, live };
+  const built = { generation, fields, lengths };
   lengthsCache.set(mini, built);
   return built;
 };
@@ -174,7 +168,7 @@ export const lengthsOf = (mini: MiniSearch, generation: number): Lengths => {
  * The `Lengths` of `mini` after its change `generation`, derived from those of `generation - 1`
  * when they were built (#215): only the documents `removed` (their short IDs before the change)
  * and `added` (after it) are looked at, the arrays are copied. Otherwise nothing is kept, and they
- * are built in full at the end of the carry (`prepareSearchIndex`, `lengthsOf`). The lengths of a document that is not live are never read.
+ * are built in full at the end of the carry (`prepareSearchIndex`, `lengthsOf`). The lengths of a removed document are never read.
  */
 export const carryLengths = (
   mini: MiniSearch,
@@ -190,16 +184,12 @@ export const carryLengths = (
   const { fields } = known;
   const lengths = new Uint32Array(inner._nextId * fields);
   lengths.set(known.lengths);
-  const live = new Uint8Array(inner._nextId);
-  live.set(known.live);
-  // No search reads a removed document (MiniSearch's words no longer name it, and an index with
-  // discarded ones is left to MiniSearch, `scoreWords`); marked dead anyway, as a fresh build has it.
+  // No search reads a removed document (MiniSearch's words no longer name it); cleared anyway, as a
+  // fresh build has it.
   for (const doc of removed) {
-    live[doc] = 0;
     lengths.fill(0, doc * fields, (doc + 1) * fields);
   }
   for (const doc of added) {
-    live[doc] = 1;
     const of = inner._fieldLength.get(doc);
     /* v8 ignore else -- every document MiniSearch holds has its lengths, an added one too. */
     if (of !== undefined) {
@@ -208,7 +198,7 @@ export const carryLengths = (
       }
     }
   }
-  lengthsCache.set(mini, { generation, fields, lengths, live });
+  lengthsCache.set(mini, { generation, fields, lengths });
 };
 
 /** The documents a query found, with their scores, and what matched in one of them. */
@@ -243,15 +233,15 @@ interface Run {
 /**
  * Adds the scores of `derived` in the field `field` (MiniSearch's `termResults`) for term `at` to
  * `run.term`, for the documents that matched every term before; their short IDs, when first met,
- * to `met`. False when it meets a document that is none (a word of a discarded document).
+ * to `met`.
  */
-const addField = (run: Run, at: number, derived: Derived, field: string, met: number[]): boolean => {
+const addField = (run: Run, at: number, derived: Derived, field: string, met: number[]): void => {
   const fieldId = Number(run.inner._fieldIds[field]);
   const frequencies = derived.data.get(fieldId);
   if (frequencies === undefined) {
-    return true;
+    return;
   }
-  const { lengths, live, fields } = run.lengths;
+  const { lengths, fields } = run.lengths;
   const matching = frequencies.size;
   const average = Number(run.inner._avgFieldLength[fieldId]);
   const total = run.inner._documentCount;
@@ -259,9 +249,6 @@ const addField = (run: Run, at: number, derived: Derived, field: string, met: nu
   // Term boost and document boost are 1 (MiniSearch: termWeight * termBoost * fieldBoost * docBoost * raw).
   const weight = derived.weight * Number(run.options.boost[field]);
   for (const [doc, frequency] of frequencies) {
-    if (live[doc] !== 1) {
-      return false;
-    }
     const reached = run.reached[doc];
     if (reached === at - 1 || reached === at) {
       const length = Number(lengths[doc * fields + fieldId]);
@@ -275,17 +262,14 @@ const addField = (run: Run, at: number, derived: Derived, field: string, met: nu
       }
     }
   }
-  return true;
 };
 
-/** Scores term `at` (`spec`) into `run.term`; the documents that matched every term up to it, or undefined (see `addField`). */
-const scoreTerm = (run: Run, at: number, spec: Spec): number[] | undefined => {
+/** Scores term `at` (`spec`) into `run.term`; the documents that matched every term up to it. */
+const scoreTerm = (run: Run, at: number, spec: Spec): number[] => {
   const met: number[] = [];
   for (const derived of spec.derived) {
     for (const field of run.options.fields) {
-      if (!addField(run, at, derived, field, met)) {
-        return undefined;
-      }
+      addField(run, at, derived, field, met);
     }
   }
   return met;
@@ -312,18 +296,15 @@ const specsOf = (inner: Internals, words: readonly string[], options: ScoringOpt
 /**
  * The documents of `mini` (changed `generation` times, `SearchEngine.generation`) that match every
  * word of `words` (each a nested query whose terms must all match), scored as MiniSearch scores
- * them (see the file comment); undefined when MiniSearch must score them itself.
+ * them (see the file comment).
  */
 export const scoreWords = (
   mini: MiniSearch,
   generation: number,
   words: readonly string[],
   options: ScoringOptions,
-): Scored | undefined => {
+): Scored => {
   const inner = internals(mini);
-  if (inner._dirtCount > 0) {
-    return undefined;
-  }
   const specs = specsOf(inner, words, options);
   const size = inner._nextId;
   const run: Run = {
@@ -341,9 +322,6 @@ export const scoreWords = (
     found = [];
     for (const [t, spec] of terms.entries()) {
       const met = scoreTerm(run, at, spec);
-      if (met === undefined) {
-        return undefined;
-      }
       // A word's score: its terms added up in order (MiniSearch's `AND` combinator).
       for (const doc of met) {
         run.word[doc] = t === 0 ? Number(run.term[doc]) : Number(run.word[doc]) + Number(run.term[doc]);
@@ -397,3 +375,42 @@ export const nextShortId = (mini: MiniSearch): number => internals(mini)._nextId
 /** MiniSearch's short ID of the document `key`; undefined when `mini` holds none. */
 export const shortIdOfDocument = (mini: MiniSearch, key: string): number | undefined =>
   internals(mini)._idToShortId.get(key);
+
+/**
+ * The short IDs of the documents of `mini` that hold every word of `phrase` in the field `field` as
+ * a word, the last one also as a word start when its `prefix` says so: the documents a phrase may
+ * stand in there (`phrase-text.ts`), which only a look at their texts decides. `phrase` has a word.
+ */
+export const phraseCandidates = (
+  mini: MiniSearch,
+  phrase: Pick<SearchPhrase, "words" | "prefix">,
+  field: string,
+): number[] => {
+  const inner = internals(mini);
+  const fieldId = Number(inner._fieldIds[field]);
+  const start = phrase.prefix ? phrase.words.at(-1) : undefined;
+  const sets = (start === undefined ? phrase.words : phrase.words.slice(0, -1)).map(
+    (word): ReadonlySet<number> | ReadonlyMap<number, number> =>
+      inner._index.get(word)?.get(fieldId) ?? new Set<number>(),
+  );
+  // The documents of the word start, by short ID: a short one begins many words (SR-098).
+  const begun = new Uint8Array(start === undefined ? 0 : inner._nextId);
+  const begunDocs: number[] = [];
+  for (const [, data] of start === undefined ? [] : inner._index.atPrefix(start)) {
+    for (const doc of data.get(fieldId)?.keys() ?? []) {
+      if (begun[doc] === 0) {
+        begun[doc] = 1;
+        begunDocs.push(doc);
+      }
+    }
+  }
+  let smallest: ReadonlySet<number> | ReadonlyMap<number, number> | undefined;
+  for (const set of sets) {
+    if (smallest === undefined || set.size < smallest.size) {
+      smallest = set;
+    }
+  }
+  // An open phrase of one word: the documents of its word start.
+  const docs = smallest === undefined ? begunDocs : [...smallest.keys()];
+  return docs.filter((doc) => (start === undefined || begun[doc] === 1) && sets.every((set) => set.has(doc)));
+};

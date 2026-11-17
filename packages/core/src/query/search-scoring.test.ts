@@ -3,11 +3,17 @@
 // makes. A MiniSearch version that scores otherwise fails here.
 import MiniSearch from "minisearch";
 import type { Query, SearchResult } from "minisearch";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { SearchDocument } from "./search-index.js";
 import { WORD_FIELDS, engineOptionsFor, normalizeWord, WORD_SEPARATOR } from "./search-index.js";
 import type { ScoringOptions } from "./search-scoring.js";
-import { documentKeys, nextShortId, scoreWords, searchOptionsOf } from "./search-scoring.js";
+import {
+  documentKeys,
+  nextShortId,
+  phraseCandidates,
+  scoreWords,
+  searchOptionsOf,
+} from "./search-scoring.js";
 
 const TEXTS = [
   ["Wind speed on the display", "The station shall show wind speed. Wind again.", "draft\nfunctional"],
@@ -87,9 +93,6 @@ const expected = (
 /** What `scoreWords` gives, in the same form. */
 const actual = (mini: MiniSearch, words: readonly string[], scoring: ScoringOptions, generation = 0) => {
   const scored = scoreWords(mini, generation, words, scoring);
-  if (scored === undefined) {
-    return undefined;
-  }
   const keys = documentKeys(mini);
   return new Map(
     scored.docs.map((doc, i) => [
@@ -102,10 +105,9 @@ const actual = (mini: MiniSearch, words: readonly string[], scoring: ScoringOpti
 const same = (mini: MiniSearch, words: readonly string[], scoring = options()): number => {
   const want = expected(mini, words, scoring);
   const got = actual(mini, words, scoring);
-  expect(got, JSON.stringify(words)).toBeDefined();
-  expect([...(got?.keys() ?? [])].sort(), JSON.stringify(words)).toEqual([...want.keys()].sort());
+  expect([...got.keys()].sort(), JSON.stringify(words)).toEqual([...want.keys()].sort());
   for (const [key, result] of want) {
-    const mine = got?.get(key);
+    const mine = got.get(key);
     // Bit for bit, and the words in MiniSearch's order with their fields.
     expect(Object.is(mine?.score, result.score), `${JSON.stringify(words)} ${key}`).toBe(true);
     expect(JSON.stringify(mine?.match), `${JSON.stringify(words)} ${key}`).toBe(JSON.stringify(result.match));
@@ -209,13 +211,10 @@ describe("scoreWords", () => {
     for (const words of QUERIES) {
       const want = actual(plain, words, options());
       const got = actual(mini, words, options());
-      expect(got, JSON.stringify(words)).toBeDefined();
       expect(
-        [...(got?.entries() ?? [])].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]),
-      ).toEqual(
-        [...(want?.entries() ?? [])].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]),
-      );
-      found += got?.size ?? 0;
+        [...got.entries()].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]),
+      ).toEqual([...want.entries()].map(([key, { score, match }]) => [key, score, JSON.stringify(match)]));
+      found += got.size;
     }
     expect(found).toBeGreaterThan(50);
   });
@@ -223,30 +222,30 @@ describe("scoreWords", () => {
   it("scores a carried MiniSearch object as it is after the change (`generation`)", () => {
     const mini = engine();
     const scoring = options();
-    expect(actual(mini, ["zanzibar"], scoring, 0)?.size).toBe(0);
+    expect(actual(mini, ["zanzibar"], scoring, 0).size).toBe(0);
     mini.remove(firstDocument());
     mini.add({ key: "r\0new.md", title: "Zanzibar wind", text: "wind wind", parts: [] });
     expect(nextShortId(mini)).toBe(documents.length + 1);
     // Another generation: field lengths and documents are read again.
-    expect([...(actual(mini, ["zanzibar"], scoring, 1)?.keys() ?? [])]).toEqual(["r\0new.md"]);
+    expect([...actual(mini, ["zanzibar"], scoring, 1).keys()]).toEqual(["r\0new.md"]);
     for (const words of QUERIES) {
-      expect(actual(mini, words, scoring, 1)?.size).toBe(expected(mini, words, scoring).size);
+      expect(actual(mini, words, scoring, 1).size).toBe(expected(mini, words, scoring).size);
     }
     same(mini, ["wind"]);
   });
+});
 
-  it("leaves to MiniSearch an index with discarded documents or with words of a document that is none", () => {
-    const discarded = engine();
-    discarded.discard("r\0doc-0.md");
-    expect(scoreWords(discarded, 0, ["wind"], options())).toBeUndefined();
-    // A document removed with other texts than it was added with leaves its old words in the index
-    // (MiniSearch warns); MiniSearch drops them as a search meets them, so it searches itself.
-    const stale = engine();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    stale.remove({ ...firstDocument(), text: "", parts: [] });
-    warn.mockRestore();
-    expect(stale.dirtCount).toBe(0);
-    expect(scoreWords(stale, 1, ["wind"], options())).toBeUndefined();
-    expect(scoreWords(stale, 1, ["humidity"], options())).toBeDefined();
+describe("phraseCandidates", () => {
+  it("finds the documents that hold every word of a phrase in a field, the last one as a word start when open", () => {
+    const mini = engine();
+    const keys = documentKeys(mini);
+    const of = (words: string[], prefix: boolean, field: string): unknown[] =>
+      phraseCandidates(mini, { words, prefix }, field).map((doc) => keys.get(doc));
+    expect(of(["the", "station"], false, "text")).toEqual(["r\0doc-0.md", "r\0doc-1.md"]);
+    expect(of(["the", "s"], true, "text")).toEqual(["r\0doc-0.md", "r\0doc-1.md"]);
+    expect(of(["the", "s"], false, "text")).toEqual([]);
+    // One word, open: every document with a word it begins.
+    expect(of(["stat"], true, "text").sort()).toEqual(["r\0doc-0.md", "r\0doc-1.md", "r\0doc-4.md"]);
+    expect(of(["zz"], true, "text")).toEqual([]);
   });
 });
