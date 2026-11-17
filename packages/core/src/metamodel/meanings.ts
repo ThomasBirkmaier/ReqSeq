@@ -3,7 +3,8 @@
 // Functions never look for a key such as `derives-from` or `validity`; they ask for the keys with
 // a meaning (the chain for `derivation`, the variant view for `validity`, ...), and report which
 // assignment is missing when there is none (SR-013 AK3). A function that gives its result without
-// the meaning reports nothing: search without identifier, synonyms or translation (SR-220 AK5).
+// the meaning reports nothing (SR-013 AK3): search without identifier, synonyms or translation
+// (SR-220 AK5 for the synonyms and the translation).
 //
 // A type or property meaning belongs to one key only (metamodel.schema.json); a second key is a
 // metamodel error with file and line, so the workspace opens read-only (open question ThomasBirkmaier/ReqSeq-archive#141). Only
@@ -238,7 +239,8 @@ export const acceptanceCriteriaProblem = (
  * Why a property with the meaning `synonyms` or `translation` gives no designations of its element
  * (D-059, SR-220), and the key whose line names it; undefined when its values are designations. Both
  * hold texts; a property of another kind gives none. A `synonyms` property without `many` still gives
- * its one value (`meaningKindProblems` warns about it).
+ * its one value (`meaningKindProblems` warns about it). Whether a translation may have several
+ * values or be Markdown is open question #1811; assumed: neither is checked, and every value counts.
  */
 export const designationKindProblem = (
   property: MetamodelProperty,

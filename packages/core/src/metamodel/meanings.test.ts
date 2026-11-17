@@ -182,6 +182,7 @@ describe("built-in meanings", () => {
     const workspace = open(ws.root);
     const metamodel = await workspace.get(metamodelState);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
+    expect(metamodel.meanings.identifier).toEqual([]);
     expect(metamodel.meanings.synonyms).toEqual([]);
     expect(metamodel.meanings.translation).toEqual([]);
     const get = (await invoke("metamodel.get", {}, { workspace })) as CommandOutput<"metamodel.get">;
@@ -195,6 +196,7 @@ describe("built-in meanings", () => {
       { workspace },
     )) as CommandOutput<"element.search">;
     expect(search.hits.map((hit) => hit.title)).toEqual(["Show wind speed"]);
+    expect(search.incomplete).toBe(false);
   });
 
   it("lists every built-in meaning with the keys that declare it, in metamodel order", async () => {
