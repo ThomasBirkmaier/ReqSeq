@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first; words in quotes match only as a phrase. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
@@ -100,6 +100,19 @@ hits:
   N-7fe707  draft  See the wind speed
   SR-c67baa  draft  Show the wind speed
 total: 2
+```
+
+Words in quotes are a phrase: they match only one after the other in this order, as whole words and without a typo, within one paragraph, list item or table cell of the text, the title or one value of a property. The condition `text` of a filter takes phrases too. In a shell, put the quotes inside single quotes:
+
+```sh
+reqseq element search '"show the wind"'
+```
+
+```text title="Output"
+hits:
+  SR-c67baa  draft  Show the wind speed
+    text: The station must show the wind speed in knots.
+total: 1
 ```
 
 `--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: the system requirements without a parent:

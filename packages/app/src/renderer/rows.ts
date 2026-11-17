@@ -131,8 +131,10 @@ export const labelMarks = (
     return [];
   }
   const identifier = row.identifier?.trim() ?? "";
+  // The quotes of a phrase are no part of a word (SR-068 AK4).
   const words = query
     .toLowerCase()
+    .replace(/["„“”]/gu, " ")
     .split(/\s+/u)
     .filter((word) => word !== "");
   const inIdentifier = identifier !== "" && words.some((word) => identifier.toLowerCase().includes(word));

@@ -105,6 +105,10 @@ describe("search.json (ADR-0008)", () => {
       throw new Error("The cache was not loaded.");
     }
     expect(searchElements(loaded, "gusts")).toEqual(searchElements(index, "gusts"));
+    // The texts of the documents (format 3): the documents of a build, a phrase found in them.
+    expect(loaded.engine.documents).toEqual(index.engine.documents);
+    expect(hitIds(loaded, '"gusts and squalls"')).toEqual([N1]);
+    expect(hitIds(loaded, '"squalls and gusts"')).toEqual([]);
   });
 
   it("is refused for another format, code, root or digest, or when it is no index of every record", async () => {
@@ -119,6 +123,14 @@ describe("search.json (ADR-0008)", () => {
     expect(parse(`[]${text.slice(text.indexOf("\n"))}`, expected, index)).toBeUndefined();
     expect(parse("not json", expected, index)).toBeUndefined();
     expect(parse(`${text.slice(0, text.indexOf("\n"))}\n{"index": 5}`, expected, index)).toBeUndefined();
+    // Not one text per record.
+    const texts = (line: string): string =>
+      `${text.slice(0, text.lastIndexOf("\n", text.length - 2))}\n${line}\n`;
+    expect(parse(texts(JSON.stringify(["only one"])), expected, index)).toBeUndefined();
+    expect(parse(texts("[1, 2]"), expected, index)).toBeUndefined();
+    expect(parse(texts("{}"), expected, index)).toBeUndefined();
+    expect(parse(texts("not json"), expected, index)).toBeUndefined();
+    expect(parse(texts(JSON.stringify(["a", "b"])), expected, index)).toBeDefined();
     // A store with a record the index has no document of, or one record fewer.
     const [first, second] = index.store.elements;
     if (first === undefined || second === undefined) {
@@ -159,6 +171,9 @@ describe("search.json (ADR-0008)", () => {
       p.meaning === "title" ? { key: p.key, name: p.name, kind: p.kind } : p,
     );
     expect(searchDigest(store, { ...metamodel, properties: untitled })).not.toBe(digest);
+    // The Markdown properties, whose values a phrase is looked for in by units (SR-068 AK4).
+    const markdown = metamodel.properties.map((p) => ({ ...p, markdown: p.markdown !== true }));
+    expect(searchDigest(store, { ...metamodel, properties: markdown })).not.toBe(digest);
   });
 
   it("is read from the cache folder, and nothing is used when there is none or it cannot be read", async () => {
@@ -195,8 +210,18 @@ describe("search index state with a cache folder (ADR-0008)", () => {
   /** An index of the store of `index` whose documents all hold the word `marker`: tells a loaded cache from a build. */
   const marked = (index: SearchIndex): SearchIndex => {
     const mini = new MiniSearch<SearchDocument>(engineOptions(index.metamodel));
-    mini.addAll(index.store.elements.map((r) => ({ ...documentOf(r, "", index.metamodel), text: "marker" })));
-    return searchIndexOf(index.store, index.layout, index.metamodel, mini);
+    const documents = index.store.elements.map((r) => ({
+      ...documentOf(r, "", index.metamodel),
+      text: "marker",
+    }));
+    mini.addAll(documents);
+    return searchIndexOf(
+      index.store,
+      index.layout,
+      index.metamodel,
+      mini,
+      new Map(documents.map((document) => [document.key, document])),
+    );
   };
 
   it("writes the index it built and takes it from the cache in the next process", async () => {
@@ -227,7 +252,7 @@ describe("search index state with a cache folder (ADR-0008)", () => {
     expect(await fs.readFile(path.join(cache, SEARCH_CACHE_FILE), "utf8")).toContain("drizzle");
   });
 
-  it("carries an index loaded from the cache by discarding the documents it replaces", async () => {
+  it("carries an index loaded from the cache by removing the documents it replaces exactly", async () => {
     const ws = await fixture();
     const cache = await tempFolder();
     const first = opened(ws.root, cache);
@@ -235,14 +260,20 @@ describe("search index state with a cache folder (ADR-0008)", () => {
     await first.close();
     const second = opened(ws.root, cache);
     const loaded = await searchIndex(second);
-    // The cache holds the index, not the documents a carry would remove exactly.
-    expect(loaded.engine.documents).toBeUndefined();
-    await updateElement(second, await readStored({ ref: N1, title: "Rain", text: "Drizzle.\n" }, second));
+    // The cache holds the texts: the documents are those of a build, and a carry removes them exactly.
+    expect(loaded.engine.documents).toEqual((await built(ws)).index.engine.documents);
+    expect(hitIds(loaded, '"gusts and"')).toEqual([N1]);
+    await updateElement(
+      second,
+      await readStored({ ref: N1, title: "Rain", text: "Drizzle at dawn.\n" }, second),
+    );
     const carried = await searchIndex(second);
     expect(carried.engine).toBe(loaded.engine);
     expect(hitIds(carried, "drizzle")).toEqual([N1]);
     expect(hitIds(carried, "gusts")).toEqual([]);
-    expect(carried.engine.mini.dirtCount).toBe(1);
+    expect(hitIds(carried, '"gusts and"')).toEqual([]);
+    expect(hitIds(carried, '"drizzle at dawn"')).toEqual([N1]);
+    expect(carried.engine.mini.dirtCount).toBe(0);
   });
 
   it("writes no index whose texts are not those of the store's snapshots", async () => {

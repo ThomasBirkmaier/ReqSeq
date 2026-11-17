@@ -13,7 +13,7 @@ import type {
   StepExplanation,
 } from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
-import { highlightRanges, highlightTerms } from "./highlight.js";
+import { highlightRanges } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches, pressLabel, rowStep, shortcutLabel } from "./keys.js";
@@ -47,14 +47,7 @@ export interface MinibufferProps {
     readonly { readonly key: string; readonly name: string; readonly selected?: boolean }[] | undefined;
 }
 
-const parts = ({ item, ranges }: Ranked<Choice>): Part[] => {
-  if (item.marks !== undefined) {
-    return highlightRanges(item.name, item.marks);
-  }
-  return item.terms === undefined
-    ? highlightRanges(item.name, ranges)
-    : highlightTerms(item.name, item.terms);
-};
+const parts = ({ item, ranges }: Ranked<Choice>): Part[] => highlightRanges(item.name, item.marks ?? ranges);
 
 /** The copy of a card that runs the motion back after the card closed, by the node it was made of. */
 const leaving = new WeakMap<HTMLElement, HTMLElement>();

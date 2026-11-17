@@ -558,6 +558,7 @@ describe("go to element or buffer", () => {
           score: 1,
           fields: ["id", "title"],
           terms: ["wind"],
+          titleMarks: [{ start: 0, end: 4 }],
         },
         {
           id: "u2",
@@ -568,6 +569,7 @@ describe("go to element or buffer", () => {
           score: 1,
           fields: ["title"],
           terms: ["windy"],
+          titleMarks: [{ start: 0, end: 5 }],
         },
       ],
       total: 2,
@@ -581,9 +583,17 @@ describe("go to element or buffer", () => {
       fields: ["id", "title"],
       limit: 20,
     });
-    expect(found?.map((choice) => [choice.id, choice.name, choice.terms])).toEqual([
-      ["element:spec:u1", "SR-000001 (SR-036) Wind", ["wind", "sr-000001"]],
-      ["element:spec:u2", "SR-000002 Windy", ["windy"]],
+    // The marks of core: the ID that matched and the words of the title (SR-183 AK3).
+    expect(found?.map((choice) => [choice.id, choice.name, choice.marks])).toEqual([
+      [
+        "element:spec:u1",
+        "SR-000001 (SR-036) Wind",
+        [
+          [0, 9],
+          [19, 23],
+        ],
+      ],
+      ["element:spec:u2", "SR-000002 Windy", [[10, 15]]],
     ]);
     found?.[0]?.run();
     expect(dispatched).toEqual([

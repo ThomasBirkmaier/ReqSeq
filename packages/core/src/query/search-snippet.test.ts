@@ -440,12 +440,17 @@ describe("search hit snippet (SR-174)", () => {
     expect(
       record === undefined
         ? undefined
-        : searchSnippet(index, { element: record, fields: ["text", "properties"], terms: ["hurricane"] }),
+        : searchSnippet(index, {
+            element: record,
+            fields: ["text", "properties"],
+            terms: ["hurricane"],
+            phrases: [],
+          }),
     ).toMatchObject({ property: "checks", text: "The dial warns before a hurricane arrives." });
     expect(
       record === undefined
         ? undefined
-        : searchSnippet(index, { element: record, fields: ["text"], terms: ["dial"] }),
+        : searchSnippet(index, { element: record, fields: ["text"], terms: ["dial"], phrases: [] }),
     ).toBeUndefined();
   });
 });

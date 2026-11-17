@@ -1,6 +1,6 @@
 // The search index in the cache folder of a working copy (ADR-0008 "Cache"): `search.json` holds
-// the serialised MiniSearch object of the index of one element store, with a digest of the file
-// entries it was built from. Unlike the model cache, it is trusted only as a whole: a process uses
+// the serialised MiniSearch object of the index of one element store and the text of each of its
+// documents, with a digest of the file entries it was built from. Unlike the model cache, it is trusted only as a whole: a process uses
 // it only when the store it loaded has the same digest, never document by document, since a
 // document cannot be checked against its file without reading the file (which is the build). It
 // serves a process that needs the index at once (a one-shot CLI command); a server builds the
@@ -10,22 +10,30 @@ import MiniSearch from "minisearch";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementStore } from "../model/index.js";
 import { relationKey, titleKeyOf } from "../model/index.js";
+import { markdownKeysOf } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { readCacheFile, writeCacheFile } from "../workspace/index.js";
 import type { SearchDocument, SearchIndex } from "./search-index.js";
-import { engineOptions, recordKey, searchIndexOf, searchPropertyKeys } from "./search-index.js";
+import {
+  documentWithText,
+  engineOptions,
+  recordKey,
+  searchIndexOf,
+  searchPropertyKeys,
+} from "./search-index.js";
 
 /** The name of the search index in the cache folder of a copy (`cacheFolder(root)`). */
 export const SEARCH_CACHE_FILE = "search.json";
 
-/** The format of `search.json`; a file of another format is not used. */
-export const SEARCH_CACHE_FORMAT = 2;
+/** The format of `search.json`; a file of another format is not used. 3: the texts of the documents. */
+export const SEARCH_CACHE_FORMAT = 3;
 
 /**
  * What of the metamodel decides the documents (`documentOf`) and the fields: the title key, the keys
  * that hold relations (left out), the names of the choices, the names of the types and statuses
- * (indexed in `properties`, ThomasBirkmaier/ReqSeq-archive#80) and the properties with a field of their own
- * (`searchPropertyKeys`, SR-216).
+ * (indexed in `properties`, ThomasBirkmaier/ReqSeq-archive#80), the properties with a field of their own
+ * (`searchPropertyKeys`, SR-216) and the Markdown properties, whose values a phrase is looked for in
+ * by units (SR-068 AK4).
  */
 const metamodelPart = (metamodel: Metamodel): unknown => ({
   types: metamodel.effectiveTypes.map((t) => [t.key, t.name]),
@@ -36,6 +44,7 @@ const metamodelPart = (metamodel: Metamodel): unknown => ({
     .sort(),
   choices: metamodel.properties.map((p) => [p.key, (p.choices ?? []).map((c) => [c.key, c.name])]),
   fields: searchPropertyKeys(metamodel),
+  markdown: [...markdownKeysOf(metamodel)],
 });
 
 /**
@@ -65,16 +74,23 @@ export type ExpectedHeader = Omit<Header, "format">;
 
 /**
  * `search.json` for `index`: a header line (format, fingerprint of core's code, canonical root and
- * digest), then the MiniSearch object as JSON. The header comes first so that a process refuses
- * the file before it parses the index.
+ * digest), then the MiniSearch object as JSON, then the texts of the documents (`SearchDocument.text`)
+ * in store order as a JSON array: a phrase is looked for in them (SR-068 AK4), and a carry removes
+ * the documents exactly; the rest of a document comes from its record (`documentWithText`). The
+ * header comes first so that a process refuses the file before it parses the index.
  */
 export const serializeSearchIndex = (index: SearchIndex, expected: ExpectedHeader): string => {
   const header: Header = { format: SEARCH_CACHE_FORMAT, ...expected };
-  return `${JSON.stringify(header)}\n${JSON.stringify(index.engine.mini)}\n`;
+  // An index of generation 0 holds the documents of its store's records, added in store order.
+  const texts = Array.from(index.engine.documents.values(), (document) => document.text);
+  return `${JSON.stringify(header)}\n${JSON.stringify(index.engine.mini)}\n${JSON.stringify(texts)}\n`;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isTexts = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((one) => typeof one === "string");
 
 /** Whether `header` is the one a process expects. */
 const fits = (header: unknown, expected: ExpectedHeader): boolean =>
@@ -86,8 +102,8 @@ const fits = (header: unknown, expected: ExpectedHeader): boolean =>
 
 /**
  * The search index of `store` from `text`, the contents of `search.json`, or undefined when it is
- * not one for it: another format, code, root or digest, not an index MiniSearch loads, or not one
- * document for every record of the store.
+ * not one for it: another format, code, root or digest, not an index MiniSearch loads, not one
+ * document for every record of the store, or not one text for each.
  */
 export const parseSearchIndex = (
   text: string,
@@ -97,19 +113,34 @@ export const parseSearchIndex = (
   metamodel: Metamodel,
 ): SearchIndex | undefined => {
   const end = text.indexOf("\n");
+  const last = text.lastIndexOf("\n", text.length - 2);
   let mini: MiniSearch<SearchDocument>;
+  let texts: unknown;
   try {
     if (!fits(JSON.parse(text.slice(0, end)), expected)) {
       return undefined;
     }
-    mini = MiniSearch.loadJSON<SearchDocument>(text.slice(end + 1), engineOptions(metamodel));
+    mini = MiniSearch.loadJSON<SearchDocument>(text.slice(end + 1, last), engineOptions(metamodel));
+    texts = JSON.parse(text.slice(last + 1));
   } catch {
     return undefined;
   }
-  const whole =
-    mini.documentCount === store.elements.length &&
-    store.elements.every((record) => mini.has(recordKey(record)));
-  return whole ? searchIndexOf(store, layout, metamodel, mini) : undefined;
+  const { length } = store.elements;
+  if (
+    !isTexts(texts) ||
+    texts.length !== length ||
+    mini.documentCount !== length ||
+    !store.elements.every((record) => mini.has(recordKey(record)))
+  ) {
+    return undefined;
+  }
+  const documents = new Map(
+    store.elements.map((record, at) => [
+      recordKey(record),
+      documentWithText(record, String(texts[at]), metamodel),
+    ]),
+  );
+  return searchIndexOf(store, layout, metamodel, mini, documents);
 };
 
 /** Reads the search index of `store` from the cache `folder`; undefined when there is none for it. */

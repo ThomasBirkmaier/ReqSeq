@@ -108,6 +108,11 @@ describe("the hits that fit the card", () => {
       [0, 9],
       [17, 21],
     ]);
+    // An identifier in quotes, as a phrase (SR-068 AK4): the quotes are no part of the word.
+    expect(row === undefined ? [] : nameMarks(row, '"SR-7" „gust“')).toEqual([
+      [11, 15],
+      [17, 21],
+    ]);
     // A title with spaces before it: core marks the title as it is, the name shows it without them.
     const [spaced] = rows([hit(8, { title: "  Gust", titleMarks: [{ start: 2, end: 6 }] })]);
     expect(spaced === undefined ? [] : nameMarks(spaced, "gust")).toEqual([[17, 21]]);

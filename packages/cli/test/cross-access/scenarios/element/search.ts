@@ -103,6 +103,25 @@ scenariosOf("element.search", [
   },
   {
     tag: "[SR-174/AK-rfbg]",
+    name: "a phrase across bold and a link label, marked whole in the snippet (SR-068 AK4, SR-174 AK6)",
+    fixture: SNIPPETS,
+    input: { query: '"anemometer measures gusts"' },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000a1": [
+          {
+            field: "text",
+            text: "The anemometer measures gusts with pulse counting, as Show a dial shows.",
+            marks: [{ start: 4, end: 29 }],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-174/AK-rfbg]",
     name: "no snippet for a title-only hit, its title marked",
     fixture: SNIPPETS,
     input: { query: "icing" },
