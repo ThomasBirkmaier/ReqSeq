@@ -366,6 +366,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ["two words of every text, never next to each other", '"shall the"', false],
       ["three words across bold in the texts of 5 KB", '"of the station log"', true],
       ["an open phrase while it is typed", '"th', true],
+      ["an open phrase while it is typed", '"the s', true],
       ["an open phrase while it is typed", '"the st', true],
       ["an open phrase while it is typed", '"the station sh', true],
       ["a phrase and a word", '"the station shall" wind', true],

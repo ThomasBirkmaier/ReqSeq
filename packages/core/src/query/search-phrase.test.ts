@@ -139,6 +139,31 @@ describe("phrases in a search (SR-068 AK4)", () => {
     ] as const) {
       expect(await found(ws, `"${phrase}"`), phrase).toEqual(hit ? ["e1"] : []);
     }
+    // A table or a block quote that starts in a block without a blank line before it.
+    const starts = await open({
+      ...element("f1", "Table start", "Intro line\n| foo | bar |\n| - | - |\n"),
+      ...element("f2", "Quote start", "Intro foo\n> bar here\n"),
+      ...element("f3", "Quote in item", "- foo\n> bar\n"),
+      ...element("f4", "Lazy quote", "> foo\nbar lazy\n"),
+    });
+    expect(await found(starts, '"foo bar"')).toEqual(["f4"]);
+    expect(await found(starts, '"intro line foo"')).toEqual([]);
+    expect(await found(starts, '"bar here"')).toEqual(["f2"]);
+    // A Markdown value by its units: across a line break of a paragraph, never across list items.
+    const notes = await open(
+      element("f5", "Notes", "Nothing.\n", "notes: |\n  A sleet\n  squall here.\n\n  - gale\n  - force\n"),
+    );
+    expect(await found(notes, '"sleet squall"')).toEqual(["f5"]);
+    expect(await found(notes, '"gale force"')).toEqual([]);
+    // A Markdown value without the destinations of its links: before, around and after a link.
+    const links = await open({
+      ...element("c1", "Before", "Nothing.\n", "notes: A rain gauge, see [it](https://x.test/a).\n"),
+      ...element("c2", "Around", "Nothing.\n", "notes: A [rain](https://x.test/b) gauge.\n"),
+      ...element("c3", "Inside", "Nothing.\n", "notes: See [it](https://x.test/rain-gauge).\n"),
+      ...element("c4", "After", "Nothing.\n", "notes: See [it](https://x.test/c), no gauge.\n"),
+    });
+    expect(await found(links, '"rain gauge"')).toEqual(["c1", "c2"]);
+    expect(await found(links, '"no gauge"')).toEqual(["c4"]);
     // In one value of a property, never across two values, the title and the text, or two properties.
     const dial = await open();
     expect(await found(dial, '"dial turns"')).toEqual(["a2"]);
@@ -168,10 +193,10 @@ describe("phrases in a search (SR-068 AK4)", () => {
     expect(await found(ws, 'rows"filter list"')).toEqual(["d1", "d2"]);
     // After a closing quote the query goes on outside the phrase.
     expect(await found(ws, '"filter"list')).toEqual(["d1", "d2"]);
-    // An open phrase: its last word also begins words, from two letters on.
+    // An open phrase: its last word also begins words, from one letter on.
     expect(await found(ws, '"filter li')).toEqual(["d1"]);
-    // A last word of one letter is a whole word.
-    expect(await found(ws, '"the filter l')).toEqual([]);
+    expect(await found(ws, '"the filter l')).toEqual(["d1"]);
+    expect(await found(ws, '"filter l')).toEqual(["d1"]);
     expect(await found(ws, '"filte')).toEqual(["d1", "d2", "d3"]);
     // Quotes without a word between them count for nothing.
     expect(await found(ws, '"" filter list')).toEqual(["d1", "d2", "d3"]);

@@ -8578,7 +8578,7 @@
                           },
                           "terms": {
                             "type": "array",
-                            "description": "The words of the element that matched the words of the query outside quotes, in lower case, for highlighting; none for an ID or a phrase.",
+                            "description": "The words of the element that matched the words of the query outside quotes or a phrase of one word, in lower case, for highlighting; none for an ID or a phrase of two or more words.",
                             "items": {
                               "type": "string"
                             }

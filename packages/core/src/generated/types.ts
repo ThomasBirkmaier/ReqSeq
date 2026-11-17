@@ -3422,7 +3422,7 @@ export interface ElementSearchOutput {
     readonly score: number;
     /** What a word of the query was found in, among the fields searched, for a phrase only where it stands whole; a single property is `properties`. */
     readonly fields: readonly ("title" | "text" | "properties" | "id")[];
-    /** The words of the element that matched the words of the query outside quotes, in lower case, for highlighting; none for an ID or a phrase. */
+    /** The words of the element that matched the words of the query outside quotes or a phrase of one word, in lower case, for highlighting; none for an ID or a phrase of two or more words. */
     readonly terms: readonly string[];
     /** The matched words in `title` (SR-174 AK4), a phrase as a whole (AK6); only when a word or phrase was found in the title. */
     readonly titleMarks?: TextMarks;

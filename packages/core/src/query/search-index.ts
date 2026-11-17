@@ -1301,7 +1301,7 @@ interface QueryWords {
  * with letters or digits, but no field of words and no ID form) and every word must match (SR-216
  * AK1). A word or phrase without a letter or digit, or one that can match nothing while any word
  * is enough, is left out. The last word of a phrase without a closing quote also matches the words
- * it begins when `prefix` is on and it has `MIN_PREFIX` letters.
+ * it begins when `prefix` is on, whatever its length (SR-068 AK4 names no minimum).
  */
 const queryWords = (
   index: SearchIndex,
@@ -1352,7 +1352,7 @@ const queryPhrases = (
     }
     const phrase: SearchPhrase = {
       words: inQuotes,
-      prefix: open && options.prefix && String(inQuotes.at(-1)).length >= MIN_PREFIX,
+      prefix: open && options.prefix,
     };
     const text = options.searched.length > 0;
     const ids = options.fields.has("id") ? idMatcher(content.trim(), index) : undefined;
@@ -1367,6 +1367,13 @@ const queryPhrases = (
   return phrases;
 };
 
+/** What the check of a phrase in the properties takes from the metamodel, looked up once per phrase. */
+interface PhraseKeys {
+  readonly metamodel: Metamodel;
+  readonly titleKey: string | undefined;
+  readonly markdownKeys: ReadonlySet<string>;
+}
+
 /**
  * Whether `phrase` stands in one value of the properties of `record` (`properties`, or the one
  * property `only`), as the index holds them (`keyTexts`), a Markdown one by units and without its
@@ -1375,15 +1382,13 @@ const queryPhrases = (
  * value; only for another one are the values of the key read (SR-098).
  */
 const phraseInProperties = (
-  index: SearchIndex,
+  keys: PhraseKeys,
   record: ElementRecord,
   document: SearchDocument,
   only: string | undefined,
   phrase: SearchPhrase,
 ): boolean => {
-  const { metamodel } = index;
-  const titleKey = titleKeyOf(metamodel);
-  const markdownKeys = markdownKeysOf(metamodel);
+  const { metamodel, titleKey, markdownKeys } = keys;
   const { parts } = document;
   for (let at = 0; at < parts.length; at += 2) {
     const key = String(parts[at]);
@@ -1392,8 +1397,15 @@ const phraseInProperties = (
     }
     const markdown = markdownKeys.has(key);
     const part = String(parts[at + 1]);
-    const joined = markdown ? visibleText(part) : part;
-    const place = findPhrase(joined, phrase);
+    // Before the first link of a Markdown value (its `](`), its text is the visible one: a place
+    // that ends there is one in the visible text (`visibleText`), which is read only for another.
+    const link = markdown ? part.indexOf("](") : -1;
+    let joined = part;
+    let place = findPhrase(part, phrase);
+    if (link >= 0 && (place === undefined || link < place.end)) {
+      joined = visibleText(part);
+      place = findPhrase(joined, phrase);
+    }
     if (
       place !== undefined &&
       (inLine(joined, place) ||
@@ -1412,7 +1424,7 @@ const phraseInProperties = (
  * by units (`findPhrase`), or in one value of the properties.
  */
 const phraseIn = (
-  index: SearchIndex,
+  keys: PhraseKeys,
   record: ElementRecord,
   document: SearchDocument,
   field: string,
@@ -1425,7 +1437,7 @@ const phraseIn = (
     return findPhrase(document.text, phrase, true) !== undefined;
   }
   return phraseInProperties(
-    index,
+    keys,
     record,
     document,
     field === "properties" ? undefined : field.slice(PROPERTY_FIELD.length),
@@ -1444,6 +1456,9 @@ const phraseScoring = (field: string, phrase: SearchPhrase): ScoringOptions => (
   prefix: (_term, i, terms) => phrase.prefix && i === terms.length - 1,
 });
 
+/** The word matches of a hit that only a phrase found: none. */
+const NO_MATCHES: readonly WordsMatch[] = [];
+
 /**
  * The documents `phrase` stands in (SR-068 AK4), by key: per field searched the documents that hold
  * its words there (`phraseCandidates`), checked against their texts (`phraseIn`). A document is
@@ -1459,22 +1474,27 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
   const { index } = search;
   const { mini, generation } = index.engine;
   const documents = documentsOf(index);
+  const { metamodel } = index;
+  const keys = { metamodel, titleKey: titleKeyOf(metamodel), markdownKeys: markdownKeysOf(metamodel) };
+  // By short ID, not by key, while the fields are gone through (SR-098): each hit and its fields.
   const found = new Map<string, Found>();
+  const hits = new Array<Found | undefined>(nextShortId(mini));
   for (const field of search.scoring.fields) {
-    const standing: { readonly doc: number; readonly key: string; readonly element: ElementRecord }[] = [];
+    const docs: number[] = [];
+    const elements: ElementRecord[] = [];
     for (const doc of phraseCandidates(mini, phrase, field)) {
       const element = documents.records[doc];
-      const key = String(documents.keys[doc]);
       const document = documents.documents[doc];
       if (
-        search.admit(element, key) &&
+        search.admit(element, String(documents.keys[doc])) &&
         document !== undefined &&
-        phraseIn(index, element, document, field, phrase)
+        phraseIn(keys, element, document, field, phrase)
       ) {
-        standing.push({ doc, key, element });
+        docs.push(doc);
+        elements.push(element);
       }
     }
-    if (standing.length === 0) {
+    if (docs.length === 0) {
       continue;
     }
     const scored = scoreWords(mini, generation, [phrase.words.join(" ")], phraseScoring(field, phrase));
@@ -1482,19 +1502,23 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
     scored.docs.forEach((doc, at) => {
       scores[doc] = Number(scored.scores[at]);
     });
-    for (const { doc, key, element } of standing) {
+    for (const [at, element] of elements.entries()) {
+      const doc = Number(docs[at]);
       const score = Number(scores[doc]);
-      const known = found.get(key);
+      const known = hits[doc];
       if (known === undefined) {
-        found.set(key, {
+        const key = String(documents.keys[doc]);
+        const hit: Found = {
           key,
           element,
           place: Number(documents.places[doc]),
           score,
-          matches: [],
+          matches: NO_MATCHES,
           phrases: [{ phrase, fields: [field] }],
           ids: 0,
-        });
+        };
+        hits[doc] = hit;
+        found.set(key, hit);
       } else {
         known.score += score;
         for (const one of known.phrases) {

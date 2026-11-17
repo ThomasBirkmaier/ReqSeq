@@ -388,19 +388,29 @@ export const phraseCandidates = (
 ): number[] => {
   const inner = internals(mini);
   const fieldId = Number(inner._fieldIds[field]);
-  const last = phrase.words.length - 1;
-  const sets = phrase.words.map((word, n): ReadonlySet<number> | ReadonlyMap<number, number> => {
-    if (n < last || !phrase.prefix) {
-      return inner._index.get(word)?.get(fieldId) ?? new Set<number>();
-    }
-    const docs = new Set<number>();
-    for (const [, data] of inner._index.atPrefix(word)) {
-      for (const doc of data.get(fieldId)?.keys() ?? []) {
-        docs.add(doc);
+  const start = phrase.prefix ? phrase.words.at(-1) : undefined;
+  const sets = (start === undefined ? phrase.words : phrase.words.slice(0, -1)).map(
+    (word): ReadonlySet<number> | ReadonlyMap<number, number> =>
+      inner._index.get(word)?.get(fieldId) ?? new Set<number>(),
+  );
+  // The documents of the word start, by short ID: a short one begins many words (SR-098).
+  const begun = new Uint8Array(start === undefined ? 0 : inner._nextId);
+  const begunDocs: number[] = [];
+  for (const [, data] of start === undefined ? [] : inner._index.atPrefix(start)) {
+    for (const doc of data.get(fieldId)?.keys() ?? []) {
+      if (begun[doc] === 0) {
+        begun[doc] = 1;
+        begunDocs.push(doc);
       }
     }
-    return docs;
-  });
-  const smallest = sets.reduce((a, b) => (b.size < a.size ? b : a));
-  return [...smallest.keys()].filter((doc) => sets.every((set) => set.has(doc)));
+  }
+  let smallest: ReadonlySet<number> | ReadonlyMap<number, number> | undefined;
+  for (const set of sets) {
+    if (smallest === undefined || set.size < smallest.size) {
+      smallest = set;
+    }
+  }
+  // An open phrase of one word: the documents of its word start.
+  const docs = smallest === undefined ? begunDocs : [...smallest.keys()];
+  return docs.filter((doc) => (start === undefined || begun[doc] === 1) && sets.every((set) => set.has(doc)));
 };

@@ -106,6 +106,19 @@ describe("phraseUnits", () => {
       "",
       "more code",
     ]);
+    // A table or a deeper block quote inside a block; fewer markers continue the paragraph (lazy).
+    expect(units("Intro\n| a | b |\n| - | - |\n| c | d |")).toEqual([
+      "Intro",
+      "",
+      " a ",
+      " b ",
+      "",
+      "",
+      " c ",
+      " d ",
+      "",
+    ]);
+    expect(units("Intro\n> quoted\n> > deeper\nlazy")).toEqual(["Intro", "quoted", "deeper\nlazy"]);
     expect(units("plain\rline")).toEqual(["plain\rline"]);
     expect(units("")).toEqual([]);
   });
@@ -134,6 +147,18 @@ describe("findPhrase", () => {
     expect(placeOf(text, phrase("der anz", true))).toBe("der Anzeige");
     expect(placeOf(text, phrase("der anz"))).toBeUndefined();
     expect(placeOf(text, phrase("die"), false, 20)).toBe("die");
+  });
+
+  it("compares the characters that case folding takes for ASCII letters as the index does", () => {
+    // "ſ" (long s) is a word of its own for the index, the Kelvin sign is a "K" in NFC.
+    expect(placeOf("A ſtorm wind, a storm wind.", phrase("storm wind"))).toBe("storm wind");
+    expect(placeOf("A ſtorm wind.", phrase("storm wind"))).toBeUndefined();
+    expect(placeOf("In \u212Anots now", phrase("knots now"))).toBe("\u212Anots now");
+    expect(placeOf("In knots now\u0301", phrase("knots no", true))).toBe("knots now\u0301");
+    expect(placeOf("In knots no\u0301w", phrase("knots no", true))).toBeUndefined();
+    // "İ" is "i̇" in lower case, a word that begins with "i".
+    expect(placeOf("Near the \u0130zmir port", phrase("the i", true))).toBe("the \u0130zmir");
+    expect(placeOf("Near the \u0130zmir port", phrase("the izmir"))).toBeUndefined();
   });
 
   it("finds a place inside one unit only, and looks on after one that spans two", () => {

@@ -7,7 +7,13 @@ import { describe, expect, it } from "vitest";
 import type { SearchDocument } from "./search-index.js";
 import { WORD_FIELDS, engineOptionsFor, normalizeWord, WORD_SEPARATOR } from "./search-index.js";
 import type { ScoringOptions } from "./search-scoring.js";
-import { documentKeys, nextShortId, scoreWords, searchOptionsOf } from "./search-scoring.js";
+import {
+  documentKeys,
+  nextShortId,
+  phraseCandidates,
+  scoreWords,
+  searchOptionsOf,
+} from "./search-scoring.js";
 
 const TEXTS = [
   ["Wind speed on the display", "The station shall show wind speed. Wind again.", "draft\nfunctional"],
@@ -226,5 +232,20 @@ describe("scoreWords", () => {
       expect(actual(mini, words, scoring, 1).size).toBe(expected(mini, words, scoring).size);
     }
     same(mini, ["wind"]);
+  });
+});
+
+describe("phraseCandidates", () => {
+  it("finds the documents that hold every word of a phrase in a field, the last one as a word start when open", () => {
+    const mini = engine();
+    const keys = documentKeys(mini);
+    const of = (words: string[], prefix: boolean, field: string): unknown[] =>
+      phraseCandidates(mini, { words, prefix }, field).map((doc) => keys.get(doc));
+    expect(of(["the", "station"], false, "text")).toEqual(["r\0doc-0.md", "r\0doc-1.md"]);
+    expect(of(["the", "s"], true, "text")).toEqual(["r\0doc-0.md", "r\0doc-1.md"]);
+    expect(of(["the", "s"], false, "text")).toEqual([]);
+    // One word, open: every document with a word it begins.
+    expect(of(["stat"], true, "text").sort()).toEqual(["r\0doc-0.md", "r\0doc-1.md", "r\0doc-4.md"]);
+    expect(of(["zz"], true, "text")).toEqual([]);
   });
 });

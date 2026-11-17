@@ -59,7 +59,7 @@ SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
 
-The search finds the word despite a typo, with the line around it:
+The search finds the word despite a typo, with its line:
 
 ```sh
 reqseq element search temprature
@@ -102,10 +102,8 @@ hits:
 total: 2
 ```
 
-Words in quotes are a phrase: they match only one after the other in this order, as whole words and without a typo, within one paragraph, list item or table cell of the text, the title or one value of a property. The condition `text` of a filter takes phrases too. In a shell, put the quotes inside single quotes:
-
 ```sh
-reqseq element search '"show the wind"'
+reqseq element search '"show the wind"'   # a phrase, in single quotes for the shell
 ```
 
 ```text title="Output"
@@ -115,7 +113,7 @@ hits:
 total: 1
 ```
 
-`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: the system requirements without a parent:
+`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: system requirements without a parent:
 
 ```sh
 reqseq element list --where-type system-requirement --where '{"relation":{"meaning":"derivation","direction":"up"},"exists":false}'
@@ -127,7 +125,7 @@ elements:
 total: 1
 ```
 
-A filter saved by name is a file in `filters/`; `--sort` sets the order its lists take:
+A saved filter is a file in `filters/`; `--sort` sets the order of its lists:
 
 ```sh
 reqseq filter save "Wind requirements" --where-type system-requirement --where '{"property":"topic","op":"eq","value":"wind"}' --sort title
@@ -197,7 +195,7 @@ total: 4
 
 ## API
 
-With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
+With the workspace's [local API](/concepts/cli-api-and-mcp/#api) running, and its token:
 
 ```http
 POST /v1/commands/filter.save
@@ -231,7 +229,7 @@ POST /v1/commands/element.facets
 
 ## MCP
 
-An agent connected to `reqseq mcp` calls the same commands as tools:
+Over `reqseq mcp`, an agent calls the same commands as tools:
 
 ```json
 {

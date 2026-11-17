@@ -15,17 +15,19 @@
 //   spans the border of a paragraph, a list item, a table cell, a heading or a line of a fenced
 //   code block (SR-068 AK4). Read by lines, not parsed: the blocks between blank lines and the
 //   fenced code blocks (`markdownBlocks`); in a block a list item marker, an ATX heading, a setext
-//   underline or a thematic break begins a new unit, a table (its first line with a bar, its second
-//   the delimiter row) is a unit per cell, and in a fenced code block every line but the fence lines
-//   is one. A line break inside a paragraph, and the characters between the words that are no
-//   letters or digits (Markdown characters, block quote markers too), do not end a unit. The marker
-//   of a list item is not in the unit of the item. A title and a value that is no Markdown are one
-//   unit as a whole.
+//   underline, a thematic break or a deeper block quote begins a new unit (fewer markers continue a
+//   paragraph), a table (a line with a bar followed by the delimiter row, also after the lines of a
+//   paragraph, to the end of the block) is a unit per cell, and in a fenced code block every line but
+//   the fence lines is one. A line break inside a paragraph, and the characters between the words
+//   that are no letters or digits (Markdown characters, block quote markers too), do not end a unit.
+//   The marker of a list item is not in the unit of the item. A title and a value that is no
+//   Markdown are one unit as a whole.
 // - Matching (`findPhrase`): the first place, from an offset on, where the words of the phrase
 //   follow one another inside one unit, as offsets from the start of its first word to the end of
 //   its last one. A place within one line is mostly decided by that line (`inLine`); the units are
-//   read only for the others. An ASCII text is compared in lower case character by character (most texts: no
-//   regular expression per word); any other is split into words as the index splits it.
+//   read only for the others. A phrase of ASCII words is one regular expression over the text as it
+//   is (most phrases: no copy of the text, no expression per word); any other is compared word by
+//   word as the index splits the text.
 import { markdownBlocks } from "../model/index.js";
 
 /** Splits text into words: at every character that is not a letter, a mark or a digit. */
@@ -143,10 +145,15 @@ const cells = (text: string, line: Line, units: number[]): void => {
   units.push(start, line.end);
 };
 
-/** Adds the units of a block that is no table and no fenced code to `units` (see the file comment). */
+/** The number of block quote markers that `line` starts with. */
+const quoteDepth = (text: string, line: Line): number =>
+  (QUOTE_MARKERS.exec(text.slice(line.start, line.end))?.[0].match(/>/gu) ?? []).length;
+
+/** Adds the units of lines of a block that are no table and no fenced code to `units` (see the file comment). */
 const paragraphs = (text: string, lines: readonly Line[], units: number[]): void => {
   let open: number | undefined;
   let last = 0;
+  let depth = 0;
   const close = (): void => {
     if (open !== undefined) {
       units.push(open, last);
@@ -157,6 +164,12 @@ const paragraphs = (text: string, lines: readonly Line[], units: number[]): void
     const at = contentStart(text, line);
     const content = text.slice(at, line.end);
     const marker = LIST_MARKER.exec(content);
+    const quoted = quoteDepth(text, line);
+    // A deeper block quote starts a new block; a line with fewer markers continues the paragraph (lazy).
+    if (quoted > depth) {
+      close();
+    }
+    depth = quoted;
     if (ATX_HEADING.test(content)) {
       close();
       units.push(at, line.end);
@@ -174,12 +187,18 @@ const paragraphs = (text: string, lines: readonly Line[], units: number[]): void
   close();
 };
 
+/** Whether the lines `head` and `delimiter` begin a table: a line with a bar and a delimiter row. */
+const tableStart = (text: string, head: Line | undefined, delimiter: Line | undefined): boolean =>
+  head !== undefined &&
+  delimiter !== undefined &&
+  text.slice(head.start, head.end).includes("|") &&
+  TABLE_DELIMITER.test(text.slice(delimiter.start, delimiter.end));
+
 /** The units of the Markdown text `markdown`, as `[start, end]` pairs in order (see the file comment). */
 export const phraseUnits = (markdown: string): number[] => {
   const units: number[] = [];
   for (const block of markdownBlocks(markdown)) {
     const lines = linesIn(markdown, block.start, block.end);
-    const [head, delimiter] = lines;
     if (block.fence) {
       for (const line of lines) {
         const at = contentStart(markdown, line);
@@ -187,19 +206,17 @@ export const phraseUnits = (markdown: string): number[] => {
           units.push(at, line.end);
         }
       }
-    } else if (
-      head !== undefined &&
-      delimiter !== undefined &&
-      markdown.slice(head.start, head.end).includes("|") &&
-      TABLE_DELIMITER.test(markdown.slice(delimiter.start, delimiter.end))
-    ) {
+      continue;
+    }
+    // A table may start inside a block, after the lines of a paragraph: it runs to the end of the block.
+    const table = lines.findIndex((line, at) => tableStart(markdown, line, lines[at + 1]));
+    paragraphs(markdown, table < 0 ? lines : lines.slice(0, table), units);
+    if (table >= 0) {
       lines.forEach((line, at) => {
-        if (at !== 1) {
+        if (at >= table && at !== table + 1) {
           cells(markdown, line, units);
         }
       });
-    } else {
-      paragraphs(markdown, lines, units);
     }
   }
   return units;
@@ -213,36 +230,32 @@ export interface PhraseSpan {
 
 const ASCII = /^[\0-\x7f]*$/u;
 
-/** A letter or digit of an ASCII text in lower case. */
-const isAsciiWord = (code: number): boolean => (code >= 48 && code <= 57) || (code >= 97 && code <= 122);
+/** Per phrase its regular expression (`phraseRegex`), or null for a phrase with another word. */
+const phraseRegexes = new WeakMap<SearchPhrase, RegExp | null>();
 
-/** The places of `phrase` in the ASCII text `text`, from `from` on, in order, ignoring units. */
-function* asciiPlaces(text: string, phrase: SearchPhrase, from: number): Generator<PhraseSpan> {
-  const lower = text.toLowerCase();
-  const { words } = phrase;
-  const last = words.length - 1;
-  const first = String(words[0]);
-  for (let start = lower.indexOf(first, from); start >= 0; start = lower.indexOf(first, start + 1)) {
-    if (start > 0 && isAsciiWord(lower.charCodeAt(start - 1))) {
-      continue;
-    }
-    let at = start;
-    let matched = true;
-    for (let n = 0; n <= last && matched; n++) {
-      while (at < lower.length && !isAsciiWord(lower.charCodeAt(at))) {
-        at++;
-      }
-      const wordStart = at;
-      while (at < lower.length && isAsciiWord(lower.charCodeAt(at))) {
-        at++;
-      }
-      matched = phraseWordMatches(lower.slice(wordStart, at), String(words[n]), n === last && phrase.prefix);
-    }
-    if (matched) {
-      yield { start, end: at };
-    }
+/**
+ * The phrase `phrase` as a regular expression over any text when its words are ASCII, else null,
+ * made once per phrase: its words as whole words in any case, with characters that are no letter,
+ * mark or digit between them, and the last word as a word start in an open phrase.
+ */
+const phraseRegex = (phrase: SearchPhrase): RegExp | null => {
+  let known = phraseRegexes.get(phrase);
+  if (known === undefined) {
+    const letter = "[\\p{L}\\p{M}\\p{N}]";
+    const last = phrase.words.length - 1;
+    // `İ` is `i̇` in lower case: as the start of an open last word `i`, it begins a word with `i`.
+    const [first, ...rest] = phrase.words.map((word, n) =>
+      phrase.prefix && word === "i" && n === last ? "[i\\u0130]" : word,
+    );
+    // The first word, then the look back: it scans faster than a look back at every character.
+    const between = rest.map((word) => `[^\\p{L}\\p{M}\\p{N}]+${word}`).join("");
+    const end = phrase.prefix ? `${letter}*` : `(?!${letter})`;
+    const source = `${String(first)}(?<!${letter}${String(first)})${between}${end}`;
+    known = phrase.words.every((word) => ASCII.test(word)) ? new RegExp(source, "giu") : null;
+    phraseRegexes.set(phrase, known);
   }
-}
+  return known;
+};
 
 const WORD = /[\p{L}\p{M}\p{N}]+/gu;
 
@@ -316,9 +329,33 @@ export const findPhrase = (
     return undefined;
   }
   let units: readonly number[] | undefined;
-  const places = ASCII.test(text) ? asciiPlaces(text, phrase, from) : wordPlaces(text, phrase, from);
-  for (const place of places) {
-    if (!markdown || inLine(text, place) || inOneUnit((units ??= phraseUnits(text)), place)) {
+  const inUnit = (place: PhraseSpan): boolean =>
+    !markdown || inLine(text, place) || inOneUnit((units ??= phraseUnits(text)), place);
+  const regex = phraseRegex(phrase);
+  // A phrase of ASCII words: one regular expression over the text as it is, no copy in lower case
+  // (SR-098). A place of ASCII characters is one as the index splits and compares words. Case
+  // folding also takes a few other characters for ASCII letters (`ſ` for `s`, the Kelvin sign for
+  // `k`): from a place with any other character on, the text is compared word by word, as the index
+  // does.
+  let next = from;
+  while (regex !== null) {
+    regex.lastIndex = next;
+    const found = regex.exec(text);
+    if (found === null) {
+      return undefined;
+    }
+    if (!ASCII.test(found[0])) {
+      next = found.index;
+      break;
+    }
+    const place = { start: found.index, end: found.index + found[0].length };
+    if (inUnit(place)) {
+      return place;
+    }
+    next = found.index + 1;
+  }
+  for (const place of wordPlaces(text, phrase, next)) {
+    if (inUnit(place)) {
       return place;
     }
   }
