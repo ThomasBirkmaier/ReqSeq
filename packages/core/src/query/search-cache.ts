@@ -25,8 +25,11 @@ import {
 /** The name of the search index in the cache folder of a copy (`cacheFolder(root)`). */
 export const SEARCH_CACHE_FILE = "search.json";
 
-/** The format of `search.json`; a file of another format is not used. 3: the texts of the documents. */
-export const SEARCH_CACHE_FORMAT = 3;
+/**
+ * The format of `search.json`; a file of another format is not used. 3: the texts of the documents;
+ * 4: the fields `type` and `status` (SR-068 AK5).
+ */
+export const SEARCH_CACHE_FORMAT = 4;
 
 /**
  * What of the metamodel decides the documents (`documentOf`) and the fields: the title key, the keys

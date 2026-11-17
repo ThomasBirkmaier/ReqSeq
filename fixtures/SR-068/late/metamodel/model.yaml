@@ -1,0 +1,33 @@
+# SR-068 AK5: hits found only through the name of their type (Package) or status (In review) come
+# after the others. The status obsolete is invalid, so a list folds it (SR-201).
+reqseq-metamodel: 1
+types:
+  - key: package
+    name: Package
+    prefix: PKG
+    meaning: package
+    properties: [title]
+    required: [title]
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, notes, packages]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: notes, name: Notes, kind: text }
+  - key: packages
+    name: Package
+    kind: relation
+    many: true
+    target-types: [package]
+    meaning: packages
+relations:
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: succession }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: in-review, name: In review }
+  - { key: approved, name: Approved }
+  - { key: obsolete, name: Obsolete, invalid: true }

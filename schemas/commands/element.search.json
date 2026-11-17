@@ -19,7 +19,7 @@
     "properties": {
       "query": {
         "type": "string",
-        "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
+        "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A hit with a word found only in its type or status name, and in no other searched field, comes after the hits without one. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
       },
       "selection": {
         "$ref": "../common.schema.json#/$defs/selection",
@@ -34,7 +34,7 @@
       },
       "group": {
         "$ref": "../common.schema.json#/$defs/groupKey",
-        "description": "Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
+        "description": "Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits without a word found only in the type or status name, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
       },
       "withVerification": {
         "type": "boolean",
@@ -59,7 +59,7 @@
   },
   "output": {
     "type": "object",
-    "description": "One page of the hits, the best first: ID matches, then relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet (SR-174).",
+    "description": "One page of the hits, the best first: ID matches, then hits without a word found only in the type or status name, then relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet (SR-174).",
     "properties": {
       "hits": {
         "type": "array",
@@ -95,7 +95,7 @@
             "score": {
               "type": "number",
               "minimum": 0,
-              "description": "Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only."
+              "description": "Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only. A hit with a word found only in its type or status name comes after the others whatever its score."
             },
             "fields": {
               "type": "array",

@@ -1,21 +1,23 @@
 // SR-098 AK1 in the performance suite (ADR-0011): the first hits of a full-text search within
 // 300 ms in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 //
-// "Wenn ein Suchbegriff eingegeben wird" as measured here (ThomasBirkmaier/ReqSeq-archive#110): a warm server (`warmWorkspace`, as
-// `reqseq serve` and the app start, with the search index built in the background and ready),
-// `element.search` through the catalog (`invoke`, as every access calls it, SR-080) with the default
-// page of 50 hits ("die ersten Treffer"). The app searches as the user types, so every keystroke is a
-// search of the term so far. The terms below cover that and the costliest terms of the generated
-// workspace (measured on ThomasBirkmaier/ReqSeq-archive#110): typing a word letter by letter, two-letter prefixes that begin words
-// of every element, words of (almost) every element, a phrase of them, a whole title, topic words, a
-// typo, another case, a number and IDs. Each term runs `RUNS` times and its median must stay within
-// 300 ms: every term has its own row and threshold, so the slowest term decides. The median, not a
-// single run, since single runs on a shared runner include pauses of the garbage collector and the
-// scheduler; the slowest single run is recorded without a threshold. The first search once the index
-// is ready, and the first search after a save (the carried index), have rows of their own: the arrays
-// that a search reads are built at the end of the build and of the carry (`prepareSearchIndex`), so
-// they cost no more than the later searches. The window right after a start, while the index is
-// built, is spec question ThomasBirkmaier/ReqSeq-archive#388 (recorded in search-index.test.ts: "ready after the start").
+// "Wenn ein Suchbegriff eingegeben wird" as measured here (ThomasBirkmaier/ReqSeq-archive#110): a
+// warm server (`warmWorkspace`, as `reqseq serve` and the app start, with the search index built in
+// the background and ready), `element.search` through the catalog (`invoke`, as every access calls
+// it, SR-080) with the default page of 50 hits ("die ersten Treffer"). The app searches as the user
+// types, so every keystroke is a search of the term so far. The terms below cover that and the
+// costliest terms of the generated workspace (measured on ThomasBirkmaier/ReqSeq-archive#110):
+// typing a word letter by letter, two-letter prefixes that begin words of every element, words of
+// (almost) every element, a phrase of them, a whole title, topic words, a typo, another case, a
+// number, IDs, and type and status names (SR-068 AK5). Each term runs `RUNS` times and its median
+// must stay within 300 ms: every term has its own row and threshold, so the slowest term decides.
+// The median, not a single run, since single runs on a shared runner include pauses of the garbage
+// collector and the scheduler; the slowest single run is recorded without a threshold. The first
+// search once the index is ready, and the first search after a save (the carried index), have rows
+// of their own: the arrays that a search reads are built at the end of the build and of the carry
+// (`prepareSearchIndex`), so they cost no more than the later searches. The window right after a
+// start, while the index is built, is spec question ThomasBirkmaier/ReqSeq-archive#388 (recorded in
+// search-index.test.ts: "ready after the start").
 //
 // Every hit of a page has its snippet (SR-174), read from its file; the generated texts are short, so
 // every `LONG_EVERY`th element gets a text of about 5 KB more (`longText`: paragraphs with links and
@@ -176,6 +178,9 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ["a word of every element", "then"],
       ["a word of every text", "shall"],
       ["a word of most elements", "runs"],
+      ["the status name of most elements (SR-068 AK5)", "draft"],
+      ["a type name, also a word of texts (SR-068 AK5)", "requirement"],
+      ["two letters that begin a status name (SR-068 AK5)", "dr"],
       ["three words of every text", "the station shall"],
       ["a whole title (six words and a number)", title],
       ["a word in a fifth of the titles", "wind"],
