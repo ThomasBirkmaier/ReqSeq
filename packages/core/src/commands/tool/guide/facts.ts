@@ -34,13 +34,25 @@ export interface GuideStatus extends GuideNamed {
 export interface GuideType extends GuideNamed {
   readonly prefix: string;
   readonly statuses: readonly GuideStatus[];
+  /** Its key and the keys of its ancestors, which the source and target types of a relation kind name. */
+  readonly keys: readonly string[];
+  /** The property keys an element of it has. */
+  readonly properties: readonly string[];
+  /** The property keys it requires, without the title, which every call gives. */
+  readonly required: readonly string[];
+}
+
+/** A relation kind with the meaning derivation and the types it allows (none named: every type). */
+export interface GuideKind extends GuideNamed {
+  readonly sources?: readonly string[];
+  readonly targets?: readonly string[];
 }
 
 /** The facts of a workspace whose metamodel could be read. */
 export interface GuideWorkspace {
   readonly needs: readonly GuideType[];
   readonly requirements: readonly GuideType[];
-  readonly derivation: readonly GuideNamed[];
+  readonly derivation: readonly GuideKind[];
   /** The property with the meaning `acceptance-criteria`. */
   readonly acceptanceCriteria?: GuideNamed;
   /** The property with the meaning `verification-method`, with its choices. */
@@ -57,6 +69,7 @@ const named = ({ key, name }: GuideNamed): GuideNamed => ({ key, name });
 
 const guideType = (metamodel: Metamodel, type: EffectiveType): GuideType => {
   const initial = initialStatus(metamodel, type);
+  const title = propertyWithMeaning(metamodel, "title")?.key;
   return {
     key: type.key,
     name: type.name,
@@ -67,6 +80,9 @@ const guideType = (metamodel: Metamodel, type: EffectiveType): GuideType => {
       initial: status.key === initial,
       invalid: status.invalid === true,
     })),
+    keys: [type.key, ...type.ancestors],
+    properties: type.properties,
+    required: type.required.filter((key) => key !== title),
   };
 };
 
@@ -89,7 +105,11 @@ export const workspaceFacts = (layout: WorkspaceLayout, metamodel: Metamodel): G
   return {
     needs: creatable(metamodel, "need"),
     requirements: creatable(metamodel, "requirement"),
-    derivation: relationKindsWithMeaning(metamodel, "derivation").map(named),
+    derivation: relationKindsWithMeaning(metamodel, "derivation").map((kind) => ({
+      ...named(kind),
+      ...(kind["source-types"] === undefined ? {} : { sources: kind["source-types"] }),
+      ...(kind["target-types"] === undefined ? {} : { targets: kind["target-types"] }),
+    })),
     ...(criteria === undefined ? {} : { acceptanceCriteria: named(criteria) }),
     ...(method === undefined
       ? {}
@@ -98,19 +118,27 @@ export const workspaceFacts = (layout: WorkspaceLayout, metamodel: Metamodel): G
   };
 };
 
-/** Why there are no facts, from an error of reading the workspace; any other error is thrown. */
+/**
+ * Why there are no facts, from an error of reading the workspace, so the guide is there whatever happened.
+ * Without a workspace, `noWorkspace` asks for the call that creates one, unless one lies a level below
+ * (`details.below`), which the message names to open instead.
+ */
 const reasonOf = (error: unknown): GuideFacts => {
-  if (error instanceof CommandError) {
-    return { reason: error.message, noWorkspace: error.code === "workspace.not-found" };
+  if (!(error instanceof CommandError)) {
+    return { reason: `The workspace cannot be read: ${String(error)}`, noWorkspace: false };
   }
-  throw error;
+  const below = error.details?.["below"];
+  return {
+    reason: error.message,
+    noWorkspace: error.code === "workspace.not-found" && !(Array.isArray(below) && below.length > 0),
+  };
 };
 
 /**
  * The facts of `workspace`, from its layout and metamodel only, never from its elements, so the guide is
  * ready at once (the MCP server waits for it before it serves). A `CommandError` of reading them (no workspace
- * file, `workspace.not-found`; one that cannot be read, `file.faulty`) gives its message as the reason; a
- * metamodel that is not valid gives its first error. Other errors are thrown.
+ * file, `workspace.not-found`; one that cannot be read, `file.faulty`) gives its message as the reason, any
+ * other error its text; a metamodel that is not valid gives its first error.
  */
 export const readGuideFacts = async (workspace: Workspace): Promise<GuideFacts> => {
   let layout: WorkspaceLayout;

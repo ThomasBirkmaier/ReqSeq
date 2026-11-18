@@ -47,6 +47,7 @@ export interface GuideContext {
   /** The facts of the workspace; undefined without them (SR-229 AK2). */
   readonly workspace: GuideWorkspace | undefined;
   readonly facts: GuideFacts;
+  readonly names: GuideNames;
   /** A call as `names` asks. */
   readonly call: (call: GuideCall) => string;
   /** A call of the command line, whatever `names` is (the pipeline, AK11). */
@@ -89,7 +90,8 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
   const { facts } = context;
   if (!("workspace" in facts)) {
     const reason = `The guide names no types, statuses or evidence locations of a workspace. Reason: ${guideValue(facts.reason.replace(/\.$/, ""), REASON_MAX)}.`;
-    const again = `Once that is fixed, read the guide again: ${context.call({ command: "tool.guide" })}.`;
+    const input = context.names === "mcp" ? { names: "mcp" } : {};
+    const again = `Once that is fixed, read the guide again: ${context.call({ command: "tool.guide", input })}.`;
     return facts.noWorkspace
       ? [
           reason,
@@ -111,17 +113,49 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
     ...(kinds.length === 0 ? [] : [`- Derivation: ${kinds.join(", ")}.`]),
     workspace.evidence.length === 0
       ? "- Evidence locations: none yet. Add one to `reqseq-workspace.yaml`, for example `evidence: [{ repository: <repository>, path: <folder> }]`."
-      : `- Evidence locations: ${workspace.evidence.map((folder) => guideValue(folder)).join(", ")}.`,
+      : `- Evidence locations: ${workspace.evidence.map((folder) => (isPlainPath(folder) ? `\`${folder}\`` : guideValue(folder))).join(", ")}.`,
   ];
 };
 
-const needType = (context: GuideContext): string => context.workspace?.needs[0]?.key ?? "<need type>";
-const requirementType = (context: GuideContext): string =>
-  context.workspace?.requirements[0]?.key ?? "<requirement type>";
-/** The first evidence location for a call, when it is a plain path; else a placeholder. */
-const evidenceFolder = (context: GuideContext): string => {
-  const [first] = context.workspace?.evidence ?? [];
-  return first !== undefined && /^[\w./-]{1,80}$/.test(first) ? first : "<evidence location>";
+/** A path that a code span and a shell word show as it is. */
+const isPlainPath = (folder: string): boolean => /^[\w./-]{1,80}$/.test(folder);
+
+/** The first evidence location that is a plain path, for a call; else a placeholder. */
+const evidenceLocation = (context: GuideContext): string =>
+  context.workspace?.evidence.find(isPlainPath) ?? "<evidence location>";
+
+/** The input of `element.create` for `type`: its required properties as placeholders, then `given` where it has them. */
+const createInput = (
+  type: GuideType | undefined,
+  placeholder: string,
+  text: string,
+  given: Readonly<Record<string, unknown>> = {},
+): Readonly<Record<string, unknown>> => {
+  if (type === undefined) {
+    return { type: placeholder, title: "<title>", text };
+  }
+  const properties = {
+    ...Object.fromEntries(type.required.map((key) => [key, `<${key}>`])),
+    ...Object.fromEntries(Object.entries(given).filter(([key]) => type.properties.includes(key))),
+  };
+  return {
+    type: type.key,
+    title: "<title>",
+    text,
+    ...(Object.keys(properties).length === 0 ? {} : { properties }),
+  };
+};
+
+/** The first derivation kind that allows a relation from `source` to `target`, as its source and target types say. */
+const derivationKind = (context: GuideContext): string => {
+  const source = context.workspace?.requirements[0];
+  const target = context.workspace?.needs[0];
+  const allows = (types: readonly string[] | undefined, type: GuideType | undefined): boolean =>
+    types === undefined || type?.keys.some((key) => types.includes(key)) === true;
+  const kind = context.workspace?.derivation.find(
+    (candidate) => allows(candidate.sources, source) && allows(candidate.targets, target),
+  );
+  return kind?.key ?? "<derivation>";
 };
 
 /** The test name example (SR-205 AK1) with the prefix of a requirement type; left out without one. */
@@ -134,24 +168,20 @@ const testNameExample = (context: GuideContext): string => {
 const requirementCall = (context: GuideContext): GuideCall => {
   const criteria = context.workspace?.acceptanceCriteria;
   const method = context.workspace?.verificationMethod;
-  const properties = {
+  const given = {
     ...(criteria === undefined ? {} : { [criteria.key]: ["Given …, when …, then …"] }),
     ...(method === undefined ? {} : { [method.key]: method.choices[0] ?? "<method>" }),
   };
+  const type = context.workspace?.requirements[0];
   return {
     command: "element.create",
-    input: {
-      type: requirementType(context),
-      title: "<title>",
-      text: "The system must …",
-      ...(Object.keys(properties).length === 0 ? {} : { properties }),
-    },
+    input: createInput(type, "<requirement type>", "The system must …", given),
   };
 };
 
 const enrichCall = (context: GuideContext): GuideCall => ({
   command: "evidence.enrichJunit",
-  input: { file: "<junit.xml>", item: "<item>", output: `${evidenceFolder(context)}/<run>.xml` },
+  input: { file: "<junit.xml>", item: "<item>", output: `${evidenceLocation(context)}/<run>.xml` },
 });
 
 /** The sections of the guide, in their order. */
@@ -160,14 +190,14 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "1. Need",
     lines: (context) => [
-      `Write down what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: { type: needType(context), title: "<title>", text: "<text>" } })}.`,
+      `Write down what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: createInput(context.workspace?.needs[0], "<need type>", "<text>") })}.`,
     ],
   },
   {
     heading: "2. Requirement with acceptance criteria and verification method",
     lines: (context: GuideContext): readonly string[] => {
       const method = context.workspace?.verificationMethod;
-      const kind = context.workspace?.derivation[0]?.key ?? "<derivation>";
+      const kind = derivationKind(context);
       return [
         `Create the requirement with its acceptance criteria and its verification method: ${context.call(requirementCall(context))}.`,
         ...(method === undefined || method.choices.length === 0
@@ -232,6 +262,7 @@ export const agentGuide = (
   const context: GuideContext = {
     workspace: "workspace" in facts ? facts.workspace : undefined,
     facts,
+    names,
     call: (call) => renderCall(call, names, entries),
     cli: (call) => renderCall(call, "cli", entries),
   };

@@ -174,7 +174,7 @@ describe("tool.guide", () => {
         "- Requirements: System Requirement (`system-requirement`, prefix `SR`).",
         "- Statuses of Need and System Requirement: Draft (`draft`, initial), Approved (`approved`), Obsolete (`obsolete`, invalid).",
         "- Derivation: Refines (`refines`), Derives from (`derives-from`).",
-        "- Evidence locations: evidence.",
+        "- Evidence locations: `evidence`.",
         "",
         "",
       ].join("\n"),
@@ -183,7 +183,7 @@ describe("tool.guide", () => {
       "`[<ID>/AK-<criterion key>]`, for example `[SR-1a2b3c/AK-k7f3] rejects an empty title`",
     );
     expect(section(text, "2. Requirement with acceptance criteria and verification method")).toContain(
-      `--set 'acceptance-criteria=["Given …, when …, then …"]' --set verification-method=test`,
+      `--set 'requirement-type=<requirement-type>' --set 'acceptance-criteria=["Given …, when …, then …"]' --set verification-method=test`,
     );
   });
 
@@ -296,6 +296,9 @@ describe("the guide's parts", () => {
     name: "T",
     prefix: "T",
     statuses,
+    keys: ["t"],
+    properties: ["method"],
+    required: [],
   });
 
   it("leaves out the status line of a type without statuses and gives a placeholder for a method without choices", () => {
@@ -383,6 +386,9 @@ describe("the guide's parts", () => {
             name: hostile,
             prefix: "N",
             statuses: [{ key: "s", name: hostile, initial: true, invalid: false }],
+            keys: ["n"],
+            properties: [],
+            required: [],
           },
         ],
         requirements: [],
@@ -403,8 +409,48 @@ describe("the guide's parts", () => {
     expect(guideValue("a\u0000b\u2028c\td")).toBe("a b c d");
   });
 
-  it("passes on an error that is not about the workspace", async () => {
+  it("gives the guide with the reason also for an error that is not a command error, so the MCP server starts", async () => {
     const failing = { get: () => Promise.reject(new Error("disk gone")) } as unknown as Workspace;
-    await expect(readGuideFacts(failing)).rejects.toThrow("disk gone");
+    expect(await readGuideFacts(failing)).toEqual({
+      reason: "The workspace cannot be read: Error: disk gone",
+      noWorkspace: false,
+    });
+  });
+
+  it("asks to open a workspace one level below instead of creating one", async () => {
+    const root = await folder({
+      "spec/reqseq-workspace.yaml": workspaceFile(),
+      "spec/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
+    });
+    const text = section(await guide(root, { names: "mcp" }), "Values from this workspace");
+    expect(text).toContain("one level below lies spec/reqseq-workspace.yaml");
+    expect(text).not.toContain("workspace_init");
+    expect(text).toContain('`tool_guide` with `{"names":"mcp"}`');
+  });
+
+  it("picks the derivation kind whose types allow requirement to need, and the first plain evidence path", () => {
+    const need = { ...type([]), key: "wish", keys: ["wish"] };
+    const facts: GuideFacts = {
+      workspace: {
+        needs: [need],
+        requirements: [{ ...type([]), key: "story", keys: ["story", "base"], required: ["size"] }],
+        derivation: [
+          { key: "details", name: "Details", sources: ["story"], targets: ["story"] },
+          { key: "serves", name: "Serves", sources: ["base"], targets: ["wish"] },
+        ],
+        evidence: ["far away (repository x)", "evidence/ci"],
+      },
+    };
+    const text = agentGuide(facts, "cli", ENTRIES);
+    expect(text).toContain("`reqseq relation add '<requirement>' serves '<need>'`");
+    expect(text).toContain(
+      "`reqseq element create story '<title>' --text 'The system must …' --set 'size=<size>'`",
+    );
+    expect(text).toContain("--output 'evidence/ci/<run>.xml'");
+    expect(text).toContain("- Evidence locations: far away (repository x), `evidence/ci`.");
+    const none = {
+      workspace: { ...facts.workspace, derivation: [{ key: "x", name: "X", targets: ["other"] }] },
+    };
+    expect(agentGuide(none, "cli", ENTRIES)).toContain("'<derivation>'");
   });
 });
