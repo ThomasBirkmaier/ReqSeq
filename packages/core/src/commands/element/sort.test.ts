@@ -590,18 +590,50 @@ describe("element.list refuses sort keys it cannot apply", () => {
       `sort[1].by: foo is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}`,
       ["sort[1].by"],
     ]);
-    // A key that ends in the order names the form it seems to mean.
-    for (const [by, key, order] of [
-      ["title-desc", "title", "desc"],
-      ["priority-asc", "priority", "asc"],
-    ] as const) {
-      expect(await refused(workspace, [{ by }])).toEqual([
+    // An inherited key of a JavaScript object and a key no element gives a value (`null`, `[]`) are not held.
+    const empty = (value: string, index: number): string =>
+      `---\nid: ${P}e${String(index)}\ntype: need\nstatus: draft\ntitle: E\nprio: ${value}\n---\n`;
+    const { workspace: emptied } = await open({
+      ...SORT,
+      files: {
+        "needs/N-e0.md": empty("null", 0),
+        "needs/N-e1.md": empty("[]", 1),
+        "needs/N-e2.md": `---\nid: ${P}e2\ntype: need\nstatus: draft\ntitle: E\nowner: ann\n---\n`,
+      },
+    });
+    for (const by of ["constructor", "prio"]) {
+      expect(await refused(emptied, [{ by }])).toEqual([
         "input.invalid",
-        `sort[0].by: ${by} is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}; for ${by}, give by ${key} and order ${order}`,
+        `sort[0].by: ${by} is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}`,
         ["sort[0].by"],
       ]);
     }
-    // Saving a filter or a perspective with such a key fails the same way, and writes nothing.
+    // A property only an element holds (SR-016) is a form that sorts.
+    expect(((await refused(emptied, [{ by: "owner-asc" }])) as unknown[])[1]).toMatch(
+      /; for owner-asc, give by owner and order asc$/u,
+    );
+    // A key that ends in the order names the form it seems to mean, when that form sorts.
+    const hint = (by: string, key: string, order: string): string =>
+      `; for ${by}, give by ${key} and order ${order}`;
+    for (const [by, extra] of [
+      ["title-desc", hint("title-desc", "title", "desc")],
+      ["priority-asc", hint("priority-asc", "priority", "asc")],
+      ["hierarchy-asc", hint("hierarchy-asc", "hierarchy", "asc")],
+      ["hierarchy-desc", ""],
+      ["derives-from-desc", ""],
+      ["foo-desc", ""],
+    ] as const) {
+      expect(await refused(workspace, [{ by }])).toEqual([
+        "input.invalid",
+        `sort[0].by: ${by} is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}${extra}`,
+        ["sort[0].by"],
+      ]);
+    }
+  });
+
+  it("refuses such a key when a filter or a perspective is saved, and writes nothing (#1829)", async () => {
+    const { workspace, root } = await open();
+    const before = await filesOf(root);
     for (const command of ["filter.save", "perspective.save"] as const) {
       const error = await invoke(
         command,
@@ -617,9 +649,34 @@ describe("element.list refuses sort keys it cannot apply", () => {
         ["sort[0].by"],
       ]);
     }
+    expect(await filesOf(root)).toEqual(before);
   });
 
-  it("[SR-075/AK-dmt0] sorts by a property the metamodel does not know when an element outside the selection holds it (SR-016)", async () => {
+  it("keeps a stored sort by a key no element holds: the list opens, the key sorts as no value (#1829)", async () => {
+    const { workspace } = await open({
+      ...SORT,
+      files: {
+        "filters/typo.yaml":
+          "reqseq-filter: 1\nname: Typo\nwhere: { type: [software-requirement] }\nsort: [{ by: foo }, { by: title }]\n",
+        "perspectives/typo.yaml":
+          "reqseq-perspective: 1\nname: Typo view\nwhere: { type: [software-requirement] }\nsort: [{ by: foo, order: desc }]\n",
+        "perspectives/its-filter.yaml":
+          "reqseq-perspective: 1\nname: Its filter\nfilter: Typo\nwhere: { all: [] }\n",
+      },
+    });
+    // Filter: foo gives no value, then by title: Buffer (f3), Filter (f1), Log (f2).
+    expect(ids(await list(workspace, { selection: { filter: "Typo" } }))).toEqual([F3, F1, F2]);
+    expect(ids(await list(workspace, { perspective: "Typo view" }))).toEqual([F1, F2, F3]);
+    expect(ids(await list(workspace, { perspective: "Its filter" }))).toEqual([F3, F1, F2]);
+    // Grouped, the stored sort holds inside each group as well.
+    const grouped = await list(workspace, { perspective: "Typo view", group: "status" });
+    expect(ids(grouped)).toEqual([F1, F3, F2]);
+    // The same key given by the call is refused.
+    const error = await failure(workspace, { selection: { filter: "Typo" }, sort: [{ by: "foo" }] });
+    expect(error.details?.["fields"]).toEqual(["sort[0].by"]);
+  });
+
+  it("sorts by a property the metamodel does not know when an element outside the selection holds it (SR-016)", async () => {
     const files = {
       "needs/N-x.md": `---\nid: ${P}e0\ntype: need\nstatus: draft\ntitle: X\nowner: zed\n---\n`,
     };
