@@ -28,7 +28,7 @@
 //   every function); the versions at the baseline are what baseline.get shows (SR-051). It is found by name, then by
 //   file name (`findBaseline`): none is `input.invalid`, a name two files share too, a text that
 //   names only a faulty file `file.faulty`. baseline.create refuses it before it gets here.
-// - `output` (SR-224 AK5, #1873): the elements a read command gives as its result, the field of its output
+// - `output` (SR-224 AK5, #1873): the elements of the field of a read command's output
 //   marked `x-elements: "answer"` over all pages (`CommandDefinition.outputElements`), run through
 //   `readOutputElements` of the command's context as `invoke` runs a command (runtime/invoke.ts,
 //   `outputElementsReader`). An element is matched by repository and UUID; one the store does not hold

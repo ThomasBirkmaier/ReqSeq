@@ -520,7 +520,7 @@ export interface ElementSelection {
 }
 
 /**
- * The elements a read command gives as its result, its output field marked `x-elements: "answer"`, over all pages (SR-224 AK5).
+ * The elements of the output field of a read command marked `x-elements: "answer"`, over all pages (SR-224 AK5).
  * Schema: `schemas/common.schema.json#/$defs/outputSelection`.
  */
 export interface OutputSelection {

@@ -366,7 +366,7 @@ describe("reqif.saveMapping (SR-054)", () => {
         "omit-properties": ["topic", "derives-from"],
         "export-profiles": [
           { name: "P", selection: {}, "omit-properties": ["nothing"] },
-          { name: "Q", selection: {} },
+          { name: "Q", selection: { output: { command: "trace.affected", input: { ref: "N-1" } } } },
         ],
       },
     });
@@ -384,6 +384,7 @@ describe("reqif.saveMapping (SR-054)", () => {
       "mapping.statement.property",
       "mapping.omit-properties[1]",
       "mapping.export-profiles[0].omit-properties[0]",
+      "mapping.export-profiles[1].selection.output",
     ]);
     expect(error.message).toContain(
       "mapping.attributes[1].property: requirement-type is no property of type decision",

@@ -578,7 +578,7 @@
       "additionalProperties": false
     },
     "outputSelection": {
-      "description": "The elements a read command gives as its result, its output field marked `x-elements: \"answer\"`, over all pages (SR-224 AK5).",
+      "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages (SR-224 AK5).",
       "type": "object",
       "required": ["command", "input"],
       "properties": {

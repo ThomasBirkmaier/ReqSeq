@@ -204,14 +204,14 @@ describe("readOutputElements", () => {
       const error = await failure(rt.invoke("test.outer", { command, input: {} }, ctx));
       expect([error.code, error.details]).toEqual([
         "input.invalid",
-        { fields: ["selection.output.command"] },
+        { command: "test.outer", fields: ["selection.output.command"] },
       ]);
       messages.push(error.message);
     }
     expect(messages).toEqual([
       'selection.output.command: "test.none" is no command of the catalog',
       "selection.output.command: test.write writes files; selection.output runs read commands only",
-      'selection.output.command: test.plain gives no elements as its result (no output field is marked x-elements "answer")',
+      'selection.output.command: test.plain lists no elements (no output field is marked x-elements "answer")',
     ]);
     // The outer call reads at depth 0: MAX_OUTPUT_DEPTH reads in all.
     const deepest = { command: "test.found", input: { nest: MAX_OUTPUT_DEPTH - 1 } };

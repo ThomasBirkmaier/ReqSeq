@@ -19,7 +19,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import { parseQuery } from "./phrase-text.js";
 import { designationRuns, designationTable } from "./search-designations.js";
 import type { SearchElementsOptions, SearchIndex } from "./search-index.js";
-import { matchingKeys, rankedHits, recordKey, searchElements } from "./search-index.js";
+import { matchingElements, matchingKeys, rankedHits, recordKey, searchElements } from "./search-index.js";
 import { searchIndex } from "./search-state.js";
 
 type Output = CommandOutput<"element.search">;
@@ -78,9 +78,10 @@ const ranked = (index: SearchIndex, query: string, options: SearchElementsOption
     (hit) => `${hit.element.id.slice(-2)}${hit.late ? " late" : hit.other ? " other" : ""}`,
   );
 
-/** The UUID tails `query` finds, sorted. */
+/** The UUID tails `query` finds, sorted; `matchingElements` finds the same elements (#1873). */
 const found = (index: SearchIndex, query: string, options: SearchElementsOptions = {}): string[] => {
   const keys = matchingKeys(index, query, options);
+  expect(new Set(matchingElements(index, query, options).map(recordKey))).toEqual(keys);
   return index.store.elements
     .filter((record) => keys.has(recordKey(record)))
     .map((r) => r.id.slice(-2))

@@ -169,9 +169,9 @@ const innerError = (error: CommandError): CommandError => {
   );
 };
 
-/** `input.invalid` at `selection.output`. */
-const outputInvalid = (field: string, message: string): CommandError =>
-  new CommandError("input.invalid", `${field}: ${message}`, { fields: [field] });
+/** `input.invalid` of `command` at `field` of `selection.output`. */
+const outputInvalid = (command: string, field: string, message: string): CommandError =>
+  new CommandError("input.invalid", `${field}: ${message}`, { command, fields: [field] });
 
 /**
  * Bind implementations to their catalog entries. Holds compiled schemas only, never workspace
@@ -262,15 +262,42 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   };
 
   /**
+   * The local path rule of the access of `ctx` for `name` (SR-142, SR-143): `checked` with a leading `~` of its
+   * local path fields as the home folder in the app, and the check a confined access makes of them before the
+   * command runs (SR-142 AK1), for a call and for the inner call of `selection.output` alike.
+   */
+  const pathRuleOf = (
+    ctx: InvokeContext,
+    name: string,
+    checked: unknown,
+  ): {
+    readonly localPaths: LocalPaths;
+    readonly input: unknown;
+    readonly checkPaths: () => Promise<void>;
+  } => {
+    const { access } = ctx;
+    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
+    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
+    const fields = pathFields.get(name);
+    const input = withHome(checked, fields, localPaths.home);
+    return {
+      localPaths,
+      input,
+      checkPaths: () => (confined ? localPaths.check(localPathUses(input, fields)) : Promise.resolve()),
+    };
+  };
+
+  /**
    * `readOutputElements` of a call at `depth` (0 for the call itself): the output elements of a read command, run as `invoke`
    * runs it inside this call: the same input check, the local path rule of the call's access (`~` as home
    * in the app, confined paths checked first through the API and MCP), the call's signal, no recorded access.
    */
   const outputElementsReader =
-    (ctx: InvokeContext, signal: AbortSignal, depth: number): OutputElementsReader =>
+    (ctx: InvokeContext, signal: AbortSignal, caller: string, depth: number): OutputElementsReader =>
     async (name: string, input: unknown): Promise<OutputElements> => {
       if (depth >= MAX_OUTPUT_DEPTH) {
         throw outputInvalid(
+          caller,
           "selection.output",
           `at most ${String(MAX_OUTPUT_DEPTH)} output selections may be nested in each other`,
         );
@@ -279,20 +306,23 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       const command = registry.get(name);
       if (entry === undefined) {
         throw outputInvalid(
+          caller,
           "selection.output.command",
           `${JSON.stringify(name)} is no command of the catalog`,
         );
       }
       if (entry.effect !== "read") {
         throw outputInvalid(
+          caller,
           "selection.output.command",
           `${name} writes files; selection.output runs read commands only`,
         );
       }
       if (entry.outputFields?.some((field) => field.elements === "answer") !== true) {
         throw outputInvalid(
+          caller,
           "selection.output.command",
-          `${name} gives no elements as its result (no output field is marked x-elements "answer")`,
+          `${name} lists no elements (no output field is marked x-elements "answer")`,
         );
       }
       if (command === undefined) {
@@ -309,21 +339,16 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       }
       signal.throwIfAborted();
       try {
-        const { access } = ctx;
-        const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
-        const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
-        const checked = withHome(checkedInput(name, input), pathFields.get(name), localPaths.home);
-        if (confined) {
-          await localPaths.check(localPathUses(checked, pathFields.get(name)));
-        }
+        const rule = pathRuleOf(ctx, name, checkedInput(name, input));
+        await rule.checkPaths();
         return await outputElements(
           {
             workspace: ctx.workspace,
             signal,
-            localPaths,
-            readOutputElements: outputElementsReader(ctx, signal, depth + 1),
+            localPaths: rule.localPaths,
+            readOutputElements: outputElementsReader(ctx, signal, name, depth + 1),
           },
-          checked as never,
+          rule.input as never,
         );
       } catch (error) {
         throw error instanceof CommandError ? innerError(error) : error;
@@ -339,7 +364,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
             command: name,
           });
     }
-    let checked = checkedInput(name, input);
+    const rule = pathRuleOf(ctx, name, checkedInput(name, input));
+    const checked = rule.input;
+    const { localPaths } = rule;
     const signal = ctx.signal ?? new AbortController().signal;
     const { access } = ctx;
     const known = calls.get(name);
@@ -347,9 +374,6 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       access !== undefined && FOLLOWED_ACCESSES.includes(access) && known !== undefined
         ? { ...known, access }
         : undefined;
-    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
-    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
-    checked = withHome(checked, pathFields.get(name), localPaths.home);
     let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {
@@ -358,10 +382,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         async () => {
           // Read now, so that an internal error can name the root in its real form too (#1794).
           await learnWorkspaceRoots(ctx.workspace);
-          if (confined) {
-            // Before anything else: a refused path is neither read nor written (SR-142 AK1).
-            await localPaths.check(localPathUses(checked, pathFields.get(name)));
-          }
+          // Before anything else: a refused path is neither read nor written (SR-142 AK1).
+          await rule.checkPaths();
           if (guarded.has(name)) {
             await assertWritable(ctx.workspace, name);
           }
@@ -372,7 +394,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
               workspace: ctx.workspace,
               signal,
               localPaths,
-              readOutputElements: outputElementsReader(ctx, signal, 0),
+              readOutputElements: outputElementsReader(ctx, signal, name, 0),
             },
             checked as never,
           );

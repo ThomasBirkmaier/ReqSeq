@@ -22,7 +22,7 @@ const open = (ws: FixtureWorkspace): Workspace => {
   return workspace;
 };
 
-/** The context of a command that names no `selection.output` (its tests: output-selection.test.ts). */
+/** The context of a command that names no `selection.output` (its tests: commands/element/list-output.test.ts, runtime/output-elements.test.ts). */
 const callerOf = (workspace: Workspace): SelectionContext => ({
   workspace,
   readOutputElements: () => Promise.reject(new Error("no selection.output here")),

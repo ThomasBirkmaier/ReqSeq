@@ -169,7 +169,7 @@ scenariosOf("element.list", [
     },
   },
   {
-    name: "a selection by the output of a command that takes a local path: refused, nothing read (SR-142, #1873)",
+    name: "a selection by the output of a command that lists no elements: refused, nothing run (#1873)",
     fixture: EXPORT,
     root: "system",
     input: { selection: { output: { command: "workspace.listFolder", input: { path: "/" } } } },

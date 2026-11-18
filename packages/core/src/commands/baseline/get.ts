@@ -162,7 +162,7 @@ const evidenceOf = async (
   return { evidence: baselineEvidence(status, rows, countsFor(baseline.data.date)) };
 };
 
-/** The baseline of `input`, the warnings so far and what its stored selection selects now (see the file comment). */
+/** The baseline of `input` and what its stored selection selects now, with a warning when it cannot be resolved (see the file comment). */
 const baselineOf = async (
   ctx: CommandContext,
   input: CommandInput<typeof command>,
@@ -173,9 +173,7 @@ const baselineOf = async (
 }> => {
   const { workspace } = ctx;
   const baseline = await namedBaseline(workspace, input.baseline, command);
-  const layout = await workspace.get(workspaceLayoutState);
-  // The files on disk are read, not the baseline's commits (#668).
-  const problems: Problem[] = await commitDifferences(layout, baseline);
+  const problems: Problem[] = [];
   let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
   if (baseline.data.selection !== undefined) {
     try {
@@ -208,7 +206,12 @@ export default defineCommand({
   name: command,
   run: async (ctx, input): Promise<CommandOutput<typeof command>> => {
     const { workspace } = ctx;
-    const { baseline, problems, selected } = await baselineOf(ctx, input);
+    const { baseline, problems: unresolved, selected } = await baselineOf(ctx, input);
+    // The files on disk are read, not the baseline's commits (#668): these warnings come first.
+    const problems: Problem[] = [
+      ...(await commitDifferences(await workspace.get(workspaceLayoutState), baseline)),
+      ...unresolved,
+    ];
     const metamodel = await workspace.get(metamodelState);
     const [view] = selected?.views ?? [];
     return showBaseline(workspace, {

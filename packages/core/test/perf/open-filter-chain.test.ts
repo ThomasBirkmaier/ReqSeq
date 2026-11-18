@@ -519,7 +519,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  // Before the tests after a save: it saves the text of one element twice.
   it("records the list of the elements the first need affects, from the output of trace.affected (SR-224 AK5, #1873)", async () => {
     const current = opened();
     const need = tree.elements.find((e) => e.type === "need")?.id ?? "";
@@ -534,6 +533,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(listed.total).toBeGreaterThan(ELEMENTS / 2);
   });
 
+  // Before the tests after a save: it saves the text of one element twice.
   it("records two content saves in a row that count the affected elements (SR-024 AK2, ThomasBirkmaier/ReqSeq-archive#273)", async () => {
     const current = opened();
     const { target } = relationToTarget();

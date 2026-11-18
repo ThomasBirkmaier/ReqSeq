@@ -168,13 +168,13 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
       code: "input.invalid",
       message:
         "selection.output.command: element.update writes files; selection.output runs read commands only",
-      details: { fields: ["selection.output.command"] },
+      details: { command: "element.list", fields: ["selection.output.command"] },
     });
     expect(await refused("workspace.listFolder", { path: "/" })).toEqual({
       code: "input.invalid",
       message:
-        'selection.output.command: workspace.listFolder gives no elements as its result (no output field is marked x-elements "answer")',
-      details: { fields: ["selection.output.command"] },
+        'selection.output.command: workspace.listFolder lists no elements (no output field is marked x-elements "answer")',
+      details: { command: "element.list", fields: ["selection.output.command"] },
     });
     expect(await refused("trace.affected", { ref: "SR-ffffff" })).toMatchObject({
       code: "ref.unknown",
