@@ -75,7 +75,11 @@ describe("reqif.import (SR-053)", () => {
     const out = await run(workspace);
     expect(out.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
     const [one, two] = out.created.map((c) => c.id ?? "");
-    expect(out.files).toEqual([`Kunde-A/SR-${tail(one ?? "")}.md`, `Kunde-A/SR-${tail(two ?? "")}.md`]);
+    expect(out.files).toEqual([
+      `Kunde-A/SR-${tail(one ?? "")}.md`,
+      `Kunde-A/SR-${tail(two ?? "")}.md`,
+      "reqif/kunde-a.yaml",
+    ]);
     expect((await fs.readFile(fixture.path(out.files[0] ?? ""), "utf8")).split("\n")).toEqual([
       "---",
       `id: ${one ?? ""}`,
@@ -104,7 +108,9 @@ describe("reqif.import (SR-053)", () => {
       expect.objectContaining({ kind: "derives-from", id: one, storedVersion: first.element.version }),
     ]);
     // Nothing else was written: no temporary file is left.
-    expect((await tree(fixture)).filter((f) => f.startsWith("Kunde-A/"))).toEqual([...out.files].sort());
+    expect((await tree(fixture)).filter((f) => f.startsWith("Kunde-A/"))).toEqual(
+      out.files.slice(0, 2).sort(),
+    );
   });
 
   it("[SR-053/AK-y54s] writes into the folder the mapping names as target", async () => {
@@ -112,7 +118,7 @@ describe("reqif.import (SR-053)", () => {
       "reqif/kunde-a.yaml": `${MAPPING}target: { repository: system, path: imported/kunde-a }\n`,
     });
     const out = await run(workspace);
-    expect(out.files.every((f) => f.startsWith("imported/kunde-a/SR-"))).toBe(true);
+    expect(out.files.slice(0, -1).every((f) => f.startsWith("imported/kunde-a/SR-"))).toBe(true);
     await expect(fs.stat(fixture.path("Kunde-A"))).rejects.toThrow();
   });
 
@@ -246,9 +252,11 @@ describe("reqif.import (SR-053)", () => {
 
   it("[SR-054/AK-vy8n] exports to the same source through the saved mapping the command names, asking nothing about types and attributes", async () => {
     // The mapping of Kunde A keeps the delivery and the import date of its elements out of every export.
-    const saved = `${MAPPING}omit-properties: [delivery, import-date]\n`;
-    const { fixture, workspace } = await open({ "reqif/kunde-a.yaml": saved });
+    const { fixture, workspace } = await open({
+      "reqif/kunde-a.yaml": `${MAPPING}omit-properties: [delivery, import-date]\n`,
+    });
     const first = await run(workspace);
+    const saved = await fs.readFile(fixture.path("reqif/kunde-a.yaml"), "utf8");
     const exported = (await invoke(
       "reqif.export",
       {
@@ -377,7 +385,7 @@ describe("reqif.import (SR-053)", () => {
       await expect(fs.stat(fixture.path(file))).resolves.toBeDefined();
     }
     const listed = (await invoke("element.list", {}, { workspace })) as { elements: { file: string }[] };
-    expect(out.files.every((f) => listed.elements.some((e) => e.file === f))).toBe(true);
+    expect(out.files.slice(0, -1).every((f) => listed.elements.some((e) => e.file === f))).toBe(true);
   });
 
   it("[SR-053/AK-gkxw] writes nothing when the mapping omits every type, and lists each object as a loss", async () => {

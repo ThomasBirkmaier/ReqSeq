@@ -16,7 +16,7 @@ acceptance-criteria:
   - key: rgnq
     text: Gegeben der Buffer einer Perspektive ist offen und weicht von ihr ab, wenn die Perspektive erneut geöffnet wird, dann zeigt die App diesen Buffer wieder so, wie die Perspektive gespeichert ist.
   - key: bzs1
-    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite und einer Liste im Modus der Matrix, wenn „Save list as perspective“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen, schlägt den Namen der Perspektive vor, aus der die Liste kommt, zeigt beim Tippen die vorhandenen Perspektiven und speichert Filterschritte, Gruppierung und die gezeigte Sortierung der Liste.
+    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite, einer Liste aus der Ausgabe eines Befehls und einer Liste im Modus der Matrix, wenn „Save list as perspective“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen, schlägt den Namen der Perspektive vor, aus der die Liste kommt, zeigt beim Tippen die vorhandenen Perspektiven und speichert Filterschritte, Gruppierung und die gezeigte Sortierung der Liste.
   - key: fgs9
     text: Gegeben der Buffer einer Perspektive, wenn ein Filterschritt hinzukommt oder entfällt oder Gruppierung oder Sortierung umgestellt werden, dann zeigt die Statuszeile nach dem Namen „modified“; nach dem Speichern unter diesem Namen oder dem erneuten Öffnen der Perspektive steht es nicht mehr da. „Clear all list filters“ nimmt nur die Schritte nach der Auswahl der Perspektive zurück.
   - key: sf7b

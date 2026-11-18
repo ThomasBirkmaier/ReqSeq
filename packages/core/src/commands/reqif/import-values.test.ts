@@ -491,6 +491,6 @@ describe("reqif.import of each datatype (SR-053)", () => {
   it("writes into the repository root when the target names it", async () => {
     const workspace = await open(`${MAPPING}target: { repository: system, path: "." }\n`);
     const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
-    expect(out.files.every((f) => /^(?:SR|N)-[0-9a-f]{12}\.md$/.test(f))).toBe(true);
+    expect(out.files.slice(0, -1).every((f) => /^(?:SR|N)-[0-9a-f]{12}\.md$/.test(f))).toBe(true);
   });
 });

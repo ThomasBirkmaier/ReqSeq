@@ -164,7 +164,9 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
       { ...IMPORT, mapping: "reqif/kunde-b.yaml" },
       { workspace },
     )) as Imported;
-    expect(second.files.every((f) => f.startsWith("Kunde-B/"))).toBe(true);
+    // The elements, then the mapping with the source model (SR-158).
+    expect(second.files.at(-1)).toBe("reqif/kunde-b.yaml");
+    expect(second.files.slice(0, -1).every((f) => f.startsWith("Kunde-B/"))).toBe(true);
     expect(second.created).toHaveLength(2);
     // A choice property: its values are listed only once it is chosen, in a second round.
     const third = (values: string): string =>

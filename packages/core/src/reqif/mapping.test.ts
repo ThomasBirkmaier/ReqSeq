@@ -1,5 +1,6 @@
 // Mapping files (reqif/mapping.ts) on SR-004/one-repository; saving them is commands/reqif/saveMapping.test.ts.
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -73,13 +74,19 @@ describe("mapping files (SR-054)", () => {
       "file.faulty",
       { command: "reqif.import", fields: ["mapping"] },
     ]);
+    // The message names the absolute path that was looked for (#1831).
+    expect(missing.message).toBe(
+      `mapping: ${path.resolve(workspace.root, "reqif/missing.yaml")}: Cannot read file: ENOENT`,
+    );
     const wrong = await failure(() => readFrom(workspace, "reqif/wrong.yaml"));
     expect(wrong.code).toBe("file.faulty");
-    expect(wrong.message).toMatch(/^mapping: wrong\.yaml is no mapping file: /);
+    expect(wrong.message).toContain(
+      `mapping: ${path.resolve(workspace.root, "reqif/wrong.yaml")} is no mapping file: `,
+    );
     // A key the file does not take is named as a field of the file, not an input (#835).
     const extra = await failure(() => readFrom(workspace, "reqif/extra.yaml"));
-    expect(extra.message).toMatch(
-      /^mapping: extra\.yaml is no mapping file: bogus is not a field of the file \(known: /,
+    expect(extra.message).toContain(
+      `mapping: ${path.resolve(workspace.root, "reqif/extra.yaml")} is no mapping file: bogus is not a field of the file (known: `,
     );
     const unknown = await failure(() => readFrom(workspace, "reqif/unknown.yaml"));
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["mapping.types[0].type"]]);

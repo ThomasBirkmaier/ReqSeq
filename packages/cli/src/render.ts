@@ -182,9 +182,17 @@ export const renderYaml = (output: unknown): string => [...yamlOutput(output)].j
  * The message of an `input.invalid` with each field named as it is typed on this command line (ThomasBirkmaier/ReqSeq-archive#309):
  * `<path>` for an argument, `--package` for a flag. Core names fields by their input name and starts
  * each violation's message with it (`details.errors[].field`); only that name is respelled, the rest
- * of the text is core's (ADR-0002 rule 3). Fields only `--input` carries keep their input name.
+ * of the text is core's (ADR-0002 rule 3). Fields only `--input` carries keep their input name, and so
+ * does the whole value of a `key=value` flag: the flag always gives an object, so a wrong value there
+ * came from `--input`, and core's JSON example fits it (#1831). The CLI may add the command line form
+ * of a flag: a sort key that `--input` gave wrong (its part flag not in `given`) names
+ * `--sort <by>[:asc|desc]`.
  */
-export const spelledMessage = (error: CommandError, entry: CatalogEntry): string => {
+export const spelledMessage = (
+  error: CommandError,
+  entry: CatalogEntry,
+  given: ReadonlySet<string> = new Set(),
+): string => {
   const violations = error.details?.["errors"];
   if (error.code !== "input.invalid" || !Array.isArray(violations)) {
     return error.message;
@@ -197,7 +205,12 @@ export const spelledMessage = (error: CommandError, entry: CatalogEntry): string
     // `refs[0]`, `selection.ids` -> the field the command line has: `refs`, `selection`.
     const top = name.replace(/[.[].*$/, "");
     const field = fields.get(top);
-    if (field === undefined || field.use === "input-only" || !said.startsWith(name)) {
+    if (
+      field === undefined ||
+      field.use === "input-only" ||
+      !said.startsWith(name) ||
+      (field.entries && name === top)
+    ) {
       return said;
     }
     if (field.use === "parts") {
@@ -206,7 +219,15 @@ export const spelledMessage = (error: CommandError, entry: CatalogEntry): string
       const part = field.parts.find(
         (p) => p.role !== "key" && name.startsWith(atOf(p)) && /^($|[.[])/.test(name.slice(atOf(p).length)),
       );
-      return part === undefined ? said : `--${part.flag}${said.slice(atOf(part).length)}`;
+      if (part === undefined) {
+        return said;
+      }
+      // A sort key is typed as `<by>[:asc|desc]` here, not as the object of the input (#1831).
+      const form =
+        part.role === "sort" && !given.has(part.flag)
+          ? ` (on the command line --${part.flag} <by>[:asc|desc])`
+          : "";
+      return `--${part.flag}${said.slice(atOf(part).length)}${form}`;
     }
     return `${field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`}${said.slice(top.length)}`;
   });

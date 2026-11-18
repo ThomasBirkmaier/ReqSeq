@@ -7,7 +7,7 @@ spec-id: "SR-033"
 requirement-type: functional
 acceptance-criteria:
   - key: mvfg
-    text: Gegeben Datensätze nennen einen Testfall, wenn die Kette eines Requirements angezeigt wird, dann erscheinen Testfall und alle seine Durchführungen mit Datum, Ergebnis, Prüfling und Beleg.
+    text: Gegeben Datensätze nennen einen Testfall, wenn die Kette eines Requirements angezeigt wird, dann erscheinen Testfall und alle seine Durchführungen mit Datum und Ergebnis; Prüfling und Beleg zeigt die App auf Abruf (SR-223 AK2), Kommandozeile, API und MCP-Server liefern sie mit.
   - key: mxnt
     text: Gegeben ein Testfall weist mehrere Requirements nach, wenn einer seiner Datensätze gelesen wird, dann zählt er für jedes dieser Requirements.
   - key: jtx6

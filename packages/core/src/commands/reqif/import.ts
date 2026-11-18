@@ -21,6 +21,11 @@
 // read an element file (`file.faulty`, #575/8). The writes, each undone when a
 // later one fails: the image copies of updated elements, the updated files (`writeElementFiles`),
 // then the new files (`createElementFiles`); nothing is deleted that the call did not create.
+//
+// With `mapping`, for a file of another tool, the import stores the source's model in that mapping
+// file (SR-158, reqif/source-model.ts): planned and checked before the first write (a mapping outside
+// the mapping folder only warns, `reqif.source-model-unsaved`), saved after the elements and listed
+// last in `files`; when that save fails, the element writes are undone as above.
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -29,6 +34,7 @@ import {
   createFilesAtomic,
   createFolder,
   removeCreatedFiles,
+  sha256,
   writeFileAtomic,
   zip,
 } from "../../files/index.js";
@@ -49,6 +55,7 @@ import { restoreElementFiles, writeElementFiles } from "../../model/write.js";
 import type {
   ConflictChoices,
   ImportPlan,
+  MappingFile,
   OwnMapping,
   PlannedImage,
   PlannedUpdateImage,
@@ -68,6 +75,8 @@ import {
   unreadableFiles,
 } from "../../reqif/index.js";
 import type { ReqifFile } from "../../reqif/model.js";
+import type { SourceModelPlan, SourceModelSave } from "../../reqif/source-model.js";
+import { checkSourceModel, saveSourceModel, sourceModelSave } from "../../reqif/source-model.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
@@ -115,13 +124,13 @@ const spelledImages = async (
   repository: RepositoryLocation,
   spelled: string,
   images: readonly PlannedImage[],
-): Promise<NewImageFile[]> => {
-  const out: NewImageFile[] = [];
+): Promise<(NewImageFile & { readonly sha256: string })[]> => {
+  const out: (NewImageFile & { readonly sha256: string })[] = [];
   for (const { stem, name, file } of images) {
     const before = await refuseUnlisted(layout, repository, path.posix.join(spelled, stem, name));
     await createFolder(repository.folder, path.posix.dirname(before));
     const at = await refuseUnlisted(layout, repository, before);
-    out.push({ file: at, content: imageContent(file, name) });
+    out.push({ file: at, content: imageContent(file, name), sha256: file.sha256 });
   }
   return out;
 };
@@ -130,7 +139,10 @@ const spelledImages = async (
 const spelledNew = async (
   layout: WorkspaceLayout,
   plan: ImportPlan,
-): Promise<{ readonly files: NewElementFile[]; readonly images: NewImageFile[] } | undefined> => {
+): Promise<
+  | { readonly files: NewElementFile[]; readonly images: (NewImageFile & { readonly sha256: string })[] }
+  | undefined
+> => {
   const [first] = plan.files;
   if (first === undefined) {
     return undefined;
@@ -239,15 +251,25 @@ const copyUpdateImages = async (
   return created;
 };
 
-/** Removes the copies `copyUpdateImages` created, while unchanged; returns those it could not remove. */
-const removeCopies = async (
-  layout: WorkspaceLayout,
-  created: readonly {
-    readonly repository: RepositoryLocation;
-    readonly path: string;
-    readonly sha256: string;
-  }[],
-): Promise<string[]> => {
+/** A file the call created, to remove again while it holds what the call wrote. */
+interface CreatedFile {
+  readonly repository: RepositoryLocation;
+  readonly path: string;
+  readonly sha256: string;
+}
+
+/** The new element files and image copies of `plan` as `prepared` spelled them on disk. */
+const createdBy = (plan: ImportPlan, prepared: Awaited<ReturnType<typeof spelledNew>>): CreatedFile[] => [
+  ...(prepared?.files ?? []).map((f) => ({
+    repository: plan.repository,
+    path: f.file,
+    sha256: sha256(f.bytes),
+  })),
+  ...(prepared?.images ?? []).map((f) => ({ repository: plan.repository, path: f.file, sha256: f.sha256 })),
+];
+
+/** Removes the files the call created (`copyUpdateImages`, `createdBy`), while unchanged; returns those it could not remove. */
+const removeCopies = async (layout: WorkspaceLayout, created: readonly CreatedFile[]): Promise<string[]> => {
   const kept: string[] = [];
   for (const { repository, path: file, sha256 } of created) {
     for (const left of await removeCreatedFiles(repository.folder, [{ path: file, sha256 }])) {
@@ -284,7 +306,10 @@ const writeUpdates = async (
   }
 };
 
-/** The mapping of the import: the file `mapping` names, else, for a file of ReqSeq, its own one. */
+/**
+ * The mapping of the import: the file `mapping` names, else, for a file of ReqSeq, its own one;
+ * with `read`, the file as read, for its source model.
+ */
 const mappingOf = async (
   root: string,
   layout: WorkspaceLayout,
@@ -292,7 +317,7 @@ const mappingOf = async (
   delivery: ReqifFile,
   own: boolean,
   input: { readonly mapping?: string; readonly source?: string },
-): Promise<OwnMapping> => {
+): Promise<OwnMapping & { readonly read?: { readonly file: MappingFile; readonly given: string } }> => {
   const command = "reqif.import";
   if (input.mapping === undefined && !own) {
     throw new CommandError(
@@ -301,12 +326,30 @@ const mappingOf = async (
       { command, fields: ["mapping"] },
     );
   }
-  return input.mapping === undefined
-    ? await ownMappingOf(root, layout, metamodel, delivery, input.source, command)
-    : {
-        mapping: (await readMappingFile(layout, metamodel, root, input.mapping, command)).mapping,
-        problems: [],
-      };
+  if (input.mapping === undefined) {
+    return await ownMappingOf(root, layout, metamodel, delivery, input.source, command);
+  }
+  const read = await readMappingFile(layout, metamodel, root, input.mapping, command);
+  return { mapping: read.mapping, read: { file: read, given: input.mapping }, problems: [] };
+};
+
+/**
+ * The source model to save into the mapping `mapped` names (reqif/source-model.ts), for a delivery
+ * of another tool through `mapping` only, checked before anything is written.
+ */
+const sourceModelOf = async (
+  root: string,
+  layout: WorkspaceLayout,
+  delivery: ReqifFile,
+  own: boolean,
+  read: { readonly file: MappingFile; readonly given: string } | undefined,
+): Promise<SourceModelPlan> => {
+  if (own || read === undefined) {
+    return { problems: [] };
+  }
+  const plan = await sourceModelSave(layout, root, read.file, read.given, delivery, "reqif.import");
+  await checkSourceModel(plan.save, "reqif.import");
+  return plan;
 };
 
 /**
@@ -342,6 +385,22 @@ const saveMapping = async (layout: WorkspaceLayout, save: SavedMapping): Promise
   return workspacePath(layout, save.repository, save.file.file);
 };
 
+/** Saves the source model `save`, if any, after the elements; `undo` undoes their writes when that fails. */
+const savedSourceModel = async (
+  layout: WorkspaceLayout,
+  save: SourceModelSave | undefined,
+  undo: (error: unknown) => Promise<never>,
+): Promise<string[]> => {
+  if (save === undefined) {
+    return [];
+  }
+  try {
+    return [await saveSourceModel(layout, save)];
+  } catch (error) {
+    return await undo(error);
+  }
+};
+
 export default defineCommand({
   name: "reqif.import",
   run: async (ctx, input): Promise<CommandOutput<"reqif.import">> => {
@@ -372,6 +431,7 @@ export default defineCommand({
       own,
       { existing, choose: chooser(store, shortIds, input.take ?? [], input.keep ?? []) },
     );
+    const sourceModel = await sourceModelOf(workspace.root, layout, delivery, own, mapped.read);
     const { save } = mapped;
     // A new mapping file is written with the elements when it lies in their repository.
     const together = save?.expected === undefined && save?.repository.name === plan.repository.name;
@@ -382,6 +442,16 @@ export default defineCommand({
     }
     const prepared = await spelledNew(layout, plan);
     const { copies, writes, written } = await writeUpdates(workspace, layout, plan, { metamodel, store });
+    /** Undoes the element writes after a failed later step and throws its error with what stayed. */
+    const undo = async (error: unknown, created: readonly CreatedFile[]): Promise<never> => {
+      const kept = [
+        ...(await restoreElementFiles(zip(writes, written))),
+        ...(await removeCopies(layout, copies)),
+        ...(await removeCopies(layout, created)),
+      ];
+      await workspace.reset(elementStoreState);
+      throw withWritten(error, kept);
+    };
     let files: string[] = [];
     if (prepared !== undefined) {
       try {
@@ -398,17 +468,17 @@ export default defineCommand({
             : prepared.images,
         );
       } catch (error) {
-        const kept = [
-          ...(await restoreElementFiles(zip(writes, written))),
-          ...(await removeCopies(layout, copies)),
-        ];
-        await workspace.reset(elementStoreState);
-        throw withWritten(error, kept);
+        await undo(error, []);
       }
     }
     if (save !== undefined && (prepared === undefined || !together)) {
       files.push(await saveMapping(layout, save));
     }
+    files.push(
+      ...(await savedSourceModel(layout, sourceModel.save, (error) =>
+        undo(error, createdBy(plan, prepared)),
+      )),
+    );
     const list = (kind: "updated" | "kept"): ReqifObject[] =>
       plan.updates.filter((u) => u.kind === kind).map(({ identifier, id }) => ({ identifier, id }));
     return {
@@ -422,7 +492,7 @@ export default defineCommand({
         ...copies.map((c) => workspacePath(layout, c.repository, c.path)),
         ...files,
       ],
-      problems: [...mapped.problems, ...plan.problems],
+      problems: [...mapped.problems, ...plan.problems, ...sourceModel.problems],
     };
   },
 });

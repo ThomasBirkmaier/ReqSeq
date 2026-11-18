@@ -82,7 +82,7 @@ import {
 } from "../model/index.js";
 import { currentVersions } from "../model/current-versions.js";
 import { inlineReferences } from "../model/references.js";
-import { oneValueNote } from "../model/resolve.js";
+import { oneValueNote } from "../runtime/input-errors.js";
 import type { ElementFileWrite, UnchangedElement } from "../model/write.js";
 import { readUnchanged, writeElementFiles } from "../model/write.js";
 import type { Workspace } from "../runtime/workspace.js";
