@@ -346,6 +346,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: ["SR-ffffff"], direction: "children" },
   ],
   "workspace.activity": [{}, { extra: true }],
+  "workspace.agents": [{}, { extra: true }],
   "variant.exclude": [
     { variant: VARIANT, refs: [WIND] },
     { variant: VARIANT, refs: [WIND, OBSOLETE], undo: true },
@@ -363,6 +364,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   "tool.info": [{}, { extra: true }],
   "workspace.recent": [{}, { extra: true }],
+  "workspace.connectAgent": [{}, { client: "other" }, { client: "claude-code" }, { extra: true }],
   "workspace.listFolder": [{ path: "" }, { path: "needs/", files: true }, { extra: true }],
   "workspace.status": [{}, { extra: true }],
 };
