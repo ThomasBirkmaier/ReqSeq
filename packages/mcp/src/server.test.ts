@@ -136,11 +136,11 @@ const reached = (defs: Readonly<Record<string, unknown>>, start: string): Set<st
 /**
  * A listed tool split into its selection part (empty without a selection) and the rest. The rest leaves out
  * `_meta` (#1926): the bound of a tool is about the schema and description an agent reads to call it, and the
- * load hint is no part of that; it would push `element_update` (6,121 of 6,144) over by its 38 bytes. The whole
+ * `_meta` key is no part of that; it would push `element_update` (6,121 of 6,144) over by its 38 bytes. The whole
  * list (`overBounds`) counts `_meta`, since a client receives it.
  */
 const sizesOf = ({
-  _meta: _hint,
+  _meta: _load,
   ...tool
 }: {
   readonly inputSchema: unknown;
