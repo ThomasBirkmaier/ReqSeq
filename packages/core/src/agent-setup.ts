@@ -245,7 +245,10 @@ export const refusalOf = (client: Client, facts: SetupFacts, server: Server): Se
   const { installation } = facts;
   if (
     facts.platform === "darwin" &&
-    [installation.runtime, installation.entry].some((value) => value.includes("/AppTranslocation/"))
+    // Split at both separators, so the check is the same wherever the tests run.
+    [installation.runtime, installation.entry].some((value) =>
+      value.split(/[\\/]/).includes("AppTranslocation"),
+    )
   ) {
     return {
       code: "agent.app-translocated",
