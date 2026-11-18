@@ -201,13 +201,17 @@ export function parseArgs(argv) {
   return { epicNumber, required };
 }
 
+const USAGE = 'usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]';
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  // Help on request, with exit 0 (#1831).
+  if (process.argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) {
+    console.log(USAGE);
+    process.exit(0);
+  }
   const { epicNumber, required, error } = parseArgs(process.argv.slice(2));
   if (error !== undefined || !Number.isInteger(epicNumber)) {
-    console.error(
-      error ??
-        'usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]',
-    );
+    console.error(error ?? USAGE);
     process.exit(2);
   }
   const { lines, problems } = run({ epicNumber, required, specDir: path.join(process.cwd(), "spec") });

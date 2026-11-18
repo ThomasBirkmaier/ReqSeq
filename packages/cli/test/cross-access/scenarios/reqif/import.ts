@@ -276,8 +276,11 @@ scenariosOf("reqif.import", [
       const output = (coreOutput(results) as { updated: readonly { identifier: string }[] }).updated;
       expect(output.map((u) => u.identifier)).toEqual(["REQ-1", "REQ-2"]);
       for (const { files } of Object.values(results)) {
-        // The mapping is used as saved, not rewritten.
-        expect(files["reqif/kunde-a.yaml"]).toBe(DELIVERY.files?.["reqif/kunde-a.yaml"]);
+        // The mapping is used as saved; the import only adds the source model (SR-158).
+        const mapping = String(files["reqif/kunde-a.yaml"]);
+        const saved = String(DELIVERY.files?.["reqif/kunde-a.yaml"]);
+        expect(mapping.startsWith(saved)).toBe(true);
+        expect(mapping.slice(saved.length)).toMatch(/^source-model:\n/);
         // Its attributes: the title from ReqIF.Name, Priority High as requirement-type functional,
         // Internal Comment omitted; its type: Customer Requirement as system-requirement.
         const first = files["Kunde-A/SR-000000000001.md"];
