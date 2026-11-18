@@ -55,51 +55,62 @@
     "type": "object",
     "properties": {
       "columns": {
+        "title": "Columns",
         "type": "array",
         "description": "One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation (SR-153, spec question #838 Q1). Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape.",
         "items": {
           "type": "object",
           "properties": {
             "type": {
+              "title": "Cell type",
               "enum": ["relation"],
               "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type."
             },
             "kind": {
+              "title": "Relation kind",
               "$ref": "../common.schema.json#/$defs/key",
               "description": "Key of the relation kind, or of the property of kind `relation`."
             },
             "property": {
+              "title": "Property",
               "const": true,
               "description": "`kind` is the key of a property of kind `relation`, not of a relation kind."
             },
             "meaning": {
+              "title": "Meaning",
               "enum": ["derivation", "replacement", "succession", "exclusion"],
               "description": "The meaning of the relation kind; left out for a kind without a meaning and for a property."
             },
             "direction": {
+              "title": "Direction",
               "enum": ["out", "in"],
               "description": "`out`: the relations the row element's file stores. `in`: the relations of other elements that point at it."
             },
             "name": {
+              "title": "Column",
               "type": "string",
               "description": "For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart."
             },
             "count": {
+              "title": "Rows with a relation",
               "type": "integer",
               "minimum": 0,
               "description": "How many rows of the whole selection have at least one relation in this column (SR-125 AK3, SR-153 AK2), whatever the status or availability of its other end; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in."
             },
             "expected": {
+              "title": "Rows with a minimum",
               "type": "integer",
               "minimum": 1,
               "description": "SR-153 AK1: only on the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row of the whole selection: how many rows have such a minimum (spec question #838 Q2). Rows of an unknown type or with a status the metamodel marks invalid have none (as SR-152). Left out on every other column, which has no gap and no share (SR-153 AK2)."
             },
             "met": {
+              "title": "Rows that meet the minimum",
               "type": "integer",
               "minimum": 0,
               "description": "SR-153 AK1: with `expected`, how many of those rows meet all minima of the kind, counted as `hint.list` counts for `relation.too-few` (SR-152): a relation counts when its target is one element of a known type within the minimum's target type; with a view, only a target that applies in it. A row whose count an unreachable target leaves open is not met and no gap (spec question #838 Q5)."
             },
             "share": {
+              "title": "Share",
               "type": "number",
               "minimum": 0,
               "maximum": 1,
@@ -111,69 +122,85 @@
         }
       },
       "rows": {
+        "title": "Rows",
         "type": "array",
         "description": "The page: one row per element of the list, in its order (SR-125 AK1).",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of the element."
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier",
               "type": "string",
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "title": "Type",
               "description": "Key of its type.",
               "type": "string"
             },
             "status": {
+              "title": "Status",
               "description": "Its status key as written; left out when it has none.",
               "type": "string"
             },
             "title": {
+              "title": "Title",
               "description": "Its title; empty without one.",
               "type": "string"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "Path relative to the repository."
             },
             "depth": {
+              "title": "Depth",
               "type": "integer",
               "minimum": 0,
               "description": "Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`."
             },
             "testCases": {
+              "title": "Test cases",
               "type": "array",
               "description": "SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question ThomasBirkmaier/ReqSeq-archive#528 Q3). The chain and `evidence.list` give every execution.",
               "items": {
                 "type": "object",
                 "properties": {
                   "name": {
+                    "title": "Test case",
                     "type": "string",
                     "description": "The JUnit `name`, or the `test-case` of the Markdown records."
                   },
                   "className": {
+                    "title": "Class name",
                     "type": "string",
                     "description": "The JUnit `classname`; left out for a test case of Markdown records."
                   },
                   "executed": {
+                    "title": "Executed",
                     "type": "boolean",
                     "description": "The test case has at least one execution of this requirement in the view (SR-033 AK3)."
                   },
                   "last": {
+                    "title": "Last execution",
                     "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
                     "description": "The last execution: the newest execution of this requirement in the view, of any version, and of several equally new ones a failed one (SR-126 AK1), with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence document of a JUnit execution. Left out when `executed` is false."
                   },
                   "mark": {
+                    "title": "Mark",
                     "enum": ["not-executed", "outdated", "failed"],
                     "description": "How the cell is marked (SR-126 AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when no execution in the view is of the requirement's current version, or its current version is not known; `failed` when the newest execution of the current version failed, of several equally new ones when one of them failed, as the verification status counts them (SR-031). Left out otherwise, also when a newer execution of an older version is `last` (#201)."
                   }
@@ -198,6 +225,7 @@
               }
             },
             "verification": {
+              "title": "Verification status",
               "type": "array",
               "minItems": 1,
               "maxItems": 1,
@@ -207,6 +235,7 @@
               "description": "SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3)."
             },
             "cells": {
+              "title": "Cells",
               "type": "array",
               "description": "One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none. An empty cell is no gap by itself: `gaps` names the gaps (SR-153). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: \"missing\"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's.",
               "items": {
@@ -217,6 +246,7 @@
               }
             },
             "gaps": {
+              "title": "Gaps",
               "type": "array",
               "minItems": 1,
               "description": "SR-153 AK1: the minima of the row that its cells undershoot, one entry per minimum, in column order and then metamodel order; a cell is a gap when an entry names its column. Only `out` columns of relation kinds whose limits set a minimum for the row's type; a cell can hold relations and be a gap (to a missing target, or to an element of another type). Counted as `expected` and `met` count. Left out when the row has none.",
@@ -224,24 +254,29 @@
                 "type": "object",
                 "properties": {
                   "column": {
+                    "title": "Column",
                     "type": "integer",
                     "minimum": 0,
                     "description": "The index of the column in `columns`, and so of the cell in `cells`."
                   },
                   "targetType": {
+                    "title": "Target type",
                     "$ref": "../common.schema.json#/$defs/key",
                     "description": "The target type of the minimum."
                   },
                   "targetName": {
+                    "title": "Target type name",
                     "type": "string",
                     "description": "The display name of `targetType`."
                   },
                   "count": {
+                    "title": "Relations",
                     "type": "integer",
                     "minimum": 0,
                     "description": "The relations that count for the minimum, as `relation.too-few` gives `count`."
                   },
                   "min": {
+                    "title": "Minimum",
                     "type": "integer",
                     "minimum": 1,
                     "description": "The minimum, the `min` of the limit (the `limit` of `relation.too-few`; not the page size `limit` of the input)."
@@ -254,9 +289,11 @@
           },
           "additionalProperties": false,
           "required": ["id", "repository", "shortId", "type", "title", "file", "cells"]
-        }
+        },
+        "x-elements": true
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "The number of rows of the whole selection."
@@ -266,14 +303,17 @@
         "description": "The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2)."
       },
       "evidence": {
+        "title": "Evidence header",
         "type": "object",
         "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement that applies only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
         "properties": {
           "view": {
+            "title": "View",
             "$ref": "../common.schema.json#/$defs/viewId",
             "description": "The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions ThomasBirkmaier/ReqSeq-archive#593, ThomasBirkmaier/ReqSeq-archive#592 Q1). `element.get` and `evidence.status` give every view."
           },
           "degree": {
+            "title": "Verification degree",
             "$ref": "../data-export.schema.json#/$defs/verificationDegree",
             "description": "SR-126 AK4: the verification degree of the whole selection in `view`, with the count per status, not of the page only; the same as `evidence.degree` gives for the same selection (SR-037)."
           }
@@ -282,6 +322,7 @@
         "required": ["view", "degree"]
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "description": "The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when they name none.",
         "items": {

@@ -17,15 +17,18 @@
     "type": "object",
     "properties": {
       "mermaid": {
+        "title": "Mermaid",
         "type": "string",
         "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "The problems of the metamodel, as `metamodel.get` gives them.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

@@ -11,7 +11,7 @@ type Selection = NonNullable<CommandTypes["element.facets"]["input"]["selection"
 type Condition = NonNullable<Selection["where"]>;
 
 /**
- * The selection whose elements a `group` is offered for (`groupReads` in `catalog-commands.ts`): the shown
+ * The selection whose elements a `group` is offered for (`groupReads` in `catalog-arguments.ts`): the shown
  * one (`selection`), the condition (`where`), the saved filter (`filter`, else the shown one's) and the
  * selection of the perspective (`perspective`, from `perspective.list`), all of whose conditions must hold;
  * its saved filter counts only where no other is given, since a selection names one. None without any of

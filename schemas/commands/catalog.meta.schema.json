@@ -176,6 +176,41 @@
             "additionalProperties": false,
             "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319)."
           },
+          "showsOutput": {
+            "const": true,
+            "description": "A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880)."
+          },
+          "outputFields": {
+            "type": "array",
+            "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again.",
+            "items": {
+              "type": "object",
+              "required": ["path"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "The field, from the root of the output: `levels[].elements.withChildren`, `[]` for the items of an array, `*` for the keys of a map."
+                },
+                "title": { "type": "string", "description": "The title of the field for people." },
+                "technical": {
+                  "enum": [true, "with-element"],
+                  "description": "The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request (SR-223 AK2); `with-element`: only when the same problem names an element."
+                },
+                "normal": {
+                  "description": "The normal value: a shown value equal to it appears only with Show details (SR-223 AK7)."
+                },
+                "elements": {
+                  "description": "`answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4).",
+                  "anyOf": [
+                    { "const": true },
+                    { "const": "answer" },
+                    { "type": "array", "items": { "type": "string" } }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
           "textOutput": {
             "type": "string",
             "minLength": 1,
@@ -191,7 +226,13 @@
         "if": { "properties": { "effect": { "const": "write-files" } } },
         "then": { "required": ["whileReadOnly", "whileReadOnlyReason"] },
         "else": {
-          "not": { "anyOf": [{ "required": ["whileReadOnly"] }, { "required": ["whileReadOnlyReason"] }] }
+          "not": {
+            "anyOf": [
+              { "required": ["whileReadOnly"] },
+              { "required": ["whileReadOnlyReason"] },
+              { "required": ["showsOutput"] }
+            ]
+          }
         },
         "allOf": [
           {

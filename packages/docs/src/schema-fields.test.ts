@@ -137,3 +137,60 @@ describe("schema fields", () => {
     ]);
   });
 });
+
+describe("output fields", () => {
+  const schemas = [
+    {
+      $id: "https://reqseq.dev/schemas/m.schema.json",
+      $defs: {
+        id: { title: "Element", type: "string", "x-technical": true, description: "An ID." },
+        none: { type: "boolean", "x-normal": false },
+      },
+    },
+  ];
+  const schema = {
+    type: "object",
+    properties: {
+      element: { $ref: "m.schema.json#/$defs/id" },
+      file: { title: "File", type: "string", "x-technical": "with-element" },
+      missing: { title: "Missing", $ref: "m.schema.json#/$defs/none" },
+      list: {
+        title: "List",
+        type: "array",
+        "x-elements": "answer",
+        items: { $ref: "m.schema.json#/$defs/id" },
+      },
+      more: { title: "More", type: "array", "x-elements": true, items: { $ref: "m.schema.json#/$defs/id" } },
+      count: { title: "Count", type: "integer", "x-elements": "list" },
+      both: { title: "Both", type: "integer", "x-elements": ["list", "more"] },
+      plain: { type: "string" },
+      either: { title: "Either", anyOf: [{ $ref: "m.schema.json#/$defs/id" }, { type: "null" }] },
+      ids: { title: "IDs", type: "array", items: { $ref: "m.schema.json#/$defs/id" } },
+    },
+  };
+  const base = "https://reqseq.dev/schemas/m.schema.json";
+
+  it("shows the title of each output field, its own or its definition's, and what its marks say (SR-224 AK3)", () => {
+    const rows = fieldRows(schema, { schemas, base, output: true });
+    expect(rows.map((row) => [row.field, row.title, row.description])).toEqual([
+      ["element", "Element", "An ID. Technical."],
+      ["file", "File", "Technical when the problem names an element."],
+      ["missing", "Missing", "Normally `false`."],
+      ["list", "List", "An ID. Technical. The elements of the answer."],
+      ["more", "More", "An ID. Technical. Lists elements."],
+      ["count", "Count", "Counts the elements of `list`."],
+      ["both", "Both", "Counts the elements of `list` and `more`."],
+      ["plain", undefined, ""],
+      ["either", "Either", "Technical."],
+      ["ids", "IDs", "An ID. Technical."],
+    ]);
+    expect(fieldTable(schema, { schemas, base, output: true }, "")).toContain("| Field | Title | Type |");
+  });
+
+  it("shows neither titles nor marks outside an output", () => {
+    const rows = fieldRows(schema, { schemas, base });
+    expect(rows.every((row) => row.title === undefined)).toBe(true);
+    expect(rows[0]?.description).toBe("An ID.");
+    expect(fieldTable(schema, { schemas, base }, "")).toContain("| Field | Type |");
+  });
+});

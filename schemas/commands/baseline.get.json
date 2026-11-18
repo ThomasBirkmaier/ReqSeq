@@ -46,39 +46,49 @@
     "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
     "properties": {
       "name": {
+        "title": "Baseline",
         "description": "Name of the baseline.",
         "type": "string"
       },
       "file": {
-        "type": "string",
+        "title": "File",
+        "$ref": "../common.schema.json#/$defs/outputPath",
         "description": "Relative to the workspace root, / as separator."
       },
       "repository": {
+        "title": "Repository",
         "type": "string",
         "description": "The repository that holds the file."
       },
       "date": {
+        "title": "Date",
         "$ref": "../common.schema.json#/$defs/dateTime"
       },
       "view": {
+        "title": "View",
         "$ref": "../common.schema.json#/$defs/viewId",
         "description": "The view of the stored selection; left out for the core."
       },
       "selectionKnown": {
+        "title": "Selection stored",
         "type": "boolean",
-        "description": "The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3)."
+        "description": "The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3).",
+        "x-normal": true
       },
       "repositories": {
+        "title": "Repositories",
         "description": "The repositories the baseline names, each with its commit then.",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Repository",
               "description": "Workspace name of the repository.",
               "type": "string"
             },
             "commit": {
+              "title": "Commit",
               "$ref": "../common.schema.json#/$defs/commit"
             }
           },
@@ -87,53 +97,65 @@
         }
       },
       "elements": {
+        "title": "Elements",
         "type": "array",
         "description": "One page: the file's entries in file order, then the added elements in store order. Precedence of `state`: missing or inaccessible, superseded, removed, changed, unchanged; added only for elements not in the file.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "The repository of the copy, whenever it is known."
             },
             "state": {
+              "title": "State",
               "enum": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"],
               "description": "missing: not in the store, or without repository or with one the workspace does not name and not found. inaccessible: its repository is in the workspace file but not here (D-058, SR-006, incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file."
             },
             "version": {
+              "title": "Version in the baseline",
               "$ref": "../common.schema.json#/$defs/version",
               "description": "The version in the baseline; left out for added."
             },
             "versionDate": {
+              "title": "Version date",
               "type": ["string", "null"],
               "format": "date-time",
               "description": "Date of that version from the Git history (ADR-0005), read for the page only; null when unknown."
             },
             "current": {
+              "title": "Current version",
               "$ref": "../common.schema.json#/$defs/version",
               "description": "The current version when it differs, also for removed and added."
             },
             "verification": {
+              "title": "Verification status",
               "type": "array",
               "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3), none for a variant whose status the metamodel marks invalid now (SR-047 AK6); with a variant in the stored selection only that variant's row, also when its status is invalid (SR-094 AK5, SR-047 AK6). Empty when it applies in no view shown. Own records only, never indirect (SR-094 AK6). Left out when the stored view cannot be resolved.",
               "items": {
                 "type": "object",
                 "properties": {
                   "view": {
+                    "title": "View",
                     "$ref": "../common.schema.json#/$defs/viewId"
                   },
                   "status": {
+                    "title": "Verification status",
                     "enum": ["open", "verified", "failed", "outdated"],
                     "description": "From the records of the view that count for the baseline: dated at or before it (SR-094 AK2); outdated with records of other versions only, open without (SR-094 AK3)."
                   },
                   "criteria": {
+                    "title": "Criteria",
                     "$ref": "../data-export.schema.json#/$defs/criteriaCount",
                     "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5): 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it."
                   },
                   "later": {
+                    "title": "Later records",
                     "type": "array",
                     "description": "The records of the baseline version in this view dated after the baseline, newest first: they do not count (SR-094 AK2). Left out when there is none.",
                     "items": {
@@ -146,14 +168,17 @@
               }
             },
             "validation": {
+              "title": "Validation status",
               "$ref": "../common.schema.json#/$defs/validationStatus",
               "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for one with the meaning requirement with a validation record (SR-038 AK5, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
             },
             "validationReason": {
+              "title": "Reason of the validation status",
               "type": "string",
               "description": "With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2)."
             },
             "validationLater": {
+              "title": "Later validation records",
               "type": "array",
               "description": "With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (SR-094 AK2). Left out when there is none.",
               "items": {
@@ -163,43 +188,52 @@
           },
           "additionalProperties": false,
           "required": ["id", "state"]
-        }
+        },
+        "x-elements": "answer"
       },
       "counts": {
+        "title": "Elements per state",
         "type": "object",
         "description": "Elements per `state` over all pages.",
         "properties": {
           "unchanged": {
+            "title": "Unchanged",
             "description": "Elements unchanged since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "changed": {
+            "title": "Changed",
             "description": "Elements changed since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "superseded": {
+            "title": "Superseded",
             "description": "Elements superseded since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "removed": {
+            "title": "Removed",
             "description": "Elements that left the selection since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "added": {
+            "title": "Added",
             "description": "Elements that joined the selection since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "missing": {
+            "title": "Missing",
             "description": "Elements of the baseline that are not found.",
             "type": "integer",
             "minimum": 0
           },
           "inaccessible": {
+            "title": "Not on this machine",
             "description": "Elements of the baseline in a repository that is not on this machine.",
             "type": "integer",
             "minimum": 0
@@ -209,11 +243,13 @@
         "required": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"]
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "Entries of the file plus added elements."
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "description": "The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (ThomasBirkmaier/ReqSeq-archive#588).",
         "items": {
@@ -221,10 +257,12 @@
         }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"

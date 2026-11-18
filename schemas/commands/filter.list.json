@@ -15,28 +15,35 @@
     "type": "object",
     "properties": {
       "filters": {
+        "title": "Saved filters",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Saved filter",
               "$ref": "../filter.schema.json#/$defs/name"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The filter file, relative to the workspace root."
             },
             "description": {
+              "title": "Description",
               "description": "What the filter is for, as saved.",
               "type": "string"
             },
             "view": {
+              "title": "View",
               "$ref": "../common.schema.json#/$defs/view"
             },
             "where": {
+              "title": "Conditions",
               "$ref": "../filter.schema.json#/$defs/condition"
             },
             "sort": {
+              "title": "Sorting",
               "type": "array",
               "items": {
                 "$ref": "../filter.schema.json#/$defs/sortKey"
@@ -49,11 +56,13 @@
         "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         },
-        "description": "Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file."
+        "description": "Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file.",
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"

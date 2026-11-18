@@ -46,6 +46,7 @@
     "type": "object",
     "properties": {
       "records": {
+        "title": "Evidence records",
         "type": "array",
         "description": "The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence document (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does).",
         "items": {
@@ -53,6 +54,7 @@
         }
       },
       "bearing": {
+        "title": "Bearing records",
         "type": "array",
         "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
         "items": {
@@ -61,24 +63,30 @@
         }
       },
       "display": {
+        "title": "Display",
         "type": "object",
         "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run.",
         "properties": {
           "shared": {
+            "title": "Shared by all records",
             "type": "object",
             "description": "AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise.",
             "properties": {
               "date": {
+                "title": "Date",
                 "$ref": "../common.schema.json#/$defs/dateTime"
               },
               "item": {
+                "title": "Item under test",
                 "type": "string",
                 "description": "The item under test that every shown record names."
               },
               "version": {
+                "title": "Version",
                 "$ref": "../common.schema.json#/$defs/version"
               },
               "baselines": {
+                "title": "Baselines",
                 "type": "array",
                 "description": "The baselines every shown record names, in the same order.",
                 "items": {
@@ -89,6 +97,7 @@
             "additionalProperties": false
           },
           "rows": {
+            "title": "Rows",
             "type": "array",
             "description": "AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them (SR-038 AK5).",
             "items": {
@@ -96,37 +105,45 @@
               "description": "One line of the Evidence section (SR-032 AK4): an acceptance criterion, the whole requirement without criteria, or the validation.",
               "properties": {
                 "kind": {
+                  "title": "Record kind",
                   "enum": ["verification", "validation"],
                   "description": "Whether the row shows verification or validation records."
                 },
                 "criterion": {
+                  "title": "Number",
                   "type": "integer",
                   "minimum": 1,
                   "description": "The acceptance criterion, counted from 1; left out for a requirement without criteria and for the validation row."
                 },
                 "key": {
+                  "title": "Criterion key",
                   "$ref": "../common.schema.json#/$defs/criterionKey",
                   "description": "The criterion key of the row's criterion (SR-205 AK2); left out when it has none."
                 },
                 "text": {
+                  "title": "Criterion text",
                   "type": "string",
                   "description": "The text of the row's criterion (SR-205 AK2); left out for a row without `criterion`."
                 },
                 "status": {
+                  "title": "Verification status",
                   "enum": ["open", "verified", "failed", "outdated", "validated", "inconclusive"],
                   "description": "Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038)."
                 },
                 "views": {
+                  "title": "Views",
                   "type": "array",
                   "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                   "items": {
                     "type": "object",
                     "properties": {
                       "view": {
+                        "title": "View",
                         "type": "string",
                         "description": "`core` or the variant's UUID."
                       },
                       "status": {
+                        "title": "Verification status",
                         "enum": ["open", "verified", "failed", "outdated"]
                       }
                     },
@@ -135,6 +152,7 @@
                   }
                 },
                 "cases": {
+                  "title": "Test cases",
                   "type": "array",
                   "description": "The bearing records of the row (those naming the criterion or none, SR-031 AK6) by test case: worst result first, then class name, then name in code-unit order, records without test case last in their order.",
                   "items": {
@@ -142,18 +160,22 @@
                     "description": "The bearing records of a row that form one test case (`testCase` and `className`, ADR-0012), or one record without test case.",
                     "properties": {
                       "testCase": {
+                        "title": "Test case",
                         "type": "string",
                         "description": "The test case's name; left out for a record without test case."
                       },
                       "className": {
+                        "title": "Class name",
                         "type": "string",
                         "description": "The JUnit class name; left out for a Markdown record or a record without test case."
                       },
                       "result": {
+                        "title": "Result",
                         "enum": ["passed", "failed", "inconclusive"],
                         "description": "The worst result of its records: failed before inconclusive before passed."
                       },
                       "views": {
+                        "title": "Views",
                         "type": "array",
                         "items": {
                           "type": "string"
@@ -161,6 +183,7 @@
                         "description": "The views its records hold for: `core` for a record without variant, else the variant's UUID; `core` first, then the UUIDs in code-unit order."
                       },
                       "records": {
+                        "title": "Records",
                         "type": "array",
                         "items": {
                           "type": "integer",
@@ -179,18 +202,22 @@
             }
           },
           "older": {
+            "title": "Older records",
             "type": "array",
             "description": "AK3: the records outside `bearing` by test run (the same date as an instant and the same version), newest first, then version in code-unit order. Records that name only criteria beyond the count bear nothing and are here.",
             "items": {
               "type": "object",
               "properties": {
                 "date": {
+                  "title": "Date",
                   "$ref": "../common.schema.json#/$defs/dateTime"
                 },
                 "version": {
+                  "title": "Version",
                   "$ref": "../common.schema.json#/$defs/version"
                 },
                 "records": {
+                  "title": "Records",
                   "type": "array",
                   "items": {
                     "type": "integer",
@@ -208,6 +235,7 @@
         "required": ["shared", "rows", "older"]
       },
       "testCases": {
+        "title": "Test cases",
         "type": "array",
         "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false).",
         "items": {
@@ -215,11 +243,13 @@
         }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "Problems in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
