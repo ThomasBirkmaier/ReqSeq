@@ -23,7 +23,9 @@ export const orderedSelection = (
   command: CommandName,
   sort: SortKeys | undefined,
 ): SortedElements =>
-  withSort(selected, sort, (keys) => sortElements({ ...selected, command }, selected.elements, keys));
+  withSort(selected, sort, (keys, storedSort) =>
+    sortElements({ ...selected, command, storedSort }, selected.elements, keys),
+  );
 
 /**
  * The groups of `selected` (`groupsOf` gives the groups of an element, of `count`), each in the
@@ -36,8 +38,8 @@ export const orderedGroups = (
   groupsOf: (element: ElementRecord) => readonly number[],
   count: number,
 ): SortedElements[] =>
-  withSort(selected, sort, (keys) =>
-    sortGroups({ ...selected, command }, selected.elements, keys, groupsOf, count),
+  withSort(selected, sort, (keys, storedSort) =>
+    sortGroups({ ...selected, command, storedSort }, selected.elements, keys, groupsOf, count),
   );
 
 type SortKeys = Parameters<typeof sortElements>[2];
@@ -46,26 +48,31 @@ type SortKeys = Parameters<typeof sortElements>[2];
  * Runs `run` with `sort`. Without it (undefined), with the first stored sort (see the file comment),
  * also an empty one, whose errors then name its file; with none, the workspace order. The sort of the
  * selection's filter counts as the input's sort, above the perspective's (SR-213 AK5).
+ * `run` learns whether the keys come from a stored sort (`SortContext.storedSort`).
  */
-const withSort = <T>(selected: Selected, sort: SortKeys | undefined, run: (keys: SortKeys) => T): T => {
+const withSort = <T>(
+  selected: Selected,
+  sort: SortKeys | undefined,
+  run: (keys: SortKeys, storedSort: boolean) => T,
+): T => {
   if (sort !== undefined) {
-    return run(sort);
+    return run(sort, false);
   }
   const { filter, stored } = selected;
   const selectionSort = filter?.data.sort;
   if (filter !== undefined && selectionSort !== undefined) {
-    return inSavedFilter(filter, () => run(savedSort(selectionSort)));
+    return inSavedFilter(filter, () => run(savedSort(selectionSort), true));
   }
   if (stored === undefined) {
-    return run([]);
+    return run([], false);
   }
   const { perspective, filter: its } = stored;
   const own = perspective.data.sort;
   if (own !== undefined) {
-    return inPerspective(perspective, () => run(savedSort(own)));
+    return inPerspective(perspective, () => run(savedSort(own), true));
   }
   const itsSort = its?.data.sort;
   return its === undefined || itsSort === undefined
-    ? run([])
-    : inPerspective(perspective, () => inSavedFilter(its, () => run(savedSort(itsSort))));
+    ? run([], false)
+    : inPerspective(perspective, () => inSavedFilter(its, () => run(savedSort(itsSort), true)));
 };
