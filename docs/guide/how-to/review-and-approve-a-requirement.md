@@ -85,7 +85,7 @@ reqseq element set-status approved --refs N-7fe707 --refs SR-c67baa --refs SR-5e
 ```
 
 ```text title="Output"
-Set the status of 3 elements to approved; 3 files written.
+Set the status of 3 elements to approved.
 files:
 ...
 No problems.

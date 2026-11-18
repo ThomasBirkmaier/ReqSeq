@@ -1,4 +1,4 @@
-// The words the answer sentences of the commands share (SR-224 AK1). Each command builds its sentence
+// The words the answers of the commands share (SR-224 AK1). Each command builds its sentence
 // in its own `answer`, from its output and input only, so it is the same through every access: English,
 // one sentence on what the command found, counted or did, with a period at its end and no time relative
 // to reading it. `invoke` puts it first in the output (runtime/invoke.ts).
@@ -19,9 +19,12 @@ export const named = (element: { readonly shortId: string; readonly identifier?:
 export const listed = (items: readonly string[]): string =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.slice(-1).join("")}`;
 
-/** `main; note; note.`: what a command did, then the notes that are not empty. */
+/**
+ * `main; note; note.`: what a command did, then the notes that are not empty, on one line: a line break of
+ * a text the input gives (a query, a name) becomes one space.
+ */
 export const sentence = (main: string, ...notes: readonly string[]): string =>
-  `${[main, ...notes.filter((note) => note !== "")].join("; ")}.`;
+  `${[main, ...notes.filter((note) => note !== "")].join("; ")}.`.replace(/\s*[\n\r\u2028\u2029]+\s*/g, " ");
 
 /** The note on the files a write command wrote: `1 file written`, or `no file written`. */
 export const filesNote = (files: readonly unknown[]): string =>

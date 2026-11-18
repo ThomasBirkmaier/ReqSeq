@@ -1,4 +1,4 @@
-// The answer sentence of every command (SR-224 AK1): `invoke` puts the sentence of the command first in
+// The answer of every command (SR-224 AK1): `invoke` puts the sentence of the command first in
 // its output, for every implemented command with the calls of scenarios.test-helper.ts; the words the
 // sentences share (answer.ts) and the cases of single sentences that those calls do not reach. That the
 // sentence is the same through the command line, the API and the MCP server is shown by the cross-access
@@ -45,7 +45,7 @@ const RELATIVE_TIME =
 const answerOf = (command: AnyCommand, output: unknown, input: unknown = {}): string =>
   command.answer?.(output, input as never) ?? "";
 
-describe("the answer sentence of every command (SR-224 AK1)", () => {
+describe("the answer of every command (SR-224 AK1)", () => {
   for (const [name, calls] of Object.entries(CALLS)) {
     it(`[SR-224/AK-cw40] ${name} starts its output with one English sentence that names no time relative to reading it`, async () => {
       const repository = await createFixtureWorkspace({
@@ -88,7 +88,7 @@ describe("the answer sentence of every command (SR-224 AK1)", () => {
   });
 });
 
-describe("the words of the answer sentences", () => {
+describe("the words of the answers", () => {
   it("counts, pages, names and lists", () => {
     expect([counted(1, "entry", "entries"), counted(0, "file"), counted(2, "file")]).toEqual([
       "1 entry",
@@ -116,10 +116,14 @@ describe("the words of the answer sentences", () => {
       "Done; 2 files written; 1 problem; incomplete, as a repository is not available.",
     );
     expect(sentence("Done", problemsNote([]))).toBe("Done.");
+    // A line break of an input text (a query, a name) keeps the sentence on one line.
+    expect(sentence("Found 0 hits for the query wind\r\n  speed")).toBe(
+      "Found 0 hits for the query wind speed.",
+    );
   });
 });
 
-describe("answer sentences of single commands", () => {
+describe("answers of single commands", () => {
   it("element.list counts the rows of `partial` as of `elements`", () => {
     expect(answerOf(elementList, { partial: [{}, {}], total: 3 })).toBe("Listed 2 of 3 elements.");
     expect(answerOf(elementList, { total: 0 })).toBe("Listed 0 elements.");
@@ -134,7 +138,7 @@ describe("answer sentences of single commands", () => {
     ).toEqual([
       "The last call through the API that named an element was element.get, at 2026-11-18T10:00:00Z.",
       "The last call through the MCP server that named an element was element.get, at 2026-11-18T10:00:00Z.",
-      "The last call through cli that named an element was element.get, at 2026-11-18T10:00:00Z.",
+      "The last call through the command line that named an element was element.get, at 2026-11-18T10:00:00Z.",
     ]);
   });
 

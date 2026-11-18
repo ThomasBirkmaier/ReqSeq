@@ -957,7 +957,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
       { workspace: opened.workspace },
     );
     expect(status).toEqual({
-      answer: "Set the status of 1 element to approved; 1 file written.",
+      answer: "Set the status of 1 element to approved.",
       files: ["requirements/SR-00000000b001.md"],
       problems: [],
     });

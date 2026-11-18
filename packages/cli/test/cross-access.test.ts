@@ -520,7 +520,7 @@ const maskTail = (text: string, tail: string, placeholder: string): string =>
 const DEFAULT: Scenario = { name: "default input {}", input: {}, expect: "output" };
 
 /**
- * The scenario that shows the answer sentence of a command (SR-224): its first explicit one that gives an
+ * The scenario that shows the answer of a command (SR-224): its first explicit one that gives an
  * output, else the default one.
  */
 const answerScenario = (name: string): Scenario =>
@@ -530,7 +530,7 @@ const answerScenario = (name: string): Scenario =>
 const RELATIVE_TIME =
   /\b(now|today|yesterday|tomorrow|ago|recently|currently|just|soon|still|yet|anymore|meanwhile)\b/i;
 
-/** The answer sentence of an outcome; undefined for an error. */
+/** The answer of an outcome; undefined for an error. */
 const answerOf = (outcome: Outcome | undefined): unknown =>
   outcome !== undefined && "output" in outcome
     ? (outcome.output as Readonly<Record<string, unknown>>)["answer"]
@@ -747,9 +747,9 @@ describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => 
   });
 });
 
-describe("cross-access: the answer sentence (SR-224 AK1)", { timeout: TEST_TIMEOUT }, () => {
+describe("cross-access: the answer (SR-224 AK1)", { timeout: TEST_TIMEOUT }, () => {
   for (const entry of runtime.contracts.commands) {
-    it(`[SR-224/AK-cw40] ${entry.name} gives the same answer sentence through core, the CLI, the API and MCP`, async () => {
+    it(`[SR-224/AK-cw40] ${entry.name} gives the same answer through core, the CLI, the API and MCP`, async () => {
       const results = await runAll(entry, answerScenario(entry.name), ["core", "cli", "api", "mcp"]);
       const core = results["core"]?.outcome;
       // One English sentence first in the output, the same characters through every access.
@@ -766,53 +766,45 @@ describe("cross-access: the answer sentence (SR-224 AK1)", { timeout: TEST_TIMEO
   }
 });
 
-describe(
-  "cross-access: the answer sentence in the text output (SR-224 AK2)",
-  { timeout: TEST_TIMEOUT },
-  () => {
-    it("[SR-224/AK-tjmm] the CLI without options prints the answer sentence of core as its first line, except for a format", async () => {
-      let shown = 0;
-      for (const entry of runtime.contracts.commands) {
-        const scenario = answerScenario(entry.name);
-        const { top, root } = await copy(scenario);
-        await scenario.prepare?.({ top, root });
-        // The output core gave this very call, so a new element's random UUID is the same on both sides.
-        const outputs: unknown[] = [];
-        const recording: CommandRuntime = {
-          ...runtime,
-          invoke: async (name, input, context) => {
-            const output = await runtime.invoke(name, input, context);
-            outputs.push(output);
-            return output;
-          },
-        };
-        const stdout = new Sink();
-        const stderr = new Sink();
-        const argv = [
-          ...argvFor(entry, { ...scenario.input }, runtime.contracts.schemas),
-          "--workspace",
-          root,
-        ];
-        await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime: recording });
-        const [output] = outputs as Readonly<Record<string, unknown>>[];
-        if (output === undefined) {
-          continue;
-        }
-        const answer = output["answer"];
-        expect([entry.name, typeof answer]).toEqual([entry.name, "string"]);
-        if (entry.textOutput === undefined) {
-          expect([entry.name, stdout.text.split("\n")[0]]).toEqual([entry.name, answer]);
-        } else {
-          // A format such as Mermaid stays the text alone (SR-151 AK4).
-          expect([entry.name, stdout.text]).toEqual([entry.name, output[entry.textOutput]]);
-          expect(stdout.text).not.toContain(String(answer));
-        }
-        shown++;
+describe("cross-access: the answer in the text output (SR-224 AK2)", { timeout: TEST_TIMEOUT }, () => {
+  it("[SR-224/AK-tjmm] the CLI without options prints the answer of core as its first line, except for a format", async () => {
+    let shown = 0;
+    for (const entry of runtime.contracts.commands) {
+      const scenario = answerScenario(entry.name);
+      const { top, root } = await copy(scenario);
+      await scenario.prepare?.({ top, root });
+      // The output core gave this very call, so a new element's random UUID is the same on both sides.
+      const outputs: unknown[] = [];
+      const recording: CommandRuntime = {
+        ...runtime,
+        invoke: async (name, input, context) => {
+          const output = await runtime.invoke(name, input, context);
+          outputs.push(output);
+          return output;
+        },
+      };
+      const stdout = new Sink();
+      const stderr = new Sink();
+      const argv = [...argvFor(entry, { ...scenario.input }, runtime.contracts.schemas), "--workspace", root];
+      await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime: recording });
+      const [output] = outputs as Readonly<Record<string, unknown>>[];
+      if (output === undefined) {
+        continue;
       }
-      expect(shown).toBe(runtime.contracts.commands.length);
-    });
-  },
-);
+      const answer = output["answer"];
+      expect([entry.name, typeof answer]).toEqual([entry.name, "string"]);
+      if (entry.textOutput === undefined) {
+        expect([entry.name, stdout.text.split("\n")[0]]).toEqual([entry.name, answer]);
+      } else {
+        // A format such as Mermaid stays the text alone (SR-151 AK4).
+        expect([entry.name, stdout.text]).toEqual([entry.name, output[entry.textOutput]]);
+        expect(stdout.text).not.toContain(String(answer));
+      }
+      shown++;
+    }
+    expect(shown).toBe(runtime.contracts.commands.length);
+  });
+});
 
 /** The system requirement of SR-004/one-repository and its file. */
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";

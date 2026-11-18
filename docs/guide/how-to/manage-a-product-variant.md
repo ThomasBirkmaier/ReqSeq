@@ -71,7 +71,7 @@ reqseq variant exclude VAR-5c7b92 --refs SR-a3e1d0
 ```
 
 ```text title="Output"
-Variant VAR-5c7b92 excludes 1 requirement; 1 file written.
+Variant VAR-5c7b92 excludes SR-a3e1d0; 1 file written.
 files:
   variant/VAR-cf5b215c7b92.md
 No problems.

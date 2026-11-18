@@ -555,7 +555,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       { workspace: opened.workspace },
     )) as CommandOutput<"element.setStatus">;
     expect(out).toEqual({
-      answer: "Set the status of 2 elements to obsolete; 2 files written; 2 problems.",
+      answer: "Set the status of 2 elements to obsolete; 2 problems.",
       files: [N_OLD.file, N_NEW.file],
       problems: expected,
     });
@@ -566,7 +566,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       { workspace: opened.workspace },
     )) as CommandOutput<"element.setStatus">;
     expect(back).toEqual({
-      answer: "Set the status of 1 element to approved; 1 file written.",
+      answer: "Set the status of 1 element to approved.",
       files: [N_OLD.file],
       problems: [],
     });

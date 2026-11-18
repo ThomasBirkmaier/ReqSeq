@@ -4,16 +4,18 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { setElementStatus } from "../../model/index.js";
-import { counted, filesNote, problemsNote, sentence } from "../answer.js";
+import { counted, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.setStatus",
   answer: (output, input) =>
     sentence(
-      input.status === null
-        ? `Removed the status of ${counted(input.refs.length, "element")}`
-        : `Set the status of ${counted(input.refs.length, "element")} to ${input.status}`,
-      filesNote(output.files),
+      // The status of an element is in its file: one file written per element changed.
+      output.files.length === 0
+        ? "No element changed its status"
+        : input.status === null
+          ? `Removed the status of ${counted(output.files.length, "element")}`
+          : `Set the status of ${counted(output.files.length, "element")} to ${input.status}`,
       problemsNote(output.problems),
     ),
   run: async (ctx, input): Promise<CommandOutput<"element.setStatus">> => {

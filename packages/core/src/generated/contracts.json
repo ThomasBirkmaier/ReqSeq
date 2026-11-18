@@ -923,7 +923,7 @@
         },
         "answer": {
           "title": "Answer",
-          "description": "One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. Core builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it. The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid.",
+          "description": "One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. ReqSeq builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it. The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid.",
           "type": "string",
           "minLength": 1
         },
@@ -1231,7 +1231,7 @@
       "properties": {
         "answer": {
           "$ref": "common.schema.json#/$defs/answer",
-          "description": "The answer sentence of `data.export`, which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
+          "description": "The answer of `data.export`, which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
         },
         "reqseq-data": {
           "title": "Format version",

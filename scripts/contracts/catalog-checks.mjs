@@ -1,6 +1,6 @@
 // Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the length of
 // summaries (#1252), the argument sources of the command prompt (SR-108), the JSON Lines form
-// (`jsonLines`, #319) and the answer sentence of every output (SR-224 AK1). Returns the error lines;
+// (`jsonLines`, #319) and the answer of every output (SR-224 AK1). Returns the error lines;
 // `validate-schemas.mjs` prints them.
 
 /** Sources that give elements: what `of` of an element source names. */

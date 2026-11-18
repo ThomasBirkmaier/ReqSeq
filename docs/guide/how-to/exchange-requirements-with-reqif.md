@@ -86,7 +86,7 @@ reqseq reqif analyze delivery-1.reqif
 ```
 
 ```text title="Output"
-Preview of the import: 0 new elements, 0 changed, 0 conflicts, 0 dropped and 4 unmapped.
+The import would give 0 new elements, 0 changed, 0 conflicts, 0 dropped and 4 unmapped.
 unmapped:
   - kind: type
     source: Customer Requirement
@@ -198,7 +198,7 @@ reqseq reqif analyze delivery-2.reqif --mapping reqif/customer.yaml
 ```
 
 ```text title="Output"
-Preview of the import: 1 new element, 1 changed, 0 conflicts, 1 dropped and 0 unmapped.
+The import would give 1 new element, 1 changed, 0 conflicts, 1 dropped and 0 unmapped.
 unmapped: none
 new:
   - identifier: CR-3

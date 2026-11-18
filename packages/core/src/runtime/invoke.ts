@@ -63,7 +63,7 @@ const withHome = (
   home === undefined ? input : replaceLocalPaths(input, fields, (value) => expandHome(value, home));
 
 /**
- * `output` with the answer sentence of `command` first (SR-224 AK1), or as it is for a command without
+ * `output` with the answer of `command` first (SR-224 AK1), or as it is for a command without
  * one (a test command). Outputs of catalog commands are objects (catalog.meta.schema.json).
  */
 const answered = (command: AnyCommand, output: unknown, input: unknown): unknown =>
@@ -244,7 +244,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
             checked as never,
           );
           // Every problem that names an element names its short ID too (ThomasBirkmaier/ReqSeq-archive#315),
-          // and the output starts with its answer sentence, built in core for every access (SR-224 AK1).
+          // and the output starts with its answer, built in core for every access (SR-224 AK1).
           const shown = answered(command, await withElementShortIds(ctx.workspace, locator, result), checked);
           if (call !== undefined) {
             // The states the command left, taken now; nothing waits for it (SR-117). Inputs and

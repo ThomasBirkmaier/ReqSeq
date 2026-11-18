@@ -11,7 +11,7 @@ export default defineCommand({
     sentence(
       output.deleted
         ? `Deleted saved filter ${output.name}`
-        : `Preview: deleting saved filter ${output.name} removes ${output.file}, nothing deleted`,
+        : `Nothing deleted without confirm: saved filter ${output.name} is in ${output.file}`,
       output.deleted ? filesNote(output.files) : "",
       problemsNote(output.problems),
     ),

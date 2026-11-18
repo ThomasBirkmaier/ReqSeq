@@ -194,7 +194,7 @@ reqseq element list --group topic --sort title
 ```
 
 ```text title="Output"
-Listed 4 elements.
+Listed 4 rows.
 elements:
   temperature · 1
     SR-41c165  draft  Show the temperature

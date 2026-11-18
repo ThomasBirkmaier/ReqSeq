@@ -72,7 +72,7 @@ export default defineCommand({
   name: "reqif.analyze",
   answer: (output) =>
     sentence(
-      `Preview of the import: ${listed([
+      `The import would give ${listed([
         counted(output.new.length, "new element"),
         `${String(output.changed.length)} changed`,
         counted(output.conflicts.length, "conflict"),

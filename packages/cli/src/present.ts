@@ -55,7 +55,7 @@
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
 //   chain (#676). A UUID that `names` leaves out stays as it is.
-// - The answer sentence (`answer`, SR-224) is the first line, as core gives it; an output whose text is a
+// - The answer (`answer`, SR-224) is the first line, as core gives it; an output whose text is a
 //   format (`textOutput`, such as Mermaid, SR-151 AK4) is printed alone, without it (render.ts).
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
@@ -148,7 +148,7 @@ const shownReferences = (rest: Rec, shown: Set<string>): ReturnType<typeof crite
   return references;
 };
 
-/** The answer sentence of core as the first line (SR-224 AK2); none for an output without one. */
+/** The answer of core as the first line (SR-224 AK2); none for an output without one. */
 const answerLines = (answer: unknown): string[] => (typeof answer === "string" ? [answer] : []);
 
 /**

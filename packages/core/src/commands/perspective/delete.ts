@@ -11,7 +11,7 @@ export default defineCommand({
     sentence(
       output.deleted
         ? `Deleted perspective ${output.name}`
-        : `Preview: deleting perspective ${output.name} removes ${output.file}, nothing deleted`,
+        : `Nothing deleted without confirm: perspective ${output.name} is in ${output.file}`,
       output.deleted ? filesNote(output.files) : "",
       problemsNote(output.problems),
     ),

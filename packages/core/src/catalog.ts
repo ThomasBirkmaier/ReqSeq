@@ -54,7 +54,7 @@ export interface CommandDefinition<In, Out> {
   /** Gets input that already passed the catalog input schema, with defaults applied. */
   readonly run: (ctx: CommandContext, input: In) => Promise<Out>;
   /**
-   * The answer sentence of an output (SR-224 AK1): one English sentence on what the command found,
+   * The answer of an output (SR-224 AK1): one English sentence on what the command found,
    * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
    * is the same through every access; no time relative to reading it. `invoke` puts it first in the
    * output as `answer`. Every product command has one (`CatalogCommand`); a test command without it

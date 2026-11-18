@@ -38,7 +38,7 @@ import {
 } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { isCoreRequirement, variantTypes } from "../../variants/index.js";
-import { counted, filesNote, problemsNote, sentence } from "../answer.js";
+import { filesNote, listed, problemsNote, sentence } from "../answer.js";
 
 type Input = CommandInput<"variant.exclude">;
 type Output = CommandOutput<"variant.exclude">;
@@ -161,9 +161,10 @@ export default defineCommand({
   name: "variant.exclude",
   answer: (output, input) =>
     sentence(
-      input.undo
-        ? `Variant ${input.variant} no longer excludes ${counted(input.refs.length, "requirement")}`
-        : `Variant ${input.variant} excludes ${counted(input.refs.length, "requirement")}`,
+      // What the variant file says afterwards; a requirement given twice or excluded already changes nothing.
+      output.files.length === 0
+        ? `Variant ${input.variant} is unchanged`
+        : `Variant ${input.variant} ${input.undo ? "no longer excludes" : "excludes"} ${listed([...new Set(input.refs)])}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

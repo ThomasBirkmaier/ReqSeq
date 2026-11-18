@@ -476,7 +476,7 @@ export interface CommandErrorObject {
 }
 
 /**
- * One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. Core builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it (SR-224 AK1). The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid (SR-224 AK2).
+ * One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. ReqSeq builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it (SR-224 AK1). The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid (SR-224 AK2).
  * Schema: `schemas/common.schema.json#/$defs/answer`.
  */
 export type Answer = string;
@@ -634,7 +634,7 @@ export type OutputPath = string;
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The answer sentence of `data.export` (SR-224 AK1), which its output always has; not in the file that `data.store` writes nor in the JSON Lines form. */
+  /** The answer of `data.export` (SR-224 AK1), which its output always has; not in the file that `data.store` writes nor in the JSON Lines form. */
   readonly answer?: Answer;
   /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text (SR-205 AK2). */
   readonly "reqseq-data": 5;

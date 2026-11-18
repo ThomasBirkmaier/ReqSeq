@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { renderHuman } from "./present.js";
 import { lines } from "./present.test-helper.js";
 
-describe("renderHuman: the answer sentence (SR-224 AK2)", () => {
+describe("renderHuman: the answer (SR-224 AK2)", () => {
   it("[SR-224/AK-tjmm] prints the answer of core as the first line, before every other line, on a terminal too", () => {
     const output = {
       answer: "Created need N-7fe707; 1 file written.",

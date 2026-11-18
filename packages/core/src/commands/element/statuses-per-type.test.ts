@@ -385,7 +385,7 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
     expect(await statusHints(opened)).toContain(`element.status-not-allowed ${TERM_DRAFT}`);
     const out = await setStatus(opened, ["T-eee002"], null);
     expect(out).toEqual({
-      answer: "Removed the status of 1 element; 1 file written.",
+      answer: "Removed the status of 1 element.",
       files: [TERM_DRAFT],
       problems: [],
     });
@@ -408,7 +408,7 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
     ]);
     const out = await setStatus(opened, ["GT-fff002", "GT-fff003"], null);
     expect(out).toEqual({
-      answer: "Removed the status of 2 elements; 2 files written.",
+      answer: "Removed the status of 2 elements.",
       files: [RETIRED, LEFTOVER],
       problems: [],
     });
@@ -457,13 +457,13 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
     const opened = await open({ [TERM_DRAFT]: empty });
     const before = await read(opened, TERM);
     expect(await setStatus(opened, ["T-eee001", "T-eee001"], null)).toEqual({
-      answer: "Removed the status of 2 elements; no file written.",
+      answer: "No element changed its status.",
       files: [],
       problems: [],
     });
     expect(await read(opened, TERM)).toBe(before);
     expect(await setStatus(opened, ["T-eee002"], null)).toEqual({
-      answer: "Removed the status of 1 element; 1 file written.",
+      answer: "Removed the status of 1 element.",
       files: [TERM_DRAFT],
       problems: [],
     });

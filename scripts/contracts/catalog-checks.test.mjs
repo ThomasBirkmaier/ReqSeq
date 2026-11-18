@@ -49,7 +49,7 @@ const command = (name, title, args = ALL, schema = input) => ({
   input: described(schema),
 });
 const check = (...commands) => checkCatalog({ commands });
-/** The answer sentence every output names (SR-224 AK1). */
+/** The answer every output names (SR-224 AK1). */
 const ANSWER = { $ref: "../common.schema.json#/$defs/answer" };
 
 describe("catalog checks (titles and argument sources, SR-108)", () => {

@@ -128,7 +128,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     const { workspace, ids } = await delivered();
     const analysis = await analyzeOf(workspace, 2);
     expect(analysis).toEqual({
-      answer: "Preview of the import: 1 new element, 2 changed, 0 conflicts, 1 dropped and 0 unmapped.",
+      answer: "The import would give 1 new element, 2 changed, 0 conflicts, 1 dropped and 0 unmapped.",
       unmapped: [],
       new: [{ identifier: "REQ-5" }],
       changed: [

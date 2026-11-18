@@ -8,7 +8,7 @@
   "properties": {
     "answer": {
       "$ref": "common.schema.json#/$defs/answer",
-      "description": "The answer sentence of `data.export` (SR-224 AK1), which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
+      "description": "The answer of `data.export` (SR-224 AK1), which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
     },
     "reqseq-data": {
       "title": "Format version",
