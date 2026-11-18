@@ -240,7 +240,7 @@ export const acceptanceCriteriaProblem = (
  * (D-059, SR-220), and the key whose line names it; undefined when its values are designations. Both
  * hold texts; a property of another kind gives none. A `synonyms` property without `many` still gives
  * its one value (`meaningKindProblems` warns about it). Whether a translation may have several
- * values or be Markdown is open question #1811; assumed: neither is checked, and every value counts.
+ * values or be Markdown is not checked, and every value counts (#1811).
  */
 export const designationKindProblem = (
   property: MetamodelProperty,

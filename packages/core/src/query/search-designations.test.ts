@@ -470,7 +470,7 @@ describe("designationTable and designationRuns", () => {
       const { runs: found, rest } = designationRuns(table, parseQuery(query).segments);
       return { runs: found.map((run) => run.words.join(" ")), rest };
     };
-    // Overlapping designations: left to right, the longest at each place (assumption of #1817).
+    // Overlapping designations: left to right, the longest at each place (SR-220 AK1, #1817).
     expect(runs("a b c d")).toEqual({ runs: ["a b"], rest: ["c", "d"] });
     expect(runs("A b-c d a")).toEqual({ runs: ["A", "b-c d", "a"], rest: [] });
     expect(runs('a "b" c d')).toEqual({ runs: ["a"], rest: ["c", "d"] });
