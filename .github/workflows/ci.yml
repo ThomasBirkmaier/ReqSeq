@@ -232,9 +232,12 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
         run: pnpm docs:install
       # `pnpm audit --prod` above sees only the workspace; the site's dev packages are audited here.
+      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS) has no patched version yet and reaches only the build
+      # of the documentation site (astro > unstorage > anymatch), not the shipped tool; drop the
+      # exception once a fixed picomatch exists (#1820).
       - name: Docs - audit the site's dependencies
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
-        run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+        run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high --ignore GHSA-fc5q-39xc-vjpf
       # The licences of what the site ships with a delivery (ADR-0015, SR-141), so a pull request sees a change.
       - name: Docs - check the licences the site ships
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
