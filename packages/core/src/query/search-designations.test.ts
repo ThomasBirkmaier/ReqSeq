@@ -151,6 +151,9 @@ describe("other designations (SR-220)", () => {
     expect(found(index, "Paket/Export")).toEqual(["c3"]);
     expect(found(index, "Export-Paket")).toEqual(["c3"]);
     expect(ranked(index, "Paket-Export")).toEqual(["c3 other"]);
+    // Two designations in one query word, each through its own other designations, as without a hyphen.
+    expect(found(index, "Bündel-Requirement")).toEqual(found(index, "Bündel Requirement"));
+    expect(found(index, "Bündel-Requirement")).toEqual(["c1", "c2", "c3", "c7", "c8", "c9"]);
     // With any word enough, a hyphenated query word still needs all its words, as without designations.
     expect(found(index, "Paket-Export", { combineWith: "or" })).toEqual(["c3"]);
     expect(found(index, "Paket-Zeit", { combineWith: "or" })).toEqual([]);
