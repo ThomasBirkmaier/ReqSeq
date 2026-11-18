@@ -16,27 +16,7 @@ The app, CLI, API and MCP run the same commands with the same result, so you can
   <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. The test results come to ReqSeq as JUnit XML, and ReqSeq records them as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 </picture>
 
-## What it looks like
-
-A need, a system requirement derived from it, and the test that verifies its acceptance criterion, as the CLI prints it (shortened). The requirement starts with gaps that ReqSeq names:
-
-```text title="Output"
-$ reqseq element create system-requirement "Show the wind speed" --text "…"
-SR-7205cc  draft  Show the wind speed  [verification: core open]
-warning  element.missing-required  SR-7205cc  Required property Acceptance Criteria (acceptance-criteria) … has no value
-warning  trace.no-parent  SR-7205cc  System Requirement SR-7205cc has no parent
-$ reqseq relation add SR-7205cc derives-from N-db340b
-$ reqseq element update SR-7205cc --set requirement-type=functional --set 'acceptance-criteria=[{"text":"Given …"}]'
-$ reqseq evidence enrich-junit evidence/results.xml build-1     # test named [SR-7205cc/AK-h1rf]
-$ reqseq trace chain N-db340b
-N-db340b  draft  See the wind speed
-children:
-  1  SR-7205cc  draft  Show the wind speed
-  2    test case  station › [SR-7205cc/AK-h1rf] shows the wind speed in knots
-         2026-11-18T21:26:18Z  passed  build-1  evidence/results.xml:2  [criteria AK1 (h1rf)]
-```
-
-The reports come from the metamodel of the workspace: a new workspace starts with the standard model of needs, use cases, system requirements, decisions, variants and packages, and you can extend it with your own types, properties and relations. `reqseq workspace check --fail-on warning` turns each report into a failed pipeline, and a changed need shows every relation to it as outdated until someone confirms it. ReqSeq keeps its own specification this way: the more than 200 system requirements in [`spec/`](spec/README.md), each acceptance criterion traced to the test that verifies it.
+Each command names what the metamodel still misses, such as `trace.no-parent` or `element.missing-required`, and `reqseq workspace check --fail-on warning` turns that into a failed pipeline. The metamodel is yours: a new workspace starts with a standard model you can extend. ReqSeq keeps its own more than 200 system requirements this way, in [`spec/`](spec/README.md).
 
 ## How you connect
 
