@@ -5,9 +5,16 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { lastAccess } from "../../model/activity.js";
+import { sentence } from "../answer.js";
 
 export default defineCommand({
   name: "workspace.activity",
+  answer: ({ activity }) =>
+    sentence(
+      activity === null
+        ? "No call through the API or the MCP server named an element on this working copy"
+        : `The last call through ${activity.access === "api" ? "the API" : activity.access === "mcp" ? "the MCP server" : activity.access} that named an element was ${activity.command}, at ${activity.at}`,
+    ),
   run: async (ctx): Promise<CommandOutput<"workspace.activity">> => ({
     activity: (await lastAccess(ctx.workspace)) ?? null,
   }),

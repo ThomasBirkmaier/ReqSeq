@@ -153,7 +153,11 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const commit = await ws.head("system");
     expect(fs.existsSync(ws.path("system/out"))).toBe(false);
     const out = await storeIn(root, { folder: "out" });
-    expect(out).toEqual({ files: [`out/${commit}.jsonl`], problems: [] });
+    expect(out).toEqual({
+      answer: "Stored the data in out/be3a664c1ea9290ace04cd4e5e42901980cb62d3.jsonl.",
+      files: [`out/${commit}.jsonl`],
+      problems: [],
+    });
     const text = fs.readFileSync(ws.path(`system/out/${commit}.jsonl`), "utf8");
     const exported = await exportIn(root);
     // Byte for byte the lines of `data export --jsonl` (no line holds the time of the call).
@@ -179,6 +183,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const commit = await changed.head();
     append(changed, "requirements/SR-0000000000a1.md", "More text.\n");
     expect(await storeIn(changed.root, { folder: "out" })).toEqual({
+      answer: "Stored the data in out/d11ec1391961330127411eb979ccbe4776de4299-dirty.jsonl.",
       files: [`out/${commit}-dirty.jsonl`],
       problems: [],
     });
@@ -211,6 +216,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const old = `{"reqseq-data":2,"commit":"${commit}","dirty":false,"id":"older"}\n{"reqseq-data":2,"ti`;
     fs.writeFileSync(file, old);
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
+      answer: "Stored the data in out/d11ec1391961330127411eb979ccbe4776de4299.jsonl.",
       files: [`out/${commit}.jsonl`],
       problems: [],
     });
@@ -236,6 +242,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const plain = await fixture({ fixture: "SR-062/store" });
     const out = await storeIn(plain.root, { folder: "out" });
     expect(out).toEqual({
+      answer: "Stored no data; 1 problem.",
       files: [],
       problems: [
         {
@@ -282,6 +289,7 @@ describe("data.store: a second repository without a known commit (ThomasBirkmaie
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out" });
     expect(out).toEqual({
+      answer: "Stored the data in out/be3a664c1ea9290ace04cd4e5e42901980cb62d3-dirty.jsonl; 1 problem.",
       files: [`out/${commit}-dirty.jsonl`],
       problems: [
         {
@@ -326,6 +334,7 @@ describe("data.store: a second repository without a known commit (ThomasBirkmaie
     vi.mocked(reader.changedPaths).mockResolvedValueOnce({ known: false, reason: "timeout", detail: "slow" });
     const out = await storeIn(ws.root, { folder: "out" });
     expect(out).toEqual({
+      answer: "Stored the data in out/d11ec1391961330127411eb979ccbe4776de4299-dirty.jsonl; 1 problem.",
       files: [`out/${commit}-dirty.jsonl`],
       problems: [
         {
@@ -444,6 +453,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     });
     const commit = await ws.head();
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
+      answer: "Stored the data in out/7e3438172f4a35befe99e18782c647bbedb4666a.jsonl.",
       files: [`out/${commit}.jsonl`],
       problems: [],
     });
@@ -564,6 +574,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     const ws = await fixture({ fixture: "SR-062/subfolder", git: true });
     const commit = await ws.head();
     expect(await storeIn(ws.path("spec"), { folder: "out" })).toEqual({
+      answer: "Stored the data in out/ae9541fa6393a604577f2533b15b21d7e7057eeb.jsonl.",
       files: [`out/${commit}.jsonl`],
       problems: [],
     });
@@ -613,6 +624,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     const ws = await fixture();
     const commit = await ws.head();
     expect(await storeIn(ws.root, { folder: "generated/out" })).toEqual({
+      answer: "Stored the data in generated/out/d11ec1391961330127411eb979ccbe4776de4299.jsonl.",
       files: [`generated/out/${commit}.jsonl`],
       problems: [],
     });
@@ -634,6 +646,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     expect((await storeIn(ws.root, { folder: "." })).files).toEqual([`${commit}.jsonl`]);
     const outside = tempFolder();
     expect(await storeIn(ws.root, { folder: outside })).toEqual({
+      answer: `Stored the data in ${path.join(outside, `${commit}.jsonl`)}.`,
       files: [path.join(outside, `${commit}.jsonl`)],
       problems: [],
     });
@@ -692,6 +705,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       fs.symlinkSync(ws.path("loop-b"), ws.path("loop-a"));
       fs.symlinkSync(ws.path("loop-a"), ws.path("loop-b"));
       expect(await storeIn(ws.root, { folder: "loop-a/out" })).toEqual({
+        answer: "Stored no data; 1 problem.",
         files: [],
         problems: [
           {
@@ -784,6 +798,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       .mockImplementationOnce(actual.headCommit)
       .mockResolvedValueOnce({ known: false, reason: "timeout", detail: "slow" });
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
+      answer: "Stored no data; 1 problem.",
       files: [],
       problems: [
         {
@@ -881,7 +896,11 @@ describe("data.store: nested repositories", () => {
     });
     const commit = await ws.head();
     const out = await storeIn(ws.root, { folder: "inner/out" });
-    expect(out).toEqual({ files: [`inner/out/${commit}.jsonl`], problems: [] });
+    expect(out).toEqual({
+      answer: "Stored the data in inner/out/3d0050aa72ba00b83a4b5960ad46d308be0d10eb.jsonl.",
+      files: [`inner/out/${commit}.jsonl`],
+      problems: [],
+    });
     expect(stateIn(ws.path(`inner/out/${commit}.jsonl`))).toEqual([[commit, false]]);
     expect((await exportIn(ws.root)).repositories).toEqual([
       { name: "system", available: true, commit, dirty: false },

@@ -427,13 +427,17 @@ const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
  * from the same files. A read command, and a command without an implementation (it cannot write), share one
  * copy. Either way, the files of the copy are compared after each access.
  */
-const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<string, Result>> => {
+const runAll = async (
+  entry: CatalogEntry,
+  scenario: Scenario,
+  accesses: readonly (typeof ACCESSES)[number][],
+): Promise<Record<string, Result>> => {
   const unchanging = entry.effect === "read" || !runtime.commands.has(entry.name);
   const shared = unchanging ? await preparedCopy(scenario) : undefined;
   // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
-  for (const access of ACCESSES) {
+  for (const access of accesses) {
     const { top, root } = shared ?? (await copy(scenario));
     await scenario.prepare?.({ top, root });
     const before = await filesOf(top);
@@ -515,6 +519,23 @@ const maskTail = (text: string, tail: string, placeholder: string): string =>
 
 const DEFAULT: Scenario = { name: "default input {}", input: {}, expect: "output" };
 
+/**
+ * The scenario that shows the answer sentence of a command (SR-224): its first explicit one that gives an
+ * output, else the default one.
+ */
+const answerScenario = (name: string): Scenario =>
+  (SCENARIOS.get(name as CommandName) ?? []).find((s) => s.expect === "output") ?? DEFAULT;
+
+/** Words that name a time relative to reading the sentence, which an answer never has (SR-224 AK1). */
+const RELATIVE_TIME =
+  /\b(now|today|yesterday|tomorrow|ago|recently|currently|just|soon|still|yet|anymore|meanwhile)\b/i;
+
+/** The answer sentence of an outcome; undefined for an error. */
+const answerOf = (outcome: Outcome | undefined): unknown =>
+  outcome !== undefined && "output" in outcome
+    ? (outcome.output as Readonly<Record<string, unknown>>)["answer"]
+    : undefined;
+
 describe(
   "cross-access: same result through core, CLI, API, MCP and the app",
   { timeout: TEST_TIMEOUT },
@@ -523,7 +544,7 @@ describe(
       const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
       for (const scenario of [DEFAULT, ...explicit]) {
         it(`${scenario.tag ?? "[SR-080/AK-bb1t]"} ${entry.name}, ${scenario.name}`, async () => {
-          const results = await runAll(entry, scenario);
+          const results = await runAll(entry, scenario, ACCESSES);
           const core = results["core"];
           if (scenario !== DEFAULT) {
             expect(Object.keys(core?.outcome ?? {})).toEqual([scenario.expect]);
@@ -725,6 +746,73 @@ describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => 
     }
   });
 });
+
+describe("cross-access: the answer sentence (SR-224 AK1)", { timeout: TEST_TIMEOUT }, () => {
+  for (const entry of runtime.contracts.commands) {
+    it(`[SR-224/AK-cw40] ${entry.name} gives the same answer sentence through core, the CLI, the API and MCP`, async () => {
+      const results = await runAll(entry, answerScenario(entry.name), ["core", "cli", "api", "mcp"]);
+      const core = results["core"]?.outcome;
+      // One English sentence first in the output, the same characters through every access.
+      const answer = answerOf(core);
+      expect(Object.keys((core as { output?: object } | undefined)?.output ?? {})[0]).toBe("answer");
+      expect([answer, typeof answer === "string" && /^\S[^\n\r]*\.$/.test(answer)]).toEqual([answer, true]);
+      expect(String(answer)).not.toMatch(RELATIVE_TIME);
+      expect(["cli", "api", "mcp"].map((access) => answerOf(results[access]?.outcome))).toEqual([
+        answer,
+        answer,
+        answer,
+      ]);
+    });
+  }
+});
+
+describe(
+  "cross-access: the answer sentence in the text output (SR-224 AK2)",
+  { timeout: TEST_TIMEOUT },
+  () => {
+    it("[SR-224/AK-tjmm] the CLI without options prints the answer sentence of core as its first line, except for a format", async () => {
+      let shown = 0;
+      for (const entry of runtime.contracts.commands) {
+        const scenario = answerScenario(entry.name);
+        const { top, root } = await copy(scenario);
+        await scenario.prepare?.({ top, root });
+        // The output core gave this very call, so a new element's random UUID is the same on both sides.
+        const outputs: unknown[] = [];
+        const recording: CommandRuntime = {
+          ...runtime,
+          invoke: async (name, input, context) => {
+            const output = await runtime.invoke(name, input, context);
+            outputs.push(output);
+            return output;
+          },
+        };
+        const stdout = new Sink();
+        const stderr = new Sink();
+        const argv = [
+          ...argvFor(entry, { ...scenario.input }, runtime.contracts.schemas),
+          "--workspace",
+          root,
+        ];
+        await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime: recording });
+        const [output] = outputs as Readonly<Record<string, unknown>>[];
+        if (output === undefined) {
+          continue;
+        }
+        const answer = output["answer"];
+        expect([entry.name, typeof answer]).toEqual([entry.name, "string"]);
+        if (entry.textOutput === undefined) {
+          expect([entry.name, stdout.text.split("\n")[0]]).toEqual([entry.name, answer]);
+        } else {
+          // A format such as Mermaid stays the text alone (SR-151 AK4).
+          expect([entry.name, stdout.text]).toEqual([entry.name, output[entry.textOutput]]);
+          expect(stdout.text).not.toContain(String(answer));
+        }
+        shown++;
+      }
+      expect(shown).toBe(runtime.contracts.commands.length);
+    });
+  },
+);
 
 /** The system requirement of SR-004/one-repository and its file. */
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";

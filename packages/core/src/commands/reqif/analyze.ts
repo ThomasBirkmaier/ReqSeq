@@ -36,6 +36,7 @@ import {
 import type { ReqifFile } from "../../reqif/model.js";
 import type { WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, listed, problemsNote, sentence } from "../answer.js";
 
 type Analysis = CommandOutput<"reqif.analyze">;
 type Unmapped = Analysis["unmapped"][number];
@@ -69,6 +70,18 @@ const mappingOf = async (
 
 export default defineCommand({
   name: "reqif.analyze",
+  answer: (output) =>
+    sentence(
+      `Preview of the import: ${listed([
+        counted(output.new.length, "new element"),
+        `${String(output.changed.length)} changed`,
+        counted(output.conflicts.length, "conflict"),
+        `${String(output.dropped.length)} dropped`,
+        `${String(output.unmapped.length)} unmapped`,
+      ])}`,
+      output.losses.length === 0 ? "" : counted(output.losses.length, "loss", "losses"),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<Analysis> => {
     const { workspace } = ctx;
     const layout = await workspace.get(workspaceLayoutState);

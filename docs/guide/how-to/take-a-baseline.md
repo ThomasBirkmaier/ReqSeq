@@ -30,6 +30,7 @@ reqseq element create package "Wind measurement"
 ```
 
 ```text title="Output"
+Created package PKG-65ba20; 1 file written.
 PKG-65ba20  draft  Wind measurement
 ...
 ```
@@ -42,6 +43,7 @@ reqseq element list --package PKG-65ba20
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-c67baa  draft  Show the wind speed
 total: 1
@@ -54,6 +56,7 @@ reqseq data export --package PKG-65ba20
 ```
 
 ```text title="Output"
+Exported 1 element of workspace Weather station.
 reqseq-data: 5
 ...
 selection:

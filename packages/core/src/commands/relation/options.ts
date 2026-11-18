@@ -11,9 +11,12 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { metamodelState, relationKindFor, relationOptions } from "../../metamodel/index.js";
 import { elementStoreState, resolveRef, shortIdState } from "../../model/index.js";
+import { counted, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "relation.options",
+  answer: (output, input) =>
+    sentence(`${input.ref} can get ${counted(output.kinds.length, "relation kind")}`),
   run: async (ctx, input): Promise<CommandOutput<"relation.options">> => {
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);

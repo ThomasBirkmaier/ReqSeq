@@ -554,14 +554,22 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       { refs: [N_OLD.id, N_NEW.id], status: "obsolete" },
       { workspace: opened.workspace },
     )) as CommandOutput<"element.setStatus">;
-    expect(out).toEqual({ files: [N_OLD.file, N_NEW.file], problems: expected });
+    expect(out).toEqual({
+      answer: "Set the status of 2 elements to obsolete; 2 files written; 2 problems.",
+      files: [N_OLD.file, N_NEW.file],
+      problems: expected,
+    });
     // Back to a valid status: no hint.
     const back = (await invoke(
       "element.setStatus",
       { refs: [N_OLD.id], status: "approved" },
       { workspace: opened.workspace },
     )) as CommandOutput<"element.setStatus">;
-    expect(back).toEqual({ files: [N_OLD.file], problems: [] });
+    expect(back).toEqual({
+      answer: "Set the status of 1 element to approved; 1 file written.",
+      files: [N_OLD.file],
+      problems: [],
+    });
   });
 
   it("[SR-072/AK-y5gr] element.update gives the hints on the relations of the element it writes", async () => {

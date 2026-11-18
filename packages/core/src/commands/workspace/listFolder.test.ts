@@ -49,6 +49,7 @@ const list = async (
 describe("workspace.listFolder", () => {
   it("lists relative from the workspace root, with files on request, and ~ as an ordinary name", async () => {
     expect(await list({ path: "" })).toEqual({
+      answer: "Found 2 entries.",
       folder: root,
       name: "",
       entries: [
@@ -66,11 +67,13 @@ describe("workspace.listFolder", () => {
 
   it("with absolute takes ~ as home and refuses a relative path", async () => {
     expect(await list({ path: "~/pro", absolute: true })).toEqual({
+      answer: "Found 1 entry.",
       folder: path.join(top, "home"),
       name: "pro",
       entries: [{ name: "projects", kind: "folder" }],
     });
     expect(await list({ path: "out/", absolute: true })).toEqual({
+      answer: "Found no entries: the path is refused.",
       name: "",
       entries: [],
       problem: "invalid",

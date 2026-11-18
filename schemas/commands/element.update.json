@@ -121,6 +121,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "element": {
         "title": "Element",
         "$ref": "../data-export.schema.json#/$defs/element"
@@ -158,6 +159,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["element", "fileSha256", "files", "affected"]
+    "required": ["answer", "element", "fileSha256", "files", "affected"]
   }
 }

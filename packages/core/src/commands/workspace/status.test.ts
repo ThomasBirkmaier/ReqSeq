@@ -63,6 +63,7 @@ describe("workspace.status", () => {
     const ws = await threeRepositories();
     const out = await status(open(ws.path("system")));
     expect(out).toEqual({
+      answer: "Workspace Weather station has 3 repositories, 3 available.",
       name: "Weather station",
       repositories: [
         {
@@ -102,6 +103,7 @@ describe("workspace.status", () => {
     const workspace = open(ws.root);
     const out = await status(workspace);
     expect(out).toEqual({
+      answer: "Workspace Weather station has 1 repository, 1 available.",
       name: "Weather station",
       repositories: [
         {
@@ -384,6 +386,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     const ws = await splitFolder({ git: true });
     const out = await status(open(ws.root));
     expect(out).toEqual({
+      answer: "Workspace Weather station has 1 repository, 1 available; 1 problem.",
       name: "Weather station",
       repositories: [
         {

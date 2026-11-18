@@ -77,7 +77,11 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     expect(metamodel.statuses.map((s) => s.key)).toEqual(OWN_STATUSES);
     for (const status of OWN_STATUSES) {
       const out = await setStatus(opened, { refs: [WIND.id], status });
-      expect(out).toEqual({ files: status === "proposed" ? [] : [WIND.file], problems: [] });
+      expect(out).toEqual({
+        answer: `Set the status of 1 element to ${status}; ${status === "proposed" ? "no file" : "1 file"} written.`,
+        files: status === "proposed" ? [] : [WIND.file],
+        problems: [],
+      });
       expect((await statuses(opened))[WIND.id]).toBe(status);
     }
   });
@@ -159,6 +163,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
       allowed: ["draft", "approved", "obsolete"],
     });
     expect(await setStatus(opened, { refs: ["SR-e88fb3"], status: "approved" })).toEqual({
+      answer: "Set the status of 1 element to approved; 1 file written.",
       files: ["requirements/SR-6328cee88fb3.md"],
       problems: [],
     });
@@ -196,6 +201,7 @@ describe("element.setStatus writes only the status", () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     expect(await setStatus(opened, { refs: ["REQ-4a5b6c"], status: "in-change" })).toEqual({
+      answer: "Set the status of 1 element to in-change; 1 file written.",
       files: [GUSTS.file],
       problems: [],
     });
@@ -217,7 +223,11 @@ describe("element.setStatus writes only the status", () => {
       refs: [BARE.id, "REQ-556666", WIND.id, BARE.id],
       status: "in-review",
     });
-    expect(out).toEqual({ files: [BARE.file, WIND.file], problems: [] });
+    expect(out).toEqual({
+      answer: "Set the status of 4 elements to in-review; 2 files written.",
+      files: [BARE.file, WIND.file],
+      problems: [],
+    });
     expect(await read(opened, BARE.file)).toBe(
       `---\nid: ${BARE.id}\ntype: requirement\ntitle: No status yet\nstatus: in-review\n---\n`,
     );
@@ -232,14 +242,20 @@ describe("element.setStatus writes only the status", () => {
     const opened = await open();
     const before = await readAll(opened, FILES);
     expect(await setStatus(opened, { refs: [WIND.id], status: "proposed" })).toEqual({
+      answer: "Set the status of 1 element to proposed; no file written.",
       files: [],
       problems: [],
     });
     expect(await setStatus(opened, { refs: [GUSTS.id], status: "released" })).toEqual({
+      answer: "Set the status of 1 element to released; no file written.",
       files: [],
       problems: [],
     });
-    expect(await setStatus(opened, { refs: [], status: "released" })).toEqual({ files: [], problems: [] });
+    expect(await setStatus(opened, { refs: [], status: "released" })).toEqual({
+      answer: "Set the status of 0 elements to released; no file written.",
+      files: [],
+      problems: [],
+    });
     expect(await readAll(opened, FILES)).toEqual(before);
   });
 
@@ -264,6 +280,7 @@ describe("element.setStatus writes only the status", () => {
     ]);
     expect(await readAll(opened, [WIND.file, GUSTS.file])).toEqual([wind, changed]);
     expect(await setStatus(opened, { refs: [WIND.id, GUSTS.id], status: "in-review" })).toEqual({
+      answer: "Set the status of 2 elements to in-review; 2 files written.",
       files: [WIND.file, GUSTS.file],
       problems: [],
     });
@@ -320,6 +337,7 @@ describe("element.setStatus writes only the status", () => {
     expect(await statuses(opened)).toEqual({ [WIND.id]: "proposed", [GUSTS.id]: "released" });
     await fs.chmod(opened.fixture.path(BARE.file), 0o644);
     expect(await setStatus(opened, { refs: [WIND.id, BARE.id], status: "released" })).toEqual({
+      answer: "Set the status of 2 elements to released; 2 files written.",
       files: [WIND.file, BARE.file],
       problems: [],
     });

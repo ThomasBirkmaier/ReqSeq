@@ -207,7 +207,7 @@ const placeOf = async (
 };
 
 /** The output without a commit of the main repository (K3): nothing written. */
-const noCommit = (name: string, why: string): DataStoreOutput => ({
+const noCommit = (name: string, why: string): Omit<DataStoreOutput, "answer"> => ({
   files: [],
   problems: [
     {
@@ -246,7 +246,7 @@ export const storeData = async (
   selected: Selected,
   input: { readonly folder: string; readonly selection?: ElementSelection },
   options: StoreOptions = {},
-): Promise<DataStoreOutput> => {
+): Promise<Omit<DataStoreOutput, "answer">> => {
   const layout = await workspace.get(workspaceLayoutState);
   // The repository that holds the workspace file is always there: its folder is the workspace root.
   const main = { name: layout.main, folder: layout.root };

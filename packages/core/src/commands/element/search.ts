@@ -50,6 +50,7 @@ import {
 import { searchFieldsOf } from "../../query/search-fields.js";
 import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
 import type { Workspace } from "../../runtime/workspace.js";
+import { incompleteNote, paged, sentence } from "../answer.js";
 
 type Hit = ElementSearchOutput["hits"][number];
 
@@ -148,6 +149,11 @@ const verificationOf = async (
 
 export default defineCommand({
   name: "element.search",
+  answer: (output, input) =>
+    sentence(
+      `Found ${paged(output.hits.length, output.total, "hit")}${input.query.trim() === "" ? " for an empty query" : ` for the query ${input.query.trim()}`}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.search">> => {
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.search");
     const checked = searchFieldsOf("element.search", selected.metamodel, input.fields);

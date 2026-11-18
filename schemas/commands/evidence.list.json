@@ -45,6 +45,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "records": {
         "title": "Evidence records",
         "type": "array",
@@ -257,6 +258,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["records", "bearing", "display", "testCases", "problems", "incomplete"]
+    "required": ["answer", "records", "bearing", "display", "testCases", "problems", "incomplete"]
   }
 }

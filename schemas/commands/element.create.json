@@ -70,6 +70,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "element": {
         "title": "Element",
         "$ref": "../data-export.schema.json#/$defs/element"
@@ -96,6 +97,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["element", "files"]
+    "required": ["answer", "element", "files"]
   }
 }

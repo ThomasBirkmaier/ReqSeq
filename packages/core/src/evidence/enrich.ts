@@ -519,7 +519,7 @@ const outputSnapshot = async (
 export const enrichJunitFile = async (
   workspace: Workspace,
   input: EvidenceEnrichJunitInput,
-): Promise<EvidenceEnrichJunitOutput> => {
+): Promise<Omit<EvidenceEnrichJunitOutput, "answer">> => {
   // The pattern's syntax first: a refusal touches no file.
   const pattern = input.namePattern === undefined ? undefined : parseNamePattern(input.namePattern);
   if (input.skipNotInView === true && input.variant === undefined) {

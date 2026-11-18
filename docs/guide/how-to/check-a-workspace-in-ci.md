@@ -23,6 +23,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -34,6 +35,7 @@ reqseq workspace check --fail-on warning
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -58,6 +60,7 @@ reqseq workspace check --changed-files need/N-d0e44b7fe707.md
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -87,6 +90,7 @@ reqseq element list --input '{"selection":{"where":{"all":[{"not":{"status":["ob
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-9d35ce  draft  Show the wind speed
 total: 1

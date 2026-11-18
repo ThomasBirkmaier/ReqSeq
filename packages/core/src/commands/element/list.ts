@@ -47,6 +47,7 @@ import {
 } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { incompleteNote, paged, problemsNote, sentence } from "../answer.js";
 
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
@@ -214,6 +215,12 @@ const groupOf = (
 
 export default defineCommand({
   name: "element.list",
+  answer: (output) =>
+    sentence(
+      `Listed ${paged((output.elements ?? output.partial ?? []).length, output.total, "element")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
     const stored =

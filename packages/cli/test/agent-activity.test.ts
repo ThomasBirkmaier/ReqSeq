@@ -161,7 +161,10 @@ describe("no access but the app switches the mode „Agent folgen“ (SR-117 AK4
 describe("the last agent access on every access (SR-117, SR-080 AK2)", () => {
   it("gives the element an MCP session read as the same object through the CLI, the API and MCP", async () => {
     const empty = await cli(["workspace", "activity", "--json"]);
-    expect(JSON.parse(empty.stdout)).toEqual({ activity: null });
+    expect(JSON.parse(empty.stdout)).toEqual({
+      answer: "No call through the API or the MCP server named an element on this working copy.",
+      activity: null,
+    });
 
     const reading = await mcpSession();
     try {
@@ -173,6 +176,9 @@ describe("the last agent access on every access (SR-117, SR-080 AK2)", () => {
 
     const viaCli = JSON.parse((await cli(["workspace", "activity", "--json"])).stdout) as unknown;
     expect(viaCli).toEqual({
+      answer: expect.stringMatching(
+        /^The last call through the MCP server that named an element was element\.get, at \S+Z\.$/,
+      ) as unknown,
       activity: {
         access: "mcp",
         command: "element.get",

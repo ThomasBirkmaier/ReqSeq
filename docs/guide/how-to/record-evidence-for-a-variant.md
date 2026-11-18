@@ -35,6 +35,7 @@ reqseq element create system-requirement "Show the wind speed"
 ```
 
 ```text title="Output"
+Created system-requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -44,6 +45,7 @@ reqseq element create variant "Coastal station"
 ```
 
 ```text title="Output"
+Created variant VAR-f23826; 1 file written.
 VAR-f23826  draft  Coastal station
 ...
 ```
@@ -77,6 +79,7 @@ reqseq evidence status --view VAR-f23826
 ```
 
 ```text title="Output"
+Listed the verification status of 2 elements.
 elements:
   SR-c67baa  draft  Show the wind speed  [verification: core open, VAR-f23826 verified]
 ...
@@ -98,6 +101,7 @@ reqseq evidence enrich-junit evidence/ci/results-coastal-2.xml coastal-2 --varia
 ```
 
 ```text title="Output"
+Enriched 1 test case; 1 file written.
 testCases: 1
 withoutReference: 0
 notInView: 0

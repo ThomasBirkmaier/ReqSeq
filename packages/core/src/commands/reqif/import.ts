@@ -80,6 +80,7 @@ import { checkSourceModel, saveSourceModel, sourceModelSave } from "../../reqif/
 import type { Workspace } from "../../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, filesNote, listed, problemsNote, sentence } from "../answer.js";
 
 /** Creates the folder of the mapping file to save, once nothing refuses the import any more. */
 const mappingFolder = async (save: SavedMapping): Promise<void> => {
@@ -403,6 +404,18 @@ const savedSourceModel = async (
 
 export default defineCommand({
   name: "reqif.import",
+  answer: (output, input) =>
+    sentence(
+      `Imported delivery ${input.delivery}: ${listed([
+        `${String(output.created.length)} created`,
+        `${String(output.updated.length)} updated`,
+        `${String(output.kept.length)} kept`,
+        `${String(output.dropped.length)} dropped`,
+      ])}`,
+      output.losses.length === 0 ? "" : counted(output.losses.length, "loss", "losses"),
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"reqif.import">> => {
     const { workspace } = ctx;
     const layout = await workspace.get(workspaceLayoutState);

@@ -97,6 +97,7 @@ const HANDLERS: Record<string, Handler> = {
 
 /** The window "About ReqSeq" (SR-161) shows the output of `tool.info`, the one catalog command of these tests. */
 const ABOUT: AboutInfo = {
+  answer: "ReqSeq 0.9.0 with workspace w.",
   versions: { app: "0.9.0", cli: "0.9.0", mcp: "0.9.0" },
   build: { development: true, platform: "linux", arch: "x64" },
   runtime: { node: "22.20.0" },

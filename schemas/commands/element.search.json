@@ -61,6 +61,7 @@
     "type": "object",
     "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet (SR-174).",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "hits": {
         "title": "Hits",
         "type": "array",
@@ -205,6 +206,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["hits", "total", "incomplete"]
+    "required": ["answer", "hits", "total", "incomplete"]
   }
 }

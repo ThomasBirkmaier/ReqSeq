@@ -209,7 +209,11 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     const { fixture, workspace } = await open(true);
     const commit = await fixture.head();
     const out = await runtime.invoke("data.store", { folder: "out" }, { workspace });
-    expect(out).toEqual({ files: [`out/${commit}.jsonl`], problems: [] });
+    expect(out).toEqual({
+      answer: "Stored the data in out/e097f44a1ea6b7c4e42cb6c8619fd58cd835b327.jsonl.",
+      files: [`out/${commit}.jsonl`],
+      problems: [],
+    });
     // One element per line (#319).
     const lines = fs
       .readFileSync(fixture.path(`out/${commit}.jsonl`), "utf8")

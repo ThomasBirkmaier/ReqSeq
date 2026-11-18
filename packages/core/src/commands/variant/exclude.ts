@@ -38,6 +38,7 @@ import {
 } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { isCoreRequirement, variantTypes } from "../../variants/index.js";
+import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 
 type Input = CommandInput<"variant.exclude">;
 type Output = CommandOutput<"variant.exclude">;
@@ -158,6 +159,14 @@ const undo = async (workspace: Workspace, input: Input): Promise<Output> => {
 
 export default defineCommand({
   name: "variant.exclude",
+  answer: (output, input) =>
+    sentence(
+      input.undo
+        ? `Variant ${input.variant} no longer excludes ${counted(input.refs.length, "requirement")}`
+        : `Variant ${input.variant} excludes ${counted(input.refs.length, "requirement")}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<Output> =>
     input.undo ? undo(ctx.workspace, input) : exclude(ctx.workspace, input),
 });

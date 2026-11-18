@@ -13,6 +13,7 @@ scenariosOf("element.searchFields", [
       const [first] = Object.values(results);
       const outcome = first?.outcome;
       expect(outcome !== undefined && "output" in outcome ? outcome.output : undefined).toEqual({
+        answer: "A search can be restricted to 6 fields.",
         fields: [
           { key: "title", name: "Title" },
           { key: "text", name: "Text" },

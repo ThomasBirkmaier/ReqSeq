@@ -155,7 +155,7 @@ export const affectedOutput = (
   affected: Affected,
   context: AffectedOutputContext,
   page: AffectedPage,
-): TraceAffectedOutput => {
+): Omit<TraceAffectedOutput, "answer"> => {
   const { metamodel, shortIds } = context;
   // Without the meaning `title` (SR-013 AK3) no key is the title: every title is empty, as in element.get.
   const titleKey = titleKeyOf(metamodel) ?? "";

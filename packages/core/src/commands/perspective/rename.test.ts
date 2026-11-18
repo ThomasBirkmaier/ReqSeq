@@ -78,6 +78,7 @@ describe("perspective.rename (SR-217)", () => {
     const { fixture, workspace } = await open({ "perspectives/drafts.yaml": DRAFTS });
     const before = await ids(workspace, "Drafts");
     expect(await rename(workspace, "drafts", "Open drafts")).toEqual({
+      answer: "Renamed perspective drafts to Open drafts; 1 file written.",
       files: ["perspectives/open-drafts.yaml"],
       renamed: [{ from: "perspectives/drafts.yaml", to: "perspectives/open-drafts.yaml" }],
       problems: [],
@@ -136,6 +137,7 @@ describe("perspective.rename (SR-217)", () => {
         "perspectives/Drafts.yaml": "reqseq-perspective: 1\nname: Other\nwhere: { all: [] }\n",
       });
       expect(await rename(workspace, "Drafts", "drafts")).toEqual({
+        answer: "Renamed perspective Drafts to drafts; 1 file written.",
         files: ["perspectives/drafts.yaml"],
         renamed: [],
         problems: [],
@@ -197,8 +199,14 @@ describe("perspective.rename (SR-217)", () => {
       "perspectives/drafts.yaml": DRAFTS,
       "filters/sensors.yaml": "reqseq-filter: 1\nname: Sensors\nwhere: { package: PKG-0000d1 }\n",
     });
-    expect(await rename(workspace, "drafts", "Drafts")).toEqual({ files: [], renamed: [], problems: [] });
+    expect(await rename(workspace, "drafts", "Drafts")).toEqual({
+      answer: "Renamed perspective drafts to Drafts; no file written.",
+      files: [],
+      renamed: [],
+      problems: [],
+    });
     expect(await rename(workspace, "Drafts", "drafts")).toEqual({
+      answer: "Renamed perspective Drafts to drafts; 1 file written.",
       files: ["perspectives/drafts.yaml"],
       renamed: [],
       problems: [],

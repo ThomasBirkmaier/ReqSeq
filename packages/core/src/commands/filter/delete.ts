@@ -3,9 +3,18 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { deleteFilter } from "../../query/index.js";
+import { filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "filter.delete",
+  answer: (output) =>
+    sentence(
+      output.deleted
+        ? `Deleted saved filter ${output.name}`
+        : `Preview: deleting saved filter ${output.name} removes ${output.file}, nothing deleted`,
+      output.deleted ? filesNote(output.files) : "",
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"filter.delete">> =>
     deleteFilter(ctx.workspace, input.name, input.confirm, {
       ...(input.file === undefined ? {} : { file: input.file }),

@@ -531,6 +531,12 @@
       },
       "additionalProperties": false
     },
+    "answer": {
+      "title": "Answer",
+      "description": "One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. Core builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it (SR-224 AK1). The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid (SR-224 AK2).",
+      "type": "string",
+      "minLength": 1
+    },
     "incomplete": {
       "description": "True when a result is incomplete because targets are in repositories that are not available locally (SR-006 AK2, SR-036 AK3).",
       "type": "boolean",

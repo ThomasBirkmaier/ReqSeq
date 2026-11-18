@@ -58,6 +58,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "created": {
         "title": "Created",
         "type": "array",
@@ -120,7 +121,7 @@
       }
     },
     "additionalProperties": false,
-    "required": ["created", "updated", "kept", "dropped", "losses", "files"]
+    "required": ["answer", "created", "updated", "kept", "dropped", "losses", "files"]
   },
   "showsOutput": true
 }

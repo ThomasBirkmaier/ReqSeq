@@ -62,6 +62,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "testCases": {
         "title": "Enriched test cases",
         "type": "integer",
@@ -132,7 +133,7 @@
       }
     },
     "additionalProperties": false,
-    "required": ["testCases", "withoutReference", "notInView", "unknown", "files", "problems"]
+    "required": ["answer", "testCases", "withoutReference", "notInView", "unknown", "files", "problems"]
   },
   "showsOutput": true
 }

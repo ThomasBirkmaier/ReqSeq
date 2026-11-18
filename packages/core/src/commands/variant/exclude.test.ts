@@ -58,7 +58,11 @@ describe("variant.exclude (SR-042)", () => {
   it("[SR-042/AK-qj7v] variant.exclude removes K3 from the view of A only", async () => {
     const { workspace } = await open();
     const out = await exclude(workspace, { variant: A, refs: ["SR-0000a3"] });
-    expect(out).toEqual({ files: [A_FILE], problems: [] });
+    expect(out).toEqual({
+      answer: "Variant VAR-0000c1 excludes 1 requirement; 1 file written.",
+      files: [A_FILE],
+      problems: [],
+    });
     expect(await requirementsIn(workspace, A)).toEqual(["a4", "b1", "b2"]);
     expect(await requirementsIn(workspace, "VAR-0000c2")).toEqual(["a1", "a2", "a3", "a4"]);
     expect(await requirementsIn(workspace, "core")).toEqual(["a1", "a2", "a3", "a4"]);
@@ -79,6 +83,7 @@ describe("variant.exclude (SR-042)", () => {
     );
     // Already excluded: nothing is written again.
     expect(await exclude(workspace, { variant: A, refs: ["SR-0000a2", "SR-0000a3"] })).toEqual({
+      answer: "Variant VAR-0000c1 excludes 2 requirements; no file written.",
       files: [],
       problems: [],
     });
@@ -160,6 +165,7 @@ describe("variant.exclude (SR-042)", () => {
     const error = await refused(workspace, { variant: A, refs: [`${P}d1`, "SR-0000ff"], undo: true });
     expect(error.code).toBe("ref.unknown");
     expect(await exclude(workspace, { variant: A, refs: [`${P}D1`], undo: true })).toEqual({
+      answer: "Variant VAR-0000c1 no longer excludes 1 requirement; 1 file written.",
       files: [A_FILE],
       problems: [],
     });
@@ -183,6 +189,7 @@ describe("variant.exclude (SR-042)", () => {
       [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}a2 }\n---\n`,
     });
     expect(await exclude(workspace, { variant: A, refs: ["SR-0000a4", `${P}a4`, "SR-0000a3"] })).toEqual({
+      answer: "Variant VAR-0000c1 excludes 3 requirements; 1 file written.",
       files: [A_FILE],
       problems: [],
     });
@@ -198,7 +205,11 @@ describe("variant.exclude (SR-042)", () => {
         refs: ["SR-0000a3", "SR-0000a2", `${P}a2`, "SR-0000a4"],
         undo: true,
       }),
-    ).toEqual({ files: [A_FILE], problems: [] });
+    ).toEqual({
+      answer: "Variant VAR-0000c1 no longer excludes 4 requirements; 1 file written.",
+      files: [A_FILE],
+      problems: [],
+    });
     expect(await read(fixture, A_FILE)).not.toContain("excludes");
   });
 
@@ -210,6 +221,7 @@ describe("variant.exclude (SR-042)", () => {
     });
     const before = await read(fixture, A_FILE);
     expect(await exclude(workspace, { variant: A, refs: ["SR-0000a3"] })).toEqual({
+      answer: "Variant VAR-0000c1 excludes 1 requirement; no file written.",
       files: [],
       problems: [],
     });

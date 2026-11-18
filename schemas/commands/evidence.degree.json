@@ -19,6 +19,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "degree": {
         "title": "Verification degree",
         "$ref": "../data-export.schema.json#/$defs/verificationDegree"
@@ -41,6 +42,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["degree", "view"]
+    "required": ["answer", "degree", "view"]
   }
 }
