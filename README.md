@@ -16,6 +16,18 @@ Only people approve; ReqSeq never changes a status, never writes to Git and stay
   <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. The test results come to ReqSeq as JUnit XML, and ReqSeq records them as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 </picture>
 
+## What ReqSeq holds your agent to
+
+Every command answers with what your metamodel finds wrong, so the agent sees a gap the moment it makes one:
+
+- a system requirement without the need it derives from (`trace.no-parent`),
+- a property the metamodel requires, such as acceptance criteria, left empty (`element.missing-required`),
+- a relation the metamodel does not allow between two types (`relation.not-allowed`),
+- a relation whose target changed since it was made, until someone confirms it (`relation.outdated`),
+- a test that names an acceptance criterion by its number instead of its key, which is refused when its results are recorded.
+
+`reqseq workspace check --fail-on warning` turns each of these into a failed pipeline. Elements are never deleted, only superseded, so the history of every requirement stays.
+
 ## How you connect
 
 <picture>
