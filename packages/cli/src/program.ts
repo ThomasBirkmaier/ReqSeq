@@ -350,6 +350,49 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   });
 };
 
+/** Characters of a value an error message quotes, counted in code points; a longer one is cut and ends with `…`. */
+const SHOWN_VALUE = 60;
+
+const shown = (value: unknown): string => {
+  const points = Array.from(String(value));
+  return points.length <= SHOWN_VALUE ? points.join("") : `${points.slice(0, SHOWN_VALUE - 1).join("")}…`;
+};
+
+/**
+ * Refuse a single-value option given twice with different values, and `--x` with `--no-x`, instead of
+ * keeping the last one (#1828). Applies to every option of `command` and its subcommands that takes one
+ * required value and has no parser of its own (a repeatable option collects), and to every boolean
+ * option with its `--no-x`. One program parses one command line, so what was given is kept here.
+ */
+const refuseRepeats = (command: Command): void => {
+  const given = new Map<string, { readonly flag: string; readonly value: unknown }>();
+  for (const option of command.options) {
+    const single = option.required && !option.variadic && option.parseArg === undefined;
+    if (!single && (option.required || option.optional)) {
+      continue;
+    }
+    const name = option.attributeName();
+    const flag = option.long ?? option.flags;
+    command.on(`option:${option.name()}`, (value: unknown) => {
+      const previous = given.get(name);
+      given.set(name, { flag, value });
+      if (previous === undefined || (single ? previous.value === value : previous.flag === flag)) {
+        return;
+      }
+      const [positive, negative] = flag.startsWith("--no-") ? [previous.flag, flag] : [flag, previous.flag];
+      command.error(
+        single
+          ? `error: ${flag} takes one value, given twice: ${shown(previous.value)} and ${shown(value)}; give it once`
+          : `error: ${positive} and ${negative} both given; give one`,
+        { code: "commander.optionRepeated" },
+      );
+    });
+  }
+  for (const sub of command.commands) {
+    refuseRepeats(sub);
+  }
+};
+
 /** Build `reqseq` with one subcommand per catalog entry, `reqseq <group> <action>`. */
 export function buildProgram(options: ProgramOptions): Command {
   const program = new Command("reqseq")
@@ -390,5 +433,6 @@ export function buildProgram(options: ProgramOptions): Command {
     throw new Error(`catalog group ${clash.join(", ")} clashes with a command of the CLI`);
   }
   addServers(program, options);
+  refuseRepeats(program);
   return program;
 }

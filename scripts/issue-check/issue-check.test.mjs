@@ -122,6 +122,25 @@ describe("run and parseArgs", () => {
     expect([...required.get("SR-902")]).toEqual([2]);
   });
 
+  it("joins every --require and refuses a repeated --epic or a flag without a value", () => {
+    const { required, error } = parseArgs([
+      "--require",
+      "SR-901 (AK1), SR-902 (AK1)",
+      "--require",
+      "SR-901 (AK3)",
+      "--require",
+      "SR-902, SR-903 (AK2)",
+    ]);
+    expect(error).toBeUndefined();
+    expect([...required.get("SR-901")]).toEqual([1, 3]);
+    expect(required.get("SR-902")).toBe("all");
+    expect([...required.get("SR-903")]).toEqual([2]);
+    expect(parseArgs(["--epic", "5", "--epic", "6"]).error).toBe("--epic given twice");
+    expect(parseArgs(["--epic", "5", "--require"]).error).toBe("--require needs a value");
+    expect(parseArgs(["--epic", "--require", "SR-901"]).error).toBe("--epic needs a value");
+    expect(parseArgs(["--epic", ""]).error).toBe("--epic needs a value");
+  });
+
   it("refuses an unknown argument and a part of --require it cannot read", () => {
     expect(parseArgs(["--epic", "5", "--sr", "SR-901"]).error).toBe("unknown argument --sr");
     expect(parseArgs(["--epic", "5", "--require", "SR-901 (AK x)"]).error).toBe(
