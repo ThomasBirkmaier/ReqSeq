@@ -1,7 +1,8 @@
 {
   "name": "reqif.export",
   "title": "Export ReqIF",
-  "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+  "summary": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+  "details": "With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
@@ -32,7 +33,7 @@
         "type": "string"
       },
       "mapping": {
-        "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
+        "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "omitProperties": {

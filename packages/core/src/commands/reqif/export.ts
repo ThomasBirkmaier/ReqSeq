@@ -290,6 +290,21 @@ const sourceRecords = async (
   return { selected, mapping, records, identifierKey };
 };
 
+/** Refuses two `records` with one UUID (`ref.ambiguous`, SR-088): the file would name one IDENTIFIER twice. */
+const refuseSharedUuids = (records: readonly ElementRecord[], command: string): void => {
+  const ids = new Set<string>();
+  for (const record of records) {
+    if (ids.has(record.id)) {
+      throw new CommandError(
+        "ref.ambiguous",
+        `Not exported: ${record.id} is the UUID of several selected element files (element.duplicate-id); give the copy a new UUID`,
+        { command, id: record.id },
+      );
+    }
+    ids.add(record.id);
+  }
+};
+
 /** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
 const statementsOf = async (
   workspace: Workspace,
@@ -376,6 +391,7 @@ const sourceModelExport = async (
     input.omitProperties,
     command,
   );
+  refuseSharedUuids(records, command);
   const statement =
     input.statements === true ? statementOf(mapping, mappingPath, selected.metamodel) : undefined;
   const elements = [];
@@ -533,17 +549,7 @@ export default defineCommand({
       input.omitProperties,
       command,
     );
-    const ids = new Set<string>();
-    for (const record of elements) {
-      if (ids.has(record.id)) {
-        throw new CommandError(
-          "ref.ambiguous",
-          `Not exported: ${record.id} is the UUID of several selected element files (element.duplicate-id); give the copy a new UUID`,
-          { command, id: record.id },
-        );
-      }
-      ids.add(record.id);
-    }
+    refuseSharedUuids(elements, command);
     const outputFolder = path.dirname(absolute);
     const name = path.basename(absolute);
     const imagesFolder = `${path.basename(name, path.extname(name))}-images`;

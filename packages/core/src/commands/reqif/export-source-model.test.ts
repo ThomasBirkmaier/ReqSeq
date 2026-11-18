@@ -248,6 +248,13 @@ describe("reqif.export with sourceModel (SR-158)", () => {
       ["REQ-1", [["ad-comment", "Agreed, **once** per second."]]],
       ["REQ-2", [["ad-comment", ""]]],
     ]);
+    // A choice statement into STRING by the names of its choices, a list joined (SR-058 AK1).
+    await update(workspace, ids["REQ-1"] ?? "", { tags: ["a", "b"] });
+    await editMapping(fixture, (m) => {
+      m["statement"] = { property: "tags", attribute: "Internal Comment" };
+    });
+    await run(workspace, { statements: true, selection: { ids: [ids["REQ-1"]] } });
+    expect(objects(await parsed(fixture))).toEqual([["REQ-1", [["ad-comment", "A, B"]]]]);
   });
 
   it("[SR-158/AK-qgcj] writes an export in the source's model valid against the ReqIF 1.2 schema, without and with statements", async (context) => {
@@ -275,9 +282,11 @@ describe("reqif.export with sourceModel (SR-158)", () => {
     });
     const mask = (text: string): string =>
       text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, "T").replace(/_hd-[0-9a-f-]{36}/g, "H");
-    for (const statements of [false, true]) {
-      await run(workspace, { output: "before.reqif", sourceModel: undefined, statements });
-      await run(workspace, { output: "after.reqif", sourceModel: false, statements });
+    for (const today of [{ mapping: MAPPING }, { mapping: MAPPING, statements: true }]) {
+      // The call as it was before sourceModel, and with sourceModel not chosen.
+      await invoke("reqif.export", { output: "before.reqif", ...today }, { workspace });
+      await invoke("reqif.export", { output: "after.reqif", ...today, sourceModel: false }, { workspace });
+      const statements = "statements" in today;
       const before = await fs.readFile(fixture.path("before.reqif"), "utf8");
       expect(mask(await fs.readFile(fixture.path("after.reqif"), "utf8"))).toBe(mask(before));
       expect((await parsed(fixture, "after.reqif")).header.toolId).toBe("reqseq");
@@ -438,10 +447,17 @@ describe("reqif.export with sourceModel (SR-158)", () => {
     );
     await misfit(
       "Days",
-      { identifier: "dt-text", kind: "string", "max-length": "9" },
+      { identifier: "dt-flag", kind: "boolean" },
       "effort",
       { effort: 3 },
-      "a number value does not fit STRING dt-text",
+      "a number value does not fit BOOLEAN dt-flag",
+    );
+    await misfit(
+      "Day",
+      { identifier: "dt-date", kind: "date" },
+      "topic",
+      { topic: "2024-13-45" },
+      "2024-13-45 is no DATE of dt-date",
     );
     await misfit(
       "Checks",
@@ -493,6 +509,24 @@ describe("reqif.export with sourceModel (SR-158)", () => {
         statements: true,
         omitProperties: [],
       },
+    );
+    // Two attributes match the statement attribute: not unique.
+    await editMapping(fixture, (m) => {
+      m["statement"] = { property: "statement", attribute: "Internal Comment" };
+      m["source-model"].types[0]?.attributes.push({ identifier: "Internal Comment", datatype: "dt-string" });
+    });
+    await refused(
+      `${both}: attributes ad-comment, Internal Comment of Customer Requirement all match Internal Comment, the attribute of the statement`,
+      { statements: true, omitProperties: [] },
+    );
+    // A choice statement takes only the values of an entry of its own property, not those of Priority.
+    await reset();
+    await update(workspace, ids["REQ-1"] ?? "", { priority: "high" });
+    await editMapping(fixture, (m) => {
+      m["statement"] = { property: "priority", attribute: "Priority" };
+    });
+    expect((await failure(workspace, { ...one, statements: true })).message).toBe(
+      `Not exported in the source's model: ${r1}: Priority of Customer Requirement: high is mapped to no value of dt-priority`,
     );
     // Nothing written: neither the file nor the omitted property in the mapping.
     expect(await fs.readFile(fixture.path(MAPPING), "utf8")).not.toContain("omit-properties");
@@ -574,7 +608,11 @@ describe("reqif.export with sourceModel (SR-158)", () => {
     for (const [kind, topic, written] of [
       ["integer", "-42", "-42"],
       ["real", "1.5e3", "1.5e3"],
+      ["integer", "123456789012345678901234567890", "123456789012345678901234567890"],
+      ["real", "NaN", "NaN"],
       ["date", "2026-01-31", "2026-01-31T00:00:00Z"],
+      // As the import keeps a DATE in a text property.
+      ["date", "2026-12-01T00:00:00Z", "2026-12-01T00:00:00Z"],
       [
         "xhtml",
         "a *b*",
@@ -590,7 +628,7 @@ describe("reqif.export with sourceModel (SR-158)", () => {
           identifier: `dt-topic-${kind}`,
           kind,
           ...(kind === "integer"
-            ? { min: "-100", max: "100" }
+            ? { min: "-100", max: "999999999999999999999999999999" }
             : kind === "real"
               ? { min: "-1e9", max: "1e9", accuracy: "3" }
               : {}),
@@ -602,6 +640,62 @@ describe("reqif.export with sourceModel (SR-158)", () => {
         [["ad-name", "Measure the wind"], expect.anything(), ["ad-Topic", written]],
       ]);
     }
+    // A number into STRING and a date into XHTML as text; a Markdown text and the names a
+    // single-valued text property joins into ENUMERATION by name.
+    await reset();
+    await update(workspace, ids["REQ-1"] ?? "", {
+      effort: 3,
+      due: "2026-12-01",
+      rationale: "Low\\_risk",
+      topic: "A, B",
+    });
+    await withAttribute(
+      fixture,
+      "Days",
+      { identifier: "dt-days", kind: "string", "max-length": "9" },
+      { property: "effort" },
+    );
+    await withAttribute(fixture, "When", { identifier: "dt-when", kind: "xhtml" }, { property: "due" });
+    await withAttribute(
+      fixture,
+      "Risk",
+      {
+        identifier: "dt-risk",
+        kind: "enumeration",
+        values: [{ identifier: "ev-risk", "long-name": "Low_risk", key: "1", "other-content": "" }],
+      },
+      { property: "rationale" },
+    );
+    await withAttribute(
+      fixture,
+      "Both",
+      {
+        identifier: "dt-both",
+        kind: "enumeration",
+        values: [
+          { identifier: "ev-a", "long-name": "A", key: "1", "other-content": "" },
+          { identifier: "ev-b", "long-name": "B", key: "2", "other-content": "" },
+        ],
+      },
+      { property: "topic" },
+      { "multi-valued": true },
+    );
+    await editMapping(fixture, (m) => {
+      m.attributes = m.attributes.filter((e) => e["source"] !== "ReqIF.Text");
+    });
+    expect(await values({ ...one, ...omitted })).toEqual([
+      "REQ-1",
+      [
+        ["ad-name", "Measure the wind"],
+        ["ad-Days", "3"],
+        [
+          "ad-When",
+          '[{"name":"div","namespace":"http://www.w3.org/1999/xhtml","attributes":[],"children":["2026-12-01"]}]',
+        ],
+        ["ad-Risk", ["ev-risk"]],
+        ["ad-Both", ["ev-a", "ev-b"]],
+      ],
+    ]);
     // The text as plain text into STRING, a list into XHTML refused, a relation refused.
     await reset();
     await editMapping(fixture, (m) => {
@@ -653,6 +747,44 @@ describe("reqif.export with sourceModel (SR-158)", () => {
     expect(objects(await parsed(fixture))[0]).toEqual([
       "REQ-1",
       expect.arrayContaining([["ad-priority", ["ev-high"]]]),
+    ]);
+    // One value named by IDENTIFIER and by LONG-NAME is one value: no warning. A warning per item
+    // of a multi-valued choice.
+    await editMapping(fixture, (m) => {
+      m["source-model"].datatypes[2] = {
+        identifier: "dt-priority",
+        kind: "enumeration",
+        values: [
+          { identifier: "ev-high", "long-name": "High", key: "1", "other-content": "" },
+          { identifier: "ev-low", "long-name": "Low", key: "2", "other-content": "" },
+        ],
+      };
+    });
+    await update(workspace, ids["REQ-1"] ?? "", { tags: ["a", "b"] });
+    await withAttribute(
+      fixture,
+      "Tags",
+      {
+        identifier: "dt-tags",
+        kind: "enumeration",
+        values: [
+          { identifier: "ev-a", "long-name": "A", key: "1", "other-content": "" },
+          { identifier: "ev-a2", "long-name": "A", key: "2", "other-content": "" },
+          { identifier: "ev-b", "long-name": "B", key: "3", "other-content": "" },
+          { identifier: "ev-b2", "long-name": "B", key: "4", "other-content": "" },
+        ],
+      },
+      { property: "tags", values: { A: "a", B: "b" } },
+      { "multi-valued": true },
+    );
+    const again = await run(workspace, { selection: { ids: [ids["REQ-1"]] } });
+    expect((again.problems ?? []).map((p) => p.message)).toEqual([
+      `${short["REQ-1"] ?? ""}: Tags: choice a is mapped to several values of dt-tags; A is written`,
+      `${short["REQ-1"] ?? ""}: Tags: choice b is mapped to several values of dt-tags; B is written`,
+    ]);
+    expect(objects(await parsed(fixture))[0]).toEqual([
+      "REQ-1",
+      expect.arrayContaining([["ad-Tags", ["ev-a", "ev-b"]]]),
     ]);
     // Without a statement: an XHTML and an ENUMERATION attribute get an empty value, an INTEGER none.
     for (const [attribute, empty] of [
@@ -706,6 +838,37 @@ describe("reqif.export with sourceModel (SR-158)", () => {
       "input.invalid",
       "mapping: reqif/bare.yaml holds no source model; import a delivery of the source through this mapping first",
     ]);
+    // A copy of an element with its UUID but another source IDENTIFIER.
+    const [first] = (await fs.readdir(fixture.path("Kunde-A"))).filter((f) => f.endsWith(".md"));
+    const copy = (await fs.readFile(fixture.path(`Kunde-A/${first ?? ""}`), "utf8")).replace(
+      /source-identifier: .*/,
+      "source-identifier: REQ-9",
+    );
+    await fs.writeFile(fixture.path("Kunde-A/SR-copy.md"), copy);
+    const twice = new Workspace(fixture.root);
+    onTestFinished(() => twice.close());
+    const shared = await invoke(
+      "reqif.export",
+      { output: "back.reqif", mapping: MAPPING, sourceModel: true },
+      { workspace: twice },
+    ).catch((error: unknown) => error);
+    expect((shared as CommandError).code).toBe("ref.ambiguous");
+    await fs.rm(fixture.path("Kunde-A/SR-copy.md"));
+    // The message names the first five reasons; details.refusals has all of them.
+    await editMapping(fixture, (m) => {
+      m.types = [{ source: "Customer Requirement", type: "system-requirement" }];
+    });
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      await withAttribute(
+        fixture,
+        `N${String(n)}`,
+        { identifier: `dt-n${String(n)}`, kind: "boolean" },
+        { property: "title" },
+      );
+    }
+    const many = await failure(workspace, {});
+    expect(many.message).toMatch(/; and 8 more$/);
+    expect((many.details?.["refusals"] as unknown[]).length).toBe(13);
   });
 
   it("takes an attribute entry with source-type first, leaves out a stored type no longer mapped, writes no value without attribute entries, and refuses what the writer refuses", async () => {

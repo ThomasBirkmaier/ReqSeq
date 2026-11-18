@@ -4546,7 +4546,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -4556,7 +4556,7 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;
-  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`. */
+  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`. */
   readonly mapping?: LocalPath;
   /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
@@ -4567,7 +4567,7 @@ export interface ReqifExportInput {
 }
 
 /**
- * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {

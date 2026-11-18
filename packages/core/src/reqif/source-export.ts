@@ -15,20 +15,25 @@
 //   attribute `statement.attribute` names (LONG-NAME or IDENTIFIER); `statement.datatype` is not
 //   used. An element without one is counted; a STRING, XHTML or ENUMERATION attribute gets an empty
 //   value, the others none.
-// - Values by the source's datatype, as the import's `holds` allows the other way: a number into
-//   INTEGER (whole) or REAL, a date into DATE `T00:00:00Z`, a choice into ENUMERATION by `values`
-//   (several source values for one choice: the first in the mapping's order, warning
-//   `reqif.source-value-chosen`, #1835); the title, the text and a text property into any datatype:
-//   STRING as plain text (Markdown as its text), XHTML from Markdown (`markdownToXhtml`, image links as
-//   written, #1835) or plain text as one `div`, INTEGER, REAL, DATE (`YYYY-MM-DD`) and BOOLEAN
-//   (`true`, `false`) in their lexical form, ENUMERATION by the LONG-NAME or IDENTIFIER of a value.
+// - Values by the source's datatype, the reverse of the import: a number into INTEGER or REAL, a
+//   date into DATE `T00:00:00Z`, a choice into ENUMERATION by `values` (with statements, only the
+//   `values` of an entry of the statement property; several source values for one choice: the
+//   first in the mapping's order, one warning `reqif.source-value-chosen` per item, #1835); a choice
+//   (by its name), number or date into STRING or XHTML as text, and with statements a list joined
+//   by `, ` (SR-058 AK1); the title, the text and a text property into any datatype: STRING as plain
+//   text (Markdown as its text), XHTML from Markdown (`markdownToXhtml`, image links as written,
+//   #1835) or plain text as one `div`, INTEGER, REAL (INF, -INF, NaN too) and DATE (a day, or an
+//   xs:dateTime as the import keeps it) in the lexical form the import reads, BOOLEAN `true` or
+//   `false`, ENUMERATION by the LONG-NAME or IDENTIFIER of a value, or of each of the values a
+//   multi-valued attribute joins with `, `. MIN and MAX compare two integers exactly.
 // - Refusals (AK7, #1886), all collected, then one `input.invalid` naming each requirement with
 //   attribute or type, and nothing written: several stored types mapped to one own type; without
 //   statements, several attributes of a type mapped to one title, text or property; a value that does
 //   not fit its attribute (a STRING longer than MAX-LENGTH, a number outside MIN and MAX, a value no
 //   enumeration value is mapped to or named by, a text not in the lexical form of its datatype, a
 //   fraction into INTEGER, several values into a single-valued attribute, a value of a kind the
-//   datatype cannot hold); a type without the statement attribute, for each of its requirements. Not
+//   datatype cannot hold); a type without the statement attribute, or with several that match it,
+//   for each of its requirements. The message names the first five reasons, `details.refusals` all. Not
 //   refused: an empty value, ACCURACY of a REAL, and what is not written (omitted properties; with
 //   statements, the other values).
 // - Refused at once (`input.invalid`): an element whose own type no stored type maps to.
@@ -46,6 +51,7 @@ import { entryOf } from "./source-model.js";
 import type { ReqifWritable } from "./write.js";
 import { markdownToXhtml } from "./xhtml-markdown.js";
 import { xhtmlText } from "./xhtml-text.js";
+import { DATE_TIME, LEXICAL, dayTime } from "./import-values.js";
 
 /** REQ-IF-TOOL-ID of a file in the source's model (#1835). */
 export const SOURCE_MODEL_TOOL_ID = "reqseq-source-model";
@@ -112,10 +118,15 @@ const attributeEntry = (
   );
 };
 
-/** An own value as the export reads it: what it is, and its items (none: empty). */
+/** An own value as the export reads it: what it is, its items as stored and as text (none: empty). */
 interface Own {
   readonly kind: "markdown" | "plain" | "number" | "date" | "choice" | "relation";
+  /** As stored: a choice by its key, Markdown as written. */
   readonly items: readonly string[];
+  /** As text: a choice by its name, Markdown as its plain text (the reverse of the import's `markdownText`). */
+  readonly texts: readonly string[];
+  /** Each item with its text. */
+  readonly pairs: readonly { readonly item: string; readonly text: string }[];
 }
 
 /** The kind of a value of each property kind but text. */
@@ -126,10 +137,23 @@ const KINDS: Readonly<Record<string, Own["kind"]>> = {
   relation: "relation",
 };
 
+/** An image link stays as the text has it (#1835). */
+const asWritten = (url: string): string => url;
+
+/** The plain text of Markdown `markdown`. */
+const plainOf = (markdown: string): string =>
+  xhtmlText([markdownToXhtml(markdown, { image: asWritten }).value]).text;
+
+/** An own value of `kind` with `items` and the text `textOf` gives each. */
+const own = (kind: Own["kind"], items: readonly string[], textOf: (item: string) => string): Own => {
+  const pairs = items.map((item) => ({ item, text: textOf(item) }));
+  return { kind, items, texts: pairs.map((p) => p.text), pairs };
+};
+
 /** The own value of `field` (`title`, `text` or a property key) of `element` (see the file comment). */
 const ownValue = (metamodel: Metamodel, element: SourceElement, field: string): Own => {
   if (field === "text") {
-    return { kind: "markdown", items: element.text === "" ? [] : [element.text] };
+    return own("markdown", element.text === "" ? [] : [element.text], plainOf);
   }
   const key = field === "title" ? titleKeyOrEmpty(metamodel) : field;
   // checkMapping found the property in the metamodel; the title is a plain text property.
@@ -141,25 +165,64 @@ const ownValue = (metamodel: Metamodel, element: SourceElement, field: string): 
   // A relation item is an object, which no datatype holds (`holds`).
   const items = list.map(String).filter((text) => text !== "");
   const kind = definition?.markdown === true ? "markdown" : (KINDS[String(definition?.kind)] ?? "plain");
-  return { kind, items };
+  const names = new Map((definition?.choices ?? []).map((c) => [c.key, c.name]));
+  return own(kind, items, (item) => (kind === "markdown" ? plainOf(item) : (names.get(item) ?? item)));
 };
 
-/** What a value becomes in a source attribute: its value or why it does not fit, and a warning. */
-type Converted = { readonly value: Value; readonly warning?: string } | { readonly refusal: string };
+/** What a value becomes in a source attribute: its value and warnings, or why it does not fit. */
+type Converted =
+  { readonly value: Value; readonly warnings: readonly string[] } | { readonly refusal: string };
 
-const INTEGER = /^[+-]?\d+$/;
-const REAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Whether `text` is of the lexical form of xs:integer or xs:double (`kind`), as the import reads it. */
+const lexical = (kind: "integer" | "real", text: string): boolean => LEXICAL[kind]?.test(text) === true;
+
+/** `text` of the lexical form of xs:double as a number (INF and -INF as infinities, NaN as NaN). */
+const numberOf = (text: string): number => Number(text.replace(/INF$/, "Infinity"));
+
+/** Whether `value` is less than `bound`: exactly for two integers, else as numbers. */
+const less = (value: string, bound: string): boolean =>
+  lexical("integer", value) && lexical("integer", bound)
+    ? BigInt(value) < BigInt(bound)
+    : numberOf(value) < numberOf(bound);
 
 /** Why the number `text` lies outside MIN and MAX of `d`, if it does. */
 const outside = (text: string, d: SourceDatatype): string | undefined => {
-  const n = Number(text);
-  if (d.min !== undefined && n < Number(d.min)) {
+  if (d.min !== undefined && less(text, d.min)) {
     return `${text} is smaller than ${d.min}, the MIN of ${nameOf(d)}`;
   }
-  return d.max !== undefined && n > Number(d.max)
+  return d.max !== undefined && less(d.max, text)
     ? `${text} is greater than ${d.max}, the MAX of ${nameOf(d)}`
     : undefined;
+};
+
+/** The values of `d` that `name` names by IDENTIFIER or LONG-NAME. */
+const valuesNamed = (d: SourceDatatype, name: string): NonNullable<SourceDatatype["values"]> =>
+  (d.values ?? []).filter((v) => matches(name, v));
+
+/**
+ * The enumeration values of one own item: a choice through the `values` of `entry`, in the mapping's
+ * order, each value once; a text by the name of a value or, for a multi-valued attribute, by the
+ * names it joins with `, ` (as the import joins them for a single-valued text property).
+ */
+const itemValues = (
+  kind: Own["kind"],
+  { item, text }: { readonly item: string; readonly text: string },
+  a: SourceAttribute,
+  d: SourceDatatype,
+  entry: AttributeEntry | undefined,
+): NonNullable<SourceDatatype["values"]> => {
+  if (kind === "choice") {
+    const sources = Object.entries({ ...entry?.values }).flatMap(([source, key]) =>
+      key === item ? [source] : [],
+    );
+    const found = sources.flatMap((source) => valuesNamed(d, source));
+    return found.filter((v, at) => found.findIndex((w) => w.identifier === v.identifier) === at);
+  }
+  const whole = valuesNamed(d, text).slice(0, 1);
+  const parts = text.split(", ").map((part) => valuesNamed(d, part).slice(0, 1));
+  return whole.length > 0 || a["multi-valued"] !== true || parts.some((p) => p.length === 0)
+    ? whole
+    : parts.flat();
 };
 
 /** `own` as an ENUMERATION value of attribute `a` of `d` through `entry` (see the file comment). */
@@ -169,41 +232,45 @@ const enumerationValue = (
   d: SourceDatatype,
   entry: AttributeEntry | undefined,
 ): Converted => {
-  const values = d.values ?? [];
   const refs = new Set<string>();
-  let warning: string | undefined;
-  for (const text of own.items) {
-    // A choice by the source values `values` maps to it, in the mapping's order; a text by name.
-    const names =
-      own.kind === "choice"
-        ? Object.entries({ ...entry?.values }).flatMap(([source, key]) => (key === text ? [source] : []))
-        : [text];
-    const found = names.flatMap((name) => values.filter((v) => matches(name, v)));
+  const warnings: string[] = [];
+  for (const pair of own.pairs) {
+    // A choice is named by its key, which `values` maps; a text as it is.
+    const text = own.kind === "choice" ? pair.item : pair.text;
+    const found = itemValues(own.kind, pair, a, d, entry);
     const [first] = found;
     if (first === undefined) {
       return { refusal: `${text} is mapped to no value of ${nameOf(d)}` };
     }
-    if (found.length > 1) {
-      warning = `choice ${text} is mapped to several values of ${nameOf(d)}; ${nameOf(first)} is written`;
+    if (own.kind === "choice" && found.length > 1) {
+      warnings.push(
+        `choice ${text} is mapped to several values of ${nameOf(d)}; ${nameOf(first)} is written`,
+      );
     }
-    refs.add(first.identifier);
+    for (const v of own.kind === "choice" ? [first] : found) {
+      refs.add(v.identifier);
+    }
   }
   if (refs.size > 1 && a["multi-valued"] !== true) {
     return { refusal: `${String(refs.size)} values do not fit the single-valued ${nameOf(a)}` };
   }
-  const value: Value = { kind: "enumeration", definition: a.identifier, values: [...refs] };
-  return warning === undefined ? { value } : { value, warning };
+  return { value: { kind: "enumeration", definition: a.identifier, values: [...refs] }, warnings };
 };
 
-/** Whether an own value of `kind` fits datatype `d`, as the import's `holds` the other way. */
+/**
+ * Whether an own value of `kind` fits datatype `d`: the reverse of the import's `holds`, and a
+ * choice, number or date into STRING or XHTML as its text (as the import takes every datatype into a
+ * text property).
+ */
 const holds = (kind: Own["kind"], d: SourceDatatype): boolean => {
+  const text = d.kind === "string" || d.kind === "xhtml";
   switch (kind) {
     case "number":
-      return d.kind === "integer" || d.kind === "real";
+      return text || d.kind === "integer" || d.kind === "real";
     case "date":
-      return d.kind === "date";
+      return text || d.kind === "date";
     case "choice":
-      return d.kind === "enumeration";
+      return text || d.kind === "enumeration";
     case "relation":
       return false;
     case "markdown":
@@ -219,15 +286,16 @@ const div = (definition: string, children: readonly string[]): Value => ({
   value: [{ name: "div", namespace: XHTML_NAMESPACE, attributes: [], children }],
 });
 
-/** An image link stays as the text has it (#1835). */
-const asWritten = (url: string): string => url;
-
-/** `own` as a value of attribute `a` of datatype `d` (see the file comment). */
+/**
+ * `own` as a value of attribute `a` of datatype `d` (see the file comment); `joined`: several items
+ * of a statement go into STRING or XHTML as one text joined by `, ` (SR-058 AK1).
+ */
 const converted = (
   own: Own,
   a: SourceAttribute,
   d: SourceDatatype,
   entry: AttributeEntry | undefined,
+  joined: boolean,
 ): Converted => {
   const definition = a.identifier;
   const kind = d.kind.toUpperCase();
@@ -238,35 +306,43 @@ const converted = (
   if (datatype === "enumeration") {
     return enumerationValue(own, a, d, entry);
   }
-  const [item = "", ...more] = own.items;
-  if (more.length > 0) {
+  const text = datatype === "string" || datatype === "xhtml" ? joined : false;
+  if (own.items.length > 1 && !text) {
     return { refusal: `${String(own.items.length)} values do not fit ${kind} ${nameOf(d)}, which holds one` };
   }
-  const markdown = own.kind === "markdown";
+  const markdown = own.kind === "markdown" && own.items.length === 1;
   if (datatype === "xhtml") {
-    return {
-      value: markdown
-        ? { kind: "xhtml", definition, value: [markdownToXhtml(item, { image: asWritten }).value] }
-        : div(definition, [item]),
-    };
+    const value = markdown
+      ? {
+          kind: "xhtml" as const,
+          definition,
+          value: own.items.map((item) => markdownToXhtml(item, { image: asWritten }).value),
+        }
+      : div(definition, [own.texts.join(", ")]);
+    return { value, warnings: [] };
   }
-  return scalarValue(
-    markdown ? xhtmlText([markdownToXhtml(item, { image: asWritten }).value]).text : item,
-    a,
-    d,
-    datatype,
-  );
+  return scalarValue(own.texts.join(", "), a, d, datatype);
 };
+
+/** The time of a DATE `text` as written (`YYYY-MM-DD` alone at midnight UTC), if it names a day. */
+const dateTimeOf = (text: string): string | undefined =>
+  DATE_TIME.test(text) && dayTime(text.slice(0, 10)) !== undefined
+    ? text.length === 10
+      ? `${text}T00:00:00Z`
+      : text
+    : undefined;
 
 /** The plain text `text` as a value of attribute `a` of a STRING, INTEGER, REAL, DATE or BOOLEAN `d`. */
 const scalarValue = (
-  text: string,
+  raw: string,
   a: SourceAttribute,
   d: SourceDatatype,
   datatype: "string" | "integer" | "real" | "date" | "boolean",
 ): Converted => {
   const definition = a.identifier;
   const kind = datatype.toUpperCase();
+  const text = datatype === "string" ? raw : raw.trim();
+  const ok = (value: string): Converted => ({ value: { kind: datatype, definition, value }, warnings: [] });
   switch (datatype) {
     case "string": {
       const max = Number(d["max-length"]);
@@ -274,22 +350,21 @@ const scalarValue = (
         ? {
             refusal: `${String(characters(text))} characters are longer than ${String(max)}, the MAX-LENGTH of ${nameOf(d)}`,
           }
-        : { value: { kind: "string", definition, value: text } };
+        : ok(text);
     }
     case "integer":
     case "real": {
-      const fits =
-        datatype === "integer" ? INTEGER.test(text) && Number.isSafeInteger(Number(text)) : REAL.test(text);
+      const fits = lexical(datatype, text);
       const why = fits ? outside(text, d) : `${text} is no ${kind} of ${nameOf(d)}`;
-      return why === undefined ? { value: { kind: datatype, definition, value: text } } : { refusal: why };
+      return why === undefined ? ok(text) : { refusal: why };
     }
-    case "date":
-      return DATE.test(text)
-        ? { value: { kind: "date", definition, value: `${text}T00:00:00Z` } }
-        : { refusal: `${text} is no DATE of ${nameOf(d)}` };
+    case "date": {
+      const time = dateTimeOf(text);
+      return time === undefined ? { refusal: `${text} is no DATE of ${nameOf(d)}` } : ok(time);
+    }
     case "boolean":
       return text === "true" || text === "false"
-        ? { value: { kind: "boolean", definition, value: text } }
+        ? ok(text)
         : { refusal: `${text} is no BOOLEAN of ${nameOf(d)}` };
   }
 };
@@ -312,13 +387,22 @@ const emptyValue = (a: SourceAttribute, d: SourceDatatype): Value[] => {
   }
 };
 
+/** At most this many reasons are in the message; `details.refusals` has all. */
+const SHOWN = 5;
+
 /** The refusals found: each reason with the requirements it concerns, in the order found. */
-const refusalError = (refusals: ReadonlyMap<string, readonly string[]>): CommandError =>
-  new CommandError(
-    "input.invalid",
-    `Not exported in the source's model: ${[...refusals].map(([reason, ids]) => `${ids.join(", ")}: ${reason}`).join("; ")}`,
-    { command: COMMAND, fields: ["mapping"] },
-  );
+const refusalError = (refusals: ReadonlyMap<string, ReadonlySet<string>>): CommandError => {
+  const all = [...refusals].map(([reason, ids]) => ({ requirements: [...ids], reason }));
+  const shown = all
+    .slice(0, SHOWN)
+    .map(({ requirements, reason }) => `${requirements.join(", ")}: ${reason}`);
+  const more = all.length > SHOWN ? `; and ${String(all.length - SHOWN)} more` : "";
+  return new CommandError("input.invalid", `Not exported in the source's model: ${shown.join("; ")}${more}`, {
+    command: COMMAND,
+    fields: ["mapping"],
+    refusals: all,
+  });
+};
 
 /** An attribute of a stored type with its datatype; readMappingFile made sure the model defines it. */
 interface Typed {
@@ -362,28 +446,35 @@ const objectValues = ({
       values.push(...(without ? emptyValue(a, d) : []));
       return;
     }
-    const result = converted(own, a, d, entry);
+    const result = converted(own, a, d, entry, statement !== undefined);
     if ("refusal" in result) {
       refuse(`${nameOf(a)} of ${nameOf(t)}: ${result.refusal}`);
       return;
     }
     values.push(result.value);
-    if (result.warning !== undefined) {
-      problems.push({
-        code: "reqif.source-value-chosen",
-        severity: "warning",
-        message: `${element.shortId}: ${nameOf(a)}: ${result.warning}`,
-      });
-    }
+    problems.push(
+      ...result.warnings.map((warning) => ({
+        code: "reqif.source-value-chosen" as const,
+        severity: "warning" as const,
+        message: `${element.shortId}: ${nameOf(a)}: ${warning}`,
+      })),
+    );
   };
   const attributes = typed(model, t);
   if (statement !== undefined) {
-    const found = attributes.filter(({ a }) => matches(statement.attribute, a)).slice(0, 1);
-    for (const x of found) {
-      write(statement.property, x, attributeEntry(mapping, t, x.a));
-    }
-    if (found.length === 0) {
-      refuse(`${nameOf(t)} of the source has no attribute ${statement.attribute} for the statement`);
+    const found = attributes.filter(({ a }) => matches(statement.attribute, a));
+    if (found.length === 1) {
+      // A choice takes the `values` of an entry of the statement property only.
+      for (const x of found) {
+        const entry = attributeEntry(mapping, t, x.a);
+        write(statement.property, x, entry?.property === statement.property ? entry : undefined);
+      }
+    } else {
+      refuse(
+        found.length === 0
+          ? `${nameOf(t)} of the source has no attribute ${statement.attribute} for the statement`
+          : `attributes ${found.map((x) => x.a.identifier).join(", ")} of ${nameOf(t)} all match ${statement.attribute}, the attribute of the statement`,
+      );
     }
     return { values, without };
   }
@@ -419,14 +510,13 @@ export const planSourceExport = (input: SourceExportInput): SourceExportPlan => 
       { command: COMMAND, fields: ["mapping"] },
     );
   }
-  const refusals = new Map<string, string[]>();
+  const refusals = new Map<string, Set<string>>();
   const problems: Problem[] = [];
   const used = new Set<SourceType>();
   let withoutStatement = 0;
   const specObjects = input.elements.flatMap((element) => {
     const refuse = (reason: string): void => {
-      const ids = refusals.get(reason) ?? [];
-      refusals.set(reason, ids.includes(element.shortId) ? ids : [...ids, element.shortId]);
+      refusals.set(reason, (refusals.get(reason) ?? new Set<string>()).add(element.shortId));
     };
     const types = typesOf(element.record.type);
     if (types.length > 1) {

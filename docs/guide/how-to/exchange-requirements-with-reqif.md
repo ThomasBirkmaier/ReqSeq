@@ -12,7 +12,7 @@ ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq
 3. The import creates one element per object, all or nothing, turns XHTML text into Markdown, and lists as losses what it leaves out. Each element keeps its origin: source, source identifier, import date and delivery.
 4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
 
-The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes the statement on each imported requirement back under the source's identifiers, or each requirement in the source's model. A file that ReqSeq exported imports without a mapping.
+The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes your statements back under the source's identifiers, also in the source's model, or the requirements in that model, where a STRING attribute gets the text without formatting. A file that ReqSeq exported imports without a mapping.
 
 ## App
 
@@ -26,7 +26,7 @@ In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
 
 ## CLI
 
-The commands start from a new workspace. The customer's first delivery:
+From a new workspace, the first delivery:
 
 ```sh
 reqseq workspace init . "Wind sensor"
@@ -222,7 +222,7 @@ elements:
 total: 3
 ```
 
-With a conflict, add `--take CR-1` or `--keep CR-1`. Write your statement into the requirement, and export the statements of the source:
+With a conflict, add `--take CR-1` or `--keep CR-1`. Write your statement, and export the source's statements:
 
 ```sh
 reqseq element update SR-c67baa --set "statement=Agreed, one value per second."
