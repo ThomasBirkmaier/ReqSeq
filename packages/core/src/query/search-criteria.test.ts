@@ -343,6 +343,11 @@ describe("criterion keys and references in filters (SR-222 AK5)", () => {
       { workspace },
     )) as CommandOutput<"element.facets">;
     expect(facets.total).toBe(2);
+    // The selectable values of the criteria are their 7 texts, without the keys.
+    const all = (await invoke("element.facets", {}, { workspace })) as CommandOutput<"element.facets">;
+    const criteria = all.properties.find((property) => property.key === "acceptance-criteria");
+    expect(criteria?.distinct).toBe(7);
+    expect(JSON.stringify(criteria)).not.toMatch(/k7f3|rqjp|m4st|w1nd/u);
   });
 });
 

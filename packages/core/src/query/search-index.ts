@@ -81,6 +81,7 @@
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
 // the documents of the changed files are replaced in the same MiniSearch object (see
 // `carrySearchIndex`), so a save costs the files it wrote, not a build.
+import { acceptanceCriteriaKeyOf } from "../model/acceptance-criteria.js";
 import { isCriterionMapping } from "../model/criterion-items.js";
 import { setTimeout as delay, setImmediate as nextTurn } from "node:timers/promises";
 import MiniSearch from "minisearch";
@@ -114,7 +115,6 @@ import { designationRuns, designationTable } from "./search-designations.js";
 import { buildVocabulary, carryVocabulary, newWords, vocabularyOf } from "./search-vocabulary.js";
 import type { KeyedRecords } from "./search-criteria.js";
 import { carryKeyed, keyedRecords, queryKeyOf, queryReferenceOf } from "./search-criteria.js";
-import { acceptanceCriteriaKeyOf } from "../model/acceptance-criteria.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
   carryLengths,
@@ -1361,7 +1361,7 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
 /**
  * Marks in `found` (and adds to it) every record of `criteria` the search admits: the key is found in
  * its criterion (SR-222 AK1, AK2), so in `properties`, not late, and it adds the score of one rare
- * word (`keyScoreOf`, P7 of the wording: by relevance like a word).
+ * word (`keyScoreOf`: by relevance like a word).
  */
 const criteriaFound = (search: Search, criteria: CriteriaMatch, found: Map<string, Found>): void => {
   const { key, records, count } = criteria;
@@ -1441,7 +1441,6 @@ const fieldsBesideWords = (ids: number, keys: readonly string[]): string[] => [
  * The hit of one document: fields in the order of `SEARCH_FIELDS` (of a phrase only those it
  * stands in, SR-174 AK6), the words that matched, the phrases found.
  */
-
 const hitOf = ({ element, score, matches, phrases, ids, keys }: Found): SearchHit => {
   const fields = new Set<string>(fieldsBesideWords(ids, keys));
   const terms = new Set<string>();
@@ -1632,8 +1631,7 @@ interface QueryContext {
 }
 
 /**
- * A criterion reference that fits (SR-222 AK2) as a special word, as an ID word is one ("wie über
- * eine ID"): its words searched as words (`text`), but not in the requirements it fits; an ID match of
+ * A criterion reference that fits as a special word, as an ID word is one (SR-222 AK2): its words searched as words (`text`), but not in the requirements it fits; an ID match of
  * these when `id` is searched, and found in their criterion when the acceptance criteria property
  * is. Undefined when it can match nothing.
  */

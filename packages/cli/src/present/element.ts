@@ -367,7 +367,7 @@ const snippetWhere = (snippet: Rec, style: Style): { readonly shown: string; rea
   if (!isRecord(criterion) || typeof criterion["criterion"] !== "number") {
     return { shown: style.faint(`${name}:`), width: widthOf(`${name}:`) };
   }
-  const number = `${name} AK${String(criterion["criterion"])}`;
+  const number = `${name} ${criterionLabel({ criterion: criterion["criterion"] })}`;
   const key = typeof criterion["key"] === "string" ? criterion["key"] : undefined;
   if (key === undefined) {
     return { shown: style.faint(`${number}:`), width: widthOf(`${number}:`) };

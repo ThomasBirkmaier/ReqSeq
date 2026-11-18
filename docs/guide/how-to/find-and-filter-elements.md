@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; typed exactly, 4 letters also match inside words (SR-221); quoted words only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A criterion key (`k7f3`, also `AK-k7f3`) finds its acceptance criterion, exactly, and a criterion reference from a test name (`[SR-036/AK-k7f3]`) finds its requirement first (SR-222); `reqseq element search` names the number and key of the acceptance criterion a hit stands in, such as `Acceptance Criteria AK3 (k7f3)`. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, best first; typed exactly, 4 letters also match inside words (SR-221); quoted words only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). Criterion keys and references find their criterion (SR-222). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, shared by all. Grouping and sorting change no file, unless saved as a perspective, or the sort with a saved filter.
 
 ## App
 

@@ -646,6 +646,26 @@ scenariosOf("element.search", [
     },
   },
   {
+    tag: "[SR-216/AK-wf2k]",
+    name: "a criterion key found only in the chosen fields: in the acceptance criteria, not in the title and text",
+    fixture: CRITERIA,
+    input: { query: "rqjp", fields: ["title", "text"] },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d3"]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-wf2k]",
+    name: "a criterion reference in the acceptance criteria only, without IDs: found in its criterion",
+    fixture: CRITERIA,
+    input: { query: "[SR-036/AK-rqjp]", fields: ["acceptance-criteria"] },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d1"]);
+    },
+  },
+  {
     tag: "[SR-216/AK-r9jg]",
     name: "the acceptance criteria property is found by a criterion key, the IDs by a criterion reference",
     fixture: CRITERIA,
